@@ -49,4 +49,13 @@ public static class BankingCodes
 
     /// <summary>A statement file holding statements of more than one account (or currency).</summary>
     public const string FileSeveralAccounts = "banking.file_several_accounts";
+
+    /// <summary>Linking or ignoring a line that is not <c>unlinked</c> (409).</summary>
+    public const string TransactionLinked = "banking.transaction_linked";
+
+    /// <summary>A link to a module other than <c>subscriptions</c> or <c>realestate</c>, or to an item of another module.</summary>
+    public const string LinkTarget = "banking.link_target";
+
+    /// <summary>A bank proposal approved with an edited payload: reject it instead.</summary>
+    public const string ProposalNotEditable = "banking.proposal_not_editable";
 }

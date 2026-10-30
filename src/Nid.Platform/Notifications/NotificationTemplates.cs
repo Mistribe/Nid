@@ -45,6 +45,8 @@ public static class NotificationTemplates
         ["banking.consent_expiring"] = "Le consentement d'une banque expire bientôt",
         ["banking.consent_expired"] = "Le consentement d'une banque a expiré",
         ["banking.sync_failing"] = "La synchronisation d'une banque échoue",
+        ["banking.amount_differs"] = "Montant différent du prévu",
+        ["banking.charge_missing"] = "Charge attendue non prélevée",
     };
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
@@ -164,7 +166,8 @@ public static class NotificationTemplates
         if (n.ItemIds.Count == 0)
             return n.Kind switch { "fx_rate_missing" => "/dashboard", "routine_due" => "/routine", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
-        return kind.Module switch
+        // The banking findings name the page of their item in "module", the item being any module's.
+        return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch
         {
             "subscriptions" => $"/subscriptions/{id}",
             "loans" => $"/loans/{id}",

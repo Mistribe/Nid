@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
+using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
@@ -56,10 +57,19 @@ public sealed record StatementImportView(
 public sealed class ImportStatementHandler(
     BankingAccess access, IConnectionStore connections, IAccountStore accounts, ITransactionStore transactions, IBalanceStore balances,
     IAccessPolicy policy, BalanceValuation valuation, IHouseholdCalendar calendar, IInvoker invoker, IUnitOfWork unitOfWork, IServiceProvider services,
-    IClock clock)
+    IClock clock, BankReconciliation reconciliation)
     : IRequestHandler<ImportStatementCommand, StatementImportView>
 {
     public async ValueTask<Result<StatementImportView>> HandleAsync(ImportStatementCommand command, CancellationToken ct = default)
+    {
+        var imported = await ImportAsync(command, ct);
+        // Once the import's unit of work is over: its lines stay stored whatever the pass does.
+        if (imported.TryGetValue(out var view) && view.Written && view.AccountId is { } account)
+            await reconciliation.RunAsync([account], await calendar.TodayAsync(ct), ct);
+        return imported;
+    }
+
+    private async Task<Result<StatementImportView>> ImportAsync(ImportStatementCommand command, CancellationToken ct)
     {
         // A file needs no Enable Banking application: banking on is enough (ruling R-d).
         var enabled = await access.EnabledAsync(ct);

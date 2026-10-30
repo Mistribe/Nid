@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/server';
-import type { BankAccount, Connection } from './api';
+import type { BankAccount, BankRule, Connection } from './api';
 
 export const CONNECTION = '00000000-0000-7000-8000-0000000000b1';
 export const CHECKING = '00000000-0000-7000-8000-0000000000b2';
@@ -11,6 +11,12 @@ export const account = (over: Partial<BankAccount> = {}): BankAccount => ({
   id: CHECKING, name: 'Compte courant', ibanMasked: 'FR76 •••• 1234', kind: 'checking', currency: 'EUR', envelopeId: null,
   cardOfAccountId: null, autoApplyBalance: false, ignored: false, balanceConflictOn: null, lastBalance: '1520.30', lastBalanceOn: '2026-09-30',
   synced: true, canWrite: true, ...over,
+});
+
+export const rule = (over: Partial<BankRule> = {}): BankRule => ({
+  id: '00000000-0000-7000-8000-0000000000c1', labelStem: 'PRLV SEPA NETFLIX', accountName: 'Compte courant', module: 'subscriptions',
+  itemId: '00000000-0000-7000-8000-0000000000d1', itemName: 'Netflix', createdAt: '2026-09-02T08:00:00+00:00', lastUsedAt: '2026-10-02T04:30:00+00:00',
+  ...over,
 });
 
 export const connection = (over: Partial<Connection> = {}): Connection => ({

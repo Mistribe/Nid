@@ -9,7 +9,7 @@ namespace Nid.Banking.Infrastructure.Persistence;
 
 public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITransactionStore
 {
-    public async Task<TransactionWrite> AddAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct)
+    public async Task<TransactionWrite> AddAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct, bool reconciled = false)
     {
         if (lines.Count == 0)
             return new TransactionWrite(0, 0);
@@ -56,6 +56,7 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
                 Id = Guid.CreateVersion7(), AccountId = account, ProviderRef = refs[i], Fingerprint = fingerprint, BookedOn = l.BookedOn,
                 ValueOn = l.ValueOn, Amount = l.Amount, Currency = l.Currency.Code, Label = l.Label, Counterparty = l.Counterparty,
                 Remittance = l.Remittance, NormalizedLabel = normalized[i], FetchedVia = l.FetchedVia, CreatedAt = now,
+                ReconciledAt = reconciled ? now : null,
             });
             added++;
         }
@@ -92,9 +93,18 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     }
 
     public async Task<IReadOnlyList<BankTransaction>> ListAsync(
-        IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct)
+        IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
+        IReadOnlyList<Guid>? readable = null)
     {
         var query = db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId));
+        var hidden = db.Links.Where(l => l.CounterpartAccountId != null && readable != null && !readable.Contains(l.CounterpartAccountId.Value))
+            .Select(l => l.TransactionId);
+        if (state is "internal" && readable is not null)
+            query = query.Where(t => t.LinkState == state && !hidden.Contains(t.Id));
+        else if (state is "linked" && readable is not null)
+            query = query.Where(t => t.LinkState == state || (t.LinkState == "internal" && hidden.Contains(t.Id)));
+        else if (state is not null)
+            query = query.Where(t => t.LinkState == state);
         if (from is { } f)
             query = query.Where(t => t.BookedOn >= f);
         if (to is { } u)
@@ -103,10 +113,26 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             .Select(ToModel).ToList();
     }
 
+    public async Task<IReadOnlyList<BankTransaction>> UnreconciledAsync(IReadOnlyCollection<Guid>? accounts, CancellationToken ct)
+        => (await db.Transactions.AsNoTracking()
+            .Where(t => t.ReconciledAt == null && (accounts == null || accounts.Contains(t.AccountId)))
+            .OrderBy(t => t.BookedOn).ThenBy(t => t.Id).ToListAsync(ct)).Select(ToModel).ToList();
+
+    public async Task<IReadOnlyList<BankTransaction>> UnlinkedBetweenAsync(LocalDate from, LocalDate to, CancellationToken ct)
+        => (await db.Transactions.AsNoTracking()
+            .Where(t => t.LinkState == "unlinked" && t.BookedOn >= from && t.BookedOn <= to)
+            .OrderBy(t => t.BookedOn).ThenBy(t => t.Id).ToListAsync(ct)).Select(ToModel).ToList();
+
+    public async Task<BankTransaction?> FindAsync(Guid id, CancellationToken ct)
+        => await db.Transactions.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct) is { } row ? ToModel(row) : null;
+
+    public async Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
+        => await db.Transactions.Where(t => ids.Contains(t.Id)).ExecuteUpdateAsync(s => s.SetProperty(t => t.ReconciledAt, at), ct);
+
     public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct)
         => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")).ExecuteDeleteAsync(ct);
 
-    private static BankTransaction ToModel(TransactionRow r) => new(
+    internal static BankTransaction ToModel(TransactionRow r) => new(
         r.Id, r.AccountId, r.ProviderRef, r.Fingerprint, r.BookedOn, r.ValueOn, r.Amount,
         Currency.TryCreate(r.Currency, out var currency) ? currency : throw new InvalidOperationException($"Bank transaction {r.Id} has no valid currency."),
         r.Label, r.Counterparty, r.Remittance, r.NormalizedLabel,

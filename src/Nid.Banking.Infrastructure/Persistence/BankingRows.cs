@@ -90,6 +90,47 @@ public sealed class TransactionRow
     public string LinkState { get; set; } = "unlinked";
     public string FetchedVia { get; set; } = "";
     public Instant CreatedAt { get; set; }
+
+    /// <summary>When the reconciliation job looked at the line; null until then.</summary>
+    public Instant? ReconciledAt { get; set; }
+}
+
+public sealed class LinkRow
+{
+    public Guid TransactionId { get; set; }
+    public string? TargetModule { get; set; }
+    public Guid? TargetItemId { get; set; }
+    public string? TargetKey { get; set; }
+    public Guid? CounterpartAccountId { get; set; }
+    public string Outcome { get; set; } = "";
+    public decimal? ExpectedAmount { get; set; }
+    public string? ExpectedCurrency { get; set; }
+
+    /// <summary><c>person:{id}</c>, <c>rule:{id}</c> or <c>job</c>.</summary>
+    public string DecidedBy { get; set; } = "";
+
+    public Instant DecidedAt { get; set; }
+}
+
+public sealed class RuleRow
+{
+    public Guid Id { get; set; }
+    public Guid AccountId { get; set; }
+    public string LabelStem { get; set; } = "";
+    public string TargetModule { get; set; } = "";
+    public Guid TargetItemId { get; set; }
+    public Guid CreatedByPersonId { get; set; }
+    public Instant CreatedAt { get; set; }
+    public Instant? LastUsedAt { get; set; }
+}
+
+/// <summary>A recurring group already proposed: the job's memory, never a decision.</summary>
+public sealed class RecurringGroupRow
+{
+    public Guid Id { get; set; }
+    public Guid AccountId { get; set; }
+    public string LabelStem { get; set; } = "";
+    public Instant ProposedAt { get; set; }
 }
 
 public sealed class SyncRunRow

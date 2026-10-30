@@ -102,7 +102,7 @@ function Proposal({ id }: { id: string }) {
           <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? applyFailedText(t, w.message) : w.message}</li>)}</ul>
         </section>
       ) : null}
-      {kind && preview ? <kind.Preview preview={preview} /> : null}
+      {kind && preview ? <kind.Preview preview={preview} original={p.editedPayload ?? p.payload} /> : null}
       {route ? <RoutePayload p={p} /> : !kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
     </>
   );

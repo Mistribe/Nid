@@ -62,6 +62,24 @@ test('alice keeps the operations 24 months, then without limit', async ({ page }
   await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
 });
 
+/** 5C: bank sync on without Enable Banking, alice reaches « Opérations à relier » from « À valider » and keeps no rule yet. */
+test('alice opens « Opérations à relier » and finds « Règles mémorisées » empty', async ({ page }) => {
+  await signIn(page, 'alice', '/admin/banking');
+  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+
+  await page.goto('/proposals');
+  await page.getByRole('link', { name: 'Opérations à relier' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Opérations à relier' })).toBeVisible();
+  // Empty on a fresh stack; the statement journey below leaves lines to link on a stack that ran it before.
+  await expect(page.getByText('Aucune opération à relier.').or(page.getByRole('table', { name: 'Opérations à relier' }))).toBeVisible();
+
+  await page.goto('/settings/banks');
+  // No journey links a line by hand, so alice's rules stay empty.
+  await expect(page.getByRole('region', { name: 'Règles mémorisées' }).getByText('Aucune règle mémorisée.')).toBeVisible();
+
+  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+});
+
 /** Bank sync on without Enable Banking: a statement file needs nothing else. The vector's account id is made this run's own, so its lines are all new. */
 test('alice imports an OFX statement on a checking envelope, previews it, confirms it and finds its lines in « Opérations »', async ({ page }) => {
   const stamp = Date.now();

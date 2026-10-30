@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import type { EnvelopeDetail } from '../api';
 import { useTransactions, type BankTransaction } from './api';
 import ImportStatementDialog from './ImportStatementDialog';
+import { LineActions, lineState } from './LineActions';
 import '@/locales/banks';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -42,6 +43,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       ) : null}
     </span>
   );
+  const actions = (l: BankTransaction) => <LineActions line={l} onDone={setAnnouncement} />;
   const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
 
   return (
@@ -64,11 +66,16 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
             { id: 'date', header: t('banks.operations.date'), sort: (l) => l.bookedOn, cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
             { id: 'label', header: t('banks.operations.label'), cell: label },
             { id: 'amount', header: t('banks.operations.amount'), align: 'end', sort: (l) => amountKey(l.amount), cell: amount },
+            { id: 'state', header: t('banks.operations.state'), sort: (l) => lineState(t, l), cell: (l) => lineState(t, l) },
+            ...(writable ? [{ id: 'actions', header: t('banks.operations.actions_col'), align: 'end' as const, cell: actions }] : []),
           ]}
           mobile={(l) => (
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-2">{label(l)}{amount(l)}</div>
-              <div className="text-sm text-muted-foreground"><LocalDate value={l.bookedOn} style="short" /></div>
+              <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                <span><LocalDate value={l.bookedOn} style="short" /> · {lineState(t, l)}</span>
+                {writable ? actions(l) : null}
+              </div>
             </div>
           )} />
       ) : null}

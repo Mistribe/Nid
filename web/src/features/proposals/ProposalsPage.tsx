@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { SortableTable } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { formatInstantDay } from '@/features/admin/format';
+import { ToLinkLink } from '../operations/ToLinkLink';
 import { PROPOSALS, type ProposalView } from './api';
 import { useAnnouncement } from './announce';
 import { kindOf, originText } from './kinds';
@@ -59,7 +60,7 @@ export function ProposalsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t('proposals.title')} />
+      <PageHeader title={t('proposals.title')} actions={<ToLinkLink />} />
       <p role="status">{message}</p>
       {/* The status as tabs, like every list's (one list, read for the open tab's status). */}
       <DetailTabs value={status} onChange={setStatus}

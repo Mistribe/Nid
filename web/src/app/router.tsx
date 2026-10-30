@@ -299,6 +299,12 @@ const notificationsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/notifications/NotificationsPage'), 'NotificationsPage'),
 });
 
+const operationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/operations',
+  component: lazyRouteComponent(() => import('@/features/operations/UnlinkedPage'), 'UnlinkedPage'),
+});
+
 const routineRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/routine',
@@ -529,7 +535,7 @@ export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, banksSettingsRoute,
-  securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute,
+  securityRoute, operationsRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
 ]);
 

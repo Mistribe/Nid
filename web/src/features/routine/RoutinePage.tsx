@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { monthLabel } from '../income/expected/months';
+import { ToLinkLink } from '../operations/ToLinkLink';
 import { PendingLine } from '../proposals/PendingLine';
 import { todayIso } from '../subscriptions/today';
 import { ISO_DATE } from '../subscriptions/edits/amount';
@@ -52,7 +53,7 @@ export function RoutinePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('routine.title', { month: monthText })} />
+      <PageHeader title={t('routine.title', { month: monthText })} actions={<ToLinkLink />} />
       <PendingLine />
       <div className="max-w-xs">
         <Field label={t('routine.date')} error={typed ? t('routine.date_invalid') : undefined}>

@@ -5,9 +5,9 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { formatInstant } from '../../admin/format';
+import { formatInstant, formatInstantDay } from '../../admin/format';
 import { summary } from '../../investments/testData';
-import { account, CONNECTION, connection, serveBanks } from './testData';
+import { account, CONNECTION, connection, rule, serveBanks } from './testData';
 
 describe('Réglages › Banques', () => {
   beforeAll(async () => { await import('./BanksPage'); }, 30_000);
@@ -45,6 +45,7 @@ describe('Réglages › Banques', () => {
     await renderApp('/settings/banks');
 
     expect(await screen.findByRole('heading', { name: 'Aucune banque reliée' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Règles mémorisées' })).toHaveTextContent('Aucune règle mémorisée.');
   });
 
   it('says banking is off, and hides the « Banques » entry, when the household has it off', async () => {
@@ -191,5 +192,57 @@ describe('Réglages › Banques', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toBe(CONNECTION));
+  });
+
+  it('lists and deletes a rule', async () => {
+    serveBanks([connection()]);
+    const loan = '00000000-0000-7000-8000-0000000000d2', property = '00000000-0000-7000-8000-0000000000d3';
+    let rules = [
+      rule(),
+      rule({ id: 'r2', labelStem: 'PRLV CREDIT IMMO', module: 'realestate', itemId: loan, itemName: 'Prêt maison' }),
+      rule({ id: 'r3', labelStem: 'TAXE FONCIERE', module: 'realestate', itemId: property, itemName: 'Maison', accountName: null, lastUsedAt: null }),
+      rule({ id: 'r4', labelStem: 'CB SPOTIFY', itemName: null }),
+      rule({ id: 'r5', labelStem: 'PRLV SYNDIC', module: 'realestate', itemId: '00000000-0000-7000-8000-0000000000d4', itemName: 'Studio' }),
+    ];
+    let deleted = '';
+    server.use(
+      http.get('*/api/v1/banking/rules', () => HttpResponse.json(rules)),
+      // A real-estate target is a loan or a property: the two lists tell which.
+      http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [{ id: loan }] })),
+      http.get('*/api/v1/realestate/properties', () => HttpResponse.json({ items: [{ id: property }] })),
+      http.delete('*/api/v1/banking/rules/:id', ({ params }) => {
+        deleted = String(params.id);
+        rules = rules.filter((r) => r.id !== deleted);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { user, container } = await renderApp('/settings/banks');
+
+    const section = await screen.findByRole('region', { name: 'Règles mémorisées' });
+    const table = within(await within(section).findByRole('table', { name: 'Règles mémorisées' }));
+    const row = (stem: string) => table.getAllByRole('row').find((r) => r.textContent?.includes(stem))!;
+    await waitFor(() => expect(within(row('PRLV CREDIT IMMO')).getByRole('link', { name: 'Prêt maison' })).toHaveAttribute('href', `/loans/${loan}`));
+    expect(row('PRLV SEPA NETFLIX')).toHaveTextContent('Compte courant');
+    expect(row('PRLV SEPA NETFLIX')).toHaveTextContent(formatInstantDay('2026-10-02T04:30:00+00:00'));
+    expect(within(row('PRLV SEPA NETFLIX')).getByRole('link', { name: 'Netflix' })).toHaveAttribute('href', '/subscriptions/00000000-0000-7000-8000-0000000000d1');
+    await waitFor(() => expect(within(row('TAXE FONCIERE')).getByRole('link', { name: 'Maison' })).toHaveAttribute('href', `/properties/${property}`));
+    expect(row('TAXE FONCIERE')).toHaveTextContent('Jamais');
+    // In neither list (an archived item): the name alone, never a guessed page.
+    expect(row('PRLV SYNDIC')).toHaveTextContent('Studio');
+    expect(within(row('PRLV SYNDIC')).queryByRole('link')).toBeNull();
+    // The creator no longer reads the target: no name, no link.
+    expect(row('CB SPOTIFY')).toHaveTextContent('Élément inaccessible');
+    expect(within(row('CB SPOTIFY')).queryByRole('link')).toBeNull();
+    await expectNoAxeViolations(container);
+
+    await user.click(within(row('PRLV SEPA NETFLIX')).getByRole('button', { name: 'Actions sur la règle PRLV SEPA NETFLIX' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
+    expect(await screen.findByText(/n'est plus reliée d'elle-même/)).toBeInTheDocument();
+    expect(deleted).toBe('');
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(deleted).toBe('00000000-0000-7000-8000-0000000000c1'));
+    expect(await within(section).findByText('Règle supprimée.')).toBeInTheDocument();
+    await waitFor(() => expect(within(section).queryByText('PRLV SEPA NETFLIX')).toBeNull());
   });
 });

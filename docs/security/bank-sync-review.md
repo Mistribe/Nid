@@ -1,10 +1,11 @@
-# Revue de risque : synchronisation bancaire, sous-plans 5A et 5B
+# Revue de risque : synchronisation bancaire, sous-plans 5A, 5B et 5C
 
-> Statut : revue de 5A (connexion et soldes), 2026-10-29, et de 5B (opérations et fichiers, §5), 2026-10-30, exigée par
-> `risk-register.md` §7 (étape 5) avant mise en service.
+> Statut : revue de 5A (connexion et soldes), 2026-10-29, de 5B (opérations et fichiers, §5), 2026-10-30, et de 5C
+> (rapprochement des charges, §6), 2026-10-30, exigée par `risk-register.md` §7 (étape 5) avant mise en service.
 > Références : `../superpowers/specs/2026-10-29-bank-sync-design.md` (§0, §1, §10, §11), plan
 > `../superpowers/plans/2026-10-29-stage-5a-bank-connection-and-balances.md`, `../superpowers/plans/2026-10-29-stage-5b-bank-transactions-and-files.md`,
-> `application.md` §3, `infrastructure.md`. Le rapprochement, les revenus et le CSV (5C à 5E) feront l'objet de leur propre revue.
+> `../superpowers/plans/2026-10-30-stage-5c-charge-reconciliation.md`, `application.md` §3, `infrastructure.md`. Les revenus et
+> le CSV (5D, 5E) feront l'objet de leur propre revue.
 
 ---
 
@@ -352,3 +353,178 @@ l'écriture, ou arrondi silencieux), fichier gardé sur disque après coup.
 | B9 | Navigateur : choisir un autre fichier pendant un aperçu en cours peut confirmer un fichier dont l'aperçu n'a pas été vu | Le fichier confirmé est relu et vérifié en entier par le serveur, avec les mêmes droits | Accepté |
 | B10 | Journal : une lecture coupée et une vraie erreur de connexion la même nuit ne gardent que le premier code | Le journal sous-dit la seconde | Accepté |
 | B11 | Un compte importé par `nid.data` n'a pas d'empreinte d'IBAN | Un relevé ou une connexion du même compte réel crée ensuite un second compte | Accepté (§15 de la spec) |
+
+## 6. Sous-plan 5C : rapprochement des charges (2026-10-30)
+
+Amendement de la spec : §15, « 5C tel que construit ».
+
+### 6.1 Périmètre
+
+| Élément | Détail |
+|---|---|
+| Données stockées | `banking.link` (opération → élément cible et clé de la charge, ou compte de contrepartie ; issue, montant attendu, auteur de la décision), `banking.rule` (compte, radical du libellé, cible, créateur, dernière utilisation), `banking.recurring_group` (compte, radical, date de la proposition) ; `banking.transaction.reconciled_at` |
+| Port nouveau | `IExpectedCharges` (Core.Contracts), implémenté par Subscriptions et RealEstate : les charges attendues qu'une personne **lit** (`VisibilityScope.Me`), ou **écrit** pour les candidats, les règles et les propositions |
+| Routes nouvelles | Sous `/api/v1/banking` : `GET transactions` (tous les comptes lisibles), `GET transactions/{id}/candidates`, `GET expected-charges` (92 jours au plus), `POST transactions/{id}/link`, `unlink`, `ignore`, `GET rules`, `DELETE rules/{id}` ; `state` sur les opérations d'une enveloppe |
+| Propositions | `banking.link_transaction` et `banking.create_subscription` (non modifiables, `banking.proposal_not_editable`) ; suites existantes : `subscriptions.change_price`, `realestate.add_property_flow` (`externalRef = bank:{id}`) |
+| Constats | `banking.amount_differs` et `banking.charge_missing`, famille `finding` : montants en chaînes décimales, jamais un libellé |
+| MCP | `list_bank_transactions`, `list_expected_charges` (lecture), `propose_bank_link` ; délier, ignorer et supprimer une règle en propositions par route (4D3) |
+| Export / import | Sections `bank_links` et `bank_rules` de `nid.data` |
+| Tâche | Le passage de rapprochement après chaque synchronisation (nuit et clic) et chaque import de relevé confirmé ; les prélèvements récurrents dans `bank-sync-nightly` seulement |
+
+### 6.2 Échec n° 1 : un lien révèle l'élément privé de l'autre adulte (D19)
+
+**Menace.** Deux sens.
+
+- L'abonnement privé de A est payé depuis le compte joint que la connexion de B lit. B, par la ligne, la liste des règles, une
+  proposition, un constat, l'export ou le MCP, apprend le nom, le module ou la clé de l'élément de A.
+- L'abonnement commun S est payé depuis le compte privé de A. B, qui lit S, apprend par une proposition sur S (liaison, prix,
+  encaissement), sa notification, un constat ou l'historique de S qu'une opération du compte privé de A l'a payé, de quel
+  montant, à quelle date, sous quel libellé.
+
+**Couverture.**
+
+- Une opération se lit avec son compte (`BankingAccess`, 5A) ; son lien (module, élément, nom, clé, règle) seulement avec la
+  lecture de la cible, sa contrepartie (virement, règlement de carte) seulement avec la lecture de l'autre compte. Sinon la
+  vue dit `linkState: linked` et `link: null` : une opération interne vers un compte privé de A se lit « reliée » chez B, pas
+  « interne », et ne sort pas sous `state=internal`.
+- Délier exige l'écriture du compte et de la cible (lecture de la contrepartie pour un lien interne) ; un lien masqué est
+  introuvable. Lier exige de même l'écriture du compte (introuvable pour qui ne le lit pas, interdit pour qui le lit seulement),
+  par la route, `banking.link_transaction` et `propose_bank_link`, puis l'écriture de la cible, **avant** de vérifier le module :
+  un identifiant d'élément que la personne ne lit pas répond « introuvable », jamais `banking.link_target`, et ne peut pas servir
+  de sonde. Ainsi tout lien humain peut être défait par qui l'a fait.
+- Les règles se lisent et se suppriment par leur créateur seul. Le nom de la cible et celui du compte d'une règle sont nuls
+  dès que son créateur ne les lit plus. Une règle ne relie que tant que son créateur écrit le compte **et** la cible : un
+  élément rendu privé par l'autre adulte, ou archivé, n'est plus relié par une ancienne règle.
+- Propositions : le déposant d'une proposition de la tâche écrit le compte et la cible (D22). « À valider » montre une
+  proposition à chaque lecteur de son élément et la notifie à chaque adulte qui l'écrit (4C2) : c'est l'élément qui est lu, pas
+  le compte. Donc une proposition de liaison (étape 4) et les suites d'un lien (`change_price`, encaissement), qui portent
+  l'opération ou son montant, ne sont déposées que si **chaque adulte actif qui lit l'élément lit aussi le compte** ; sinon
+  l'opération est reliée sans suite, et seul le constat, filtré par compte, le dit à A. L'aperçu de la liaison et du
+  prélèvement récurrent ne donne l'opération et le compte qu'à qui les lit ; le prélèvement récurrent propose un abonnement de
+  la visibilité du compte (son enveloppe, ou privé à son propriétaire), donc lu des mêmes adultes.
+- Audit : `banking.link` et `banking.rule` sont audités **sans élément**. L'historique d'un élément (`/audit/items/{id}`), que
+  chacun de ses lecteurs lit, ne montre ni le radical d'une règle, ni le compte, ni l'opération d'un lien.
+- Constats : `amount_differs` va aux lecteurs de l'élément, `charge_missing` aux lecteurs de l'élément, et les deux ne
+  comptent que les liens dont le **compte** de l'opération est lu par le destinataire : un élément commun payé depuis le compte
+  privé de A ne dit rien à B (ni montant, ni « prélevé ou non »). Un écart de prix d'un abonnement commun payé depuis le compte privé de
+  A, sans proposition (ci-dessus), est un constat pour A seule.
+- Export : un lien s'exporte quand l'exportateur lit le compte et la cible ; une règle quand il l'a créée. Import : un lien
+  dont l'importateur n'écrit pas la cible est sauté ; une règle n'est reprise qu'à son nom, cible écrivable.
+- MCP : les outils de lecture passent par les mêmes requêtes que le web ; `propose_bank_link` dépose la même proposition, avec
+  les mêmes contrôles.
+- Banc anti-fuite : le jeu mixte porte une ligne du compte joint reliée à l'abonnement privé de A, avec la règle de A, et une
+  ligne du compte privé de A, à son libellé privé, reliée à l'abonnement joint, avec une règle de A au radical de ce libellé ;
+  les lectures des opérations, des candidats, des charges attendues, des règles, l'historique des éléments et les pages
+  d'export `bank_links` et `bank_rules` sont au catalogue. B lit la ligne joint, jamais le nom de l'élément privé de A, ni le
+  libellé ou le radical de la ligne privée de A.
+
+**Tests.**
+
+- `Nid.Banking.IntegrationTests` : `LinkRouteTests.A_private_link_is_only_linked_for_the_other_adult`,
+  `LinkRouteTests.B_cannot_unlink_A_private_link`, `LinkRouteTests.An_internal_link_to_an_account_B_cannot_read_is_only_linked_for_B`,
+  `LinkRouteTests.Rules_are_their_creator_only`, `LinkRouteTests.Candidates_are_writable_charges_nearest_amount_first`,
+  `LinkTests.Linking_needs_write_on_the_target`, `LinkTests.Linking_needs_write_on_the_account`,
+  `LinkTests.A_different_price_on_a_shared_item_from_a_private_account_proposes_nothing`,
+  `ReconciliationTests.A_shared_item_paid_from_a_private_account_is_not_proposed`,
+  `ReconciliationTests.A_rule_on_a_private_account_links_a_shared_item_without_telling_B` (dont l'historique de l'élément),
+  `ReconciliationTests.A_rule_whose_creator_only_reads_the_account_links_nothing`,
+  `ReconciliationTests.A_reader_who_does_not_write_the_account_is_not_asked`,
+  `ReconciliationTests.A_rule_its_creator_cannot_write_links_nothing`,
+  `ReconciliationTests.Two_rules_to_different_items_link_nothing`, `ReconciliationTests.The_depositor_writes_the_target`,
+  `RecurringDebitTests.The_depositor_is_a_reader_who_owns_the_subscription`,
+  `BankingNotificationTests.B_gets_no_finding_for_A_private_item`,
+  `BankingNotificationTests.A_difference_on_A_private_account_is_no_finding_for_B_even_on_a_shared_item`,
+  `BankingNotificationTests.A_missing_charge_seen_through_A_private_account_is_no_finding_for_B`,
+  `BankingNotificationTests.A_shared_subscription_difference_on_A_private_account_is_a_finding_for_A_only`,
+  `BankImportTests.A_link_to_an_unreadable_target_is_not_exported`, `BankImportTests.Links_and_rules_round_trip`.
+- `Nid.Host.IntegrationTests` : `LeakBenchTests` (les trois tests de 5B, jeu étendu), `McpBankingToolTests`,
+  `McpRouteToolTests.Every_web_write_is_a_tool_or_left_out_on_purpose_and_each_tool_matches_its_route`.
+
+### 6.3 Échec n° 2 : un lien écrit sans humain, ou « À valider » inondé
+
+**Menace.** Nid relie de lui-même une opération à une charge qu'aucun humain n'a confirmée ; ou une première lecture de deux
+ans d'historique dépose des centaines de propositions ; ou deux charges égales font relier la mauvaise.
+
+**Couverture.** La première liaison d'un libellé passe toujours par un humain (à la main, ou une proposition approuvée) ;
+ensuite seule une règle relie, et seulement quand elle désigne une cible unique avec une charge dans la tolérance. Une
+opération qui a une règle applicable n'est jamais proposée vers une autre cible. Deux charges égales ne font aucun candidat.
+Une devise sans taux ne relie jamais automatiquement. Rien ne demande un humain pour une opération de plus de 45 jours ; au plus
+une proposition de liaison par élément et par passage ; un groupe récurrent n'est proposé qu'une fois pour toutes. Les opérations de
+5B sont marquées rapprochées par la migration : le déploiement ne relit pas l'historique. Un import `nid.data` ne propose rien.
+Les propositions de 5C ne se modifient pas : approuvées telles quelles, ou rejetées.
+
+**Tests.** `ReconciliationTests.A_long_history_asks_once_per_item`, `ReconciliationTests.Only_an_item_s_latest_recent_line_is_asked`,
+`ReconciliationTests.A_single_candidate_is_proposed_once`, `ReconciliationTests.A_nid_data_import_proposes_nothing`,
+`LinkTests.An_old_line_is_linked_without_follow_up`, `LinkTests.An_edit_is_refused`,
+`RecurringDebitTests.A_group_is_proposed_once_even_after_rejection` ; `Nid.Banking.Tests` : `ChargeMatchTests`
+(dont `Two_equal_charges_are_no_candidate`), `InternalTransfersTests`, `CardSettlementTests`, `RecurrenceTests`.
+
+### 6.4 Échec n° 7 et doubles comptes : un règlement de carte ou un virement pris pour une charge, un loyer encaissé deux fois
+
+**Menace.** Un virement entre deux comptes du foyer, ou le débit global d'une carte, est relié à une charge par une règle trop
+large ; un loyer déjà saisi par la routine est proposé une seconde fois ; une paire fortuite entre les comptes privés des deux
+adultes avale une vraie charge, sans que personne puisse la délier.
+
+**Couverture.** Les virements internes et les règlements de carte passent **avant** les règles et deviennent `internal`. Un
+virement n'apparie que deux comptes qu'un même adulte actif lit tous deux, qui voit la paire et peut la délier ; un compte de
+carte n'y prend jamais part. Un loyer déjà saisi (flux `rent` ou `recoverable_charges` du même montant à 10 jours près,
+qu'aucun autre lien ne désigne) est seulement relié ; sinon l'encaissement proposé porte `externalRef = bank:{id}`, unique
+parmi les flux du bien, et la seconde approbation est refusée ; une correction du flux sans référence garde la sienne. Un
+règlement de carte exige au moins une opération de carte dans sa fenêtre. Une opération d'un bien (une charge payée) ne
+couvre pas un loyer non reçu dans `charge_missing` : seul le sens de la charge compte.
+
+**Tests.** `ReconciliationTests.A_transfer_between_two_accounts_is_internal`, `ReconciliationTests.A_card_settlement_is_internal`,
+`ReconciliationTests.Two_adults_private_accounts_never_pair`, `ReconciliationTests.A_card_line_never_pairs`,
+`LinkTests.A_corrected_cash_in_keeps_its_bank_reference`, `BankingNotificationTests.A_cost_line_does_not_cover_a_missing_rent`,
+`InternalTransfersTests.Accounts_not_pairable_leave_the_line_to_a_pairable_one`,
+`LinkTests.A_rent_already_recorded_is_only_linked`, `LinkTests.A_cash_in_cannot_be_recorded_twice`,
+`LinkTests.A_cash_in_of_another_line_is_not_this_line_s_rent`, `ReconciliationTests.A_rule_linked_rent_in_the_night_proposes_its_cash_in`.
+
+### 6.5 La vérification d'une proposition de route par la tâche
+
+**Point.** La nuit, l'encaissement d'un loyer relié par règle est une proposition par route (`realestate.add_property_flow`) :
+son dépôt la vérifie par `RouteReplay.DryRunAsync`, qui rejouait la route avec l'utilisateur de la requête HTTP. Sans requête,
+la vérification était refusée et l'encaissement perdu.
+
+**Tel que construit.** Deux mécanismes distincts.
+
+- **Le changement d'acteur, dans la tâche.** Avant de déposer, `BankReconciliation` (par `TransactionLinker`) et
+  `RecurringDebits` mettent l'acteur courant à `Actor.BankSync(personne)`, la personne de D22, et rétablissent le précédent dans
+  un `finally`, comme `BalanceValuation`.
+- **La vérification, dans `RouteReplay.DryRunAsync`.** Quand l'acteur courant vient de la tâche (`ActorOrigin.Job`), qu'il y
+  ait une requête HTTP ou non, elle ouvre une portée neuve et y pose une **copie** de cet acteur, prêtée de `write:direct`,
+  sous un utilisateur vide ; l'unité de travail de cette portée n'est jamais validée. L'acteur de la tâche lui-même n'est pas
+  modifié. La décision porte sur l'acteur, pas sur la requête : une synchronisation au clic ou un import de relevé par A passe
+  la règle de B sur le bien de B, et la suite déposée par B se vérifie comme B, pas comme A qui n'écrit pas le bien (sinon
+  elle était refusée et l'encaissement perdu).
+
+Cela n'élargit rien : seul du code serveur pose un acteur de la tâche (`Actor.BankSync`, `Notifier`, `System`) ; la personne
+écrit le compte et la cible ; la route applique ses propres contrôles d'accès à cette personne ; rien de ce que la vérification
+écrit en base ne reste ; l'approbation, plus tard, rejoue la route au nom de qui approuve, avec ses droits à lui. Une requête
+HTTP dont l'acteur n'est pas la tâche (le web, un jeton MCP) garde exactement le chemin de 4D3.
+
+**Tests.** `ReconciliationTests.A_rule_linked_rent_in_the_night_proposes_its_cash_in`,
+`ReconciliationTests.A_manual_sync_proposes_the_cash_in_of_B_rule_as_B` ; les tests de 4D3
+(`McpRouteToolTests`) inchangés.
+
+### 6.6 Autres points
+
+| Exigence | Tel que construit |
+|---|---|
+| Audit | `banking.link` et `banking.rule` audités sans élément (§6.2) ; `banking.recurring_group` exclu (mémoire de la tâche) ; `rule.last_used_at` et `transaction.reconciled_at` en mises à jour ciblées non auditées, nommées dans `AuditCompletenessTests` |
+| Journaux | Une étape du rapprochement qui échoue est journalisée par son code seul, jamais un libellé ni un montant ; elle laisse l'opération pour le passage suivant et ne fait jamais échouer la synchronisation ni l'import |
+| Délier | Garde les suites en attente (prix, encaissement), à rejeter dans « À valider » : aucune écriture cachée |
+| Purge (D3) | Seules les opérations `unlinked` et `ignored` sont purgées : une opération reliée reste |
+| Web | Les montants et l'écart de l'aperçu viennent du serveur (`nid/no-amount-arithmetic`) ; libellés rendus échappés ; pages en routes paresseuses |
+
+### 6.7 Points laissés (5C)
+
+| # | Point | Effet | Suite |
+|---|---|---|---|
+| C1 | La vérification de nuit d'une proposition de route passe aussi les routes réservées au navigateur, et un effet hors base (un envoi, un fichier) d'une route n'y serait pas annulé | Aucune route proposée par la tâche n'en a aujourd'hui (seul l'encaissement d'un loyer) | À reprendre si la tâche propose d'autres routes |
+| C2 | Corriger un flux d'encaissement depuis le web (`PUT`, sans `externalRef`) effaçait sa référence `bank:{id}` | Une seconde approbation du même encaissement n'était plus refusée | Corrigé : la correction garde la référence stockée (`LinkTests.A_corrected_cash_in_keeps_its_bank_reference`) |
+| C3 | Restauration `nid.data` par un adulte : les liens et règles privés de l'autre sont perdus ; un loyer restauré perd sa clé `flow:` | Rien n'est divulgué ; une opération ultérieure du même montant peut se relier à ce loyer | Accepté (§15) |
+| C4 | Un adulte qui écrit le compte joint ne délie pas le lien privé de l'autre, ni une paire de virement avec son compte privé | L'opération reste reliée chez lui, sans détail | Accepté (D19) |
+| C5 | Un groupe récurrent dont la proposition a été refusée au dépôt n'est jamais reproposé | Un abonnement inconnu reste à créer à la main | Accepté |
+| C6 | `charge_missing` d'un loyer peut doubler l'avis d'impayé de RealEstate | Deux notifications pour un même loyer | Accepté |
+| C7 | `RuleStore.UpsertAsync` lit puis insère : deux liaisons simultanées du même radical par la même personne lèvent une erreur sur l'index unique | Une erreur 500 ; rien n'est écrit en double ni divulgué | À reprendre |

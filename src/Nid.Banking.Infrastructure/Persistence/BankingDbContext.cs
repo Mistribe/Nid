@@ -18,6 +18,12 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<TransactionRow> Transactions => Set<TransactionRow>();
 
+    public DbSet<LinkRow> Links => Set<LinkRow>();
+
+    public DbSet<RuleRow> Rules => Set<RuleRow>();
+
+    public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
+
     public DbSet<SyncRunRow> SyncRuns => Set<SyncRunRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -90,6 +96,37 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasIndex(x => new { x.AccountId, x.ProviderRef }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.Fingerprint }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.BookedOn });
+            e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LinkRow>(e =>
+        {
+            e.ToTable("link", t => t.HasCheckConstraint(
+                "ck_link_outcome", "outcome in ('as_expected','price_differs','income','contribution','internal_transfer','card_settlement')"));
+            e.HasKey(x => x.TransactionId);
+            e.Property(x => x.TransactionId).ValueGeneratedNever();
+            e.Property(x => x.ExpectedAmount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.ExpectedCurrency).HasColumnType("char(3)");
+            // The item lives in another module: no foreign key.
+            e.HasIndex(x => x.TargetItemId);
+            e.HasOne<TransactionRow>().WithOne().HasForeignKey<LinkRow>(x => x.TransactionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RuleRow>(e =>
+        {
+            e.ToTable("rule");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.AccountId, x.CreatedByPersonId, x.LabelStem }).IsUnique();
+            e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RecurringGroupRow>(e =>
+        {
+            e.ToTable("recurring_group");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.AccountId, x.LabelStem }).IsUnique();
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
 

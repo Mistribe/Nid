@@ -102,6 +102,24 @@ public class NotificationTemplatesTests
     }
 
     [Fact]
+    public void A_banking_finding_opens_the_page_of_its_item()
+    {
+        foreach (var (kind, module, title, link) in new[]
+        {
+            ("banking.amount_differs", "loans", "Montant différent du prévu", "/loans/"),
+            ("banking.charge_missing", "subscriptions", "Charge attendue non prélevée", "/subscriptions/"),
+            ("banking.charge_missing", "properties", "Charge attendue non prélevée", "/properties/"),
+        })
+        {
+            var record = Record(kind, new LocalDate(2027, 3, 5)) with { Params = new Dictionary<string, string> { ["module"] = module } };
+
+            var rendered = NotificationTemplates.Render(record, KindOf(kind, "banking"), new Dictionary<ItemId, string> { [Item] = "Maison" });
+
+            Assert.Equal((title, link + Item.Value.ToString("D"), "Maison — le 5 mars 2027"), (rendered.Title, rendered.Link, rendered.Body));
+        }
+    }
+
+    [Fact]
     public void Published_kinds_have_a_title_a_body_without_name_or_amount_and_their_link()
     {
         NotificationRecord Published(string kind, string key, Dictionary<string, string>? parameters = null, bool withItem = false)

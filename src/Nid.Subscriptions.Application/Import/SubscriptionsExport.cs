@@ -27,6 +27,8 @@ internal sealed class SubscriptionsExport(IVisibleItems visible, ISubscriptionSt
             context.Expose(id);
 
         var subscriptionIds = FileIds.Assign("sub", exported.Select(s => new KeyedRow(s.Id.Value, s.Import?.Ref, s.Import?.ImportedBy)).ToList(), context.Reader);
+        foreach (var s in exported)
+            context.NameItem(s.Id, subscriptionIds[s.Id.Value]); // for the sections that point at an item (bank_links)
         var phases = rows.Phases.Where(p => exportedIds.Contains(p.SubscriptionId)).ToList();
         var phaseIds = FileIds.Assign("ph", phases.Select(p => new KeyedRow(p.Phase.Id.Value, p.Import?.Ref, p.Import?.ImportedBy)).ToList(), context.Reader);
         var purchases = rows.Purchases.Where(p => p.Purchase.Grants.Any(g => exportedIds.Contains(g.SubscriptionId))).ToList();

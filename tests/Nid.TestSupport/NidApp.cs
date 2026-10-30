@@ -39,7 +39,8 @@ public sealed class NidApp : IAsyncDisposable
     private static readonly HashSet<string> SafeMethods = ["GET", "HEAD", "OPTIONS"];
 
     private readonly WebApplicationFactory<Program> factory;
-    private readonly Dictionary<Guid, string> csrfTokens = [];
+    // Concurrent: a test may send its first requests in parallel (PreferencesTests).
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, string> csrfTokens = [];
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,

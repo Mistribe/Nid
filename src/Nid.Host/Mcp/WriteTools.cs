@@ -65,6 +65,8 @@ public sealed partial class WriteTools
 
     private sealed record AmortizationArguments(AmortizationRow[] Rows);
 
+    private sealed record BankLinkArguments(Guid TransactionId, string Module, Guid ItemId, string? Key);
+
     /// <summary>A tool's arguments as a proposal payload: camelCase, absent fields left out (the handler normalizes the rest).</summary>
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(StatementArguments))]
@@ -72,6 +74,7 @@ public sealed partial class WriteTools
     [JsonSerializable(typeof(PayslipArguments))]
     [JsonSerializable(typeof(InvoiceArguments))]
     [JsonSerializable(typeof(AmortizationArguments))]
+    [JsonSerializable(typeof(BankLinkArguments))]
     private sealed partial class ArgumentsJson : JsonSerializerContext;
 
     /// <summary>The tools' own parameter types, for the SDK's options (McpSetup).</summary>
@@ -133,6 +136,20 @@ public sealed partial class WriteTools
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, JsonSerializer.SerializeToElement(new PayslipArguments(paidOn, net, gross, taxable, phaseLabel), ArgumentsJson.Default.PayslipArguments), sourceLabel, apply, documentId, ct);
+
+    [McpServerTool(Name = "propose_bank_link", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Link one bank line (list_bank_transactions) to the charge it pays: a subscription, a loan or a property (list_expected_charges). "
+        + "The proposal shows the line and the charge, and the gap between their amounts. " + Rules)]
+    public static Task<CallToolResult> ProposeBankLink(IServiceProvider services,
+        [Description("The bank line's id (list_bank_transactions).")] Guid transactionId,
+        [Description("'subscriptions' (a subscription) or 'realestate' (a loan or a property).")] string module,
+        [Description("The item's id: the subscription, loan or property the line pays.")] Guid itemId,
+        [Description("The charge's key (list_expected_charges), when the item has several; else the nearest charge is taken.")] string? key = null,
+        [Description("The document's name, e.g. 'Relevé octobre 2026', 200 characters at most.")] string? sourceLabel = null,
+        [Description("true: write directly instead of proposing.")] bool apply = false,
+        CancellationToken ct = default)
+        => McpCalls.ProposeAsync(services, "banking.link_transaction", itemId,
+            JsonSerializer.SerializeToElement(new BankLinkArguments(transactionId, module, itemId, key), ArgumentsJson.Default.BankLinkArguments), sourceLabel, apply, null, ct);
 
     [McpServerTool(Name = "propose_invoice", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("An invoice for one subscription, all taxes included. Nid compares it with the price on that date: the same, to the "

@@ -1,3 +1,4 @@
+using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -23,7 +24,7 @@ public sealed record BankSyncRequested(Guid RunId);
 [RequestHandler<SyncAllCommand, BankSyncRunView>]
 public sealed class SyncAllHandler(
     BankingAccess access, IConnectionStore connections, BankSyncCollector collector, IHouseholdSettings settings, IHouseholdCalendar calendar,
-    ITransactionStore transactions)
+    ITransactionStore transactions, BankReconciliation reconciliation, RecurringDebits recurring)
     : IRequestHandler<SyncAllCommand, BankSyncRunView>
 {
     public async ValueTask<Result<BankSyncRunView>> HandleAsync(SyncAllCommand command, CancellationToken ct = default)
@@ -34,14 +35,21 @@ public sealed class SyncAllHandler(
         var run = app.TryGetValue(out var appId)
             ? await collector.SyncAsync(appId!, "schedule", await connections.ActiveAsync(ct), null, ct)
             : BankingAccess.Failed<BankSyncRunView, string>(app);
+        var today = await calendar.TodayAsync(ct);
+        // Before the purge: a line it would delete may still be linked tonight.
+        await reconciliation.RunAsync(null, today, ct);
+        // Spec §6.4: once the night's lines are reconciled, the unknown recurring debits.
+        await recurring.ProposeAsync(today, ct);
         if (enabled.IsSuccess && (await settings.ReadAsync(ct)).BankRetentionMonths is { } months)
-            await transactions.PurgeBookedBeforeAsync((await calendar.TodayAsync(ct)).PlusMonths(-months), ct);
+            await transactions.PurgeBookedBeforeAsync(today.PlusMonths(-months), ct);
         return run;
     }
 }
 
 [RequestHandler<SyncMineCommand, BankSyncRequested>]
-public sealed class SyncMineHandler(BankingAccess access, IConnectionStore connections, BankSyncCollector collector)
+public sealed class SyncMineHandler(
+    BankingAccess access, IConnectionStore connections, IAccountStore accounts, BankSyncCollector collector, BankReconciliation reconciliation,
+    IHouseholdCalendar calendar)
     : IRequestHandler<SyncMineCommand, BankSyncRequested>
 {
     public async ValueTask<Result<BankSyncRequested>> HandleAsync(SyncMineCommand command, CancellationToken ct = default)
@@ -63,7 +71,15 @@ public sealed class SyncMineHandler(BankingAccess access, IConnectionStore conne
 
         // An expired or revoked consent has nothing to read until it is renewed.
         var readable = mine.Where(c => c.Status is ConnectionStatus.Active or ConnectionStatus.Error).ToList();
-        return (await collector.SyncAsync(appId!, "manual", readable, command.Psu, ct)).Map(run => new BankSyncRequested(run.Id));
+        var run = await collector.SyncAsync(appId!, "manual", readable, command.Psu, ct);
+        if (run.IsSuccess)
+        {
+            var read = new List<Guid>();
+            foreach (var connection in readable)
+                read.AddRange((await accounts.ForConnectionAsync(connection.Id, ct)).Select(a => a.Id));
+            await reconciliation.RunAsync(read, await calendar.TodayAsync(ct), ct);
+        }
+        return run.Map(r => new BankSyncRequested(r.Id));
     }
 }
 

@@ -33,6 +33,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/banking/sync",
         // A statement file is dropped in the browser and confirmed after its preview: browser-only.
         "/api/v1/banking/statements",
+        // A line linked to a charge: propose_bank_link proposes it, with the line and the charge in its preview.
+        "POST /api/v1/banking/transactions/{id:guid}/link",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)

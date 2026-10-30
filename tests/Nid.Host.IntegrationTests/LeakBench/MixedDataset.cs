@@ -137,6 +137,9 @@ public sealed class MixedDataset
     /// <summary>Tax assessments spec §6: B's solo 2018 notice and its source PDF, B's private document (linked to B alone).</summary>
     public (Guid Notice, Guid Document) NoticeB { get; private init; }
 
+    /// <summary>A's line on the joint account, linked to A's private subscription twin: B reads the line, never its link.</summary>
+    public Guid JointLine { get; private init; }
+
     /// <summary>As <see cref="PrivatePhases"/> for each private source's one-off income, by the source's row name.</summary>
     public IReadOnlyDictionary<string, Guid> PrivateOneOffs { get; private init; } = new Dictionary<string, Guid>();
 
@@ -360,16 +363,21 @@ public sealed class MixedDataset
         app.Banks.Aspsps.Add(BankingApi.Alpha);
         await BankingApi.SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
         // Her card too, attached to it: its lines are read through the checking account's envelope.
+        // And a joint account, on the joint envelope twin, that both adults read and write.
         await BankingApi.ConnectAsync(app, app.AdultA, "bench", BankingApi.Account("uid-bench", "hash-bench", null, PrivateLabelA + " compte"),
-            BankingApi.Account("uid-bench-card", "hash-bench-card", null, PrivateLabelA + " carte", "CARD"));
+            BankingApi.Account("uid-bench-card", "hash-bench-card", null, PrivateLabelA + " carte", "CARD"),
+            BankingApi.Account("uid-bench-joint", "hash-bench-joint", null, "joint-ab compte"));
         var bankAccounts = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()
             .ToDictionary(a => a.GetProperty("name").GetString()!, a => a.GetProperty("id").GetGuid());
         var bankAccount = bankAccounts[PrivateLabelA + " compte"];
         var bankCard = bankAccounts[PrivateLabelA + " carte"];
+        var jointAccount = bankAccounts["joint-ab compte"];
         var associated = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{bankAccount}", new { envelopeId = envelopes["P-A"].Value });
         var attached = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{bankCard}", new { cardOfAccountId = bankAccount });
-        if (associated.StatusCode != System.Net.HttpStatusCode.OK || attached.StatusCode != System.Net.HttpStatusCode.OK)
-            throw new InvalidOperationException($"Seeding A's bank account failed: {associated.StatusCode}, {attached.StatusCode}");
+        var joint = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{jointAccount}", new { envelopeId = envelopes["J-AB"].Value });
+        if (associated.StatusCode != System.Net.HttpStatusCode.OK || attached.StatusCode != System.Net.HttpStatusCode.OK || joint.StatusCode != System.Net.HttpStatusCode.OK)
+            throw new InvalidOperationException($"Seeding A's bank accounts failed: {associated.StatusCode}, {attached.StatusCode}, {joint.StatusCode}");
+        Guid jointLine;
         // Two booked lines of it, labelled with A's private label, for the transactions read.
         await using (var scope = app.Services.CreateAsyncScope())
         {
@@ -381,11 +389,26 @@ public sealed class MixedDataset
             ], default);
             await scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(bankCard,
                 [new NewBankTransaction("bench-card-1", new LocalDate(2025, 1, 5), null, -7.2m, Currency.Eur, PrivateLabelA + " carte ligne", null, null, "api")], default);
+            // D19: A's private subscription paid from the joint account, with A's rule; B reads the line as linked, without its name.
+            var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
+            await store.AddAsync(jointAccount,
+                [new NewBankTransaction("bench-joint-1", new LocalDate(2025, 1, 6), null, -9.99m, Currency.Eur, "joint-ab ligne", null, null, "api")], default);
+            jointLine = Assert.Single(await store.ListAsync([jointAccount], null, null, 0, 10, default)).Id;
+            await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(new BankLink(jointLine, "subscriptions", items["P-A"], "2025-01-06", null,
+                LinkOutcome.AsExpected, null, $"person:{app.AdultA.Value:D}", Instant.FromUtc(2025, 1, 6, 10, 0)), TransactionLinkState.Linked, default);
+            await scope.ServiceProvider.GetRequiredService<IRuleStore>().UpsertAsync(jointAccount, "JOINT-AB LIGNE", "subscriptions", items["P-A"], app.AdultA, default);
+            // §0 n°1 the other way: A's private-account line, labelled with her private label, linked by her rule to the joint subscription.
+            // B reads the subscription (its history too), never the line's label nor the rule's stem.
+            var privateLine = (await store.ListAsync([bankAccount], null, null, 0, 10, default)).Single(t => t.ProviderRef == "bench-1").Id;
+            await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(new BankLink(privateLine, "subscriptions", items["J-AB"], "2025-01-03", null,
+                LinkOutcome.AsExpected, null, $"person:{app.AdultA.Value:D}", Instant.FromUtc(2025, 1, 3, 10, 0)), TransactionLinkState.Linked, default);
+            await scope.ServiceProvider.GetRequiredService<IRuleStore>().UpsertAsync(bankAccount, PrivateLabelA + " LIGNE", "subscriptions", items["J-AB"], app.AdultA, default);
         }
 
         return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, goals, proposals, documents, unlinkDocuments)
         {
             NoticeB = (notice, noticeDocument),
+            JointLine = jointLine,
             PrivatePhases = privatePhases,
             PrivateOneOffs = privateOneOffs,
         };

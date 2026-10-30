@@ -62,6 +62,23 @@
       "refused": "Ce tableau ne correspond plus au crédit : rejetez-le et demandez-en un à jour.",
       "refused_row": "Ce tableau ne correspond plus au crédit (ligne {{n}}) : rejetez-le et demandez-en un à jour."
     },
+    "link": {
+      "transaction": "Opération",
+      "charge": "Charge attendue",
+      "gap": "Écart",
+      "as_proposed": "Une opération se relie telle que proposée : approuvez, ou rejetez puis reliez-la à la main depuis « Opérations à relier »."
+    },
+    "recurring": {
+      "name": "Nom",
+      "price": "Prix",
+      "cadence": "Rythme",
+      "every": { "monthly": "mensuel", "quarterly": "trimestriel", "yearly": "annuel" },
+      "account": "Compte payeur",
+      "lines": "Opérations repérées",
+      "date": "Date",
+      "amount": "Montant",
+      "as_proposed": "L’abonnement se crée tel que proposé, puis ses opérations s’y relient : approuvez, ou rejetez puis créez-le à la main."
+    },
     "approve": "Approuver",
     "nothing_to_record": "Aucun mouvement n’est coché et le relevé n’a pas de valeur : il n’y aurait rien à enregistrer. Cochez un mouvement, ou rejetez la proposition.",
     "reject": "Rejeter",
@@ -156,7 +173,10 @@
       "correct_tax_year": "Correction d’un avis d’imposition",
       "delete_tax_year": "Suppression d’un avis d’imposition",
       "create_dependent": "Nouvel enfant à charge",
-      "bank_account_update": "Réglage d’un compte bancaire"
+      "bank_account_update": "Réglage d’un compte bancaire",
+      "unlink_bank_transaction": "Ligne bancaire déliée",
+      "ignore_bank_transaction": "Ligne bancaire ignorée",
+      "delete_bank_rule": "Suppression d’une règle bancaire"
     }
   }
 }

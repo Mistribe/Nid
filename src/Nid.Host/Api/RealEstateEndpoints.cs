@@ -648,14 +648,17 @@ public static class RealEstateEndpoints
     /// <summary>Spec 3C1 §4: an estimate, under the envelopes' member names; the amount an invariant decimal string (precision 1).</summary>
     public sealed record PropertyValuationBody(string? AsOf, string? Amount, string? Note);
 
-    /// <summary>Spec 3C1 §4: <c>{ occurredOn, kind, amount, category, note? }</c>; kind and category are the module's convention, checked by the handler.</summary>
-    public sealed record PropertyFlowBody(string? OccurredOn, string? Kind, string? Amount, string? Category, string? Note)
+    /// <summary>
+    /// Spec 3C1 §4: <c>{ occurredOn, kind, amount, category, note?, externalRef? }</c>; kind and category are the module's convention,
+    /// checked by the handler. <c>externalRef</c> (5C D20: <c>bank:{lineId}</c>) is unique among the property's flows.
+    /// </summary>
+    public sealed record PropertyFlowBody(string? OccurredOn, string? Kind, string? Amount, string? Category, string? Note, string? ExternalRef = null)
     {
         internal PropertyFlowDraft? Read(FieldReader reader)
         {
             var occurredOn = reader.Date(OccurredOn, "occurredOn");
             var amount = LoanBodies.Number(reader, Amount, "amount");
-            return occurredOn is null || amount is null ? null : new PropertyFlowDraft(occurredOn.Value, Kind, amount.Value, Category, Note);
+            return occurredOn is null || amount is null ? null : new PropertyFlowDraft(occurredOn.Value, Kind, amount.Value, Category, Note, ExternalRef);
         }
     }
 

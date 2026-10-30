@@ -13,18 +13,22 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Banking.Application.Import;
 
 /// <summary>
-/// The sections <c>bank_accounts</c> and <c>bank_transactions</c> (bank sync D24): the accounts a person reads and their booked lines,
-/// never a connection, a session or a balance. On import an account is the one its ref names (<c>acc-&lt;id&gt;</c> of this
+/// The sections <c>bank_accounts</c>, <c>bank_transactions</c>, <c>bank_links</c> and <c>bank_rules</c> (bank sync D24, 5C): the accounts a
+/// person reads and their booked lines, never a connection, a session or a balance; then what links those lines to the household's items, and
+/// the exporter's own label rules. On import an account is the one its ref names (<c>acc-&lt;id&gt;</c> of this
 /// installation, else an account imported before under that ref) when the importer may write it, left as it is; else a new one under
 /// the importer's <c>file</c> connection, associated by 5A's rules (<see cref="BankAccountRules"/>). Lines dedupe as a statement's do
-/// (<see cref="ITransactionStore.AddAsync"/>). Runs after the investments sections: an envelope id resolves through <see cref="ImportContext.Items"/>.
+/// (<see cref="ITransactionStore.AddAsync"/>). A link or a rule whose line, target or account the importer cannot use is skipped, counted as
+/// unchanged; the others are the importer's decisions. Runs after the investments sections: an envelope id resolves through <see cref="ImportContext.Items"/>.
 /// </summary>
 public sealed class BankImportSection(
     BankingAccess access, IAccountStore accounts, IConnectionStore connections, ITransactionStore transactions, IEnvelopeStore envelopes,
-    IAccessPolicy policy, IHouseholdCalendar calendar) : IImportSection
+    IAccessPolicy policy, IHouseholdCalendar calendar, ILinkStore links, IRuleStore rules) : IImportSection
 {
     public const string AccountsSection = "bank_accounts";
     public const string TransactionsSection = "bank_transactions";
+    public const string LinksSection = "bank_links";
+    public const string RulesSection = "bank_rules";
     private const string Envelopes = "envelopes";
     private const string RefPrefix = "acc-";
 
@@ -42,11 +46,22 @@ public sealed class BankImportSection(
         public List<NewBankTransaction> Lines { get; } = [];
     }
 
+    /// <summary>A link or rule of the file that the importer may apply: its account, the item or counterpart it names, as the file says.</summary>
+    private sealed record LinkPlan(BankLinkRecord Record, Plan Account, Plan? Counterpart, LinkOutcome Outcome, Money? Expected);
+
+    private sealed record RulePlan(BankRuleRecord Record, Plan Account);
+
+    /// <summary>The sections that hold an item a line can pay, in the order a ref is looked up (an exported ref names one of them: <c>sub-…</c>, a property's, a loan's).</summary>
+    private static readonly (string Section, string Module)[] Targets = [("subscriptions", "subscriptions"), ("properties", "realestate"), ("loans", "realestate")];
+
+    private int unwritableLinks, unwritableRules; // those whose target the importer cannot change, counted as skipped
+    private readonly List<LinkPlan> linkPlans = [];
+    private readonly List<RulePlan> rulePlans = [];
     private readonly Dictionary<string, Plan> plans = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, SectionCounts> counts = new Dictionary<string, SectionCounts>();
 
     public string Module => "banking";
-    public IReadOnlyList<string> Sections => [AccountsSection, TransactionsSection];
+    public IReadOnlyList<string> Sections => [AccountsSection, TransactionsSection, LinksSection, RulesSection];
     public int Order => 110;
 
     public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
@@ -62,6 +77,16 @@ public sealed class BankImportSection(
                 if (NidDataJson.TryRead(entity, BankFileJson.Records.BankAccountRecord, path, issues, out var account))
                     TryAccount(account, path, r => standIn(r), issues, out _, out _);
             }
+            else if (section == LinksSection)
+            {
+                if (NidDataJson.TryRead(entity, BankFileJson.Records.BankLinkRecord, path, issues, out var link))
+                    TryLink(link, path, issues, out _, out _);
+            }
+            else if (section == RulesSection)
+            {
+                if (NidDataJson.TryRead(entity, BankFileJson.Records.BankRuleRecord, path, issues, out var rule))
+                    TryRule(rule, path, issues);
+            }
             else if (NidDataJson.TryRead(entity, BankFileJson.Records.BankTransactionRecord, path, issues, out var line))
                 TryLine(line, path, issues, out _);
         }
@@ -71,6 +96,9 @@ public sealed class BankImportSection(
     public async Task<SectionOutcome> ValidateAllAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)
     {
         plans.Clear();
+        linkPlans.Clear();
+        unwritableLinks = unwritableRules = 0;
+        rulePlans.Clear();
         var issues = new List<ImportIssue>();
         var latest = (await calendar.TodayAsync(ct)).PlusDays(StatementReader.AheadDays);
         var failed = new HashSet<string>(StringComparer.Ordinal); // refused accounts, whose cards and lines are not reported again
@@ -132,6 +160,8 @@ public sealed class BankImportSection(
                 plan.Lines.Add(line);
         }
 
+        await PlanLinksAsync(context, staged, plans, failed, issues, ct);
+
         var known = 0;
         foreach (var plan in plans.Values.Where(p => p.Found is not null))
             known += await KnownAsync(plan.Id, plan.Lines, ct);
@@ -141,6 +171,15 @@ public sealed class BankImportSection(
         {
             [AccountsSection] = new(plans.Count - existing, existing, 0),
             [TransactionsSection] = new(lines - known, known, 0),
+            [LinksSection] = SectionCounts.Zero,
+            [RulesSection] = SectionCounts.Zero,
+        };
+        var (applicable, skipped) = await LinksAsync(true, ct);
+        var (rulesCreated, rulesKnown) = await RuleCountsAsync(context, ct);
+        counts = new Dictionary<string, SectionCounts>(counts)
+        {
+            [LinksSection] = new(applicable.Count, skipped, 0),
+            [RulesSection] = new(rulesCreated, rulesKnown, 0),
         };
         return new SectionOutcome(issues, counts);
     }
@@ -180,13 +219,41 @@ public sealed class BankImportSection(
         var (added, known) = (0, 0);
         foreach (var plan in plans.Values)
         {
-            var written = await transactions.AddAsync(plan.Id, plan.Lines, ct);
+            var written = await transactions.AddAsync(plan.Id, plan.Lines, ct, reconciled: true); // D24: an archive's lines ask nobody
             (added, known) = (added + written.Added, known + written.Known);
+        }
+
+        var (toLink, notLinked) = await LinksAsync(false, ct);
+        foreach (var (plan, line) in toLink)
+        {
+            // The item's real id: one created by this import was planned at validation.
+            (string, ItemId)? target = null;
+            if (plan.Record.TargetRef is { } targetRef)
+            {
+                if (!Target(context, targetRef, "", [], out var resolved))
+                    return Moved(plan.Record.TargetRef, LinksSection);
+                target = resolved;
+            }
+            // A rent's flow:{id} key names a flow of the source instance, which has another id here: left out.
+            var key = plan.Record.TargetKey?.StartsWith("flow:", StringComparison.Ordinal) == true ? null : plan.Record.TargetKey;
+            var link = new BankLink(
+                line!.Id, target?.Item1, target?.Item2, key, plan.Counterpart?.Id, plan.Outcome, plan.Expected,
+                $"person:{context.Actor.Value:D}", InstantPattern.ExtendedIso.Parse(plan.Record.DecidedAt).Value);
+            await links.SetAsync(link, plan.Counterpart is null ? TransactionLinkState.Linked : TransactionLinkState.Internal, ct);
+        }
+        var (rulesCreated, rulesKnown) = await RuleCountsAsync(context, ct);
+        foreach (var rule in rulePlans)
+        {
+            if (!Target(context, rule.Record.TargetRef, "", [], out var target))
+                return Moved(rule.Record.TargetRef, RulesSection);
+            await rules.UpsertAsync(rule.Account.Id, rule.Record.LabelStem, target.Module, target.Item, context.Actor, ct);
         }
         return Result.Success<IReadOnlyDictionary<string, SectionCounts>>(new Dictionary<string, SectionCounts>
         {
             [AccountsSection] = counts[AccountsSection],
             [TransactionsSection] = new(added, known, 0),
+            [LinksSection] = new(toLink.Count, notLinked, 0),
+            [RulesSection] = new(rulesCreated, rulesKnown, 0),
         });
     }
 
@@ -229,11 +296,171 @@ public sealed class BankImportSection(
             Remittance = t.Remittance,
             FetchedVia = t.FetchedVia,
         });
+        var (linkRecords, ruleRecords) = await LinkExportAsync(context, lines, refs, position, ct);
         return new Dictionary<string, IReadOnlyList<JsonElement>>
         {
             [AccountsSection] = accountRecords.Select(r => JsonSerializer.SerializeToElement(r, BankFileJson.Records.BankAccountRecord)).ToList(),
             [TransactionsSection] = lineRecords.Select(r => JsonSerializer.SerializeToElement(r, BankFileJson.Records.BankTransactionRecord)).ToList(),
+            [LinksSection] = linkRecords.Select(r => JsonSerializer.SerializeToElement(r, BankFileJson.Records.BankLinkRecord)).ToList(),
+            [RulesSection] = ruleRecords.Select(r => JsonSerializer.SerializeToElement(r, BankFileJson.Records.BankRuleRecord)).ToList(),
         };
+    }
+
+    /// <summary>
+    /// The exporter's links: those of a line of an account they read, to an item the earlier sections exported (so they read it) or to a
+    /// counterpart account they read; then the rules they created on such accounts and items. Else the link or rule is left out, never named.
+    /// </summary>
+    private async Task<(List<BankLinkRecord> Links, List<BankRuleRecord> Rules)> LinkExportAsync(
+        ExportContext context, IReadOnlyList<BankTransaction> lines, Dictionary<Guid, string> refs, Dictionary<Guid, int> position, CancellationToken ct)
+    {
+        IReadOnlyDictionary<Guid, BankLink> linked = lines.Count == 0 ? new Dictionary<Guid, BankLink>() : await links.ForTransactionsAsync(lines.Select(l => l.Id).ToList(), ct);
+        var linkRecords = new List<BankLinkRecord>();
+        foreach (var line in lines.OrderBy(t => position[t.Account]).ThenBy(t => t.BookedOn).ThenBy(t => t.Id))
+        {
+            if (!linked.TryGetValue(line.Id, out var link))
+                continue;
+            string? target = null, counterpart = null;
+            if (link.TargetItem is { } item ? !context.ItemFileIds.TryGetValue(item, out target) : link.CounterpartAccount is not { } other || !refs.TryGetValue(other, out counterpart))
+                continue;
+            linkRecords.Add(new BankLinkRecord
+            {
+                AccountRef = refs[line.Account], ProviderRef = line.ProviderRef, Outcome = BankLines.Wire(link.Outcome), TargetRef = target, TargetKey = link.TargetKey,
+                CounterpartRef = counterpart, ExpectedAmount = link.Expected?.Amount, ExpectedCurrency = link.Expected?.Currency.Code,
+                DecidedAt = InstantPattern.ExtendedIso.Format(link.DecidedAt),
+            });
+        }
+        var ruleRecords = (await rules.ByAsync(context.Reader, ct))
+            .Where(r => refs.ContainsKey(r.Account) && context.ItemFileIds.ContainsKey(r.TargetItem))
+            .OrderBy(r => position[r.Account]).ThenBy(r => r.LabelStem, StringComparer.Ordinal)
+            .Select(r => new BankRuleRecord
+            {
+                AccountRef = refs[r.Account], LabelStem = r.LabelStem, TargetRef = context.ItemFileIds[r.TargetItem], CreatedAt = InstantPattern.ExtendedIso.Format(r.CreatedAt),
+            }).ToList();
+        return (linkRecords, ruleRecords);
+    }
+
+    /// <summary>The links and rules of the file the importer may apply, as <see cref="linkPlans"/> and <see cref="rulePlans"/>; the others are reported or skipped.</summary>
+    private async Task PlanLinksAsync(
+        ImportContext context, IStagedBatches staged, Dictionary<string, Plan> accountPlans, HashSet<string> failed, List<ImportIssue> issues, CancellationToken ct)
+    {
+        var lines = new HashSet<(string, string)>();
+        foreach (var entity in staged.Section(LinksSection))
+        {
+            var path = NidDataJson.Path(LinksSection, entity.Index);
+            if (!NidDataJson.TryRead(entity.Value, BankFileJson.Records.BankLinkRecord, path, issues, out var record)
+                || !TryLink(record, path, issues, out var outcome, out var expected) || failed.Contains(record.AccountRef))
+                continue;
+            if (!lines.Add((record.AccountRef, record.ProviderRef)))
+            {
+                issues.Add(ImportIssue.Error(ImportCodes.DuplicateId, $"A link of '{record.ProviderRef}' appears twice in {LinksSection}.", path + ".provider_ref"));
+                continue;
+            }
+            if (!Account(accountPlans, record.AccountRef, failed, path + ".account_ref", issues, out var account))
+                continue;
+            Plan? counterpart = null;
+            if (record.CounterpartRef is { } counterpartRef && !Account(accountPlans, counterpartRef, failed, path + ".counterpart_ref", issues, out counterpart))
+                continue;
+            if (record.TargetRef is { } targetRef)
+            {
+                if (!Target(context, targetRef, path + ".target_ref", issues, out var resolved))
+                    continue;
+                if (!await Writable(context, resolved.Item, ct))
+                {
+                    unwritableLinks++;
+                    continue;
+                }
+            }
+            linkPlans.Add(new LinkPlan(record, account!, counterpart, outcome, expected));
+        }
+
+        var stems = new HashSet<(string, string)>();
+        foreach (var entity in staged.Section(RulesSection))
+        {
+            var path = NidDataJson.Path(RulesSection, entity.Index);
+            if (!NidDataJson.TryRead(entity.Value, BankFileJson.Records.BankRuleRecord, path, issues, out var record)
+                || !TryRule(record, path, issues) || failed.Contains(record.AccountRef))
+                continue;
+            if (!stems.Add((record.AccountRef, record.LabelStem)))
+            {
+                issues.Add(ImportIssue.Error(ImportCodes.DuplicateId, $"A rule of '{record.LabelStem}' appears twice in {RulesSection}.", path + ".label_stem"));
+                continue;
+            }
+            if (!Account(accountPlans, record.AccountRef, failed, path + ".account_ref", issues, out var account)
+                || !Target(context, record.TargetRef, path + ".target_ref", issues, out var resolved))
+                continue;
+            if (await Writable(context, resolved.Item, ct))
+                rulePlans.Add(new RulePlan(record, account!));
+            else
+                unwritableRules++;
+        }
+    }
+
+    private static Result<IReadOnlyDictionary<string, SectionCounts>> Moved(string fileRef, string section)
+        => ImportSectionKit.Drift([ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileRef}' no longer names one item.", section)]);
+
+    private static bool Account(Dictionary<string, Plan> accountPlans, string fileRef, HashSet<string> failed, string path, List<ImportIssue> issues, out Plan? plan)
+    {
+        if (accountPlans.TryGetValue(fileRef, out plan))
+            return true;
+        if (!failed.Contains(fileRef)) // else reported with its account
+            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileRef}' names no entity of {AccountsSection}.", path));
+        return false;
+    }
+
+    /// <summary>
+    /// The one item a file id names among the sections an earlier module imported (ids are unique per section only, so two matches are refused);
+    /// false when refused there (not reported again), unknown or ambiguous (reported).
+    /// </summary>
+    private static bool Target(ImportContext context, string fileRef, string path, List<ImportIssue> issues, out (string Module, ItemId Item) target)
+    {
+        var matches = Targets.Where(t => context.Items.ContainsKey((t.Section, fileRef))).ToList();
+        if (matches.Count == 1)
+        {
+            target = (matches[0].Module, context.Items[(matches[0].Section, fileRef)]);
+            return true;
+        }
+        target = default;
+        if (matches.Count > 1)
+            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileRef}' names two entities of subscriptions, properties and loans.", path));
+        else if (!Targets.Any(t => context.FailedItems.Contains((t.Section, fileRef))))
+            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileRef}' names no subscription, property or loan of this file.", path));
+        return false;
+    }
+
+    /// <summary>Whether the importer may change the item (one this import creates is theirs); else the link or rule is skipped and counted.</summary>
+    private async Task<bool> Writable(ImportContext context, ItemId item, CancellationToken ct)
+        => context.NewItems.Contains(item) || await ImportSectionKit.CanAsync(policy, context.Actor, item, AccessKind.Write, ct);
+
+    /// <summary>
+    /// The planned links whose line is there and unlinked (a line of this file counts as there while validating, its row not being written yet),
+    /// with that row once the lines are written; and how many links were skipped, the unwritable ones included.
+    /// </summary>
+    private async Task<(List<(LinkPlan Plan, BankTransaction? Line)> Ready, int Skipped)> LinksAsync(bool validating, CancellationToken ct)
+    {
+        var stored = new Dictionary<Plan, Dictionary<string, BankTransaction>>();
+        var ready = new List<(LinkPlan, BankTransaction?)>();
+        var skipped = unwritableLinks;
+        foreach (var plan in linkPlans)
+        {
+            if (!stored.TryGetValue(plan.Account, out var held))
+                stored[plan.Account] = held = plan.Account.Id == Guid.Empty ? []
+                    : (await transactions.ListAsync([plan.Account.Id], null, null, 0, int.MaxValue, ct)).ToDictionary(t => t.ProviderRef, StringComparer.Ordinal);
+            var line = held.GetValueOrDefault(plan.Record.ProviderRef);
+            if (line is not null ? line.LinkState == TransactionLinkState.Unlinked : validating && plan.Account.Lines.Any(l => l.ProviderRef == plan.Record.ProviderRef))
+                ready.Add((plan, line));
+            else
+                skipped++;
+        }
+        return (ready, skipped);
+    }
+
+    /// <summary>The planned rules the importer has not got already (same account, stem and target), and those it has.</summary>
+    private async Task<(int Created, int Known)> RuleCountsAsync(ImportContext context, CancellationToken ct)
+    {
+        IReadOnlyList<BankRule> own = rulePlans.Count == 0 ? [] : await rules.ByAsync(context.Actor, ct);
+        var known = rulePlans.Count(p => Target(context, p.Record.TargetRef, "", [], out var target)
+            && own.Any(r => r.Account == p.Account.Id && r.LabelStem == p.Record.LabelStem && r.TargetItem == target.Item));
+        return (rulePlans.Count - known, known + unwritableRules);
     }
 
     /// <summary>
@@ -366,6 +593,40 @@ public sealed class BankImportSection(
             line = new NewBankTransaction(r.ProviderRef, booked.Value, valueOn, r.Amount, currency, r.Label, r.Counterparty, r.Remittance, r.FetchedVia);
         return ok;
     }
+
+    /// <summary>The rules local to a link record: its outcome, what it points at (an item or a counterpart account), its expected amount and its date.</summary>
+    private static bool TryLink(BankLinkRecord r, string path, List<ImportIssue> issues, out LinkOutcome outcome, out Money? expected)
+    {
+        var ok = true;
+        expected = null;
+        var found = Enum.GetValues<LinkOutcome>().Select(o => (LinkOutcome?)o).FirstOrDefault(o => BankLines.Wire(o!.Value) == r.Outcome);
+        outcome = found ?? default;
+        if (found is null)
+            ok = Error(issues, ImportCodes.InvalidValue, "An outcome is as_expected, price_differs, income, contribution, internal_transfer or card_settlement.", path + ".outcome");
+        if (string.IsNullOrWhiteSpace(r.ProviderRef))
+            ok = Error(issues, ImportCodes.InvalidValue, "A link names its line by the source's ref.", path + ".provider_ref");
+        var internalOutcome = outcome is LinkOutcome.InternalTransfer or LinkOutcome.CardSettlement;
+        if (internalOutcome ? r.CounterpartRef is null || r.TargetRef is not null : r.TargetRef is null || r.CounterpartRef is not null)
+            ok = Error(issues, ImportCodes.InvalidValue, internalOutcome ? "A transfer or card settlement names its counterpart account, not an item." : "A link names its item, not a counterpart account.",
+                path + (internalOutcome ? ".counterpart_ref" : ".target_ref"));
+        if (r.TargetKey is { Length: 0 or > 200 })
+            ok = Error(issues, ImportCodes.InvalidValue, "A charge's key has 1 to 200 characters.", path + ".target_key");
+        if (r.ExpectedAmount is { } amount)
+        {
+            if (!Currency.TryCreate(r.ExpectedCurrency, out var currency) || !Money.Create(amount, currency).TryGetValue(out var money))
+                ok = Error(issues, ImportCodes.InvalidValue, "An expected amount has an ISO 4217 currency and at most 4 decimals.", path + ".expected_amount");
+            else
+                expected = money;
+        }
+        else if (r.ExpectedCurrency is not null)
+            ok = Error(issues, ImportCodes.InvalidValue, "An expected currency goes with an expected amount.", path + ".expected_currency");
+        if (!InstantPattern.ExtendedIso.Parse(r.DecidedAt).Success)
+            ok = Error(issues, ImportCodes.InvalidValue, "A date and time are written YYYY-MM-DDThh:mm:ssZ.", path + ".decided_at");
+        return ok;
+    }
+
+    private static bool TryRule(BankRuleRecord r, string path, List<ImportIssue> issues)
+        => !string.IsNullOrWhiteSpace(r.LabelStem) || Error(issues, ImportCodes.InvalidValue, "A rule has a label stem.", path + ".label_stem");
 
     private static bool TryKind(string wire, out BankAccountKind kind)
     {

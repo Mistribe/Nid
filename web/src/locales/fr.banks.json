@@ -84,8 +84,36 @@
       "label": "Libellé",
       "amount": "Montant",
       "card": "Carte",
+      "account": "Compte",
+      "state": "État",
+      "actions_col": "Actions",
+      "actions": "Actions sur l'opération",
+      "unlinked": "À relier",
+      "linked": "Reliée",
+      "linked_to": "Reliée · {{name}}",
+      "internal": "Interne",
+      "internal_to": "Interne · {{name}}",
+      "ignored": "Ignorée",
+      "link": "Relier…",
+      "ignore": "Ignorer",
+      "unlink": "Délier",
+      "done_link": "Opération reliée.",
+      "done_ignore": "Opération ignorée.",
+      "done_unlink": "Opération déliée.",
+      "to_link": "Opérations à relier",
+      "to_link_empty": "Aucune opération à relier.",
       "empty": "Aucune opération.",
       "empty_period": "Aucune opération sur cette période."
+    },
+    "link": {
+      "title": "Relier l'opération",
+      "target": "Charge attendue",
+      "pick": "Choisir une charge",
+      "search": "Rechercher une charge",
+      "none": "Aucune charge",
+      "empty": "Aucune charge attendue proche",
+      "gap": "écart {{gap}}",
+      "submit": "Relier"
     },
     "import": {
       "open": "Importer un relevé",
@@ -107,6 +135,19 @@
       "done_one": "Relevé importé : {{count}} opération ajoutée.",
       "done_other": "Relevé importé : {{count}} opérations ajoutées.",
       "failed": "Le relevé n'a pas pu être importé."
+    },
+    "rules": {
+      "title": "Règles mémorisées",
+      "hint": "Une opération que vous reliez retient son libellé : les suivantes du même compte, au même libellé, se relient d'elles-mêmes à la même cible.",
+      "empty": "Aucune règle mémorisée.",
+      "stem": "Libellé",
+      "target": "Cible",
+      "last_used": "Dernière utilisation",
+      "never": "Jamais",
+      "hidden": "Élément inaccessible",
+      "actions_of": "Actions sur la règle {{stem}}",
+      "delete_confirm": "La règle « {{stem}} » sera supprimée : une prochaine opération à ce libellé n'est plus reliée d'elle-même. Les opérations déjà reliées le restent.",
+      "deleted": "Règle supprimée."
     }
   }
 }

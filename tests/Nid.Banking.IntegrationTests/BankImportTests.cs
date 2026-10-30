@@ -56,7 +56,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     }
 
     /// <summary>The reader's whole export, its non-empty sections as file JSON.</summary>
-    private static async Task<Dictionary<string, string>> ExportAsync(NidApp app, PersonId reader)
+    internal static async Task<Dictionary<string, string>> ExportAsync(NidApp app, PersonId reader)
     {
         var manifest = await BankingApi.JsonAsync(await app.RawAsync(reader, HttpMethod.Get, $"{Export}/manifest"));
         var file = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -67,7 +67,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     }
 
     /// <summary>Starts a session as <paramref name="actor"/> (the file's <c>adult-1</c>), sends each section as batch 0, validates; commits when asked.</summary>
-    private static async Task<(JsonElement Report, List<JsonElement> BatchIssues)> ImportAsync(
+    internal static async Task<(JsonElement Report, List<JsonElement> BatchIssues)> ImportAsync(
         NidApp app, PersonId actor, IReadOnlyDictionary<string, string> sections, bool commit = true)
     {
         var started = await app.RawAsync(actor, HttpMethod.Post, Imports, new { format = "nid.data", version = 1, adults = new Dictionary<string, Guid> { ["adult-1"] = actor.Value } });
@@ -350,5 +350,116 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Contains((ImportCodes.InvalidValue, "bank_transactions[0].booked_on"), Errors([.. batchIssues, .. report.GetProperty("issues").EnumerateArray()]));
         await using var db = Db(app);
         Assert.Equal(0, await db.Transactions.CountAsync());
+    }
+
+    /// <summary>A's « Courant » on a shared envelope A owns, B too when <paramref name="sharedWithB"/>, two lines, and A's subscription « Netflix » of the visibility given.</summary>
+    private static async Task<(Guid Account, ItemId Subscription, Guid Line)> LinkedSeedAsync(NidApp app, Visibility visibility, bool sharedWithB)
+    {
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        var account = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().Single().GetProperty("id").GetGuid();
+        var envelope = sharedWithB
+            ? await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5000), (app.AdultB, 5000))
+            : await app.NewEnvelopeAsync("Commun", app.AdultA, Visibility.Shared);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", new { envelopeId = envelope.Value })).StatusCode);
+        var subscription = await app.NewSubscriptionAsync("Netflix", app.AdultA, visibility);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{subscription.Value}/phases", new
+        {
+            startsOn = "2025-01-05", price = new { amount = "12.99", currency = "EUR" }, every = new { count = 1, unit = "month" }, payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        await AddAsync(app, account, Line("n-1", new LocalDate(2025, 10, 5), -12.99m, "PRLV SEPA NETFLIX 123"), Line("n-2", new LocalDate(2025, 10, 6), -4m, "CB CAFE"));
+        await using var scope = app.Services.CreateAsyncScope();
+        var line = (await scope.ServiceProvider.GetRequiredService<ITransactionStore>().ListAsync([account], null, null, 0, 10, default)).Single(t => t.ProviderRef == "n-1").Id;
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{line}/link", new { module = "subscriptions", itemId = subscription.Value })).EnsureSuccessStatusCode();
+        return (account, subscription, line);
+    }
+
+    [Fact]
+    public async Task Links_and_rules_round_trip()
+    {
+        await using var source = await BankingApi.StartAsync(fixture);
+        await LinkedSeedAsync(source, Visibility.Shared, false);
+        var file = await ExportAsync(source, source.AdultA);
+
+        var link = JsonDocument.Parse(file["bank_links"]).RootElement.EnumerateArray().Single();
+        var subscriptionRef = (await PageAsync(source, source.AdultA, "subscriptions")).Single().GetProperty("id").GetString();
+        Assert.Equal(("n-1", "as_expected", subscriptionRef, JsonValueKind.Null), (link.GetProperty("provider_ref").GetString(), link.GetProperty("outcome").GetString(),
+            link.GetProperty("target_ref").GetString(), link.GetProperty("counterpart_ref").ValueKind));
+        var rule = JsonDocument.Parse(file["bank_rules"]).RootElement.EnumerateArray().Single();
+        Assert.Equal((subscriptionRef, "NETFLIX"), (rule.GetProperty("target_ref").GetString(), rule.GetProperty("label_stem").GetString()));
+
+        await using var target = await BankingApi.StartAsync(fixture);
+        var (report, _) = await ImportAsync(target, target.AdultA, file);
+
+        Assert.True(report.GetProperty("state").GetString() == "committed", report.GetProperty("issues").ToString());
+        Assert.Equal((1, 0), Counts(report, "bank_links"));
+        Assert.Equal((1, 0), Counts(report, "bank_rules"));
+        var linked = JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/transactions?state=linked")).RootElement.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal(("PRLV SEPA NETFLIX 123", "Netflix", "as_expected"), (linked.GetProperty("label").GetString(), linked.GetProperty("link").GetProperty("itemName").GetString(),
+            linked.GetProperty("link").GetProperty("outcome").GetString()));
+        Assert.Equal(["CB CAFE"], JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/transactions")).RootElement.GetProperty("items")
+            .EnumerateArray().Select(l => l.GetProperty("label").GetString()));
+        await using (var db = Db(target))
+            Assert.Equal($"person:{target.AdultA.Value:D}", (await db.Links.SingleAsync()).DecidedBy);
+        Assert.Single(JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/rules")).RootElement.EnumerateArray());
+
+        var (again, _) = await ImportAsync(target, target.AdultA, file);
+
+        Assert.Equal((0, 1), Counts(again, "bank_links"));
+        Assert.Equal((0, 1), Counts(again, "bank_rules"));
+    }
+
+    [Fact]
+    public async Task A_link_to_an_unreadable_target_is_not_exported()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await LinkedSeedAsync(app, Visibility.Private, true);
+
+        // B reads the shared account and its lines, not A's private subscription it pays: no link and no rule of it.
+        Assert.Equal(2, (await PageAsync(app, app.AdultB, "bank_transactions")).Count);
+        Assert.Empty(await PageAsync(app, app.AdultB, "bank_links"));
+        Assert.Empty(await PageAsync(app, app.AdultB, "bank_rules"));
+        Assert.Single(await PageAsync(app, app.AdultA, "bank_links"));
+    }
+
+    private const string Persons = """[{"ref":"adult-1","kind":"adult","display_name":"Moi"}]""";
+    private const string Subscription = """{"id":"dup","name":"Netflix","ownership":[{"person":"adult-1","share_bp":10000}],"visibility":"shared","auto_renew":true}""";
+    private const string Courant = """[{"ref":"courant","name":"Courant","kind":"checking","currency":"EUR","owner_ref":"adult-1"}]""";
+    private const string Lines = """[{"account_ref":"courant","provider_ref":"r-1","fingerprint":"x","booked_on":"2025-10-01","amount":"-12.99","currency":"EUR","label":"NETFLIX","fetched_via":"file"}]""";
+
+    private static Dictionary<string, string> LinkFile(string subscriptions, string link, string? properties = null)
+    {
+        var file = new Dictionary<string, string>
+        {
+            ["persons"] = Persons, ["subscriptions"] = subscriptions, ["bank_accounts"] = Courant, ["bank_transactions"] = Lines, ["bank_links"] = link,
+        };
+        if (properties is not null)
+            file["properties"] = properties;
+        return file;
+    }
+
+    [Fact]
+    public async Task A_link_to_an_id_two_sections_share_is_refused()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var property = """{"id":"dup","name":"Maison","property_type":"primary_residence","currency":"EUR","purchase_date":"2020-06-15","purchase_price":{"amount":"250000.00","currency":"EUR"},"ownership":[{"person":"adult-1","share_bp":10000}],"visibility":"shared"}""";
+        var link = """[{"account_ref":"courant","provider_ref":"r-1","outcome":"as_expected","target_ref":"dup","decided_at":"2025-10-02T10:00:00Z"}]""";
+
+        var (report, batchIssues) = await ImportAsync(app, app.AdultA, LinkFile($"[{Subscription}]", link, $"[{property}]"));
+
+        Assert.Contains((ImportCodes.UnresolvedReference, "bank_links[0].target_ref"), Errors([.. batchIssues, .. report.GetProperty("issues").EnumerateArray()]));
+    }
+
+    [Fact]
+    public async Task A_rents_flow_key_is_not_carried_to_another_instance()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var link = """[{"account_ref":"courant","provider_ref":"r-1","outcome":"income","target_ref":"dup","target_key":"flow:0123456789abcdef0123456789abcdef","decided_at":"2025-10-02T10:00:00Z"}]""";
+
+        var (report, _) = await ImportAsync(app, app.AdultA, LinkFile($"[{Subscription}]", link));
+
+        Assert.Equal("committed", report.GetProperty("state").GetString());
+        await using var db = Db(app);
+        var stored = await db.Links.SingleAsync();
+        Assert.Equal(("income", null), (stored.Outcome, stored.TargetKey));
     }
 }

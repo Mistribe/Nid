@@ -41,3 +41,32 @@ public sealed record BankTransactionRecord
     public string? Remittance { get; init; }
     public required string FetchedVia { get; init; }
 }
+
+/// <summary>
+/// A link of a <c>bank_transactions</c> line (5C D24): the line is named by <c>(account_ref, provider_ref)</c>, the target by the file id of its
+/// item (<c>subscriptions</c>, <c>properties</c> or <c>loans</c>), an internal transfer or card settlement by the counterpart's <c>bank_accounts</c> ref.
+/// </summary>
+public sealed record BankLinkRecord
+{
+    public required string AccountRef { get; init; }
+    public required string ProviderRef { get; init; }
+    public required string Outcome { get; init; }
+    public string? TargetRef { get; init; }
+    public string? TargetKey { get; init; }
+    public string? CounterpartRef { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? ExpectedAmount { get; init; }
+
+    public string? ExpectedCurrency { get; init; }
+    public required string DecidedAt { get; init; }
+}
+
+/// <summary>A person's label rule (5C D24): lines of the account whose label stem is <c>label_stem</c> belong to the item <c>target_ref</c> names.</summary>
+public sealed record BankRuleRecord
+{
+    public required string AccountRef { get; init; }
+    public required string LabelStem { get; init; }
+    public required string TargetRef { get; init; }
+    public required string CreatedAt { get; init; }
+}

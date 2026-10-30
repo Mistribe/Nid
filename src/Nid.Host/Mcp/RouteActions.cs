@@ -256,6 +256,15 @@ public static class RouteActions
             + "envelope (clearEnvelope: true dissociates it), cardOfAccountId attaches a card to its account, autoApplyBalance writes its "
             + "month-end balances as valuations instead of proposing them, ignored stops following it. id is the bank account's id (Réglages › Banques in the web app); envelope ids come from list_envelopes.",
             OnItem: false),
+        // 5C: a line's link and its rules; linking itself is propose_bank_link.
+        new("unlink_bank_transaction", "POST", "/api/v1/banking/transactions/{id:guid}/unlink", null,
+            "Take a bank line's link (or its ignored mark) off, so it is unlinked again; its rule stays. id is the line's id, from list_bank_transactions.",
+            Destructive: true, OnItem: false),
+        new("ignore_bank_transaction", "POST", "/api/v1/banking/transactions/{id:guid}/ignore", null,
+            "Mark an unlinked bank line as ignored: no charge is expected for it. id is the line's id, from list_bank_transactions.", OnItem: false),
+        new("delete_bank_rule", "DELETE", "/api/v1/banking/rules/{id:guid}", null,
+            "Delete one of your bank rules (a label linked to an item on an account); the lines it linked stay linked. id is the rule's id.",
+            Destructive: true, OnItem: false),
 
         // Household.
         new("create_dependent", "POST", "/api/v1/core/persons/dependents", typeof(CreateDependentBody),

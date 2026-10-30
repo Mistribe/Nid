@@ -14,7 +14,7 @@ namespace Nid.Banking.Application;
 /// </summary>
 public sealed class BankingAccess(
     IHouseholdSettings settings, BankingOptions options, IAccessPolicy policy, IConnectionStore connections, IAccountStore accounts,
-    IActorAccessor actor)
+    IActorAccessor actor, IPersonRegistry persons)
 {
     public PersonId Person => actor.Current!.PersonId!.Value;
 
@@ -50,10 +50,42 @@ public sealed class BankingAccess(
         var mine = (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet();
         var readable = new List<(BankAccount, bool)>();
         foreach (var account in list)
-            if (await CanWriteAsync(account, mine, ct) is { } canWrite)
+            if (await CanWriteAsync(Person, account, mine, ct) is { } canWrite)
                 readable.Add((account, canWrite));
         return readable;
     }
+
+    /// <summary>
+    /// The signed-up adults who read the account (D19, D22), or write it when <paramref name="kind"/> says so: its owner
+    /// (<c>created_by</c>) first, whatever the actor.
+    /// </summary>
+    public async Task<IReadOnlyList<PersonId>> ReadersAsync(BankAccount account, CancellationToken ct, AccessKind kind = AccessKind.Read)
+    {
+        var readers = new List<PersonId>();
+        foreach (var adult in (await AdultsAsync(ct)).OrderBy(a => a != account.CreatedBy))
+            if (await CanWriteAsync(adult, account, (await connections.MineAsync(adult, ct)).Select(c => c.Id).ToHashSet(), ct) is { } canWrite
+                && (canWrite || kind == AccessKind.Read))
+                readers.Add(adult);
+        return readers;
+    }
+
+    /// <summary>
+    /// §0 n°1: whether every adult who reads <paramref name="item"/> reads the account too. Only then may a proposal on the item tell of
+    /// one of the account's lines: the item's readers see it and are asked to decide.
+    /// </summary>
+    public async Task<bool> ItemReadersReadAsync(Guid account, ItemId item, CancellationToken ct)
+    {
+        if (await accounts.FindAsync(account, ct) is not { } found)
+            return false;
+        var readers = await ReadersAsync(found, ct);
+        foreach (var adult in (await AdultsAsync(ct)).Where(a => !readers.Contains(a)))
+            if ((await policy.CheckAsync(adult, item, AccessKind.Read, ct)).IsSuccess)
+                return false;
+        return true;
+    }
+
+    private async Task<IEnumerable<PersonId>> AdultsAsync(CancellationToken ct)
+        => (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult && !p.IsPending).Select(p => p.Id);
 
     /// <summary>
     /// The account, when the actor may <paramref name="access"/> it: <see cref="BankingCodes.AccountNotFound"/> when they cannot read it
@@ -63,25 +95,25 @@ public sealed class BankingAccess(
     {
         var account = await accounts.FindAsync(id, ct);
         var mine = (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet();
-        return account is null || await CanWriteAsync(account, mine, ct) is not { } canWrite
+        return account is null || await CanWriteAsync(Person, account, mine, ct) is not { } canWrite
             ? Fail<BankAccount>(BankingCodes.AccountNotFound, "No such bank account.")
             : access == AccessKind.Write && !canWrite
                 ? Result.Failure<BankAccount>(new UnauthorizedFailure("You can read this bank account but not change it.", null))
                 : Result.Success(account);
     }
 
-    /// <summary><c>null</c> when the actor cannot read the account, else whether they may write it.</summary>
-    private async Task<bool?> CanWriteAsync(BankAccount account, IReadOnlySet<Guid> mine, CancellationToken ct)
+    /// <summary><c>null</c> when <paramref name="person"/> cannot read the account, else whether they may write it.</summary>
+    private async Task<bool?> CanWriteAsync(PersonId person, BankAccount account, IReadOnlySet<Guid> mine, CancellationToken ct)
     {
         var ruling = account.CardOf is { } parent && await accounts.FindAsync(parent, ct) is { } found ? found : account;
         if (ruling.Envelope is { } envelope)
         {
             // Write answers « not found » to a non-reader and « unauthorized » to a reader who does not write.
-            var write = await policy.CheckAsync(Person, envelope, AccessKind.Write, ct);
+            var write = await policy.CheckAsync(person, envelope, AccessKind.Write, ct);
             return write.TryGetFailure(out var failure) ? failure is UnauthorizedFailure ? false : null : true;
         }
 
-        return await OwnsAsync(ruling, mine, ct) ? true : null;
+        return await OwnsAsync(person, ruling, mine, ct) ? true : null;
     }
 
     /// <summary>
@@ -89,10 +121,10 @@ public sealed class BankingAccess(
     /// envelope or account, which would take it from the other adult's sight.
     /// </summary>
     public async Task<bool> OwnsAsync(BankAccount account, CancellationToken ct)
-        => await OwnsAsync(account, (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet(), ct);
+        => await OwnsAsync(Person, account, (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet(), ct);
 
-    private async Task<bool> OwnsAsync(BankAccount account, IReadOnlySet<Guid> mine, CancellationToken ct)
-        => account.CreatedBy == Person || (await accounts.SourcesAsync(account.Id, ct)).Any(s => mine.Contains(s.Connection));
+    private async Task<bool> OwnsAsync(PersonId person, BankAccount account, IReadOnlySet<Guid> mine, CancellationToken ct)
+        => account.CreatedBy == person || (await accounts.SourcesAsync(account.Id, ct)).Any(s => mine.Contains(s.Connection));
 
     internal static Result<T> Fail<T>(string code, string message) where T : notnull => Result.Failure<T>(new Failure(code, message, null));
 

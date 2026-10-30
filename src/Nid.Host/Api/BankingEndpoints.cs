@@ -77,11 +77,49 @@ public static class BankingEndpoints
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
-        api.MapGet("/envelopes/{envelopeId:guid}/transactions", async (Guid envelopeId, string? from, string? to, int? page, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new ListBankTransactionsQuery(
-                        new ItemId(envelopeId), OptionalDate(from), OptionalDate(to), page ?? 1), ct))
+        api.MapGet("/envelopes/{envelopeId:guid}/transactions",
+                async (Guid envelopeId, string? from, string? to, int? page, string? state, IInvoker invoker, CancellationToken ct)
+                    => (await invoker.InvokeAsync(new ListBankTransactionsQuery(
+                            new ItemId(envelopeId), OptionalDate(from), OptionalDate(to), page ?? 1, state), ct))
+                        .ToHttp(transactions => transactions))
+            .Returns<BankTransactionPage>();
+
+        // 5C spec §8: the lines of every account the person reads, their links, the charges they may pay, and the person's rules.
+        api.MapGet("/transactions", async (string? state, string? from, string? to, int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListBankLinesQuery(state, OptionalDate(from), OptionalDate(to), page ?? 1), ct))
                     .ToHttp(transactions => transactions))
             .Returns<BankTransactionPage>();
+
+        api.MapGet("/transactions/{id:guid}/candidates", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new LinkCandidatesQuery(id), ct)).ToHttp(charges => charges))
+            .Returns<IReadOnlyList<ExpectedChargeView>>();
+
+        api.MapGet("/expected-charges", async (string from, string to, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListExpectedChargesQuery(RequireDate(from), RequireDate(to)), ct)).ToHttp(charges => charges))
+            .Returns<IReadOnlyList<ExpectedChargeView>>();
+
+        api.MapPost("/transactions/{id:guid}/link", async (Guid id, LinkBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new LinkTransactionCommand(id, body.Module ?? "", body.ItemId ?? Guid.Empty, body.Key), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapPost("/transactions/{id:guid}/unlink", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UnlinkTransactionCommand(id), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapPost("/transactions/{id:guid}/ignore", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new IgnoreTransactionCommand(id), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapGet("/rules", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListBankRulesQuery(), ct)).ToHttp(rules => rules))
+            .Returns<IReadOnlyList<BankRuleView>>();
+
+        api.MapDelete("/rules/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteBankRuleCommand(id), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
 
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
@@ -174,6 +212,10 @@ public static class BankingEndpoints
     /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record BankAccountBody(Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored);
+
+    /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
 
     /// <summary>Without <c>connectionId</c>, every connection of the person.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

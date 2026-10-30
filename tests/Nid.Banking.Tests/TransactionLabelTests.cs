@@ -20,4 +20,11 @@ public class TransactionLabelTests
     [Fact]
     public void Every_listed_prefix_is_removed()
         => Assert.All(TransactionLabel.Prefixes, p => Assert.Equal("ACME", TransactionLabel.Normalize(p + "acme")));
+
+    [Theory]
+    [InlineData("NETFLIX.COM 866-579-7172 NL", "NETFLIX.COM NL")]
+    [InlineData("ECHEANCE PRET 00012345 ECH 05/10/26", "ECHEANCE PRET ECH")]
+    [InlineData("FREE MOBILE FM12345678", "FREE MOBILE")]
+    [InlineData("12345", "")]
+    public void Stem_drops_tokens_with_digits(string normalized, string expected) => Assert.Equal(expected, TransactionLabel.Stem(normalized));
 }

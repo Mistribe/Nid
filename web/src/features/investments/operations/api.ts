@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { Api } from '@/api/client';
 import { ProblemError, toProblem, type Problem } from '@/api/errors';
@@ -8,6 +9,7 @@ import '@/locales/banks';
 
 export type BankTransaction = components['schemas']['BankTransactionView'];
 export type BankTransactionPage = components['schemas']['BankTransactionPage'];
+export type ExpectedCharge = components['schemas']['ExpectedChargeView'];
 export type StatementImport = components['schemas']['StatementImportView'];
 
 export const TRANSACTIONS = '/api/v1/banking/envelopes/{envelopeId}/transactions' as const;
@@ -46,4 +48,21 @@ export function statementErrorText(t: TFunction, problem: Problem & { line?: num
   if (problem.code === 'banking.file_malformed' && problem.line !== undefined) return t('banks.error.banking_file_malformed_line', { line: problem.line });
   if (problem.status === 413) return t('banks.error.banking_file_too_large');
   return bankErrorText(t, problem.code ?? '', t('banks.import.failed'));
+}
+
+export const UNLINKED_LINES = '/api/v1/banking/transactions' as const;
+export const CANDIDATES = '/api/v1/banking/transactions/{id}/candidates' as const;
+const LINK = '/api/v1/banking/transactions/{id}/link' as const;
+const UNLINK = '/api/v1/banking/transactions/{id}/unlink' as const;
+const IGNORE = '/api/v1/banking/transactions/{id}/ignore' as const;
+
+/** « Relier », « Délier » and « Ignorer » on a line; each refreshes every line list, the candidates and the proposals. */
+export function useLineActions() {
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  // Not returned: `mutate` would wait for the refetch, and a row that left the list has unmounted by then (its callbacks would be lost).
+  const onSuccess = () => { void queryClient.invalidateQueries({
+    predicate: (q) => typeof q.queryKey[1] === 'string' && (q.queryKey[1].startsWith('/api/v1/banking/') || q.queryKey[1].startsWith('/api/v1/core/proposals')),
+  }); };
+  return { link: $api.useMutation('post', LINK, { onSuccess }), unlink: $api.useMutation('post', UNLINK, { onSuccess }), ignore: $api.useMutation('post', IGNORE, { onSuccess }) };
 }

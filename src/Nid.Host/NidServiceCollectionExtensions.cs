@@ -168,6 +168,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
+        services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
@@ -237,8 +238,17 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IAccountStore, AccountStore>();
         services.AddScoped<IBalanceStore, BalanceStore>();
         services.AddScoped<ITransactionStore, TransactionStore>();
+        services.AddScoped<ILinkStore, LinkStore>();
+        services.AddScoped<IRuleStore, RuleStore>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<BankingAccess>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.ExpectedChargeReader>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.TransactionLinker>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
+        services.AddScoped<Nid.Banking.Application.BankLines>();
+        services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.LinkProposal>();
+        services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.SubscriptionProposal>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, BankingNotificationSource>();
         services.AddScoped<BankAccountReader>();
         services.AddScoped<Nid.Banking.Application.Sync.BankSyncCollector>();
@@ -276,6 +286,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
+        services.AddScoped<IExpectedCharges, Nid.RealEstate.Application.RealEstateExpectedCharges>();
         services.AddScoped<Nid.RealEstate.Application.RealEstateUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateUpcoming>());
         services.AddScoped<Nid.RealEstate.Application.PropertiesOverviewReader>();

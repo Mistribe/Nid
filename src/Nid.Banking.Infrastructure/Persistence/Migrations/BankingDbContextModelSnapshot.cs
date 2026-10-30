@@ -269,6 +269,137 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.LinkRow", b =>
+                {
+                    b.Property<Guid>("TransactionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<Guid?>("CounterpartAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("counterpart_account_id");
+
+                    b.Property<Instant>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<string>("DecidedBy")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("decided_by");
+
+                    b.Property<decimal?>("ExpectedAmount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("expected_amount");
+
+                    b.Property<string>("ExpectedCurrency")
+                        .HasColumnType("char(3)")
+                        .HasColumnName("expected_currency");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("outcome");
+
+                    b.Property<Guid?>("TargetItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_item_id");
+
+                    b.Property<string>("TargetKey")
+                        .HasColumnType("text")
+                        .HasColumnName("target_key");
+
+                    b.Property<string>("TargetModule")
+                        .HasColumnType("text")
+                        .HasColumnName("target_module");
+
+                    b.HasKey("TransactionId")
+                        .HasName("pk_link");
+
+                    b.HasIndex("TargetItemId")
+                        .HasDatabaseName("ix_link_target_item_id");
+
+                    b.ToTable("link", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_link_outcome", "outcome in ('as_expected','price_differs','income','contribution','internal_transfer','card_settlement')");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.RecurringGroupRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<string>("LabelStem")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("label_stem");
+
+                    b.Property<Instant>("ProposedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("proposed_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recurring_group");
+
+                    b.HasIndex("AccountId", "LabelStem")
+                        .IsUnique()
+                        .HasDatabaseName("ix_recurring_group_account_id_label_stem");
+
+                    b.ToTable("recurring_group", "banking");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.RuleRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_person_id");
+
+                    b.Property<string>("LabelStem")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("label_stem");
+
+                    b.Property<Instant?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_used_at");
+
+                    b.Property<Guid>("TargetItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_item_id");
+
+                    b.Property<string>("TargetModule")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("target_module");
+
+                    b.HasKey("Id")
+                        .HasName("pk_rule");
+
+                    b.HasIndex("AccountId", "CreatedByPersonId", "LabelStem")
+                        .IsUnique()
+                        .HasDatabaseName("ix_rule_account_id_created_by_person_id_label_stem");
+
+                    b.ToTable("rule", "banking");
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.SyncRunRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -406,6 +537,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("provider_ref");
+
+                    b.Property<Instant?>("ReconciledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reconciled_at");
 
                     b.Property<string>("Remittance")
                         .HasColumnType("text")
@@ -575,6 +710,36 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_balance_account_account_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.LinkRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.TransactionRow", null)
+                        .WithOne()
+                        .HasForeignKey("Nid.Banking.Infrastructure.Persistence.LinkRow", "TransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_link_transaction_transaction_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.RecurringGroupRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_recurring_group_account_account_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.RuleRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_rule_account_account_id");
                 });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.TransactionRow", b =>

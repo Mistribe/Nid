@@ -8,7 +8,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.RealEstate.Application;
 
 /// <summary>A property's flow as sent (spec 3C1 §4): its kind and category are checked against the module's convention.</summary>
-public sealed record PropertyFlowDraft(LocalDate OccurredOn, string? Kind, decimal Amount, string? Category, string? Note);
+public sealed record PropertyFlowDraft(LocalDate OccurredOn, string? Kind, decimal Amount, string? Category, string? Note, string? ExternalRef = null);
 
 public sealed record RecordPropertyValuationCommand(ItemId ItemId, LocalDate AsOf, decimal Amount, string? Note) : ICommand<Guid>, IItemScoped
 {
@@ -54,7 +54,7 @@ internal static class PropertyFacts
         => (PropertyRules.Category(draft.Kind, draft.Category) ?? PropertyRules.Positive(draft.Amount, "amount")) is { } refused
             ? Result.Failure<NewFlow>(refused)
             : Result.Success(new NewFlow(item, draft.OccurredOn, PropertyRules.KindOf(draft.Kind!), MoneyOf(draft.Amount, currency),
-                draft.Category, null, draft.Note));
+                draft.Category, draft.ExternalRef, draft.Note));
 
     /// <summary>Spec 3C1 §4: every 422 names its field; the Core's date refusal names none, so the route's date field is given.</summary>
     public static Result<Guid> Answer<T>(Result<T> written, Func<T, Guid> id, string dateField) where T : notnull
@@ -122,8 +122,11 @@ public sealed class CorrectPropertyFlowHandler(IPropertyStore properties, IItemR
         var flow = PropertyFacts.FlowOf(command.ItemId, command.Flow, c);
         if (!flow.TryGetValue(out var f))
             return Result.Failure<Guid>(flow.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+        // A correction without a reference keeps the stored one: a bank cash-in's `bank:` reference still refuses a second one (D20).
+        if (f!.ExternalRef is null && (await flows.FindManyAsync([command.FlowId], ct)).FirstOrDefault(x => x.Item == command.ItemId) is { ExternalRef: { } kept })
+            f = f with { ExternalRef = kept };
         // The Core looks the flow up by (id, item): another property's flow is core.fact_not_found (Review Focus #3).
-        return PropertyFacts.Answer(await flows.SupersedeAsync(command.ItemId, command.FlowId, f!, ct), x => x.Id, "occurredOn");
+        return PropertyFacts.Answer(await flows.SupersedeAsync(command.ItemId, command.FlowId, f, ct), x => x.Id, "occurredOn");
     }
 }
 

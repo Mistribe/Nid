@@ -18,7 +18,7 @@ public sealed record RouteCall(IReadOnlyDictionary<string, string> Route, IReadO
 /// already ran on the outer request. The answer comes back as a <see cref="Result{T}"/>: the route's JSON on success, its
 /// Problem Details as a failure whose fields are the proposal's (`payload.body.owners[0].shareBp`).
 /// </summary>
-public sealed class RouteReplay(EndpointDataSource endpoints, IHttpContextAccessor http, IServiceScopeFactory scopes)
+public sealed class RouteReplay(EndpointDataSource endpoints, IHttpContextAccessor http, IServiceScopeFactory scopes, IActorAccessor actor)
 {
     public RouteEndpoint? Find(RouteAction action)
         => endpoints.Endpoints.OfType<RouteEndpoint>().FirstOrDefault(e => e.RoutePattern.RawText == action.Route
@@ -30,13 +30,17 @@ public sealed class RouteReplay(EndpointDataSource endpoints, IHttpContextAccess
 
     /// <summary>
     /// Runs the route in a scope of its own, inside a unit of work that is never committed: what it would refuse, without
-    /// writing. A token proposes with `write` only, so the dry run lends it `write:direct`: nothing it writes lasts.
+    /// writing. A token proposes with `write` only, so the dry run lends it `write:direct`: nothing it writes lasts. A job runs it as its
+    /// own actor, lent `write:direct` the same way: the bank sync proposing as a person (D22), even inside another person's request (a
+    /// manual sync, a statement import).
     /// </summary>
     public async Task<Result<JsonElement>> DryRunAsync(RouteAction action, RouteCall call, CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
         await using var rolledBack = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(ct);
-        var user = http.HttpContext?.User;
+        var user = actor.Current?.Via == ActorOrigin.Job ? null : http.HttpContext?.User;
+        if (user is null && actor.Current is { } job)
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = job with { Scopes = new HashSet<string>(job.Scopes) { ScopeNames.WriteDirect } };
         return await SendAsync(scope.ServiceProvider, user is null ? null : TokenClaims.WithScope(user, ScopeNames.WriteDirect), action, call, ct);
     }
 

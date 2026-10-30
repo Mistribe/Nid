@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import type { JSX, ReactNode } from 'react';
 import { Controller, type FieldValues, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { formatLocalDate } from '@/components/LocalDate';
@@ -21,9 +21,10 @@ export type LinkTarget = { to: '/investments/$id' | '/income/$id' | '/subscripti
 /** Spec 4D1 §5: what a kind brings to « À valider ». Each kind reads its own payload and preview. */
 export type KindUi = {
   /** An i18n key. */
-  label: `proposals.kind.${'valuation' | 'statement' | 'holdings' | 'payslip' | 'invoice' | 'amortization'}`;
+  label: `proposals.kind.${'valuation' | 'statement' | 'holdings' | 'payslip' | 'invoice' | 'amortization' | 'link' | 'recurring'}`;
   summary: (t: TFunction, p: ProposalView) => string;
-  Preview: (props: { preview: unknown }) => JSX.Element;
+  /** `original`: the payload, for a kind whose server preview leaves out what it proposes. */
+  Preview: (props: { preview: unknown; original: unknown }) => JSX.Element;
   schema: (t: TFunction, original: unknown) => z.ZodType<FieldValues, FieldValues>;
   toForm: (original: unknown, preview: unknown) => FieldValues;
   /** The payload to send as `editedPayload`, or null when nothing really changed (4C2 Review Focus 3). */
@@ -39,6 +40,18 @@ export type KindUi = {
   /** True when approving would record nothing: the approval is then disabled. */
   nothing?: (values: FieldValues, original: unknown) => boolean;
 };
+
+/** For a kind approved as proposed or rejected, never edited (the server refuses an edit): no field, this sentence instead. */
+export const notEditable = (text: (t: TFunction) => string): Pick<KindUi, 'schema' | 'toForm' | 'toPayload' | 'field' | 'Fields'> => ({
+  schema: () => z.object({}),
+  toForm: () => ({}),
+  toPayload: () => null,
+  field: () => undefined,
+  Fields: function AsProposed() {
+    const { t } = useTranslation();
+    return <p>{text(t)}</p>;
+  },
+});
 
 /** The decimal typed, as the wire wants it (a comma read as a point). */
 export const wireAmount = (typed: string) => typed.trim().replace(',', '.');

@@ -1,5 +1,5 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -15,12 +15,16 @@ import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatInstant } from '../../admin/format';
+import { formatInstant, formatInstantDay } from '../../admin/format';
 import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '../../investments/api';
+import { LOANS } from '../../loans/api';
+import { PROPERTIES } from '../../properties/api';
 import { SettingsFrame } from '../SettingsFrame';
 import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
-import { ACCOUNTS, bankErrorText, CONNECTION, CONNECTIONS, RENEW, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type Connection } from './api';
+import {
+  ACCOUNTS, bankErrorText, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection,
+} from './api';
 import '@/locales/banks';
 
 // Loaded when opened: most visits import no statement.
@@ -62,7 +66,7 @@ export function BanksPage() {
       {status.error ? <ProblemMessage problem={present(toProblem(status.error))} />
         : !status.data ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton>
         : !status.data.enabled ? <p>{t('banks.disabled')}</p>
-        : <Connections configured={status.data.configured} />}
+        : <div className="space-y-8"><Connections configured={status.data.configured} /><Rules /></div>}
     </SettingsFrame>
   );
 }
@@ -250,5 +254,71 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
           <div className="flex flex-wrap justify-between gap-x-3 text-sm text-muted-foreground"><span>{kind(a)} · {envelopeOf(a)}</span><span className="tabular-nums">{balance(a)}</span></div>
         </div>
       )} />
+  );
+}
+
+const invalidateRules = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: ['get', RULES] });
+
+/** « Règles mémorisées » (5C §6.3 step 3): the rules the person's own links kept; deleting one unlinks nothing already linked. */
+function Rules() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const [announcement, setAnnouncement] = useState('');
+  const rules = $api.useQuery('get', RULES);
+  // A real-estate target is a loan or a property: the two lists (unpaged, ended loans included) tell which.
+  const estate = { enabled: rules.data?.some((r) => r.module === 'realestate') === true };
+  const loans = $api.useQuery('get', LOANS, { params: { query: { ended: true } } }, estate);
+  const properties = $api.useQuery('get', PROPERTIES, {}, estate);
+  const target = (r: BankRule) => {
+    // Null when the person no longer reads the target: the rule links nothing until they do again.
+    if (!r.itemName) return <span className="text-muted-foreground">{t('banks.rules.hidden')}</span>;
+    const listed = (list: { items: { id: string }[] } | undefined) => list?.items.some((i) => i.id === r.itemId) === true;
+    // Found in neither list (archived, module off, still loading): the name alone, never a wrong page.
+    const to = r.module === 'subscriptions' ? '/subscriptions/$id'
+      : listed(loans.data) ? '/loans/$id' : listed(properties.data) ? '/properties/$id' : null;
+    return to ? <Link to={to} params={{ id: r.itemId }} className="underline">{r.itemName}</Link> : r.itemName;
+  };
+  const lastUsed = (r: BankRule) => (r.lastUsedAt ? formatInstantDay(r.lastUsedAt) : t('banks.rules.never'));
+  const actions = (r: BankRule, menuId: string) => (
+    <RuleActions rule={r} menuId={menuId} onDeleteStarted={() => setAnnouncement('')} onDeleted={setAnnouncement} />
+  );
+
+  return (
+    <Section title={t('banks.rules.title')} announcement={announcement}>
+      <p className="text-sm text-muted-foreground">{t('banks.rules.hint')}</p>
+      {rules.error ? <ProblemMessage problem={present(toProblem(rules.error))} /> : null}
+      {rules.data?.length === 0 ? <p>{t('banks.rules.empty')}</p> : null}
+      {rules.data && rules.data.length > 0 ? (
+        <SortableTable<BankRule> caption={t('banks.rules.title')} rows={rules.data} rowKey={(r) => r.id} initialSort={{ id: 'stem', desc: false }}
+          columns={[
+            { id: 'stem', header: t('banks.rules.stem'), sort: (r) => r.labelStem, cell: (r) => <span className="whitespace-normal">{r.labelStem}</span> },
+            { id: 'account', header: t('banks.account'), sort: (r) => r.accountName ?? '', cell: (r) => r.accountName ?? '—' },
+            { id: 'target', header: t('banks.rules.target'), sort: (r) => r.itemName ?? '', cell: target },
+            { id: 'used', header: t('banks.rules.last_used'), sort: (r) => r.lastUsedAt ?? '', cell: lastUsed },
+            { id: 'actions', header: t('banks.actions'), align: 'end', cell: (r) => actions(r, `rule-${r.id}`) },
+          ]}
+          mobile={(r) => (
+            <div className="space-y-1">
+              <div className="flex items-start justify-between gap-2"><span className="whitespace-normal">{r.labelStem}</span>{actions(r, `rule-${r.id}-mobile`)}</div>
+              <p className="text-sm text-muted-foreground">{r.accountName ?? '—'} · {target(r)} · {lastUsed(r)}</p>
+            </div>
+          )} />
+      ) : null}
+    </Section>
+  );
+}
+
+function RuleActions({ rule, menuId, onDeleteStarted, onDeleted }: {
+  rule: BankRule; menuId: string; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const remove = $api.useMutation('delete', RULE, { onSuccess: () => { onDeleted(t('banks.rules.deleted')); void invalidateRules(queryClient); } });
+  return (
+    <RowActions menuId={menuId} menuLabel={t('banks.rules.actions_of', { stem: rule.labelStem })} items={[]}
+      confirmation={t('banks.rules.delete_confirm', { stem: rule.labelStem })} remove={remove} onDeleteStarted={onDeleteStarted}
+      onConfirm={() => remove.mutate({ params: { path: { id: rule.id } } })}
+      present={(_, error) => present(toProblem(error))} invalidate={invalidateRules} />
   );
 }

@@ -310,6 +310,8 @@ public static class RequestCatalogue
         // Bank sync D24: A's account on her private envelope and its two lines, named after her private label, never reach B's export.
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_accounts", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_transactions", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_links", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_rules", null, null)),
 
         new(typeof(ListEnvelopesQuery), false, (_, _) => new ListEnvelopesQuery(VisibilityScope.Me, true)),
         new(typeof(GetInvestmentsOverviewQuery), false, (_, _) => new GetInvestmentsOverviewQuery(VisibilityScope.Me, OverviewSpan.All)),
@@ -479,7 +481,16 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Sync.SyncMineCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncMineCommand(Guid.NewGuid(), new PsuHeaders(null, null))),
         new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery()),
         // An envelope's bank lines (and its card's): read by whoever reads the envelope, A's two on her private envelope never reach B.
-        new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1)),
+        new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1, "all")),
+        // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
+        new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1)),
+        new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)),
+        new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
+        new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),
+        new(typeof(UnlinkTransactionCommand), false, (d, _) => new UnlinkTransactionCommand(d.JointLine)),
+        new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)),
+        new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
+        new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.
         new(typeof(Nid.Banking.Application.Files.ImportStatementCommand), false, (_, item) => new Nid.Banking.Application.Files.ImportStatementCommand(
             System.Text.Encoding.UTF8.GetBytes("<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>EUR</CURDEF><BANKACCTFROM><ACCTID>FR7630006000019999999999999</ACCTID></BANKACCTFROM>"

@@ -207,6 +207,7 @@ public sealed class SubscriptionsImportSection(
 
                 id = ItemId.New(); // planned; ApplyAsync replaces it with the real one
                 newSubscriptions.Add((entity, record));
+                context.NewItems.Add(id); // writable by construction, for the sections that point at it (bank_links)
                 tally[Subscriptions] += new SectionCounts(1, 0, 0);
             }
 
@@ -468,6 +469,8 @@ public sealed class SubscriptionsImportSection(
             if (!created.TryGetValue(out var id))
                 return ImportSectionKit.FailureOf(created);
 
+            context.NewItems.Remove(context.Items[(Subscriptions, record.Id)]);
+            context.NewItems.Add(id);
             context.Items[(Subscriptions, record.Id)] = id;
             var stored = await store.CreateAsync(id, new NewSubscription(
                 providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);

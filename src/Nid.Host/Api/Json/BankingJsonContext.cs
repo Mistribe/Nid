@@ -6,13 +6,17 @@ namespace Nid.Host.Api.Json;
 
 /// <summary>The Banking module's request and response bodies, for NidJsonContexts.</summary>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
-    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
+    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(InstantJsonConverter)])]
 [JsonSerializable(typeof(BankingStatusView))]
 [JsonSerializable(typeof(IReadOnlyList<AspspView>))]
 [JsonSerializable(typeof(ConnectionStarted))]
 [JsonSerializable(typeof(IReadOnlyList<ConnectionView>))]
 [JsonSerializable(typeof(IReadOnlyList<BankAccountView>))]
 [JsonSerializable(typeof(BankTransactionPage))]
+[JsonSerializable(typeof(BankTransactionView))]
+[JsonSerializable(typeof(IReadOnlyList<ExpectedChargeView>))]
+[JsonSerializable(typeof(IReadOnlyList<BankRuleView>))]
+[JsonSerializable(typeof(BankingEndpoints.LinkBody))]
 [JsonSerializable(typeof(BankingEndpoints.ConnectBody))]
 [JsonSerializable(typeof(BankingEndpoints.BankAccountBody))]
 [JsonSerializable(typeof(BankingEndpoints.SyncBody))]

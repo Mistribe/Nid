@@ -1,0 +1,4 @@
+{
+  "en": "Banks: each bank line can be linked to the subscription, loan instalment, property cost or rent it pays; once you confirm a label, Nid links the next ones itself, proposes price changes, rent receipts and unknown recurring debits as subscriptions, and flags charges not taken.",
+  "fr": "Banques : chaque opération peut être reliée à l’abonnement, la mensualité, la charge ou le loyer qu’elle paie ; une fois un libellé confirmé, Nid relie seul les suivantes, propose les changements de prix, les encaissements de loyer et les prélèvements récurrents inconnus comme abonnements, et signale les charges non prélevées."
+}

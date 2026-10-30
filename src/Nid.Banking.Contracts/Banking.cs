@@ -49,3 +49,17 @@ public sealed record BankTransaction(
     TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt);
 
 public sealed record TransactionWrite(int Added, int Known);
+
+/// <summary>Why a line is linked (spec §6.3); the wire values are snake_case. <c>Contribution</c> is reserved for 5D.</summary>
+public enum LinkOutcome { AsExpected, PriceDiffers, Income, Contribution, InternalTransfer, CardSettlement }
+
+/// <summary>A line's link (spec §2.6): to a charge of an item, or, for an internal transfer or a card settlement, to the counterpart account.</summary>
+/// <param name="TargetKey">The charge's key, or <c>flow:{id:N}</c> for a property flow already recorded.</param>
+/// <param name="DecidedBy"><c>person:{id}</c>, <c>rule:{id}</c> or <c>job</c>.</param>
+public sealed record BankLink(
+    Guid Transaction, string? TargetModule, ItemId? TargetItem, string? TargetKey, Guid? CounterpartAccount,
+    LinkOutcome Outcome, Money? Expected, string DecidedBy, Instant DecidedAt);
+
+/// <summary>A person's rule: a line of <paramref name="Account"/> whose label stem is <paramref name="LabelStem"/> belongs to <paramref name="TargetItem"/>.</summary>
+public sealed record BankRule(
+    Guid Id, Guid Account, string LabelStem, string TargetModule, ItemId TargetItem, PersonId CreatedBy, Instant CreatedAt, Instant? LastUsedAt);

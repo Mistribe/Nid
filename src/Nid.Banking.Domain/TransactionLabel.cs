@@ -52,4 +52,8 @@ public static partial class TransactionLabel
 
         return Spaces().Replace(CardNumber().Replace(result, " "), " ").Trim();
     }
+
+    /// <summary>What a recurring debit keeps from one month to the next: the normalized label without its numbers, references and dates.</summary>
+    public static string Stem(string normalizedLabel)
+        => string.Join(' ', normalizedLabel.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => !t.Any(char.IsDigit)));
 }

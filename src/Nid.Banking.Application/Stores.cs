@@ -145,8 +145,8 @@ public interface IBankSyncRunLog
 /// <summary>Booked transactions (spec §2.5), raw bank data: added once, never updated by a later read.</summary>
 public interface ITransactionStore
 {
-    /// <summary>Adds the lines not already stored by provider ref or fingerprint; never updates a stored one.</summary>
-    Task<TransactionWrite> AddAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct);
+    /// <summary>Adds the lines not already stored by provider ref or fingerprint; never updates a stored one. <paramref name="reconciled"/>: the new lines are not for the reconciliation job (an <c>nid.data</c> import).</summary>
+    Task<TransactionWrite> AddAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct, bool reconciled = false);
 
     /// <summary>The latest booking of the account, of one source (<c>api</c>, <c>file</c>) when <paramref name="fetchedVia"/> is given.</summary>
     Task<LocalDate?> LatestBookedOnAsync(Guid account, string? fetchedVia, CancellationToken ct);
@@ -156,9 +156,62 @@ public interface ITransactionStore
     /// <summary>Stored lines of the same amount booked within ±1 day of each given (date, amount).</summary>
     Task<IReadOnlyList<BankTransaction>> NearAsync(Guid account, IReadOnlyList<(LocalDate BookedOn, decimal Amount)> lines, CancellationToken ct);
 
-    /// <summary>The accounts' transactions, newest booked first, within [<paramref name="from"/>, <paramref name="to"/>] when given.</summary>
-    Task<IReadOnlyList<BankTransaction>> ListAsync(IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct);
+    /// <summary>
+    /// The accounts' transactions, newest booked first, within [<paramref name="from"/>, <paramref name="to"/>] when given; <paramref name="state"/> is a
+    /// <c>link_state</c> wire value, null for all. With <paramref name="readable"/> (D19), an internal line whose counterpart account is not in it
+    /// counts as <c>linked</c>.
+    /// </summary>
+    Task<IReadOnlyList<BankTransaction>> ListAsync(
+        IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
+        IReadOnlyList<Guid>? readable = null);
+
+    /// <summary>The lines the reconciliation job has not looked at yet, oldest booked first; null accounts = all.</summary>
+    Task<IReadOnlyList<BankTransaction>> UnreconciledAsync(IReadOnlyCollection<Guid>? accounts, CancellationToken ct);
+
+    /// <summary>Unlinked lines booked within [<paramref name="from"/>, <paramref name="to"/>], all accounts.</summary>
+    Task<IReadOnlyList<BankTransaction>> UnlinkedBetweenAsync(LocalDate from, LocalDate to, CancellationToken ct);
+
+    Task<BankTransaction?> FindAsync(Guid id, CancellationToken ct);
+
+    Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
     /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>; returns how many.</summary>
     Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct);
+}
+
+/// <summary>Links between bank lines and the household's records (spec §2.6).</summary>
+public interface ILinkStore
+{
+    Task<IReadOnlyDictionary<Guid, BankLink>> ForTransactionsAsync(IReadOnlyCollection<Guid> transactions, CancellationToken ct);
+
+    Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> ForItemsAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
+
+    Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> OutcomeSinceAsync(LinkOutcome outcome, LocalDate since, CancellationToken ct);
+
+    /// <summary>Upserts the link and sets the line's <c>link_state</c> (linked or internal) in one transaction.</summary>
+    Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct);
+
+    /// <summary>Deletes the link, if any, and sets the line's state (unlinked or ignored).</summary>
+    Task ClearAsync(Guid transaction, TransactionLinkState state, CancellationToken ct);
+
+    /// <summary>Whether a link already has the property flow as its target (<c>target_key</c> <c>flow:{id:N}</c>).</summary>
+    Task<bool> FlowTakenAsync(Guid flowId, CancellationToken ct);
+}
+
+/// <summary>A person's label rules and the recurring groups already proposed (spec §6.2, §6.4).</summary>
+public interface IRuleStore
+{
+    Task<IReadOnlyList<BankRule>> ForAccountAsync(Guid account, CancellationToken ct);
+
+    Task<IReadOnlyList<BankRule>> ByAsync(PersonId creator, CancellationToken ct);
+
+    /// <summary>Creates the rule, or replaces the target of the creator's rule for (<paramref name="account"/>, <paramref name="stem"/>).</summary>
+    Task<BankRule> UpsertAsync(Guid account, string stem, string module, ItemId target, PersonId by, CancellationToken ct);
+
+    Task<bool> DeleteAsync(Guid id, PersonId creator, CancellationToken ct);
+
+    Task TouchAsync(Guid id, Instant at, CancellationToken ct);
+
+    /// <summary>Remembers that the group was proposed; false when it already was.</summary>
+    Task<bool> TryRememberGroupAsync(Guid account, string stem, Instant at, CancellationToken ct);
 }

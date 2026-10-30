@@ -11,7 +11,9 @@ import { DateInput, ValueComparison, errorOf, sameAmount, wireAmount, type KindU
 import { amortization } from './amortizationKind';
 import { holdings } from './holdingsKind';
 import { invoice } from './invoiceKind';
+import { link } from './linkKind';
 import { payslip } from './payslipKind';
+import { recurring } from './recurringKind';
 import { statement } from './statementKind';
 import '@/locales/proposals';
 
@@ -70,6 +72,8 @@ const KINDS: Record<string, KindUi> = {
   'income.change_pay': payslip,
   'subscriptions.change_price': invoice,
   'realestate.import_amortization': amortization,
+  'banking.link_transaction': link,
+  'banking.create_subscription': recurring,
 };
 
 export const kindOf = (kind: string): KindUi | undefined => KINDS[kind];

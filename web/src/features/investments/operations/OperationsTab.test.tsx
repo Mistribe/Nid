@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { EnvelopeDetail } from '../api';
@@ -10,7 +11,8 @@ import type { BankTransaction } from './api';
 
 const line = (over: Partial<BankTransaction> = {}): BankTransaction => ({
   id: 't1', bookedOn: '2026-10-27', valueOn: null, amount: '2450.00', currency: 'EUR', label: 'VIR SEPA SOCIETE EXEMPLE SAS',
-  counterparty: 'Société Exemple', fromCard: false, cardName: null, fetchedVia: 'file', ...over,
+  counterparty: 'Société Exemple', fromCard: false, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null,
+  accountName: 'Compte courant', ...over,
 });
 
 /** Banking on (not configured: files alone), the envelope, and its lines page by page; every query string is kept. */
@@ -79,5 +81,73 @@ describe('« Opérations »', () => {
     await renderApp(`/investments/${PEA}?tab=operations`);
 
     expect(await screen.findByText('Aucune opération.')).toBeInTheDocument();
+  });
+
+  it('shows the link state and the item name', async () => {
+    serve([[
+      line({ id: 'a' }),
+      line({ id: 'b', linkState: 'linked', link: { outcome: 'as_expected', module: 'subscriptions', itemId: 'i1', itemName: 'Netflix' } }),
+      line({ id: 'c', linkState: 'internal', link: { outcome: 'internal_transfer', counterpartName: 'Livret A' } }),
+      line({ id: 'd', linkState: 'ignored' }),
+    ]]);
+    await renderApp(`/investments/${PEA}?tab=operations`);
+
+    const rows = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('À relier');
+    expect(rows[1]).toHaveTextContent('Reliée · Netflix');
+    expect(rows[2]).toHaveTextContent('Interne · Livret A');
+    expect(rows[3]).toHaveTextContent('Ignorée');
+  });
+
+  it('a masked link reads « Reliée » only', async () => {
+    serve([[line({ linkState: 'linked', link: null })]]);
+    await renderApp(`/investments/${PEA}?tab=operations`);
+
+    const row = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row')[1]!;
+    expect(row).toHaveTextContent(/Reliée$/);
+  });
+
+  it('links a line through the dialog', async () => {
+    serve([[line()]]);
+    let body: unknown;
+    server.use(
+      http.get('*/api/v1/banking/transactions/:id/candidates', () => HttpResponse.json([
+        { module: 'realestate', itemId: 'p1', itemName: 'Loyer Lyon', kind: 'Rent', key: 'rent:2026-10', dueOn: '2026-10-28', amount: '2450.00', currency: 'EUR', credit: true, gap: '0.00' },
+      ])),
+      http.post('*/api/v1/banking/transactions/:id/link', async ({ request }) => { body = await request.json(); return HttpResponse.json(line({ linkState: 'linked' })); }),
+    );
+    const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+
+    await user.click((await screen.findAllByRole('button', { name: /Actions/ }))[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Relier…' }));
+    await screen.findByRole('combobox', { name: 'Charge attendue' });
+    await pick(user, 'Charge attendue', /Loyer Lyon · 28\/10\/2026 · 2\s450,00\s€ · écart 0,00\s€/);
+    await user.click(screen.getByRole('button', { name: 'Relier' }));
+
+    await waitFor(() => expect(body).toEqual({ module: 'realestate', itemId: 'p1', key: 'rent:2026-10' }));
+  });
+
+  it('offers « Délier » on a linked line and posts the unlink', async () => {
+    serve([[line({ linkState: 'linked', link: null })]]);
+    let called = false;
+    server.use(http.post('*/api/v1/banking/transactions/:id/unlink', () => { called = true; return HttpResponse.json(line()); }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+
+    await user.click((await screen.findAllByRole('button', { name: /Actions/ }))[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Délier' }));
+
+    await waitFor(() => expect(called).toBe(true));
+  });
+
+  it('offers « Délier » on an internal line too', async () => {
+    serve([[line({ linkState: 'internal', link: { outcome: 'internal_transfer', counterpartName: 'Livret A' } })]]);
+    let called = false;
+    server.use(http.post('*/api/v1/banking/transactions/:id/unlink', () => { called = true; return HttpResponse.json(line()); }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+
+    await user.click((await screen.findAllByRole('button', { name: /Actions/ }))[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Délier' }));
+
+    await waitFor(() => expect(called).toBe(true));
   });
 });

@@ -197,6 +197,7 @@ public static class ResultHttp
             _ when failure.Code == NotificationCodes.PreferencesConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == NotificationCodes.TestThrottled => StatusCodes.Status429TooManyRequests,
             _ when failure.Code is BankingCodes.Disabled or BankingCodes.NotConfigured or BankingCodes.EnvelopeTaken or BankingCodes.SyncRunning
+                or BankingCodes.TransactionLinked
                 => StatusCodes.Status409Conflict,
             _ when failure.Code is BankingCodes.ConnectionNotFound or BankingCodes.AccountNotFound => StatusCodes.Status404NotFound,
             _ when failure.Code == BankingCodes.FileTooLarge => StatusCodes.Status413PayloadTooLarge,
