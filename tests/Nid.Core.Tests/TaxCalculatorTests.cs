@@ -471,13 +471,43 @@ public class TaxCalculatorTests
     [Fact]
     public void The_reference_income_adds_flat_taxed_capital_and_exempt_income_not_benefits()
     {
-        var inputs = Inputs([Other(50_000m) with { ExemptIncome = 2_400.60m }, Other(0m) with { ExemptIncome = 500m }])
+        var inputs = Inputs([Other(50_000m) with { ExemptIncome = 2_400.60m }, Other(20_000m) with { ExemptIncome = 500m }])
             with { CapitalIncome = 1_200m, NonTaxableIncome = 3_000m };
 
         var result = TaxCalculator.Compute(inputs);
 
-        Assert.Equal(45_000m, result.NetTaxableIncome);
-        // 45 000 + 1 200 of dividends and interest + 2 900.60 of exempt overtime, to the euro below; family benefits stay out.
-        Assert.Equal(49_100m, result.ReferenceIncome);
+        Assert.Equal(63_000m, result.NetTaxableIncome);
+        // 63 000 + 1 200 of dividends and interest + 2 610.54 of exempt overtime after the 10 % allowance (2 160.54 + 450), to the
+        // euro below; family benefits stay out.
+        Assert.Equal(66_810m, result.ReferenceIncome);
+    }
+
+    [Fact]
+    public void The_reference_income_counts_exempt_overtime_after_the_ten_percent_allowance()
+    {
+        // The 2025 notice: 52 000 of salaries, 1 250 of exempt overtime declared, 1 125 net in the reference income.
+        var result = TaxCalculator.Compute(Inputs([Other(52_000m) with { ExemptIncome = 1_250m }]));
+
+        Assert.Equal(46_800m, result.NetTaxableIncome);
+        Assert.Equal(47_925m, result.ReferenceIncome);
+    }
+
+    [Fact]
+    public void The_reference_income_counts_exempt_overtime_whole_under_actual_expenses()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(50_000m) with { ActualExpenses = 3_000m, ExemptIncome = 1_000m }]));
+
+        Assert.Equal(47_000m, result.NetTaxableIncome);
+        Assert.Equal(48_000m, result.ReferenceIncome);
+    }
+
+    [Fact]
+    public void The_exempt_overtime_allowance_stops_at_the_ceiling()
+    {
+        // 150 000 already reaches the 14 555 ceiling: the overtime takes no allowance of its own.
+        var result = TaxCalculator.Compute(Inputs([Other(150_000m) with { ExemptIncome = 2_000m }]));
+
+        Assert.Equal(135_445m, result.NetTaxableIncome);
+        Assert.Equal(137_445m, result.ReferenceIncome);
     }
 }

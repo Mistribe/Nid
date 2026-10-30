@@ -65,7 +65,7 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// <c>RentalTaxable</c> is after <c>RentalDeficitCarriedUsed</c>, the part of the earlier deficits the year's rents absorb.
 /// <c>Per</c> is always set by <see cref="TaxCalculator.Compute"/> (nullable only for the record's default). <c>ReferenceIncome</c>:
 /// the revenu fiscal de référence (art. 1417 IV CGI), the net taxable income plus the PER deduction, the flat-taxed capital income
-/// and the exempt income, to the euro below.
+/// and the exempt income after the 10 % allowance, to the euro below.
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -200,7 +200,7 @@ public static class TaxCalculator
         }
         var perHousehold = new PerHousehold(pooled, perRemaining, taxSaved, RoomInBracket(rules, taxable, parts));
         var reference = Math.Floor(taxable + declarants.Sum(d => d.PerDeducted) + Math.Max(0m, inputs.CapitalIncome)
-            + inputs.Declarants.Sum(d => Math.Max(0m, d.ExemptIncome)));
+            + inputs.Declarants.Sum(d => ExemptNet(d, rules)));
         return new TaxResult(
             inputs.Year, rules.RulesYear, parts, declarants, regime, Euros(rentalTaxable), Euros(carriedUsed), Euros(deficit), taxable,
             Euros(grossTax), familyCapped, Euros(decote), Euros(pinel), Euros(donation), Euros(childcare), Euros(home), Euros(excess),
@@ -294,10 +294,30 @@ public static class TaxCalculator
     /// <summary>The bracket one share's income ends in; null at zero.</summary>
     private static TaxBracket? MarginalBracket(TaxRules rules, decimal quotient) => rules.Brackets.LastOrDefault(b => quotient > b.From);
 
+    private static decimal NetSalary(TaxDeclarant d) => d.SalaryGross * (1 - d.EffectiveContributionRate) + d.SalaryTaxable;
+
+    private static decimal Income(TaxDeclarant d) => NetSalary(d) + TaxRules.NonDeductibleCsg * d.SalaryGross + d.OtherTaxable;
+
+    private static decimal Allowance(TaxDeclarant d, TaxRules rules, decimal income) => Math.Min(income, d.ActualExpenses
+        ?? Math.Min(rules.SalaryAllowanceMax, Math.Max(rules.SalaryAllowanceMin, rules.SalaryAllowanceRate * income)));
+
+    /// <summary>
+    /// The exempt income as the reference income counts it: the notice's « revenus exonérés nets », after the 10 % allowance the
+    /// overtime adds to the salaries' (within the ceiling). Under actual expenses it counts whole.
+    /// </summary>
+    private static decimal ExemptNet(TaxDeclarant d, TaxRules rules)
+    {
+        var exempt = Math.Max(0m, d.ExemptIncome);
+        if (d.ActualExpenses is not null)
+            return exempt;
+        var income = Income(d);
+        return exempt - (Allowance(d, rules, income + exempt) - Allowance(d, rules, income));
+    }
+
     private static DeclarantResult Declarant(TaxDeclarant d, TaxRules rules)
     {
-        var net = d.SalaryGross * (1 - d.EffectiveContributionRate) + d.SalaryTaxable;
-        var income = net + TaxRules.NonDeductibleCsg * d.SalaryGross + d.OtherTaxable;
+        var net = NetSalary(d);
+        var income = Income(d);
         var method = (d.SalaryTaxable > 0m, d.SalaryGross > 0m) switch
         {
             (true, true) => SalaryMethod.Mixed,
@@ -305,8 +325,7 @@ public static class TaxCalculator
             (false, true) => SalaryMethod.Estimated,
             _ => SalaryMethod.None,
         };
-        var allowance = Math.Min(income, d.ActualExpenses
-            ?? Math.Min(rules.SalaryAllowanceMax, Math.Max(rules.SalaryAllowanceMin, rules.SalaryAllowanceRate * income)));
+        var allowance = Allowance(d, rules, income);
         var taxable = income - allowance;
         // The PER deduction comes after, from the household step (PerDeductions).
         return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), 0m, method);

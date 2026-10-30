@@ -266,7 +266,8 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var result = estimate.GetProperty("result");
         var taxable = DecimalOf(result, "netTaxableIncome");
-        Assert.Equal(Math.Floor(taxable + 2_500.40m).ToString("0.00", CultureInfo.InvariantCulture), result.GetProperty("referenceIncome").GetString());
+        // The exempt overtime counts after the 10 % allowance: 2 500.40 − 250.04.
+        Assert.Equal(Math.Floor(taxable + 2_250.36m).ToString("0.00", CultureInfo.InvariantCulture), result.GetProperty("referenceIncome").GetString());
         Assert.Equal("2500.40", estimate.GetProperty("profile").GetProperty("exemptIncomes").GetProperty(adult).GetString());
         Assert.Equal("2500.40", estimate.GetProperty("inputs").GetProperty("declarants")[IndexOf(estimate, app.AdultA)].GetProperty("exemptIncome").GetString());
 
@@ -275,7 +276,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
             year = 2025,
             declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "50000", perContributions = "0", exemptIncome = "1000" } },
         });
-        Assert.Equal("46000.00", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync()).RootElement.GetProperty("referenceIncome").GetString());
+        Assert.Equal("45900.00", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync()).RootElement.GetProperty("referenceIncome").GetString());
 
         var negative = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new
         {
