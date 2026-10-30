@@ -9,6 +9,12 @@ import '@/locales/taxAssessments';
 /** Money fields of a declarant, then of the notice, in the order the form shows them. */
 export const DECLARANT_AMOUNTS = ['grossSalaries', 'deductionAmount', 'netSalaries'] as const;
 export const PER_AMOUNTS = ['perCeilingYear', 'perUnusedOldest', 'perUnusedMiddle', 'perUnusedLatest', 'perCeilingComputed', 'perCeilingNext'] as const;
+/** The year each PER line names on the notice of the revenue year `year` (revenus 2025: total 2024, unused 2023–2025, next 2026). */
+const PER_YEAR_OFFSET: Record<(typeof PER_AMOUNTS)[number], number> = {
+  perCeilingYear: -1, perUnusedOldest: -2, perUnusedMiddle: -1, perUnusedLatest: 0, perCeilingComputed: 0, perCeilingNext: 1,
+};
+export const perLineYear = (key: (typeof PER_AMOUNTS)[number], year: string | number) => Number(year) + PER_YEAR_OFFSET[key];
+export const isPerAmount = (key: string): key is (typeof PER_AMOUNTS)[number] => (PER_AMOUNTS as readonly string[]).includes(key);
 /** A declarant's detail lines: heures supplémentaires, then the withholding and the January advance. */
 export const DECLARANT_DETAIL = ['overtimeExempt', 'withholding', 'creditsAdvance'] as const;
 export const NOTICE_AMOUNTS = {

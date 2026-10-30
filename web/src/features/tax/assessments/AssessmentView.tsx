@@ -13,6 +13,7 @@ import { SourceLink } from '@/features/documents/SourceLink';
 import { ZERO, percentText } from '../format';
 import { eur } from '../ResultTable';
 import { invalidateAssessments, useDeleteTaxAssessment, type TaxAssessment } from './api';
+import { isPerAmount, perLineYear } from './assessmentSchema';
 import '@/locales/tax';
 import '@/locales/taxAssessments';
 
@@ -54,7 +55,7 @@ export function AssessmentView({ assessment: a, persons }: { assessment: TaxAsse
   const declarantRows = DECLARANT_ROWS.flatMap((key) => {
     const cells = declarants.map((d) => declarantCell(d, key));
     // The declarant's withholding is the notice's « RAS sur salaires et pensions », not the household's total.
-    return cells.every((c) => c === null) ? [] : [{ key, label: t(`tax.assessment.field.${key === 'withholding' ? 'withholding_declarant' : key}`), cells }];
+    return cells.every((c) => c === null) ? [] : [{ key, label: t(`tax.assessment.field.${key === 'withholding' ? 'withholding_declarant' : key}`, isPerAmount(key) ? { year: perLineYear(key, a.year) } : {}), cells }];
   });
   const groups = [
     { key: 'declarants' as const, rows: declarantRows },

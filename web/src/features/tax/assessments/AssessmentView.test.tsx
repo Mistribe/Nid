@@ -74,10 +74,10 @@ describe('AssessmentView', () => {
   it('Leaves_out_rows_the_notice_does_not_print', async () => {
     await show(jointAssessment());
     const table = screen.getByRole('table');
-    expect(within(table).queryByRole('row', { name: /Plafond calculé sur les revenus/ })).not.toBeInTheDocument();
-    expect(within(table).queryByRole('row', { name: /Plafond non utilisé \(le suivant\)/ })).not.toBeInTheDocument();
+    expect(within(table).queryByRole('row', { name: /Plafond calculé sur les revenus de 2025/ })).not.toBeInTheDocument();
+    expect(within(table).queryByRole('row', { name: /Plafond non utilisé pour les revenus de 2024/ })).not.toBeInTheDocument();
     expect(within(table).queryByText('Reports')).not.toBeInTheDocument();
-    expect(within(table).getByRole('row', { name: /Plafond non utilisé \(le plus ancien\)/ })).toHaveTextContent('1 000,00 €—');
+    expect(within(table).getByRole('row', { name: /Plafond non utilisé pour les revenus de 2023/ })).toHaveTextContent('1 000,00 €—');
   });
 
   it('Links_the_source_document', async () => {

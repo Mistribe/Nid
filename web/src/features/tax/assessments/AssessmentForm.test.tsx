@@ -139,6 +139,21 @@ describe('AssessmentForm', () => {
     });
   });
 
+  it('Names_the_retirement_ceiling_lines_by_the_notice_s_years', async () => {
+    serve(household);
+    const { user } = await renderApp('/tax/assessments/new');
+
+    await pick(user, 'Année des revenus', '2025');
+    await next(user);
+    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
+    await user.click(first.getByRole('button', { name: /Plafond épargne retraite/ }));
+
+    for (const label of [
+      'Plafond total de 2024', 'Plafond non utilisé pour les revenus de 2023', 'Plafond non utilisé pour les revenus de 2024',
+      'Plafond non utilisé pour les revenus de 2025', 'Plafond calculé sur les revenus de 2025', 'Plafond pour les cotisations versées en 2026',
+    ]) expect(first.getByLabelText(label)).toBeInTheDocument();
+  });
+
   it('Warns_who_will_also_read_the_pdf', async () => {
     const sent = serve(household, { readers: [{ id: SESSION_BOB, name: 'Sam' }] });
     const { user } = await renderApp('/tax/assessments/new');

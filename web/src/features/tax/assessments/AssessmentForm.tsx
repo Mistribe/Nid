@@ -23,7 +23,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { FIRST_ESTIMATE_YEAR } from '../api';
 import {
-  assessmentDefaults, assessmentPath, assessmentSchema, fromView, NOTICE_AMOUNTS, PER_AMOUNTS, RATES, stepFields, stepOf, toBody,
+  assessmentDefaults, assessmentPath, assessmentSchema, fromView, NOTICE_AMOUNTS, PER_AMOUNTS, perLineYear, RATES, stepFields, stepOf, toBody,
   type AssessmentValues, type StepId,
 } from './assessmentSchema';
 import { TAX_NOTICE_PREVIEW, useAddTaxAssessment, useCorrectTaxAssessment, useTaxAssessment, type TaxAssessment } from './api';
@@ -84,6 +84,7 @@ function HouseholdStep({ form, adults }: { form: Form; adults: { value: string; 
 function DeclarantStep({ form, count }: { form: Form; count: number }) {
   const { t } = useTranslation();
   const id = useId();
+  const year = form.watch('year');
   return (
     <>
       {Array.from({ length: count }, (_, i) => {
@@ -93,7 +94,7 @@ function DeclarantStep({ form, count }: { form: Form; count: number }) {
           <fieldset key={i} className="space-y-4">
             <legend className="mb-2 text-sm font-medium">{t('tax.assessment.declarant', { rank: i + 1 })}</legend>
             <Amount form={form} name={at('grossSalaries')} label={label('grossSalaries')} />
-            <Amount form={form} name={at('overtimeExempt')} label={label('overtimeExempt')} />
+            <Amount form={form} name={at('overtimeExempt')} label={label('overtimeExempt')} hint={t('tax.assessment_form.overtime_hint')} />
             <div className="space-y-1">
               <span id={`${id}-${i}`} className="block text-sm">{label('deduction')}</span>
               <Controller control={form.control} name={`declarants.${i}.deduction`} render={({ field }) => (
@@ -106,7 +107,7 @@ function DeclarantStep({ form, count }: { form: Form; count: number }) {
             <Amount form={form} name={at('withholding')} label={label('withholding_declarant')} />
             <Amount form={form} name={at('creditsAdvance')} label={label('creditsAdvance')} />
             <Folded label={t('tax.assessment_form.per')} hasError={PER_AMOUNTS.some((k) => Boolean(errorOf(form, at(k))))}>
-              {PER_AMOUNTS.map((k) => <Amount key={k} form={form} name={at(k)} label={label(k)} />)}
+              {PER_AMOUNTS.map((k) => <Amount key={k} form={form} name={at(k)} label={t(`tax.assessment.field.${k}`, { year: perLineYear(k, year) })} />)}
             </Folded>
           </fieldset>
         );
