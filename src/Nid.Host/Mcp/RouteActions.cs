@@ -220,7 +220,12 @@ public static class RouteActions
         new("create_subscription", "POST", "/api/v1/subscriptions/", typeof(CreateSubscriptionBody),
             "Create a subscription with its first billing period. " + Owners + Amounts),
         new("edit_subscription", "PATCH", "/api/v1/subscriptions/{id:guid}", typeof(EditSubscriptionBody),
-            "Edit a subscription's details; only the fields given change. " + Ids),
+            "Edit a subscription's details; only the fields given change. Contract terms (all ISO dates yyyy-mm-dd): "
+            + "anniversaryOn is the contract's yearly renewal date; notice {count, unit: day, week, month or year} is the notice period "
+            + "counted back from it (a notice needs an anniversaryOn or a commitmentEndsOn); commitmentEndsOn is the end of the "
+            + "minimum commitment; cancellableFrom is the date from which it can be cancelled at any time. Each has a clear flag "
+            + "(clearAnniversaryOn, clearNotice, clearCommitmentEndsOn, clearCancellableFrom) to remove it, never sent with its value; "
+            + "terms not mentioned are kept. get_subscription returns them as contractTerms, with the computed cancellation. " + Ids),
         new("add_subscription_phase", "POST", "/api/v1/subscriptions/{id:guid}/phases", typeof(PhaseBody),
             "Add a billing period to a subscription. " + Ids + Amounts),
         new("end_subscription_phase", "PATCH", "/api/v1/subscriptions/{id:guid}/phases/{phaseId:guid}", typeof(ClosePhaseBody),

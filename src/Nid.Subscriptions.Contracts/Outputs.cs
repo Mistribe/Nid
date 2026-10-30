@@ -81,6 +81,27 @@ public sealed record Finding(string Code, string Message, string? Reference);
 /// </summary>
 public sealed record CostPiece(LocalDate ChargeDate, Currency Currency, decimal Amount, bool IsProjected);
 
+public enum CancellationStatus
+{
+    None,
+    Deadline,
+    FreeFrom,
+    FreeNow,
+}
+
+/// <summary>
+/// When a subscription can be left. <paramref name="LastDayToCancel"/> (included) and <paramref name="EffectiveOn"/>
+/// go with <see cref="CancellationStatus.Deadline"/>, <paramref name="FreeOn"/> with <see cref="CancellationStatus.FreeFrom"/>.
+/// </summary>
+public sealed record CancellationOutlook(
+    CancellationStatus Status,
+    LocalDate? LastDayToCancel,
+    LocalDate? EffectiveOn,
+    LocalDate? FreeOn)
+{
+    public static CancellationOutlook None { get; } = new(CancellationStatus.None, null, null, null);
+}
+
 public sealed record Timeline(
     IReadOnlyList<CoveragePeriod> Coverage,
     IReadOnlyList<Charge> Charges,

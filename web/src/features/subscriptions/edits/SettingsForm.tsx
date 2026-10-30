@@ -10,7 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { DETAIL, invalidateSubscriptions, type Detail } from '../api';
+import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '../api';
 import { ProviderPicker } from '../ProviderPicker';
 import { ISO_DATE } from './amount';
 import { Field } from '@/components/form/Field';
@@ -59,7 +59,7 @@ export function SettingsForm({ detail }: { detail: Detail }) {
       ...(dirty.provider && values.provider ? { providerKey: values.provider.key } : {}),
     };
     setSaved(false);
-    save.mutate({ params: { path: { id: detail.id } }, body });
+    save.mutate({ params: { path: { id: detail.id } }, body: asEditBody(body) });
   });
 
   return (

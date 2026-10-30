@@ -19,6 +19,7 @@ function EventText({ e }: { e: DashboardEvent }) {
   switch (e.kind) {
     case 'subscription_renewal': return <>{t('dashboard.upcoming.subscription_renewal')}</>;
     case 'subscription_expiry': return <>{t('dashboard.upcoming.subscription_expiry')}</>;
+    case 'subscription_cancel_deadline': return <>{t('dashboard.upcoming.subscription_cancel_deadline')}</>;
     case 'income_phase_end': return <>{t('dashboard.upcoming.income_phase_end', { label: e.label ?? '' })}</>;
     case 'loan_phase_end': return <>{t('dashboard.upcoming.loan_phase_end', { n: e.label ?? '' })}</>;
     case 'loan_end': return <>{t('dashboard.upcoming.loan_end')}</>;
@@ -33,7 +34,7 @@ function EventText({ e }: { e: DashboardEvent }) {
 }
 
 const ICON: Record<string, LucideIcon> = {
-  subscription_renewal: RefreshCw, subscription_expiry: CalendarX, income_phase_end: Wallet, loan_phase_end: Landmark,
+  subscription_renewal: RefreshCw, subscription_expiry: CalendarX, subscription_cancel_deadline: CalendarClock, income_phase_end: Wallet, loan_phase_end: Landmark,
   loan_end: Flag, valuation_due: Scale, property_cost_due: Receipt, tenancy_end: KeyRound, holding_maturity: Hourglass,
   per_deadline: PiggyBank, per_ceiling_expiring: TimerOff,
 };

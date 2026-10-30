@@ -50,6 +50,8 @@ public sealed class SubscriptionsUpcoming(SubscriptionSet set) : IUpcomingEvents
             var id = input.Subscription.Id;
             foreach (var first in ChargeCycles.FirstLongCycleCharges(input, timeline, today, until))
                 events.Add(new UpcomingEvent(first.Date, UpcomingKinds.SubscriptionRenewal, id, "subscriptions", name, null, first.Price));
+            if (ContractCancellation.Outlook(input, timeline, today) is { Status: CancellationStatus.Deadline, LastDayToCancel: { } last } && last >= today && last <= until)
+                events.Add(new UpcomingEvent(last, UpcomingKinds.SubscriptionCancelDeadline, id, "subscriptions", name, null, null));
             if (timeline.ExpiresOn() is { } expires && expires >= today && expires <= until)
                 events.Add(new UpcomingEvent(expires, UpcomingKinds.SubscriptionExpiry, id, "subscriptions", name, null, null));
         }

@@ -130,7 +130,7 @@ public sealed class GetSubscriptionChargesHandler(
 
 [RequestHandler<GetSubscriptionQuery, SubscriptionDetail>]
 public sealed class GetSubscriptionHandler(
-    ISubscriptionStore store, IItemRegistry items, IClock clock, IFxRates fx, IHouseholdSettings household, IProviderStore providers,
+    ISubscriptionStore store, IItemRegistry items, IHouseholdCalendar calendar, IFxRates fx, IHouseholdSettings household, IProviderStore providers,
     IVisibleItems visible, IAccessPolicy policy, IActorAccessor actor)
     : IRequestHandler<GetSubscriptionQuery, SubscriptionDetail>
 {
@@ -140,7 +140,7 @@ public sealed class GetSubscriptionHandler(
         if (input is null)
             return Result.Failure<SubscriptionDetail>(new NotFoundFailure("subscription", query.ItemId.ToString()));
 
-        var today = clock.GetCurrentInstant().InUtc().Date;
+        var today = await calendar.TodayAsync(ct);
         var horizon = Horizons.Resolve(today, query.Horizon);
         var window = CostWindow.Resolve(today, query.From, query.To);
 
@@ -183,7 +183,7 @@ public sealed class GetSubscriptionHandler(
                 p.Note)).ToList(),
             !(await policy.CheckAsync(reader, query.ItemId, AccessKind.Write, ct)).TryGetFailure(out _));
         return Result.Success(SubscriptionViews.Detail(
-            input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing));
+            input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing, today));
     }
 }
 

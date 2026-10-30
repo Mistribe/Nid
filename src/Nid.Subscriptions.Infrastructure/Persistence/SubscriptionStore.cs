@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -40,7 +41,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             .ToListAsync(ct);
 
         return subscriptions.Select(s => new SubscriptionInput(
-            new SubscriptionHeader(new ItemId(s.ItemId), s.AutoRenew, s.CancelledAt),
+            new SubscriptionHeader(new ItemId(s.ItemId), s.AutoRenew, s.CancelledAt, ToTerms(s)),
             s.Phases.OrderBy(p => p.StartsOn).Select(ToPhase).ToList(),
             purchases
                 .Where(p => p.Grants.Any(g => g.SubscriptionItemId == s.ItemId))
@@ -58,6 +59,11 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             AutoRenew = subscription.AutoRenew,
             Note = subscription.Note,
             CancelledAt = subscription.CancelledAt,
+            AnniversaryOn = subscription.Terms?.AnniversaryOn,
+            NoticeCount = subscription.Terms?.Notice?.Count,
+            NoticeUnit = subscription.Terms?.Notice is { } notice ? Name(notice.Unit) : null,
+            CommitmentEndsOn = subscription.Terms?.CommitmentEndsOn,
+            CancellableFrom = subscription.Terms?.CancellableFrom,
             ImportRef = subscription.Import?.Ref,
             ImportHash = subscription.Import?.Hash,
             ImportedBy = subscription.Import?.ImportedBy?.Value,
@@ -77,6 +83,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         row.AutoRenew = replacement.AutoRenew;
         row.Note = replacement.Note;
         row.CancelledAt = replacement.CancelledAt;
+        Write(row, replacement.Terms ?? new ContractTerms(null, null, null, null));
         row.ImportHash = replacement.Import.Hash;
         var wanted = replacement.Users.Select(u => u.Value).ToHashSet();
         foreach (var user in row.Users.Where(u => !wanted.Contains(u.PersonId)).ToList())
@@ -93,6 +100,14 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         var row = await db.Subscriptions.FirstOrDefaultAsync(s => s.ItemId == id.Value, ct);
         if (row is null)
             return NotFound(id);
+        if (edit.Terms is { } change)
+        {
+            // Validated on the row just loaded: the save carries its xmin, so nothing stored can differ from what was checked.
+            var merged = change.ApplyTo(ToTerms(row));
+            if (merged.Validate() is { } refused)
+                return Result.Failure(FieldErrors.At(refused, "notice"));
+            Write(row, merged);
+        }
 
         if (edit.AutoRenew is { } autoRenew)
             row.AutoRenew = autoRenew;
@@ -284,7 +299,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return new StoredRows(
             subscriptions.Select(s => new StoredSubscription(
                 new ItemId(s.ItemId), s.ProviderKey, s.AutoRenew, s.CancelledAt, s.Note,
-                s.Users.Select(u => new PersonId(u.PersonId)).ToList(), Origin(s.ImportRef, s.ImportHash, s.ImportedBy))).ToList(),
+                s.Users.Select(u => new PersonId(u.PersonId)).ToList(), Origin(s.ImportRef, s.ImportHash, s.ImportedBy), ToTerms(s))).ToList(),
             subscriptions.SelectMany(s => s.Phases.Select(p => new StoredPhase(
                 new ItemId(s.ItemId), ToPhase(p), p.Note, Origin(p.ImportRef, p.ImportHash, p.ImportedBy)))).ToList(),
             purchases.Select(p => new StoredPurchase(ToPurchase(p), p.Note, Origin(p.ImportRef, p.ImportHash, p.ImportedBy))).ToList());
@@ -353,6 +368,27 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         db.Purchases.Remove(row); // grants cascade
         await db.SaveChangesAsync(ct);
         return Result.Success();
+    }
+
+    private static ContractTerms? ToTerms(SubscriptionRow r)
+    {
+        var terms = new ContractTerms(
+            r.AnniversaryOn,
+            r.NoticeCount is { } count && r.NoticeUnit is { } unit
+                ? Required(Duration.Create(count, ParseUnit(unit)), "notice_count")
+                : null,
+            r.CommitmentEndsOn,
+            r.CancellableFrom);
+        return terms.IsEmpty ? null : terms;
+    }
+
+    private static void Write(SubscriptionRow row, ContractTerms terms)
+    {
+        row.AnniversaryOn = terms.AnniversaryOn;
+        row.NoticeCount = terms.Notice?.Count;
+        row.NoticeUnit = terms.Notice is { } notice ? Name(notice.Unit) : null;
+        row.CommitmentEndsOn = terms.CommitmentEndsOn;
+        row.CancellableFrom = terms.CancellableFrom;
     }
 
     private static BillingPhase ToPhase(BillingPhaseRow r) => new(

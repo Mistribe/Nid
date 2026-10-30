@@ -80,6 +80,7 @@ Listes : tableaux denses triables avec colonne des propriétaires. Fiches : chif
 
 - **Liste** : filtre par libellé et par actif. Ligne du tableau dense : nom, icône (ou monogramme), propriétaires, coût mensuel réel et amorti, prochaine échéance ou expiration.
 - **Détail** : bande de couverture dans le temps (`dataviz.md` §5), historique des prix, paiements, valeur des mois offerts.
+- **Livré en 208** (2026-10-30) : la section « Contrat » du détail, sous la couverture, quand au moins une condition est renseignée (date anniversaire, préavis, fin d’engagement, résiliable à partir du) avec le statut de résiliation en phrase ; « Dernier jour pour résilier » dans les chiffres de l’en-tête quand un préavis court ; bouton « Conditions du contrat » (avec droit d’écriture) ouvrant le formulaire ; « Dernier jour pour résilier » dans « À venir ». Spécification : `../superpowers/specs/2026-10-30-contract-terms-insurance-design.md`.
 - **Ajout par assistant selon le type d'offre** plutôt que par formulaire générique :
   - récurrent (une phase de facturation, sans étape « Et ensuite ? ») ;
   - prépayé avec mois offerts ;

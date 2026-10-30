@@ -100,7 +100,9 @@ public sealed record SubscriptionDetail(
     string? Note,
     IReadOnlyList<PhaseView> Phases,
     IReadOnlyList<PurchaseView> Purchases,
-    bool CanWrite) : IExposesItems
+    bool CanWrite,
+    ContractTermsView? ContractTerms,
+    CancellationView Cancellation) : IExposesItems
 {
     // Every item the detail names: the output guard then proves each grant target is the reader's to see.
     public IEnumerable<ItemId> ExposedItems() => [Id, ..Purchases.SelectMany(p => p.Grants).Select(g => new ItemId(g.SubscriptionId))];
@@ -125,3 +127,26 @@ public sealed record PurchaseView(Guid Id, LocalDate Date, string Label, MoneyVi
 public sealed record SubscriptionEditing(
     string Visibility, IReadOnlyList<OwnerView> Owners, IReadOnlyList<Guid> Users, string? Note,
     IReadOnlyList<PhaseView> Phases, IReadOnlyList<PurchaseView> Purchases, bool CanWrite);
+
+/// <summary>What the household typed about the contract (design 2026-10-30-contract-terms-insurance §2).</summary>
+public sealed record ContractTermsView(LocalDate? AnniversaryOn, DurationView? Notice, LocalDate? CommitmentEndsOn, LocalDate? CancellableFrom)
+{
+    public static ContractTermsView? From(ContractTerms? terms)
+        => terms is not { IsEmpty: false }
+            ? null
+            : new(terms.AnniversaryOn, terms.Notice is { } notice ? DurationView.From(notice) : null, terms.CommitmentEndsOn, terms.CancellableFrom);
+}
+
+/// <summary>The server's answer to "until when can this be left?". <paramref name="Status"/> is none, deadline, free_from or free_now.</summary>
+public sealed record CancellationView(string Status, LocalDate? LastDayToCancel, LocalDate? EffectiveOn, LocalDate? FreeOn)
+{
+    public static CancellationView From(CancellationOutlook outlook) => new(
+        outlook.Status switch
+        {
+            CancellationStatus.Deadline => "deadline",
+            CancellationStatus.FreeFrom => "free_from",
+            CancellationStatus.FreeNow => "free_now",
+            _ => "none",
+        },
+        outlook.LastDayToCancel, outlook.EffectiveOn, outlook.FreeOn);
+}

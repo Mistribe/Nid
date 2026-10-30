@@ -8,7 +8,7 @@ using Duration = Nid.Core.Contracts.Duration;
 namespace Nid.Subscriptions.Application.Import;
 
 /// <summary>A subscription record, parsed; owners carry their kind so the Core's rules can run on it.</summary>
-internal sealed record ParsedSubscription(Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<PersonId> Users, LocalDate? CancelledAt);
+internal sealed record ParsedSubscription(Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<PersonId> Users, LocalDate? CancelledAt, ContractTerms? Terms);
 
 /// <summary>
 /// File records to engine inputs. Every refusal names the member it concerns. Methods collect every issue of
@@ -81,9 +81,34 @@ internal static class RecordParsing
                 ok = Unresolved(issues, $"{path}.service_users[{j}]", r.ServiceUsers[j], "persons");
 
         ok &= TryOptionalDate(r.CancelledAt, path + ".cancelled_at", issues, out var cancelledAt);
+        ok &= TryTerms(r, path, issues, out var terms);
         if (ok)
-            parsed = new ParsedSubscription(visibility, owners, users, cancelledAt);
+            parsed = new ParsedSubscription(visibility, owners, users, cancelledAt, terms);
         return ok;
+    }
+
+    /// <summary>
+    /// The contract terms of a record, null when it names none. The rule is the contract's own
+    /// (<see cref="ContractTerms.Validate"/>); a refusal sits at the notice, the member it concerns.
+    /// </summary>
+    private static bool TryTerms(SubscriptionRecord r, string path, List<ImportIssue> issues, out ContractTerms? terms)
+    {
+        terms = null;
+        if (!(TryOptionalDate(r.AnniversaryOn, path + ".anniversary_on", issues, out var anniversary)
+              & TryOptionalDuration(r.Notice, path + ".notice", issues, out var notice)
+              & TryOptionalDate(r.CommitmentEndsOn, path + ".commitment_ends_on", issues, out var commitmentEnds)
+              & TryOptionalDate(r.CancellableFrom, path + ".cancellable_from", issues, out var cancellableFrom)))
+            return false;
+
+        var parsed = new ContractTerms(anniversary, notice, commitmentEnds, cancellableFrom);
+        if (parsed.Validate() is { } failure)
+        {
+            issues.Add(ImportIssue.Error(failure.Code, failure.Message, path + ".notice"));
+            return false;
+        }
+
+        terms = parsed.IsEmpty ? null : parsed;
+        return true;
     }
 
     public static bool TryPhase(BillingPhaseRecord r, string path, Func<string, PersonId?> person, List<ImportIssue> issues, out BillingPhase phase)

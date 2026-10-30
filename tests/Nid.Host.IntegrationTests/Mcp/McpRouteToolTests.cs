@@ -405,4 +405,25 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
             id = hidden.Value, body = new { asOf = "2025-09-30", amount = new { amount = "1.00", currency = "EUR" } },
         }));
     }
+
+    /// <summary>Issue #208: the contract terms are set through the edit tool, approved, then read back by the web's route.</summary>
+    [Fact]
+    public async Task Contract_terms_are_proposed_through_edit_subscription_and_set_when_approved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewMonthlyAsync(app.AdultA, 10m);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+
+        var proposed = await AnswerAsync(propose, "propose_edit_subscription", new
+        {
+            id = id.Value,
+            body = new { anniversaryOn = "2026-03-01", notice = new { count = 2, unit = "month" }, cancellableFrom = "2026-03-01" },
+        });
+        Assert.Equal(id.Value, proposed.GetProperty("proposal").GetProperty("targetItemId").GetGuid());
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+
+        var terms = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{id.Value}")).RootElement.GetProperty("contractTerms");
+        Assert.Equal("2026-03-01", terms.GetProperty("anniversaryOn").GetString());
+        Assert.Equal((2, "month"), (terms.GetProperty("notice").GetProperty("count").GetInt32(), terms.GetProperty("notice").GetProperty("unit").GetString()));
+    }
 }

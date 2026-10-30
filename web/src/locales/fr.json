@@ -288,6 +288,7 @@
       "tomorrow": "Demain",
       "subscription_renewal": "Renouvellement",
       "subscription_expiry": "Expire",
+      "subscription_cancel_deadline": "Dernier jour pour résilier",
       "income_phase_end": "Fin de « {{label}} »",
       "loan_phase_end": "Fin de la phase {{n}} : taux ou différé qui change",
       "loan_end": "Dernière échéance",

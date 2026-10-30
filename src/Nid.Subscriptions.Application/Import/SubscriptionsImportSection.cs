@@ -473,7 +473,7 @@ public sealed class SubscriptionsImportSection(
             context.NewItems.Add(id);
             context.Items[(Subscriptions, record.Id)] = id;
             var stored = await store.CreateAsync(id, new NewSubscription(
-                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
+                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash, context.Actor), parsed.Terms), ct);
             if (stored.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
@@ -491,7 +491,7 @@ public sealed class SubscriptionsImportSection(
 
             var stored = await store.ReplaceAsync(id, new SubscriptionReplacement(
                 providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt,
-                new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
+                new ImportRef(record.Id, entity.Hash, context.Actor), parsed.Terms), ct);
             if (stored.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }

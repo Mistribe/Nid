@@ -18,6 +18,7 @@ public static class NotificationTemplates
     private static readonly Dictionary<string, string> Titles = new()
     {
         ["subscription_renewal"] = "Un abonnement se renouvelle",
+        ["subscription_cancel_deadline"] = "Dernier jour pour résilier un contrat",
         ["subscription_expiry"] = "Un abonnement prend fin",
         ["subscriptions.ends_without_renewal"] = "Un abonnement s'arrête sans renouvellement",
         ["tenancy_end"] = "Un bail arrive à échéance",

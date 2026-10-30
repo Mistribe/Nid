@@ -111,7 +111,13 @@ Un fournisseur ainsi créé garde `import_ref`/`import_hash` comme toute autre e
 | `service_users` | `[person]` | Références vers `persons`, `dependent` possibles |
 | `auto_renew` | bool | |
 | `cancelled_at` | date? | |
+| `anniversary_on` | date? | Conditions du contrat : date d'anniversaire, à partir de laquelle la résiliation compte son préavis |
+| `notice` | durée? | Conditions du contrat : préavis de résiliation. Exige `anniversary_on` ou `commitment_ends_on`, sinon `subscriptions.notice_without_date` au chemin `subscriptions[i].notice` |
+| `commitment_ends_on` | date? | Conditions du contrat : fin de l'engagement |
+| `cancellable_from` | date? | Conditions du contrat : première date à laquelle la résiliation est permise |
 | `note` | string? | |
+
+Les quatre membres de conditions sont facultatifs : un ancien fichier, qui n'en nomme aucun, reste valide et garde son empreinte. L'export ne les écrit que s'ils sont renseignés. Avec `replace`, un abonnement déjà importé prend les conditions du fichier, et les perd si le fichier n'en nomme aucune. Une date mal formée est refusée à son propre chemin (`subscriptions[i].anniversary_on`…).
 
 ### 5.4 `billing_phases`
 

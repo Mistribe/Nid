@@ -100,7 +100,45 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
         [
             new NotificationKind("subscription_renewal", "due_date", NotificationLevel.Action, "subscriptions", 7),
             new NotificationKind("subscription_expiry", "due_date", NotificationLevel.Action, "subscriptions", 14),
+            new NotificationKind("subscription_cancel_deadline", "due_date", NotificationLevel.Action, "subscriptions", 30),
             new NotificationKind("subscriptions.ends_without_renewal", "finding", NotificationLevel.Info, "subscriptions", null),
         ], source.Kinds);
+    }
+
+    [Fact]
+    public async Task Deadline_signal_is_dated_and_rearms_next_year()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await AddAsync(app, "Box", "2024-10-20", "month");
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}",
+            new { anniversaryOn = "2025-12-01", notice = new { count = 1, unit = "month" } })).EnsureSuccessStatusCode();
+
+        var first = Assert.Single(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscription_cancel_deadline");
+        Assert.Equal(new LocalDate(2025, 11, 1), first.DueOn);
+        Assert.Equal($"subscription_cancel_deadline:{id.Value:D}:2025-11-01", first.Key);
+        Assert.Empty(first.Params);
+
+        // Once the deadline is past, the next year's one is the signal, under another key.
+        await using var scope = app.Services.CreateAsyncScope();
+        var source = scope.ServiceProvider.GetServices<INotificationSource>().Single(s => s.Name == "subscriptions");
+        var later = await source.SignalsAsync(app.AdultA, new LocalDate(2025, 11, 2), new LocalDate(2026, 12, 31), CancellationToken.None);
+        Assert.True(later.TryGetValue(out var signals));
+        var next = Assert.Single(signals!, s => s.Kind == "subscription_cancel_deadline");
+        Assert.Equal(new LocalDate(2026, 11, 1), next.DueOn);
+        Assert.NotEqual(first.Key, next.Key);
+    }
+
+    [Fact]
+    public async Task Cancelling_withdraws_the_signal()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await AddAsync(app, "Box", "2024-10-20", "month");
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}",
+            new { anniversaryOn = "2025-12-01", notice = new { count = 1, unit = "month" } })).EnsureSuccessStatusCode();
+        Assert.Contains(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscription_cancel_deadline");
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}", new { cancelledAt = "2025-10-01" })).EnsureSuccessStatusCode();
+
+        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscription_cancel_deadline");
     }
 }

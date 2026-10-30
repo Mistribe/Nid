@@ -562,13 +562,25 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
 
+                    b.Property<LocalDate?>("AnniversaryOn")
+                        .HasColumnType("date")
+                        .HasColumnName("anniversary_on");
+
                     b.Property<bool>("AutoRenew")
                         .HasColumnType("boolean")
                         .HasColumnName("auto_renew");
 
+                    b.Property<LocalDate?>("CancellableFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("cancellable_from");
+
                     b.Property<LocalDate?>("CancelledAt")
                         .HasColumnType("date")
                         .HasColumnName("cancelled_at");
+
+                    b.Property<LocalDate?>("CommitmentEndsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("commitment_ends_on");
 
                     b.Property<string>("ImportHash")
                         .HasColumnType("char(64)")
@@ -585,6 +597,14 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("text")
                         .HasColumnName("note");
+
+                    b.Property<int?>("NoticeCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("notice_count");
+
+                    b.Property<string>("NoticeUnit")
+                        .HasColumnType("text")
+                        .HasColumnName("notice_unit");
 
                     b.Property<string>("ProviderKey")
                         .HasColumnType("text")
@@ -612,6 +632,8 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_subscription_import", "(import_ref is null) = (import_hash is null)");
 
                             t.HasCheckConstraint("ck_subscription_imported_by", "imported_by is null or import_ref is not null");
+
+                            t.HasCheckConstraint("ck_subscription_notice", "(notice_count is null) = (notice_unit is null) and (notice_count is null or notice_count > 0) and (notice_unit is null or notice_unit in ('day','week','month','year'))");
                         });
                 });
 

@@ -197,6 +197,61 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal("2025-10-15", only.GetProperty("on").GetString());
     }
 
+    private static async Task<ItemId> WithTermsAsync(NidApp app, string name, object terms)
+    {
+        var id = await SubscriptionAsync(app, name, "2025-01-05", 1, "month", "13.49");
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}", terms)).EnsureSuccessStatusCode();
+        return id;
+    }
+
+    private static List<JsonElement> Deadlines(JsonElement view)
+        => Upcoming(view).Where(e => e.GetProperty("kind").GetString() == "subscription_cancel_deadline").ToList();
+
+    [Fact]
+    public async Task Cancel_deadline_is_upcoming_in_the_window()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await WithTermsAsync(app, "Box", new { anniversaryOn = "2025-12-01", notice = new { count = 1, unit = "month" } });
+
+        var only = Assert.Single(Deadlines(await DashboardAsync(app, app.AdultA)));
+
+        Assert.Equal("2025-11-01", only.GetProperty("on").GetString());
+        Assert.Equal(id.Value, only.GetProperty("id").GetGuid());
+        Assert.Equal("subscriptions", only.GetProperty("module").GetString());
+        Assert.Equal("Box", only.GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Null, only.GetProperty("amount").ValueKind);
+    }
+
+    [Fact]
+    public async Task Cancel_deadline_not_past_the_window()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await WithTermsAsync(app, "Loin", new { anniversaryOn = "2026-03-01", notice = new { count = 1, unit = "month" } });
+
+        Assert.Empty(Deadlines(await DashboardAsync(app, app.AdultA)));
+    }
+
+    [Fact]
+    public async Task Cancel_deadline_on_today_is_upcoming()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await WithTermsAsync(app, "Aujourd'hui", new { anniversaryOn = "2025-11-15", notice = new { count = 1, unit = "month" } });
+
+        var only = Assert.Single(Deadlines(await DashboardAsync(app, app.AdultA)));
+
+        Assert.Equal("2025-10-15", only.GetProperty("on").GetString());
+    }
+
+    [Fact]
+    public async Task Free_statuses_emit_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await WithTermsAsync(app, "Libre", new { cancellableFrom = "2025-01-01" });
+        await WithTermsAsync(app, "Libre bientot", new { cancellableFrom = "2025-11-20" });
+
+        Assert.Empty(Deadlines(await DashboardAsync(app, app.AdultA)));
+    }
+
     [Fact]
     public async Task To_do_lists_stale_values_oldest_first_then_envelopes_without_value()
     {

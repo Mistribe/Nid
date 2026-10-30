@@ -1,4 +1,19 @@
 {
+  "contract_terms": {
+    "title": "Contrat",
+    "edit": "Conditions du contrat",
+    "anniversary": "Date anniversaire",
+    "notice": "Préavis",
+    "notice_unit": "Unité du préavis",
+    "commitment_ends": "Fin d’engagement",
+    "cancellable_from": "Résiliable à partir du",
+    "cancel_deadline": "Dernier jour pour résilier",
+    "hint_notice": "Le préavis se compte à rebours depuis la date anniversaire. Sans date anniversaire, il est gardé à titre d’information et ne donne pas de date limite.",
+    "submit": "Enregistrer les conditions",
+    "deadline": "Pour une résiliation effective le {{effective}}, le dernier jour pour résilier est le {{last}}.",
+    "free_from": "Résiliable à tout moment à partir du {{date}}.",
+    "free_now": "Résiliable à tout moment."
+  },
   "subscription": {
     "back": "Retour aux abonnements",
     "next_charge": "Prochaine échéance",

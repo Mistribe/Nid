@@ -1,6 +1,7 @@
 using NodaTime;
 using Nid.Core.Contracts;
 using UnambitiousFx.Functional;
+using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Subscriptions.Contracts;
 
@@ -33,7 +34,8 @@ public sealed record ImportedRow(Guid Id, string Hash, PersonId? ImportedBy, IRe
 
 /// <summary>A subscription as stored, for the export (1D2): what the file needs beyond the engine's input.</summary>
 public sealed record StoredSubscription(
-    ItemId Id, string? ProviderKey, bool AutoRenew, LocalDate? CancelledAt, string? Note, IReadOnlyList<PersonId> Users, ImportRef? Import);
+    ItemId Id, string? ProviderKey, bool AutoRenew, LocalDate? CancelledAt, string? Note, IReadOnlyList<PersonId> Users, ImportRef? Import,
+    ContractTerms? Terms = null);
 
 public sealed record StoredPhase(ItemId SubscriptionId, BillingPhase Phase, string? Note, ImportRef? Import);
 
@@ -44,16 +46,33 @@ public sealed record StoredRows(IReadOnlyList<StoredSubscription> Subscriptions,
 /// <summary>What a subscription needs beyond its Core item, for creation.</summary>
 public sealed record NewSubscription(
     string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note,
-    LocalDate? CancelledAt = null, ImportRef? Import = null);
+    LocalDate? CancelledAt = null, ImportRef? Import = null, ContractTerms? Terms = null);
 
 /// <summary>Fields of a subscription that can change without touching the Core item.</summary>
 public sealed record SubscriptionEdit(
     bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
-    string? ProviderKey = null, bool ClearProviderKey = false);
+    string? ProviderKey = null, bool ClearProviderKey = false, ContractTermsChange? Terms = null);
+
+/// <summary>
+/// A PATCH of the contract terms: a field is set by its value, cleared by its flag, or kept when neither is given.
+/// </summary>
+public sealed record ContractTermsChange(
+    LocalDate? AnniversaryOn, bool ClearAnniversaryOn, Duration? Notice, bool ClearNotice,
+    LocalDate? CommitmentEndsOn, bool ClearCommitmentEndsOn, LocalDate? CancellableFrom, bool ClearCancellableFrom)
+{
+    /// <summary>The terms once this change is applied to <paramref name="current"/> (null reads as no terms).</summary>
+    public ContractTerms ApplyTo(ContractTerms? current)
+        => new(
+            ClearAnniversaryOn ? null : AnniversaryOn ?? current?.AnniversaryOn,
+            ClearNotice ? null : Notice ?? current?.Notice,
+            ClearCommitmentEndsOn ? null : CommitmentEndsOn ?? current?.CommitmentEndsOn,
+            ClearCancellableFrom ? null : CancellableFrom ?? current?.CancellableFrom);
+}
 
 /// <summary>1F3b: what an import's replacement sets on a subscription it created before; the rest of the row stays.</summary>
 public sealed record SubscriptionReplacement(
-    string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note, LocalDate? CancelledAt, ImportRef Import);
+    string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note, LocalDate? CancelledAt, ImportRef Import,
+    ContractTerms? Terms = null);
 
 /// <summary>
 /// Rows in, engine input out. The store never computes: coverage and charges are the engine's job, and

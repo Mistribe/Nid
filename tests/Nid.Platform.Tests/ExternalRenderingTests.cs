@@ -15,6 +15,7 @@ public class ExternalRenderingTests
     private static readonly (string Kind, string Module)[] Kinds =
     [
         ("subscription_renewal", "subscriptions"), ("subscription_expiry", "subscriptions"),
+        ("subscription_cancel_deadline", "subscriptions"),
         ("subscriptions.ends_without_renewal", "subscriptions"), ("tenancy_end", "properties"), ("property_cost_due", "properties"),
         ("rent_arrears", "properties"), ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),
         ("valuation_stale", "properties"), ("loan_phase_end", "loans"), ("loan_end", "loans"),

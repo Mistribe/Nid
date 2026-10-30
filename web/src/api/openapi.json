@@ -24223,6 +24223,38 @@
           }
         }
       },
+      "CancellationView": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "lastDayToCancel": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "effectiveOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "freeOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
       "CapabilitiesView": {
         "required": [
           "modules",
@@ -24739,6 +24771,42 @@
             "items": {
               "$ref": "#/components/schemas/BankAccountView"
             }
+          }
+        }
+      },
+      "ContractTermsView": {
+        "type": "object",
+        "properties": {
+          "anniversaryOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "notice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DurationView"
+              }
+            ]
+          },
+          "commitmentEndsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "cancellableFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -27068,8 +27136,12 @@
       },
       "EditSubscriptionBody": {
         "required": [
+          "clearNotice",
+          "clearAnniversaryOn",
           "clearCancelledAt",
-          "clearProviderKey"
+          "clearProviderKey",
+          "clearCommitmentEndsOn",
+          "clearCancellableFrom"
         ],
         "type": "object",
         "properties": {
@@ -27101,6 +27173,50 @@
             ]
           },
           "clearProviderKey": {
+            "type": "boolean",
+            "default": false
+          },
+          "anniversaryOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearAnniversaryOn": {
+            "type": "boolean",
+            "default": false
+          },
+          "notice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DurationBody"
+              }
+            ]
+          },
+          "clearNotice": {
+            "type": "boolean",
+            "default": false
+          },
+          "commitmentEndsOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearCommitmentEndsOn": {
+            "type": "boolean",
+            "default": false
+          },
+          "cancellableFrom": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearCancellableFrom": {
             "type": "boolean",
             "default": false
           }
@@ -40614,7 +40730,8 @@
           "users",
           "phases",
           "purchases",
-          "canWrite"
+          "canWrite",
+          "cancellation"
         ],
         "type": "object",
         "properties": {
@@ -40765,6 +40882,19 @@
           },
           "canWrite": {
             "type": "boolean"
+          },
+          "contractTerms": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ContractTermsView"
+              }
+            ]
+          },
+          "cancellation": {
+            "$ref": "#/components/schemas/CancellationView"
           }
         }
       },

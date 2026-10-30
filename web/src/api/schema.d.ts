@@ -22066,6 +22066,15 @@ export interface components {
             accepted: boolean;
             issues: components["schemas"]["ImportIssue"][];
         };
+        CancellationView: {
+            status: string;
+            /** Format: date */
+            lastDayToCancel?: null | string;
+            /** Format: date */
+            effectiveOn?: null | string;
+            /** Format: date */
+            freeOn?: null | string;
+        };
         CapabilitiesView: {
             modules: string[];
             admin: boolean;
@@ -22188,6 +22197,15 @@ export interface components {
             lastSyncedAt?: null | string;
             lastErrorCode?: null | string;
             accounts: components["schemas"]["BankAccountView"][];
+        };
+        ContractTermsView: {
+            /** Format: date */
+            anniversaryOn?: null | string;
+            notice?: null | components["schemas"]["DurationView"];
+            /** Format: date */
+            commitmentEndsOn?: null | string;
+            /** Format: date */
+            cancellableFrom?: null | string;
         };
         CorrectTaxAssessmentBody: {
             /** Format: int32 */
@@ -22694,6 +22712,18 @@ export interface components {
             providerKey?: null | string;
             /** @default false */
             clearProviderKey: boolean;
+            anniversaryOn?: null | string;
+            /** @default false */
+            clearAnniversaryOn: boolean;
+            notice?: null | components["schemas"]["DurationBody"];
+            /** @default false */
+            clearNotice: boolean;
+            commitmentEndsOn?: null | string;
+            /** @default false */
+            clearCommitmentEndsOn: boolean;
+            cancellableFrom?: null | string;
+            /** @default false */
+            clearCancellableFrom: boolean;
         };
         EnvelopeDetail: {
             /** Format: uuid */
@@ -25870,6 +25900,8 @@ export interface components {
             phases: components["schemas"]["PhaseView"][];
             purchases: components["schemas"]["PurchaseView"][];
             canWrite: boolean;
+            contractTerms?: null | components["schemas"]["ContractTermsView"];
+            cancellation: components["schemas"]["CancellationView"];
         };
         SubscriptionList: {
             items: components["schemas"]["SubscriptionSummary"][];

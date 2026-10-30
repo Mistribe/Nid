@@ -200,16 +200,34 @@ public static class SubscriptionEndpoints
     }
 
     public sealed record EditSubscriptionBody(
-        bool? AutoRenew, string? CancelledAt, bool ClearCancelledAt, string? Note, string? ProviderKey = null, bool ClearProviderKey = false)
+        bool? AutoRenew, string? CancelledAt, bool ClearCancelledAt, string? Note, string? ProviderKey = null, bool ClearProviderKey = false,
+        string? AnniversaryOn = null, bool ClearAnniversaryOn = false, DurationBody? Notice = null, bool ClearNotice = false,
+        string? CommitmentEndsOn = null, bool ClearCommitmentEndsOn = false, string? CancellableFrom = null, bool ClearCancellableFrom = false)
     {
         public EditSubscriptionCommand ToCommand(ItemId id)
-            => ClearCancelledAt && CancelledAt is not null
-                ? throw new BadHttpRequestException(
-                    "cancelledAt and clearCancelledAt contradict each other: send one or the other.")
-                : ClearProviderKey && ProviderKey is not null
-                    ? throw new BadHttpRequestException(
-                        "providerKey and clearProviderKey contradict each other: send one or the other.")
-                    : new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note, ProviderKey, ClearProviderKey);
+        {
+            Refuse(ClearCancelledAt && CancelledAt is not null, "cancelledAt");
+            Refuse(ClearProviderKey && ProviderKey is not null, "providerKey");
+            Refuse(ClearAnniversaryOn && AnniversaryOn is not null, "anniversaryOn");
+            Refuse(ClearNotice && Notice is not null, "notice");
+            Refuse(ClearCommitmentEndsOn && CommitmentEndsOn is not null, "commitmentEndsOn");
+            Refuse(ClearCancellableFrom && CancellableFrom is not null, "cancellableFrom");
+
+            var touched = AnniversaryOn is not null || ClearAnniversaryOn || Notice is not null || ClearNotice
+                          || CommitmentEndsOn is not null || ClearCommitmentEndsOn || CancellableFrom is not null || ClearCancellableFrom;
+            var terms = touched
+                ? new ContractTermsChange(
+                    OptionalDate(AnniversaryOn), ClearAnniversaryOn, Notice?.ToDuration(), ClearNotice,
+                    OptionalDate(CommitmentEndsOn), ClearCommitmentEndsOn, OptionalDate(CancellableFrom), ClearCancellableFrom)
+                : null;
+            return new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note, ProviderKey, ClearProviderKey, terms);
+        }
+
+        private static void Refuse(bool contradiction, string field)
+        {
+            if (contradiction)
+                throw new BadHttpRequestException($"{field} and clear{char.ToUpperInvariant(field[0])}{field[1..]} contradict each other: send one or the other.");
+        }
     }
 
     public sealed record ClosePhaseBody(string EndsOn);

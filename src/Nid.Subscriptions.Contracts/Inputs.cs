@@ -1,5 +1,6 @@
 using NodaTime;
 using Nid.Core.Contracts;
+using UnambitiousFx.Functional.Failures;
 using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Subscriptions.Contracts;
@@ -65,8 +66,42 @@ public sealed record Purchase(
     public decimal CostBasis => AllocatedAmount ?? (Kind == PurchaseKind.Bundle ? 0m : Price.Amount);
 }
 
+/// <summary>
+/// What the household typed about the contract. <paramref name="Notice"/> is a notice period, never converted to days.
+/// The cancellation outlook computed from it is never stored.
+/// </summary>
+public sealed record ContractTerms(
+    LocalDate? AnniversaryOn,
+    Duration? Notice,
+    LocalDate? CommitmentEndsOn,
+    LocalDate? CancellableFrom)
+{
+    public const int MaxNoticeCount = 1000;
+
+    public bool IsEmpty => AnniversaryOn is null && Notice is null && CommitmentEndsOn is null && CancellableFrom is null;
+
+    /// <summary>A notice has a positive count and needs a date to count back from.</summary>
+    public Failure? Validate()
+    {
+        if (Notice is not { } notice)
+            return null;
+
+        if (notice.Count <= 0)
+            return new Failure("subscriptions.duration_count", "A duration has a positive count.", null);
+
+        if (notice.Count > MaxNoticeCount)
+            return new Failure("subscriptions.notice_too_long", $"A notice is at most {MaxNoticeCount} long.", null);
+
+        if (AnniversaryOn is null && CommitmentEndsOn is null)
+            return new Failure("subscriptions.notice_without_date",
+                               "A notice needs an anniversary or an end of commitment.", null);
+
+        return null;
+    }
+}
+
 /// <summary>What the engine needs of a subscription. Name, provider and users belong to 1C, not here.</summary>
-public sealed record SubscriptionHeader(ItemId Id, bool AutoRenew, LocalDate? CancelledAt);
+public sealed record SubscriptionHeader(ItemId Id, bool AutoRenew, LocalDate? CancelledAt, ContractTerms? Terms = null);
 
 public sealed record SubscriptionInput(
     SubscriptionHeader Subscription,

@@ -26,6 +26,10 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             {
                 ImportConstraint(t, "subscription");
                 ImportedByConstraint(t, "subscription");
+                // A notice is both columns or neither, positive, in a unit the module knows.
+                t.HasCheckConstraint("ck_subscription_notice",
+                    "(notice_count is null) = (notice_unit is null) and (notice_count is null or notice_count > 0) "
+                    + "and (notice_unit is null or notice_unit in ('day','week','month','year'))");
             });
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();

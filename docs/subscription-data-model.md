@@ -41,10 +41,20 @@ Stable identity of a service relationship.
 | `auto_renew` | bool | Whether open billing phases keep generating charges |
 | `cancelled_at` | date? | After this date, no new charges are generated. Existing coverage runs until its end. |
 | `note` | string? | Free text, no business effect |
+| `anniversary_on` | date? | Contract anniversary: the date the contract renews or can be left. See "Contract terms". |
+| `notice_count`, `notice_unit` | int?, unit? | Notice period, stored as typed (a count and `day`, `week`, `month` or `year`), never converted to days. Both set or both null; the count is positive. |
+| `commitment_ends_on` | date? | End of the commitment period. |
+| `cancellable_from` | date? | Date from which cancelling is free. |
 
 A subscription is a Core `item` (`module = subscriptions`, `kind = subscription`). Its owners, their shares and its visibility are held by the Core (`ownership`, `item.visibility`, see `core-data-model.md` §4), not by fields of this entity. A former `family` owner becomes both adults at 50/50.
 
 A price change, a plan upgrade or a renewal does **not** create a new subscription. Switching to a genuinely different service (e.g. moving from Spotify to Deezer) does.
+
+### Contract terms
+
+Four optional fields of the `Subscription`, typed by the household, for an insurance or any contract with a notice: `anniversary_on`, the notice (`notice_count` and `notice_unit`), `commitment_ends_on` and `cancellable_from`. A notice needs `anniversary_on` or `commitment_ends_on` to be typed (`subscriptions.notice_without_date`) and is at most 1000 long (`subscriptions.notice_too_long`); it counts back from the anniversary only, so with a commitment end alone it is kept for information and gives no deadline. The detail exposes them as `contractTerms` (null when all are empty).
+
+The cancellation outlook is derived, never stored, and exposed as `cancellation`: `status` is `deadline` (a last day to cancel, `lastDayToCancel`, for the date it takes effect, `effectiveOn`), `free_from` (`freeOn`, « Résiliable à tout moment à partir du … »), `free_now` (« Résiliable à tout moment ») or `none` (also when the subscription does not renew automatically). `lastDayToCancel` is included. The dashboard's agenda and the notifications announce a `deadline` (`subscription_cancel_deadline`).
 
 ### BillingPhase
 

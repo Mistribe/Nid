@@ -25,6 +25,7 @@
     "subscriptions_price_negative": "Le prix ne peut pas être négatif.",
     "subscriptions_no_open_phase": "Aucun tarif n'est en cours à cette date : choisissez une date où l'abonnement a déjà un prix.",
     "subscriptions_phase_overlap": "Cette période chevauche un tarif existant : choisissez une autre date.",
+    "subscriptions_notice_without_date": "Un préavis a besoin d’une date anniversaire ou d’une fin d’engagement.",
     "subscriptions_unknown_provider": "Ce fournisseur n'existe pas ou ne peut pas être choisi.",
     "core_share_sum": "Les parts des propriétaires doivent faire 100 % au total.",
     "core_private_single_owner": "Un élément privé n'a qu'un seul propriétaire.",

@@ -47,6 +47,8 @@ export function detail(over: Partial<Detail> = {}): Detail {
       grants: [{ subscriptionId: SUB, duration: { count: 3, unit: 'month' }, source: 'gift', startsOn: null }], note: null,
     }],
     canWrite: true,
+    contractTerms: null,
+    cancellation: { status: 'none' },
     ...over,
   };
 }

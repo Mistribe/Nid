@@ -33,6 +33,7 @@ describe('dashboard lists', () => {
       upcoming: [
         event(),
         event({ on: '2025-11-30', kind: 'subscription_expiry', name: 'NordVPN', amount: null }),
+        event({ on: '2025-11-30', kind: 'subscription_cancel_deadline', name: 'Assurance habitation', amount: null }),
         event({ on: '2025-12-01', kind: 'income_phase_end', module: 'income', id: '00000000-0000-7000-8000-0000000000b1', name: 'Employeur', label: 'CDD', amount: null }),
       ],
     }));
@@ -45,8 +46,9 @@ describe('dashboard lists', () => {
     expect(items[0]).toHaveTextContent('Renouvellement');
     expect(items[0]).toHaveTextContent('69,90 €');
     expect(items[1]).toHaveTextContent('Expire');
-    expect(items[2]).toHaveTextContent('Fin de « CDD »');
-    expect(within(items[2] as HTMLElement).getByRole('link', { name: 'Employeur' })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000b1');
+    expect(items[2]).toHaveTextContent('Dernier jour pour résilier');
+    expect(items[3]).toHaveTextContent('Fin de « CDD »');
+    expect(within(items[3] as HTMLElement).getByRole('link', { name: 'Employeur' })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000b1');
     await expectNoAxeViolations(container);
   });
 

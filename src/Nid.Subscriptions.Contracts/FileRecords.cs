@@ -31,6 +31,21 @@ public sealed record SubscriptionRecord
     public IReadOnlyList<string> ServiceUsers { get; set; } = [];
     public required bool AutoRenew { get; init; }
     public string? CancelledAt { get; init; }
+
+    // Contract terms (issue #208). Omitted when null, as the export writes them: a file from before the terms hashes
+    // as it always did, and an export of a subscription without terms is the file it was imported from.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AnniversaryOn { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DurationRecord? Notice { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CommitmentEndsOn { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CancellableFrom { get; init; }
+
     public string? Note { get; init; }
 }
 

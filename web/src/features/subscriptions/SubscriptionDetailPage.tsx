@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
 import { DETAIL, PERSONS } from './api';
+import { ContractSection } from './contract/ContractSection';
+import { ContractTermsForm } from './contract/ContractTermsForm';
 import { CoverageBand } from './CoverageBand';
 import { DeletePurchase, ReadOnly } from './edits/Edits';
 import { PriceChangeForm } from './edits/PriceChangeForm';
@@ -39,10 +41,11 @@ export function SubscriptionDetailPage() {
   const { id } = useParams({ from: '/subscriptions/$id' });
   const answer = $api.useQuery('get', DETAIL, { params: { path: { id } } });
   const people = $api.useQuery('get', PERSONS);
-  const [dialog, setDialog] = useState<'price' | 'purchase' | null>(null);
+  const [dialog, setDialog] = useState<'price' | 'purchase' | 'terms' | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const priceRef = useRef<HTMLButtonElement>(null);
   const purchaseRef = useRef<HTMLButtonElement>(null);
+  const termsRef = useRef<HTMLButtonElement>(null);
   const purchasesHeadingRef = useRef<HTMLHeadingElement>(null);
   const back = <Link to="/subscriptions" className="text-sm underline">{t('subscription.back')}</Link>;
   // Mounted from the first render, loading included, so the text written later is announced.
@@ -59,12 +62,13 @@ export function SubscriptionDetailPage() {
     const was = dialog;
     setDialog(null);
     if (message) setAnnouncement(message);
-    (was === 'price' ? priceRef : purchaseRef).current?.focus();
+    ({ price: priceRef, purchase: purchaseRef, terms: termsRef })[was ?? 'purchase'].current?.focus();
   };
   const actions = detail.canWrite ? (
     <>
       <Button ref={priceRef} type="button" onClick={() => { setAnnouncement(''); setDialog('price'); }}>{t('edit.price_title')}</Button>
       <Button ref={purchaseRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('purchase'); }}>{t('edit.purchase_title')}</Button>
+      <Button ref={termsRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('terms'); }}>{t('contract_terms.edit')}</Button>
     </>
   ) : null;
   const nextCharge = detail.nextChargeOn
@@ -88,6 +92,8 @@ export function SubscriptionDetailPage() {
             { label: t('subscription.cash'), value: detail.cashCost.map((m) => <Money key={m.currency} value={m} tabular />) },
             ...(detail.billedMonthly ? [] : [{ label: t('subscription.amortized'), value: detail.amortizedCost.map((m) => <Money key={m.currency} value={m} tabular />) }]),
             nextCharge,
+            ...(detail.cancellation.status === 'deadline' && detail.cancellation.lastDayToCancel
+              ? [{ label: t('contract_terms.cancel_deadline'), value: formatLocalDate(detail.cancellation.lastDayToCancel) }] : []),
           ]} />
           {detail.freeDays > 0 ? <p className="text-sm text-muted-foreground">{t('subscription.free_days', { count: detail.freeDays })}</p> : null}
         </section>
@@ -109,6 +115,11 @@ export function SubscriptionDetailPage() {
           {({ titleId, done }) => <PriceChangeForm detail={detail} titleId={titleId} onDone={done} />}
         </FormDialog>
       ) : null}
+      {dialog === 'terms' ? (
+        <FormDialog title={t('contract_terms.edit')} onClose={() => close()} onDone={close}>
+          {({ titleId, done }) => <ContractTermsForm detail={detail} titleId={titleId} onDone={done} />}
+        </FormDialog>
+      ) : null}
       {dialog === 'purchase' ? (
         <FormDialog title={t('edit.purchase_title')} onClose={() => close()} onDone={close}>
           {({ titleId, done }) => <PurchaseForm detail={detail} titleId={titleId} onDone={done} />}
@@ -116,6 +127,8 @@ export function SubscriptionDetailPage() {
       ) : null}
 
       <Section title={t('subscription.coverage')}><CoverageBand coverage={detail.coverage} /></Section>
+
+      <ContractSection detail={detail} />
 
       <Section title={t('subscription.phases')}>
         <Table aria-label={t('subscription.phases')}>

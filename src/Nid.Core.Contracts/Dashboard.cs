@@ -124,6 +124,7 @@ public static class UpcomingKinds
 {
     public const string SubscriptionRenewal = "subscription_renewal";
     public const string SubscriptionExpiry = "subscription_expiry";
+    public const string SubscriptionCancelDeadline = "subscription_cancel_deadline";
     public const string IncomePhaseEnd = "income_phase_end";
     public const string IncomeGapSoon = "income_gap_soon";
 

@@ -29,7 +29,7 @@ public sealed record CreateSubscriptionCommand(
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
-    string? ProviderKey = null, bool ClearProviderKey = false)
+    string? ProviderKey = null, bool ClearProviderKey = false, ContractTermsChange? Terms = null)
     : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -142,7 +142,8 @@ public sealed class EditSubscriptionHandler(ISubscriptionStore store, ProviderAc
         }
 
         var result = await store.EditAsync(command.ItemId, new SubscriptionEdit(
-            command.AutoRenew, command.CancelledAt, command.ClearCancelledAt, command.Note, command.ProviderKey, command.ClearProviderKey), ct);
+            command.AutoRenew, command.CancelledAt, command.ClearCancelledAt, command.Note, command.ProviderKey, command.ClearProviderKey,
+            command.Terms), ct);
         return result.TryGetFailure(out var failure) ? Result.Failure<ItemId>(failure!) : Result.Success(command.ItemId);
     }
 }

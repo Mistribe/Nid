@@ -50,6 +50,10 @@ internal sealed class SubscriptionsExport(IVisibleItems visible, ISubscriptionSt
                 ServiceUsers = s.Users.Select(context.PersonRef).Order(StringComparer.Ordinal).ToList(),
                 AutoRenew = s.AutoRenew,
                 CancelledAt = s.CancelledAt is { } c ? Date(c) : null,
+                AnniversaryOn = s.Terms?.AnniversaryOn is { } anniversary ? Date(anniversary) : null,
+                Notice = s.Terms?.Notice is { } notice ? DurationOf(notice) : null,
+                CommitmentEndsOn = s.Terms?.CommitmentEndsOn is { } commitment ? Date(commitment) : null,
+                CancellableFrom = s.Terms?.CancellableFrom is { } cancellable ? Date(cancellable) : null,
                 Note = s.Note,
             }).ToList();
         var order = subscriptionRecords.Select((r, i) => (r.Id, i)).ToDictionary(x => x.Id, x => x.i, StringComparer.Ordinal);

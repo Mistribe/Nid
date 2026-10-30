@@ -21,7 +21,9 @@ public sealed class SubscriptionTools
             SubscriptionEndpoints.OptionalDate(from), SubscriptionEndpoints.OptionalDate(to), SubscriptionEndpoints.OptionalDate(horizon)), ct);
 
     [McpServerTool(Name = "get_subscription", ReadOnly = true)]
-    [Description("One subscription: its phases, purchases, costs and next charge. " + McpSetup.Untrusted)]
+    [Description("One subscription: its phases, purchases, costs and next charge. It also returns contractTerms (anniversaryOn, "
+        + "notice {count, unit: day, week, month or year}, commitmentEndsOn, cancellableFrom: ISO dates, what the household typed) and "
+        + "cancellation (the computed last day to cancel, or from when it is free). " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSubscription(IServiceProvider services, [Description("The subscription's id.")] Guid id,
         [Description(Window)] string? from = null, [Description(Window)] string? to = null, [Description(Window)] string? horizon = null,
         CancellationToken ct = default)

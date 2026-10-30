@@ -9,6 +9,11 @@ public sealed class SubscriptionRow
     public string? ProviderKey { get; set; }
     public bool AutoRenew { get; set; } = true;
     public LocalDate? CancelledAt { get; set; }
+    public LocalDate? AnniversaryOn { get; set; }
+    public int? NoticeCount { get; set; }
+    public string? NoticeUnit { get; set; }
+    public LocalDate? CommitmentEndsOn { get; set; }
+    public LocalDate? CancellableFrom { get; set; }
     public string? Note { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }

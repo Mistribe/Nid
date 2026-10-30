@@ -12,6 +12,13 @@ export type Overview = components['schemas']['SubscriptionsOverview'];
 export type MonthView = Overview['months'][number];
 export type Charges = components['schemas']['SubscriptionCharges'];
 
+/**
+ * What a PATCH sends: the schema lists every `clear…` flag as required, but the server defaults a missing one to false, so a
+ * form sends the flags of the fields it edits.
+ */
+export type EditBody = Partial<components['schemas']['EditSubscriptionBody']>;
+export const asEditBody = (body: EditBody) => body as components['schemas']['EditSubscriptionBody'];
+
 export const LIST = '/api/v1/subscriptions' as const;
 export const OVERVIEW = '/api/v1/subscriptions/overview' as const;
 export const CHARGES = '/api/v1/subscriptions/charges' as const;
