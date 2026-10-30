@@ -8,7 +8,7 @@ describe('profile draft', () => {
       statuses: { [ADULT]: 'non_executive' }, dependents: null, childrenUnder6: 2, rentalRegime: null, pinel: [],
       contributionRates: {}, actualExpenses: {}, perUnusedCeilings: {}, perCeilings: {}, perCeilingsExpiring: {}, perPooling: false,
       exemptIncomes: {}, rentalDeficitCarried: '0.00', childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00',
-      donationsAid: '0.00',
+      donationsAid: '0.00', donationsAidLate: '0.00', rentalEnergyWorks: '0.00',
     });
   });
 

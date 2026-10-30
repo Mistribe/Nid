@@ -144,7 +144,8 @@ public sealed record PinelCommitment(Guid Property, int InitialYears, int TotalY
 /// <c>RentalDeficitCarried</c> is the household's earlier rental deficits not yet imputed. Tax-per spec §4.1: <c>PerCeilings</c> maps an
 /// adult to the PER ceiling of the avis d'imposition (already total, the unused ceilings included), <c>PerCeilingsExpiring</c> to the
 /// part of it lost on 31 December; <c>PerPooling</c>: the spouses pool their ceilings. <c>ExemptIncomes</c> maps an adult to the
-/// exempt income the reference income counts (overtime, the value-sharing bonus).
+/// exempt income the reference income counts (overtime, the value-sharing bonus). <c>DonationsAid</c> is box 7UD, <c>DonationsAidLate</c>
+/// 7UQ (the aid donations of 2025 made from 14 October); <c>RentalEnergyWorks</c> the energy renovation works among the rental charges.
 /// </summary>
 public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime,
@@ -152,7 +153,7 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? ContributionRates = null, IReadOnlyDictionary<Guid, decimal>? ActualExpenses = null,
     IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m,
     IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false,
-    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null)
+    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }

@@ -38843,7 +38843,9 @@
           "homeEmployment",
           "donations",
           "donationsAid",
-          "rentalDeficitCarried"
+          "rentalDeficitCarried",
+          "donationsAidLate",
+          "rentalEnergyWorks"
         ],
         "type": "object",
         "properties": {
@@ -38907,6 +38909,14 @@
           "perPooling": {
             "type": "boolean",
             "default": false
+          },
+          "donationsAidLate": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "rentalEnergyWorks": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -39086,6 +39096,18 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "donationsAidLate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalEnergyWorks": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -39105,7 +39127,9 @@
           "perCeilings",
           "perCeilingsExpiring",
           "perPooling",
-          "exemptIncomes"
+          "exemptIncomes",
+          "donationsAidLate",
+          "rentalEnergyWorks"
         ],
         "type": "object",
         "properties": {
@@ -39191,6 +39215,12 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "donationsAidLate": {
+            "type": "string"
+          },
+          "rentalEnergyWorks": {
+            "type": "string"
           }
         }
       },

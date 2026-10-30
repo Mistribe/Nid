@@ -70,6 +70,7 @@ public sealed record TaxPropertyView(ItemId Id, string Name, int AcquiredIn);
 /// <c>ContributionRates</c> in percent (<c>"23.5"</c>); an adult absent from it, <c>ActualExpenses</c> or <c>PerUnusedCeilings</c> keeps the default.
 /// <c>PerCeilings</c> and <c>PerCeilingsExpiring</c>: the notice's PER ceiling and the part lost on 31 December, by adult; an adult
 /// absent from <c>PerCeilings</c> has an estimated ceiling. <c>ExemptIncomes</c>: the exempt income the reference income counts, by adult.
+/// <c>DonationsAidLate</c>: box 7UQ; <c>RentalEnergyWorks</c>: the energy renovation works among the rental charges.
 /// </summary>
 public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime, IReadOnlyList<PinelCommitment> Pinel,
@@ -77,7 +78,7 @@ public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> ContributionRates, IReadOnlyDictionary<Guid, string> ActualExpenses,
     IReadOnlyDictionary<Guid, string> PerUnusedCeilings, string RentalDeficitCarried,
     IReadOnlyDictionary<Guid, string> PerCeilings, IReadOnlyDictionary<Guid, string> PerCeilingsExpiring, bool PerPooling,
-    IReadOnlyDictionary<Guid, string> ExemptIncomes)
+    IReadOnlyDictionary<Guid, string> ExemptIncomes, string DonationsAidLate, string RentalEnergyWorks)
 {
     public static TaxProfileView Of(TaxProfile p) => new(
         p.Statuses, p.Dependents, p.ChildrenUnder6, p.RentalRegime, p.Pinel,
@@ -87,7 +88,8 @@ public sealed record TaxProfileView(
         (p.PerUnusedCeilings ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), Amount(p.RentalDeficitCarried),
         (p.PerCeilings ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
         (p.PerCeilingsExpiring ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), p.PerPooling,
-        (p.ExemptIncomes ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)));
+        (p.ExemptIncomes ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
+        Amount(p.DonationsAidLate), Amount(p.RentalEnergyWorks));
 }
 
 /// <summary>
@@ -103,12 +105,13 @@ public sealed record TaxDeclarantView(
     string? PerCeiling = null, string PreviousYearIncome = "0.00", string PerExpiring = "0.00", IReadOnlyList<string>? PerEnvelopes = null,
     string ExemptIncome = "0.00");
 
-/// <summary>What the calculation read, as the simulation sends it back once edited.</summary>
+/// <summary>What the calculation read, as the simulation sends it back once edited (<c>DonationsAidLate</c>: box 7UQ).</summary>
 public sealed record TaxInputsView(
     int Year, IReadOnlyList<TaxDeclarantView> Declarants, int Dependents, int ChildrenUnder6,
     string RentalGross, string RentalInterest, string RentalCharges, string? RentalRegime,
     string CapitalIncome, string NonTaxableIncome, string PinelReduction,
-    string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid, string RentalDeficitCarried, bool PerPooling = false)
+    string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid, string RentalDeficitCarried, bool PerPooling = false,
+    string DonationsAidLate = "0.00", string RentalEnergyWorks = "0.00")
 {
     /// <summary><paramref name="perEnvelopes"/>: the PERs' names by declarant, in the order of the declarants.</summary>
     public static TaxInputsView Of(TaxInputs i, IReadOnlyList<IReadOnlyList<string>>? perEnvelopes = null) => new(
@@ -118,7 +121,8 @@ public sealed record TaxInputsView(
             perEnvelopes is not null && n < perEnvelopes.Count ? perEnvelopes[n] : [], Amount(d.ExemptIncome))).ToList(),
         i.Dependents, i.ChildrenUnder6, Amount(i.RentalGross), Amount(i.RentalInterest), Amount(i.RentalCharges),
         i.RentalRegime is { } r ? Wire(r) : null, Amount(i.CapitalIncome), Amount(i.NonTaxableIncome), Amount(i.PinelReduction),
-        Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid), Amount(i.RentalDeficitCarried), i.PerPooling);
+        Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid), Amount(i.RentalDeficitCarried), i.PerPooling,
+        Amount(i.DonationsAidLate), Amount(i.RentalEnergyWorks));
 }
 
 /// <summary><c>Method</c>: how the salary was counted, <c>entered</c> (net taxable income), <c>estimated</c> (from the gross), <c>mixed</c>; null without salary.</summary>

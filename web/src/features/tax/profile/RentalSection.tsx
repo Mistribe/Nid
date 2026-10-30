@@ -10,7 +10,10 @@ import { ENGAGEMENTS, suggestedDeficit } from './draft';
 import { AmountField, type SectionProps } from './fields';
 import '@/locales/tax';
 
-/** The rental income's regime, the deficit carried over, and each let property's Pinel commitment. */
+/** The last revenue year whose energy renovation works raise the deficit's cap (works paid from 2023 to 2025). */
+const LAST_ENERGY_YEAR = 2025;
+
+/** The rental income's regime, the deficit carried over, the energy renovation works, and each let property's Pinel commitment. */
 export function RentalSection({ estimate, draft }: SectionProps) {
   const { t } = useTranslation();
   const hintId = useId();
@@ -38,6 +41,9 @@ export function RentalSection({ estimate, draft }: SectionProps) {
         </div>
         <AmountField draft={draft} name="rentalDeficitCarried" badge="4BD"
           hint={suggestedDeficit(estimate) && estimate.carriedFrom ? t('tax.profile.deficit_suggested', { year: estimate.carriedFrom.year }) : t('tax.profile.deficit_carried_hint')} />
+        {estimate.year <= LAST_ENERGY_YEAR && draft.value.regime !== 'micro' && (
+          <AmountField draft={draft} name="rentalEnergyWorks" hint={t('tax.profile.energy_works_hint')} />
+        )}
       </div>
       <div className="rounded-xl border bg-card">
         <Table aria-label={t('tax.profile.pinel_table')}>

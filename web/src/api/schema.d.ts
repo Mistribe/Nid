@@ -23607,6 +23607,10 @@ export interface components {
             rentalDeficitCarried: string;
             /** @default false */
             perPooling: boolean;
+            /** @default 0.00 */
+            donationsAidLate: string;
+            /** @default 0.00 */
+            rentalEnergyWorks: string;
         };
         TaxNoticeView: {
             code: string;
@@ -23656,6 +23660,8 @@ export interface components {
             exemptIncomes?: null | {
                 [key: string]: string;
             };
+            donationsAidLate?: null | string;
+            rentalEnergyWorks?: null | string;
         };
         TaxProfileView: {
             statuses: {
@@ -23691,6 +23697,8 @@ export interface components {
             exemptIncomes: {
                 [key: string]: string;
             };
+            donationsAidLate: string;
+            rentalEnergyWorks: string;
         };
         TaxPropertyView: {
             /** Format: uuid */

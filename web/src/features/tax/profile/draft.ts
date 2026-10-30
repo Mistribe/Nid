@@ -9,7 +9,7 @@ const COUNT = /^\d{1,2}$/;
 /** A percent as typed (`23,5`): empty keeps the status's rate. */
 export const RATE = /^\d{1,2}([.,]\d{1,2})?$/;
 
-const AMOUNT_KEYS = ['childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'rentalDeficitCarried'] as const;
+const AMOUNT_KEYS = ['childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'donationsAidLate', 'rentalDeficitCarried', 'rentalEnergyWorks'] as const;
 /** The per-adult maps, keyed by adult id: an empty text keeps the default. */
 const PER_ADULT = { rates: RATE, expenses: AMOUNT, unused: AMOUNT, ceilings: AMOUNT, expiring: AMOUNT, exempt: AMOUNT } as const;
 type PerAdult = keyof typeof PER_ADULT;
@@ -62,6 +62,7 @@ export function profileBody(d: ProfileDraft): ProfileBody {
     rentalDeficitCarried: toWireAmount(d.amounts.rentalDeficitCarried),
     childcareOutsideHome: toWireAmount(d.amounts.childcareOutsideHome), homeEmployment: toWireAmount(d.amounts.homeEmployment),
     donations: toWireAmount(d.amounts.donations), donationsAid: toWireAmount(d.amounts.donationsAid),
+    donationsAidLate: toWireAmount(d.amounts.donationsAidLate), rentalEnergyWorks: toWireAmount(d.amounts.rentalEnergyWorks),
   };
 }
 

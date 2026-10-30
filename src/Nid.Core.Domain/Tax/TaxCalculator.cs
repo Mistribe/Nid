@@ -26,14 +26,16 @@ public sealed record TaxDeclarant(
 /// Tax estimate spec §4: everything the calculation reads, in euros for the revenue year. <c>RentalRegime</c> null: micro when the
 /// rents allow it. <c>RentalCharges</c> already holds the 20 € per property. <c>PinelReduction</c> is the year's (<see cref="Pinel"/>).
 /// <c>RentalDeficitCarried</c>: the earlier years' rental deficits not yet imputed, which only offset the year's rental income.
-/// <c>PerPooling</c>: the spouses pool their PER ceilings (spec §4.3), a joint declaration only.
+/// <c>PerPooling</c>: the spouses pool their PER ceilings (spec §4.3), a joint declaration only. <c>DonationsAid</c> is box 7UD,
+/// <c>DonationsAidLate</c> 7UQ: the aid donations of 2025 made from 14 October. <c>RentalEnergyWorks</c>: the energy renovation works
+/// among the rental charges, which raise the deficit's cap.
 /// </summary>
 public sealed record TaxInputs(
     int Year, IReadOnlyList<TaxDeclarant> Declarants, int Dependents, int ChildrenUnder6,
     decimal RentalGross, decimal RentalInterest, decimal RentalCharges, RentalRegime? RentalRegime,
     decimal CapitalIncome, decimal NonTaxableIncome, decimal PinelReduction,
     decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid, decimal RentalDeficitCarried = 0m,
-    bool PerPooling = false);
+    bool PerPooling = false, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m);
 
 /// <summary>Where a declarant's salary comes from: none, the entered net taxable income, the gross estimated, or both.</summary>
 public enum SalaryMethod { None, Entered, Estimated, Mixed }
@@ -49,10 +51,13 @@ public enum PerCeilingSource { Notice, Estimated }
 public sealed record PerDeclarant(
     decimal Ceiling, PerCeilingSource Source, decimal Expiring, decimal Contributions, decimal Deducted, decimal Excess, decimal Remaining);
 
-/// <summary><c>PerDeducted</c> is <c>Per.Deducted</c>, deducted from this declarant's income.</summary>
+/// <summary>
+/// <c>PerDeducted</c> is <c>Per.Deducted</c>, deducted from this declarant's income. <c>ExemptNet</c>: the exempt income after the
+/// allowance, which the next year's PER ceiling counts with <c>Taxable</c>.
+/// </summary>
 public sealed record DeclarantResult(
     string Name, decimal NetSalary, decimal NetTaxableIncome, decimal Allowance, decimal Taxable, decimal PerDeducted,
-    SalaryMethod Method = SalaryMethod.None, PerDeclarant? Per = null);
+    SalaryMethod Method = SalaryMethod.None, PerDeclarant? Per = null, decimal ExemptNet = 0m);
 
 /// <summary>
 /// Spec §4.3, the household's PER: <c>Remaining</c> the free ceiling left, <c>TaxSaved</c> the income tax without any PER deduction
@@ -144,7 +149,8 @@ public static class TaxCalculator
         {
             rentalTaxable = Math.Max(0m, inputs.RentalGross - inputs.RentalInterest - inputs.RentalCharges);
             // Interest only offsets rents; the other charges' deficit goes on the global income, capped (the rest carried, not followed).
-            deficit = Rental2044.GlobalDeficit(inputs.RentalGross, inputs.RentalCharges, inputs.RentalInterest, rules.RentalDeficitCap);
+            deficit = Rental2044.GlobalDeficit(inputs.RentalGross, inputs.RentalCharges, inputs.RentalInterest,
+                rules.DeficitCap(inputs.RentalEnergyWorks, inputs.RentalCharges));
         }
         // Earlier deficits offset the net rental income, micro or real, never the global income.
         var carriedUsed = Math.Min(rentalTaxable, Math.Max(0m, inputs.RentalDeficitCarried));
@@ -170,8 +176,12 @@ public static class TaxCalculator
         // Reductions never go below zero; credits are paid back.
         var pinel = Math.Min(Math.Max(0m, inputs.PinelReduction), tax);
         tax -= pinel;
-        var aid = Math.Min(inputs.DonationsAid, rules.DonationAidCap);
-        var otherDonations = Math.Min(inputs.Donations + inputs.DonationsAid - aid, rules.DonationIncomeShare * taxable);
+        // The aid donations at 75 % within their cap (2025: those before 14 October within the sub-cap), the rest at 66 % with the
+        // others, within 20 % of the income; the 75 % ones stay outside the 20 % (BOI-IR-RICI-250-30 § 35).
+        var aidGiven = Math.Max(0m, inputs.DonationsAid) + Math.Max(0m, inputs.DonationsAidLate);
+        var early = rules.DonationAidEarlyCap is { } sub ? Math.Min(Math.Max(0m, inputs.DonationsAid), sub) : Math.Max(0m, inputs.DonationsAid);
+        var aid = Math.Min(early + Math.Max(0m, inputs.DonationsAidLate), rules.DonationAidCap);
+        var otherDonations = Math.Min(inputs.Donations + aidGiven - aid, rules.DonationIncomeShare * taxable);
         var donation = Math.Min(rules.DonationAidRate * aid + rules.DonationRate * otherDonations, tax);
         tax -= donation;
         var childcare = rules.ChildcareRate * Math.Min(inputs.ChildcareOutsideHome, rules.ChildcareCapPerChild * inputs.ChildrenUnder6);
@@ -218,12 +228,14 @@ public static class TaxCalculator
     /// </summary>
     private static (IReadOnlyList<PerDeclarant> Declarants, decimal Remaining) PerDeductions(TaxInputs inputs, bool pooled)
     {
-        var passN1 = TaxRules.For(Math.Max(inputs.Year - 1, TaxRules.FirstYear)).Pass;
+        // The floor and the cap as impots.gouv.fr prints them, to the euro (4 637 € and 37 094 € on the 2024 PASS).
+        var passN1 = TaxRules.Pass(inputs.Year - 1);
+        var (floor, cap) = (Math.Round(0.10m * passN1, 0, MidpointRounding.AwayFromZero), Math.Round(0.80m * passN1, 0, MidpointRounding.AwayFromZero));
         var own = inputs.Declarants.Select(d =>
         {
             var ceiling = Euros(d.PerCeiling is { } notice
                 ? Math.Max(0m, notice)
-                : Math.Max(0.10m * Math.Min(d.PreviousYearIncome, 8 * passN1), 0.10m * passN1) + Math.Max(0m, d.PerUnusedCeiling));
+                : Math.Max(Math.Min(0.10m * d.PreviousYearIncome, cap), floor) + Math.Max(0m, d.PerUnusedCeiling));
             var contributions = Math.Max(0m, d.PerContributions);
             return (Ceiling: ceiling, Source: d.PerCeiling is null ? PerCeilingSource.Estimated : PerCeilingSource.Notice,
                 Expiring: Math.Min(Math.Max(0m, d.PerExpiring), ceiling), Contributions: contributions, Deducted: Math.Min(contributions, ceiling));
@@ -328,7 +340,7 @@ public static class TaxCalculator
         var allowance = Allowance(d, rules, income);
         var taxable = income - allowance;
         // The PER deduction comes after, from the household step (PerDeductions).
-        return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), 0m, method);
+        return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), 0m, method, ExemptNet: Euros(ExemptNet(d, rules)));
     }
 
     private static decimal Euros(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);

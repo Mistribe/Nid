@@ -381,7 +381,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
-    public async Task Estimated_ceiling_of_the_first_rules_year_uses_its_own_pass()
+    public async Task Estimated_ceiling_of_the_first_rules_year_uses_the_previous_years_pass()
     {
         await using var app = await NidApp.StartAsync(fixture);
         await PerAsync(app, app.AdultA, "PER neuf", "2025-02-01", "2025-02-01");
@@ -390,7 +390,8 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var estimate = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
-        Assert.True(DecimalOf(PerResultOf(estimate, app.AdultA), "ceiling") >= 4710m);
+        // No 2024 income: the floor, 10 % of the 2024 PASS (4 637 €, brochure IR 2026).
+        Assert.Equal(4637m, DecimalOf(PerResultOf(estimate, app.AdultA), "ceiling"));
     }
 
     [Fact]

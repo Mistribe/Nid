@@ -184,7 +184,7 @@ public sealed class TaxEstimates(
         var (lines, people) = (r!.Lines, r.People);
         var (inputs, notices, columns) = Assemble(year, lines, r.Effective, people);
         var regime = TaxCalculator.Compute(inputs).RentalRegime;
-        var t = Rental2044.Totals(columns, TaxRules.For(year).RentalDeficitCap);
+        var t = Rental2044.Totals(columns, TaxRules.For(year).DeficitCap(inputs.RentalEnergyWorks, inputs.RentalCharges));
         var micro = regime == RentalRegime.Micro;
         // The notices of RealEstate's items only: its rental lines and the ones it left out of the 2044.
         var rental = lines.Where(l => l.Code.StartsWith("rental_", StringComparison.Ordinal) || l.Category == TaxLineCodes.Rental2044)
@@ -252,7 +252,8 @@ public sealed class TaxEstimates(
     }
 
     /// <summary>
-    /// Tax-per spec §4.2: each adult's taxable income of the year before, by person id: the same lines (same reader and scope) and the
+    /// Tax-per spec §4.2: each adult's taxable income of the year before with the exempt overtime after the allowance (the professional
+    /// income the PER ceiling reads, unemployment included: brochure IR 2026 § 232), by person id: the same lines (same reader and scope) and the
     /// profile standing for that year, assembled and computed without PER and without a previous-year pass of its own. Before the first
     /// year of the rules the calculation runs on the first year's, as the PASS does.
     /// </summary>
@@ -272,7 +273,7 @@ public sealed class TaxEstimates(
             Declarants = inputs.Declarants.Select(d => d with { PerContributions = 0m }).ToList(),
         });
         return Result.Success<IReadOnlyDictionary<Guid, decimal>>(
-            Adults(people).Zip(result.Declarants, (adult, d) => (Id: adult.Id.Value, d.Taxable)).ToDictionary(x => x.Id, x => x.Taxable));
+            Adults(people).Zip(result.Declarants, (adult, d) => (Id: adult.Id.Value, Income: d.Taxable + d.ExemptNet)).ToDictionary(x => x.Id, x => x.Income));
     }
 
     /// <summary>The adults who declare, in a stable order: the household's first two.</summary>
@@ -360,7 +361,8 @@ public sealed class TaxEstimates(
             columns.Sum(c => c.L215), columns.Sum(c => c.L250), columns.Sum(c => c.L240),
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
             All(TaxLineCodes.CapitalIncome), All(TaxLineCodes.NonTaxable), pinel,
-            profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling);
+            profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
+            profile.DonationsAidLate, profile.RentalEnergyWorks);
         return (inputs, notices, columns);
     }
 
@@ -386,7 +388,7 @@ public sealed class TaxEstimates(
                  && p.Pinel.All(c => c.InitialYears is 6 or 9 && c.TotalYears is 6 or 9 or 12 && c.TotalYears >= c.InitialYears
                                      && c.StartYear is null or (>= 2014 and <= 2040))
                  && p.Pinel.Select(c => c.Property).Distinct().Count() == p.Pinel.Count
-                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried }.All(a => a is >= 0 and <= 10_000_000m)
+                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks }.All(a => a is >= 0 and <= 10_000_000m)
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.ExemptIncomes?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)

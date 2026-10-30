@@ -197,6 +197,21 @@ public class TaxCalculatorTests
         Assert.Equal(deficit, result.RentalDeficit);
     }
 
+    [Theory]
+    [InlineData(2025, 9_500, 20_200)] // BOI-RFPI-BASE-30-20, first example: 10 700 + 9 500
+    [InlineData(2025, 19_600, 21_400)] // second example: 21 400 at most
+    [InlineData(2025, 0, 10_700)]
+    [InlineData(2026, 9_500, 10_700)] // works paid after 2025: no raise (ann. III art. 41 DO)
+    public void Energy_renovation_works_raise_the_deficit_cap(int year, int works, int deficit)
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(60_000m), Other(0m)], year: year) with
+        {
+            RentalGross = 6_000m, RentalCharges = 30_000m, RentalRegime = RentalRegime.Real, RentalEnergyWorks = works,
+        });
+
+        Assert.Equal(deficit, result.RentalDeficit);
+    }
+
     [Fact]
     public void Per_contributions_are_deducted_within_the_ceiling()
     {
@@ -245,8 +260,8 @@ public class TaxCalculatorTests
 
     [Theory]
     [InlineData(58_431.27, 5_843.13)] // 10 % × 58 431.27 = 5 843.127
-    [InlineData(0, 4_710)] // the floor: 10 % × PASS 47 100
-    [InlineData(500_000, 37_680)] // capped at 8 PASS: 10 % × 376 800
+    [InlineData(0, 4_637)] // the floor: 10 % × the 2024 PASS, 46 368
+    [InlineData(500_000, 37_094)] // capped at 8 PASS: 10 % × 370 944
     public void Without_a_notice_the_ceiling_comes_from_last_years_income(double previous, double ceiling)
     {
         var declarant = Other(30_000m) with { PerContributions = 1_000m, PreviousYearIncome = (decimal)previous };
@@ -269,12 +284,25 @@ public class TaxCalculatorTests
         Assert.Empty(result.Warnings);
     }
 
-    [Fact]
-    public void Previous_year_rules_never_go_below_the_first_year()
+    [Theory]
+    [InlineData(2025, 4_637, 37_094)] // the 2024 PASS, 46 368 (brochure IR 2026)
+    [InlineData(2026, 4_710, 37_680)] // the 2025 PASS, 47 100 (impots.gouv.fr, épargne retraite)
+    [InlineData(2027, 4_710, 37_680)] // carried forward
+    public void The_estimated_ceiling_reads_the_previous_years_pass(int year, int floor, int cap)
     {
-        // 2026 reads the 2025 PASS; 2025 has no earlier rules and reads its own.
-        Assert.Equal(4_710m, TaxCalculator.Compute(Inputs([Other(30_000m)], year: 2026)).Declarants[0].Per!.Ceiling);
-        Assert.Equal(4_710m, TaxCalculator.Compute(Inputs([Other(30_000m)], year: 2025)).Declarants[0].Per!.Ceiling);
+        Assert.Equal(floor, TaxCalculator.Compute(Inputs([Other(30_000m)], year: year)).Declarants[0].Per!.Ceiling);
+        var high = Other(30_000m) with { PreviousYearIncome = 500_000m };
+        Assert.Equal(cap, TaxCalculator.Compute(Inputs([high], year: year)).Declarants[0].Per!.Ceiling);
+    }
+
+    [Fact]
+    public void The_exempt_income_after_the_allowance_is_given_for_the_next_ceiling()
+    {
+        // 50 000 + 2 000 of overtime: the allowance grows from 5 000 to 5 200, 1 800 of it stays.
+        var result = TaxCalculator.Compute(Inputs([Other(50_000m) with { ExemptIncome = 2_000m }]));
+
+        Assert.Equal(45_000m, result.Declarants[0].Taxable);
+        Assert.Equal(1_800m, result.Declarants[0].ExemptNet);
     }
 
     [Fact]
@@ -284,7 +312,7 @@ public class TaxCalculatorTests
         var estimated = Other(30_000m) with { PerUnusedCeiling = 3_000m };
 
         Assert.Equal(4_000m, TaxCalculator.Compute(Inputs([notice])).Declarants[0].Per!.Ceiling);
-        Assert.Equal(7_710m, TaxCalculator.Compute(Inputs([estimated])).Declarants[0].Per!.Ceiling); // 4 710 + 3 000
+        Assert.Equal(7_637m, TaxCalculator.Compute(Inputs([estimated])).Declarants[0].Per!.Ceiling); // 4 637 + 3 000
     }
 
     [Fact]
@@ -430,7 +458,28 @@ public class TaxCalculatorTests
     {
         var result = TaxCalculator.Compute(Inputs([Other(60_000m), Other(0m)]) with { DonationsAid = 1_200m, Donations = 300m });
 
-        Assert.Equal(1_080m, result.DonationReduction); // 75 % × 1 000 + 66 % × 500
+        Assert.Equal(1_080m, result.DonationReduction); // 2025, before 14 October: 75 % × 1 000 + 66 % × 500
+    }
+
+    [Theory]
+    [InlineData(2025, 1_500, 1_500, 2_160)] // 75 % × (1 000 + 1 500 → 2 000) + 66 % × 1 000
+    [InlineData(2025, 0, 2_500, 1_830)] // 75 % × 2 000 + 66 % × 500
+    [InlineData(2026, 2_500, 0, 1_830)] // 2 000 for the whole year
+    public void Aid_donations_are_capped_at_2_000_from_14_october_2025(int year, int early, int late, int reduction)
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(60_000m), Other(0m)], year: year) with { DonationsAid = early, DonationsAidLate = late });
+
+        Assert.Equal(reduction, result.DonationReduction);
+    }
+
+    [Fact]
+    public void Aid_donations_stay_outside_the_20_percent()
+    {
+        // 90 000 taxable: 20 % is 18 000 for the other donations, the 1 000 beyond the 2 000 included; the 2 000 at 75 % beside it
+        // (BOI-IR-RICI-250-30 § 35). 75 % × 2 000 + 66 % × 18 000.
+        var result = TaxCalculator.Compute(Inputs([Other(100_000m)], year: 2026) with { DonationsAid = 3_000m, Donations = 17_000m });
+
+        Assert.Equal(13_380m, result.DonationReduction);
     }
 
     [Theory]
