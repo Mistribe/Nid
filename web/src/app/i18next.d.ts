@@ -1,5 +1,6 @@
 import type fr from '@/locales/fr.json';
 import type admin from '@/locales/fr.admin.json';
+import type banks from '@/locales/fr.banks.json';
 import type documents from '@/locales/fr.documents.json';
 import type forms from '@/locales/fr.forms.json';
 import type goals from '@/locales/fr.goals.json';
@@ -20,7 +21,7 @@ import type tax from '@/locales/fr.tax.json';
 import type taxAssessments from '@/locales/fr.tax-assessments.json';
 
 // The module bundles join `translation` when their pages load (src/locales/<module>.ts), under the same keys.
-type Lazy = typeof admin & typeof documents & typeof forms & typeof goals & typeof guides & typeof scenarios & typeof notifications & typeof palette & typeof income & typeof investments
+type Lazy = typeof admin & typeof banks & typeof documents & typeof forms & typeof goals & typeof guides & typeof scenarios & typeof notifications & typeof palette & typeof income & typeof investments
   & typeof loans & typeof properties & typeof proposals & typeof routine & typeof security & typeof subscriptions & typeof tax & typeof taxAssessments;
 
 declare module 'i18next' {

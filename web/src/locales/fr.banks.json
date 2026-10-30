@@ -1,0 +1,73 @@
+{
+  "banks": {
+    "title": "Banques",
+    "loading": "Chargement des banques",
+    "disabled": "La synchronisation bancaire n'est pas activée pour ce foyer : un administrateur peut l'activer dans Administration › Banque.",
+    "not_configured": "La synchronisation bancaire est activée mais pas encore configurée : l'administrateur doit renseigner l'application Enable Banking.",
+    "connect": "Relier une banque",
+    "empty_title": "Aucune banque reliée",
+    "empty_body": "Reliez une banque : les soldes de vos comptes arrivent alors d'eux-mêmes dans vos enveloppes.",
+    "status": { "active": "Active", "expired": "Expirée", "revoked": "Révoquée", "error": "En erreur" },
+    "expires": "Expire le {{date}}",
+    "last_sync": "Dernière synchronisation : {{date}}",
+    "never_synced": "Jamais synchronisée",
+    "actions_of": "Actions sur {{bank}}",
+    "sync": "Synchroniser",
+    "renew": "Renouveler",
+    "delete_confirm": "La connexion à {{bank}} sera supprimée ; ses comptes et leurs valeurs restent, sans plus être synchronisés.",
+    "sync_all": "Synchroniser tout",
+    "sync_failed": "La synchronisation a échoué.",
+    "unsynced": "Comptes non synchronisés",
+    "unsynced_hint": "Plus aucune connexion ne lit ces comptes : renouvelez ou reliez leur banque, ou détachez-les de leur enveloppe.",
+    "synced": "Synchronisation terminée.",
+    "deleted": "Connexion à {{bank}} supprimée.",
+    "connected": "Banque reliée.",
+    "accounts": "Comptes de {{bank}}",
+    "account": "Compte",
+    "kind_label": "Type",
+    "envelope": "Enveloppe",
+    "balance": "Dernier solde",
+    "actions": "Actions",
+    "kind": { "checking": "Compte courant", "savings": "Épargne", "card": "Carte", "other": "Autre" },
+    "ignored": "Non suivi",
+    "card_of": "Carte de {{name}}",
+    "balance_on": "{{amount}} au {{date}}",
+    "edit": "Régler",
+    "edit_of": "Régler {{name}}",
+    "error": {
+      "generic": "La banque n'a pas pu être reliée.",
+      "banking_auth_refused": "La banque a refusé ou annulé l'autorisation.",
+      "banking_state_invalid": "Ce retour de la banque a expiré ou ne vous est pas destiné : reliez la banque de nouveau.",
+      "banking_provider_error": "La banque ne répond pas pour l'instant : réessayez plus tard.",
+      "banking_sync_running": "Une synchronisation est déjà en cours.",
+      "banking_currency_mismatch": "La devise du compte et celle de l'enveloppe diffèrent.",
+      "banking_card_parent": "Une carte se rattache à un compte courant.",
+      "banking_envelope_taken": "Un autre compte bancaire est déjà relié à cette enveloppe.",
+      "banking_envelope_kind": "Un compte bancaire se relie à une enveloppe compte courant, livret ou autre."
+    },
+    "connect_dialog": {
+      "bank": "Banque",
+      "search": "Rechercher une banque",
+      "no_bank": "Aucune banque trouvée",
+      "hint": "Votre banque vous demande ensuite d'autoriser la lecture de vos comptes : lecture seule, aucun paiement possible.",
+      "submit": "Continuer vers la banque"
+    },
+    "account_dialog": {
+      "envelope": "Enveloppe",
+      "none": "Aucune",
+      "card_of": "Carte rattachée à",
+      "no_card": "Aucun",
+      "ignored": "Ne pas suivre ce compte",
+      "auto": "Appliquer les soldes automatiquement",
+      "auto_hint": "Sinon, chaque solde de fin de mois arrive dans À valider.",
+      "save": "Enregistrer",
+      "saved": "{{name}} enregistré."
+    },
+    "envelope_note": {
+      "linked": "Relié à {{name}}",
+      "last": "Relié à {{name}} · dernier solde du {{date}}",
+      "conflict": "Solde bancaire du {{date}} non appliqué : une valeur saisie existe à cette date"
+    },
+    "routine_balance": "Solde bancaire du {{date}}"
+  }
+}

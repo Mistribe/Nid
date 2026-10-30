@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -19,7 +19,8 @@ import { defaultRoutineDate } from './dates';
 import { clearDraft, loadDraft } from './draft';
 import { EstateSection } from './EstateSection';
 import { RoutineRecapPanel } from './RoutineRecap';
-import { RoutineForm, startValues, type RoutineValues } from './RoutineForm';
+import { RoutineForm, startValues, type Banked, type RoutineValues } from './RoutineForm';
+import { useBankAccounts } from '../settings/banks/api';
 
 /** screens.md §5 / 2E2 spec §3: the monthly routine. */
 export function RoutinePage() {
@@ -34,6 +35,10 @@ export function RoutinePage() {
   const [year = 0, month = 1] = on.split('-').map(Number);
   const monthText = monthLabel(year, month);
   const answer = $api.useQuery('get', ROUTINE, { params: { query: { on } } }, { enabled: envelopes });
+  // The envelopes whose bank account applies its balances and is still read: no value field for them. Known before the form starts.
+  const accounts = useBankAccounts();
+  const banked = useMemo<Banked | undefined>(() => accounts && Object.fromEntries(accounts
+    .filter((a) => a.envelopeId && a.autoApplyBalance && a.synced && !a.ignored && a.lastBalanceOn).map((a) => [a.envelopeId!, a.lastBalanceOn!])), [accounts]);
   // What is typed in the date field until it is a day the routine can open (a past one).
   const [typed, setTyped] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ recap: RoutineRecap; values: RoutineValues } | null>(null);
@@ -72,8 +77,9 @@ export function RoutinePage() {
               <Link to="/investments/new" className={buttonVariants({ variant: 'outline', size: 'sm' })}>{t('routine.create_envelope')}</Link>
             </p>
           ) : null}
-          {answer.data && answer.data.lines.length > 0 && !saved ? (
-            <RoutineForm key={`${on}:${restored ? 'restored' : 'fresh'}:${answer.data.lines.map((l) => l.id).join(',')}`} view={answer.data} month={monthText} initial={startValues(answer.data, restored ?? loadDraft(on))} onSaved={onSaved} />
+          {answer.data && answer.data.lines.length > 0 && banked && !saved ? (
+            <RoutineForm key={`${on}:${restored ? 'restored' : 'fresh'}:${answer.data.lines.map((l) => l.id).join(',')}`} view={answer.data} month={monthText}
+              initial={startValues(answer.data, restored ?? loadDraft(on), banked)} banked={banked} onSaved={onSaved} />
           ) : null}
           {saved ? (
             <RoutineRecapPanel recap={saved.recap} onUndone={() => { setRestored(saved.values); setSaved(null); setUndone(true); }} />

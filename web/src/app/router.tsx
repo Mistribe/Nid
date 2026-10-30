@@ -25,6 +25,7 @@ export type RootSearch = { scope?: 'me' };
 /** The tax page's tab and the year of its figures (absent: the tab's own default). */
 export type TaxSearch = RootSearch & DetailSearch & { year?: string };
 export type RoutineSearch = { on?: string };
+export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel; projection?: ProjectionHorizon; real?: 0 };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
@@ -468,6 +469,15 @@ const settingsRoute = createRoute({
 
 const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/appearance', component: lazyRouteComponent(() => import('@/features/settings/AppearancePage'), 'AppearancePage') });
 const projectionSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/projection', component: lazyRouteComponent(() => import('@/features/settings/ProjectionSettingsPage'), 'ProjectionSettingsPage') });
+/** The bank's callback lands here with `connected` (the new connection) or `error` (a code): the page reads them once. */
+const banksSettingsRoute = createRoute({
+  getParentRoute: () => rootRoute, path: '/settings/banks',
+  validateSearch: (search: Record<string, unknown>): BanksSearch => ({
+    ...(typeof search.connected === 'string' ? { connected: search.connected } : {}),
+    ...(typeof search.error === 'string' ? { error: search.error } : {}),
+  }),
+  component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
+});
 const notificationSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/notifications', component: lazyRouteComponent(() => import('@/features/settings/NotificationSettingsPage'), 'NotificationSettingsPage') });
 
 const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
@@ -508,6 +518,7 @@ const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path:
 const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/fx', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/FxPage'), 'FxPage') });
 const adminPricesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/prices', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/PricesPage'), 'PricesPage') });
 const adminIrlRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/irl', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/IrlPage'), 'IrlPage') });
+const adminBankingRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/banking', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/BankingPage'), 'BankingPage') });
 const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/catalog', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/CatalogPage'), 'CatalogPage') });
 const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage') });
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SystemPage'), 'SystemPage') });
@@ -517,8 +528,8 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
-  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute,
-  securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminCatalogRoute, adminJobsRoute,
+  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, banksSettingsRoute,
+  securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
 ]);
 

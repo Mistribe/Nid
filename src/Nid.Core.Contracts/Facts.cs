@@ -13,11 +13,12 @@ public enum FlowKind
     Expense,
 }
 
-/// <summary><c>core-data-model.md</c> §5.1. <c>bank_api</c> and <c>document</c> arrive with stages 4 and 5.</summary>
+/// <summary><c>core-data-model.md</c> §5.1. <c>document</c> arrives with stage 4; <see cref="BankApi"/> is a bank balance written by the sync (valuations only).</summary>
 public enum FactSource
 {
     Manual,
     Import,
+    BankApi,
 }
 
 /// <summary>2B1b: where an imported fact or envelope came from — its file id, the RFC 8785 hash of its record, its importer.</summary>
@@ -25,8 +26,11 @@ public sealed record ImportMark(string Ref, string Hash, PersonId ImportedBy);
 
 public sealed record NewValuation(ItemId Item, LocalDate AsOf, Money Value, string? Note, FactSource Source = FactSource.Manual, ImportMark? Import = null);
 
-/// <summary><see cref="DocumentId"/>: the source an applied proposal cited (#172); shown only to a reader of it (<see cref="IExposesDocuments"/>).</summary>
-public sealed record Valuation(Guid Id, ItemId Item, LocalDate AsOf, Money Value, string? Note, Guid? DocumentId = null);
+/// <summary>
+/// <see cref="DocumentId"/>: the source an applied proposal cited (#172); shown only to a reader of it (<see cref="IExposesDocuments"/>).
+/// <see cref="Source"/>: who wrote it, so the bank sync never replaces a value a person entered or imported.
+/// </summary>
+public sealed record Valuation(Guid Id, ItemId Item, LocalDate AsOf, Money Value, string? Note, Guid? DocumentId = null, FactSource Source = FactSource.Manual);
 
 /// <summary><see cref="Value"/> is null when the item has no value at that date: "unknown", never zero.</summary>
 public sealed record LatestValuation(Valuation? Value);

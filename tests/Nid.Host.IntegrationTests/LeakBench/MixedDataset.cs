@@ -167,7 +167,8 @@ public sealed class MixedDataset
 
     public static async Task<MixedDataset> CreateAsync(PostgresFixture fixture)
     {
-        var app = await NidApp.StartAsync(fixture);
+        // Banking on (a key for the host, an application id below), so the bench's banking requests run rather than meet banking.disabled.
+        var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["EnableBanking:PrivateKey"] = "test-key" });
 
         var items = new Dictionary<string, ItemId>();
         var envelopes = new Dictionary<string, ItemId>();
@@ -349,6 +350,17 @@ public sealed class MixedDataset
         if (noticeResponse.StatusCode != System.Net.HttpStatusCode.Created)
             throw new InvalidOperationException($"Seeding B's tax notice failed: {noticeResponse.StatusCode}");
         var notice = JsonDocument.Parse(await noticeResponse.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        // One bank account of A's, named after A's private label and associated with A's private envelope twin: a banking read that showed it
+        // to B would put the label in the textual scan.
+        app.Banks.FailWith = null;
+        app.Banks.Aspsps.Add(BankingApi.Alpha);
+        await BankingApi.SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
+        await BankingApi.ConnectAsync(app, app.AdultA, "bench", BankingApi.Account("uid-bench", "hash-bench", null, PrivateLabelA + " compte"));
+        var bankAccount = (await BankingApi.AccountsAsync(app, app.AdultA))[0].GetProperty("id").GetGuid();
+        var associated = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{bankAccount}", new { envelopeId = envelopes["P-A"].Value });
+        if (associated.StatusCode != System.Net.HttpStatusCode.OK)
+            throw new InvalidOperationException($"Seeding A's bank account failed: {associated.StatusCode}");
 
         return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, goals, proposals, documents, unlinkDocuments)
         {

@@ -70,7 +70,7 @@ public sealed class AuditInterceptor(IActorAccessor actors, AuditRequest request
                 throw new InvalidOperationException($"{type.FullName} is neither audited nor excluded (1F3a spec §4.4).");
 
             var actor = actors.Current ?? throw new AuditActorMissingException(entry.Metadata.GetTableName()!);
-            if (AuditDiff.Row(entry, actor, request.Name, rule.Items(entry), at) is { } line)
+            if (AuditDiff.Row(entry, actor, request.Name, rule.Items(entry), at, rule.Secret) is { } line)
                 lines.Add(line);
         }
 

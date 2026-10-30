@@ -47,6 +47,26 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Banking_is_off_by_default_and_keeps_its_application_id()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var settings = new HouseholdSettings(db);
+
+        var initial = await settings.ReadAsync(default);
+        Assert.Equal((false, null), (initial.BankingEnabled, initial.EnableBankingAppId));
+
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true, EnableBankingAppId: " 0a1b-app "), default))
+            .TryGetValue(out var on));
+        Assert.Equal((true, "0a1b-app"), (on.BankingEnabled, on.EnableBankingAppId));
+
+        // A field left out is left unchanged; an empty id clears it.
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: false), default)).TryGetValue(out var off));
+        Assert.Equal((false, "0a1b-app"), (off.BankingEnabled, off.EnableBankingAppId));
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: ""), default)).TryGetValue(out var cleared));
+        Assert.Null(cleared.EnableBankingAppId);
+    }
+
+    [Fact]
     public async Task Projection_assumptions_round_trip()
     {
         await using var db = await postgres.NewDatabaseAsync();

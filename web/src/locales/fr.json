@@ -984,7 +984,7 @@
     "badge": "{{count}} en attente",
     "line_one": "1 proposition à valider",
     "line_other": "{{count}} propositions à valider",
-    "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)" },
+    "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)", "job": "par la synchronisation" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
     "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement" },

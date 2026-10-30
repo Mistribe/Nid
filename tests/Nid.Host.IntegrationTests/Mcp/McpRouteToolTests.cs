@@ -27,6 +27,10 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "PUT /api/v1/core/persons/{id:guid}/retirement",
         // So are the household's projection assumptions (spec §7): read in the web app, which is where they are set.
         "/api/v1/core/projection-assumptions",
+        // Bank sync §8: connecting a bank needs the person at their bank, in the browser; no tool touches a connection.
+        "/api/v1/banking/connections",
+        // The sync reads the person's banks with their browser's address: a click, not a proposal.
+        "/api/v1/banking/sync",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)
@@ -294,6 +298,29 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(document, linked.GetProperty("id").GetGuid());
         Assert.Equal("payslip", Assert.Single(linked.GetProperty("links").EnumerateArray()).GetProperty("role").GetString());
         Assert.Single(JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source.Value}")).RootElement.GetProperty("phases").EnumerateArray());
+    }
+
+    /// <summary>Bank sync §8: associating a bank account is a web write like the others; its <c>{id}</c> is a bank account, no item.</summary>
+    [Fact]
+    public async Task A_bank_account_update_is_proposed_without_a_target_and_applied_when_approved()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code", BankingApi.Account("uid", "hash", null, "Courant"));
+        var account = (await BankingApi.AccountsAsync(app, app.AdultA))[0].GetProperty("id").GetGuid();
+        var envelope = await app.NewEnvelopeAsync("Courant", app.AdultA, Visibility.Private);
+        async Task<JsonValueKind> AssociatedAsync() => (await BankingApi.AccountsAsync(app, app.AdultA))[0].GetProperty("envelopeId").ValueKind;
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+
+        var (error, _) = await CallAsync(propose, "propose_bank_account_update", new { id = Guid.NewGuid(), body = new { ignored = true } });
+        Assert.True(error); // the dry run meets the route's « not found »
+
+        var proposed = await AnswerAsync(propose, "propose_bank_account_update", new { id = account, body = new { envelopeId = envelope.Value } });
+        var proposal = proposed.GetProperty("proposal");
+        Assert.Equal(("banking.bank_account_update", JsonValueKind.Null), (proposal.GetProperty("kind").GetString(), proposal.GetProperty("targetItemId").ValueKind));
+        Assert.Equal(JsonValueKind.Null, await AssociatedAsync());
+
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposal.GetProperty("id").GetGuid())).StatusCode);
+        Assert.Equal(envelope.Value, (await BankingApi.AccountsAsync(app, app.AdultA))[0].GetProperty("envelopeId").GetGuid());
     }
 
     [Fact]

@@ -20,6 +20,8 @@ public class OpenApiTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var endpoints = app.Services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
             .Where(e => e.RoutePattern.RawText is { } raw && (raw.StartsWith("/api/") || raw == "/auth/session"))
+            // A browser navigation the SPA never calls (the bank's callback): left out of the document, so out of the client.
+            .Where(e => e.Metadata.GetMetadata<IExcludeFromDescriptionMetadata>()?.ExcludeFromDescription != true)
             .ToList();
 
         Assert.NotEmpty(endpoints);

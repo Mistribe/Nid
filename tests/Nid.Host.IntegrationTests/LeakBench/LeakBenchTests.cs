@@ -1049,6 +1049,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 Assert.Contains(propertyBodies[actor], body => body.Contains("\"label\":\"shared-a\"", StringComparison.Ordinal)
                     && body.Contains("\"note\":\"shared-a\",\"monthlyEquivalent\"", StringComparison.Ordinal));
             }
+            // Bank sync: A's account reaches A's banking reads, so the scan above looks through them (and B's never carry it).
+            Assert.Contains(bodies[app.AdultA], body => body.Contains(MixedDataset.PrivateLabelA + " compte", StringComparison.Ordinal));
         }
 
         /// <summary>

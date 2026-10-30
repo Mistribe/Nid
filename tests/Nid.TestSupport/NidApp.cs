@@ -43,7 +43,7 @@ public sealed class NidApp : IAsyncDisposable
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
-        FakeFxSources sources, FakePriceSources prices, FakeIrlSource irl, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot, string documentsRoot)
+        FakeFxSources sources, FakePriceSources prices, FakeEnableBanking banks, FakeIrlSource irl, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot, string documentsRoot)
     {
         this.factory = factory;
         ConnectionString = connectionString;
@@ -52,6 +52,7 @@ public sealed class NidApp : IAsyncDisposable
         Dependent = d;
         Sources = sources;
         Prices = prices;
+        Banks = banks;
         Irl = irl;
         Catalog = catalog;
         Icons = icons;
@@ -77,6 +78,9 @@ public sealed class NidApp : IAsyncDisposable
 
     /// <summary>The offline <see cref="IPriceSourceClient"/> this host runs against; every request fails unless a test serves pages.</summary>
     public FakePriceSources Prices { get; }
+
+    /// <summary>The offline <see cref="Nid.Banking.Contracts.IEnableBankingClient"/> this host runs against; every call fails unless a test scripts it.</summary>
+    public FakeEnableBanking Banks { get; }
 
     /// <summary>The offline <see cref="IIrlSourceClient"/> this host runs against; every request fails unless a test serves the series.</summary>
     public FakeIrlSource Irl { get; }
@@ -104,6 +108,7 @@ public sealed class NidApp : IAsyncDisposable
         var connectionString = await fixture.NewConnectionStringAsync();
         var sources = FakeFxSources.Offline();
         var prices = FakePriceSources.Offline();
+        var banks = FakeEnableBanking.Offline();
         var irl = FakeIrlSource.Offline();
         var catalog = FakeCatalogSource.Offline();
         var icons = FakeIconSource.Offline();
@@ -144,6 +149,7 @@ public sealed class NidApp : IAsyncDisposable
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
                     services.AddSingleton<IPriceSourceClient>(prices);
+                    services.AddSingleton<Nid.Banking.Contracts.IEnableBankingClient>(banks);
                     services.AddSingleton<IIrlSourceClient>(irl);
                     services.AddSingleton<ICatalogSourceClient>(catalog);
                     services.AddSingleton<ICatalogIconSource>(icons);
@@ -156,7 +162,7 @@ public sealed class NidApp : IAsyncDisposable
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources, prices, irl, catalog, icons, assetsRoot, documentsRoot);
+            return new NidApp(factory, connectionString, a, b, d, sources, prices, banks, irl, catalog, icons, assetsRoot, documentsRoot);
         }
     }
 
@@ -196,10 +202,14 @@ public sealed class NidApp : IAsyncDisposable
     public async Task<string> GetRawAsync(PersonId actor, string url)
         => await (await RawAsync(actor, HttpMethod.Get, url)).Content.ReadAsStringAsync();
 
-    public async Task<HttpResponseMessage> RawAsync(PersonId actor, HttpMethod method, string url, object? body = null)
+    /// <param name="headers">Extra request headers, as a browser would send them (<c>User-Agent</c>, a proxy's <c>X-Forwarded-For</c>).</param>
+    public async Task<HttpResponseMessage> RawAsync(
+        PersonId actor, HttpMethod method, string url, object? body = null, IReadOnlyDictionary<string, string>? headers = null)
     {
         using var client = ClientFor(actor);
         using var request = new HttpRequestMessage(method, url);
+        foreach (var (name, value) in headers ?? new Dictionary<string, string>())
+            request.Headers.TryAddWithoutValidation(name, value);
         if (body is not null)
             request.Content = JsonContent.Create(body, options: Json);
         if (!SafeMethods.Contains(method.Method))
@@ -225,6 +235,14 @@ public sealed class NidApp : IAsyncDisposable
         foreach (var (name, value) in headers)
             request.Headers.TryAddWithoutValidation(name, value);
         return await client.SendAsync(request);
+    }
+
+    /// <summary>A GET as <paramref name="actor"/> whose redirect is returned rather than followed (the bank callback's 302).</summary>
+    public async Task<HttpResponseMessage> GetUnfollowedAsync(PersonId actor, string url)
+    {
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add(IntegrationTestGate.ActorHeader, actor.Value.ToString());
+        return await client.GetAsync(url);
     }
 
     /// <summary>A request with no actor header: what an unauthenticated caller gets.</summary>

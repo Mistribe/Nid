@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 namespace Nid.Platform.Infrastructure.Audit;
 
 /// <summary>How to find the items a row belongs to (spec §4.4): what an item's history, filtered by Readers, is keyed on.</summary>
-public sealed record AuditRule(Func<EntityEntry, IEnumerable<Guid>> Items)
+/// <param name="Secret">Columns left out of the log, such as an encrypted session id.</param>
+public sealed record AuditRule(Func<EntityEntry, IEnumerable<Guid>> Items, IReadOnlySet<string>? Secret = null)
 {
     /// <summary>A row that belongs to no item: audited, never shown in an item's history.</summary>
     public static AuditRule NoItem { get; } = new(_ => []);

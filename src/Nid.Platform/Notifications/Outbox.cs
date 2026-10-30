@@ -171,7 +171,7 @@ public sealed class DeliveryOutbox(
 internal static class HouseholdAccess
 {
     /// <summary>The kinds that tell one person's business (a token, a decision of theirs): never for the household, with or without an item.</summary>
-    private static readonly HashSet<string> Personal = ["token_expiring", "proposal_pending"];
+    private static readonly HashSet<string> Personal = ["token_expiring", "proposal_pending", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
 
     private static bool IsPersonal(NotificationKind? kind) => kind is not null && Personal.Contains(kind.Kind);
 

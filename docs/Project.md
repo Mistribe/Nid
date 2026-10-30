@@ -297,6 +297,7 @@ Réduire la saisie manuelle en récupérant les données automatiquement quand c
 ### 9.4 Règles
 
 - **File de validation** : toute donnée issue d'une automatisation est proposée, puis validée par un utilisateur avant d'entrer dans les chiffres.
+  **Exception assumée (étape 5, D5 de `superpowers/specs/2026-10-29-bank-sync-design.md`)** : le solde d'un compte bancaire relié devient une proposition de valorisation par défaut ; un réglage **par compte** (« Appliquer les soldes automatiquement », décoché par défaut, réservé à qui écrit l'enveloppe) l'écrit directement, avec `source = bank_api`. Limitée aux soldes, choisie compte par compte, elle ne remplace jamais une valeur saisie ou importée à la même date.
 - **Traçabilité** : chaque valeur indique sa source (saisie, API, document) et, le cas échéant, le document d'origine.
 - **L'IA ne sert qu'à l'ingestion** ; les calculs restent déterministes et testés.
 - **Confidentialité** : modèle local par défaut pour l'extraction des documents financiers ; fournisseur cloud sur opt-in, avec offres gratuites d'abord puis local, et payant seulement si l'utilisateur l'accepte (voir `ingestion/llm-providers.md` et `security/`).

@@ -269,6 +269,16 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("allocation_target");
 
+                    b.Property<bool>("BankingEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("banking_enabled");
+
+                    b.Property<string>("EnableBankingAppId")
+                        .HasColumnType("text")
+                        .HasColumnName("enable_banking_app_id");
+
                     b.Property<bool>("IrlEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -677,7 +687,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.ToTable("proposal", "core", t =>
                         {
-                            t.HasCheckConstraint("ck_proposal_created_via", "created_via in ('ui','api','mcp')");
+                            t.HasCheckConstraint("ck_proposal_created_via", "created_via in ('ui','api','mcp','job')");
 
                             t.HasCheckConstraint("ck_proposal_status", "status in ('pending','approved','rejected','superseded')");
                         });
@@ -899,7 +909,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_valuation_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
-                            t.HasCheckConstraint("ck_valuation_source", "source in ('manual','import')");
+                            t.HasCheckConstraint("ck_valuation_source", "source in ('manual','import','bank_api')");
                         });
                 });
 

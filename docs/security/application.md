@@ -44,9 +44,10 @@ Toute requête que `nid-api` émet vers l'extérieur passe par un **`SafeHttpCli
 | **Redirections** | Non suivies automatiquement ; **chaque saut est revalidé** (mêmes règles) |
 | Résolution épinglée | La résolution vérifiée est celle utilisée pour la connexion (contre la liaison DNS) |
 | Bornes | Délais, taille maximale de réponse |
-| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data` (`raw.githubusercontent.com`), historique de la BCE (`www.ecb.europa.eu`), hôtes d'icônes (`1000logos.net`, `upload.wikimedia.org`, `www.nounou-top.fr`, `raw.githubusercontent.com`), sources de cours des titres (`www.boursorama.com`, `query2.finance.yahoo.com`), série IRL de l'INSEE (`bdm.insee.fr`), hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
+| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data` (`raw.githubusercontent.com`), historique de la BCE (`www.ecb.europa.eu`), hôtes d'icônes (`1000logos.net`, `upload.wikimedia.org`, `www.nounou-top.fr`, `raw.githubusercontent.com`), sources de cours des titres (`www.boursorama.com`, `query2.finance.yahoo.com`), série IRL de l'INSEE (`bdm.insee.fr`), API d'Enable Banking (`api.enablebanking.com`, synchronisation bancaire, étape 5), hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
 | `User-Agent` | Envoyé sur **chaque** requête (`Nid/1.0 (+https://github.com/Mistribe/Nid)`) : `upload.wikimedia.org` refuse une requête qui n'en porte pas (`403`) |
 | Journal | Chaque refus est journalisé (hôte, motif) |
+| Traces | Les appels dont l'URL porte un secret ne sont pas tracés par OpenTelemetry : webhooks Discord (jeton dans le chemin) et `api.enablebanking.com` (identifiant de session ou `uid` d'un compte dans le chemin) |
 
 Un éventuel proxy de sortie (par exemple Smokescreen) peut s'ajouter côté hébergeur.
 
@@ -105,6 +106,7 @@ Les `icon` du catalogue sont des URL de tiers, donc du contenu non fiable. Tel q
 | Taux de change | Taux aberrants ou empoisonnés | Variation quotidienne aberrante **refusée et signalée** (`fx_sync_run.rejected`) ; source affichée ; saisie manuelle prioritaire sur `subtracker_data` et `ecb` ; taux indicatifs |
 | Catalogue | Contenu piégé, plans trompeurs | Commit **épinglé** ; schéma validé ; textes bornés ; plans en **suggestions** jamais appliquées sans validation ; rapport de synchronisation |
 | Dépôt du taux | Compromission de l'amont | Bornes de plausibilité ; **la BCE (`www.ecb.europa.eu`) sert de second point de comparaison et d'historique** (`../core-data-model.md` §8.4), un cours SubTracker étant vérifié contre elle ; miroir possible (`../core-data-model.md` §8.3) |
+| Banque (Enable Banking, étape 5) | Fuite de la clé ou de la session ; réponse inattendue | Lecture seule (accès aux comptes, aucun appel de paiement) ; JWT RS256 de courte durée signé par la clé privée, **secret Docker** `enable_banking_private_key`, déclaré dans `deploy/compose.override.yaml` seulement quand la banque est activée, jamais en base ni dans l'interface ; `session_id` **chiffré** par Data Protection, hors de l'audit, des journaux et des traces ; réponses bornées et lues contre un schéma (un champ obligatoire manquant est une erreur, pas une valeur par défaut) ; un solde devient une **proposition** sauf réglage du compte. Revue : `bank-sync-review.md` |
 
 ## 9. Tests
 

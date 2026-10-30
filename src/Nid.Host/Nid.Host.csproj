@@ -24,6 +24,8 @@
     <ProjectReference Include="..\Nid.Platform\Nid.Platform.csproj" />
     <ProjectReference Include="..\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.ServiceDefaults\Nid.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Nid.Banking.Application\Nid.Banking.Application.csproj" />
+    <ProjectReference Include="..\Nid.Banking.Infrastructure\Nid.Banking.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.Core.Application\Nid.Core.Application.csproj" />
     <ProjectReference Include="..\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />

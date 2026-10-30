@@ -52,6 +52,15 @@ public static class ProposalCodes
     public const string AlreadyRecorded = "already_recorded";
 }
 
+/// <summary>
+/// A proposal submitted through the pipeline as the ambient actor, as <c>POST /core/proposals</c> submits one: for a module that proposes from
+/// its own work (bank sync §4.3) and cannot name Core's command. <c>true</c> when it was stored, <c>false</c> when the same one was pending.
+/// </summary>
+public interface IProposalSubmitter
+{
+    Task<Result<bool>> SubmitAsync(string kind, ItemId? item, JsonElement payload, string? sourceLabel, CancellationToken ct);
+}
+
 public interface IProposalStore
 {
     /// <summary>Deduplicates (same fingerprint pending: returned, not written) and supersedes (same kind, target and subject key pending).</summary>

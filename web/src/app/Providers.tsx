@@ -17,6 +17,8 @@ type SessionState = {
   reload: () => void;
   /** Leaves for the signed-out page: never through login, which the identity provider would answer by signing in again. */
   leave: () => void;
+  /** Leaves the app for another site's page (a bank's authorisation), which sends the browser back here. */
+  goTo: (url: string) => void;
 };
 
 const SessionContext = createContext<SessionState | null>(null);
@@ -48,6 +50,7 @@ export function Providers(props: {
       queryClient.clear();
       location.assign(SIGNED_OUT_PATH);
     },
+    goTo: (url) => location.assign(url),
   }), [session, capabilities, api, queryClient, location]);
 
   return (

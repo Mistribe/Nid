@@ -38,6 +38,7 @@
 | Clés Data Protection | Volume dédié, droits `0700`, sauvegardé |
 | Secret client OIDC, secrets de workers, mot de passe restic, clés d'API de fournisseurs LLM | Séparés ; jamais partagés entre composants |
 | Clés d'API des fournisseurs | Chiffrées en base (Data Protection), jamais renvoyées (`../ingestion/llm-providers.md` §10) |
+| Banque (étape 5) | Clé privée d'Enable Banking : secret Docker `enable_banking_private_key` de `nid-api`, absent du compose de référence et déclaré par l'hébergeur dans `deploy/compose.override.yaml` quand il active la banque (`../../deploy/README.md` §12) ; le fichier vit dans `deploy/secrets/`, donc dans la sauvegarde ; sessions bancaires chiffrées en base (Data Protection, but `Nid.Banking.Session`) |
 | Rotation | Procédure documentée ; commandes d'administration pour les workers et les jetons |
 | Journaux | Aucun secret, jeton masqué |
 

@@ -18,8 +18,12 @@ import { invalidateInvestments } from '../investments/api';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { ROUTINE, type RoutineLine, type RoutineRecap, type RoutineView } from './api';
 import { clearDraft, saveDraft } from './draft';
+import { dayMonth } from '../settings/banks/api';
+import '@/locales/banks';
 
 export type RoutineValues = { lines: { id: string; value: string; contribution: string; skip: boolean }[] };
+/** The envelopes whose bank account writes their values, each with the day of its last balance. */
+export type Banked = Record<string, string>;
 
 const POSITIVE = /^(?!0+(?:[.,]0+)?$)\d+([.,]\d{1,4})?$/;
 const input = 'text-right tabular-nums md:w-36';
@@ -27,17 +31,22 @@ const input = 'text-right tabular-nums md:w-36';
 const STOPS = 'input:not([aria-hidden="true"]), button[role="checkbox"]';
 const filled = (l: RoutineValues['lines'][number]) => !l.skip && (l.value.trim() !== '' || l.contribution.trim() !== '');
 
-/** The values a line starts with: the draft's if any, else the last value for a due envelope, empty otherwise. */
-export function startValues(view: RoutineView, draft: RoutineValues | null): RoutineValues {
+/**
+ * The values a line starts with: the draft's if any, else the last value for a due envelope, empty otherwise. A banked
+ * envelope's value stays empty whatever the draft: its bank writes it.
+ */
+export function startValues(view: RoutineView, draft: RoutineValues | null, banked: Banked = {}): RoutineValues {
   return {
-    lines: view.lines.map((l) => draft?.lines.find((d) => d.id === l.id)
-      ?? { id: l.id, value: l.due && l.lastValue ? l.lastValue.amount : '', contribution: '', skip: false }),
+    lines: view.lines.map((l) => {
+      const line = draft?.lines.find((d) => d.id === l.id) ?? { id: l.id, value: l.due && l.lastValue ? l.lastValue.amount : '', contribution: '', skip: false };
+      return l.id in banked ? { ...line, value: '' } : line;
+    }),
   };
 }
 
 /** screens.md §5: one form, keyboard first (Enter moves on, never submits), one save at the end. */
-export function RoutineForm({ view, month, initial, onSaved }: {
-  view: RoutineView; month: string; initial: RoutineValues; onSaved: (recap: RoutineRecap, values: RoutineValues) => void;
+export function RoutineForm({ view, month, initial, banked, onSaved }: {
+  view: RoutineView; month: string; initial: RoutineValues; banked: Banked; onSaved: (recap: RoutineRecap, values: RoutineValues) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -53,7 +62,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   } });
 
   // The draft exists only once the form differs from what the server proposes; a pristine form must not pin stale values.
-  const fresh = useMemo(() => JSON.stringify(startValues(view, null)), [view]);
+  const fresh = useMemo(() => JSON.stringify(startValues(view, null, banked)), [view, banked]);
   useEffect(() => {
     const now = form.getValues();
     if (JSON.stringify(now) === fresh) clearDraft(view.on); else saveDraft(view.on, now);
@@ -124,9 +133,13 @@ export function RoutineForm({ view, month, initial, onSaved }: {
               {line.lastValue && line.lastAsOf ? t('routine.last', { amount: formatMoney(line.lastValue), date: formatLocalDate(line.lastAsOf) }) : t('routine.no_last')}
             </p>
           </div>
-          <Field label={t('routine.value', { name: line.name })} error={e?.value?.message}>
-            {(c) => <Input inputMode="decimal" {...c} {...form.register(`lines.${index}.value`)} className={input} />}
-          </Field>
+          {banked[line.id] ? (
+            <p className="text-sm text-muted-foreground md:w-36 md:pb-2">{t('banks.routine_balance', { date: dayMonth(banked[line.id]!) })}</p>
+          ) : (
+            <Field label={t('routine.value', { name: line.name })} error={e?.value?.message}>
+              {(c) => <Input inputMode="decimal" {...c} {...form.register(`lines.${index}.value`)} className={input} />}
+            </Field>
+          )}
           <Field label={t('routine.contribution', { name: line.name })} error={e?.contribution?.message}>
             {(c) => <Input inputMode="decimal" {...c} {...form.register(`lines.${index}.contribution`)} className={input} />}
           </Field>

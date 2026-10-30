@@ -68,7 +68,7 @@ public static class Extensions
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()
-                    // url.full keeps the path: a Discord webhook token lives there, so never trace those calls.
+                    // url.full keeps the path: a Discord webhook token lives there, so never trace those calls (nor Enable Banking's).
                     .AddHttpClientInstrumentation(http => http.FilterHttpRequestMessage = IsTraceable);
             });
 
@@ -77,8 +77,10 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>Not traced: Discord webhooks (token in the path) and Enable Banking (session ids and account uids in the path).</summary>
     public static bool IsTraceable(System.Net.Http.HttpRequestMessage request) =>
-        request.RequestUri?.AbsolutePath.Contains("/api/webhooks/", StringComparison.OrdinalIgnoreCase) != true;
+        request.RequestUri?.AbsolutePath.Contains("/api/webhooks/", StringComparison.OrdinalIgnoreCase) != true
+        && !string.Equals(request.RequestUri?.Host, "api.enablebanking.com", StringComparison.OrdinalIgnoreCase);
 
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {

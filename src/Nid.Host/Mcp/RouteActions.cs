@@ -1,3 +1,4 @@
+using static Nid.Host.Api.BankingEndpoints;
 using static Nid.Host.Api.CatalogEndpoints;
 using static Nid.Host.Api.DocumentEndpoints;
 using static Nid.Host.Api.GoalEndpoints;
@@ -248,6 +249,13 @@ public static class RouteActions
             Destructive: true, OnItem: false),
         new("delete_tax_year", "DELETE", "/api/v1/tax/assessments/{id:guid}", null, "Delete a tax notice entered by mistake. " + Ids,
             Destructive: true, OnItem: false),
+
+        // Bank sync (§8): a bank account's settings; connecting a bank stays in the browser.
+        new("bank_account_update", "PATCH", "/api/v1/banking/accounts/{id:guid}", typeof(BankAccountBody),
+            "Change a bank account's settings; only the fields given change: envelopeId associates it with a checking, savings or other "
+            + "envelope (clearEnvelope: true dissociates it), cardOfAccountId attaches a card to its account, autoApplyBalance writes its "
+            + "month-end balances as valuations instead of proposing them, ignored stops following it. id is the bank account's id (Réglages › Banques in the web app); envelope ids come from list_envelopes.",
+            OnItem: false),
 
         // Household.
         new("create_dependent", "POST", "/api/v1/core/persons/dependents", typeof(CreateDependentBody),

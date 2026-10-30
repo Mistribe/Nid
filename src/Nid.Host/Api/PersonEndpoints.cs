@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Nid.Banking.Contracts;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
@@ -195,6 +196,9 @@ public static class ResultHttp
             _ when failure.Code is DocumentsCodes.AlreadyLinked or DocumentsCodes.SourceRefTaken => StatusCodes.Status409Conflict,
             _ when failure.Code == NotificationCodes.PreferencesConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == NotificationCodes.TestThrottled => StatusCodes.Status429TooManyRequests,
+            _ when failure.Code is BankingCodes.Disabled or BankingCodes.NotConfigured or BankingCodes.EnvelopeTaken or BankingCodes.SyncRunning
+                => StatusCodes.Status409Conflict,
+            _ when failure.Code is BankingCodes.ConnectionNotFound or BankingCodes.AccountNotFound => StatusCodes.Status404NotFound,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 

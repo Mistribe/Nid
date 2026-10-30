@@ -151,6 +151,12 @@ internal static class ProposalAccess
             : Result.Success();
 }
 
+public sealed class ProposalSubmitter(IInvoker invoker) : IProposalSubmitter
+{
+    public async Task<Result<bool>> SubmitAsync(string kind, ItemId? item, JsonElement payload, string? sourceLabel, CancellationToken ct)
+        => (await invoker.InvokeAsync(new SubmitProposalCommand(kind, item, payload, sourceLabel), ct)).Map(submitted => submitted.Created);
+}
+
 [RequestHandler<SubmitProposalCommand, SubmittedProposal>]
 public sealed class SubmitProposalHandler(
     ProposalHandlers handlers, IProposalStore store, IActorAccessor accessor, IItemRegistry items, IPersonRegistry persons, IAccessPolicy policy, INotifier notifier)

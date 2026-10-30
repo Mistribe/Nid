@@ -15,7 +15,7 @@ quand on les a déjà ailleurs. Pas de sauvegarde ni de `restore.sh` : le reste 
 - **Des passkeys** : Pocket ID n'authentifie que par passkey (empreinte, clé de sécurité, gestionnaire de mots de passe). Chaque
   adulte doit pouvoir en créer une, sur un appareil qui voit `https://auth.<domaine>`.
 - **Un reverse proxy TLS** fourni par l'hébergeur (Caddy, Traefik, nginx…). Nid ne termine pas le TLS lui-même.
-- Un accès sortant HTTPS pour `nid-api` (catalogue de fournisseurs et taux de change). Sans lui, Nid fonctionne, mais
+- Un accès sortant HTTPS pour `nid-api` (catalogue de fournisseurs et taux de change, et Enable Banking si la synchronisation bancaire est activée, §12). Sans lui, Nid fonctionne, mais
   les fournisseurs et les taux se saisissent à la main. `nid-api` est **le seul service qui sort** : tous les autres
   réseaux du compose sont internes.
 - **`nid-api` doit joindre `https://auth.<domaine>` depuis l'intérieur.** Pour la connexion, il appelle Pocket ID à
@@ -67,7 +67,7 @@ Vous pouvez le relancer : **il ne remplace jamais un secret existant**, sauf le 
 définissez `Auth__AccessGroup` et `Auth__AdminGroup` pour `nid-api` dans un `deploy/compose.override.yaml`.
 
 Une liste `Outbound:AllowedHosts` configurée remplace celle par défaut : elle doit contenir `www.boursorama.com` et
-`query2.finance.yahoo.com` pour la collecte des cours, `bdm.insee.fr` pour celle de l'IRL et `discord.com` et `discordapp.com` pour les webhooks Discord des notifications.
+`query2.finance.yahoo.com` pour la collecte des cours, `bdm.insee.fr` pour celle de l'IRL, `discord.com` et `discordapp.com` pour les webhooks Discord des notifications et `api.enablebanking.com` pour la synchronisation bancaire.
 
 ## 3. Brancher le proxy
 
@@ -187,7 +187,7 @@ secrets, puis l'étape 3. Sans `deploy/backup-secrets/`, `up` s'arrête avec un 
 
 1. **Sauvegardez** : `docker compose -f deploy/compose.yaml exec backup nid-backup backup-now`.
 2. `git pull`.
-3. `docker compose -f deploy/compose.yaml up -d --build`.
+3. `docker compose -f deploy/compose.yaml up -d --build` (avec `-f deploy/compose.override.yaml` si vous en avez un).
 
 Les migrations de la base s'appliquent au démarrage de `nid-api`. Les images de base sont épinglées par empreinte ; une
 mise à jour de Nid les fait évoluer.
@@ -326,11 +326,13 @@ maximale d'un fichier que l'outil MCP `read_document` envoie ; au-delà, il n'en
 | `oidc_client_secret` | Secret du client de Nid dans Pocket ID | Dans Pocket ID, ajoutez un secret au client (l'ancien reste valable), passez-le à `setup.sh --oidc-client-secret`, redémarrez `nid-api`, puis supprimez l'ancien secret dans Pocket ID. |
 | `csrf_key` | Jetons anti-CSRF | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `nid-api`. Les pages ouvertes devront être rechargées. |
 | `pocket_id_encryption_key` | Chiffre les clés de signature de Pocket ID dans sa base | **Ne la changez pas à la main : sa base deviendrait illisible.** Pour la renouveler, utilisez la commande `encryption-key-rotate` de Pocket ID (sa documentation), puis remplacez le fichier. |
+| `enable_banking_private_key` | Clé privée (PEM) de l'application Enable Banking ; n'existe que si vous avez activé la synchronisation bancaire (§12), `setup.sh` ne la crée pas | Remplacez la clé de l'application dans le portail d'Enable Banking, copiez la nouvelle clé privée dans le fichier, puis recréez `nid-api` (§12, étape 3). |
 | `backup-secrets/restic_password` | Ouvre la sauvegarde ; hors de la sauvegarde | Jamais en supprimant le fichier : `restic key add` puis `restic key remove` (§6). |
 | `backup-secrets/remote_repository`, `remote_password`, `remote_credentials` | Dépôt distant | Changez le fichier, puis `backup-now`. |
 
 Les clés Data Protection de Nid sont dans le volume `dataprotection-keys`. **Les perdre déconnecte tout le monde**, et
-rendra illisibles les secrets que Nid chiffrera plus tard. Elles font partie de la sauvegarde (§6).
+rend illisibles les secrets que Nid chiffre : webhooks Discord et sessions bancaires (chaque banque reliée est alors à
+renouveler dans Réglages › Banques). Elles font partie de la sauvegarde (§6).
 
 ## 8. Commandes de secours
 
@@ -425,3 +427,62 @@ Dans `.env` : `NID_DB_HOST=<nom du serveur sur ce réseau>`. La sauvegarde lit a
 `docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml run --rm --no-deps -T backup-restore restore-files <id>`
 et `… restore-database <id>` (l'identifiant vient de `… run --rm --no-deps -T backup-restore snapshot-id latest`), puis `up -d`.
 Une sauvegarde faite sur un serveur de version N ne se recharge pas sur un serveur plus ancien que N.
+
+## 12. Synchronisation bancaire (facultative)
+
+Nid peut lire le solde des comptes courants et des livrets du foyer par [Enable Banking](https://enablebanking.com),
+prestataire agréé (DSP2, Finlande), en **lecture seule** : Nid ne demande que l'accès aux comptes et n'a aucun appel de
+paiement. Chaque nuit (04:30) et sur le bouton « Synchroniser », le solde d'un compte associé à une enveloppe devient une
+valorisation à valider dans « À valider », ou une valorisation écrite si la personne l'a choisi pour ce compte. Les données
+bancaires passent par Enable Banking ; la session de chaque banque est chiffrée dans la base. Conception :
+`../docs/superpowers/specs/2026-10-29-bank-sync-design.md` ; revue de risque : `../docs/security/bank-sync-review.md`.
+
+**Désactivée par défaut**, et sans rien à faire dans le compose : sans clé, Nid dit la synchronisation « non configurée ».
+Pour l'activer :
+
+1. Dans le portail d'Enable Banking, créez une application **de production en mode restreint** (gratuit, réservé à l'usage
+   personnel : seuls les comptes reliés dans le portail sont lisibles) :
+   - adresse de retour (« redirect URL ») : `https://nid.<domaine>/api/v1/banking/callback`, exactement ;
+   - générez la paire de clés de l'application et **gardez la clé privée** (fichier `.pem`) hors du portail ;
+   - reliez les comptes de chaque adulte que Nid doit lire, comme le portail le demande ;
+   - notez l'**identifiant de l'application**.
+2. Copiez la clé privée dans `deploy/secrets/enable_banking_private_key` (droits `0644` comme les autres fichiers du
+   dossier, qui reste en `0700` ; elle entre ainsi dans la sauvegarde), puis déclarez-la à `nid-api` dans
+   `deploy/compose.override.yaml` :
+
+   ```yaml
+   services:
+     nid-api:
+       secrets: [{ source: enable_banking_private_key, target: EnableBanking__PrivateKey }]
+   secrets:
+     enable_banking_private_key: { file: ./secrets/enable_banking_private_key }
+   ```
+
+3. Recréez `nid-api` pour qu'il lise la clé (elle n'est lue qu'au démarrage) :
+   `docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d --force-recreate nid-api`. Dès lors, passez
+   toujours les deux fichiers (§11), y compris à la restauration : `deploy/restore.sh --compose-file
+   "$PWD/deploy/compose.override.yaml"` (chemin absolu). Une sauvegarde prise avant la clé ne la contient pas : restaurez-la
+   sans ce fichier, puis refaites l'étape 2.
+4. Dans Nid, Administration › Banque : collez l'identifiant de l'application, puis activez la synchronisation. La page
+   rappelle l'adresse de retour à déclarer.
+5. Chaque adulte relie **ses** banques dans Réglages › Banques (« Relier une banque » ; l'authentification se fait chez la
+   banque, dans le navigateur), puis associe chaque compte à une enveloppe courante, d'épargne ou autre de même devise.
+
+Nid n'a pas besoin d'être joignable depuis Internet : le retour de la banque passe par le navigateur. Seul `nid-api` sort,
+vers `api.enablebanking.com`. Le consentement dure ce que la banque permet (souvent 180 jours) : Nid prévient 14 puis 3 jours
+avant la fin, puis à l'expiration ; « Renouveler » le prolonge en gardant les comptes. Administration › Banque montre le
+journal des synchronisations (compteurs et codes d'erreur, sans nom de compte ni montant).
+
+**À vérifier avant de compter dessus** (spec §11, encore ouvert) : que vos banques sont listées par Enable Banking, que le
+second adulte peut relier ses comptes à la même application, et que les livrets sont exposés. Une banque absente reste
+saisie à la main (l'import de relevés OFX et CAMT.053 arrive avec l'étape 5B).
+
+Avec [`standalone/`](standalone/compose.yaml), même chose dans son `compose.override.yaml`, avec le chemin de votre fichier :
+
+```yaml
+services:
+  nid-api:
+    secrets: [{ source: enable_banking_private_key, target: EnableBanking__PrivateKey }]
+secrets:
+  enable_banking_private_key: { file: ./enable_banking_private_key.pem }
+```

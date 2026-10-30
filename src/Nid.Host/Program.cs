@@ -15,6 +15,7 @@ using Nid.Documents.Application;
 using Nid.Documents.Infrastructure.Persistence;
 using Nid.Documents.Infrastructure.Storage;
 using Nid.Goals.Infrastructure.Persistence;
+using Nid.Banking.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
@@ -58,6 +59,9 @@ var fxOptions = builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new F
 builder.Services.AddSingleton(fxOptions);
 var priceOptions = builder.Configuration.GetSection("Prices").Get<PriceOptions>() ?? new PriceOptions();
 builder.Services.AddSingleton(priceOptions);
+// PrivateKey arrives from the Docker secret file EnableBanking__PrivateKey (AddSecretFiles above).
+var bankingOptions = builder.Configuration.GetSection("EnableBanking").Get<Nid.Banking.Contracts.BankingOptions>() ?? new Nid.Banking.Contracts.BankingOptions();
+builder.Services.AddSingleton(bankingOptions);
 var irlOptions = builder.Configuration.GetSection("Irl").Get<IrlOptions>() ?? new IrlOptions();
 builder.Services.AddSingleton(irlOptions);
 builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
@@ -92,7 +96,7 @@ builder.Services.AddNidEmail(smtpOptions, builder.Configuration["Auth:PublicUrl"
 builder.Services.AddNid(connectionString);
 builder.Services.AddNidOpenApi();
 if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))
-    builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
+    builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, bankingOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
 builder.Services.AddNidAuthentication(builder.Configuration);
 builder.Services.AddTokenRateLimiter();
@@ -143,6 +147,7 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<GoalsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<DocumentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<RealEstateDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<BankingDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
 
@@ -161,6 +166,7 @@ app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
 app.MapGoalEndpoints();
+app.MapBankingEndpoints();
 app.MapDocumentEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();

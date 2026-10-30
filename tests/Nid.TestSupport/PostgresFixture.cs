@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Documents.Infrastructure.Persistence;
 using Nid.Goals.Infrastructure.Persistence;
@@ -35,7 +36,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     public async Task<CoreDbContext> NewDatabaseAsync() => NewCoreContext(await NewConnectionStringAsync());
 
     /// <summary>Creates a database with every module's migrations applied, and returns its connection string.</summary>
-    /// <remarks>A copy of a template migrated once for the process: eight migrations per test cost more than the copy.</remarks>
+    /// <remarks>A copy of a template migrated once for the process: nine migrations per test cost more than the copy.</remarks>
     public async Task<string> NewConnectionStringAsync()
     {
         await Template.Value;
@@ -77,6 +78,8 @@ public sealed class PostgresFixture : IAsyncLifetime
             await goals.Database.MigrateAsync();
         await using (var documents = NewDocumentsContext(connectionString))
             await documents.Database.MigrateAsync();
+        await using (var banking = NewBankingContext(connectionString))
+            await banking.Database.MigrateAsync();
     }
 
     private static async Task<string> NewDatabaseAsync(string? template)
@@ -124,6 +127,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public static DocumentsDbContext NewDocumentsContext(string connectionString)
         => new(new DbContextOptionsBuilder<DocumentsDbContext>().Configure(connectionString).Options);
+
+    public static BankingDbContext NewBankingContext(string connectionString)
+        => new(new DbContextOptionsBuilder<BankingDbContext>().Configure(connectionString).Options);
 
     public static IClock Clock { get; } = SystemClock.Instance;
 }

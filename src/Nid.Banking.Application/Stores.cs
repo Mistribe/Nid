@@ -1,0 +1,116 @@
+using Nid.Banking.Contracts;
+using Nid.Core.Contracts;
+using NodaTime;
+using UnambitiousFx.Functional;
+
+namespace Nid.Banking.Application;
+
+/// <summary>Bank connections (spec §2.2); the session id is encrypted at rest and only <see cref="SessionIdAsync"/> reads it back.</summary>
+public interface IConnectionStore
+{
+    /// <summary>A connection waiting for the bank's callback; only the SHA-256 of its <c>state</c> is kept, until <paramref name="expiresAt"/>.</summary>
+    Task<Guid> CreatePendingAsync(PersonId person, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct);
+
+    /// <summary>
+    /// The connection holding this state hash (pending, or being renewed), which it clears: a state is used once, even past its time.
+    /// <c>null</c> when none holds it or its time ran out.
+    /// </summary>
+    Task<BankConnection?> FindByStateAsync(byte[] stateHash, CancellationToken ct);
+
+    /// <summary>A renewal: the connection waits for the bank's callback under this state hash, keeping its status meanwhile.</summary>
+    Task SetStateAsync(Guid id, byte[] stateHash, Instant expiresAt, CancellationToken ct);
+
+    /// <summary>Removes the person's pending connections created before <paramref name="before"/>: flows abandoned at the bank.</summary>
+    Task DeletePendingAsync(PersonId person, Instant before, CancellationToken ct);
+
+    Task ActivateAsync(Guid id, string sessionId, Instant validUntil, CancellationToken ct);
+
+    /// <summary>The person's connections, whatever their status, oldest first.</summary>
+    Task<IReadOnlyList<BankConnection>> MineAsync(PersonId person, CancellationToken ct);
+
+    /// <summary>The connections the sync reads: active, or in error with a session that may work again; oldest first.</summary>
+    Task<IReadOnlyList<BankConnection>> ActiveAsync(CancellationToken ct);
+
+    /// <summary>The decrypted session id; <c>null</c> without one or when the key ring cannot read it any more.</summary>
+    Task<string?> SessionIdAsync(Guid id, CancellationToken ct);
+
+    Task SetStatusAsync(Guid id, ConnectionStatus status, string? errorCode, CancellationToken ct);
+
+    /// <summary>A failure adds to the consecutive failures; a success resets them, stamps <paramref name="at"/> and brings an errored connection back to active.</summary>
+    Task RecordSyncAsync(Guid id, Instant at, bool failed, CancellationToken ct);
+
+    /// <summary>Removes the connection and its sources; its accounts stay.</summary>
+    Task DeleteAsync(Guid id, CancellationToken ct);
+}
+
+public interface IAccountStore
+{
+    /// <summary>
+    /// The session's accounts, in its order: each one found again by its IBAN, else by its identification hash (D21), or created; its
+    /// source for this connection is added or given the session's uid. This connection's sources of accounts the session leaves out are
+    /// removed (the accounts stay, as on a deletion).
+    /// </summary>
+    Task<IReadOnlyList<BankAccount>> UpsertFromSessionAsync(Guid connection, IReadOnlyList<SessionAccount> accounts, CancellationToken ct);
+
+    Task<BankAccount?> FindAsync(Guid id, CancellationToken ct);
+
+    Task<BankAccount?> ForEnvelopeAsync(ItemId envelope, CancellationToken ct);
+
+    Task<IReadOnlyList<BankAccount>> ForConnectionAsync(Guid connection, CancellationToken ct);
+
+    /// <summary>Every account of the installation: two adults' few, filtered by the caller's access rules.</summary>
+    Task<IReadOnlyList<BankAccount>> AllAsync(CancellationToken ct);
+
+    /// <summary>The connections that see the account, with its uid in each.</summary>
+    Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct);
+
+    /// <summary>
+    /// Writes the account's settings (envelope and association date, card's account, auto-apply, ignored), never the sync's columns but to
+    /// clear them when the envelope changes. Fails with <see cref="BankingCodes.EnvelopeTaken"/> when another account holds the envelope.
+    /// </summary>
+    Task<Result> UpdateAsync(BankAccount account, CancellationToken ct);
+
+    /// <summary>
+    /// The sync's columns only: the last date valued, and the date of a value it left alone — <c>null</c> once a later date is valued,
+    /// the warning gone with it.
+    /// </summary>
+    Task RecordValuedAsync(Guid account, LocalDate valuedOn, LocalDate? conflictOn, CancellationToken ct);
+}
+
+public interface IBalanceStore
+{
+    /// <summary>One balance per account and day: a second one of the same day replaces the first.</summary>
+    Task UpsertAsync(BankBalance balance, CancellationToken ct);
+
+    Task<BankBalance?> LatestAsync(Guid account, CancellationToken ct);
+
+    /// <summary>The account's balances in the month of <paramref name="monthEnd"/>, by date.</summary>
+    Task<IReadOnlyList<BankBalance>> InMonthAsync(Guid account, LocalDate monthEnd, CancellationToken ct);
+}
+
+/// <summary>
+/// One sync, <c>banking.sync_run</c> (spec §2.8): counts and codes only, never a bank, an account, an amount or a person.
+/// <paramref name="Trigger"/> is <c>schedule</c> or <c>manual</c>; <paramref name="Outcome"/> <c>running</c>, <c>succeeded</c> or <c>failed</c>.
+/// </summary>
+public sealed record BankSyncRunView(
+    Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
+    int Proposals, int Written, int Skipped, string? FailureCode);
+
+public interface IBankSyncRunLog
+{
+    /// <summary>
+    /// Starts a run, or returns <c>null</c> when one is already running: the database holds at most one running row. A run still running
+    /// an hour on is closed as failed (<see cref="BankingCodes.RunAbandoned"/>) first.
+    /// </summary>
+    Task<BankSyncRunView?> TryStartAsync(string trigger, CancellationToken ct);
+
+    Task FinishAsync(BankSyncRunView run, CancellationToken ct);
+
+    Task<bool> IsRunningAsync(CancellationToken ct);
+
+    /// <summary>The most recent runs first.</summary>
+    Task<IReadOnlyList<BankSyncRunView>> RecentAsync(int count, CancellationToken ct);
+
+    /// <summary>Deletes finished runs started before <paramref name="before"/>.</summary>
+    Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
+}

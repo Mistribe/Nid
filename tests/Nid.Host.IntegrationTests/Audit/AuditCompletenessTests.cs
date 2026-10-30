@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
@@ -30,6 +31,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
             scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>(),
             scope.ServiceProvider.GetRequiredService<IncomeDbContext>(),
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>(),
+            scope.ServiceProvider.GetRequiredService<BankingDbContext>(),
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
         ];
         var unknown = contexts.SelectMany(c => c.Model.GetEntityTypes()).Select(t => t.ClrType).Distinct()
@@ -41,7 +43,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
     [Fact]
     public void No_module_context_exposes_the_log()
     {
-        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext), typeof(InvestmentsDbContext), typeof(IncomeDbContext), typeof(RealEstateDbContext) })
+        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext), typeof(InvestmentsDbContext), typeof(IncomeDbContext), typeof(RealEstateDbContext), typeof(BankingDbContext) })
             Assert.DoesNotContain(context.GetProperties(), p => p.PropertyType == typeof(DbSet<AuditEntryRow>));
     }
 
@@ -51,6 +53,8 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
     /// </summary>
     private static readonly Dictionary<string, int> AllowedBulkStatements = new()
     {
+        ["src/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
+        ["src/Nid.Banking.Infrastructure/Persistence/SyncRunLog.cs"] = 3,    // sync_run: excluded
         ["src/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
         ["src/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
         ["src/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 1, // advisory lock

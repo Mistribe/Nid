@@ -110,7 +110,8 @@ public static class JobsSetup
     /// Platform migration; Quartz only validates them. No clustering: one nid-api instance runs (architecture §10),
     /// and a second instance would be the moment to turn it on, with its own test.
     /// </summary>
-    public static IServiceCollection AddNidJobs(this IServiceCollection services, string connectionString, FxOptions options, PriceOptions prices, IrlOptions irl, string schedulerName)
+    public static IServiceCollection AddNidJobs(this IServiceCollection services, string connectionString, FxOptions options, PriceOptions prices, IrlOptions irl, Nid.Banking.Contracts.BankingOptions banking,
+        string schedulerName)
     {
         services.AddQuartz(schedulerName, q =>
         {
@@ -136,6 +137,12 @@ public static class JobsSetup
                 .ForJob(PriceJobs.DailyKey)
                 .WithIdentity("prices-daily")
                 .WithCronSchedule(prices.DailyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
+            q.AddJob<BankSyncNightlyJob>(job => job.WithIdentity(BankingJobs.NightlyKey));
+            q.AddTrigger(t => t
+                .ForJob(BankingJobs.NightlyKey)
+                .WithIdentity("bank-sync-nightly")
+                .WithCronSchedule(banking.NightlyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc)));
 
             q.AddJob<IrlWeeklyJob>(job => job.WithIdentity(IrlJobs.WeeklyKey));
             q.AddTrigger(t => t

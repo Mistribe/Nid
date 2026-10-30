@@ -93,7 +93,7 @@
 | 2. Placements et Revenus | `large_change` sur les valorisations ; emails sans montants ; question de visibilité à la création d'un revenu et revenus dans le banc anti-fuite |
 | 3. Immobilier et crédits | Écart d'amortissement affiché ; pas de nouvelle surface majeure |
 | **4. Automatisation IA** | Tout `ai-ingestion.md` : extraction sans outils, workers sans Internet, passerelle LLM, profils et consentement, masquage, quotas, corpus de PDF piégés ; **revue de risque avant IMAP ou email** |
-| **5. Banque** | **Lecture seule** (aucune portée d'initiation de paiement) ; jetons chiffrés ; alerte d'expiration du consentement ; conservation minimale des transactions ; revue de risque |
+| **5. Banque** | **Lecture seule** (aucune portée d'initiation de paiement) ; jetons chiffrés ; alerte d'expiration du consentement ; conservation minimale des transactions ; revue de risque. **5A (connexion et soldes, 2026-10-29)** : lecture seule (accès aux comptes seulement, aucun appel de paiement dans le client), `session_id` chiffré par Data Protection et hors de l'audit, des journaux et des traces, clé privée en secret Docker, rappels avant expiration (14 et 3 jours) et après expiration, révocation ou deux nuits d'échec, synchronisation dans `nid-api` (D13) par `SafeHttpClient` vers le seul `api.enablebanking.com` ; revue de risque faite : `bank-sync-review.md` (R1 à R5 encore à vérifier contre l'application du foyer). La conservation des opérations (D3 : tout garder, durée réglable par l'administrateur) remplacera l'exigence « conservation minimale » en 5B |
 | 6. Approfondissements | Revue du registre |
 
 ## 8. Revue

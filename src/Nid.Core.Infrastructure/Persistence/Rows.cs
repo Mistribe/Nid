@@ -17,6 +17,9 @@ public sealed class HouseholdSettingsRow
     /// <summary>The admin switch of the nightly price collection (holding prices spec §2.1).</summary>
     public bool PricesEnabled { get; set; }
     public bool IrlEnabled { get; set; }
+    /// <summary>Bank sync spec D14: the admin switch and the installation's Enable Banking application.</summary>
+    public bool BankingEnabled { get; set; }
+    public string? EnableBankingAppId { get; set; }
 }
 
 public sealed class TaxProfileRow

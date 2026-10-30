@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Nid.Banking.Application;
+using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Import;
 using Nid.Core.Contracts;
@@ -76,6 +78,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
         services.AddSingleton<IAuditMap, DocumentsAuditMap>();
         services.AddSingleton<IAuditMap, RealEstateAuditMap>();
+        services.AddSingleton<IAuditMap, BankingAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -88,6 +91,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPersonalAccessTokens, PersonalAccessTokenStore>();
         services.AddScoped<IProposalStore, ProposalStore>();
         services.AddScoped<Nid.Core.Application.ProposalHandlers>();
+        services.AddScoped<IProposalSubmitter, Nid.Core.Application.ProposalSubmitter>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
@@ -110,7 +114,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Platform.Notifications.TestSendThrottle>();
         services.AddScoped<IAccessDenials, AccessDenials>();
         services.AddSingleton<Nid.Host.Auth.TokenFailureGate>();
-        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate", "goals", "documents"]));
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate", "goals", "documents", "banking"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
@@ -124,6 +128,8 @@ public static class NidServiceCollectionExtensions
         services.TryAddSingleton<IFxSourceClient, FxSourceClient>();
         services.TryAddSingleton(new PriceOptions());
         services.TryAddSingleton<IPriceSourceClient, Nid.Investments.Infrastructure.Prices.PriceSourceClient>();
+        services.TryAddSingleton(new Nid.Banking.Contracts.BankingOptions());
+        services.TryAddSingleton<Nid.Banking.Contracts.IEnableBankingClient, Nid.Banking.Infrastructure.EnableBanking.EnableBankingClient>();
         services.TryAddSingleton(new IrlOptions());
         services.TryAddSingleton<IIrlSourceClient, Nid.RealEstate.Infrastructure.Irl.IrlSourceClient>();
         services.TryAddSingleton<IIrlJobTrigger, JobsDisabledIrlTrigger>();
@@ -220,6 +226,22 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<GoalsDbContext>>();
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<GoalReader>();
+
+        services.AddDbContext<BankingDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", BankingDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<BankingDbContext>>();
+        services.AddScoped<IConnectionStore, ConnectionStore>();
+        services.AddScoped<IAccountStore, AccountStore>();
+        services.AddScoped<IBalanceStore, BalanceStore>();
+        services.AddScoped<IBankSyncRunLog, SyncRunLog>();
+        services.AddScoped<BankingAccess>();
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, BankingNotificationSource>();
+        services.AddScoped<BankAccountReader>();
+        services.AddScoped<Nid.Banking.Application.Sync.BankSyncCollector>();
+        services.AddSingleton<AspspCache>();
 
         services.AddDbContext<DocumentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -330,6 +352,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Goals.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Banking.Application.RegisterGroup());
         });
         return services;
     }

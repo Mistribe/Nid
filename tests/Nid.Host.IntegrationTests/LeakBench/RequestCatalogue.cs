@@ -1,4 +1,6 @@
 using Nid.Core.Application.Tax;
+using Nid.Banking.Application;
+using Nid.Banking.Contracts;
 using Nid.Core.Domain.Tax;
 using System.Reflection;
 using System.Text.Json;
@@ -459,6 +461,20 @@ public static class RequestCatalogue
         new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
         new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
         new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),
+
+        new(typeof(GetBankingStatusQuery), false, (_, _) => new GetBankingStatusQuery()),
+        new(typeof(ListAspspsQuery), false, (_, _) => new ListAspspsQuery()),
+        new(typeof(StartConnectionCommand), false, (_, _) => new StartConnectionCommand("bench", "https://test.localhost/api/v1/banking/callback")),
+        new(typeof(RenewConnectionCommand), false, (_, _) => new RenewConnectionCommand(Guid.NewGuid(), "https://test.localhost/api/v1/banking/callback")),
+        new(typeof(CompleteConnectionCommand), false, (_, _) => new CompleteConnectionCommand("bench", "code", null)),
+        new(typeof(ListMyConnectionsQuery), false, (_, _) => new ListMyConnectionsQuery()),
+        new(typeof(DeleteConnectionCommand), false, (_, _) => new DeleteConnectionCommand(Guid.NewGuid())),
+        // Every account the actor reads: A's, on A's private envelope twin, must never reach B (MixedDataset seeds it).
+        new(typeof(ListBankAccountsQuery), false, (_, _) => new ListBankAccountsQuery(null)),
+        new(typeof(UpdateBankAccountCommand), false, (_, item) => new UpdateBankAccountCommand(Guid.NewGuid(), item.Value, false, null, false, null, null)),
+        new(typeof(Nid.Banking.Application.Sync.SyncAllCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncAllCommand()),
+        new(typeof(Nid.Banking.Application.Sync.SyncMineCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncMineCommand(Guid.NewGuid(), new PsuHeaders(null, null))),
+        new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery()),
 
         // A document id is not an item: get, content, edit and archive take the row's seeded document, on every row, and are checked
         // against the document's own rules (LeakBenchTests). A core.item target makes upload, link, role and unlink item-scoped.

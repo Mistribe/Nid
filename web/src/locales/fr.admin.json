@@ -1,7 +1,7 @@
 {
   "admin": {
     "loading": "Chargement",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "prices": "Cours", "irl": "IRL", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "notifications": "Notifications", "security": "Journal de sécurité" },
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "prices": "Cours", "irl": "IRL", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "notifications": "Notifications", "security": "Journal de sécurité", "banking": "Banque" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",
@@ -32,6 +32,30 @@
       "currency_warning": "Code ISO à trois lettres (EUR, USD…). En la changeant, tous les totaux seront reconvertis dans la nouvelle devise.",
       "save": "Enregistrer",
       "saved": "Réglages enregistrés."
+    },
+    "banking": {
+      "title": "Banque",
+      "enabled": "Synchronisation bancaire",
+      "hint": "Chaque nuit, Nid lit le solde des comptes que chaque adulte a reliés depuis Réglages › Banques. Lecture seule : aucun paiement n'est possible.",
+      "provider": "Les données bancaires passent par Enable Banking (prestataire agréé, Finlande). Adresse de retour à déclarer : {{publicUrl}}/api/v1/banking/callback",
+      "app_id": "Identifiant de l’application Enable Banking",
+      "app_id_hint": "La clé privée de l’application se dépose sur le serveur, dans le secret enable_banking_private_key.",
+      "save_app_id": "Enregistrer l’identifiant",
+      "saved": "Enregistré",
+      "runs_title": "Journal des synchronisations",
+      "no_runs": "Aucune synchronisation pour l'instant.",
+      "started": "Début",
+      "trigger": "Déclenchement",
+      "trigger_schedule": "Nuit",
+      "trigger_manual": "Manuelle",
+      "outcome": "État",
+      "connections": "Connexions",
+      "accounts": "Comptes",
+      "balances": "Soldes",
+      "proposals": "Propositions",
+      "written": "Écrits",
+      "skipped": "Écartés",
+      "failure": "Échec"
     },
     "prices": {
       "title": "Cours",

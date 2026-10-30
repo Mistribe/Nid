@@ -155,7 +155,8 @@
       "add_tax_year": "Nouvel avis d’imposition",
       "correct_tax_year": "Correction d’un avis d’imposition",
       "delete_tax_year": "Suppression d’un avis d’imposition",
-      "create_dependent": "Nouvel enfant à charge"
+      "create_dependent": "Nouvel enfant à charge",
+      "bank_account_update": "Réglage d’un compte bancaire"
     }
   }
 }

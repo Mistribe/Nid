@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/page/PageHeader';
 import { tabsListVariants } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { useBankingStatus } from './banks/api';
 import '@/locales/notifications';
 
 const SECTIONS = [
@@ -11,15 +12,18 @@ const SECTIONS = [
   { to: '/settings/notifications', label: 'settings_frame.nav.notifications' },
   { to: '/settings/projection', label: 'settings_frame.nav.projection' },
 ] as const;
+/** Shown only while the household has bank sync on. */
+const BANKS = { to: '/settings/banks', label: 'settings_frame.nav.banks' } as const;
 
-/** Every settings screen: the title, the links between the settings pages, the content. */
-export function SettingsFrame({ title, children }: { title: string; children: ReactNode }) {
+/** Every settings screen: the title and its actions, the links between the settings pages, the content. */
+export function SettingsFrame({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
+  const banking = useBankingStatus().data?.enabled === true;
   return (
     <div className="max-w-2xl space-y-6">
-      <PageHeader title={title} />
+      <PageHeader title={title} actions={actions} />
       <nav aria-label={t('settings_frame.nav.label')} className={cn(tabsListVariants({ variant: 'line' }), 'h-auto max-w-full justify-start overflow-x-auto overflow-y-hidden border-b pb-[5px]')}>
-        {SECTIONS.map((section) => (
+        {(banking ? [...SECTIONS, BANKS] : SECTIONS).map((section) => (
           <Link
             key={section.to}
             to={section.to}

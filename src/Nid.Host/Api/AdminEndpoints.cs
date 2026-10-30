@@ -15,7 +15,7 @@ public static class AdminEndpoints
 
     /// <summary>A key nobody reads is refused rather than silently dropped (400), like the preferences body.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record HouseholdBody(int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled);
+    public sealed record HouseholdBody(int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled, bool? BankingEnabled, string? EnableBankingAppId);
 
     public sealed record PersonIdResponse(Guid Id);
 
@@ -47,7 +47,8 @@ public static class AdminEndpoints
             .Returns<HouseholdSettingsView>();
 
         api.MapPatch("/household", async (HouseholdBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(body.MaxAdults, body.ReferenceCurrency, body.PricesEnabled, body.IrlEnabled), ct))
+                => (await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(
+                        body.MaxAdults, body.ReferenceCurrency, body.PricesEnabled, body.IrlEnabled, body.BankingEnabled, body.EnableBankingAppId), ct))
                     .ToHttp(settings => settings))
             .Returns<HouseholdSettingsView>();
 

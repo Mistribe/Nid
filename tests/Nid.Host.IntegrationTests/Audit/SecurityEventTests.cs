@@ -153,6 +153,19 @@ public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("irl_enabled", JsonDocument.Parse(settings.Data).RootElement.GetProperty("fields").GetString());
     }
 
+    [Fact]
+    public async Task Switching_banking_records_its_fields_never_the_application_id()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { bankingEnabled = true, enableBankingAppId = "app-0a1b" }))
+            .EnsureSuccessStatusCode();
+
+        var settings = Assert.Single(await EventsAsync(app, "household_settings_changed"));
+        Assert.Equal("banking_enabled,enable_banking_app_id", JsonDocument.Parse(settings.Data).RootElement.GetProperty("fields").GetString());
+        Assert.DoesNotContain("app-0a1b", settings.Data);
+    }
+
     /// <summary>Minor #4: a `PATCH` naming neither field changed nothing, so it is not worth an event.</summary>
     [Fact]
     public async Task A_household_patch_naming_no_field_records_no_event()

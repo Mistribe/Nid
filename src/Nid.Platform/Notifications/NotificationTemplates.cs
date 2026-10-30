@@ -42,6 +42,9 @@ public static class NotificationTemplates
         ["backup_failed"] = "La sauvegarde a échoué",
         ["job_failed"] = "Une tâche planifiée a échoué",
         ["sync_failed"] = "Une synchronisation a échoué",
+        ["banking.consent_expiring"] = "Le consentement d'une banque expire bientôt",
+        ["banking.consent_expired"] = "Le consentement d'une banque a expiré",
+        ["banking.sync_failing"] = "La synchronisation d'une banque échoue",
     };
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
@@ -79,7 +82,7 @@ public static class NotificationTemplates
     }
 
     /// <summary>The notices published by code (security, pending actions, health): they carry no name and no amount.</summary>
-    private static readonly HashSet<string> Notices = ["access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed"];
+    private static readonly HashSet<string> Notices = ["access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
 
     private static string NoticeBody(NotificationRecord n) => n.Kind switch
     {
@@ -89,8 +92,13 @@ public static class NotificationTemplates
         "backup_failed" => BackupReason(n.Params),
         "job_failed" => n.Params.TryGetValue("job", out var job) && job.Length > 0 ? $"Tâche : {job}" : "",
         "sync_failed" => n.Params.TryGetValue("source", out var source) && source.Length > 0 ? $"Source : {source}" : "",
+        "banking.consent_expiring" => n.DueOn is { } on ? $"{Bank(n)} — expire le {Day(on)}" : Bank(n),
+        "banking.consent_expired" => n.DueOn is { } on ? $"{Bank(n)} — expiré le {Day(on)}" : Bank(n),
+        "banking.sync_failing" => Bank(n),
         _ => "",
     };
+
+    private static string Bank(NotificationRecord n) => n.Params.GetValueOrDefault("bank") ?? "";
 
     /// <summary>Why the backup is unhealthy (<see cref="BackupState.Reason"/>): a failed step is named as the script names it.</summary>
     private static string BackupReason(IReadOnlyDictionary<string, string> p) => p.GetValueOrDefault("reason") switch
@@ -112,6 +120,7 @@ public static class NotificationTemplates
     {
         "access_violation" => n.Params.GetValueOrDefault("admin") == "1" ? "/admin/security" : "/",
         "token_expiring" => "/security",
+        "banking.consent_expiring" or "banking.consent_expired" or "banking.sync_failing" => "/settings/banks",
         "proposal_pending" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",
         "job_failed" => "/admin/jobs",

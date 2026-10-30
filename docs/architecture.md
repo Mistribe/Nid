@@ -147,6 +147,7 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d
 | **RealEstate** | `Property`, `Loan`, `LoanPhase`, `LoanEvent`, `Insurance` | Tableau d'amortissement, capital restant dû, valeur nette, engagements ; loyers pour Income (`IRentIncome`) | Core |
 | **Documents** | `Document` (fichier adressé par son sha256, métadonnées) et ses liens génériques vers des cibles (`target_kind`, `target_id`, rôle) ; stockage fichiers ou S3 | `IDocumentTargets` (cibles que chaque module résout), `IDocumentLinks` | Core |
 | **Goals** | `Goal` (objectif d'épargne ou de précaution), ses liens aux enveloppes (`share_bp`) et ses relevés | Rien (lit `IEnvelopeFunding` d'Investments et `ICommitmentsContribution`) | Core, `Investments.Contracts` |
+| **Banking** (étape 5, livré en 5A) | Connexions Enable Banking (session chiffrée), comptes bancaires et leurs sources, soldes, journal des synchronisations (schéma `banking`) | Rien en 5A ; ses soldes deviennent des valorisations par `IValuations` ou une proposition (`IProposalSubmitter`) | Core, `Investments.Contracts` |
 | **Ingestion** | Pipeline de documents, table `job`, contrats de jobs, résultats d'extraction | Entrée des propositions vers Core, API interne pour les workers | Core |
 | **Dashboard** (hébergé dans Core : `Core.Application/Dashboard`) | Rien (lecture seule, composition) | Agrégats patrimoine / engagements / évolution | Core + contributions des modules |
 | **Tax** (hébergé dans Core : `Core.Application/Tax`, `Core.Domain/Tax`) | Profil fiscal du foyer par année (`core.tax_profile`) | Estimation d'impôt ; les modules fournissent leurs lignes (`ITaxContribution`) | Core + contributions des modules |
@@ -255,6 +256,7 @@ Source (dépôt UI / mail / banque)
 |---|---|---|
 | Rappels, résumé mensuel, alertes d'échéance, recalcul des timelines | **Quartz.NET in-process** | Réutilise les règles métier (couverture, coût amorti, droits) ; les conteneuriser dupliquerait la logique |
 | Extraction PDF/OCR/LLM, scrapers woob, lecture de mails | **Workers conteneurisés** | Écosystème Python, travaux lourds et fragiles, isolation et mise à jour indépendantes |
+| Synchronisation bancaire (Enable Banking, étape 5) | **Quartz.NET in-process** (`bank-sync-nightly`), par `SafeHttpClient` | Un appel REST signé (JWT RS256), comme la collecte des taux : aucun code tiers ni page web à isoler (spec de la synchronisation bancaire, D13). Le bouton « Synchroniser » s'exécute dans la requête, pour transmettre à la banque l'adresse et l'agent du navigateur |
 
 Le planificateur n'a pas accès à `docker.sock` : lancer des conteneurs depuis l'application donnerait de fait un accès root à la machine, et déléguer à un cron d'hôte lierait l'application à l'orchestrateur de l'hébergeur.
 
@@ -266,7 +268,7 @@ Le magasin persistant de Quartz est en Postgres, avec un préfixe de tables qual
 - Les workers **n'accèdent pas à la base**. Ils appellent l'API interne : `claim` (long-poll, `FOR UPDATE SKIP LOCKED` côté API), `heartbeat`, `complete`, `fail`. Bail expiré → remise en file. Retry avec délai croissant ; état `dead` après N essais, avec alerte email.
 - **Idempotence** : `(type, hash de l'entrée)` évite de retraiter le même document.
 - **Contrats** dans le dépôt : `contracts/jobs/{type}/v{n}/{input,output}.schema.json`. L'API valide la sortie du worker avant toute suite ; version inconnue = rejet. Ajouter une techno = respecter le contrat.
-- Types initiaux : `extract-statement` (relevés de placements), `extract-amortization`, `extract-invoice`. Plus tard : `fetch-mail`, `sync-bank`, `scrape-woob`.
+- Types initiaux : `extract-statement` (relevés de placements), `extract-amortization`, `extract-invoice`. Plus tard : `fetch-mail`, `scrape-woob`. La banque n'est pas un job : elle tourne dans `nid-api` (§9.2, livré en 5A).
 - Les workers récupèrent le document par l'API (flux à jeton court), sans volume partagé : ils restent sans état.
 - Traçage OpenTelemetry API ↔ worker (`traceparent` dans le job). Page « jobs » dans l'interface.
 
@@ -288,7 +290,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 - **Dédoublonnage** par empreinte `(kind, cible, hash du payload)`. Une nouvelle proposition remplace (`superseded`) une ancienne en attente sur la même cible et la même période.
 - Livré en 4C1 : ni document ni job, et le contrat de handler n’est pas générique (`core-data-model.md` §7.6).
 - **Contrat de handler** `IProposalHandler` : `Validate` (problèmes), `Preview` (diff contre l'état actuel), `Apply` (écriture idempotente dans **une transaction** avec le changement de statut et l'audit).
-- **Jamais d'auto-approbation.** Les propositions en attente sont rappelées dans le résumé mensuel, sans expiration silencieuse.
+- **Jamais d'auto-approbation.** Les propositions en attente sont rappelées dans le résumé mensuel, sans expiration silencieuse. Seule exception à la file, qui n'approuve rien : un compte bancaire dont « Appliquer les soldes automatiquement » est coché écrit sa valorisation directement (`source = bank_api`, `created_via = job`), sans proposition (`Project.md` §9.4, étape 5).
 - Interface : boîte de réception avec le PDF à côté, valeurs extraites, diff et avertissements.
 - **Livré en 4C1** (serveur, sans écran) :
   - table `core.proposal` ; soumission par `SubmitProposalCommand` (portée `write`), empreinte = SHA-256 de la forme RFC 8785 de `{kind, target, payload}` ;
@@ -305,12 +307,12 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 | Dépôt manuel d'un PDF | Job d'extraction selon le type |
 | Routine mensuelle (Quartz) | Rappels par email ; formulaire **pré-rempli** depuis le mois précédent pour chaque enveloppe |
 | Mail (étape 4 et après) | `fetch-mail` → factures → `extract-invoice` |
-| Banque (étape 5) | `sync-bank` (Enable Banking) → rapprochement avec les charges attendues exposées par Subscriptions → propositions « prélèvement observé », « hausse de prix », « prélèvement récurrent inconnu ». Lecture seule ; consentements chiffrés ; alerte avant expiration. |
+| Banque (étape 5) | Tâche Quartz `bank-sync-nightly` (04:30) et bouton « Synchroniser », dans `nid-api` → soldes des comptes associés → proposition `investments.record_valuation` par fin de mois écoulé (et aujourd'hui sur un clic), ou valorisation écrite si le compte l'a demandé (**livré en 5A**). Ensuite (5B à 5D) : opérations, rapprochement avec les charges attendues → propositions « hausse de prix », « prélèvement récurrent inconnu », versements. Lecture seule ; session chiffrée ; alerte avant expiration. Spec : `superpowers/specs/2026-10-29-bank-sync-design.md` |
 
 ### 9.7 Sécurité de l'ingestion
 
 - Identifiants de service **par worker**, limités à ses types de jobs. Réseau compose segmenté : un worker d'extraction n'atteint que l'API interne (et, par elle, la passerelle LLM) ; **sans Internet, sans clés d'API**.
-- Les workers de **connecteurs** (mail, banque, woob), à l'étape 4 ou 5, exigent une sortie limitée à leurs hôtes et une **revue de risque préalable** (`security/risk-register.md` §7).
+- Les workers de **connecteurs** (mail, woob) exigent une sortie limitée à leurs hôtes et une **revue de risque préalable** (`security/risk-register.md` §7). La banque n'est pas un worker : elle tourne dans `nid-api` (§9.2), vers le seul `api.enablebanking.com`, et sa revue est `security/bank-sync-review.md`.
 - Aucun document ne quitte l'infrastructure par défaut ; tout envoi cloud exige le consentement du déposant (`ingestion/llm-providers.md` §6).
 - Menaces et mesures détaillées : `security/ai-ingestion.md`.
 

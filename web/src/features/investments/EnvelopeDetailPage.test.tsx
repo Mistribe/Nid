@@ -237,4 +237,28 @@ describe('EnvelopeDetailPage', () => {
     expect((await screen.findAllByText('Pièce du dossier')).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Déposer' })).toBeInTheDocument();
   });
+  it('says which bank account feeds the envelope, its last balance, and a balance left out for a typed value', async () => {
+    serve(detail());
+    server.use(
+      http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: true })),
+      http.get('*/api/v1/banking/accounts', ({ request }) => HttpResponse.json(new URL(request.url).searchParams.get('envelopeId') === PEA ? [{
+        id: 'b1', name: 'Compte titres BNP', ibanMasked: null, kind: 'other', currency: 'EUR', envelopeId: PEA, cardOfAccountId: null,
+        autoApplyBalance: true, ignored: false, balanceConflictOn: '2025-08-31', lastBalance: '25000.00', lastBalanceOn: '2025-09-30', synced: true, canWrite: true,
+      }] : [])),
+    );
+    await renderApp(`/investments/${PEA}`);
+
+    const figuresBlock = await screen.findByRole('region', { name: 'Valeur et gain' });
+    expect(await within(figuresBlock).findByText('Relié à Compte titres BNP · dernier solde du 30/09')).toBeInTheDocument();
+    expect(within(figuresBlock).getByText('Solde bancaire du 31/08 non appliqué : une valeur saisie existe à cette date')).toBeInTheDocument();
+  });
+
+  it('says nothing about a bank while bank sync is off', async () => {
+    serve(detail());
+    const { queryClient } = await renderApp(`/investments/${PEA}`);
+
+    await screen.findByRole('region', { name: 'Valeur et gain' });
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    expect(screen.queryByText(/Relié à/)).toBeNull();
+  });
 });

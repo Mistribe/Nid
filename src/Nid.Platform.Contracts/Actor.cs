@@ -67,6 +67,10 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     /// <summary>The notification evaluation reading as that adult: read only, via the job.</summary>
     public static Actor Notifier(PersonId person) => new(ActorKind.Person, person, ActorOrigin.Job, new HashSet<string> { ScopeNames.Read });
 
+    /// <summary>Bank sync (D22): the job proposing or writing a bank balance as the creator of the connection that read it.</summary>
+    public static Actor BankSync(PersonId person)
+        => new(ActorKind.Person, person, ActorOrigin.Job, new HashSet<string> { ScopeNames.Read, ScopeNames.Write });
+
     public static Actor System { get; } = new(ActorKind.System, null, ActorOrigin.Job, AllScopes) { IsAdmin = true };
 
     /// <summary>`nid admin` (1F4 design §2.2): the system, run by the hoster from the container.</summary>

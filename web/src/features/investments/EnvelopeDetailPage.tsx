@@ -34,6 +34,8 @@ import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/investments';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
+import { dayMonth, useBankAccounts } from '@/features/settings/banks/api';
+import '@/locales/banks';
 
 // The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
 const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));
@@ -58,6 +60,8 @@ export function EnvelopeDetailPage() {
   const sinceJanuary = $api.useQuery('get', PERFORMANCE, { params: { path: { id }, query: presetRange('ytd', todayIso()) } });
   // Read here too for the « Part UC » and « Frais prélevés » figures; the tab shares this query.
   const holdings = $api.useQuery('get', HOLDINGS, { params: { path: { id } } });
+  // The bank account whose balances become this envelope's values, when bank sync is on.
+  const bank = useBankAccounts(id)?.[0];
   const [tab, setTab] = useDetailTab(TABS);
   const back = <Link to="/investments" className="text-sm underline">{t('envelope.back')}</Link>;
   // The dialogs: a new value or flow (`{}`), the correction of a row, or a new flow on « Versements antérieurs ».
@@ -219,6 +223,17 @@ export function EnvelopeDetailPage() {
               ? [{ label: t('holdings.fees_taken'), value: <Money value={holdings.data.explicitFees} tabular /> }] : []),
           ]} />
           <p className="text-sm text-muted-foreground">{t('envelope.before_tax')}</p>
+          {bank ? (
+            <p className="text-sm text-muted-foreground">
+              {bank.lastBalanceOn ? t('banks.envelope_note.last', { name: bank.name, date: dayMonth(bank.lastBalanceOn) }) : t('banks.envelope_note.linked', { name: bank.name })}
+            </p>
+          ) : null}
+          {bank?.balanceConflictOn ? (
+            <p role="note" className="flex items-center gap-2 text-sm">
+              <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
+              {t('banks.envelope_note.conflict', { date: dayMonth(bank.balanceConflictOn) })}
+            </p>
+          ) : null}
           {sinceShown ? (
             <p className="text-sm">{t('envelope.since', {
               contributions: formatMoney(figures.contributionsSince),

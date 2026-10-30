@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { RoutineView } from './api';
-import { LIVRET, MANUEL, line, recap, recapLine, routine } from './testData';
+import { LIVRET, MANUEL, PEA, line, recap, recapLine, routine } from './testData';
 
 const lines = () => [
   line(),
@@ -85,6 +85,45 @@ describe('the routine', () => {
         { envelopeId: LIVRET, value: { amount: '300.5', currency: 'EUR' }, contribution: null },
       ],
     });
+  });
+
+  it('shows the bank balance instead of the value field of an envelope whose account applies its balances, and sends no value for it', async () => {
+    const posted: unknown[] = [];
+    serve(routine(lines()), posted);
+    server.use(
+      http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: true })),
+      http.get('*/api/v1/banking/accounts', () => HttpResponse.json([{
+        id: 'b1', name: 'Compte titres', ibanMasked: null, kind: 'other', currency: 'EUR', envelopeId: PEA, cardOfAccountId: null,
+        autoApplyBalance: true, ignored: false, balanceConflictOn: null, lastBalance: '1100.00', lastBalanceOn: '2025-09-30', synced: true, canWrite: true,
+      }])),
+    );
+    const { user } = await renderApp('/routine');
+
+    const due = await screen.findByRole('region', { name: 'À relever' });
+    expect(await within(due).findByText('Solde bancaire du 30/09')).toBeInTheDocument();
+    expect(within(due).queryByLabelText('Valeur de PEA')).toBeNull();
+    expect(within(due).getByLabelText('Valeur de Livret A')).toHaveValue('');
+    await user.type(screen.getByLabelText('Versements du mois sur PEA'), '20');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
+
+    await expect.poll(() => posted.length).toBe(1);
+    expect(posted[0]).toEqual({ on: '2025-09-30', lines: [{ envelopeId: PEA, value: null, contribution: { amount: '20', currency: 'EUR' } }] });
+  });
+
+  it('keeps the value field of an envelope whose bank account no connection reads any more', async () => {
+    serve(routine(lines()));
+    server.use(
+      http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: true })),
+      http.get('*/api/v1/banking/accounts', () => HttpResponse.json([{
+        id: 'b1', name: 'Compte titres', ibanMasked: null, kind: 'other', currency: 'EUR', envelopeId: PEA, cardOfAccountId: null,
+        autoApplyBalance: true, ignored: false, balanceConflictOn: null, lastBalance: '1100.00', lastBalanceOn: '2025-09-30', synced: false, canWrite: true,
+      }])),
+    );
+    await renderApp('/routine');
+
+    const due = await screen.findByRole('region', { name: 'À relever' });
+    expect(await within(due).findByLabelText('Valeur de PEA')).toBeInTheDocument();
+    expect(within(due).queryByText('Solde bancaire du 30/09')).toBeNull();
   });
 
   it('Enter moves to the next field and never submits', async () => {

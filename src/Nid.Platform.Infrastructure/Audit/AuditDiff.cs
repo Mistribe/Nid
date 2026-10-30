@@ -13,9 +13,10 @@ namespace Nid.Platform.Infrastructure.Audit;
 /// <summary>Turns one change-tracker entry into its log line (spec §4.3).</summary>
 internal static class AuditDiff
 {
-    public static AuditEntryRow? Row(EntityEntry entry, Actor actor, string? request, IEnumerable<Guid> items, Instant at)
+    public static AuditEntryRow? Row(EntityEntry entry, Actor actor, string? request, IEnumerable<Guid> items, Instant at, IReadOnlySet<string>? secret)
     {
-        var columns = entry.Properties.Where(p => p.Metadata.GetColumnName() != "xmin").ToList();
+        var columns = entry.Properties
+            .Where(p => p.Metadata.GetColumnName() is var column && column != "xmin" && secret?.Contains(column) != true).ToList();
         JsonObject? before = null, after = null;
         string action;
         switch (entry.State)

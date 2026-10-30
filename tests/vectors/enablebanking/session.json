@@ -1,0 +1,38 @@
+{
+  "session_id": "0b9f6c2e-3f64-4d3a-8a51-6d1a5c7b9e20",
+  "accounts": [
+    {
+      "account_id": { "iban": "FR7630006000011234567890189" },
+      "all_account_ids": [{ "identification": "FR7630006000011234567890189", "scheme_name": "IBAN" }],
+      "account_servicer": { "bic_fi": "EXMPFRPP", "name": "Banque Exemple" },
+      "name": "M DUPONT JEAN",
+      "details": "Compte courant",
+      "usage": "PRIV",
+      "cash_account_type": "CACC",
+      "currency": "EUR",
+      "uid": "3e0b5f58-52f1-4a1c-9b0e-0a8c8d9d1f01",
+      "identification_hash": "aGFzaC1jb21wdGUtY291cmFudA",
+      "identification_hashes": ["aGFzaC1jb21wdGUtY291cmFudA"]
+    },
+    {
+      "account_id": { "iban": "FR1420041010050500013M02606" },
+      "name": "M DUPONT JEAN",
+      "cash_account_type": "SVGS",
+      "currency": "EUR",
+      "uid": "5a9d6d0e-71c4-4bb5-8d49-9c1b3b6f2a02",
+      "identification_hash": "aGFzaC1saXZyZXQ",
+      "identification_hashes": ["aGFzaC1saXZyZXQ"]
+    },
+    {
+      "account_id": { "other": { "identification": "123456", "scheme_name": "BBAN" } },
+      "name": "M DUPONT JEAN",
+      "cash_account_type": "CARD",
+      "currency": "EUR",
+      "identification_hash": "aGFzaC1jYXJ0ZQ",
+      "identification_hashes": ["aGFzaC1jYXJ0ZQ"]
+    }
+  ],
+  "aspsp": { "name": "Banque Exemple", "country": "FR" },
+  "psu_type": "personal",
+  "access": { "valid_until": "2027-04-27T09:30:00.000000+00:00" }
+}

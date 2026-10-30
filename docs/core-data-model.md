@@ -234,6 +234,8 @@ Colonnes communes à `valuation` et `flow` :
 
 **Livré en 2A** (2026-09-29, `superpowers/specs/2026-09-29-core-dated-facts-design.md`) : tables `core.valuation` et `core.flow`, contrats `IValuations` et `IFlows`, codes `core.item_without_currency`, `core.currency_mismatch`, `core.date_in_future`, `core.amount_not_positive`, `core.invalid_fact`, `core.fact_not_found`, `core.fact_retired`, `core.opening_exists`, `core.external_ref_taken`, `core.fact_conflict`. `proposal_id` arrive à l'étape 4 avec sa table, `document_id` avec la tranche 3 de la #161 (`documents-data-model.md` §11, livré le 2026-10-26) ; `source` vaut `manual` ou `import`. Une valeur ou un flux est écrit et lu par une personne.
 
+**Livré en 5A** (2026-10-29, `superpowers/specs/2026-10-29-bank-sync-design.md` §4) : `FactSource.BankApi` (`source = bank_api`) pour les valorisations écrites depuis le solde d'un compte bancaire qui applique ses soldes, avec `created_via = job` ; le contrat `Valuation` expose `Source`, pour que la synchronisation reconnaisse une valeur saisie ou importée à la même date et ne la remplace pas. Une proposition déposée par la synchronisation porte aussi `created_via = job` (contrainte `ck_proposal_created_via`, §7.1). Les flux n'ont pas encore de source `bank_api` (étape 5B à 5D).
+
 ### 5.2 `valuation` : « cet élément vaut X à telle date »
 
 | Champ | Type | Remarques |

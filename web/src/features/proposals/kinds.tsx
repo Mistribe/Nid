@@ -75,7 +75,7 @@ const KINDS: Record<string, KindUi> = {
 export const kindOf = (kind: string): KindUi | undefined => KINDS[kind];
 
 export function originText(t: TFunction, via: string): string {
-  return via === 'ui' || via === 'api' || via === 'mcp' ? t(`proposals.origin.${via}`) : via;
+  return via === 'ui' || via === 'api' || via === 'mcp' || via === 'job' ? t(`proposals.origin.${via}`) : via;
 }
 
 const newest = (items: ProposalView[]) => items.reduce((m, p) => (p.createdAt > m ? p.createdAt : m), '');

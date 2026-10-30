@@ -1,0 +1,23 @@
+{
+  "aspsps": [
+    {
+      "name": "Banque Exemple",
+      "country": "FR",
+      "logo": "https://enablebanking.com/brands/FR/BanqueExemple/",
+      "maximum_consent_validity": 15552000,
+      "psu_types": ["personal", "business"],
+      "auth_methods": [{ "name": "web", "title": "Web", "psu_type": "personal", "approach": "REDIRECT" }],
+      "beta": false,
+      "bic": "EXMPFRPP",
+      "required_psu_headers": ["Psu-Ip-Address", "Psu-User-Agent"],
+      "payments": []
+    },
+    {
+      "name": "Caisse Modele",
+      "country": "FR",
+      "logo": "https://enablebanking.com/brands/FR/CaisseModele/",
+      "psu_types": ["personal"],
+      "beta": true
+    }
+  ]
+}

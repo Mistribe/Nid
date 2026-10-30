@@ -107,9 +107,9 @@ public class SafeHttpClientTests
     }
 
     [Fact]
-    public void The_default_hosts_are_the_catalog_the_ecb_the_icon_hosts_the_price_sources_insee_and_discord()
+    public void The_default_hosts_are_the_catalog_the_ecb_the_icon_hosts_the_price_sources_insee_discord_and_enable_banking()
         => Assert.Equal(
-            ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr", "discord.com", "discordapp.com"],
+            ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr", "discord.com", "discordapp.com", "api.enablebanking.com"],
             new OutboundOptions().AllowedHosts);
 
     [Fact]
@@ -129,6 +129,23 @@ public class SafeHttpClientTests
         Assert.Equal((HttpStatusCode.NoContent, "POST", "application/json"), (response.Status, method, contentType));
         Assert.Equal(new byte[] { 1, 2, 3 }, body);
         Assert.Equal("redirect_on_post", await RefusalOf(Client(new StubHandler(_ => Redirect("https://discord.com/elsewhere"))).PostJsonAsync(hook, [1], 1024, default)));
+    }
+
+    [Fact]
+    public async Task SendOnce_sends_the_method_and_headers_to_the_enable_banking_host_and_refuses_its_redirect()
+    {
+        var api = new Uri("https://api.enablebanking.com/sessions/x");
+        string? method = null, auth = null;
+        var ok = new StubHandler(r =>
+        {
+            (method, auth) = (r.Method.Method, r.Headers.Authorization?.ToString());
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var response = await Client(ok).SendOnceAsync(HttpMethod.Delete, api, null, new Dictionary<string, string> { ["Authorization"] = "Bearer t" }, 1024, default);
+
+        Assert.Equal((HttpStatusCode.OK, "DELETE", "Bearer t"), (response.Status, method, auth));
+        Assert.Equal("redirect_on_get", await RefusalOf(Client(new StubHandler(_ => Redirect("https://discord.com/e"))).SendOnceAsync(HttpMethod.Get, api, null, null, 1024, default)));
     }
 
     [Fact]

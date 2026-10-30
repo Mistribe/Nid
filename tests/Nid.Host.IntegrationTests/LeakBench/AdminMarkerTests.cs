@@ -49,6 +49,15 @@ public class AdminMarkerTests
         Assert.DoesNotContain(prices, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
+    /// <summary>Bank sync spec §2.8: the nightly sync and its journal are the admin's; the person's own sync is not.</summary>
+    [Fact]
+    public void The_bank_sync_journal_is_admin_only()
+    {
+        Type[] journal = [typeof(Nid.Banking.Application.Sync.SyncAllCommand), typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery)];
+        Assert.DoesNotContain(journal, t => !typeof(IAdminOnly).IsAssignableFrom(t));
+        Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Banking.Application.Sync.SyncMineCommand)));
+    }
+
     /// <summary>Rental spec §3.1: the IRL collection, its trigger, its journal and the manual entry are the admin's.</summary>
     [Fact]
     public void The_irl_collection_is_admin_only()

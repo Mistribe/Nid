@@ -11,6 +11,7 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <!-- NidApp: the real host over a test database, shared by every module's integration tests. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <ProjectReference Include="..\..\src\Nid.Banking.Contracts\Nid.Banking.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />

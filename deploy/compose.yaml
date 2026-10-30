@@ -91,7 +91,7 @@ services:
       - documents:/var/lib/nid/documents
       - backup-state:/run/backup-state:ro
     tmpfs: [/tmp]
-    # The only service with a way out (egress): catalog, rates, icons, and the identity provider's public URL.
+    # The only service with a way out (egress): catalog, rates, icons, Enable Banking, and the identity provider's public URL.
     networks: [app, data, egress]
     depends_on: { postgres: { condition: service_healthy } }
     deploy: { resources: { limits: { cpus: "2.0", memory: 1g } } }
