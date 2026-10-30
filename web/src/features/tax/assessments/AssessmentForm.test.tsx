@@ -68,6 +68,9 @@ describe('AssessmentForm', () => {
     await user.type(screen.getByLabelText('Nombre de parts'), '3');
     await next(user);
     expect(step()).toHaveTextContent('Déclarants');
+    const grid = screen.getByRole('table', { name: 'Déclarants' });
+    expect(within(grid).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Champ', 'Alice Dev', 'Bob Dev']);
+    await user.type(screen.getByRole('textbox', { name: 'Salaires Bob Dev' }), '30000');
     await next(user);
     expect(step()).toHaveTextContent('Revenus');
     await next(user);
@@ -96,7 +99,7 @@ describe('AssessmentForm', () => {
 
     await pick(user, 'Année des revenus', '2025');
     await next(user);
-    await user.type(within(screen.getByRole('group', { name: 'Déclarant 1' })).getByLabelText('Salaires'), '52 000,5');
+    await user.type(screen.getByRole('textbox', { name: 'Salaires Alice Dev' }), '52 000,5');
     await next(user);
     await user.type(screen.getByLabelText('Revenu brut global'), '1 234,50');
     await user.type(screen.getByLabelText('Revenu imposable'), '72\u202f800');
@@ -117,14 +120,14 @@ describe('AssessmentForm', () => {
 
     await pick(user, 'Année des revenus', '2025');
     await next(user);
-    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
-    await user.type(first.getByLabelText('Salaires'), '41447');
-    await user.click(first.getByRole('radio', { name: '10 %' }));
+    await user.type(screen.getByRole('textbox', { name: 'Salaires Alice Dev' }), '41447');
+    const deduction = within(screen.getByRole('radiogroup', { name: /Alice Dev/ }));
+    await user.click(deduction.getByRole('radio', { name: '10 %' }));
 
-    await waitFor(() => expect(first.getByLabelText('Montant de la déduction')).toHaveValue('4145.00'));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Montant de la déduction Alice Dev' })).toHaveValue('4145.00'));
     expect(sent.allowances).toEqual(['?year=2025&grossSalaries=41447']);
     // Frais réels asks nothing: the person types the amount.
-    await user.click(first.getByRole('radio', { name: 'Frais réels' }));
+    await user.click(deduction.getByRole('radio', { name: 'Frais réels' }));
     expect(sent.allowances).toHaveLength(1);
   });
 
@@ -134,11 +137,10 @@ describe('AssessmentForm', () => {
 
     expect(await screen.findByRole('combobox', { name: 'Année des revenus' })).toHaveTextContent('2025');
     await next(user);
-    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
-    expect(first.queryByLabelText('Salaires, pensions et rentes nets')).toBeNull();
-    await user.click(first.getByRole('button', { name: 'Plafond épargne retraite' }));
-    expect(first.getByLabelText('Plafond calculé sur les revenus de 2025')).toBeInTheDocument();
-    expect(first.queryByLabelText('Plafond pour les cotisations versées en 2026')).toBeNull();
+    expect(screen.queryByRole('textbox', { name: /^Salaires, pensions et rentes nets/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Plafond épargne retraite' }));
+    expect(screen.getByRole('textbox', { name: 'Plafond calculé sur les revenus de 2025 Alice' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /^Plafond pour les cotisations versées en 2026/ })).toBeNull();
     for (let i = 0; i < 3; i += 1) await next(user);
     await submit(user);
 
@@ -155,10 +157,10 @@ describe('AssessmentForm', () => {
 
     await pick(user, 'Année des revenus', '2025');
     await next(user);
-    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
-    await user.type(first.getByLabelText('Heures supplémentaires et jours RTT'), '1250');
-    await user.type(first.getByLabelText('RAS sur salaires et pensions'), '2700');
-    await user.type(first.getByLabelText('Avance de 60 % de réductions et crédits d’impôt'), '1250');
+    const first = (name: string) => screen.getByRole('textbox', { name: `${name} Alice Dev` });
+    await user.type(first('Heures supplémentaires et jours RTT'), '1250');
+    await user.type(first('RAS sur salaires et pensions'), '2700');
+    await user.type(first('Avance de 60 % de réductions et crédits d’impôt'), '1250');
     await next(user);
     await user.type(screen.getByLabelText('Dividendes ouvrant droit à abattement'), '5');
     await user.type(screen.getByLabelText('RCM déjà soumis aux prélèvements sociaux avec CSG déductible'), '5');
@@ -187,13 +189,12 @@ describe('AssessmentForm', () => {
 
     await pick(user, 'Année des revenus', '2025');
     await next(user);
-    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
-    await user.click(first.getByRole('button', { name: /Plafond épargne retraite/ }));
+    await user.click(screen.getByRole('button', { name: /Plafond épargne retraite/ }));
 
     for (const label of [
       'Plafond total de 2024', 'Plafond non utilisé pour les revenus de 2023', 'Plafond non utilisé pour les revenus de 2024',
       'Plafond non utilisé pour les revenus de 2025', 'Plafond calculé sur les revenus de 2025',
-    ]) expect(first.getByLabelText(label)).toBeInTheDocument();
+    ]) expect(screen.getByRole('textbox', { name: `${label} Alice Dev` })).toBeInTheDocument();
   });
 
   it('Warns_who_will_also_read_the_pdf', async () => {

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, get, useForm, type Path, type Resolver, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { DOCUMENT, invalidateDocuments, uploadDocument, useDocuments } from '../../documents/api';
 import { ACCEPT, refusal } from '../../documents/DocumentUpload';
 import { Folded } from '../../loans/new/Folded';
+import { DeclarantGrid, type GridRow } from '../profile/DeclarantGrid';
 import { PERSONS } from '../../subscriptions/api';
 import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
@@ -108,38 +109,40 @@ function SalaryAllowance({ form, index }: { form: Form; index: number }) {
   return null;
 }
 
-function DeclarantStep({ form, count }: { form: Form; count: number }) {
+/** The declarants side by side, as the tax profile's grid: one row per line of the notice, one column per declarant. */
+function DeclarantStep({ form, adults }: { form: Form; adults: { value: string; label: string }[] }) {
   const { t } = useTranslation();
-  const id = useId();
   const year = form.watch('year');
+  const label = (k: FieldKey) => t(`tax.assessment.field.${k}`);
+  // A column per chosen declarant, keyed by its rank: the form's paths are by index.
+  const columns = form.watch('declarants').flatMap((d, i) => (d.personId
+    ? [{ id: String(i), displayName: adults.find((a) => a.value === d.personId)?.label ?? t('tax.assessment.declarant', { rank: i + 1 }) }] : []));
+  const at = (i: string, k: string) => `declarants.${i}.${k}`;
+  const amount = (k: FieldKey, name: string = k): GridRow => ({
+    key: name, label: label(k), error: (i) => errorOf(form, at(i, name)),
+    cell: (a, c) => <Input inputMode="decimal" {...c} {...form.register(at(a.id, name) as Path<AssessmentValues>)} />,
+  });
   return (
     <>
-      {Array.from({ length: count }, (_, i) => {
-        const at = (k: string) => `declarants.${i}.${k}`;
-        const label = (k: FieldKey) => t(`tax.assessment.field.${k}`);
-        return (
-          <fieldset key={i} className="space-y-4">
-            <legend className="mb-2 text-sm font-medium">{t('tax.assessment.declarant', { rank: i + 1 })}</legend>
-            <Amount form={form} name={at('grossSalaries')} label={label('grossSalaries')} />
-            <Amount form={form} name={at('overtimeExempt')} label={label('overtimeExempt')} hint={t('tax.assessment_form.overtime_hint')} />
-            <div className="space-y-1">
-              <span id={`${id}-${i}`} className="block text-sm">{label('deduction')}</span>
-              <Controller control={form.control} name={`declarants.${i}.deduction`} render={({ field }) => (
-                <Segmented aria-labelledby={`${id}-${i}`} value={field.value} onValueChange={field.onChange}
-                  options={[{ value: 'allowance', label: t('tax.assessment.deduction_allowance') }, { value: 'actual', label: t('tax.assessment.deduction_actual') }]} />
-              )} />
-            </div>
-            <SalaryAllowance form={form} index={i} />
-            <Amount form={form} name={at('deductionAmount')} label={label('deductionAmount')} />
-            <Amount form={form} name={at('withholding')} label={label('withholding_declarant')} />
-            <Amount form={form} name={at('creditsAdvance')} label={label('creditsAdvance')} />
-            <Folded label={t('tax.assessment_form.per')} hasError={PER_TYPED.some((k) => Boolean(errorOf(form, at(k))))}>
-              {PER_TYPED.map((k) => <Amount key={k} form={form} name={at(k)} label={t(`tax.assessment.field.${k}`, { year: perLineYear(k, year) })}
-                hint={k === 'perCeilingYear' ? t('tax.assessment_form.per_year_hint') : undefined} />)}
-            </Folded>
-          </fieldset>
-        );
-      })}
+      {columns.map((c) => <SalaryAllowance key={c.id} form={form} index={Number(c.id)} />)}
+      <DeclarantGrid label={t('tax.assessment_form.steps.declarants')} adults={columns} rows={[
+        amount('grossSalaries'),
+        { ...amount('overtimeExempt'), hint: t('tax.assessment_form.overtime_hint') },
+        { key: 'deduction', label: label('deduction'),
+          cell: (a, c) => <Controller control={form.control} name={at(a.id, 'deduction') as `declarants.${number}.deduction`} render={({ field }) => (
+            <Segmented aria-labelledby={c['aria-labelledby']} value={field.value} onValueChange={field.onChange}
+              options={[{ value: 'allowance', label: t('tax.assessment.deduction_allowance') }, { value: 'actual', label: t('tax.assessment.deduction_actual') }]} />
+          )} /> },
+        amount('deductionAmount'),
+        { ...amount('withholding'), label: label('withholding_declarant') },
+        amount('creditsAdvance'),
+      ]} />
+      <Folded label={t('tax.assessment_form.per')} hasError={columns.some((c) => PER_TYPED.some((k) => Boolean(errorOf(form, at(c.id, k)))))}>
+        <DeclarantGrid label={t('tax.assessment_form.per')} adults={columns} rows={PER_TYPED.map((k) => ({
+          ...amount(k), label: t(`tax.assessment.field.${k}`, { year: perLineYear(k, year) }),
+          hint: k === 'perCeilingYear' ? t('tax.assessment_form.per_year_hint') : undefined,
+        }))} />
+      </Folded>
     </>
   );
 }
@@ -258,7 +261,7 @@ function AssessmentForm({ view: live, adults }: { view?: TaxAssessment; adults: 
 
   const content: Record<StepId, ReactNode> = {
     household: <HouseholdStep form={form} adults={adults} />,
-    declarants: <DeclarantStep form={form} count={declarants} />,
+    declarants: <DeclarantStep form={form} adults={adults} />,
     income: <AmountsStep form={form} names={NOTICE_AMOUNTS.income} folded={NOTICE_AMOUNTS.incomeFolded} />,
     tax: <TaxStep form={form} />,
     source: <SourceStep form={form} stored={view?.documentId} onUploading={setUploading} />,

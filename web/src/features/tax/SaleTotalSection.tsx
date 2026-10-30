@@ -40,16 +40,16 @@ export function SaleTotalSection({ scope }: { scope: 'me' | 'household' }) {
           { label: t('tax.sale.net'), value: eur(totals.net) },
         ]} />
       ) : null}
-      <p className="text-sm text-muted-foreground">{[t('tax.sale.estimate'), view.carriedForward ? t('tax.sale.carried') : null].filter(Boolean).join(' · ')}</p>
+      <p className="text-sm text-muted-foreground">{[t('tax.sale.all.intro'), view.carriedForward ? t('tax.sale.carried') : null].filter(Boolean).join(' ')}</p>
       {view.notes.length ? <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">{view.notes.map((n) => <li key={n}>{saleNoteText(t, n)}</li>)}</ul> : null}
       <SortableTable<SaleItemView> caption={t('tax.sale.all.list')} rows={view.items} rowKey={(r) => r.item}
         columns={[
-          { id: 'name', header: t('tax.sale.all.name'), sort: (r) => r.name, cell: (r) => <ItemLink module={r.module} id={r.item}>{r.name}</ItemLink> },
-          { id: 'status', header: t('tax.sale.all.status'), cell: (r) => statusText(t, r) },
+          { id: 'name', header: t('tax.sale.all.name'), wrap: true, sort: (r) => r.name, cell: (r) => <ItemLink module={r.module} id={r.item}>{r.name}</ItemLink> },
+          { id: 'status', header: t('tax.sale.all.status'), wrap: true, cell: (r) => statusText(t, r) },
           { id: 'value', header: t('tax.sale.all.value'), align: 'end', sort: (r) => amountKey(r.value), cell: (r) => money(r.value) },
           { id: 'gain', header: t('tax.sale.gain'), align: 'end', sort: (r) => amountKey(r.gain), cell: (r) => money(r.gain) },
           { id: 'income', header: t('tax.sale.income_tax'), align: 'end', sort: (r) => amountKey(r.incomeTax), cell: (r) => money(r.incomeTax) },
-          { id: 'social', header: t('tax.sale.social_tax'), align: 'end', sort: (r) => amountKey(r.socialTax), cell: (r) => money(r.socialTax) },
+          { id: 'social', header: t('tax.sale.social_tax'), align: 'end', wrap: true, sort: (r) => amountKey(r.socialTax), cell: (r) => money(r.socialTax) },
           { id: 'surtax', header: t('tax.sale.surtax'), align: 'end', sort: (r) => amountKey(r.surtax), cell: (r) => money(r.surtax) },
           { id: 'net', header: t('tax.sale.net'), align: 'end', sort: (r) => amountKey(r.net), cell: (r) => money(r.net) },
           { id: 'detail', header: t('tax.sale.all.detail_col'), cell: (r) => <DetailButton item={r} onOpen={setOpen} /> },
@@ -80,5 +80,6 @@ function statusText(t: TFunction, r: SaleItemView): string {
 
 function DetailButton({ item, onOpen }: { item: SaleItemView; onOpen: (i: SaleItemView) => void }) {
   const { t } = useTranslation();
-  return <Button type="button" variant="link" className="h-auto p-0" onClick={() => onOpen(item)}>{t('tax.sale.all.detail', { name: item.name })}</Button>;
+  // « Détail » on screen, the item's name for a screen reader: the name already heads the row.
+  return <Button type="button" variant="link" className="h-auto p-0" aria-label={t('tax.sale.all.detail', { name: item.name })} onClick={() => onOpen(item)}>{t('tax.sale.all.detail_col')}</Button>;
 }

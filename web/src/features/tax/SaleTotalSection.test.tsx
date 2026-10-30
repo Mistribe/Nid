@@ -41,7 +41,7 @@ describe('SaleTotalSection', () => {
 
     expect(await screen.findByText('340 000,00 €')).toBeInTheDocument();
     expect(screen.getByText('335 882,00 €')).toBeInTheDocument();
-    expect(screen.getByText('estimation')).toBeInTheDocument();
+    expect(screen.getByText(/^Estimation de l’impôt dû si chaque bien et chaque placement étaient vendus aujourd’hui\./)).toBeInTheDocument();
     expect(screen.getByText(/Le total n’est pas la somme des fiches/)).toBeInTheDocument();
     const table = screen.getByRole('table', { name: 'Impôt par bien et par enveloppe' });
     const rows = within(table).getAllByRole('row');

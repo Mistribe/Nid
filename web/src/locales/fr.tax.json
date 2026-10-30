@@ -10,10 +10,21 @@
     "rate_format": "Un pourcentage, par exemple 23 ou 23,5.",
     "detail_table": "Calcul de l’impôt étape par étape",
     "notes": "À savoir",
+    "evolution": {
+      "title": "Évolution de l’impôt d’une année à l’autre",
+      "intro": "L’impôt sur le revenu de chaque année : celui de l’avis reçu quand il y en a un, sinon l’estimation.",
+      "empty": "Aucune année à comparer pour l’instant.",
+      "year": "Revenus",
+      "bar": "Barre proportionnelle à l’impôt",
+      "rate": "Taux moyen",
+      "source": "Source",
+      "flat_tax": "+ {{amount}} de prélèvement forfaitaire",
+      "from": { "assessment": "Avis", "estimate": "Estimation" }
+    },
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
-    "tab": { "assessment": "Avis", "2044": "Déclaration 2044", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu" },
+    "tab": { "assessment": "Avis", "2044": "Déclaration 2044", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
@@ -359,6 +370,7 @@
         "status": "Statut",
         "value": "Valeur",
         "detail_col": "Détail",
+        "intro": "Estimation de l’impôt dû si chaque bien et chaque placement étaient vendus aujourd’hui.",
         "detail": "Détail : {{name}}",
         "empty_title": "Rien à vendre",
         "empty_body": "Aucun bien ni aucune enveloppe à estimer."

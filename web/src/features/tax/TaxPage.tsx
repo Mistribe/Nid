@@ -27,14 +27,15 @@ import { ProfileForm } from './profile/ProfileForm';
 import { ProfileSubmit } from './profile/ProfileSubmit';
 import { useProfileDraft } from './profile/useProfileDraft';
 import { DeclarantTable, eur, ResultTable } from './ResultTable';
+import { EvolutionSection } from './EvolutionSection';
 import { SaleTotalSection } from './SaleTotalSection';
 import { SimulationForm } from './SimulationForm';
 import { Rental2044Section } from './Rental2044Section';
 import { WithholdingSection } from './WithholdingSection';
 import '@/locales/tax';
 
-// Four views in the row; the profile and the 2044 are opened from the header, beside the year.
-const TABS = ['detail', 'withholding', 'assessment', 'simulation', 'profile', '2044'] as const;
+// Five views in the row; the profile and the 2044 are opened from the header, beside the year.
+const TABS = ['detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', '2044'] as const;
 
 /** Past this many years the selector is a list, not a row of buttons. */
 const MAX_SEGMENTS = 6;
@@ -103,6 +104,8 @@ export function TaxPage() {
           { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
           ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
+          { id: 'evolution', label: t('tax.tab.evolution'),
+            content: <EvolutionSection years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: (
             <>
               <SimulationForm key={estimate.year} estimate={estimate} />

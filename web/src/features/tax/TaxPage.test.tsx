@@ -623,6 +623,27 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(years).toEqual([]);
     });
 
+    it('shows the tax year by year, a notice before an estimate', async () => {
+      const years = taxCalls();
+      const loaded = estimate();
+      loaded.result = result({ capitalFlatTax: '120.00' });
+      server.use(notices(soloAssessment({ year: 2024 }), jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', ({ request }) => {
+        years.push(new URL(request.url).searchParams.get('year'));
+        return HttpResponse.json(loaded);
+      }));
+      const { container } = await renderApp('/tax?tab=evolution');
+
+      const table = await screen.findByRole('table', { name: 'Évolution de l’impôt d’une année à l’autre' });
+      await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(4));
+      expect(within(table).getByRole('row', { name: /^2024/ })).toHaveTextContent(/2 100,00 €.*—.*Avis/);
+      expect(within(table).getByRole('row', { name: /^2025/ })).toHaveTextContent(/2 688,00 €.*4,5 %.*Avis/);
+      const current = within(table).getByRole('row', { name: /^2026/ });
+      expect(current).toHaveTextContent(/247,00 €\+ 120,00 € de prélèvement forfaitaire.*0,38 %.*Estimation/);
+      expect(current).toHaveAttribute('aria-current', 'true');
+      expect(years).not.toContain('2025');
+      await expectNoAxeViolations(container);
+    });
+
     it('has an Avis tab beside the estimate of a year that has a notice', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025');
