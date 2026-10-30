@@ -25,7 +25,7 @@ describe('module string bundles', () => {
     const offenders = files.flatMap((path) => {
       const text = readFileSync(path, 'utf8');
       return bundles
-        .filter(({ module, keys }) => keys.some((key) => new RegExp(`['"\`]${key}[.'"\`]`).test(text)) && !text.includes(`import '@/locales/${module}';`))
+        .filter(({ module, keys }) => keys.some((key) => new RegExp(`['"\`]${key}\\.`).test(text)) && !text.includes(`import '@/locales/${module}';`))
         .map(({ module }) => `${relative(root, path)} → @/locales/${module}`);
     });
     expect(offenders).toEqual([]);

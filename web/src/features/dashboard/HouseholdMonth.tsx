@@ -14,7 +14,6 @@ import type { DashboardView } from './api';
 import { band, spread, stack, type Span } from './flow';
 import { percent } from './format';
 import { TableToggle } from '@/components/page/TableToggle';
-import '@/locales/tax';
 
 const SOURCES = [
   { key: 'subscriptions', color: 'var(--chart-1)' },

@@ -5,7 +5,6 @@ import { formatMoney } from '@/components/Money';
 import type { DashboardView } from '../api';
 import { percent } from '../format';
 import { Value } from '../KeyFigures';
-import '@/locales/tax';
 
 const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs', 'tax'] as const;
 
