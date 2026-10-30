@@ -26,12 +26,12 @@ import '@/locales/properties';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 
-const TABS = ['overview', 'rental', 'valuations', 'expenses', 'documents', 'settings'] as const;
+const TABS = ['overview', 'rental', 'expenses', 'valuations', 'documents', 'settings'] as const;
 
 /**
  * 3D1 design §6, redesign §5.2–5.3: a property as a tabbed page. Under the title, its figures today (and the rental ones
- * when it is rented); the overview adds the real cost's detail and the linked loans; then the rental, the estimates, the
- * expenses (flows and planned charges) and the settings. Estimating is the header's action: its dialog, its announcement
+ * when it is rented); the overview adds the real cost's detail and the linked loans; then the rental (only for a rental or
+ * a property with a tenancy), the expenses (flows and planned charges), the estimates, the documents and the settings. Estimating is the header's action: its dialog, its announcement
  * and the focus it returns to are the page's; every other table owns its dialog.
  */
 export function PropertyDetailPage() {
@@ -61,7 +61,8 @@ export function PropertyDetailPage() {
   }
   if (!property) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
-  const shown = property.canWrite || tab !== 'settings' ? tab : 'overview';
+  const rented = property.type === 'rental' || property.tenancies.length > 0;
+  const shown = (tab === 'settings' && !property.canWrite) || (tab === 'rental' && !rented) ? 'overview' : tab;
   const actions = property.canWrite ? (
     <Button ref={estimateRef} type="button" onClick={() => { setAnnouncement(''); setEstimating(true); }}>
       <Plus aria-hidden="true" />{t('property_valuations.add')}
@@ -111,9 +112,9 @@ export function PropertyDetailPage() {
             </>
           ),
         },
-        { id: 'rental', label: t('property_detail.tab.rental'), content: <RentalSection property={property} /> },
-        { id: 'valuations', label: t('property_detail.tab.valuations'), content: <ValuationsSection property={property} /> },
+        ...(rented ? [{ id: 'rental' as const, label: t('property_detail.tab.rental'), content: <RentalSection property={property} /> }] : []),
         { id: 'expenses', label: t('property_detail.tab.expenses'), content: <><FlowsSection property={property} /><CostsSection property={property} /></> },
+        { id: 'valuations', label: t('property_detail.tab.valuations'), content: <ValuationsSection property={property} /> },
         { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={property.id} canWrite={property.canWrite} defaultRole="deed" /> },
         ...(property.canWrite ? [{ id: 'settings' as const, label: t('property_detail.tab.settings'), content: <SettingsSection property={property} />, action: <SettingsSubmit /> }] : []),
       ]} />

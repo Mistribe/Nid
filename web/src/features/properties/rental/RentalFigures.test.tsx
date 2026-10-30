@@ -7,8 +7,9 @@ import { server } from '@/test/server';
 import type { PropertyDetail } from '../api';
 import { PROPERTY, propertyDetail, rentedFigures } from '../testData';
 
+// « Location » shows for a rental only.
 function serve(detail: PropertyDetail) {
-  server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(detail)));
+  server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ ...detail, type: 'rental' })));
 }
 
 const heading = () => screen.findByRole('heading', { name: 'Maison de Nantes', level: 1 });

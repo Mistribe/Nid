@@ -3,9 +3,10 @@ import { fillDate, pick } from './controls';
 import { signIn } from './session';
 
 /** README §12's purchase through the form — 250 000 € and 19 000 € of notary fees on 2020-06-15 —, landing on its detail. */
-async function createProperty(page: Page, name: string, visibility: 'Oui, partagé' | 'Non, privé'): Promise<string> {
+async function createProperty(page: Page, name: string, visibility: 'Oui, partagé' | 'Non, privé', type?: 'Bien locatif'): Promise<string> {
   await page.goto('/properties/new');
   await page.getByLabel('Nom', { exact: true }).fill(name);
+  if (type) await pick(page, 'Type de bien', type);
   await page.getByRole('radio', { name: visibility }).click();
   await page.getByRole('button', { name: 'Continuer' }).click();
   await fillDate(page, 'Date d’achat', '2020-06-15');
@@ -83,7 +84,8 @@ test('alice records a shared property, its estimate, its works and her loan; bob
 test('alice lets her property: a tenancy under way, a yearly property tax, and its gross yield over twelve rents', async ({ page }) => {
   const stamp = Date.now();
   await signIn(page, 'alice', '/properties');
-  await createProperty(page, `Locatif ${stamp}`, 'Oui, partagé');
+  // « Location » shows for a rental: the lease is added from it.
+  await createProperty(page, `Locatif ${stamp}`, 'Oui, partagé', 'Bien locatif');
   const id = new URL(page.url()).pathname.split('/').pop()!;
   const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
   const record = async (data: object) => {

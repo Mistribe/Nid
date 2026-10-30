@@ -147,8 +147,27 @@ describe('PropertyDetailPage', () => {
     expect(await within(await screen.findByRole('region', { name: 'Crédits liés' })).findByText('Aucun crédit lié')).toBeInTheDocument();
   });
 
+  it('orders the tabs, « Location » only for a rental or a property with a tenancy', async () => {
+    serve(propertyDetail());
+    await renderApp(`/properties/${PROPERTY}?tab=rental`);
+
+    await heading();
+    const names = () => screen.getAllByRole('tab').map((x) => x.textContent);
+    expect(names()).toEqual(['Vue d’ensemble', 'Dépenses', 'Estimations', 'Documents', 'Réglages']);
+    expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('shows « Location » after the overview for a rental', async () => {
+    serve(propertyDetail({ type: 'rental' }));
+    await renderApp(`/properties/${PROPERTY}`);
+
+    await heading();
+    expect(screen.getAllByRole('tab').map((x) => x.textContent))
+      .toEqual(['Vue d’ensemble', 'Location', 'Dépenses', 'Estimations', 'Documents', 'Réglages']);
+  });
+
   it('a reader sees no write action, nor the settings tab, and is told the page is read-only', async () => {
-    serve(propertyDetail({ canWrite: false, visibility: 'shared' }));
+    serve(propertyDetail({ type: 'rental', canWrite: false, visibility: 'shared' }));
     const { container, user } = await renderApp(`/properties/${PROPERTY}`);
 
     await heading();
@@ -196,7 +215,7 @@ describe('PropertyDetailPage', () => {
   });
 
   it('adds a lease, a flow and a planned charge in dialogs', async () => {
-    const current = propertyDetail();
+    const current = propertyDetail({ type: 'rental' });
     const sent: { path: string; body: Record<string, unknown> }[] = [];
     const record = (path: string) => async ({ request }: { request: Request }) => {
       sent.push({ path, body: (await request.json()) as Record<string, unknown> });

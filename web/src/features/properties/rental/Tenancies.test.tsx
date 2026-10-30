@@ -24,7 +24,8 @@ const OPEN = '9999-12-31';
  * two tenancies never overlap, [start, end), answered `422 realestate.tenancy_overlap` at `startsOn`; `current` covers today.
  */
 function serve(initial: PropertyDetail = propertyDetail({ figures: rentedFigures(), tenancies: [ENDED, tenancy()] })) {
-  let current = initial;
+  // « Location » shows for a rental only.
+  let current: PropertyDetail = { ...initial, type: 'rental' };
   let next = 3;
   const reads = { detail: 0 };
   const sent: { method: string; url: string; body?: Body }[] = [];
