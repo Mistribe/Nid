@@ -393,7 +393,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 | **Propriétés** (FsCheck) | Invariants : phases sans chevauchement, couverture contiguë, somme des coûts amortis = base de coût, capital restant dû final = 0, capital + intérêts = somme des mensualités. |
 | **Cas dorés** | Tableaux d'amortissement réels de la banque, exemples de `subscription-data-model.md`, reprise du JSON existant avec ses anomalies connues. |
 | **Intégration** | Testcontainers Postgres : handlers, migrations, `IAccessPolicy` (matrice privé / partagé / multi-propriétaires × lecture / écriture). Un projet `tests/Nid.<Module>.IntegrationTests` par module, contre l'hôte réel (`NidApp` et les helpers d'API partagés, dans `Nid.TestSupport`) ; `Nid.Host.IntegrationTests` garde ce qui traverse les modules : import et export, MCP, administration, audit, banc anti-fuite. Chaque projet démarre son propre conteneur Postgres : la suite complète se lance un projet à la fois (`dotnet test Nid.slnx -m:1`), en parallèle les conteneurs saturent Docker et les requêtes expirent. |
-| **Banc anti-fuite** | Jeu de données mixte, toutes les requêtes exécutées en tant que chaque adulte, tests de propriétés sur `Readers` / `Writers`, test de la garde de sortie. Bloquant en CI (`identity-and-access/access-tests.md`). |
+| **Banc anti-fuite** | Jeu de données mixte, toutes les requêtes exécutées en tant que chaque adulte, tests de propriétés sur `Readers` / `Writers`, test de la garde de sortie. Lancé chaque semaine avec les tests d'intégration (`e2e.yml`, `identity-and-access/access-tests.md`). |
 | **Sécurité** | SSRF du `SafeHttpClient`, injection de formules CSV, uploads, import malveillant, corpus de PDF piégés, égress des workers, politique de la passerelle LLM (offres inéligibles, consentement, budget), clés jamais exposées (`security/ai-ingestion.md` §7, `security/application.md` §9). |
 | **Frontend** | Lint (dont l'interdiction d'arithmétique sur les montants), tests de composants, E2E avec un Pocket ID de test (sessions ouvertes par son API, `frontend/testing.md`), accessibilité, contraste de tous les thèmes, validation de la palette de graphiques, budgets de taille (`frontend/testing.md`). |
 | **Contrats** | Schémas de jobs validés avec des exemples ; chaque type de job possède un schéma d'entrée et de sortie. |
@@ -420,7 +420,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 /tests/…
 ```
 
-- CI : build, tests (unitaires, propriétés, architecture, intégration), génération du client OpenAPI et contrôle qu'il est à jour, analyse des images.
+- CI : à chaque pull request, build, tests rapides (unitaires, propriétés, architecture, vitest), génération du client OpenAPI et contrôle qu'il est à jour ; chaque semaine (`e2e.yml`), tests d'intégration et parcours Playwright.
 - **ADR** dans `docs/adr/` : une décision structurante par fichier (stack, monolithe modulaire, OIDC, workers par table de jobs, registre `Item` central…), pour rendre les décisions de ce document traçables.
 
 ## 15. PWA et notifications

@@ -1,9 +1,8 @@
 name: ci
 
 # The monthly Actions minutes are the budget (1000), so each commit is paid for once:
-#  - a pull request builds the solution and checks the web app (`build`, `web`), with no test but the module boundaries and the
-#    handler attributes (seconds): the .NET suite alone was about 25 minutes. Tests run on the developer's machine
-#    (`dotnet test Nid.slnx -m:1`, `pnpm --dir web test`);
+#  - a pull request builds the solution, runs the fast tests and checks the web app (`build`, `web`): the .NET unit tests, the
+#    handler attributes and vitest (about two minutes, no Docker). The integration tests, about 25 minutes, are in e2e.yml;
 #  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
 #    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
 #    acted on. The smoke test and the backup test (`deploy/smoke.sh`, `deploy/backup-smoke.sh`) run on the developer's machine;
@@ -36,10 +35,17 @@ jobs:
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: global.json
-      # Every project, the test projects included: they are compiled, not run.
+      # Every project, the integration test projects included: they are compiled here, run in e2e.yml.
       - run: dotnet build Nid.slnx --configuration Release
-      # The module boundaries (architecture.md §5.1), read from the csproj references: cheap enough to run here.
-      - run: dotnet test tests/Nid.Platform.Tests --configuration Release --no-build --filter "FullyQualifiedName~ModuleBoundaryTests"
+      # The unit test projects (the module boundaries, architecture.md §5.1, are among them): no database, no Docker. Every project
+      # runs, so that one failure does not hide the next.
+      - name: Unit tests
+        run: |
+          status=0
+          for project in tests/*.Tests; do
+            dotnet test "$project" --configuration Release --no-build || status=1
+          done
+          exit $status
       # Every Synapse handler carries the attribute the generator registers it from (architecture.md §13): reflection, no database.
       - run: dotnet test tests/Nid.Host.IntegrationTests --configuration Release --no-build --filter "FullyQualifiedName~HandlerAttributeTests"
 
@@ -63,11 +69,8 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile
       - run: pnpm --dir web check:api
-      # `pnpm check` minus its test step (vitest).
-      - run: pnpm --dir web typecheck
-      - run: pnpm --dir web lint
-      - run: pnpm --dir web build
-      - run: pnpm --dir web budget
+      # Typecheck, lint, vitest, build, budget.
+      - run: pnpm --dir web check
 
 
   # Release: build the three images, push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:

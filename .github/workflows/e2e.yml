@@ -3,6 +3,8 @@ name: e2e
 # The full Playwright journeys against the reference compose. They were most of the time of the `images` job in ci.yml, which
 # now runs one journey only (NID_JOURNEYS=sample). The cost, stated plainly: a browser regression is found by a scheduled run
 # up to a week after it landed, not by the push that caused it. `gh workflow run e2e.yml` gives a verdict on demand.
+#
+# The integration tests run here too, for the same reason and at the same cost: about 25 minutes against the budget in ci.yml.
 on:
   schedule:
     - cron: '0 4 * * 1'
@@ -32,8 +34,29 @@ jobs:
           # Dispatched by hand: you already decided it is worth the time.
           if [ "$EVENT" = "workflow_dispatch" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           # Eight days against a seven-day cron: the windows overlap by one, so no commit falls between two runs.
-          commits=$(git log --since='8 days ago' --format=%H -- src web deploy Directory.Build.props Directory.Packages.props global.json)
+          commits=$(git log --since='8 days ago' --format=%H -- src web deploy tests Directory.Build.props Directory.Packages.props global.json)
           if [ -n "$commits" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+
+  # Testcontainers needs the runner's Docker. One project at a time (`dotnet test Nid.slnx -m:1`), every project whatever the last
+  # one did.
+  integration:
+    needs: gate
+    if: needs.gate.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - run: dotnet build Nid.slnx --configuration Release
+      - name: Integration tests
+        run: |
+          status=0
+          for project in tests/*.IntegrationTests; do
+            dotnet test "$project" --configuration Release --no-build || status=1
+          done
+          exit $status
 
   journeys:
     needs: gate
