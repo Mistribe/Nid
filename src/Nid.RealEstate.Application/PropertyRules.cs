@@ -17,8 +17,8 @@ internal static class PropertyRules
     /// <summary>Spec 3C2 §2: a planned cost comes every 1 to 120 months or years.</summary>
     public const int EveryCountMax = 120;
 
-    /// <summary>Spec 3C2 §2: an expense category of the property without <c>works</c>, already in the cost price, nor <c>management_fees</c> (not in the table's check).</summary>
-    public static readonly IReadOnlyList<string> RecurringCategories = PropertyCategories.Expense.Where(c => c is not (PropertyCategories.Works or PropertyCategories.ManagementFees)).ToList();
+    /// <summary>Spec 3C2 §2: an expense category of the property without <c>works</c>, already in the cost price.</summary>
+    public static readonly IReadOnlyList<string> RecurringCategories = PropertyCategories.Expense.Where(c => c is not PropertyCategories.Works).ToList();
 
     /// <summary>1 to 100 characters after trimming, stored as sent (as a loan's name).</summary>
     public static Failure? Name(string? name)

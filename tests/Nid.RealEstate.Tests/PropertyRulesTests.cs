@@ -76,9 +76,9 @@ public class PropertyRulesTests
     }
 
     [Fact]
-    public void A_planned_cost_has_neither_works_nor_management_fees() // the DB check ck_property_recurring_cost_category has no management_fees
+    public void A_planned_cost_can_be_management_fees_but_not_works()
     {
-        Assert.DoesNotContain("management_fees", PropertyRules.RecurringCategories);
+        Assert.Contains("management_fees", PropertyRules.RecurringCategories);
         Assert.DoesNotContain("works", PropertyRules.RecurringCategories);
     }
 

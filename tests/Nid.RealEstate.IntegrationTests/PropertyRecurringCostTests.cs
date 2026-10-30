@@ -60,6 +60,19 @@ public class PropertyRecurringCostTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task A_recurring_cost_can_be_the_agencys_management_fees()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app));
+
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{id}/recurring-costs", new
+        {
+            category = "management_fees", amount = "64.78", every = new { count = 1, unit = "month" }, startsOn = "2026-01-31",
+        }));
+        Assert.Equal("management_fees", S(Only(await PropertyAsync(app, id), "recurringCosts"), "category"));
+    }
+
+    [Fact]
     public async Task Each_recurring_cost_refusal_answers_at_its_field()
     {
         await using var app = await NidApp.StartAsync(fixture);

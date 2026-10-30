@@ -131,7 +131,7 @@ describe('recurring costs', () => {
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter une charge prévue' }));
     const form = within(await screen.findByRole('dialog', { name: 'Nouvelle charge prévue' }));
     await waitFor(() => expect(form.getByRole('combobox', { name: 'Catégorie' })).toHaveFocus());
-    expect(await choices(user, 'Catégorie')).toEqual(['Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Autre']);
+    expect(await choices(user, 'Catégorie')).toEqual(['Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Frais de gestion', 'Autre']);
     expect(await choices(user, 'Unité')).toEqual(['mois', 'an(s)']);
     expect(form.getByRole('combobox', { name: 'Catégorie' })).toHaveTextContent('Taxe foncière');
     expect(form.getByLabelText('Tous les')).toHaveValue('1');

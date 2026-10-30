@@ -166,7 +166,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             e.ToTable("property_recurring_cost", t =>
             {
                 t.HasCheckConstraint("ck_property_recurring_cost_category",
-                    "category in ('property_tax','condo_fees','insurance','energy','maintenance','other')");
+                    "category in ('property_tax','condo_fees','insurance','energy','maintenance','management_fees','other')");
                 t.HasCheckConstraint("ck_property_recurring_cost_amount", "amount > 0");
                 t.HasCheckConstraint("ck_property_recurring_cost_every", "every_count between 1 and 120 and every_unit in ('month','year')");
                 t.HasCheckConstraint("ck_property_recurring_cost_dates", "ends_on is null or ends_on > starts_on");

@@ -62,7 +62,7 @@ Convention du module pour le champ `category` des flux du Core :
 |---|---|---|
 | `expense` | `works` | Entre dans le **prix de revient** et dans le coût réel |
 | `expense` | `property_tax`, `condo_fees`, `insurance`, `energy`, `maintenance`, `other` | Entrent dans le coût réel |
-| `expense` | `management_fees` | Frais de gestion (ligne 221 de la 2044) ; entrent dans le coût réel, jamais une charge prévue |
+| `expense` | `management_fees` | Frais de gestion (ligne 221 de la 2044) ; entrent dans le coût réel |
 | `income` | `rent`, `other_income` | Hors coût réel ; servent au coût net et au rendement |
 | `income` | `recoverable_charges` | Charges locatives, enregistrées à part du loyer par la routine ; hors coût réel |
 
@@ -75,7 +75,7 @@ Ce sont des **prévisions**. Elles alimentent les engagements du tableau de bord
 | Champ | Type | Remarques |
 |---|---|---|
 | `id`, `property_item_id` | uuid | |
-| `category` | text | `property_tax`, `condo_fees`, `insurance`, `energy`, `maintenance`, `other` |
+| `category` | text | `property_tax`, `condo_fees`, `insurance`, `energy`, `maintenance`, `management_fees`, `other` |
 | `amount` | numeric(19,4) | > 0 |
 | `every` | durée | **Mois ou année seulement** |
 | `starts_on`, `ends_on?` | date | Intervalle semi-ouvert |

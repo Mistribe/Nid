@@ -736,7 +736,7 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_property_recurring_cost_amount", "amount > 0");
 
-                            t.HasCheckConstraint("ck_property_recurring_cost_category", "category in ('property_tax','condo_fees','insurance','energy','maintenance','other')");
+                            t.HasCheckConstraint("ck_property_recurring_cost_category", "category in ('property_tax','condo_fees','insurance','energy','maintenance','management_fees','other')");
 
                             t.HasCheckConstraint("ck_property_recurring_cost_dates", "ends_on is null or ends_on > starts_on");
 

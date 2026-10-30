@@ -16,7 +16,7 @@ export const CATEGORIES = {
 } as const;
 const WARNINGS = ['no_valuation', 'valuation_stale', 'loan_other_currency', 'fx_missing', 'visibility_mismatch', 'rental_without_tenancy'] as const;
 /** A planned cost's categories (3C2 §2): the expense ones but works, already in the cost price, in the server's order. */
-export const RECURRING_CATEGORIES = ['property_tax', 'condo_fees', 'insurance', 'energy', 'maintenance', 'other'] as const;
+export const RECURRING_CATEGORIES = ['property_tax', 'condo_fees', 'insurance', 'energy', 'maintenance', 'management_fees', 'other'] as const;
 /** A planned cost comes every few months or years (3C2 §2). */
 export const EVERY_UNITS = ['month', 'year'] as const;
 
