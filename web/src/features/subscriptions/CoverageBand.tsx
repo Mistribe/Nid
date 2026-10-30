@@ -4,6 +4,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Coverage } from './api';
 import { lastDay, sourceText } from './format';
+import '@/locales/subscriptions';
 
 const WIDTH = 1000;
 const HEIGHT = 40;

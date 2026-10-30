@@ -2,6 +2,7 @@ import type { Path } from 'react-hook-form';
 import type { components } from '@/api/schema';
 import { toWireAmount } from '../edits/amount';
 import type { Unit, WizardValues } from './schema';
+import '@/locales/subscriptions';
 
 type PhaseInput = components['schemas']['PhaseInput'];
 type PurchaseInput = components['schemas']['PurchaseInput'];

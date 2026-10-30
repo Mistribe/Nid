@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import type { components } from '@/api/schema';
 import type { Access } from '@/components/AccessBadge';
 import type { Detail } from './api';
+import '@/locales/subscriptions';
 
 type Person = components['schemas']['PersonDto'];
 type Duration = components['schemas']['DurationView'];

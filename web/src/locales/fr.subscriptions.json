@@ -1,0 +1,62 @@
+{
+  "subscription": {
+    "back": "Retour aux abonnements",
+    "next_charge": "Prochaine échéance",
+    "expires": "Expiration",
+    "col_grants": "Temps accordé",
+    "col_label": "Libellé",
+    "col_actions": "Actions",
+    "costs": "Coûts du mois",
+    "cash": "Prélevé ce mois-ci",
+    "amortized": "Coût mensuel réel",
+    "no_next_charge": "Aucune échéance prévue",
+    "coverage": "Couverture",
+    "charges": "Paiements",
+    "phases": "Tarifs",
+    "purchases": "Achats",
+    "no_purchases": "Aucun achat.",
+    "free_days_one": "{{count}} jour offert",
+    "free_days_other": "{{count}} jours offerts",
+    "findings": "Points à vérifier",
+    "projected": "prévu",
+    "past": "passé",
+    "ongoing": "en cours",
+    "col_start": "Début",
+    "col_end": "Fin",
+    "col_price": "Prix",
+    "col_every": "Période",
+    "col_payer": "Payeur",
+    "col_date": "Date",
+    "col_amount": "Montant",
+    "col_state": "État",
+    "grant": "Couvre {{duration}}",
+    "grant_elsewhere": "Couvre {{duration}} sur un autre abonnement",
+    "loading": "Chargement de l'abonnement"
+  },
+  "coverage": {
+    "legend": "Légende",
+    "table": "Périodes couvertes",
+    "none": "Aucune période couverte.",
+    "segment": "{{source}} du {{start}} au {{end}}",
+    "col_source": "Origine",
+    "source": {
+      "paid": "Payé",
+      "bonus": "Mois offerts",
+      "included": "Inclus",
+      "trial": "Essai",
+      "gift": "Offert"
+    }
+  },
+  "purchase_kind": {
+    "prepaid_term": "Prépayé",
+    "bundle": "Offre groupée",
+    "gift": "Carte cadeau",
+    "adjustment": "Ajustement",
+    "refund": "Remboursement"
+  },
+  "payer": {
+    "household": "Le foyer",
+    "external": "Quelqu'un d'extérieur",
+    "person": "{{name}}"
+  }
+}

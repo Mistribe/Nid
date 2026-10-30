@@ -26,6 +26,7 @@ import { accessOf, durationText, kindText, payerText } from './format';
 import '@/locales/forms';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
+import '@/locales/subscriptions';
 
 /**
  * 1E2a design §4, redesign §5.3: one page without tabs. Under the title the costs and the next charge; the findings in a
