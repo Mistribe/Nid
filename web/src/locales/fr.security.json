@@ -17,6 +17,7 @@
     "token_revoked": "Jeton révoqué",
     "token_auth_failed": "Jeton refusé",
     "mcp_tool_called": "Lecture par l’assistant",
+    "bank_statement_imported": "Relevé bancaire importé",
     "unknown": "Événement {{name}}"
   }
 }

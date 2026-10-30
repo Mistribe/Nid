@@ -16,6 +16,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<BalanceRow> Balances => Set<BalanceRow>();
 
+    public DbSet<TransactionRow> Transactions => Set<TransactionRow>();
+
     public DbSet<SyncRunRow> SyncRuns => Set<SyncRunRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -27,12 +29,14 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.ToTable("connection", t =>
             {
                 t.HasCheckConstraint("ck_connection_status", "status in ('pending','active','expired','revoked','error')");
-                t.HasCheckConstraint("ck_connection_source", "source in ('enable_banking')");
+                t.HasCheckConstraint("ck_connection_source", "source in ('enable_banking','file')");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             // The person lives in core: no foreign key across contexts.
             e.HasIndex(x => x.PersonId);
+            // The accounts a person imports from files hang off one connection of theirs.
+            e.HasIndex(x => new { x.PersonId, x.Source }).IsUnique().HasFilter("source = 'file'");
             e.HasIndex(x => x.StateHash).IsUnique();
             MapXmin(e.Property(x => x.Version));
         });
@@ -72,6 +76,23 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<TransactionRow>(e =>
+        {
+            e.ToTable("transaction", t =>
+            {
+                t.HasCheckConstraint("ck_transaction_link_state", "link_state in ('unlinked','linked','ignored','internal')");
+                t.HasCheckConstraint("ck_transaction_fetched_via", "fetched_via in ('api','file')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasColumnType("char(3)");
+            e.HasIndex(x => new { x.AccountId, x.ProviderRef }).IsUnique();
+            e.HasIndex(x => new { x.AccountId, x.Fingerprint }).IsUnique();
+            e.HasIndex(x => new { x.AccountId, x.BookedOn });
+            e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<SyncRunRow>(e =>
         {
             e.ToTable("sync_run", t =>
@@ -81,6 +102,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Transactions).HasDefaultValue(0);
             // At most one running row, as investments.price_run: a second start fails on this index.
             e.HasIndex(x => x.Outcome).IsUnique().HasFilter("outcome = 'running'");
             e.HasIndex(x => x.StartedAt);

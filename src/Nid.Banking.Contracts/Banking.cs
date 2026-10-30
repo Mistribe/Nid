@@ -32,3 +32,20 @@ public sealed record BankBalance(Guid Account, LocalDate AsOf, decimal Amount, s
 /// sessions; <paramref name="CashAccountType"/> is the ISO 20022 code (<c>CACC</c>, <c>SVGS</c>, <c>CARD</c>…).
 /// </summary>
 public sealed record SessionAccount(string Uid, string IdentificationHash, string? Iban, string Name, string CashAccountType, string Currency);
+
+/// <summary>Where a bank transaction stands against the household's own records; <c>Unlinked</c> in 5B, the others are 5C's.</summary>
+public enum TransactionLinkState { Unlinked, Linked, Ignored, Internal }
+
+/// <summary>A booked line as read from the bank or a statement file (spec §2.5); <paramref name="FetchedVia"/> is <c>api</c> or <c>file</c>.</summary>
+/// <param name="ProviderRef">The source's own id (<c>entry_reference</c>, FITID, AcctSvcrRef); the fingerprint stands in when it has none.</param>
+public sealed record NewBankTransaction(
+    string? ProviderRef, LocalDate BookedOn, LocalDate? ValueOn, decimal Amount, Currency Currency,
+    string Label, string? Counterparty, string? Remittance, string FetchedVia);
+
+/// <summary>A stored booked transaction, signed (debit negative); <paramref name="NormalizedLabel"/> is what rules and fingerprints read.</summary>
+public sealed record BankTransaction(
+    Guid Id, Guid Account, string ProviderRef, string Fingerprint, LocalDate BookedOn, LocalDate? ValueOn,
+    decimal Amount, Currency Currency, string Label, string? Counterparty, string? Remittance, string NormalizedLabel,
+    TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt);
+
+public sealed record TransactionWrite(int Added, int Known);

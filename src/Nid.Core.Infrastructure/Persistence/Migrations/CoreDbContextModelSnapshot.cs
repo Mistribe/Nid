@@ -269,6 +269,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("allocation_target");
 
+                    b.Property<int?>("BankRetentionMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("bank_retention_months");
+
                     b.Property<bool>("BankingEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -326,6 +330,8 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.ToTable("household_settings", "core", t =>
                         {
+                            t.HasCheckConstraint("ck_household_settings_bank_retention", "bank_retention_months between 1 and 600");
+
                             t.HasCheckConstraint("ck_household_settings_max_adults", "max_adults >= 1");
 
                             t.HasCheckConstraint("ck_household_settings_single_row", "id = 1");

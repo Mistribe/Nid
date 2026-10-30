@@ -11,11 +11,9 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import type { EnvelopeSummary } from '../../investments/api';
 import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
-import { ACCOUNT, ACCOUNTS, bankErrorText, CONNECTIONS, type BankAccount } from './api';
+import { ACCOUNT, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from './api';
 import '@/locales/banks';
 
-/** The envelope kinds a bank account goes with (the server refuses any other, `banking.envelope_kind`). */
-const ASSOCIABLE = ['checking', 'savings', 'other'];
 /** Refusals about the envelope that come as a conflict or a plain 422, not on a field: shown on it all the same. */
 const ON_ENVELOPE = ['banking.envelope_taken', 'banking.envelope_kind'];
 

@@ -5,6 +5,7 @@ const KNOWN = new Set([
   'login', 'logout', 'login_refused', 'access_denied', 'access_violation', 'person_preregistered',
   'person_preregistration_cancelled', 'admin_granted', 'admin_revoked', 'session_revoked', 'household_settings_changed',
   'admin_command', 'subject_rebound', 'token_created', 'token_revoked', 'token_auth_failed', 'mcp_tool_called',
+  'bank_statement_imported',
 ]);
 
 /** The one place an event gets its name for people (1F3a spec §7). */

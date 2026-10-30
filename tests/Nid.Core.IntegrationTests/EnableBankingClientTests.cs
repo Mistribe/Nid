@@ -18,22 +18,23 @@ public class EnableBankingClientTests
 
     private sealed record Seen(HttpMethod Method, Uri Url, HttpRequestHeaders Headers, string Body);
 
-    private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
+    /// <summary>Answers with each body in turn, the last one again after that.</summary>
+    private sealed class StubHandler(HttpStatusCode status, params string[] bodies) : HttpMessageHandler
     {
         public List<Seen> Requests { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests.Add(new Seen(request.Method, request.RequestUri!, request.Headers, request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken)));
-            return new HttpResponseMessage(status) { Content = new StringContent(body) };
+            return new HttpResponseMessage(status) { Content = new StringContent(bodies[Math.Min(Requests.Count, bodies.Length) - 1]) };
         }
     }
 
     private static string Vector(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "vectors", "enablebanking", name));
 
-    private static (EnableBankingClient Client, StubHandler Handler) Client(HttpStatusCode status, string body, string? key = null)
+    private static (EnableBankingClient Client, StubHandler Handler) Client(HttpStatusCode status, string body, string? key = null, string? second = null)
     {
-        var handler = new StubHandler(status, body);
+        var handler = new StubHandler(status, second is null ? [body] : [body, second]);
         using var rsa = RSA.Create(2048);
         var http = new SafeHttpClient(new HttpMessageInvoker(handler), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance);
         return (new EnableBankingClient(http, new BankingOptions { PrivateKey = key ?? rsa.ExportPkcs8PrivateKeyPem() }, new FixedClock(Now)), handler);
@@ -124,6 +125,58 @@ public class EnableBankingClientTests
         }
 
         Assert.Equal("https://api.enablebanking.com/accounts/3e0b5f58-52f1-4a1c-9b0e-0a8c8d9d1f01/balances", handler.Requests.Single().Url.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task Transactions_read_every_page_keep_booked_lines_and_sign_the_amount()
+    {
+        var (client, handler) = Client(HttpStatusCode.OK, Vector("transactions-page1.json"), second: Vector("transactions-page2.json"));
+
+        var lines = Ok(await client.TransactionsAsync("app", "sess", "uid-1", new LocalDate(2026, 10, 1), null, default)).Lines;
+
+        Assert.Equal(
+        [
+            new ProviderTransaction("ref-1", new LocalDate(2026, 10, 27), new LocalDate(2026, 10, 28), -13.49m, "EUR", "PRLV SEPA NETFLIX OCT 2026", "NETFLIX INTERNATIONAL", "PRLV SEPA NETFLIX OCT 2026"),
+            new ProviderTransaction("ref-2", new LocalDate(2026, 10, 26), null, 1500.00m, "EUR", "ACME SAS", "ACME SAS", null),
+            // No booking date: the value date stands in; no remittance nor party: the code's description.
+            new ProviderTransaction("ref-3", new LocalDate(2026, 10, 20), new LocalDate(2026, 10, 20), -2.50m, "EUR", "Frais", null, null),
+        ], lines);
+        Assert.Equal(["https://api.enablebanking.com/accounts/uid-1/transactions?date_from=2026-10-01",
+            "https://api.enablebanking.com/accounts/uid-1/transactions?date_from=2026-10-01&continuation_key=page-2-key"], handler.Requests.Select(r => r.Url.AbsoluteUri));
+    }
+
+    [Fact]
+    public async Task Transactions_without_a_start_date_send_none_and_a_line_without_any_label_gets_the_placeholder()
+    {
+        var (client, handler) = Client(HttpStatusCode.OK,
+            """{"transactions":[{"transaction_amount":{"currency":"EUR","amount":"1"},"credit_debit_indicator":"CRDT","status":"BOOK","booking_date":"2026-10-01"}]}""");
+
+        var lines = Ok(await client.TransactionsAsync("app", "s", "u", null, null, default)).Lines;
+
+        Assert.Equal("(sans libellé)", Assert.Single(lines).Label);
+        Assert.Equal("https://api.enablebanking.com/accounts/u/transactions", handler.Requests.Single().Url.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task A_debit_is_negative_and_a_credit_positive_whatever_sign_the_bank_sent()
+    {
+        var (client, _) = Client(HttpStatusCode.OK, """
+            {"transactions":[
+              {"transaction_amount":{"currency":"EUR","amount":"-5.00"},"credit_debit_indicator":"DBIT","status":"BOOK","booking_date":"2026-10-01"},
+              {"transaction_amount":{"currency":"EUR","amount":"-7.00"},"credit_debit_indicator":"CRDT","status":"BOOK","booking_date":"2026-10-01"}]}
+            """);
+
+        Assert.Equal([-5.00m, 7.00m], Ok(await client.TransactionsAsync("app", "s", "u", null, null, default)).Lines.Select(t => t.Amount));
+    }
+
+    [Fact]
+    public async Task Transactions_stop_at_fifty_pages()
+    {
+        var (client, handler) = Client(HttpStatusCode.OK, """{"transactions":[],"continuation_key":"again"}""");
+
+        var read = Ok(await client.TransactionsAsync("app", "s", "u", null, null, default));
+        Assert.Equal((0, true), (read.Lines.Count, read.Truncated));
+        Assert.Equal(EnableBankingClient.MaxPages, handler.Requests.Count);
     }
 
     [Fact]

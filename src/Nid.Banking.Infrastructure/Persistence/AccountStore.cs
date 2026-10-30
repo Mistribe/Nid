@@ -22,7 +22,7 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
         var result = new List<BankAccount>(accounts.Count);
         foreach (var seen in accounts)
         {
-            var iban = seen.Iban is null ? null : string.Concat(seen.Iban.Where(c => !char.IsWhiteSpace(c))).ToUpperInvariant();
+            var iban = Compact(seen.Iban);
             var ibanHash = iban is null ? null : SHA256.HashData(Encoding.UTF8.GetBytes(iban));
 
             var row = ibanHash is null ? null : await db.Accounts.SingleOrDefaultAsync(a => a.IbanHash == ibanHash, ct);
@@ -67,6 +67,51 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
 
     public async Task<BankAccount?> FindAsync(Guid id, CancellationToken ct)
         => await db.Accounts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id, ct) is { } row ? ToAccount(row) : null;
+
+    public async Task<BankAccount?> FindFromFileAsync(string? iban, string accountId, CancellationToken ct)
+    {
+        var (ibanHash, identification) = FileKeys(iban, accountId);
+        var row = ibanHash is null
+            ? await db.Accounts.AsNoTracking().FirstOrDefaultAsync(a => db.Sources.Any(s => s.AccountId == a.Id && s.IdentificationHash == identification), ct)
+            : await db.Accounts.AsNoTracking().SingleOrDefaultAsync(a => a.IbanHash == ibanHash, ct);
+        return row is null ? null : ToAccount(row);
+    }
+
+    public async Task<BankAccount> UpsertFromFileAsync(
+        Guid fileConnection, string? iban, string accountId, string currency, string name, CancellationToken ct,
+        BankAccountKind kind = BankAccountKind.Checking, string? ibanLast4 = null)
+    {
+        if (await FindFromFileAsync(iban, accountId, ct) is { } found)
+            return found;
+
+        var (ibanHash, identification) = FileKeys(iban, accountId);
+        var compact = Compact(iban);
+        var creator = await db.Connections.Where(c => c.Id == fileConnection).Select(c => c.PersonId).SingleAsync(ct);
+        var row = new AccountRow
+        {
+            Id = Guid.CreateVersion7(), IbanHash = ibanHash, IbanMasked = compact?[^Math.Min(4, compact.Length)..] ?? ibanLast4, Name = name,
+            Kind = Wire(kind), Currency = currency, CreatedByPersonId = creator,
+        };
+        db.Accounts.Add(row);
+        db.Sources.Add(new AccountSourceRow { AccountId = row.Id, ConnectionId = fileConnection, ProviderUid = identification, IdentificationHash = identification });
+        await db.SaveChangesAsync(ct);
+        return ToAccount(row);
+    }
+
+    public async Task<bool> ClaimFromFileAsync(Guid account, PersonId person, CancellationToken ct)
+    {
+        var row = await db.Accounts.SingleAsync(a => a.Id == account, ct);
+        var creator = row.CreatedByPersonId;
+        var held = await db.Sources.Where(s => s.AccountId == account)
+            .Join(db.Connections.Where(c => c.PersonId == creator), s => s.ConnectionId, c => c.Id, (_, c) => c.Source)
+            .ToListAsync(ct);
+        if (creator == person.Value || !held.Contains("file") || held.Any(source => source != "file"))
+            return false;
+        // The other adult's balance settings are not the new owner's choice.
+        (row.CreatedByPersonId, row.AutoApplyBalance, row.Ignored) = (person.Value, false, false);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
 
     public async Task<BankAccount?> ForEnvelopeAsync(ItemId envelope, CancellationToken ct)
         => await db.Accounts.AsNoTracking().SingleOrDefaultAsync(a => a.EnvelopeItemId == envelope.Value, ct) is { } row ? ToAccount(row) : null;
@@ -127,6 +172,16 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
         => await db.Accounts.Where(a => a.Id == account).ExecuteUpdateAsync(s => s
             .SetProperty(a => a.LastValuedOn, valuedOn)
             .SetProperty(a => a.BalanceConflictOn, conflictOn), ct);
+
+    private static string? Compact(string? iban) => iban is null ? null : string.Concat(iban.Where(c => !char.IsWhiteSpace(c))).ToUpperInvariant();
+
+    /// <summary>The IBAN's hash as 5A keeps it, and the hex hash of the IBAN or account id that keys a file source.</summary>
+    private static (byte[]? IbanHash, string Identification) FileKeys(string? iban, string accountId)
+    {
+        var compact = Compact(iban);
+        var ibanHash = compact is null ? null : SHA256.HashData(Encoding.UTF8.GetBytes(compact));
+        return (ibanHash, Convert.ToHexStringLower(ibanHash ?? SHA256.HashData(Encoding.UTF8.GetBytes(Compact(accountId)!))));
+    }
 
     private static string Wire(BankAccountKind kind) => kind.ToString().ToLowerInvariant();
 

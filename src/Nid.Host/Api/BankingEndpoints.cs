@@ -1,10 +1,15 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 using Nid.Banking.Application;
+using Nid.Banking.Application.Files;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain.Files;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
 
@@ -72,12 +77,79 @@ public static class BankingEndpoints
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
+        api.MapGet("/envelopes/{envelopeId:guid}/transactions", async (Guid envelopeId, string? from, string? to, int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListBankTransactionsQuery(
+                        new ItemId(envelopeId), OptionalDate(from), OptionalDate(to), page ?? 1), ct))
+                    .ToHttp(transactions => transactions))
+            .Returns<BankTransactionPage>();
+
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SyncMineCommand(body.ConnectionId, new PsuHeaders(
                     http.Connection.RemoteIpAddress?.ToString(), http.Request.Headers.UserAgent is { Count: > 0 } agent ? agent.ToString() : null)), ct))
                 .ToHttp(requested => requested, StatusCodes.Status202Accepted))
             .Returns<BankSyncRequested>(StatusCodes.Status202Accepted);
+
+        // Spec §5.2: multipart/form-data, read by hand as a document upload (the app's own CSRF header, no form binding). confirm=false
+        // previews, writing nothing; the browser sends the same file again with confirm=true.
+        api.MapPost("/statements", async (HttpRequest request, IInvoker invoker, CancellationToken ct) =>
+            {
+                if (!request.HasFormContentType || !request.ContentType!.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, title: "Upload a multipart/form-data body.");
+                var tooLarge = Result.Failure<StatementImportView>(new Failure(BankingCodes.FileTooLarge, "A statement file is at most 5 MiB.", null)).ToHttp(v => v);
+                if (request.ContentLength > StatementReader.MaxBytes + FormSlack)
+                    return tooLarge;
+                if (request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+                    limit.MaxRequestBodySize = StatementReader.MaxBytes + FormSlack;
+
+                IFormCollection form;
+                try
+                {
+                    // Held in memory up to the limit: the file is never stored, not even in a temporary file.
+                    request.HttpContext.Features.Set<IFormFeature>(new FormFeature(request,
+                        new FormOptions { MultipartBodyLengthLimit = StatementReader.MaxBytes, MemoryBufferThreshold = StatementReader.MaxBytes }));
+                    form = await request.ReadFormAsync(ct);
+                }
+                catch (BadHttpRequestException e) when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
+                {
+                    return tooLarge;
+                }
+                catch (InvalidDataException e) when (e.Message.StartsWith("Multipart body length limit", StringComparison.Ordinal))
+                {
+                    return tooLarge;
+                }
+                catch (InvalidDataException)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The multipart body cannot be read.");
+                }
+
+                string? Text(string name) => form.TryGetValue(name, out var v) && v.Count > 0 ? v.ToString() : null;
+                if (form.Files.GetFile("file") is not { } file)
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The file part is required.");
+                if (file.Length > StatementReader.MaxBytes)
+                    return tooLarge;
+                Guid? envelopeId = null;
+                if (Text("envelopeId") is { } rawEnvelope)
+                {
+                    if (!Guid.TryParse(rawEnvelope, out var parsed))
+                        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The envelopeId is not a valid identifier.");
+                    envelopeId = parsed;
+                }
+                bool? Flag(string name) => Text(name) is not { } raw ? false : bool.TryParse(raw, out var value) ? value : null;
+                if (Flag("confirm") is not { } confirm || Flag("keepProbablyKnown") is not { } keep)
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "confirm and keepProbablyKnown are true or false.");
+
+                await using var stream = file.OpenReadStream();
+                var content = new byte[file.Length];
+                await stream.ReadExactlyAsync(content, ct);
+                return (await invoker.InvokeAsync(new ImportStatementCommand(content, envelopeId is { } id ? new ItemId(id) : null, confirm, keep), ct))
+                    .ToHttp(view => view);
+            })
+            .Accepts<StatementForm>("multipart/form-data")
+            .Returns<StatementImportView>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
         var admin = routes.MapGroup("/api/v1/admin/banking").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
@@ -88,6 +160,12 @@ public static class BankingEndpoints
 
         return routes;
     }
+
+    /// <summary>Room for the form's other parts and boundaries on top of the file.</summary>
+    private const long FormSlack = 64 * 1024;
+
+    /// <summary>The import form, for the OpenAPI document only: the route reads the form itself.</summary>
+    public sealed record StatementForm(IFormFile File, Guid? EnvelopeId, bool Confirm, bool KeepProbablyKnown);
 
     private static string Callback(IOptions<NidAuthOptions> auth) => auth.Value.PublicUrl.TrimEnd('/') + CallbackPath;
 

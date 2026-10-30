@@ -28,4 +28,25 @@ public static class BankingCodes
 
     /// <summary>The journal's failure code of a connection whose reading threw: the run went on with the next one.</summary>
     public const string RunCrashed = "banking.sync_run_crashed";
+
+    /// <summary>A transactions read hit the page cap: the run is journaled failed, the connection stays active.</summary>
+    public const string TransactionsTruncated = "banking.transactions_truncated";
+
+    /// <summary>A statement file that is neither OFX nor CAMT.053.</summary>
+    public const string FileFormat = "banking.file_format";
+
+    /// <summary>A statement file refused whole: broken syntax, a missing field, an entity, or more than 20 000 lines.</summary>
+    public const string FileMalformed = "banking.file_malformed";
+
+    /// <summary>A statement file over 5 MiB.</summary>
+    public const string FileTooLarge = "banking.file_too_large";
+
+    /// <summary>
+    /// A statement file of an account the importer cannot write, or dropped on an envelope whose account is another; the account is never
+    /// named.
+    /// </summary>
+    public const string FileAccountMismatch = "banking.file_account_mismatch";
+
+    /// <summary>A statement file holding statements of more than one account (or currency).</summary>
+    public const string FileSeveralAccounts = "banking.file_several_accounts";
 }

@@ -20,6 +20,8 @@ public sealed class HouseholdSettingsRow
     /// <summary>Bank sync spec D14: the admin switch and the installation's Enable Banking application.</summary>
     public bool BankingEnabled { get; set; }
     public string? EnableBankingAppId { get; set; }
+    /// <summary>Bank sync D3: how long unlinked and ignored transactions are kept, in months; null keeps them all.</summary>
+    public int? BankRetentionMonths { get; set; }
 }
 
 public sealed class TaxProfileRow

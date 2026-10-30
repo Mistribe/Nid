@@ -1051,6 +1051,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             }
             // Bank sync: A's account reaches A's banking reads, so the scan above looks through them (and B's never carry it).
             Assert.Contains(bodies[app.AdultA], body => body.Contains(MixedDataset.PrivateLabelA + " compte", StringComparison.Ordinal));
+            Assert.Contains(bodies[app.AdultA], body => body.Contains(MixedDataset.PrivateLabelA + " ligne 1", StringComparison.Ordinal));
         }
 
         /// <summary>

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -26,7 +27,7 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
         var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
         return new HouseholdSettingsInfo(
             row.MaxAdults, Currency.TryCreate(row.ReferenceCurrency.Trim(), out var currency) ? currency : Currency.Eur, adults, row.PricesEnabled, row.IrlEnabled,
-            row.BankingEnabled, row.EnableBankingAppId);
+            row.BankingEnabled, row.EnableBankingAppId, row.BankRetentionMonths);
     }
 
     public async Task<Result<HouseholdSettingsInfo>> UpdateAsync(HouseholdSettingsChange change, CancellationToken ct)
@@ -38,6 +39,10 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
                 return Fail(PersonCodes.UnknownCurrency, "The reference currency is a three-letter ISO 4217 code, in capitals.");
             currency = parsed;
         }
+
+        if (change.BankRetentionMonths is < 1 or > 600)
+            return Result.Failure<HouseholdSettingsInfo>(FieldErrors.At(
+                new Failure(PersonCodes.InvalidBankRetention, "Bank transactions are kept between 1 and 600 months.", null), "bankRetentionMonths"));
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         // The same lock as pre-registration: a cap lowered while an adult is being added must see that adult.
@@ -72,6 +77,11 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
 
         if (change.EnableBankingAppId is { } appId)
             row.EnableBankingAppId = string.IsNullOrWhiteSpace(appId) ? null : appId.Trim();
+
+        if (change.ClearBankRetention)
+            row.BankRetentionMonths = null;
+        else if (change.BankRetentionMonths is { } months)
+            row.BankRetentionMonths = months;
 
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

@@ -166,6 +166,17 @@ public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.DoesNotContain("app-0a1b", settings.Data);
     }
 
+    [Fact]
+    public async Task A_bank_retention_change_names_its_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { bankRetentionMonths = 24 })).EnsureSuccessStatusCode();
+
+        var settings = Assert.Single(await EventsAsync(app, "household_settings_changed"));
+        Assert.Equal("bank_retention_months", JsonDocument.Parse(settings.Data).RootElement.GetProperty("fields").GetString());
+    }
+
     /// <summary>Minor #4: a `PATCH` naming neither field changed nothing, so it is not worth an event.</summary>
     [Fact]
     public async Task A_household_patch_naming_no_field_records_no_event()

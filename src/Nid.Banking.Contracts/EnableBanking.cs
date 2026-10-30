@@ -22,6 +22,13 @@ public sealed record AuthorizedSession(string SessionId, Instant ValidUntil, IRe
 
 public sealed record ProviderBalance(string Type, decimal Amount, string Currency, LocalDate? ReferenceDate);
 
+/// <summary>A booked line as the bank reports it; <paramref name="Amount"/> is signed (debit negative).</summary>
+public sealed record ProviderTransaction(
+    string? EntryReference, LocalDate BookedOn, LocalDate? ValueOn, decimal Amount, string Currency, string Label, string? Counterparty, string? Remittance);
+
+/// <summary>The lines read; <paramref name="Truncated"/> when the page cap stopped the read while the bank had more.</summary>
+public sealed record ProviderTransactions(IReadOnlyList<ProviderTransaction> Lines, bool Truncated);
+
 /// <summary>The browser's address and agent, forwarded on a manual sync (banks may require them).</summary>
 public sealed record PsuHeaders(string? IpAddress, string? UserAgent);
 
@@ -38,6 +45,10 @@ public interface IEnableBankingClient
     Task<Result<AuthorizedSession>> CreateSessionAsync(string appId, string code, CancellationToken ct);
 
     Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(string appId, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct);
+
+    /// <summary>The booked lines since <paramref name="dateFrom"/> (all the bank gives when <c>null</c>), every page followed.</summary>
+    Task<Result<ProviderTransactions>> TransactionsAsync(
+        string appId, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct);
 
     Task<Result> DeleteSessionAsync(string appId, string sessionId, CancellationToken ct);
 }

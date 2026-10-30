@@ -456,6 +456,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         // Only A's connection, with A's browser.
         var call = Assert.Single(app.Banks.BalanceCalls);
         Assert.Equal(("uid-1", new PsuHeaders("203.0.113.7", "Navigateur/1.0")), (call.AccountUid, call.Psu));
+        Assert.Equal(new PsuHeaders("203.0.113.7", "Navigateur/1.0"), Assert.Single(app.Banks.TransactionCalls).Psu);
         Assert.Equal("2026-08-20", Assert.Single(await BankProposalsAsync(app, app.AdultA)).GetProperty("subjectKey").GetString());
         await using (var db = Db(app))
             Assert.Equal("manual", (await db.SyncRuns.SingleAsync()).Trigger);
@@ -511,5 +512,201 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.Equal(4, runs.GetArrayLength());
         Assert.Equal(("schedule", "succeeded", 1), (runs[0].GetProperty("trigger").GetString(), runs[0].GetProperty("outcome").GetString(), runs[0].GetProperty("accounts").GetInt32()));
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/admin/banking/runs")).StatusCode);
+    }
+
+    private static ProviderTransaction Line(string reference, LocalDate on, decimal amount, string label = "PRLV SEPA NETFLIX")
+        => new(reference, on, null, amount, "EUR", label, null, null);
+
+    [Fact]
+    public async Task A_night_stores_the_account_s_booked_transactions()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        // A line in another currency than the account's is not stored.
+        app.Banks.Transactions[("session-code-a", "uid-1")] =
+            [Line("r1", D(8, 10), -13.49m), Line("r2", D(8, 11), 1500m, "VIR ACME"), Line("r3", D(8, 11), -1m) with { Currency = "USD" }];
+
+        var run = await NightAsync(app, clock, D(8, 12));
+
+        Assert.Equal(2, run.Transactions);
+        await using var db = Db(app);
+        var stored = await db.Transactions.OrderBy(t => t.BookedOn).ToListAsync();
+        Assert.Equal([("r1", -13.49m, "api", "unlinked"), ("r2", 1500m, "api", "unlinked")], stored.Select(t => (t.ProviderRef, t.Amount, t.FetchedVia, t.LinkState)));
+        Assert.Equal(2, (await db.SyncRuns.SingleAsync()).Transactions);
+    }
+
+    [Fact]
+    public async Task A_second_read_adds_nothing()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -13.49m), Line("r2", D(8, 11), 5m)];
+
+        Assert.Equal(2, (await NightAsync(app, clock, D(8, 12))).Transactions);
+        var second = await NightAsync(app, clock, D(8, 13));
+
+        Assert.Equal((0, "succeeded"), (second.Transactions, second.Outcome));
+        await using var db = Db(app);
+        Assert.Equal(2, await db.Transactions.CountAsync());
+    }
+
+    [Fact]
+    public async Task The_next_read_starts_ten_days_before_the_latest_booked_line()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -1m), Line("r2", D(8, 11), -2m)];
+
+        await NightAsync(app, clock, D(8, 12));
+        await NightAsync(app, clock, D(8, 13));
+
+        Assert.Equal([null, D(8, 1)], app.Banks.TransactionCalls.Select(c => c.DateFrom));
+    }
+
+    [Fact]
+    public async Task A_later_file_line_leaves_the_read_window_on_the_api_s_lines()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -1m), Line("r2", D(8, 11), -2m)];
+        await NightAsync(app, clock, D(8, 12));
+        // A statement's upcoming deferred-card line: the bank's own lines after 08-11 must still be read.
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(await AccountAsync(app, app.AdultA, "Courant A"),
+                [new NewBankTransaction("f1", D(8, 19), null, -9m, Currency.Eur, "CB A VENIR", null, null, "file")], default);
+        }
+
+        await NightAsync(app, clock, D(8, 13));
+
+        Assert.Equal([null, D(8, 1)], app.Banks.TransactionCalls.Select(c => c.DateFrom));
+    }
+
+    [Fact]
+    public async Task A_line_the_bank_dates_ahead_starts_the_next_read_from_today()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -1m), Line("r2", D(8, 30), -2m)];
+
+        await NightAsync(app, clock, D(8, 12));
+        await NightAsync(app, clock, D(8, 13));
+
+        Assert.Equal([null, D(8, 3)], app.Banks.TransactionCalls.Select(c => c.DateFrom));
+    }
+
+    [Fact]
+    public async Task An_empty_entry_reference_is_no_reference()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] =
+            [Line("", D(8, 10), -1m, "CB CAFE"), Line("", D(8, 10), -2m, "CB PAIN"), Line(" ", D(8, 11), -3m, "CB JOURNAL")];
+
+        Assert.Equal(3, (await NightAsync(app, clock, D(8, 12))).Transactions);
+
+        await using var db = Db(app);
+        Assert.DoesNotContain(await db.Transactions.Select(t => t.ProviderRef).ToListAsync(), r => string.IsNullOrWhiteSpace(r));
+    }
+
+    [Fact]
+    public async Task With_a_retention_a_read_starts_no_earlier_than_it()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.SettingsAsync(app, new { bankRetentionMonths = 3 });
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+
+        // Nothing stored (all purged, or a first read): not the whole history, purged again at once.
+        await NightAsync(app, clock, D(8, 12));
+
+        Assert.Equal([D(5, 12)], app.Banks.TransactionCalls.Select(c => c.DateFrom));
+    }
+
+    [Fact]
+    public async Task A_card_s_transactions_are_read()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
+            BankingApi.Account("uid-1", "hash-1", null, "Courant A"), BankingApi.Account("uid-2", "hash-2", null, "Carte A", "CARD"));
+        var card = await AccountAsync(app, app.AdultA, "Carte A");
+        var checking = await AccountAsync(app, app.AdultA, "Courant A");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{card}", new { cardOfAccountId = checking })).StatusCode);
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        Serve(app, "session-code-a", "uid-2", D(8, 12), 0m);
+        app.Banks.Transactions[("session-code-a", "uid-2")] = [Line("c1", D(8, 11), -4.2m, "CB BOULANGERIE")];
+
+        var run = await NightAsync(app, clock, D(8, 12));
+
+        Assert.Equal(1, run.Transactions);
+        await using var db = Db(app);
+        Assert.Equal(card, (await db.Transactions.SingleAsync()).AccountId);
+    }
+
+    [Fact]
+    public async Task A_rate_limited_transactions_call_skips_the_account_quietly()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        var id = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.TransactionFailures[("session-code-a", "uid-1")] = "enablebanking.ASPSP_RATE_LIMIT_EXCEEDED";
+
+        var run = await NightAsync(app, clock, D(8, 12));
+
+        Assert.Equal((1, 1, 0, null), (run.Balances, run.Skipped, run.Transactions, run.FailureCode));
+        await using var db = Db(app);
+        var connection = await db.Connections.SingleAsync(c => c.Id == id);
+        Assert.Equal(("active", null, 0), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
+    }
+
+    [Fact]
+    public async Task Ignored_accounts_are_not_read()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        var account = await AccountAsync(app, app.AdultA, "Courant A");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", new { ignored = true })).StatusCode);
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -1m)];
+
+        await NightAsync(app, clock, D(8, 12));
+
+        Assert.Empty(app.Banks.BalanceCalls);
+        Assert.Empty(app.Banks.TransactionCalls);
+    }
+
+    [Fact]
+    public async Task A_read_cut_by_the_page_cap_keeps_its_lines_and_journals_it_without_touching_the_connection()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        var id = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -1m), Line("r2", D(8, 11), -2m)];
+        app.Banks.TransactionsTruncated.Add(("session-code-a", "uid-1"));
+
+        var run = await NightAsync(app, clock, D(8, 12));
+
+        Assert.Equal((2, "failed", "banking.transactions_truncated"), (run.Transactions, run.Outcome, run.FailureCode));
+        await using var db = Db(app);
+        var connection = await db.Connections.SingleAsync(c => c.Id == id);
+        Assert.Equal(("active", null, 0), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
     }
 }

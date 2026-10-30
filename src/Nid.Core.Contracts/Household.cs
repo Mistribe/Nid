@@ -5,12 +5,15 @@ namespace Nid.Core.Contracts;
 /// <summary><paramref name="AdultCount"/> counts active and pending adults: both count against the cap.</summary>
 public sealed record HouseholdSettingsInfo(
     int MaxAdults, Currency ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled = false, bool BankingEnabled = false,
-    string? EnableBankingAppId = null);
+    string? EnableBankingAppId = null, int? BankRetentionMonths = null);
 
-/// <summary>A field left <c>null</c> is left unchanged; an empty <paramref name="EnableBankingAppId"/> clears it.</summary>
+/// <summary>
+/// A field left <c>null</c> is left unchanged; an empty <paramref name="EnableBankingAppId"/> clears it;
+/// <paramref name="ClearBankRetention"/> clears <paramref name="BankRetentionMonths"/> (1 to 600; none keeps every transaction).
+/// </summary>
 public sealed record HouseholdSettingsChange(
     int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled = null, bool? IrlEnabled = null, bool? BankingEnabled = null,
-    string? EnableBankingAppId = null);
+    string? EnableBankingAppId = null, int? BankRetentionMonths = null, bool ClearBankRetention = false);
 
 public interface IHouseholdSettings
 {

@@ -199,6 +199,7 @@ public static class ResultHttp
             _ when failure.Code is BankingCodes.Disabled or BankingCodes.NotConfigured or BankingCodes.EnvelopeTaken or BankingCodes.SyncRunning
                 => StatusCodes.Status409Conflict,
             _ when failure.Code is BankingCodes.ConnectionNotFound or BankingCodes.AccountNotFound => StatusCodes.Status404NotFound,
+            _ when failure.Code == BankingCodes.FileTooLarge => StatusCodes.Status413PayloadTooLarge,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 
@@ -211,6 +212,9 @@ public static class ResultHttp
         // Savings goals D10: the share still free on the envelope, among the goals the actor sees.
         if (failure.Metadata is { } more && more.TryGetValue("freeBp", out var freeBp))
             extensions["freeBp"] = freeBp;
+        // Bank sync §5.3: the statement file's line at fault, when known.
+        if (failure.Metadata is { } file && file.TryGetValue("line", out var line))
+            extensions["line"] = line;
         return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }

@@ -1,6 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nid.Banking.Contracts;
@@ -20,9 +17,13 @@ namespace Nid.Banking.Application.Sync;
 /// in a scope of its own as its creator (<see cref="Actor.BankSync"/>); an account is read once, by the first live connection of the run
 /// that sees it (D21). The journal holds counts and codes only.
 /// </summary>
-public sealed class BankSyncCollector(IServiceScopeFactory scopes, IBankSyncRunLog runs, IClock clock, ILogger<BankSyncCollector> log)
+public sealed class BankSyncCollector(
+    IServiceScopeFactory scopes, IBankSyncRunLog runs, BalanceValuation valuation, IClock clock, ILogger<BankSyncCollector> log)
 {
     public const int RetentionDays = 400;
+
+    /// <summary>Late-booked lines: a read starts this many days before the latest stored booking (the store drops the ones it knows).</summary>
+    public const int TransactionOverlapDays = 10;
 
     public const string ProposalKind = "investments.record_valuation";
 
@@ -31,7 +32,7 @@ public sealed class BankSyncCollector(IServiceScopeFactory scopes, IBankSyncRunL
 
     private sealed class Progress
     {
-        public int Connections, Accounts, Balances, Proposals, Written, Skipped;
+        public int Connections, Accounts, Balances, Proposals, Written, Skipped, Transactions;
         public string? FailureCode;
 
         /// <summary>The accounts read in this run: a later connection that sees one leaves it.</summary>
@@ -63,7 +64,7 @@ public sealed class BankSyncCollector(IServiceScopeFactory scopes, IBankSyncRunL
         {
             FinishedAt = clock.GetCurrentInstant().ToDateTimeOffset(), Outcome = failure is null ? "succeeded" : "failed",
             Connections = progress.Connections, Accounts = progress.Accounts, Balances = progress.Balances, Proposals = progress.Proposals,
-            Written = progress.Written, Skipped = progress.Skipped, FailureCode = failure,
+            Written = progress.Written, Skipped = progress.Skipped, FailureCode = failure, Transactions = progress.Transactions,
         };
         await runs.FinishAsync(finished, CancellationToken.None); // a cancelled run is still closed
         if (stopped is not null)
@@ -106,6 +107,8 @@ public sealed class BankSyncCollector(IServiceScopeFactory scopes, IBankSyncRunL
             return;
         }
 
+        // Retention (D3): a read never reaches back to what the night purges again.
+        var floor = await services.GetRequiredService<IHouseholdSettings>().ReadAsync(ct) is { BankRetentionMonths: { } months } ? today.PlusMonths(-months) : (LocalDate?)null;
         string? error = null;
         foreach (var account in await accounts.ForConnectionAsync(connection.Id, ct))
         {
@@ -116,20 +119,14 @@ public sealed class BankSyncCollector(IServiceScopeFactory scopes, IBankSyncRunL
             if (!fetched.TryGetValue(out var list))
             {
                 var code = fetched.TryGetFailure(out var failure) ? failure!.Code : BankingCodes.ProviderError;
-                switch (EnableBankingErrors.Classify(code))
+                switch (await OnFailureAsync(connections, connection, code, progress, ct))
                 {
-                    case ProviderErrorKind.Expired:
-                        // Its other accounts wait for a renewal; a later connection that sees them reads them tonight.
-                        await connections.SetStatusAsync(connection.Id, ConnectionStatus.Expired, null, ct);
+                    case FailureStep.Stop:
                         return;
-                    case ProviderErrorKind.Revoked:
-                        await connections.SetStatusAsync(connection.Id, ConnectionStatus.Revoked, null, ct);
-                        return;
-                    case ProviderErrorKind.RateLimited:
-                        progress.Skipped++; // tomorrow, with no error shown
+                    case FailureStep.Error:
+                        error ??= code;
                         continue;
                     default:
-                        error ??= code;
                         continue;
                 }
             }
@@ -142,8 +139,46 @@ public sealed class BankSyncCollector(IServiceScopeFactory scopes, IBankSyncRunL
                 await balances.UpsertAsync(new BankBalance(account.Id, balance.ReferenceDate ?? today, balance.Amount, balance.Type, clock.GetCurrentInstant()), ct);
                 progress.Balances++;
             }
+
+            var stored = services.GetRequiredService<ITransactionStore>();
+            // The bank's own lines set the window: a statement's line (deferred card, a gap filled by an old file) would skip real ones.
+            var latest = await stored.LatestBookedOnAsync(account.Id, "api", ct) ?? await stored.LatestBookedOnAsync(account.Id, null, ct);
+            var since = latest is { } l ? (l < today ? l : today).PlusDays(-TransactionOverlapDays) : (LocalDate?)null;
+            if (floor is { } f && !(since >= f))
+                since = f;
+            var lines = await client.TransactionsAsync(appId, session, uid, since, psu, ct);
+            if (lines.TryGetValue(out var read))
+            {
+                var booked = read.Lines;
+                // A line in another currency than the account's would be stored as the wrong money.
+                var mine = booked.Where(t => string.Equals(t.Currency, account.Currency.Code, StringComparison.OrdinalIgnoreCase))
+                    .Select(t => new NewBankTransaction(string.IsNullOrWhiteSpace(t.EntryReference) ? null : t.EntryReference, t.BookedOn, t.ValueOn, t.Amount, account.Currency, t.Label, t.Counterparty, t.Remittance, "api"))
+                    .ToList();
+                progress.Transactions += (await stored.AddAsync(account.Id, mine, ct)).Added;
+                // The oldest part of the window may stay unread: journal only, the connection is fine.
+                if (read.Truncated)
+                    progress.FailureCode ??= BankingCodes.TransactionsTruncated;
+            }
+            else
+            {
+                var code = lines.TryGetFailure(out var failure) ? failure!.Code : BankingCodes.ProviderError;
+                switch (await OnFailureAsync(connections, connection, code, progress, ct))
+                {
+                    case FailureStep.Stop:
+                        return;
+                    case FailureStep.Error:
+                        error ??= code;
+                        break;
+                }
+            }
+
             if (account.Envelope is not null)
-                await ValueAsync(services, connection.Person, account, today, manual, progress, ct);
+            {
+                var outcome = await valuation.ValueAsync(services, connection.Person, account, today, manual, ct);
+                progress.Proposals += outcome.Proposals;
+                progress.Written += outcome.Written;
+                progress.Skipped += outcome.Skipped;
+            }
         }
 
         if (error is not null)
@@ -154,122 +189,25 @@ public sealed class BankSyncCollector(IServiceScopeFactory scopes, IBankSyncRunL
         await connections.RecordSyncAsync(connection.Id, clock.GetCurrentInstant(), error is not null, ct);
     }
 
-    /// <summary>
-    /// Spec §4: each due date proposed, or written when the account applies its balances; a value a person entered or imported on that date
-    /// is left alone and its date kept on the account. <c>last_valued_on</c> moves past what was done, never past a failure. Written as the
-    /// reading connection's creator when they write the envelope, else as the person who associated the account (ruling R3); neither: skipped,
-    /// nothing recorded as done.
-    /// </summary>
-    private static async Task ValueAsync(
-        IServiceProvider services, PersonId reader, BankAccount account, LocalDate today, bool manual, Progress progress, CancellationToken ct)
+    private enum FailureStep { Stop, Skip, Error }
+
+    /// <summary>A provider failure on an account: expired and revoked end the connection's read, a rate limit skips quietly (tomorrow), the rest is the connection's error.</summary>
+    private static async Task<FailureStep> OnFailureAsync(IConnectionStore connections, BankConnection connection, string code, Progress progress, CancellationToken ct)
     {
-        var envelope = account.Envelope!.Value;
-        // A registry read: the currency only, whoever reads the envelope.
-        if ((await services.GetRequiredService<IItemRegistry>().FindAsync(envelope, ct))?.Currency != account.Currency.Code)
+        switch (EnableBankingErrors.Classify(code))
         {
-            progress.Skipped++;
-            return;
-        }
-
-        var policy = services.GetRequiredService<IAccessPolicy>();
-        PersonId? writer = null;
-        foreach (var candidate in new[] { reader, account.AssociatedBy }.OfType<PersonId>())
-            if ((await policy.CheckAsync(candidate, envelope, AccessKind.Write, ct)).IsSuccess)
-            {
-                writer = candidate;
-                break;
-            }
-        if (writer is not { } person)
-        {
-            progress.Skipped++;
-            return;
-        }
-        // A click values today in the clicker's name only: the reader of a manual run is who clicked.
-        manual &= person == reader;
-
-        var accessor = services.GetRequiredService<IActorAccessor>();
-        var saved = accessor.Current;
-        accessor.Current = Actor.BankSync(person);
-        try
-        {
-            await ValueAsAsync(services, account, envelope, today, manual, progress, ct);
-        }
-        finally
-        {
-            accessor.Current = saved; // the connection's own writes stay its creator's
-        }
-    }
-
-    private static async Task ValueAsAsync(
-        IServiceProvider services, BankAccount account, ItemId envelope, LocalDate today, bool manual, Progress progress, CancellationToken ct)
-    {
-
-        var balances = services.GetRequiredService<IBalanceStore>();
-        var associatedOn = account.AssociatedOn ?? today;
-        var stored = new List<BankBalance>();
-        for (var month = (account.LastValuedOn is { } done && done > associatedOn ? done : associatedOn).With(DateAdjusters.EndOfMonth);
-             month <= today.With(DateAdjusters.EndOfMonth);
-             month = month.PlusDays(1).With(DateAdjusters.EndOfMonth))
-            stored.AddRange(await balances.InMonthAsync(account.Id, month, ct));
-
-        var valuations = services.GetRequiredService<IValuations>();
-        var proposals = services.GetRequiredService<IProposalSubmitter>();
-        LocalDate? valuedOn = null, conflictOn = null;
-        foreach (var (on, balanceOn) in ValuationDates.Due(associatedOn, account.LastValuedOn, stored.Select(b => b.AsOf).ToList(), today, manual))
-        {
-            var balance = stored.Single(b => b.AsOf == balanceOn);
-            if (!(await valuations.LatestAsync(envelope, on, ct)).TryGetValue(out var latest) || !Money.Create(balance.Amount, account.Currency).TryGetValue(out var amount))
-            {
+            case ProviderErrorKind.Expired:
+                // Its other accounts wait for a renewal; a later connection that sees them reads them tonight.
+                await connections.SetStatusAsync(connection.Id, ConnectionStatus.Expired, null, ct);
+                return FailureStep.Stop;
+            case ProviderErrorKind.Revoked:
+                await connections.SetStatusAsync(connection.Id, ConnectionStatus.Revoked, null, ct);
+                return FailureStep.Stop;
+            case ProviderErrorKind.RateLimited:
                 progress.Skipped++;
-                break;
-            }
-            if (latest!.Value is { } current && current.AsOf == on && current.Source != FactSource.BankApi)
-            {
-                progress.Skipped++;
-                valuedOn = conflictOn = on;
-                continue;
-            }
-
-            var note = "Solde bancaire du " + balanceOn.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
-                + (BalancePick.IsFallback(balance.BalanceType) ? " (solde disponible)" : "");
-            if (account.AutoApplyBalance)
-            {
-                if (!(await valuations.RecordAsync(new NewValuation(envelope, on, amount, note, FactSource.BankApi), ct)).IsSuccess)
-                {
-                    progress.Skipped++;
-                    break;
-                }
-                progress.Written++;
-            }
-            else
-            {
-                var submitted = await proposals.SubmitAsync(ProposalKind, envelope, Payload(on, amount, note), SourceLabel, ct);
-                if (!submitted.TryGetValue(out var created))
-                {
-                    progress.Skipped++;
-                    break;
-                }
-                if (created)
-                    progress.Proposals++;
-            }
-            valuedOn = on;
-            conflictOn = null; // a later date valued: the warning goes
+                return FailureStep.Skip;
+            default:
+                return FailureStep.Error;
         }
-
-        if (valuedOn is { } last)
-            await services.GetRequiredService<IAccountStore>().RecordValuedAsync(account.Id, last, conflictOn, ct);
-    }
-
-    /// <summary><c>investments.record_valuation</c>'s payload: <c>{ asOf, amount { amount, currency }, note }</c>.</summary>
-    private static JsonElement Payload(LocalDate on, Money amount, string note)
-    {
-        var body = new JsonObject
-        {
-            ["asOf"] = on.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["amount"] = new JsonObject { ["amount"] = amount.AmountText, ["currency"] = amount.Currency.Code },
-            ["note"] = note,
-        };
-        using var document = JsonDocument.Parse(body.ToJsonString());
-        return document.RootElement.Clone();
     }
 }

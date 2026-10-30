@@ -73,6 +73,25 @@ public sealed class BalanceRow
     public Instant FetchedAt { get; set; }
 }
 
+public sealed class TransactionRow
+{
+    public Guid Id { get; set; }
+    public Guid AccountId { get; set; }
+    public string ProviderRef { get; set; } = "";
+    public string Fingerprint { get; set; } = "";
+    public LocalDate BookedOn { get; set; }
+    public LocalDate? ValueOn { get; set; }
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "";
+    public string Label { get; set; } = "";
+    public string? Counterparty { get; set; }
+    public string? Remittance { get; set; }
+    public string NormalizedLabel { get; set; } = "";
+    public string LinkState { get; set; } = "unlinked";
+    public string FetchedVia { get; set; } = "";
+    public Instant CreatedAt { get; set; }
+}
+
 public sealed class SyncRunRow
 {
     public Guid Id { get; set; }
@@ -86,5 +105,6 @@ public sealed class SyncRunRow
     public int Proposals { get; set; }
     public int Written { get; set; }
     public int Skipped { get; set; }
+    public int Transactions { get; set; }
     public string? FailureCode { get; set; }
 }

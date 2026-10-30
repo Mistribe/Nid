@@ -18,7 +18,7 @@
     "sync_all": "Synchroniser tout",
     "sync_failed": "La synchronisation a échoué.",
     "unsynced": "Comptes non synchronisés",
-    "unsynced_hint": "Plus aucune connexion ne lit ces comptes : renouvelez ou reliez leur banque, ou détachez-les de leur enveloppe.",
+    "unsynced_hint": "Aucune connexion bancaire ne lit ces comptes : leur connexion a été supprimée ou renouvelée sans eux, ou ils ne sont alimentés que par des relevés importés.",
     "synced": "Synchronisation terminée.",
     "deleted": "Connexion à {{bank}} supprimée.",
     "connected": "Banque reliée.",
@@ -43,7 +43,13 @@
       "banking_currency_mismatch": "La devise du compte et celle de l'enveloppe diffèrent.",
       "banking_card_parent": "Une carte se rattache à un compte courant.",
       "banking_envelope_taken": "Un autre compte bancaire est déjà relié à cette enveloppe.",
-      "banking_envelope_kind": "Un compte bancaire se relie à une enveloppe compte courant, livret ou autre."
+      "banking_envelope_kind": "Un compte bancaire se relie à une enveloppe compte courant, livret ou autre.",
+      "banking_file_format": "Ce fichier n'est ni un relevé OFX ni un relevé CAMT.053.",
+      "banking_file_malformed": "Le relevé est illisible.",
+      "banking_file_malformed_line": "Le relevé est illisible (ligne {{line}}).",
+      "banking_file_too_large": "Le relevé dépasse 5 Mo.",
+      "banking_file_account_mismatch": "Ce relevé ne correspond pas au compte de cette enveloppe.",
+      "banking_file_several_accounts": "Ce fichier contient les relevés de plusieurs comptes : importez-les séparément."
     },
     "connect_dialog": {
       "bank": "Banque",
@@ -68,6 +74,39 @@
       "last": "Relié à {{name}} · dernier solde du {{date}}",
       "conflict": "Solde bancaire du {{date}} non appliqué : une valeur saisie existe à cette date"
     },
-    "routine_balance": "Solde bancaire du {{date}}"
+    "routine_balance": "Solde bancaire du {{date}}",
+    "operations": {
+      "title": "Opérations",
+      "loading": "Chargement des opérations",
+      "from": "Du",
+      "to": "Au",
+      "date": "Date",
+      "label": "Libellé",
+      "amount": "Montant",
+      "card": "Carte",
+      "empty": "Aucune opération.",
+      "empty_period": "Aucune opération sur cette période."
+    },
+    "import": {
+      "open": "Importer un relevé",
+      "title": "Importer un relevé",
+      "file": "Relevé (OFX ou CAMT.053)",
+      "read": "Lire le relevé",
+      "submit": "Importer",
+      "new_account": "Nouveau compte",
+      "new_one": "{{count}} nouvelle",
+      "new_other": "{{count}} nouvelles",
+      "known_one": "{{count}} déjà connue",
+      "known_other": "{{count}} déjà connues",
+      "probable_one": "{{count}} probablement déjà connue",
+      "probable_other": "{{count}} probablement déjà connues",
+      "period": "Du {{from}} au {{to}}",
+      "closing": "Solde de clôture : {{amount}} au {{date}}",
+      "keep": "Garder aussi les opérations probablement déjà connues",
+      "keep_hint": "Une opération de même montant, à un jour près, est déjà arrivée de la banque.",
+      "done_one": "Relevé importé : {{count}} opération ajoutée.",
+      "done_other": "Relevé importé : {{count}} opérations ajoutées.",
+      "failed": "Le relevé n'a pas pu être importé."
+    }
   }
 }

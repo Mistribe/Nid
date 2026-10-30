@@ -42,7 +42,7 @@ public sealed record RouteAction(
 /// POST (simulations, the bank table's preview), the bank table (<c>propose_amortization</c>), and the tax profile and the
 /// target allocation (issue #104): household settings replaced whole, which no tool reads yet; the purchase scenarios (#122),
 /// hypothetical and read by no tool either; the stored documents, which the assistant reads and links (issue #179) but
-/// never uploads, edits, archives or unlinks.
+/// never uploads, edits, archives or unlinks; and the bank connections, sync and statement import, which need the person's browser.
 /// </summary>
 public static class RouteActions
 {

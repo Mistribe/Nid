@@ -15,5 +15,6 @@ public static class PersonCodes
     public const string SubjectTaken = "core.subject_taken";
     public const string SubjectInvalid = "core.subject_invalid";
     public const string InvalidBirthDate = "core.invalid_birth_date";
+    public const string InvalidBankRetention = "core.invalid_bank_retention";
     public const string InvalidRetirementAge = "core.invalid_retirement_age";
 }

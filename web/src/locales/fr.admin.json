@@ -55,7 +55,11 @@
       "proposals": "Propositions",
       "written": "Écrits",
       "skipped": "Écartés",
-      "failure": "Échec"
+      "failure": "Échec",
+      "retention": "Conserver les opérations",
+      "retention_hint": "Chaque nuit, les opérations bancaires plus anciennes que cette durée sont effacées.",
+      "retention_none": "Sans limite",
+      "retention_months": "{{months}} mois"
     },
     "prices": {
       "title": "Cours",

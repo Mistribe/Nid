@@ -22,11 +22,11 @@ public sealed class ImportClient(NidApp app)
     /// <summary>The commit order the runner applies sections in (§11.4: Order, then module, then each module's sections):
     /// <c>persons</c>, the subscriptions module's <c>providers</c>, <c>subscriptions</c>, <c>billing_phases</c>,
     /// <c>purchases</c>, then <c>envelopes</c>, then the income module's <c>income_sources</c> and <c>income_phases</c>,
-    /// then the real estate module's sections, then the Core's <c>valuations</c> and <c>flows</c>, then the income module's <c>income_one_off_taxable</c>, then the envelopes' holdings, then the goals.</summary>
+    /// then the real estate module's sections, then the Core's <c>valuations</c> and <c>flows</c>, then the income module's <c>income_one_off_taxable</c>, then the envelopes' holdings, then the goals, then the bank accounts and their transactions.</summary>
     private static readonly IReadOnlyList<string> CommitOrder =
         ["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "income_sources", "income_phases",
          "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases", "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "valuations", "flows", "income_one_off_taxable",
-         "holdings", "holding_snapshots", "holding_movements", "goals"];
+         "holdings", "holding_snapshots", "holding_movements", "goals", "bank_accounts", "bank_transactions"];
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

@@ -1,0 +1,25 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "ref-3",
+      "transaction_amount": { "currency": "EUR", "amount": "2.50" },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "value_date": "2026-10-20",
+      "bank_transaction_code": { "description": "Frais" }
+    },
+    {
+      "entry_reference": "ref-cancelled",
+      "transaction_amount": { "currency": "EUR", "amount": "9.00" },
+      "credit_debit_indicator": "DBIT",
+      "status": "CNCL",
+      "booking_date": "2026-10-19"
+    },
+    {
+      "entry_reference": "ref-undated",
+      "transaction_amount": { "currency": "EUR", "amount": "1.00" },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK"
+    }
+  ]
+}

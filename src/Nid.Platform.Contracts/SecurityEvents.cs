@@ -25,6 +25,9 @@ public static class SecurityEventNames
     /// <summary>4B: one per MCP tool call (spec §4); not in the admin journal — an adult's own reads.</summary>
     public const string McpToolCalled = "mcp_tool_called";
 
+    /// <summary>5B: a bank statement file written to an account (bank sync spec §10); counts only, never a label, an amount or an IBAN.</summary>
+    public const string BankStatementImported = "bank_statement_imported";
+
     /// <summary>What the admin area's security journal shows (spec §5.1): nothing about another adult's own sessions.</summary>
     public static IReadOnlySet<string> AdminJournal { get; } = new HashSet<string>
     {

@@ -31,6 +31,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/banking/connections",
         // The sync reads the person's banks with their browser's address: a click, not a proposal.
         "/api/v1/banking/sync",
+        // A statement file is dropped in the browser and confirmed after its preview: browser-only.
+        "/api/v1/banking/statements",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)

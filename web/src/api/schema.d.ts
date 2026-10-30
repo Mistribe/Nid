@@ -8662,6 +8662,101 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/banking/envelopes/{envelopeId}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    page?: number;
+                };
+                header?: never;
+                path: {
+                    envelopeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankTransactionPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/banking/sync": {
         parameters: {
             query?: never;
@@ -8731,6 +8826,117 @@ export interface paths {
                 };
                 /** @description Conflict */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/banking/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["StatementForm"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatementImportView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -21076,6 +21282,30 @@ export interface components {
             /** Format: int32 */
             skipped: number;
             failureCode?: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            transactions: number;
+        };
+        BankTransactionPage: {
+            items: components["schemas"]["BankTransactionView"][];
+            hasMore: boolean;
+        };
+        BankTransactionView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            bookedOn: string;
+            /** Format: date */
+            valueOn?: null | string;
+            amount: string;
+            currency: string;
+            label: string;
+            counterparty?: null | string;
+            fromCard: boolean;
+            cardName?: null | string;
+            fetchedVia: string;
         };
         BatchView: {
             section: string;
@@ -22250,6 +22480,9 @@ export interface components {
             irlEnabled?: null | boolean;
             bankingEnabled?: null | boolean;
             enableBankingAppId?: null | string;
+            /** Format: int32 */
+            bankRetentionMonths?: null | number;
+            clearBankRetention?: null | boolean;
         };
         HouseholdPointView: {
             /** Format: date */
@@ -22273,6 +22506,8 @@ export interface components {
             irlEnabled: boolean;
             bankingEnabled: boolean;
             enableBankingAppId?: null | string;
+            /** Format: int32 */
+            bankRetentionMonths?: null | number;
         };
         IconRefusal: {
             key: string;
@@ -24775,6 +25010,36 @@ export interface components {
             adults?: null | {
                 [key: string]: string;
             };
+        };
+        StatementForm: {
+            file: components["schemas"]["IFormFile"];
+            /** Format: uuid */
+            envelopeId?: null | string;
+            confirm: boolean;
+            keepProbablyKnown: boolean;
+        };
+        StatementImportView: {
+            format: string;
+            /** Format: uuid */
+            accountId?: null | string;
+            newAccount: boolean;
+            accountName: string;
+            ibanMasked?: null | string;
+            /** Format: date */
+            from?: null | string;
+            /** Format: date */
+            to?: null | string;
+            /** Format: int32 */
+            newCount: number;
+            /** Format: int32 */
+            knownCount: number;
+            /** Format: int32 */
+            probablyKnownCount: number;
+            currency: string;
+            closingBalance?: null | string;
+            /** Format: date */
+            closingBalanceOn?: null | string;
+            written: boolean;
         };
         /** Format: binary */
         Stream: string;

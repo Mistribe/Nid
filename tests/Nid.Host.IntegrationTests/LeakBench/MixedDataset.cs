@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Banking.Application;
+using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
@@ -155,6 +157,7 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> ItemsFor(Type requestType)
         => requestType == typeof(Nid.Core.Application.Tax.GetSaleTaxQuery) ? SaleItems
+            : requestType == typeof(ListBankTransactionsQuery) ? Envelopes
             : requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
             : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources
             : requestType.Assembly == typeof(Nid.Goals.Application.CreateGoalCommand).Assembly ? Goals
@@ -356,11 +359,29 @@ public sealed class MixedDataset
         app.Banks.FailWith = null;
         app.Banks.Aspsps.Add(BankingApi.Alpha);
         await BankingApi.SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
-        await BankingApi.ConnectAsync(app, app.AdultA, "bench", BankingApi.Account("uid-bench", "hash-bench", null, PrivateLabelA + " compte"));
-        var bankAccount = (await BankingApi.AccountsAsync(app, app.AdultA))[0].GetProperty("id").GetGuid();
+        // Her card too, attached to it: its lines are read through the checking account's envelope.
+        await BankingApi.ConnectAsync(app, app.AdultA, "bench", BankingApi.Account("uid-bench", "hash-bench", null, PrivateLabelA + " compte"),
+            BankingApi.Account("uid-bench-card", "hash-bench-card", null, PrivateLabelA + " carte", "CARD"));
+        var bankAccounts = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()
+            .ToDictionary(a => a.GetProperty("name").GetString()!, a => a.GetProperty("id").GetGuid());
+        var bankAccount = bankAccounts[PrivateLabelA + " compte"];
+        var bankCard = bankAccounts[PrivateLabelA + " carte"];
         var associated = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{bankAccount}", new { envelopeId = envelopes["P-A"].Value });
-        if (associated.StatusCode != System.Net.HttpStatusCode.OK)
-            throw new InvalidOperationException($"Seeding A's bank account failed: {associated.StatusCode}");
+        var attached = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{bankCard}", new { cardOfAccountId = bankAccount });
+        if (associated.StatusCode != System.Net.HttpStatusCode.OK || attached.StatusCode != System.Net.HttpStatusCode.OK)
+            throw new InvalidOperationException($"Seeding A's bank account failed: {associated.StatusCode}, {attached.StatusCode}");
+        // Two booked lines of it, labelled with A's private label, for the transactions read.
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(bankAccount,
+            [
+                new NewBankTransaction("bench-1", new LocalDate(2025, 1, 3), null, -12.5m, Currency.Eur, PrivateLabelA + " ligne 1", null, null, "api"),
+                new NewBankTransaction("bench-2", new LocalDate(2025, 1, 4), null, 40m, Currency.Eur, PrivateLabelA + " ligne 2", null, null, "api"),
+            ], default);
+            await scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(bankCard,
+                [new NewBankTransaction("bench-card-1", new LocalDate(2025, 1, 5), null, -7.2m, Currency.Eur, PrivateLabelA + " carte ligne", null, null, "api")], default);
+        }
 
         return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, goals, proposals, documents, unlinkDocuments)
         {

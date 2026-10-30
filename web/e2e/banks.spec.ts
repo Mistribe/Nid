@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { pick } from './controls';
 import { signIn } from './session';
 
 /** The household's bank sync settings, set through the API: the journey starts from them and leaves them as it found them. */
@@ -39,6 +41,62 @@ test('alice turns bank sync on, names the application, finds Réglages › Banqu
   await page.goto('/settings/banks');
   await expect(page.getByText(/La synchronisation bancaire n'est pas activée/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Banques', exact: true })).toHaveCount(0);
+
+  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+});
+
+test('alice keeps the operations 24 months, then without limit', async ({ page }) => {
+  await signIn(page, 'alice', '/admin/banking');
+  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+  await page.reload();
+
+  await pick(page, 'Conserver les opérations', '24 mois');
+  await expect(page.getByRole('status')).toHaveText('Enregistré');
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Conserver les opérations' })).toHaveText('24 mois');
+  await pick(page, 'Conserver les opérations', 'Sans limite');
+  await expect(page.getByRole('status')).toHaveText('Enregistré');
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Conserver les opérations' })).toHaveText('Sans limite');
+
+  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+});
+
+/** Bank sync on without Enable Banking: a statement file needs nothing else. The vector's account id is made this run's own, so its lines are all new. */
+test('alice imports an OFX statement on a checking envelope, previews it, confirms it and finds its lines in « Opérations »', async ({ page }) => {
+  const stamp = Date.now();
+  const envelope = `Compte ${stamp}`;
+  await signIn(page, 'alice', '/admin/banking');
+  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string; person: { id: string } };
+  const created = await page.request.post('/api/v1/investments/envelopes', {
+    headers: { 'X-Nid-Csrf': session.csrf },
+    data: { displayName: envelope, kind: 'checking', currency: 'EUR', visibility: 'private', owners: [{ personId: session.person.id, shareBp: 10000 }],
+      firstValuation: { asOf: '2026-01-01', amount: { amount: '1000', currency: 'EUR' } } },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = (await created.json()) as { id: string };
+  const ofx = readFileSync(new URL('../../tests/vectors/bankfiles/ofx2-xml.ofx', import.meta.url), 'utf8')
+    .replace('<ACCTID>12345678901</ACCTID>', `<ACCTID>${stamp}</ACCTID>`);
+
+  await page.goto(`/investments/${id}?tab=operations`);
+  await expect(page.getByText('Aucune opération.')).toBeVisible();
+  await page.getByRole('button', { name: 'Importer un relevé' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Importer un relevé' });
+  await dialog.getByLabel('Relevé (OFX ou CAMT.053)').setInputFiles({ name: 'releve.ofx', mimeType: 'application/x-ofx', buffer: Buffer.from(ofx) });
+  await dialog.getByRole('button', { name: 'Lire le relevé' }).click();
+
+  await expect(dialog.getByText('3 nouvelles, 0 déjà connue, 0 probablement déjà connue')).toBeVisible();
+  await expect(dialog.getByText('Nouveau compte')).toBeVisible();
+  await expect(dialog.getByText('Du 1 octobre 2026 au 28 octobre 2026')).toBeVisible();
+  await expect(dialog.getByText('Solde de clôture : 1 234,56 € au 28 octobre 2026')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Importer' }).click();
+
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Relevé importé : 3 opérations ajoutées.')).toBeVisible();
+  const row = page.getByRole('table', { name: 'Opérations' }).getByRole('row').filter({ hasText: 'VIR SEPA SOCIETE EXEMPLE SAS' });
+  await expect(row).toContainText('2 450,00 €');
+  await expect(row).toContainText('27 oct. 2026');
 
   await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
 });

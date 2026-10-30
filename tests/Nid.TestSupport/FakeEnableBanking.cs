@@ -14,6 +14,8 @@ public sealed class FakeEnableBanking : IEnableBankingClient
 {
     public sealed record StartAuthCall(string AppId, Aspsp Aspsp, Instant ValidUntil, string State, string RedirectUrl);
 
+    public sealed record TransactionsCall(string AppId, string SessionId, string AccountUid, LocalDate? DateFrom, PsuHeaders? Psu);
+
     public sealed record BalancesCall(string AppId, string SessionId, string AccountUid, PsuHeaders? Psu);
 
     public List<Aspsp> Aspsps { get; } = [];
@@ -25,6 +27,14 @@ public sealed class FakeEnableBanking : IEnableBankingClient
     /// <summary>An API error code (<c>enablebanking.EXPIRED_SESSION</c>…) per session and account uid; wins over <see cref="Balances"/>.</summary>
     public Dictionary<(string SessionId, string AccountUid), string> BalanceFailures { get; } = [];
 
+    public Dictionary<(string SessionId, string AccountUid), IReadOnlyList<ProviderTransaction>> Transactions { get; } = [];
+
+    /// <summary>Accounts whose read hit the client's page cap.</summary>
+    public HashSet<(string SessionId, string AccountUid)> TransactionsTruncated { get; } = [];
+
+    /// <summary>An API error code per session and account uid; wins over <see cref="Transactions"/>.</summary>
+    public Dictionary<(string SessionId, string AccountUid), string> TransactionFailures { get; } = [];
+
     /// <summary>When set, every call fails with this code.</summary>
     public string? FailWith { get; set; }
 
@@ -35,6 +45,8 @@ public sealed class FakeEnableBanking : IEnableBankingClient
     public List<string> CodesExchanged { get; } = [];
 
     public List<BalancesCall> BalanceCalls { get; } = [];
+
+    public List<TransactionsCall> TransactionCalls { get; } = [];
 
     public List<string> DeletedSessions { get; } = [];
 
@@ -69,6 +81,17 @@ public sealed class FakeEnableBanking : IEnableBankingClient
         return Task.FromResult(FailWith is { } fail ? Fail<IReadOnlyList<ProviderBalance>>(fail)
             : BalanceFailures.TryGetValue(key, out var code) ? Fail<IReadOnlyList<ProviderBalance>>(code)
             : Balances.TryGetValue(key, out var balances) ? Result.Success(balances) : Fail<IReadOnlyList<ProviderBalance>>("enablebanking.ACCOUNT_DOES_NOT_EXIST"));
+    }
+
+    /// <summary>An account with nothing scripted has no transactions (an empty read), so tests about balances stay unchanged.</summary>
+    public Task<Result<ProviderTransactions>> TransactionsAsync(
+        string appId, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct)
+    {
+        Record(TransactionCalls, new TransactionsCall(appId, sessionId, accountUid, dateFrom, psu));
+        var key = (sessionId, accountUid);
+        return Task.FromResult(FailWith is { } fail ? Fail<ProviderTransactions>(fail)
+            : TransactionFailures.TryGetValue(key, out var code) ? Fail<ProviderTransactions>(code)
+            : Result.Success(new ProviderTransactions(Transactions.TryGetValue(key, out var lines) ? lines : [], TransactionsTruncated.Contains(key))));
     }
 
     public Task<Result> DeleteSessionAsync(string appId, string sessionId, CancellationToken ct)

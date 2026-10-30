@@ -307,6 +307,9 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_snapshots", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_movements", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("goals", null, null)),
+        // Bank sync D24: A's account on her private envelope and its two lines, named after her private label, never reach B's export.
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_accounts", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_transactions", null, null)),
 
         new(typeof(ListEnvelopesQuery), false, (_, _) => new ListEnvelopesQuery(VisibilityScope.Me, true)),
         new(typeof(GetInvestmentsOverviewQuery), false, (_, _) => new GetInvestmentsOverviewQuery(VisibilityScope.Me, OverviewSpan.All)),
@@ -475,6 +478,13 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Sync.SyncAllCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncAllCommand()),
         new(typeof(Nid.Banking.Application.Sync.SyncMineCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncMineCommand(Guid.NewGuid(), new PsuHeaders(null, null))),
         new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery()),
+        // An envelope's bank lines (and its card's): read by whoever reads the envelope, A's two on her private envelope never reach B.
+        new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1)),
+        // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.
+        new(typeof(Nid.Banking.Application.Files.ImportStatementCommand), false, (_, item) => new Nid.Banking.Application.Files.ImportStatementCommand(
+            System.Text.Encoding.UTF8.GetBytes("<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>EUR</CURDEF><BANKACCTFROM><ACCTID>FR7630006000019999999999999</ACCTID></BANKACCTFROM>"
+                + "<BANKTRANLIST><STMTTRN><DTPOSTED>20250102</DTPOSTED><TRNAMT>-1.00</TRNAMT><FITID>bench</FITID><NAME>bench</NAME></STMTTRN></BANKTRANLIST>"
+                + "</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"), item, false, false)),
 
         // A document id is not an item: get, content, edit and archive take the row's seeded document, on every row, and are checked
         // against the document's own rules (LeakBenchTests). A core.item target makes upload, link, role and unlink item-scoped.

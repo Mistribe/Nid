@@ -1,0 +1,32 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "ref-1",
+      "transaction_amount": { "currency": "EUR", "amount": "13.49" },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-27",
+      "value_date": "2026-10-28",
+      "creditor": { "name": "NETFLIX INTERNATIONAL" },
+      "remittance_information": ["PRLV SEPA NETFLIX", "OCT 2026"]
+    },
+    {
+      "entry_reference": "ref-2",
+      "transaction_amount": { "currency": "EUR", "amount": "1500.00" },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "debtor": { "name": "ACME SAS" },
+      "creditor": { "name": "MOI" },
+      "bank_transaction_code": { "description": "Virement" }
+    },
+    {
+      "entry_reference": "ref-pending",
+      "transaction_amount": { "currency": "EUR", "amount": "5.00" },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "booking_date": "2026-10-28"
+    }
+  ],
+  "continuation_key": "page-2-key"
+}

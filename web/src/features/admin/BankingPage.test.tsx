@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -61,5 +62,16 @@ describe('Administration › Banque', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer l’identifiant' }));
 
     await waitFor(() => expect(sent).toEqual([{ enableBankingAppId: '4f1c-app' }]));
+  });
+
+  it('keeps the operations for a chosen number of months, or without limit', async () => {
+    const sent = serve({ bankingEnabled: true, enableBankingAppId: null, bankRetentionMonths: 36 });
+    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('combobox', { name: 'Conserver les opérations' })).toHaveTextContent('36 mois');
+    await pick(user, 'Conserver les opérations', '24 mois');
+    await waitFor(() => expect(sent).toEqual([{ bankRetentionMonths: 24 }]));
+    await pick(user, 'Conserver les opérations', 'Sans limite');
+    await waitFor(() => expect(sent).toEqual([{ bankRetentionMonths: 24 }, { clearBankRetention: true }]));
   });
 });

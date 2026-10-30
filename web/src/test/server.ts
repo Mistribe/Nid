@@ -27,6 +27,8 @@ export const handlers = [
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
   // The settings tabs, the envelope pages and the routine ask whether bank sync is on: off unless a test turns it on.
   http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: false, configured: false })),
+  // ... and, once a test turns it on, which bank accounts the person reads (none).
+  http.get('*/api/v1/banking/accounts', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
   // The home page's goals card reads the open goals (none: it stays absent).
   http.get('*/api/v1/goals', () => HttpResponse.json({ items: [] })),

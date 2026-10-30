@@ -1,9 +1,10 @@
-# Revue de risque : synchronisation bancaire, sous-plan 5A
+# Revue de risque : synchronisation bancaire, sous-plans 5A et 5B
 
-> Statut : revue de 5A (connexion et soldes), 2026-10-29, exigée par `risk-register.md` §7 (étape 5) avant mise en service.
+> Statut : revue de 5A (connexion et soldes), 2026-10-29, et de 5B (opérations et fichiers, §5), 2026-10-30, exigée par
+> `risk-register.md` §7 (étape 5) avant mise en service.
 > Références : `../superpowers/specs/2026-10-29-bank-sync-design.md` (§0, §1, §10, §11), plan
-> `../superpowers/plans/2026-10-29-stage-5a-bank-connection-and-balances.md`, `application.md` §3, `infrastructure.md`.
-> Les opérations, les fichiers et le rapprochement (5B à 5E) feront l'objet de leur propre revue.
+> `../superpowers/plans/2026-10-29-stage-5a-bank-connection-and-balances.md`, `../superpowers/plans/2026-10-29-stage-5b-bank-transactions-and-files.md`,
+> `application.md` §3, `infrastructure.md`. Le rapprochement, les revenus et le CSV (5C à 5E) feront l'objet de leur propre revue.
 
 ---
 
@@ -21,7 +22,7 @@ Ce que 5A ajoute à la surface de Nid :
 | Tâche | `bank-sync-nightly`, Quartz, 04:30 ; bouton « Synchroniser » exécuté dans la requête |
 | Interrupteur | `banking_enabled = false` par défaut : toute route bancaire (sauf les réglages d'administration) répond `banking.disabled` (409), et `banking.not_configured` (409) sans identifiant d'application ou sans clé |
 
-Hors de 5A, donc hors de cette revue : opérations bancaires, import de fichiers, rapprochement, export `bank` (D17, 5B), purge (D3).
+Hors de 5A : opérations bancaires, import de fichiers, export `bank` (D17) et purge (D3), revus pour 5B au §5 ; rapprochement (5C).
 
 ## 2. Échecs à éviter (spec §0)
 
@@ -216,4 +217,138 @@ ou une trace OpenTelemetry.
 | M3 | Suppression d'une connexion refusée si Enable Banking répond une autre erreur qu'expirée ou révoquée | La session reste ouverte chez Enable Banking jusqu'à un nouvel essai | Accepté ; à revoir avec R4 |
 | M4 | Clé Data Protection perdue | Sessions illisibles : chaque connexion est à renouveler (`deploy/README.md` §7) | Accepté |
 
-La revue est à refaire quand R1 à R5 sont levés (amendement daté de la spec), et avant 5B (opérations, fichiers, export).
+La revue est à refaire quand R1 à R5 sont levés (amendement daté de la spec), et avant 5C (rapprochement).
+
+## 5. Sous-plan 5B : opérations et fichiers (2026-10-30)
+
+Amendement de la spec : §15, « 5B tel que construit ».
+
+### 5.1 Périmètre
+
+| Élément | Détail |
+|---|---|
+| Données stockées | `banking.transaction` : opérations comptabilisées (`provider_ref`, empreinte, dates, montant signé, devise, libellé brut, contrepartie, motif, libellé normalisé, `link_state`, `fetched_via`) ; une connexion `file` par personne (sans session) ; `banking.sync_run.transactions` (un compteur) ; `core.household_settings.bank_retention_months` |
+| Appel sortant | `GET /accounts/{uid}/transactions` vers `api.enablebanking.com` seul, non tracé comme les autres ; 50 pages au plus par compte et par passage |
+| Entrée nouvelle | `POST /api/v1/banking/statements` (multipart, navigateur seulement : exclu du MCP) : un relevé OFX 1.x / 2.x ou CAMT.053, aperçu (`confirm = false`, rien d'écrit) puis confirmation |
+| Lecture nouvelle | `GET /api/v1/banking/envelopes/{id}/transactions` (50 lignes par page, `from` / `to`) |
+| Export / import | Section `bank` de `nid.data` : comptes et opérations, jamais connexion, session, source ni historique de soldes (`import-format.md` §5.7) |
+| Purge | Dans `bank-sync-nightly` : opérations `unlinked` ou `ignored` comptabilisées avant aujourd'hui moins `bank_retention_months` |
+
+### 5.2 Échec n° 1 : un adulte voit les opérations d'un compte privé de l'autre
+
+**Menace.** Les lignes d'un compte de A sur son enveloppe privée (libellés, contreparties, montants) atteignent B : par la
+liste des opérations, l'export, l'import d'un relevé (qui dirait « ce compte existe déjà »), ou par un compte que B a créé le
+premier depuis un relevé et que A relie ensuite.
+
+**Couverture.**
+
+- Une opération est lue par qui lit son compte (`BankingAccess`, 5A) ; celle d'une carte par qui lit son compte courant. La
+  liste se lit par enveloppe : celle d'une enveloppe que le lecteur ne voit pas est refusée comme l'enveloppe.
+- Banc anti-fuite : la lecture des opérations, les deux pages d'export (`bank_accounts`, `bank_transactions`) et l'aperçu
+  d'un relevé sont au catalogue ; le jeu mixte porte deux lignes du compte de A, libellées d'après son libellé privé.
+- Import d'un relevé : le compte est retrouvé par l'empreinte de l'IBAN (ou de l'identifiant de compte) ; un compte que la
+  personne ne peut pas écrire est refusé `banking.file_account_mismatch`, **sans le nommer** ; un compte nouveau est le sien,
+  sous sa connexion `file`. Un verrou consultatif par personne empêche le double clic de créer deux comptes, et un compte
+  créé entre-temps par l'autre adulte est refusé de même.
+- **Une connexion l'emporte sur un relevé.** Quand A relie la banque d'un compte que B a créé depuis un relevé, et que B ne le
+  tient que par sa connexion `file`, le compte passe à A ; il quitte l'enveloppe de B si A ne la lit pas, et les cartes de B
+  rattachées sont détachées. Sans cela, B lirait chaque nuit la banque de A et pourrait emporter le compte dans une enveloppe
+  privée. Un compte de 5A dont le créateur n'a plus de connexion reste le sien.
+- Export : seulement les comptes que le lecteur lit et leurs lignes ; une enveloppe ou un compte courant hors de son export
+  n'est pas nommé. Import `nid.data` : une `ref` d'export qui désigne un compte que l'importateur ne peut pas modifier est
+  refusée `banking.file_account_mismatch`, sans le nommer ; une `ref` écrite à la main ne retrouve que les comptes de cette
+  personne ; un compte nouveau est toujours celui de l'importateur.
+- Le journal ne gagne qu'un compteur (`transactions`) ; aucune notification nouvelle.
+
+**Tests.**
+
+- `Nid.Banking.IntegrationTests` : `TransactionReadTests.Transactions_follow_the_account_access`,
+  `TransactionReadTests.The_envelope_s_transactions_come_newest_first_with_the_card_s_lines_flagged`,
+  `StatementImportTests.A_file_of_an_account_the_reader_cannot_see_is_refused_without_naming_it`,
+  `StatementImportTests.A_file_of_another_account_is_refused_on_an_envelope`,
+  `StatementImportTests.An_account_another_person_created_meanwhile_is_refused`,
+  `StatementImportTests.Two_confirms_of_a_first_file_at_once_write_it_once`,
+  `StatementImportTests.A_bank_connection_outranks_a_file_claim`,
+  `StatementImportTests.A_bank_connection_claiming_an_account_detaches_the_other_adult_s_card`,
+  `BankImportTests.BankImport_export_lists_the_accounts_a_person_reads_and_their_lines_never_the_other_adults_private_ones`,
+  `BankImportTests.BankImport_refuses_an_exported_ref_of_an_account_the_importer_cannot_change_without_naming_it`,
+  `BankImportTests.BankImport_hand_written_refs_are_each_importers_own`.
+- `Nid.Host.IntegrationTests` : `LeakBenchTests.Every_request_in_every_module_is_covered_by_the_bench`,
+  `LeakBenchTests.No_catalogued_read_returns_an_item_or_a_label_the_actor_may_not_see`,
+  `LeakBenchTests.Every_catalogued_item_scoped_request_is_refused_exactly_as_the_rules_say`,
+  `McpRouteToolTests.Every_web_write_is_a_tool_or_left_out_on_purpose_and_each_tool_matches_its_route`.
+
+### 5.3 Échec n° 5 : une opération importée deux fois
+
+**Menace.** La même écriture arrive par la nuit, par un clic, par un relevé et par un `nid.data` ; ou deux lectures se
+croisent ; ou deux achats identiques le même jour se confondent en un.
+
+**Couverture.** Unicité sur `(account_id, provider_ref)` et `(account_id, fingerprint)`, l'empreinte toujours calculée ;
+verrou consultatif par compte autour de l'ajout ; rang suivant pour une ligne de même empreinte mais d'une autre référence de
+la même source ; même empreinte d'une source à l'autre = même opération ; D23 pour un relevé après l'API (même montant à un
+jour près, écartée sauf choix contraire) ; fenêtre de lecture à dix jours avant la dernière date ; l'empreinte d'un
+`nid.data` est recalculée à l'import.
+
+**Tests.** `TransactionStoreTests` (huit cas, dont `Two_concurrent_adds_of_the_same_lines_store_them_once` et
+`A_new_line_sharing_a_fingerprint_with_a_line_of_another_ref_is_stored_at_the_next_rank`),
+`SyncTests.A_second_read_adds_nothing`, `SyncTests.The_next_read_starts_ten_days_before_the_latest_booked_line`,
+`StatementImportTests.Re_importing_the_same_file_adds_nothing`,
+`StatementImportTests.An_ofx_after_the_api_leaves_probable_duplicates_out`,
+`BankImportTests.BankImport_into_an_empty_household_recreates_the_accounts_under_the_importers_file_connection_and_twice_adds_nothing` ;
+`Nid.Banking.Tests` : `TransactionFingerprintTests`, `TransactionLabelTests`.
+
+### 5.4 Fichiers déposés
+
+**Menace.** Un relevé piégé : entité externe (XXE) ou expansion d'entités, imbrication extrême qui fait déborder la pile et
+tue l'hôte, fichier énorme ou analyse quadratique (déni de service), montants hors de `numeric(19,4)` (exception à
+l'écriture, ou arrondi silencieux), fichier gardé sur disque après coup.
+
+**Couverture.**
+
+- XML (OFX 2, CAMT) lu avec `DtdProcessing.Prohibit` et `XmlResolver = null` : une DTD ou une entité est refusée
+  (`banking.file_malformed`). L'OFX 1 SGML est lu par un analyseur maison, linéaire, sans entité.
+- 5 Mio au plus (vérifié sur `Content-Length`, sur la lecture du corps et sur le fichier : `banking.file_too_large`, 413) ;
+  20 000 lignes au plus sur tout le fichier ; imbrication bornée à 32 niveaux (OFX et CAMT) ; 5 Mio plats lus en temps
+  linéaire.
+- Montant : au plus 15 chiffres avant la virgule et 4 après, sinon `banking.file_malformed` avec la ligne. Un fichier mal
+  formé est refusé en entier ; un format inconnu `banking.file_format` ; des relevés de plusieurs comptes
+  `banking.file_several_accounts`. Une erreur porte la ligne et au plus le nom d'une balise, jamais un libellé ni un montant ; l'écran la traduit par son code.
+- Le relevé est gardé **en mémoire** jusqu'à la limite (`MemoryBufferThreshold` = 5 Mio), jamais dans un fichier temporaire,
+  ni en base, ni dans un journal ; l'aperçu n'écrit rien et le serveur ne garde aucun état entre l'aperçu et la confirmation.
+- Les libellés sont du texte brut, rendus échappés comme toute donnée importée (APP-2).
+- L'import de relevé est réservé au navigateur (exclu du MCP).
+
+**Tests.** `Nid.Banking.Tests` : `OfxReaderTests` et `Camt053ReaderTests` (`An_entity_is_refused`,
+`Nesting_deeper_than_32_is_refused`, `A_flat_file_of_5_mib_reads_in_linear_time`, `An_amount_with_more_than_4_decimals_is_refused`,
+`An_amount_over_15_digits_is_refused_with_its_line`, `More_than_20_000_lines_are_refused`, `The_line_cap_counts_the_whole_file`,
+`Statements_of_two_accounts_are_refused`), `StatementReaderTests` (`An_unknown_format_is_refused`,
+`A_file_over_5_mib_is_refused`) ; `Nid.Banking.IntegrationTests` : `StatementImportTests.A_file_over_5_mib_is_refused`,
+`StatementImportTests.A_malformed_file_is_refused_with_its_line`,
+`StatementImportTests.A_preview_of_a_new_account_reads_the_file_and_writes_nothing`.
+
+### 5.5 Conservation (D3) et autres points
+
+| Exigence | Tel que construit |
+|---|---|
+| Conservation | Toutes les opérations gardées par défaut ; `bank_retention_months` (1 à 600) fixé ou effacé (`clearBankRetention`) par l'administrateur, changement inscrit au journal de sécurité (`household_settings_changed`, champ nommé) ; purge de nuit des opérations `unlinked` et `ignored`, aussi sans application Enable Banking. Tests : `TransactionReadTests.A_night_deletes_the_lines_older_than_the_retention_but_a_linked_one`, `TransactionReadTests.Without_a_retention_a_night_deletes_nothing`, `TransactionReadTests.The_retention_runs_without_an_enable_banking_application`, `TransactionReadTests.The_retention_is_set_cleared_and_bounded_through_the_admin_route`, `SecurityEventTests.A_bank_retention_change_names_its_field`, `HouseholdSettingsTests.Bank_retention_is_unlimited_by_default_between_1_and_600_months_and_can_be_cleared` |
+| Audit | Les opérations sont des données brutes de la banque, exclues de l'audit (`BankingAuditMap`) ; la purge et les deux verrous consultatifs sont autorisés nommément (`AuditCompletenessTests.Bulk_statements_appear_only_where_decided`) |
+| Lecture seule | Le client ne gagne qu'une lecture (`GET /accounts/{uid}/transactions`) ; en-têtes PSU d'un clic aussi sur cet appel (`EnableBankingClientTests`) |
+| Signe | `DBIT` → négatif, sinon positif, quel que soit le signe reçu (`EnableBankingClientTests.A_debit_is_negative_and_a_credit_positive_whatever_sign_the_bank_sent`) |
+| Lecture coupée | 50 pages au plus ; la coupure est inscrite au journal (`banking.transactions_truncated`), la connexion reste active (`SyncTests.A_read_cut_by_the_page_cap_keeps_its_lines_and_journals_it_without_touching_the_connection`) |
+| Banque désactivée | Toute route d'opérations et l'import de relevé répondent `banking.disabled` ; l'import de relevé et la lecture ne demandent pas l'application Enable Banking (`StatementImportTests.File_imports_need_banking_on_only`, `TransactionReadTests.Reading_transactions_needs_banking_on_but_no_enable_banking_application`) ; la section `bank` de `nid.data` s'exporte et s'importe banque désactivée (sauvegarde et départ jamais bloqués) |
+
+### 5.6 Points laissés (5B)
+
+| # | Point | Effet | Suite |
+|---|---|---|---|
+| B1 | Opérations de carte absentes du test d'accès et du jeu du banc anti-fuite | La règle (carte = son compte courant) est celle de 5A, testée pour les comptes ; ses lignes ne le sont pas | À ajouter avec 5C |
+| B2 | Import `nid.data` : garde de concurrence, `banking.envelope_taken`, `import.not_permitted` et `banking.card_parent` non testés sur ce chemin ; pas de test dédié « banque désactivée » | Règles partagées avec 5A et l'import de relevé, testées là | À ajouter |
+| B3 | Purge seulement banque activée | Un foyer qui désactive la banque garde ses opérations au-delà de la durée fixée jusqu'à la réactivation | Accepté ; à revoir si la désactivation devient un moyen d'arrêter la banque pour de bon |
+| B4 | Tests de conservation sans date de fin de mois ni borne exacte (`booked_on` = limite), `internal` gardé non testé | Une erreur d'un jour à la borne passerait | À ajouter |
+| B5 | Compte repris par une connexion sur une enveloppe **partagée** : il y reste, valorisé au nom de B (`associated_by`), et A ne peut pas le déplacer | Règles de 5A ; aucune donnée ne passe à qui ne lit pas l'enveloppe | Accepté |
+| B6 | Deux adultes qui importent au même instant le relevé d'un même IBAN nouveau | L'un reçoit une erreur 500 (clé unique) ; rien n'est écrit en double ni divulgué | À reprendre |
+| B7 | Montant de plus de 28 décimales arrondi par `decimal.TryParse` | Écart ≤ 1e-28, sans effet sur `numeric(19,4)` | Accepté |
+| B8 | Export : toutes les lignes d'un compte chargées à chaque page | Coût en mémoire sur un long historique, par un adulte authentifié | À reprendre si l'export ralentit |
+| B9 | Navigateur : choisir un autre fichier pendant un aperçu en cours peut confirmer un fichier dont l'aperçu n'a pas été vu | Le fichier confirmé est relu et vérifié en entier par le serveur, avec les mêmes droits | Accepté |
+| B10 | Journal : une lecture coupée et une vraie erreur de connexion la même nuit ne gardent que le premier code | Le journal sous-dit la seconde | Accepté |
+| B11 | Un compte importé par `nid.data` n'a pas d'empreinte d'IBAN | Un relevé ou une connexion du même compte réel crée ensuite un second compte | Accepté (§15 de la spec) |

@@ -261,4 +261,35 @@ describe('EnvelopeDetailPage', () => {
     await waitFor(() => expect(queryClient.isFetching()).toBe(0));
     expect(screen.queryByText(/Relié à/)).toBeNull();
   });
+
+  it('has an « Opérations » tab once bank sync is on, even without Enable Banking (statement files alone)', async () => {
+    serve(detail({ kind: 'checking' }));
+    server.use(
+      http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
+      http.get('*/api/v1/banking/envelopes/:id/transactions', () => HttpResponse.json({ items: [], hasMore: false })),
+    );
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    await user.click(await screen.findByRole('tab', { name: 'Opérations' }));
+    expect(await screen.findByText('Aucune opération.')).toBeInTheDocument();
+  });
+
+  it('has no « Opérations » tab while bank sync is off', async () => {
+    serve(detail({ kind: 'checking' }));
+    const { queryClient } = await renderApp(`/investments/${PEA}`);
+
+    await screen.findByRole('tab', { name: 'Documents' });
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    expect(screen.queryByRole('tab', { name: 'Opérations' })).toBeNull();
+  });
+
+  it('has no « Opérations » tab on an envelope no bank account goes with (a PEA), bank sync on or not', async () => {
+    serve(detail());
+    server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: true })));
+    const { queryClient } = await renderApp(`/investments/${PEA}?tab=operations`);
+
+    expect(await screen.findByRole('tab', { name: 'Vue d’ensemble', selected: true })).toBeInTheDocument();
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    expect(screen.queryByRole('tab', { name: 'Opérations' })).toBeNull();
+  });
 });

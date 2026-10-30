@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
@@ -17,9 +18,11 @@ const HOUSEHOLD = '/api/v1/admin/household';
 const RUNS = '/api/v1/admin/banking/runs';
 
 const STATUS = { running: 'admin.fx.status_running', succeeded: 'admin.fx.status_succeeded', failed: 'admin.fx.status_failed' } as const;
+/** « Conserver les opérations » (D3): the choices offered, in months; « Sans limite » clears the setting. */
+const RETENTION = [12, 24, 36, 60, 120];
 const TRIGGER = { schedule: 'admin.banking.trigger_schedule', manual: 'admin.banking.trigger_manual' } as const;
 
-/** Administration › Banque: bank sync on or off, the Enable Banking application, and the journal of the syncs (counts only). */
+/** Administration › Banque: bank sync on or off, the Enable Banking application, how long the operations are kept, and the journal of the syncs (counts only). */
 export function BankingPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -45,6 +48,7 @@ export function BankingPage() {
   const triggerLabel = (trigger: string) => (trigger in TRIGGER ? t(TRIGGER[trigger as keyof typeof TRIGGER]) : trigger);
 
   const title = t('admin.banking.title');
+  const retention = household.data?.bankRetentionMonths;
   if (household.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(household.error))} /></AdminFrame>;
   if (!household.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
 
@@ -70,6 +74,20 @@ export function BankingPage() {
           </div>
           <Button type="submit" variant="outline" disabled={save.isPending}>{t('admin.banking.save_app_id')}</Button>
         </form>
+        <div className="max-w-64">
+          <Field label={t('admin.banking.retention')} hint={t('admin.banking.retention_hint')}>
+            {(c) => (
+              <SelectField {...c} value={retention?.toString() ?? ''} disabled={save.isPending}
+                onValueChange={(v) => { setSaved(false); save.mutate({ body: v ? { bankRetentionMonths: Number(v) } : { clearBankRetention: true } }); }}
+                options={[
+                  { value: '', label: t('admin.banking.retention_none') },
+                  // A value set through the API outside these choices is shown as it is.
+                  ...[...RETENTION, ...(retention && !RETENTION.includes(retention) ? [retention] : [])].sort((a, b) => a - b)
+                    .map((months) => ({ value: String(months), label: t('admin.banking.retention_months', { months }) })),
+                ]} />
+            )}
+          </Field>
+        </div>
       </section>
 
       <section className="space-y-2">

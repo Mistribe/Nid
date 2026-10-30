@@ -21,16 +21,19 @@ export function useBankingStatus() {
   return $api.useQuery('get', BANKING_STATUS);
 }
 
+/** The envelope kinds a bank account goes with (the server refuses any other, `banking.envelope_kind`). */
+export const ASSOCIABLE = ['checking', 'savings', 'other'];
+
 const NONE: BankAccount[] = [];
 
 /**
- * The bank accounts the person reads (those of one envelope with `envelopeId`): none while bank sync is off, unconfigured or
- * unreadable, since every other banking read refuses then; `undefined` while that is not known yet.
+ * The bank accounts the person reads (those of one envelope with `envelopeId`): none while bank sync is off or unreadable; with
+ * bank sync on they are read even without Enable Banking (statement files); `undefined` while that is not known yet.
  */
 export function useBankAccounts(envelopeId?: string): BankAccount[] | undefined {
   const { $api } = useApi();
   const status = useBankingStatus();
-  const on = status.data?.enabled === true && status.data.configured;
+  const on = status.data?.enabled === true;
   const accounts = $api.useQuery('get', ACCOUNTS, { params: { query: envelopeId ? { envelopeId } : {} } }, { enabled: on });
   if (status.error || accounts.error || (status.data && !on)) return NONE;
   return accounts.data;

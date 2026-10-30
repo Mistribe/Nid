@@ -256,9 +256,14 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_connection_state_hash");
 
+                    b.HasIndex("PersonId", "Source")
+                        .IsUnique()
+                        .HasDatabaseName("ix_connection_person_id_source")
+                        .HasFilter("source = 'file'");
+
                     b.ToTable("connection", "banking", t =>
                         {
-                            t.HasCheckConstraint("ck_connection_source", "source in ('enable_banking')");
+                            t.HasCheckConstraint("ck_connection_source", "source in ('enable_banking','file')");
 
                             t.HasCheckConstraint("ck_connection_status", "status in ('pending','active','expired','revoked','error')");
                         });
@@ -307,6 +312,12 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
 
+                    b.Property<int>("Transactions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("transactions");
+
                     b.Property<string>("Trigger")
                         .IsRequired()
                         .HasColumnType("text")
@@ -332,6 +343,97 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_sync_run_outcome", "outcome in ('running','succeeded','failed')");
 
                             t.HasCheckConstraint("ck_sync_run_trigger", "trigger in ('schedule','manual')");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.TransactionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<LocalDate>("BookedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("booked_on");
+
+                    b.Property<string>("Counterparty")
+                        .HasColumnType("text")
+                        .HasColumnName("counterparty");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("FetchedVia")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fetched_via");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fingerprint");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("label");
+
+                    b.Property<string>("LinkState")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("link_state");
+
+                    b.Property<string>("NormalizedLabel")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("normalized_label");
+
+                    b.Property<string>("ProviderRef")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("provider_ref");
+
+                    b.Property<string>("Remittance")
+                        .HasColumnType("text")
+                        .HasColumnName("remittance");
+
+                    b.Property<LocalDate?>("ValueOn")
+                        .HasColumnType("date")
+                        .HasColumnName("value_on");
+
+                    b.HasKey("Id")
+                        .HasName("pk_transaction");
+
+                    b.HasIndex("AccountId", "BookedOn")
+                        .HasDatabaseName("ix_transaction_account_id_booked_on");
+
+                    b.HasIndex("AccountId", "Fingerprint")
+                        .IsUnique()
+                        .HasDatabaseName("ix_transaction_account_id_fingerprint");
+
+                    b.HasIndex("AccountId", "ProviderRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_transaction_account_id_provider_ref");
+
+                    b.ToTable("transaction", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_transaction_fetched_via", "fetched_via in ('api','file')");
+
+                            t.HasCheckConstraint("ck_transaction_link_state", "link_state in ('unlinked','linked','ignored','internal')");
                         });
                 });
 
@@ -473,6 +575,16 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_balance_account_account_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.TransactionRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_transaction_account_account_id");
                 });
 #pragma warning restore 612, 618
         }

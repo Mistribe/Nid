@@ -34,13 +34,16 @@ import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/investments';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
-import { dayMonth, useBankAccounts } from '@/features/settings/banks/api';
+import { ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/features/settings/banks/api';
 import '@/locales/banks';
 
 // The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
 const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));
+// « Opérations » and its import dialog load with the tab, shown once bank sync is on (statement files need no Enable Banking) on an
+// envelope a bank account goes with.
+const OperationsTab = lazy(() => import('./operations/OperationsTab'));
 
-const TABS = ['overview', 'values', 'flows', 'holdings', 'documents', 'settings'] as const;
+const TABS = ['overview', 'values', 'flows', 'holdings', 'operations', 'documents', 'settings'] as const;
 const newestFirst = <T,>(rows: T[], date: (row: T) => string) =>
   [...rows].sort((a, b) => (date(a) < date(b) ? 1 : date(a) > date(b) ? -1 : 0));
 
@@ -62,6 +65,7 @@ export function EnvelopeDetailPage() {
   const holdings = $api.useQuery('get', HOLDINGS, { params: { path: { id } } });
   // The bank account whose balances become this envelope's values, when bank sync is on.
   const bank = useBankAccounts(id)?.[0];
+  const bankingOn = useBankingStatus().data?.enabled === true;
   const [tab, setTab] = useDetailTab(TABS);
   const back = <Link to="/investments" className="text-sm underline">{t('envelope.back')}</Link>;
   // The dialogs: a new value or flow (`{}`), the correction of a row, or a new flow on « Versements antérieurs ».
@@ -174,7 +178,8 @@ export function EnvelopeDetailPage() {
   // Every write affordance: the header actions, the row menus and the settings.
   const writable = detail.canWrite && !detail.closed;
   const columns = (writable ? 1 : 0) + 3;
-  const shown = writable || tab !== 'settings' ? tab : 'overview';
+  const operations = bankingOn && ASSOCIABLE.includes(detail.kind);
+  const shown = (tab === 'settings' && !writable) || (tab === 'operations' && !operations) ? 'overview' : tab;
 
   const actions = writable ? (
     <>
@@ -371,6 +376,14 @@ export function EnvelopeDetailPage() {
             </Suspense>
           ),
         },
+        ...(operations ? [{
+          id: 'operations' as const, label: t('banks.operations.title'),
+          content: (
+            <Suspense fallback={<div role="status" aria-busy="true" aria-label={t('banks.operations.loading')} className="h-40 shimmer rounded-md border bg-muted" />}>
+              <OperationsTab envelope={detail} writable={writable} />
+            </Suspense>
+          ),
+        }] : []),
         { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={detail.id} canWrite={detail.canWrite} defaultRole="statement" /> },
         ...(writable ? [{
           id: 'settings' as const, label: t('envelope.tab.settings'),

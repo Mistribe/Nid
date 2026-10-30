@@ -21,7 +21,7 @@ public sealed class BankingAccess(
     public static bool Configured(HouseholdSettingsInfo household, BankingOptions options)
         => !string.IsNullOrWhiteSpace(household.EnableBankingAppId) && !string.IsNullOrWhiteSpace(options.PrivateKey);
 
-    /// <summary>The application id, when banking is on and configured: every banking request but the status asks it first.</summary>
+    /// <summary>The application id, when banking is on and configured: every request that reaches a bank asks it first.</summary>
     public async Task<Result<string>> AppIdAsync(CancellationToken ct)
     {
         var household = await settings.ReadAsync(ct);
@@ -31,6 +31,12 @@ public sealed class BankingAccess(
             ? Result.Success(household.EnableBankingAppId!)
             : Fail<string>(BankingCodes.NotConfigured, "Bank sync has no Enable Banking application id or private key.");
     }
+
+    /// <summary>Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d).</summary>
+    public async Task<Result> EnabledAsync(CancellationToken ct)
+        => (await settings.ReadAsync(ct)).BankingEnabled
+            ? Result.Success()
+            : Result.Failure(new Failure(BankingCodes.Disabled, "Bank sync is turned off for this household.", null));
 
     /// <summary>One of the actor's connections, past its first callback: a pending one is nobody's to act on yet.</summary>
     public async Task<Result<BankConnection>> MyConnectionAsync(Guid id, CancellationToken ct)
@@ -89,6 +95,10 @@ public sealed class BankingAccess(
         => account.CreatedBy == Person || (await accounts.SourcesAsync(account.Id, ct)).Any(s => mine.Contains(s.Connection));
 
     internal static Result<T> Fail<T>(string code, string message) where T : notnull => Result.Failure<T>(new Failure(code, message, null));
+
+    /// <summary>The failure of <paramref name="result"/>, as a result of a type.</summary>
+    internal static Result<T> Failed<T>(Result result) where T : notnull
+        => Result.Failure<T>(result.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
     /// <summary>The failure of <paramref name="result"/>, as a result of another type.</summary>
     internal static Result<T> Failed<T, S>(Result<S> result) where T : notnull where S : notnull

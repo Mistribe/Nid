@@ -97,6 +97,7 @@ public static partial class SecurityEventViews
         [SecurityEventNames.TokenRevoked] = ["count"],
         [SecurityEventNames.TokenAuthFailed] = ["prefix"],
         [SecurityEventNames.McpToolCalled] = ["tool"],
+        [SecurityEventNames.BankStatementImported] = ["account", "source", "new", "known", "probably_known", "kept"],
     };
 
     [JsonSerializable(typeof(Dictionary<string, JsonElement>))]

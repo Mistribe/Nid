@@ -133,7 +133,7 @@ public sealed class RenewConnectionHandler(
 /// </summary>
 [RequestHandler<CompleteConnectionCommand, Guid>]
 public sealed class CompleteConnectionHandler(
-    BankingAccess access, IConnectionStore connections, IAccountStore accounts, IEnableBankingClient client, IUnitOfWork unitOfWork)
+    BankingAccess access, IConnectionStore connections, IAccountStore accounts, IEnableBankingClient client, IAccessPolicy policy, IUnitOfWork unitOfWork)
     : IRequestHandler<CompleteConnectionCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(CompleteConnectionCommand command, CancellationToken ct = default)
@@ -155,8 +155,23 @@ public sealed class CompleteConnectionHandler(
         await using (var transaction = await unitOfWork.BeginAsync(ct))
         {
             await connections.ActivateAsync(connection.Id, session!.SessionId, session.ValidUntil, ct);
-            await accounts.UpsertFromSessionAsync(connection.Id,
+            var seen = await accounts.UpsertFromSessionAsync(connection.Id,
                 session.Accounts.Where(a => Currency.TryCreate(a.Currency.ToUpperInvariant(), out _)).ToList(), ct);
+            // A bank connection outranks a statement file: an account another adult imported becomes the connecting person's, and leaves
+            // an envelope they cannot read, which would hide their own account from them (D7).
+            foreach (var found in seen)
+            {
+                if (!await accounts.ClaimFromFileAsync(found.Id, access.Person, ct))
+                    continue;
+                var account = found with { AutoApplyBalance = false, Ignored = false }; // as the claim left it
+                if (account.Envelope is { } envelope && !(await policy.CheckAsync(access.Person, envelope, AccessKind.Read, ct)).IsSuccess
+                    && (await accounts.UpdateAsync(account with { Envelope = null, AssociatedOn = null, AssociatedBy = null }, ct)).TryGetFailure(out var failure))
+                    return Result.Failure<Guid>(failure!);
+                // A card follows its parent's access: the other adult's own card does not go with the claimed account.
+                foreach (var card in (await accounts.AllAsync(ct)).Where(c => c.CardOf == account.Id))
+                    if (!await access.OwnsAsync(card, ct) && (await accounts.UpdateAsync(card with { CardOf = null }, ct)).TryGetFailure(out var detach))
+                        return Result.Failure<Guid>(detach!);
+            }
             await transaction.CommitAsync(ct);
         }
 

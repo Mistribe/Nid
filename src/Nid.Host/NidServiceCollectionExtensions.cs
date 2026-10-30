@@ -236,11 +236,13 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IConnectionStore, ConnectionStore>();
         services.AddScoped<IAccountStore, AccountStore>();
         services.AddScoped<IBalanceStore, BalanceStore>();
+        services.AddScoped<ITransactionStore, TransactionStore>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<BankingAccess>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, BankingNotificationSource>();
         services.AddScoped<BankAccountReader>();
         services.AddScoped<Nid.Banking.Application.Sync.BankSyncCollector>();
+        services.AddSingleton<Nid.Banking.Application.Sync.BalanceValuation>();
         services.AddSingleton<AspspCache>();
 
         services.AddDbContext<DocumentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -339,6 +341,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, Nid.Goals.Application.Import.GoalsImportSection>();
         services.AddScoped<IImportSection, Nid.RealEstate.Application.Import.RealEstateImportSection>();
         services.AddScoped<IImportSection, FactsImportSection>();
+        services.AddScoped<IImportSection, Nid.Banking.Application.Import.BankImportSection>();
 
         services.AddLogging();
         services.AddSynapse(cfg =>

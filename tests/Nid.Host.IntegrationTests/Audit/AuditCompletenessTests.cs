@@ -54,7 +54,9 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
     private static readonly Dictionary<string, int> AllowedBulkStatements = new()
     {
         ["src/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
+        ["src/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written
         ["src/Nid.Banking.Infrastructure/Persistence/SyncRunLog.cs"] = 3,    // sync_run: excluded
+        ["src/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 2, // transaction: excluded; the account's advisory lock (données brutes de la banque, ni décision ni réglage)
         ["src/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
         ["src/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
         ["src/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 1, // advisory lock

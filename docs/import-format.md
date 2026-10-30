@@ -1,6 +1,6 @@
 # Format d'import et d'export de Nid
 
-> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1), Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30), Revenus (`income_sources`, `income_phases`) (2C1, 2026-10-02) et Immobilier (les huit sections de `realestate/README.md` §10 et `realestate/loans.md` §10) (3F1, 2026-10-15) sont définies ; `loan_bank_schedule` les complète en 3F2. Les objectifs d'épargne (`goals`) viennent en dernier (savings goals spec D16, 2026-10-23).
+> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1), Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30), Revenus (`income_sources`, `income_phases`) (2C1, 2026-10-02) et Immobilier (les huit sections de `realestate/README.md` §10 et `realestate/loans.md` §10) (3F1, 2026-10-15) sont définies ; `loan_bank_schedule` les complète en 3F2. Les objectifs d'épargne (`goals`) suivent (savings goals spec D16, 2026-10-23), puis les comptes bancaires et leurs opérations (`bank_accounts`, `bank_transactions`), en dernier (bank sync D24, 5B, 2026-10-29).
 > Références : `subscription-data-model.md` (sens des entités), `core-data-model.md` (personnes, propriété, provenance), `architecture.md` §11 (export) et §5.4 (Synapse).
 
 ---
@@ -56,6 +56,7 @@ Un **seul format** sert à trois usages :
 | `income_one_off_taxable` | tableau | Module Revenus : le net imposable d'un revenu ponctuel, `{ flow_id, taxable_amount }`, où `flow_id` est l'`id` d'une entité de `flows` (catégorie `one_off`) ; appliqué après `flows` |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
 | `goals` | tableau | Module Objectifs (`superpowers/specs/2026-10-23-savings-goals-design.md` D16 et §2) : l'objectif, ses liens vers les enveloppes du fichier et ses relevés |
+| `bank_accounts`, `bank_transactions` | tableaux | Module Banque (`superpowers/specs/2026-10-29-bank-sync-design.md` D24) : les comptes bancaires et leurs opérations (§5.7) |
 
 Section **réservée**, pas encore définie : `documents`. Un fichier qui la contient est refusé. Une section d'un module désactivé est refusée elle aussi.
 
@@ -174,6 +175,50 @@ Règles : devise identique à celle de l'élément ; au plus une valorisation co
 - **Collision avec un fait courant** : un fait nouveau du fichier qui tombe sur la même date (valorisation), sur un second `opening` ou sur le même `external_ref` (flux) qu'un fait courant du même élément que le fichier ne nomme pas (saisi à la main ou importé par un autre fichier) est un `conflict` ; il ne remplace jamais rien. Avec `replace`, une correction (fait d'`id` connu) ne corrige que son propre fait.
 - **Clôture** : la table `envelopes` porte `closed_on` (`investments-data-model.md` §9) ; une enveloppe clôturée est exportée et réimportée clôturée.
 
+### 5.7 `bank_accounts` et `bank_transactions` (Banque)
+
+Les comptes que la personne lit et leurs opérations (bank sync D24). **Jamais** de connexion, de session, de source ni d'historique de soldes ; les liens et les règles viendront avec 5C.
+
+**`bank_accounts`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `ref` | string | Clé du fichier (§4) ; l'export écrit `acc-<uuid>` |
+| `name` | string | |
+| `iban_last4` | string? | Les quatre derniers caractères de l'IBAN, jamais plus |
+| `kind` | string | `checking`, `savings`, `card`, `other` |
+| `currency` | string | ISO 4217 |
+| `envelope_ref` | string? | `id` d'une entité `envelopes` du même fichier |
+| `card_of_ref` | string? | `ref` du compte courant du même fichier auquel la carte est rattachée |
+| `auto_apply_balance` | bool | `false` par défaut |
+| `ignored` | bool | `false` par défaut |
+| `owner_ref` | string | `ref` d'une personne : qui possédait le compte là où il a été exporté |
+
+**`bank_transactions`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `account_ref` | string | `ref` d'une entité `bank_accounts` du même fichier |
+| `provider_ref` | string | Identifiant de la source (ou l'empreinte, quand elle n'en a pas) |
+| `fingerprint` | string | Empreinte de l'opération ; **recalculée** à l'import |
+| `booked_on` | date | |
+| `value_on` | date? | |
+| `amount` | montant décimal | Signé (débit négatif), au plus 4 décimales ; devise = celle du compte (`banking.currency_mismatch`) |
+| `currency` | string | |
+| `label` | string | Libellé brut |
+| `counterparty`, `remittance` | string? | |
+| `fetched_via` | string | `api` ou `file` |
+
+Règles :
+
+- **Compte retrouvé** : `ref` désigne un compte existant s'il vaut `acc-<uuid>` d'un compte de cette instance, sinon s'il a déjà été importé sous cette `ref` : par n'importe qui pour une `ref` écrite par un export (`acc-<uuid>`, si bien que deux adultes qui déménagent chacun leur export retrouvent le même compte commun), par cette personne seulement pour une `ref` écrite à la main. La personne doit pouvoir le modifier, sinon `banking.file_account_mismatch` sur `ref`, sans le nommer (comme un relevé) ; il est laissé tel quel (`unchanged`) et reçoit les opérations du fichier.
+- **Compte nouveau** : créé sous la connexion `file` de **la personne qui importe** (une par personne, sans session), qui en devient propriétaire quel que soit `owner_ref` (qui doit toutefois désigner une personne du fichier). Sa clé de source est l'empreinte de sa `ref`, jamais un numéro de banque. Son enveloppe suit les règles de 5A : une enveloppe que la personne peut modifier (`import.not_permitted`), `checking`, `savings` ou `other` (`banking.envelope_kind`), dans la devise du compte (`banking.currency_mismatch`), un compte par enveloppe (`banking.envelope_taken`) ; une carte ne prend pas d'enveloppe et se rattache à un compte courant (`banking.card_parent`).
+- **Opérations** : dédoublonnées comme celles d'un relevé, par `provider_ref` ou empreinte ; réimporter le même fichier n'ajoute rien (`unchanged`). Le rapport compte `created` et `unchanged`, jamais `conflict` ni `replaced` : une opération n'est jamais réécrite.
+- **Clés non stables** (choix assumé) : un compte importé reçoit un nouvel `acc-<uuid>` dans l'instance qui l'importe ; un nouvel export de cette instance donne donc d'autres `ref` que le fichier d'origine. Le fichier d'origine, réimporté, retrouve toujours ses comptes par leur `ref`.
+- **Pas d'empreinte d'IBAN** : le fichier ne porte que les quatre derniers caractères, qui ne suffisent pas à reconnaître un compte. Un compte importé n'a donc pas d'empreinte d'IBAN : un relevé ou une connexion bancaire du même compte réel crée ensuite **un compte distinct**.
+- **Banque désactivée** : ces sections s'exportent et s'importent même quand la synchronisation bancaire est désactivée pour le foyer (`banking_enabled`) : quitter l'application ou restaurer ses données n'en dépend pas.
+- Les deux sections passent en dernier (ordre 110) : les enveloppes et les personnes existent déjà.
+
 ## 6. Résolution des personnes
 
 - Chaque `adult` du fichier doit être **associé à un compte existant** lors de l'import (par `email`, ou par une correspondance fournie à l'import). Un import ne crée jamais d'adulte : un adulte naît à sa première connexion (`core-data-model.md` §4.4). Un `adult` non résolu est une erreur.
@@ -235,6 +280,7 @@ L'export est **assemblé par le navigateur** à partir d'appels paginés ; le se
 - **Identifiants** : l'`id` d'une entité est son `import_ref` s'il est unique dans la section exportée (en cas de doublon, la ligne importée par le lecteur le garde) ; sinon une clé dérivée de l'UUID interne (`sub-…`, `ph-…`, `pu-…`, `env-…`, `val-…`, `fl-…`, `hold-…`, `hsnap-…`, `hmov-…`). Un réimport écrit cet `id` en `import_ref`, si bien qu'un second export redonne les mêmes `id`.
 - **Fournisseurs** : seuls ceux qu'une instance au même catalogue ne saurait pas résoudre (`custom`, `adopted`, et ceux du catalogue qu'il a archivés). Leur clé de fichier est leur `import_ref`, sinon leur clé stockée, sinon une version slugifiée ; jamais une clé que le fichier utilise déjà, y compris une clé du catalogue nommée directement (suffixe `-2`, `-3`…).
 - **Personnes** : seules les personnes référencées sont écrites, `adult-N` puis `dependent-N`, numérotées parmi elles par nom affiché puis email (une instance neuve qui réimporte le fichier redonne les mêmes références) ; l'`email` pour un adulte.
+- **Comptes bancaires** (§5.7) : ceux que le lecteur lit (bank sync D7, D22 : les siens, ceux d'une enveloppe qu'il lit, les cartes d'un compte qu'il lit), par nom puis `ref`, puis leurs opérations par compte, date et arrivée. Une enveloppe ou un compte courant absent de l'export du lecteur n'est pas nommé (`null`). Un compte réimporté reçoit un nouvel `acc-<uuid>` dans l'instance qui l'importe, si bien qu'un second export ne redonne pas les mêmes `ref` (choix assumé, §5.7) ; un réimport du fichier d'origine l'y retrouve par sa `ref`.
 - **Achats** : un achat ne garde que ses grants vers des abonnements exportés. Réimporté seul, il couvre donc moins d'abonnements et son coût se répartit sur les grants restants.
 - **Non garanti** : réimporter un export dans l'instance d'où il vient. Une ligne créée dans l'interface n'a pas d'`import_ref` et serait recréée ; une ligne modifiée depuis son import ressortirait en `conflict`.
 - `archived_at` n'est pas encore dans le format : rien n'archive un abonnement. Il arrivera avec l'archivage.
@@ -284,7 +330,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les comptes bancaires et leurs opérations (`bank_accounts`, `bank_transactions`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

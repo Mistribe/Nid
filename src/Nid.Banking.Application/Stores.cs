@@ -25,11 +25,17 @@ public interface IConnectionStore
 
     Task ActivateAsync(Guid id, string sessionId, Instant validUntil, CancellationToken ct);
 
-    /// <summary>The person's connections, whatever their status, oldest first.</summary>
+    /// <summary>The person's bank connections, whatever their status, oldest first; never their <c>file</c> connection.</summary>
     Task<IReadOnlyList<BankConnection>> MineAsync(PersonId person, CancellationToken ct);
 
-    /// <summary>The connections the sync reads: active, or in error with a session that may work again; oldest first.</summary>
+    /// <summary>The connections the sync reads: active, or in error with a session that may work again; oldest first. A <c>file</c> connection has none.</summary>
     Task<IReadOnlyList<BankConnection>> ActiveAsync(CancellationToken ct);
+
+    /// <summary>
+    /// The person's <c>file</c> connection (spec §2.2: active, no session), created on first use: the accounts they import hang off it.
+    /// Holds the person's import lock until the caller's transaction ends.
+    /// </summary>
+    Task<Guid> FileConnectionAsync(PersonId person, CancellationToken ct);
 
     /// <summary>The decrypted session id; <c>null</c> without one or when the key ring cannot read it any more.</summary>
     Task<string?> SessionIdAsync(Guid id, CancellationToken ct);
@@ -53,6 +59,27 @@ public interface IAccountStore
     Task<IReadOnlyList<BankAccount>> UpsertFromSessionAsync(Guid connection, IReadOnlyList<SessionAccount> accounts, CancellationToken ct);
 
     Task<BankAccount?> FindAsync(Guid id, CancellationToken ct);
+
+    /// <summary>
+    /// The account of a statement file: by its IBAN, else by the hash of its account id (upper-cased, without spaces) as a file source
+    /// recorded it; <c>null</c> when none.
+    /// </summary>
+    Task<BankAccount?> FindFromFileAsync(string? iban, string accountId, CancellationToken ct);
+
+    /// <summary>
+    /// <see cref="FindFromFileAsync"/>'s account, else a new checking account named <paramref name="name"/> under the file connection, its
+    /// source keyed by the hash of the IBAN or account id (never the number itself). A found account is returned as it is: a file source
+    /// would make the importer its owner. <paramref name="kind"/> and <paramref name="ibanLast4"/> are a <c>nid.data</c> account's own.
+    /// </summary>
+    Task<BankAccount> UpsertFromFileAsync(
+        Guid fileConnection, string? iban, string accountId, string currency, string name, CancellationToken ct,
+        BankAccountKind kind = BankAccountKind.Checking, string? ibanLast4 = null);
+
+    /// <summary>
+    /// A bank connection outranks a statement file: when the account's creator holds it through their <c>file</c> connection only, it
+    /// becomes <paramref name="person"/>'s, its balance settings (auto-apply, ignored) reset. Whether it changed hands.
+    /// </summary>
+    Task<bool> ClaimFromFileAsync(Guid account, PersonId person, CancellationToken ct);
 
     Task<BankAccount?> ForEnvelopeAsync(ItemId envelope, CancellationToken ct);
 
@@ -94,7 +121,7 @@ public interface IBalanceStore
 /// </summary>
 public sealed record BankSyncRunView(
     Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
-    int Proposals, int Written, int Skipped, string? FailureCode);
+    int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0);
 
 public interface IBankSyncRunLog
 {
@@ -113,4 +140,25 @@ public interface IBankSyncRunLog
 
     /// <summary>Deletes finished runs started before <paramref name="before"/>.</summary>
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
+}
+
+/// <summary>Booked transactions (spec §2.5), raw bank data: added once, never updated by a later read.</summary>
+public interface ITransactionStore
+{
+    /// <summary>Adds the lines not already stored by provider ref or fingerprint; never updates a stored one.</summary>
+    Task<TransactionWrite> AddAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct);
+
+    /// <summary>The latest booking of the account, of one source (<c>api</c>, <c>file</c>) when <paramref name="fetchedVia"/> is given.</summary>
+    Task<LocalDate?> LatestBookedOnAsync(Guid account, string? fetchedVia, CancellationToken ct);
+
+    Task<bool> HasFetchedViaAsync(Guid account, string fetchedVia, CancellationToken ct);
+
+    /// <summary>Stored lines of the same amount booked within ±1 day of each given (date, amount).</summary>
+    Task<IReadOnlyList<BankTransaction>> NearAsync(Guid account, IReadOnlyList<(LocalDate BookedOn, decimal Amount)> lines, CancellationToken ct);
+
+    /// <summary>The accounts' transactions, newest booked first, within [<paramref name="from"/>, <paramref name="to"/>] when given.</summary>
+    Task<IReadOnlyList<BankTransaction>> ListAsync(IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct);
+
+    /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>; returns how many.</summary>
+    Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct);
 }

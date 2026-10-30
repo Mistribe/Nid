@@ -63,6 +63,20 @@ describe('Réglages › Banques', () => {
     expect(screen.getByRole('link', { name: 'Banques' })).toBeInTheDocument();
   });
 
+  it('without Enable Banking, still lists the imported accounts and offers « Importer un relevé », not « Relier une banque »', async () => {
+    server.use(
+      http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
+      http.get('*/api/v1/banking/accounts', () => HttpResponse.json([account({ name: 'Relevé ·8901', ibanMasked: null, synced: false })])),
+    );
+    await renderApp('/settings/banks');
+
+    expect(await screen.findByText(/pas encore configurée/)).toBeInTheDocument();
+    expect(within(await screen.findByRole('region', { name: 'Comptes non synchronisés' })).getByRole('table')).toHaveTextContent('Relevé ·8901');
+    expect(screen.getByRole('button', { name: 'Importer un relevé' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Relier une banque' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Synchroniser tout' })).toBeNull();
+  });
+
   it('connects a bank: picks it, starts the connection and leaves for the bank', async () => {
     serveBanks([]);
     const posted: unknown[] = [];

@@ -1,0 +1,4 @@
+{
+  "en": "Banks: Nid keeps the bank transactions of each connected account, shows them in an « Opérations » tab on the envelope, and imports OFX and CAMT.053 statements, with or without Enable Banking.",
+  "fr": "Banques : Nid garde les opérations de chaque compte relié, les montre dans un onglet « Opérations » de l’enveloppe, et importe les relevés OFX et CAMT.053, avec ou sans Enable Banking."
+}

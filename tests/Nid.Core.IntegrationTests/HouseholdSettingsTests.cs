@@ -11,6 +11,12 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     private static string? Code(UnambitiousFx.Functional.Result<HouseholdSettingsInfo> result)
         => result.TryGetFailure(out var failure) ? failure!.Code : null;
 
+    private static int? Months(UnambitiousFx.Functional.Result<HouseholdSettingsInfo> result)
+    {
+        Assert.True(result.TryGetValue(out var info));
+        return info!.BankRetentionMonths;
+    }
+
     [Fact]
     public async Task Reads_the_cap_the_currency_and_the_number_of_adults()
     {
@@ -64,6 +70,22 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         Assert.Equal((false, "0a1b-app"), (off.BankingEnabled, off.EnableBankingAppId));
         Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: ""), default)).TryGetValue(out var cleared));
         Assert.Null(cleared.EnableBankingAppId);
+    }
+
+    [Fact]
+    public async Task Bank_retention_is_unlimited_by_default_between_1_and_600_months_and_can_be_cleared()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var settings = new HouseholdSettings(db);
+        Assert.Null((await settings.ReadAsync(default)).BankRetentionMonths);
+
+        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 12), default)));
+        // A field left out is left unchanged.
+        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true), default)));
+        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 0), default)));
+        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 601), default)));
+        Assert.Equal(600, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 600), default)));
+        Assert.Null(Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, ClearBankRetention: true), default)));
     }
 
     [Fact]

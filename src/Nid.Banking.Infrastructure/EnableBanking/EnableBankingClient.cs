@@ -19,6 +19,7 @@ namespace Nid.Banking.Infrastructure.EnableBanking;
 public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions options, IClock clock) : IEnableBankingClient
 {
     public const int MaxBytes = 1024 * 1024;
+    public const int MaxPages = 50;
     private const string Base = "https://api.enablebanking.com";
 
     public async Task<Result<IReadOnlyList<Aspsp>>> AspspsAsync(string appId, string country, CancellationToken ct)
@@ -39,12 +40,55 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
     /// <summary>The session is implied by the account uid on Enable Banking's side; <paramref name="sessionId"/> is not sent.</summary>
     public async Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(string appId, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct)
     {
+        return Map(await CallAsync<BalancesDto>(HttpMethod.Get, $"/accounts/{Uri.EscapeDataString(accountUid)}/balances", null, appId, PsuHeaderMap(psu), ct), ToBalances);
+    }
+
+    private static Dictionary<string, string> PsuHeaderMap(PsuHeaders? psu)
+    {
         var headers = new Dictionary<string, string>();
         if (psu?.IpAddress is { Length: > 0 } ip)
             headers["Psu-Ip-Address"] = ip;
         if (psu?.UserAgent is { Length: > 0 } agent)
             headers["Psu-User-Agent"] = agent;
-        return Map(await CallAsync<BalancesDto>(HttpMethod.Get, $"/accounts/{Uri.EscapeDataString(accountUid)}/balances", null, appId, headers, ct), ToBalances);
+        return headers;
+    }
+
+    /// <summary>At most <see cref="MaxPages"/> pages: a bank that never stops sending a continuation key cannot hold a night.</summary>
+    public async Task<Result<ProviderTransactions>> TransactionsAsync(
+        string appId, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct)
+    {
+        var headers = PsuHeaderMap(psu);
+        var lines = new List<ProviderTransaction>();
+        string? key = null;
+        for (var page = 0; page < MaxPages; page++)
+        {
+            var query = new List<string>();
+            if (dateFrom is { } from)
+                query.Add("date_from=" + LocalDatePattern.Iso.Format(from));
+            if (key is not null)
+                query.Add("continuation_key=" + Uri.EscapeDataString(key));
+            var path = $"/accounts/{Uri.EscapeDataString(accountUid)}/transactions" + (query.Count == 0 ? "" : "?" + string.Join('&', query));
+            var result = await CallAsync<TransactionsDto>(HttpMethod.Get, path, null, appId, headers, ct);
+            if (!result.TryGetValue(out var dto))
+            {
+                result.TryGetFailure(out var failure);
+                return Result.Failure<ProviderTransactions>(failure!);
+            }
+
+            try
+            {
+                lines.AddRange((dto.Transactions ?? []).Select(ToTransaction).OfType<ProviderTransaction>());
+            }
+            catch (Exception e) when (e is FormatException or OverflowException or ArgumentException)
+            {
+                return Fail<ProviderTransactions>(BankingCodes.ProviderError, "Enable Banking sent a response that could not be read.");
+            }
+
+            if (string.IsNullOrEmpty(key = dto.ContinuationKey))
+                return Result.Success(new ProviderTransactions(lines, false));
+        }
+
+        return Result.Success(new ProviderTransactions(lines, true));
     }
 
     public async Task<Result> DeleteSessionAsync(string appId, string sessionId, CancellationToken ct)
@@ -84,6 +128,25 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
             b.BalanceType, decimal.Parse(b.BalanceAmount.Amount, NumberStyles.Number, CultureInfo.InvariantCulture), b.BalanceAmount.Currency,
             b.ReferenceDate is { } d ? LocalDatePattern.Iso.Parse(d).GetValueOrThrow() : null))
         .ToList();
+
+    /// <summary>Only booked lines with a date; the counterparty is the creditor of a debit and the debtor of a credit.</summary>
+    private static ProviderTransaction? ToTransaction(TransactionDto t)
+    {
+        if (t.Status is not "BOOK")
+            return null;
+        var date = t.BookingDate ?? t.ValueDate ?? t.TransactionDate;
+        if (date is null)
+            return null;
+        var debit = t.CreditDebitIndicator == "DBIT";
+        var amount = decimal.Parse(t.TransactionAmount.Amount, NumberStyles.Number, CultureInfo.InvariantCulture);
+        var counterparty = (debit ? t.Creditor : t.Debtor)?.Name is { Length: > 0 } name ? name : null;
+        var remittance = t.RemittanceInformation is { Count: > 0 } lines ? string.Join(' ', lines) : null;
+        var label = remittance ?? counterparty ?? t.BankTransactionCode?.Description ?? "(sans libellé)";
+        return new ProviderTransaction(
+            string.IsNullOrWhiteSpace(t.EntryReference) ? null : t.EntryReference, LocalDatePattern.Iso.Parse(date).GetValueOrThrow(),
+            t.ValueDate is { } v ? LocalDatePattern.Iso.Parse(v).GetValueOrThrow() : null,
+            debit ? -Math.Abs(amount) : Math.Abs(amount), t.TransactionAmount.Currency, label, counterparty, remittance);
+    }
 
     private async Task<Result<T>> CallAsync<T>(
         HttpMethod method, string path, byte[]? body, string appId, IReadOnlyDictionary<string, string>? extra, CancellationToken ct, bool expectBody = true)

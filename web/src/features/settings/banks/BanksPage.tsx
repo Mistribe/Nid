@@ -1,6 +1,6 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -22,6 +22,9 @@ import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
 import { ACCOUNTS, bankErrorText, CONNECTION, CONNECTIONS, RENEW, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type Connection } from './api';
 import '@/locales/banks';
+
+// Loaded when opened: most visits import no statement.
+const ImportStatementDialog = lazy(() => import('../../investments/operations/ImportStatementDialog'));
 
 const PROPOSALS = '/api/v1/core/proposals' as const;
 const day = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' });
@@ -55,12 +58,11 @@ export function BanksPage() {
   const status = useBankingStatus();
   const on = status.data?.enabled === true && status.data.configured;
   return (
-    <SettingsFrame title={t('banks.title')} actions={on ? <SyncAll /> : null}>
+    <SettingsFrame title={t('banks.title')} actions={status.data?.enabled ? <>{on ? <SyncAll /> : null}<ImportStatement /></> : null}>
       {status.error ? <ProblemMessage problem={present(toProblem(status.error))} />
         : !status.data ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton>
         : !status.data.enabled ? <p>{t('banks.disabled')}</p>
-        : !status.data.configured ? <p>{t('banks.not_configured')}</p>
-        : <Connections />}
+        : <Connections configured={status.data.configured} />}
     </SettingsFrame>
   );
 }
@@ -82,7 +84,30 @@ function SyncAll() {
   );
 }
 
-function Connections() {
+/** « Importer un relevé » (spec §5.2) on no envelope: banking on is enough, a household may use statement files alone. */
+function ImportStatement() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const [landOn, setLandOn] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  // Once the dialog handed itself back, the focus returns to its button, never <body>.
+  useEffect(() => { if (landOn) { button.current?.focus(); setLandOn(false); } }, [landOn]);
+  return (
+    <>
+      <span role="status" aria-live="polite" className="text-sm">{announcement}</span>
+      <Button ref={button} type="button" variant="outline" onClick={() => { setAnnouncement(''); setOpen(true); }}>{t('banks.import.open')}</Button>
+      {open ? (
+        <Suspense fallback={null}>
+          <ImportStatementDialog onClose={() => setOpen(false)} onDone={(message) => { setOpen(false); setAnnouncement(message); setLandOn(true); }} />
+        </Suspense>
+      ) : null}
+    </>
+  );
+}
+
+/** Without Enable Banking (`configured` false) no bank can be connected: the accounts imported from statement files are listed all the same. */
+function Connections({ configured }: { configured: boolean }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
@@ -93,7 +118,7 @@ function Connections() {
   const [saved, setSaved] = useState(arrival.connected ? t('banks.connected') : '');
   const [connecting, setConnecting] = useState(false);
   const [editing, setEditing] = useState<BankAccount | null>(null);
-  const connections = $api.useQuery('get', CONNECTIONS);
+  const connections = $api.useQuery('get', CONNECTIONS, undefined, { enabled: configured });
   const envelopes = $api.useQuery('get', ENVELOPES);
   const readable = useBankAccounts();
 
@@ -111,7 +136,7 @@ function Connections() {
 
   const listed = connections.data?.flatMap((c) => c.accounts) ?? [];
   // Accounts no connection of the person's lists: their connection was deleted, or a renewal left them out (spec §8).
-  const unsynced = connections.data ? (readable ?? []).filter((a) => !a.synced && !listed.some((l) => l.id === a.id)) : [];
+  const unsynced = connections.data || !configured ? (readable ?? []).filter((a) => !a.synced && !listed.some((l) => l.id === a.id)) : [];
   const all = [...listed, ...unsynced];
   const edit = (account: BankAccount) => { setSaved(''); setEditing(account); };
   const announce = (message: string) => { setEditing(null); setConnecting(false); setSaved(message); };
@@ -121,8 +146,9 @@ function Connections() {
     <div className="space-y-6">
       <p role="status" aria-live="polite" className="text-sm">{saved}</p>
       {arrival.error ? <p role="alert" className="text-sm text-destructive">{bankErrorText(t, arrival.error, t('banks.error.generic'))}</p> : null}
+      {configured ? null : <p>{t('banks.not_configured')}</p>}
       {connections.error ? <ProblemMessage problem={present(toProblem(connections.error))} /> : null}
-      {!connections.data && !connections.error ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton> : null}
+      {configured && !connections.data && !connections.error ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton> : null}
       {connections.data?.length === 0 ? <EmptyState title={t('banks.empty_title')} body={t('banks.empty_body')} action={connect} /> : null}
       {connections.data && connections.data.length > 0 ? (
         <>

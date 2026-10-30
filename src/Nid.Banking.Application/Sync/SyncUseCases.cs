@@ -1,4 +1,5 @@
 using Nid.Banking.Contracts;
+using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
@@ -20,15 +21,22 @@ public sealed record GetBankSyncRunsQuery : IQuery<IReadOnlyList<BankSyncRunView
 public sealed record BankSyncRequested(Guid RunId);
 
 [RequestHandler<SyncAllCommand, BankSyncRunView>]
-public sealed class SyncAllHandler(BankingAccess access, IConnectionStore connections, BankSyncCollector collector)
+public sealed class SyncAllHandler(
+    BankingAccess access, IConnectionStore connections, BankSyncCollector collector, IHouseholdSettings settings, IHouseholdCalendar calendar,
+    ITransactionStore transactions)
     : IRequestHandler<SyncAllCommand, BankSyncRunView>
 {
     public async ValueTask<Result<BankSyncRunView>> HandleAsync(SyncAllCommand command, CancellationToken ct = default)
     {
+        // Retention (D3), counted nowhere visible, runs with banking on even where there is no bank to read: statement files alone fill the table.
+        var enabled = await access.EnabledAsync(ct);
         var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<BankSyncRunView, string>(app);
-        return await collector.SyncAsync(appId!, "schedule", await connections.ActiveAsync(ct), null, ct);
+        var run = app.TryGetValue(out var appId)
+            ? await collector.SyncAsync(appId!, "schedule", await connections.ActiveAsync(ct), null, ct)
+            : BankingAccess.Failed<BankSyncRunView, string>(app);
+        if (enabled.IsSuccess && (await settings.ReadAsync(ct)).BankRetentionMonths is { } months)
+            await transactions.PurgeBookedBeforeAsync((await calendar.TodayAsync(ct)).PlusMonths(-months), ct);
+        return run;
     }
 }
 

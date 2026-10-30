@@ -14,6 +14,8 @@ namespace Nid.Banking.Infrastructure.Persistence;
 public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider protection, IClock clock, ILogger<ConnectionStore> log)
     : IConnectionStore
 {
+    private const string FileSource = "file";
+
     private readonly IDataProtector _protector = protection.CreateProtector("Nid.Banking.Session");
 
     public async Task<Guid> CreatePendingAsync(PersonId person, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct)
@@ -76,12 +78,25 @@ public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider
         }, ct);
 
     public async Task<IReadOnlyList<BankConnection>> MineAsync(PersonId person, CancellationToken ct)
-        => (await db.Connections.AsNoTracking().Where(c => c.PersonId == person.Value).OrderBy(c => c.CreatedAt).ToListAsync(ct))
+        => (await db.Connections.AsNoTracking().Where(c => c.PersonId == person.Value && c.Source != FileSource).OrderBy(c => c.CreatedAt).ToListAsync(ct))
             .Select(ToConnection).ToList();
 
     public async Task<IReadOnlyList<BankConnection>> ActiveAsync(CancellationToken ct)
-        => (await db.Connections.AsNoTracking().Where(c => c.Status == "active" || c.Status == "error").OrderBy(c => c.CreatedAt).ToListAsync(ct))
+        => (await db.Connections.AsNoTracking().Where(c => (c.Status == "active" || c.Status == "error") && c.Source != FileSource)
+                .OrderBy(c => c.CreatedAt).ToListAsync(ct))
             .Select(ToConnection).ToList();
+
+    public async Task<Guid> FileConnectionAsync(PersonId person, CancellationToken ct)
+    {
+        // One file import per person at a time, until the caller's transaction ends: a double click finds the first one's account.
+        await db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock(hashtextextended({"file:" + person.Value}, 0))", ct);
+        if (await db.Connections.Where(c => c.PersonId == person.Value && c.Source == FileSource).Select(c => (Guid?)c.Id).SingleOrDefaultAsync(ct) is { } id)
+            return id;
+        var row = new ConnectionRow { Id = Guid.CreateVersion7(), PersonId = person.Value, Source = FileSource, Status = "active", CreatedAt = clock.GetCurrentInstant() };
+        db.Connections.Add(row);
+        await db.SaveChangesAsync(ct);
+        return row.Id;
+    }
 
     public async Task<string?> SessionIdAsync(Guid id, CancellationToken ct)
     {

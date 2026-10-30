@@ -28,6 +28,17 @@ internal sealed record BalancesDto(List<BalanceDto>? Balances = null);
 
 internal sealed record BalanceDto(string BalanceType, AmountDto BalanceAmount, string? ReferenceDate = null);
 
+internal sealed record TransactionsDto(List<TransactionDto>? Transactions = null, string? ContinuationKey = null);
+
+internal sealed record TransactionDto(
+    AmountDto TransactionAmount, string CreditDebitIndicator, string? EntryReference = null, string? Status = null, string? BookingDate = null,
+    string? ValueDate = null, string? TransactionDate = null, List<string>? RemittanceInformation = null, PartyDto? Creditor = null, PartyDto? Debtor = null,
+    BankCodeDto? BankTransactionCode = null);
+
+internal sealed record PartyDto(string? Name = null);
+
+internal sealed record BankCodeDto(string? Description = null);
+
 internal sealed record AmountDto(string Currency, string Amount);
 
 internal sealed record ErrorDto(string? Error = null);
@@ -41,5 +52,6 @@ internal sealed record ErrorDto(string? Error = null);
 [JsonSerializable(typeof(CodeDto))]
 [JsonSerializable(typeof(SessionDto))]
 [JsonSerializable(typeof(BalancesDto))]
+[JsonSerializable(typeof(TransactionsDto))]
 [JsonSerializable(typeof(ErrorDto))]
 internal sealed partial class EbJson : JsonSerializerContext;
