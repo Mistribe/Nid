@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { ProposalsSearch, RootSearch } from '@/app/router';
-import { Segmented } from '@/components/form/Segmented';
+import { DetailTabs } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { SortableTable } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -32,34 +32,38 @@ export function ProposalsPage() {
     kindOf(p.kind)?.summary(t, p) ?? (isRouteKind(p.kind) ? routeSummary(t, p)
       : t('proposals.unknown_summary', { kind: p.kind, target: p.targetName ?? t('proposals.unknown_target') }));
 
+  const list = (
+    <div>
+      {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
+      {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
+      {answer.data && answer.data.items.length === 0 ? <p>{t(`proposals.empty.${status}`)}</p> : null}
+      {answer.data && answer.data.items.length > 0 ? (
+        <SortableTable<ProposalView> caption={t('proposals.list')} rows={answer.data.items} rowKey={(p) => p.id}
+          initialSort={{ id: 'received', desc: true }}
+          columns={[
+            { id: 'document', header: t('lists.col.document'), sort: (p) => p.sourceLabel ?? '', cell: (p) => p.sourceLabel ?? <span className="text-muted-foreground">{t('proposals.no_source')}</span> },
+            { id: 'item', header: t('lists.col.item'), sort: (p) => summary(p), cell: (p) => <Link to="/proposals/$id" params={{ id: p.id }} className="underline">{summary(p)}</Link> },
+            { id: 'received', header: t('lists.col.received'), sort: (p) => p.createdAt,
+              cell: (p) => <span className="inline-flex flex-col"><span>{formatInstantDay(p.createdAt)}</span><span className="text-xs text-muted-foreground">{originText(t, p.createdVia)}</span></span> },
+            { id: 'state', header: t('lists.col.state'), sort: (p) => p.status, cell: (p) => <State p={p} /> },
+          ]}
+          mobile={(p) => (
+            <div className="space-y-1">
+              <Link to="/proposals/$id" params={{ id: p.id }} className="underline">{summary(p)}</Link>
+              <p className="text-sm text-muted-foreground">{p.sourceLabel ?? t('proposals.no_source')} <Sep /> {formatInstantDay(p.createdAt)} <Sep /> <State p={p} /></p>
+            </div>
+          )} />
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <PageHeader title={t('proposals.title')} />
       <p role="status">{message}</p>
-      <Segmented aria-label={t('proposals.tabs')} value={status} onValueChange={setStatus}
-        options={STATUSES.map((s) => ({ value: s, label: t(`proposals.tab.${s}`) }))} />
-      <div>
-        {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-        {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
-        {answer.data && answer.data.items.length === 0 ? <p>{t(`proposals.empty.${status}`)}</p> : null}
-        {answer.data && answer.data.items.length > 0 ? (
-          <SortableTable<ProposalView> caption={t('proposals.list')} rows={answer.data.items} rowKey={(p) => p.id}
-            initialSort={{ id: 'received', desc: true }}
-            columns={[
-              { id: 'document', header: t('lists.col.document'), sort: (p) => p.sourceLabel ?? '', cell: (p) => p.sourceLabel ?? <span className="text-muted-foreground">{t('proposals.no_source')}</span> },
-              { id: 'item', header: t('lists.col.item'), sort: (p) => summary(p), cell: (p) => <Link to="/proposals/$id" params={{ id: p.id }} className="underline">{summary(p)}</Link> },
-              { id: 'received', header: t('lists.col.received'), sort: (p) => p.createdAt,
-                cell: (p) => <span className="inline-flex flex-col"><span>{formatInstantDay(p.createdAt)}</span><span className="text-xs text-muted-foreground">{originText(t, p.createdVia)}</span></span> },
-              { id: 'state', header: t('lists.col.state'), sort: (p) => p.status, cell: (p) => <State p={p} /> },
-            ]}
-            mobile={(p) => (
-              <div className="space-y-1">
-                <Link to="/proposals/$id" params={{ id: p.id }} className="underline">{summary(p)}</Link>
-                <p className="text-sm text-muted-foreground">{p.sourceLabel ?? t('proposals.no_source')} <Sep /> {formatInstantDay(p.createdAt)} <Sep /> <State p={p} /></p>
-              </div>
-            )} />
-        ) : null}
-      </div>
+      {/* The status as tabs, like every list's (one list, read for the open tab's status). */}
+      <DetailTabs value={status} onChange={setStatus}
+        tabs={STATUSES.map((s) => ({ id: s, label: t(`proposals.tab.${s}`), content: list }))} />
     </div>
   );
 }

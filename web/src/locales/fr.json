@@ -1035,7 +1035,6 @@
   },
   "proposals": {
     "title": "À valider",
-    "tabs": "Statut",
     "list": "Liste des propositions",
     "loading": "Chargement des propositions",
     "unknown_summary": "{{kind}} — {{target}}",

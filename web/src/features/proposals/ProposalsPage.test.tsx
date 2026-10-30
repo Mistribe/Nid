@@ -59,11 +59,11 @@ describe('À valider', () => {
     const { user } = await renderApp('/proposals');
 
     expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'En attente' })).toBeChecked();
-    await user.click(screen.getByRole('radio', { name: 'Approuvées' }));
+    expect(screen.getByRole('tab', { name: 'En attente' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: 'Approuvées' }));
     expect((await inTable()).getByText(/Approuvée le/)).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Approuvées' })).toBeChecked();
-    await user.click(screen.getByRole('radio', { name: 'Rejetées' }));
+    expect(screen.getByRole('tab', { name: 'Approuvées' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: 'Rejetées' }));
     expect(await screen.findByText('Aucune proposition rejetée.')).toBeInTheDocument();
   });
 

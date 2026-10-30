@@ -59,11 +59,12 @@ export function Guides() {
 
   return (
     <>
+      {/* A section without a guide keeps the button's room: the controls left of it stay put from one page to the next. */}
       {guide ? (
         <Button ref={help} variant="ghost" size="icon" aria-label={t('shell.guide_help')} onClick={() => setState({ open: 'intro', guide })}>
           <CircleHelp aria-hidden="true" className="size-5" />
         </Button>
-      ) : null}
+      ) : <span aria-hidden="true" className="size-9 flex-none" />}
       {intro ? (
         <Suspense fallback={null}>
           <GuideIntro key={intro.id} guide={intro} onClose={() => close(intro)} onShow={() => show(intro)} />

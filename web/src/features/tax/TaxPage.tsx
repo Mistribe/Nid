@@ -88,7 +88,7 @@ export function TaxPage() {
           {estimate ? (['profile', '2044'] as const).map((id) => (
             <Button key={id} variant={tab === id ? 'secondary' : 'outline'} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>{t(`tax.tab.${id}`)}</Button>
           )) : null}
-          <Button asChild variant="outline"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>
+          <Button asChild><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>
         </div>
       )}>
         {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
