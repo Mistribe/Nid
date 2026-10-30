@@ -1,0 +1,311 @@
+using System.Net;
+using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
+using Nid.TestSupport;
+using static Nid.TestSupport.LoanApi;
+using static Nid.TestSupport.PropertyApi;
+
+namespace Nid.Core.IntegrationTests.Projection;
+
+/// <summary>
+/// Net worth projection spec §4.5, §6 and §7: a saved projection scenario, <c>POST /api/v1/scenarios/projection</c>,
+/// <c>GET</c>/<c>PUT /api/v1/scenarios/projection/{id}</c>, listed and deleted with the purchases. Today is 2025-10-15.
+/// </summary>
+public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private const string Url = "/api/v1/scenarios/projection";
+
+    private static object Document(string horizon = "10y", params object[] events)
+        => new { version = 1, horizon, assumptions = new { }, events };
+
+    private static object Income(string label = "Retraite", string amount = "-1800")
+        => new { id = Guid.NewGuid(), kind = "income_change", label, start = new { on = "2030-01-01" }, monthlyAmount = amount };
+
+    private static object Repayment(Guid loan, string on, string amount)
+        => new { id = Guid.NewGuid(), kind = "early_repayment", start = new { on }, amount, split = "chosen", loan, effect = "reduce_term", penalty = "0" };
+
+    private static object Body(NidApp app, object document, string name = "Retraite anticipée", string visibility = "shared", params PersonId[] owners)
+        => Scoped(app, "household", document, name, visibility, owners);
+
+    private static object Scoped(NidApp app, string scope, object document, string name, string visibility, params PersonId[] owners)
+        => new
+        {
+            name, visibility, scope,
+            owners = (owners.Length == 0 ? [app.AdultA] : owners).Select(p => new { personId = p.Value, shareBp = 10_000 / Math.Max(owners.Length, 1) }).ToArray(),
+            document,
+        };
+
+    private static async Task<HttpResponseMessage> CreateAsync(NidApp app, object body, PersonId? actor = null)
+        => await app.RawAsync(actor ?? app.AdultA, HttpMethod.Post, Url, body);
+
+    private static async Task<Guid> SavedAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, body);
+        return JsonDocument.Parse(body).RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<JsonElement> OkAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, body);
+        return JsonDocument.Parse(body).RootElement;
+    }
+
+    private static async Task<JsonElement> GetAsync(NidApp app, Guid id, PersonId? actor = null)
+        => await OkAsync(await app.RawAsync(actor ?? app.AdultA, HttpMethod.Get, $"{Url}/{id}"));
+
+    private static async Task<JsonElement> SimulateAsync(NidApp app, object document, string scope = "household")
+        => await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url}/simulate", new { scope, document }));
+
+    private static List<JsonElement> List(JsonElement view, string name) => view.GetProperty(name).EnumerateArray().ToList();
+
+    private static string? Str(JsonElement element, string name) => element.GetProperty(name).GetString();
+
+    private static List<string> Raw(IEnumerable<JsonElement> points) => points.Select(p => p.GetRawText()).ToList();
+
+    private static List<JsonElement> Points(JsonElement result, string series) => List(result.GetProperty(series), "points");
+
+    private static async Task<Guid> PurchaseAsync(NidApp app)
+        => await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/scenarios", new
+        {
+            name = "Appartement", visibility = "shared", scope = "household", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            document = new
+            {
+                version = 1, use = "primary", purchaseOn = "2026-01-10", price = "215000", notaryFees = "15000", currentRent = "800", monthlyCharges = "100",
+                funding = Array.Empty<object>(),
+                loans = new[]
+                {
+                    new
+                    {
+                        name = "Banque", amount = "200000", rate = "3.5", months = 240, insurance = new { kind = "rate_on_initial", value = "0.3" },
+                        fileFees = "1000", guaranteeFees = "0",
+                    },
+                },
+                assumptions = new
+                {
+                    horizonYears = 10, classRates = new Dictionary<string, string> { ["cash"] = "2", ["equity"] = "6" }, monthlySavings = "500",
+                    savingsClass = "cash",
+                },
+            },
+        }));
+
+    [Fact]
+    public async Task Creates_reads_and_replaces_a_projection_scenario()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var document = Document("10y", Income());
+
+        var id = await SavedAsync(await CreateAsync(app, Body(app, document)));
+        var view = await GetAsync(app, id);
+
+        Assert.Equal((id, "Retraite anticipée", "shared", "household", true),
+            (view.GetProperty("id").GetGuid(), Str(view, "name"), Str(view, "visibility"), Str(view, "scope"), view.GetProperty("canWrite").GetBoolean()));
+        var simulated = await SimulateAsync(app, document);
+        var result = view.GetProperty("result");
+        Assert.Equal(Str(simulated, "gapNominal"), Str(result, "gapNominal"));
+        Assert.Equal(Str(simulated, "gapReal"), Str(result, "gapReal"));
+        Assert.Equal(Raw(Points(simulated, "scenario")), Raw(Points(result, "scenario")));
+        var echoed = Assert.Single(List(result.GetProperty("document"), "events"));
+        Assert.Equal(("income_change", "-1800.00"), (Str(echoed, "kind"), Str(echoed, "monthlyAmount")));
+
+        var replaced = await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id}",
+            Body(app, Document("20y", Income(), Income("Temps partiel", "-400")), "Temps partiel", "private")));
+
+        Assert.Equal(("Temps partiel", "private"), (Str(replaced, "name"), Str(replaced, "visibility")));
+        Assert.Equal("20y", Str(replaced.GetProperty("result").GetProperty("document"), "horizon"));
+        Assert.Equal(2, List(replaced.GetProperty("result").GetProperty("document"), "events").Count);
+        var again = await GetAsync(app, id);
+        Assert.Equal(replaced.GetRawText(), again.GetRawText());
+    }
+
+    [Fact]
+    public async Task List_shows_both_kinds_with_the_projection_gap()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PurchaseAsync(app);
+        var document = Document("10y", Income());
+        var id = await SavedAsync(await CreateAsync(app, Body(app, document, "Projection retraite")));
+
+        var list = List(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/scenarios")), "items");
+
+        Assert.Equal(2, list.Count);
+        var purchase = Assert.Single(list, i => Str(i, "kind") == "property_purchase");
+        Assert.Equal(("Appartement", "primary"), (Str(purchase, "name"), Str(purchase, "use")));
+        Assert.Equal("215000.00", Str(purchase.GetProperty("price"), "amount"));
+        var projection = Assert.Single(list, i => Str(i, "kind") == "projection");
+        Assert.Equal(id, projection.GetProperty("id").GetGuid());
+        Assert.Equal("Projection retraite", Str(projection, "name"));
+        foreach (var field in new[] { "use", "price", "newPayment", "debtRatioAfter" })
+            Assert.Equal(JsonValueKind.Null, projection.GetProperty(field).ValueKind);
+        var simulated = await SimulateAsync(app, document);
+        Assert.Equal((Str(simulated, "gapNominal"), "EUR"), (Str(projection.GetProperty("gap"), "amount"), Str(projection.GetProperty("gap"), "currency")));
+        Assert.Equal(app.AdultA.Value, Assert.Single(List(projection, "owners")).GetProperty("personId").GetGuid());
+    }
+
+    [Fact]
+    public async Task Unknown_loan_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await CreateAsync(app, Body(app, Document("10y", Repayment(Guid.NewGuid(), "2026-01-20", "1000"))));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.target_not_found", "events[0].loan"), await RefusalAsync(response));
+        Assert.Empty(List(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/scenarios")), "items"));
+    }
+
+    [Fact]
+    public async Task Repayment_above_balance_is_refused_at_write()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // 12 000 over 12 payments from 2025-01-15: 2 000 still owed after the 15 October payment.
+        var loan = await NewAsync(app, Short(app));
+
+        var above = await CreateAsync(app, Body(app, Document("10y", Repayment(loan, "2025-10-20", "5000"))));
+        var within = await CreateAsync(app, Body(app, Document("10y", Repayment(loan, "2025-10-20", "1500"))));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "events[0].amount"), await RefusalAsync(above));
+        await SavedAsync(within);
+    }
+
+    [Fact]
+    public async Task Repayment_on_a_loan_sold_earlier_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/valuations", new { asOf = "2025-06-01", amount = "300000" }));
+        var body = Golden(app);
+        body["propertyId"] = home;
+        var loan = await NewAsync(app, body);
+        object Sale(string on) => new { id = Guid.NewGuid(), kind = "property_sale", start = new { on }, property = home, price = "320000", costs = "0" };
+
+        // The repayment comes first in the document but after the sale in time.
+        var after = await CreateAsync(app, Body(app, Document("10y", Repayment(loan, "2026-06-01", "10000"), Sale("2026-03-01"))));
+        var before = await CreateAsync(app, Body(app, Document("10y", Repayment(loan, "2026-01-20", "10000"), Sale("2026-03-01"))));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "events[0].loan"), await RefusalAsync(after));
+        await SavedAsync(before);
+    }
+
+    [Fact]
+    public async Task Event_on_a_private_item_is_hidden_from_the_other_adult()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // B's private loan, seen by B in their own scope (« me ») only; the scenario is computed in that scope for each reader.
+        var secret = await NewAsync(app, Golden(app, "Prêt secret", "private", app.AdultB), app.AdultB);
+        var visible = Income();
+        var id = await SavedAsync(await CreateAsync(app,
+            Scoped(app, "me", Document("10y", visible, Repayment(secret, "2025-11-20", "4321")), "Commun", "shared", app.AdultA, app.AdultB), app.AdultB));
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{id}");
+        var text = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(secret.ToString(), text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("4321", text);
+        Assert.DoesNotContain("Prêt secret", text);
+        var result = JsonDocument.Parse(text).RootElement.GetProperty("result");
+        Assert.Contains(List(result.GetProperty("scenario"), "warnings"), w => Str(w, "code") == "hidden_targets" && Str(w, "detail") == "1");
+        var without = await SimulateAsync(app, Document("10y", visible), "me");
+        Assert.Equal(Raw(Points(without, "scenario")), Raw(Points(result, "scenario")));
+        Assert.Equal(Str(without, "gapNominal"), Str(result, "gapNominal"));
+        var shown = Assert.Single(List(result.GetProperty("document"), "events"));
+
+        // A replaces with what they were shown, renamed: B's event is kept.
+        var replaced = await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id}", new
+        {
+            name = "Commun renommé", visibility = "shared", scope = "me", document = result.GetProperty("document"),
+        }));
+        Assert.DoesNotContain(secret.ToString(), replaced.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(shown.GetRawText(), Assert.Single(List(replaced.GetProperty("result").GetProperty("document"), "events")).GetRawText());
+
+        // A replace A gets refused names nothing of B's.
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id}", Scoped(app, "me",
+            Document("10y", visible, Repayment(Guid.NewGuid(), "2025-11-20", "100")), "Commun renommé", "shared"));
+        var refusal = await refused.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.DoesNotContain(secret.ToString(), refusal, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("4321", refusal);
+        Assert.DoesNotContain("Prêt secret", refusal);
+        Assert.Contains("events[1].loan", refusal);
+
+        var seenByB = await GetAsync(app, id, app.AdultB);
+        var events = List(seenByB.GetProperty("result").GetProperty("document"), "events");
+        Assert.Equal("Commun renommé", Str(seenByB, "name"));
+        Assert.Equal(["income_change", "early_repayment"], events.Select(e => Str(e, "kind")));
+        Assert.Equal((secret, "4321.00"), (events[1].GetProperty("loan").GetGuid(), Str(events[1], "amount")));
+        Assert.DoesNotContain(List(seenByB.GetProperty("result").GetProperty("scenario"), "warnings"), w => Str(w, "code") == "hidden_targets");
+    }
+
+    [Fact]
+    public async Task Replace_drops_an_event_whose_loan_is_archived()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await NewAsync(app, Golden(app));
+        var id = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income(), Repayment(loan, "2026-01-20", "1000")))));
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            (await scope.ServiceProvider.GetRequiredService<IItemRegistry>().ArchiveAsync(new ItemId(loan), NodaTime.SystemClock.Instance.GetCurrentInstant(), default))
+                .Ok();
+        }
+
+        // Nobody sees the archived loan any more: the event is hidden from its own writer, then dropped by their replace.
+        var shown = (await GetAsync(app, id)).GetProperty("result");
+        Assert.Contains(List(shown.GetProperty("scenario"), "warnings"), w => Str(w, "code") == "hidden_targets" && Str(w, "detail") == "1");
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id}", new
+        {
+            name = "Retraite anticipée", visibility = "shared", scope = "household", document = shown.GetProperty("document"),
+        }));
+
+        var after = (await GetAsync(app, id)).GetProperty("result");
+        Assert.DoesNotContain(List(after.GetProperty("scenario"), "warnings"), w => Str(w, "code") == "hidden_targets");
+        Assert.Equal("income_change", Str(Assert.Single(List(after.GetProperty("document"), "events")), "kind"));
+    }
+
+    [Theory]
+    [InlineData("start", "events[0].start.on")]
+    [InlineData("until", "events[0].until.on")]
+    public async Task Event_date_beyond_forty_years_is_refused(string which, string path)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        object far = new { on = "9999-12-31" };
+        object near = new { on = "2030-01-01" };
+        object ev = new { id = Guid.NewGuid(), kind = "income_change", start = which == "start" ? far : near, until = which == "start" ? null : far, monthlyAmount = "100" };
+
+        var response = await CreateAsync(app, Body(app, Document("10y", ev)));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("projection.invalid_field", Str(problem, "code"));
+        Assert.Contains(List(problem, "errors"), e => Str(e, "path") == path);
+    }
+
+    [Fact]
+    public async Task Purchase_id_on_projection_routes_is_404()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var purchase = await PurchaseAsync(app);
+        var projection = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{purchase}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{purchase}",
+            Body(app, Document("10y")))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/scenarios/{projection}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{Guid.NewGuid()}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_archives_a_projection_scenario()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/scenarios/{id}")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{id}")).StatusCode);
+        Assert.Empty(List(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/scenarios")), "items"));
+    }
+}

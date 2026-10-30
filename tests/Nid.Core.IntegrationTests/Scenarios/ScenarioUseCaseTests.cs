@@ -111,7 +111,7 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
         await using (var scope = app.Services.CreateAsyncScope())
         {
             var stored = await scope.ServiceProvider.GetRequiredService<IScenarioStore>().FindAsync(id, CancellationToken.None);
-            Assert.Equal([new FundingLine(mine, 5_000m), new FundingLine(theirs, 16_000m)], stored!.Document.Funding);
+            Assert.Equal([new FundingLine(mine, 5_000m), new FundingLine(theirs, 16_000m)], stored!.Document!.Funding);
         }
     }
 

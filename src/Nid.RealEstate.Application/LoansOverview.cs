@@ -342,33 +342,6 @@ internal static partial class LoansOverviewMath
         return months;
     }
 
-    /// <summary>
-    /// Scenario spec §4.2 step 3: the running loans' debt (<see cref="Months"/>' rule, D8) and payments (D3, insurance included)
-    /// of each month from this one, <paramref name="months"/> + 1 of them; a figure is null when a rate is missing.
-    /// </summary>
-    internal static IReadOnlyList<(decimal? Debt, decimal? Payments)> Project(
-        IReadOnlyList<OverviewLoan> set, Currency reference, RateTable rates, LocalDate today, int months)
-    {
-        var convert = new Converter(reference, rates, today);
-        var running = set.Select(l => new Reading(l, today)).Where(r => !r.Ended).ToList();
-        var thisMonth = today.ToYearMonth();
-        var balances = running.Select(r => Balances(r, thisMonth, r.LastMonth(today))).ToList();
-        return Enumerable.Range(0, months + 1).Select(i => (
-                SumOrNull(running.Select((r, k) => i < balances[k].Count ? convert.Of(balances[k][i], r.Currency) : 0m)),
-                SumOrNull(running.Select(r => convert.Of(r.Payments.GetValueOrDefault(thisMonth.PlusMonths(i)), r.Currency)))))
-            .ToList();
-    }
-
-    /// <summary>
-    /// Projection spec §3.5 and §5.2: each running loan's last payment, the due date of its schedule's last row, with the property
-    /// it is linked to. A loan in a currency without a rate is in: its end needs no rate.
-    /// </summary>
-    internal static IReadOnlyList<LoanEnd> Ends(IReadOnlyList<OverviewLoan> set, LocalDate today)
-        => set.Select(l => new Reading(l, today))
-            .Where(r => !r.Ended && r.Schedule.Rows.Count > 0)
-            .Select(r => new LoanEnd(r.Source.Item.Id, r.Source.Item.DisplayName, r.Schedule.Rows[^1].DueDate, r.Source.Loan.PropertyId))
-            .ToList();
-
     /// <summary>A loan's balance at each month of <paramref name="from"/>..<paramref name="to"/>, the rows walked once.</summary>
     private static List<decimal> Balances(Reading r, YearMonth from, YearMonth to)
     {

@@ -51,11 +51,12 @@ public sealed class MixedDataset
     private MixedDataset(
         NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes,
         IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans,
-        IReadOnlyDictionary<string, ItemId> properties, IReadOnlyDictionary<string, ItemId> scenarios, IReadOnlyDictionary<string, ItemId> goals,
+        IReadOnlyDictionary<string, ItemId> properties, IReadOnlyDictionary<string, ItemId> scenarios,
+        IReadOnlyDictionary<string, ItemId> projectionScenarios, IReadOnlyDictionary<string, ItemId> goals,
         IReadOnlyDictionary<string, IReadOnlyList<Guid>> proposals, IReadOnlyDictionary<ItemId, Guid> documents, IReadOnlyDictionary<ItemId, Guid> unlinkDocuments)
     {
-        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, Goals, Proposals, Documents, UnlinkDocuments) =
-            (app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals, documents, unlinkDocuments);
+        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, ProjectionScenarios, Goals, Proposals, Documents, UnlinkDocuments) =
+            (app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, goals, proposals, documents, unlinkDocuments);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
@@ -67,6 +68,8 @@ public sealed class MixedDataset
             names[property] = name + " (property)";
         foreach (var (name, scenario) in scenarios)
             names[scenario] = name + " (scenario)";
+        foreach (var (name, projection) in projectionScenarios)
+            names[projection] = name + " (projection)";
         foreach (var (name, goal) in goals)
             names[goal] = name + " (goal)";
     }
@@ -96,6 +99,12 @@ public sealed class MixedDataset
 
     /// <summary>The scenario twin of each row (property purchase spec §5): same §2 name, label, owners and visibility. The scenario requests run against these.</summary>
     public IReadOnlyDictionary<string, ItemId> Scenarios { get; }
+
+    /// <summary>
+    /// The projection scenario twin of each row (net worth projection spec §6): same §2 name, label, owners and visibility, no event. The
+    /// projection scenario requests run against these.
+    /// </summary>
+    public IReadOnlyDictionary<string, ItemId> ProjectionScenarios { get; }
 
     /// <summary>
     /// The savings goal twin of each row: same §2 name, label, owners and visibility, drawing half of the row's envelope twin; S-A and S-B also
@@ -153,6 +162,7 @@ public sealed class MixedDataset
                 // Every property request carries « Propert » in its name (ListPropertiesQuery, RecordPropertyValuationCommand…).
                 ? (requestType.Name.Contains("Propert", StringComparison.Ordinal) ? Properties : Loans)
             : requestType.Namespace == typeof(Nid.Core.Application.Scenarios.ListScenariosQuery).Namespace ? Scenarios
+            : requestType.Namespace == typeof(Nid.Core.Application.Projection.GetProjectionScenarioQuery).Namespace ? ProjectionScenarios
             : Items;
 
     public static async Task<MixedDataset> CreateAsync(PostgresFixture fixture)
@@ -165,6 +175,7 @@ public sealed class MixedDataset
         var loans = new Dictionary<string, ItemId>();
         var properties = new Dictionary<string, ItemId>();
         var scenarios = new Dictionary<string, ItemId>();
+        var projectionScenarios = new Dictionary<string, ItemId>();
         var goals = new Dictionary<string, ItemId>();
         var documents = new Dictionary<ItemId, Guid>();
         var unlinkDocuments = new Dictionary<ItemId, Guid>();
@@ -188,6 +199,11 @@ public sealed class MixedDataset
                 row.Label, row.Visibility, owners.Select(o => new OwnerShare(o.Person, o.ShareBp)).ToList(), VisibilityScope.Me,
                 RequestCatalogue.BenchScenario([])));
             scenarios[row.Name] = (ItemId?)scenario ?? throw new InvalidOperationException($"Seeding {row.Name}'s scenario failed: {scenarioRefused!.Code}");
+            var (projection, projectionRefused) = await app.InvokeAsync(creator, new Nid.Core.Application.Projection.CreateProjectionScenarioCommand(
+                row.Label, row.Visibility, owners.Select(o => new OwnerShare(o.Person, o.ShareBp)).ToList(), VisibilityScope.Me,
+                RequestCatalogue.BenchProjection()));
+            projectionScenarios[row.Name] = (ItemId?)projection
+                ?? throw new InvalidOperationException($"Seeding {row.Name}'s projection scenario failed: {projectionRefused!.Code}");
 
             // One value and one flow per twin, through the real requests: without facts the valuations and flows
             // export pages are empty for everyone and the output guard would check nothing on them. The label in
@@ -313,6 +329,14 @@ public sealed class MixedDataset
         foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
             proposals[name] = await SeedProposalsAsync(app, owner, label, envelopes[name], incomeSources[name], items[name], loans[name]);
 
+        // Net worth projection spec §6: B saves the joint projection twin with an event on B's private loan twin (B sees it in « me »).
+        // A reads that twin, so every read of it by A must leave the event out: the output guard and the scans check its bodies.
+        var (_, jointRefused) = await app.InvokeAsync(app.AdultB, new Nid.Core.Application.Projection.ReplaceProjectionScenarioCommand(
+            projectionScenarios["J-AB"], Rows.Single(r => r.Name == "J-AB").Label, Visibility.Shared, VisibilityScope.Me,
+            RequestCatalogue.BenchProjection(RequestCatalogue.RepaymentEvent(loans["P-B"]))));
+        if (jointRefused is not null)
+            throw new InvalidOperationException($"Seeding J-AB's projection event failed: {jointRefused.Code}");
+
         // B's solo notice, its private PDF as source: only B reads it (the notices are the declarants' own).
         var noticeDocument = await DocumentApi.UploadedAsync(app, app.AdultB, DocumentApi.Pdf, "fileName=avis-2018.pdf");
         var noticeResponse = await app.RawAsync(app.AdultB, HttpMethod.Post, "/api/v1/tax/assessments", new
@@ -326,7 +350,7 @@ public sealed class MixedDataset
             throw new InvalidOperationException($"Seeding B's tax notice failed: {noticeResponse.StatusCode}");
         var notice = JsonDocument.Parse(await noticeResponse.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals, documents, unlinkDocuments)
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, goals, proposals, documents, unlinkDocuments)
         {
             NoticeB = (notice, noticeDocument),
             PrivatePhases = privatePhases,
@@ -370,6 +394,10 @@ public sealed class MixedDataset
     public ItemId EnvelopeTwinOf(ItemId twin)
         => Scenarios.Concat(Goals).Where(kv => kv.Value == twin).Select(kv => (ItemId?)Envelopes[kv.Key]).FirstOrDefault() ?? twin;
 
+    /// <summary>The purchase scenario twin of a projection twin's row; any other id as it is (an unknown id stays unknown).</summary>
+    public ItemId PurchaseTwinOf(ItemId twin)
+        => ProjectionScenarios.Where(kv => kv.Value == twin).Select(kv => (ItemId?)Scenarios[kv.Key]).FirstOrDefault() ?? twin;
+
     /// <summary>Who uploaded a row's documents, by the row's subscription: its first adult owner, A for D's row.</summary>
     public PersonId UploaderOf(ItemId item)
         => Rows.Single(r => Items[r.Name] == item).Owners.Select(o => PersonOf(App, o)).FirstOrDefault(p => p == App.AdultA || p == App.AdultB, App.AdultA);
@@ -388,7 +416,11 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlySet<ItemId> ExpectedReadable(PersonId actor)
         => Rows.Where(r => r.Readers.Contains(NameOf(actor)))
-            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name], Properties[r.Name], Scenarios[r.Name], Goals[r.Name] })
+            .SelectMany(r => new[]
+            {
+                Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name], Properties[r.Name], Scenarios[r.Name], ProjectionScenarios[r.Name],
+                Goals[r.Name],
+            })
             .ToHashSet();
 
     /// <summary>Whether access-tests.md §2 says this actor may change this item.</summary>

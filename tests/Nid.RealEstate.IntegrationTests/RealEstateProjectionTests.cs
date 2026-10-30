@@ -15,14 +15,25 @@ namespace Nid.RealEstate.IntegrationTests;
 public class RealEstateProjectionTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<RealEstateProjection> ProjectAsync(
-        NidApp app, PersonId reader, VisibilityScope scope = VisibilityScope.Household, int months = 24, decimal growth = 0m)
+        NidApp app, PersonId reader, VisibilityScope scope = VisibilityScope.Household, int months = 24, decimal growth = 0m,
+        RealEstateEvents? events = null)
     {
         await using var projectionScope = app.Services.CreateAsyncScope();
         projectionScope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(reader);
-        var result = await projectionScope.ServiceProvider.GetRequiredService<IRealEstateProjection>().ProjectAsync(
-            reader, scope, NidApp.GoldenCaseToday, months, growth, default);
-        return result.TryGetValue(out var projection) ? projection : throw new InvalidOperationException();
+        var projection = projectionScope.ServiceProvider.GetRequiredService<IRealEstateProjection>();
+        var result = events is null
+            ? await projection.ProjectAsync(reader, scope, NidApp.GoldenCaseToday, months, growth, default)
+            : await projection.ProjectAsync(reader, scope, NidApp.GoldenCaseToday, months, growth, events, default);
+        return result.TryGetValue(out var value) ? value : throw new InvalidOperationException();
     }
+
+    private static RealEstateEvents Repaying(LocalDate on, decimal amount, string split, Guid? loan = null, string effect = ProjectionEffects.ReduceTerm)
+        => new([new ProjectedRepayment(Guid.NewGuid(), on, amount, split, loan is { } id ? new ItemId(id) : null, effect)], []);
+
+    private static RealEstateEvents Selling(Guid property, LocalDate on, decimal? price, decimal costs)
+        => new([], [new ProjectedSale(Guid.NewGuid(), new ItemId(property), on, price, costs)]);
+
+    private static decimal D(JsonElement element, string name) => decimal.Parse(S(element, name)!, CultureInfo.InvariantCulture);
 
     private static async Task<Guid> ValuedHomeAsync(NidApp app, string amount = "300000")
     {
@@ -157,5 +168,176 @@ public class RealEstateProjectionTests(PostgresFixture fixture) : IClassFixture<
             var end = NidApp.GoldenCaseToday.ToYearMonth().PlusMonths(k).ToDateInterval().End;
             Assert.Equal(rows.Last(r => r.Due <= end).Balance, projection.Months[k].Debt);
         }
+    }
+
+    // Projection spec §4.2: the same rule as SimulateLoansQuery at the repayment's date, the recalculated schedules projected.
+    [Fact]
+    public async Task Repayment_reduce_term_matches_the_simulation()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewAsync(app, Golden(app));
+        await NewAsync(app, Short(app)); // 0 %: the highest rate, the golden loan, takes the whole amount
+
+        var events = Repaying(new LocalDate(2025, 11, 15), 5_000m, ProjectionSplits.HighestRate);
+        var projection = await ProjectAsync(app, app.AdultA, events: events);
+
+        var simulation = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Loans}/overview/simulations",
+            new { scope = "household", on = "2025-11-15", amount = "5000", split = "highest_rate", effect = "reduce_term" }));
+        var months = simulation.GetProperty("months").EnumerateArray().ToList();
+        for (var k = 0; k <= 24; k++)
+            Assert.Equal(D(months[k].GetProperty("after"), "amount"), projection.Months[k].Debt);
+        Assert.Equal("2025-12", S(simulation, "paymentMonth"));
+        Assert.Equal(D(simulation.GetProperty("monthlyPaymentAfter"), "amount"), projection.Months[2].LoanPayments);
+        var outcome = Assert.Single(projection.Repayments);
+        Assert.Equal((events.Repayments[0].Event, 1, 5_000m), (outcome.Event, outcome.Month, outcome.Applied));
+        Assert.Empty(projection.Sales);
+    }
+
+    [Fact]
+    public async Task Repayment_reduce_payment_lowers_payments()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await NewAsync(app, Golden(app));
+
+        var before = await ProjectAsync(app, app.AdultA);
+        var after = await ProjectAsync(app, app.AdultA,
+            events: Repaying(new LocalDate(2025, 11, 15), 20_000m, ProjectionSplits.Chosen, loan, ProjectionEffects.ReducePayment));
+
+        var simulation = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Loans}/overview/simulations",
+            new { scope = "household", on = "2025-11-15", amount = "20000", split = "chosen", loanId = loan, effect = "reduce_payment" }));
+        Assert.Equal(D(simulation.GetProperty("monthlyPaymentAfter"), "amount"), after.Months[2].LoanPayments);
+        Assert.Equal((before.Months[0].LoanPayments, before.Months[1].LoanPayments), (after.Months[0].LoanPayments, after.Months[1].LoanPayments));
+        for (var k = 2; k <= 24; k++)
+            Assert.True(after.Months[k].LoanPayments < before.Months[k].LoanPayments, $"month {k}");
+        Assert.Equal(before.LoanEnds.Single().On, after.LoanEnds.Single().On); // the term is kept
+        Assert.Equal(20_000m, Assert.Single(after.Repayments).Applied);
+    }
+
+    [Fact]
+    public async Task Repayment_above_balance_is_capped_at_read()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await NewAsync(app, Short(app)); // 2 000 left after the October payment, 1 000 due on 2025-11-15
+
+        var projection = await ProjectAsync(app, app.AdultA,
+            events: Repaying(new LocalDate(2025, 11, 10), 5_000m, ProjectionSplits.SmallestBalance));
+
+        var outcome = Assert.Single(projection.Repayments);
+        Assert.Equal((1, 2_000m), (outcome.Month, outcome.Applied));
+        Assert.Equal(2_000m, projection.Months[0].Debt);
+        Assert.All(projection.Months.Skip(1), m => Assert.Equal((0m, 0m), (m.Debt, m.LoanPayments)));
+        var end = Assert.Single(projection.LoanEnds);
+        Assert.Equal((new ItemId(loan), new LocalDate(2025, 11, 10)), (end.Loan, end.On));
+    }
+
+    // Projection spec §4.3: the property leaves, its loans are settled by their balance, price − costs − balance comes in.
+    [Fact]
+    public async Task Sale_settles_loans_and_reports_proceeds()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await ValuedHomeAsync(app);
+        var body = Golden(app);
+        body["propertyId"] = home;
+        var loan = await NewAsync(app, body);
+
+        var events = Selling(home, new LocalDate(2026, 10, 1), 320_000m, 10_000m); // month 12, before its payment of 2026-10-15
+        var projection = await ProjectAsync(app, app.AdultA, events: events);
+
+        var balance = (await ScheduleAsync(app, loan)).Last(r => S(r, "dueDate") == "2026-09-15");
+        var sale = Assert.Single(projection.Sales);
+        Assert.Equal((events.Sales[0].Event, 12), (sale.Event, sale.Month));
+        Assert.Equal(310_000m - D(balance, "balance"), sale.Proceeds);
+        Assert.Equal(D(balance, "balance"), projection.Months[11].Debt);
+        Assert.Equal(300_000m, projection.Months[11].PropertyValue);
+        Assert.True(projection.Months[11].LoanPayments > 0m);
+        Assert.All(projection.Months.Skip(12), m => Assert.Equal((0m, 0m, 0m), (m.PropertyValue, m.Debt, m.LoanPayments)));
+        var end = Assert.Single(projection.LoanEnds);
+        Assert.Equal((new ItemId(loan), new LocalDate(2026, 10, 1), new ItemId(home)), (end.Loan, end.On, end.Property));
+        Assert.Empty(projection.PropertiesFree); // sold, not freed
+    }
+
+    [Fact]
+    public async Task Sale_without_value_settles_loans()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app)); // no valuation
+        var body = Golden(app);
+        body["propertyId"] = home;
+        var loan = await NewAsync(app, body);
+
+        var projection = await ProjectAsync(app, app.AdultA, events: Selling(home, new LocalDate(2026, 10, 1), null, 10_000m));
+
+        var balance = D((await ScheduleAsync(app, loan)).Last(r => S(r, "dueDate") == "2026-09-15"), "balance");
+        Assert.Equal(-10_000m - balance, Assert.Single(projection.Sales).Proceeds);
+        Assert.All(projection.Months.Skip(12), m => Assert.Equal((0m, 0m), (m.Debt, m.LoanPayments)));
+    }
+
+    [Fact]
+    public async Task Sale_monthly_net_is_costs_minus_rent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await ValuedHomeAsync(app);
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/recurring-costs",
+            new { category = "property_tax", amount = "1200", every = new { count = 1, unit = "year" }, startsOn = "2021-10-15" })); // 100 a month
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/tenancies",
+            new { label = "T2", startsOn = "2021-01-01", rentMonthly = "900", chargesMonthly = "50" }));
+
+        var projection = await ProjectAsync(app, app.AdultA, growth: 0.02m, events: Selling(home, new LocalDate(2026, 10, 20), null, 0m));
+
+        var sale = Assert.Single(projection.Sales);
+        Assert.Equal(-800m, sale.MonthlyNet);
+        Assert.Equal(306_000.00m, Math.Round(sale.Proceeds, 2, MidpointRounding.AwayFromZero)); // its projected value at month 12
+    }
+
+    [Fact]
+    public async Task None_keeps_the_purchase_projection()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await ValuedHomeAsync(app);
+        var body = Golden(app);
+        body["propertyId"] = home;
+        var loan = await NewAsync(app, body);
+        await NewAsync(app, Short(app));
+
+        var none = await ProjectAsync(app, app.AdultA, growth: 0.02m, events: RealEstateEvents.None);
+        var purchase = await ProjectAsync(app, app.AdultA, growth: 0.02m);
+
+        Assert.Equal(purchase.Months, none.Months);
+        Assert.Equal(purchase.LoanEnds, none.LoanEnds);
+        Assert.Equal(purchase.PropertiesFree, none.PropertiesFree);
+        Assert.Empty(none.Sales);
+        Assert.Empty(none.Repayments);
+        // The tranche 1 figures: the schedules' balances and payments, the property grown from 300 000.
+        var rows = await ScheduleAsync(app, loan);
+        for (var k = 1; k <= 24; k++)
+        {
+            var month = NidApp.GoldenCaseToday.ToYearMonth().PlusMonths(k);
+            var golden = rows.Last(r => LocalDatePattern.Iso.Parse(S(r, "dueDate")!).Value <= month.ToDateInterval().End);
+            var shortDebt = k < 3 ? (2 - k) * 1_000m : 0m;
+            Assert.Equal(D(golden, "balance") + shortDebt, none.Months[k].Debt);
+            Assert.Equal(D(golden, "payment") + (k < 3 ? 1_000m : 0m), none.Months[k].LoanPayments);
+        }
+        Assert.Equal(306_000.00m, Math.Round(none.Months[12].PropertyValue, 2, MidpointRounding.AwayFromZero));
+    }
+
+    [Fact]
+    public async Task An_event_on_an_item_the_reader_cannot_see_is_ignored()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewAsync(app, Golden(app));
+        var secret = await NewPropertyAsync(app, Home(app, "Secret", "private", app.AdultB), app.AdultB);
+        var hidden = Golden(app, name: "Prêt de B", visibility: "private", borrowers: [app.AdultB]);
+        hidden["propertyId"] = secret;
+        var loan = await NewAsync(app, hidden, app.AdultB);
+
+        var before = await ProjectAsync(app, app.AdultA);
+        var after = await ProjectAsync(app, app.AdultA, events: new RealEstateEvents(
+            Repaying(new LocalDate(2025, 11, 15), 5_000m, ProjectionSplits.Chosen, loan).Repayments,
+            Selling(secret, new LocalDate(2026, 1, 1), 300_000m, 0m).Sales));
+
+        Assert.Equal(before.Months, after.Months);
+        Assert.Equal(before.LoanEnds, after.LoanEnds);
+        Assert.Empty(after.Repayments);
+        Assert.Empty(after.Sales);
     }
 }

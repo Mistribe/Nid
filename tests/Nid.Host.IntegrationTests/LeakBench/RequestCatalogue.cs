@@ -397,6 +397,20 @@ public static class RequestCatalogue
             SecondItemAccess = AccessKind.Read,
         },
         new(typeof(DeleteScenarioCommand), true, (_, item) => new DeleteScenarioCommand(item)),
+        // Net worth projection spec §6 and §7: the projection requests run against the projection twins; a replace may name a purchase
+        // scenario (or a loan, a property), which the actor only has to read: the purchase twin of the other row. A creation has no target;
+        // ProjectionScenarioEndpointTests checks its refusals. The deletion is DeleteScenarioCommand's.
+        new(typeof(SimulateProjectionScenarioQuery), false, (_, _) => new SimulateProjectionScenarioQuery(VisibilityScope.Me, BenchProjection())),
+        new(typeof(CreateProjectionScenarioCommand), false, (d, _) => new CreateProjectionScenarioCommand("bench", Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], VisibilityScope.Me, BenchProjection())),
+        new(typeof(GetProjectionScenarioQuery), true, (_, item) => new GetProjectionScenarioQuery(item)),
+        new(typeof(ReplaceProjectionScenarioCommand), true, (d, item) => new ReplaceProjectionScenarioCommand(
+            item, "bench", d.VisibilityOf(item), VisibilityScope.Me, BenchProjection()))
+        {
+            BuildNamingAnother = (d, target, other) => Task.FromResult<object>(new ReplaceProjectionScenarioCommand(
+                target, "bench", d.VisibilityOf(target), VisibilityScope.Me, BenchProjection(PurchaseEvent(d.PurchaseTwinOf(other))))),
+            SecondItemAccess = AccessKind.Read,
+        },
         new(typeof(GetIncomeSourceQuery), true, (_, item) => new GetIncomeSourceQuery(item)),
         new(typeof(EditIncomeSourceCommand), true, (_, item) => new EditIncomeSourceCommand(item, null, null, new IncomeSourceChange(Note: "bench"))),
         new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,
@@ -554,6 +568,20 @@ public static class RequestCatalogue
         new(typeof(GetRentArrearsQuery), false, (_, _) => new GetRentArrearsQuery(VisibilityScope.Me)),
         new(typeof(GetRentRevisionsQuery), false, (_, _) => new GetRentRevisionsQuery(VisibilityScope.Me)),
     ];
+
+    /// <summary>A projection scenario over 10 years on the household's assumptions.</summary>
+    internal static ProjectionScenario BenchProjection(params ProjectionEvent[] events)
+        => new(1, new ScenarioHorizon(10, null), new ProjectionOverrides(null, null, null, null, null), events);
+
+    /// <summary>An early repayment of 100 on <paramref name="loan"/> alone, on 2025-11-20.</summary>
+    internal static ProjectionEvent RepaymentEvent(ItemId loan)
+        => new(Guid.NewGuid(), ProjectionEventKinds.EarlyRepayment, new EventDate(new LocalDate(2025, 11, 20), null, null), null, null, null,
+            100m, ProjectionSplits.Chosen, loan, ProjectionEffects.ReduceTerm, 0m, null, null, null, null);
+
+    /// <summary>An event bringing in a saved purchase scenario.</summary>
+    private static ProjectionEvent PurchaseEvent(ItemId scenario)
+        => new(Guid.NewGuid(), ProjectionEventKinds.PropertyPurchase, new EventDate(new LocalDate(2026, 1, 1), null, null), null, null, null,
+            null, null, null, null, null, null, null, null, scenario);
 
     /// <summary>A scenario that computes: 100 000 borrowed at 3 % over 20 years, from 2025-12-01.</summary>
     private static TaxAssessment BenchAssessment(PersonId declarant) => new(

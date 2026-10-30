@@ -7,15 +7,16 @@ using NodaTime.Text;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
-/// <summary>Property purchase scenario spec §5: the document as a camelCase JSON row keyed by its registry item.</summary>
+/// <summary>Property purchase scenario spec §5 and projection spec §6: the document as a camelCase JSON row keyed by its registry item.</summary>
 public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
 {
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, Converters =
     [
         typeof(CamelCaseEnum<PurchaseUse>), typeof(CamelCaseEnum<DeferralKind>), typeof(CamelCaseEnum<ScenarioInsuranceKind>),
-        typeof(ItemIdConverter), typeof(LocalDateConverter),
+        typeof(ItemIdConverter), typeof(PersonIdConverter), typeof(LocalDateConverter),
     ])]
     [JsonSerializable(typeof(PropertyPurchase))]
+    [JsonSerializable(typeof(ProjectionScenario))]
     private sealed partial class ScenarioJson : JsonSerializerContext;
 
     /// <summary>An enum as its camelCase name; one per enum of the document.</summary>
@@ -25,6 +26,12 @@ public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
     {
         public override ItemId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => new(reader.GetGuid());
         public override void Write(Utf8JsonWriter writer, ItemId value, JsonSerializerOptions options) => writer.WriteStringValue(value.Value);
+    }
+
+    private sealed class PersonIdConverter : JsonConverter<PersonId>
+    {
+        public override PersonId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => new(reader.GetGuid());
+        public override void Write(Utf8JsonWriter writer, PersonId value, JsonSerializerOptions options) => writer.WriteStringValue(value.Value);
     }
 
     private sealed class LocalDateConverter : JsonConverter<LocalDate>
@@ -55,11 +62,19 @@ public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
             db.Scenarios.Add(row = new ScenarioRow { ItemId = scenario.Item.Value });
         row.Kind = scenario.Kind;
         row.Scope = scenario.Scope == VisibilityScope.Me ? "me" : "household";
-        row.Data = JsonSerializer.Serialize(scenario.Document, ScenarioJson.Default.PropertyPurchase);
+        row.Data = scenario.Kind == ScenarioKinds.Projection
+            ? JsonSerializer.Serialize(scenario.Projection!, ScenarioJson.Default.ProjectionScenario)
+            : JsonSerializer.Serialize(scenario.Document!, ScenarioJson.Default.PropertyPurchase);
         await db.SaveChangesAsync(ct);
     }
 
-    private static StoredScenario ToStored(ScenarioRow row) => new(
-        new ItemId(row.ItemId), row.Kind, row.Scope == "me" ? VisibilityScope.Me : VisibilityScope.Household,
-        JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.PropertyPurchase)!);
+    private static StoredScenario ToStored(ScenarioRow row)
+    {
+        var scope = row.Scope == "me" ? VisibilityScope.Me : VisibilityScope.Household;
+        return row.Kind == ScenarioKinds.Projection
+            ? new StoredScenario(new ItemId(row.ItemId), row.Kind, scope, null,
+                JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.ProjectionScenario)!)
+            : new StoredScenario(new ItemId(row.ItemId), row.Kind, scope,
+                JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.PropertyPurchase)!);
+    }
 }

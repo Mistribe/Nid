@@ -113,4 +113,70 @@ public class HouseholdProjectionTests
         var kept = Assert.Single(result.Milestones);
         Assert.Equal(new LocalDate(2027, 3, 15), kept.On);
     }
+
+    private static HouseholdProjectionResult RunEvents(
+        IReadOnlyList<SavingsSlice> slices, int months = 12, ProjectionAssumptions? assumptions = null,
+        IReadOnlyList<decimal>? adjustments = null, IReadOnlyList<decimal>? cashFlows = null,
+        IReadOnlyList<SliceWithdrawal>? withdrawals = null) =>
+        HouseholdProjection.Project(new(
+            Today, months, slices, Enumerable.Repeat(0m, months + 1).ToList(), [], 0m, assumptions ?? Assumptions(), [],
+            adjustments, cashFlows, withdrawals));
+
+    [Fact]
+    public void Monthly_adjustment_adds_to_monthly_savings()
+    {
+        var adjustments = new List<decimal> { 0m, 0m }.Concat(Enumerable.Repeat(300m, 11)).ToList();
+        Assert.Equal(600m, RunEvents([], adjustments: adjustments).Points[3].Savings);
+    }
+
+    [Fact]
+    public void Cash_flow_enters_the_pot_once()
+    {
+        var cashFlows = Enumerable.Range(0, 13).Select(k => k == 2 ? -5_000m : 0m).ToList();
+        var points = RunEvents([Cash(10_000m)], cashFlows: cashFlows).Points;
+        Assert.Equal(10_000m, points[1].Savings);
+        Assert.Equal(5_000m, points[2].Savings);
+        Assert.Equal(5_000m, points[12].Savings);
+    }
+
+    [Fact]
+    public void Withdrawal_leaves_its_item_pro_rata()
+    {
+        SavingsSlice[] slices =
+        [
+            new(Envelope, AllocationClasses.Equity, AllocationLiquidity.Available, 6_000m),
+            new(Envelope, AllocationClasses.Cash, AllocationLiquidity.Available, 4_000m),
+        ];
+        SliceWithdrawal[] withdrawals = [new(1, Envelope, 5_000m)];
+        Assert.Equal(5_000m, RunEvents(slices, withdrawals: withdrawals).Points[1].Savings);
+
+        var assumptions = new ProjectionAssumptions(
+            new Dictionary<string, decimal> { [AllocationClasses.Equity] = 0.2m, [AllocationClasses.Cash] = 0m },
+            0m, null, AllocationClasses.Cash, true);
+        Assert.Equal(5_600m, RunEvents(slices, assumptions: assumptions, withdrawals: withdrawals).Points[12].Savings);
+    }
+
+    [Fact]
+    public void Withdrawal_above_the_item_takes_the_rest_from_the_pot()
+    {
+        var other = new ItemId(Guid.NewGuid());
+        SavingsSlice[] slices =
+        [
+            new(Envelope, AllocationClasses.Cash, AllocationLiquidity.Available, 1_000m),
+            new(other, AllocationClasses.Cash, AllocationLiquidity.Available, 10_000m),
+        ];
+        var points = RunEvents(slices, withdrawals: [new(1, Envelope, 1_500m)]).Points;
+        Assert.Equal(11_000m, points[0].Savings);
+        Assert.Equal(9_500m, points[1].Savings);
+        Assert.Equal(9_500m, points[12].Savings);
+    }
+
+    [Fact]
+    public void Month_zero_events_are_in_todays_point()
+    {
+        var cashFlows = Enumerable.Range(0, 13).Select(k => k == 0 ? 2_000m : 0m).ToList();
+        var points = RunEvents([Cash(10_000m)], cashFlows: cashFlows, withdrawals: [new(0, Envelope, 3_000m)]).Points;
+        Assert.Equal(9_000m, points[0].Savings);
+        Assert.Equal(9_000m, points[12].Savings);
+    }
 }

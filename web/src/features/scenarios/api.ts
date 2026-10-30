@@ -10,3 +10,10 @@ export const SCENARIOS = '/api/v1/scenarios' as const;
 export const SCENARIO = '/api/v1/scenarios/{id}' as const;
 export const SCENARIO_SIMULATE = '/api/v1/scenarios/simulate' as const;
 export const SCENARIO_DEFAULTS = '/api/v1/scenarios/defaults' as const;
+
+export type ProjectionScenario = components['schemas']['ProjectionScenarioView'];
+export type ProjectionScenarioBody = components['schemas']['ProjectionScenarioBody'];
+
+export const PROJECTION_SCENARIOS = '/api/v1/scenarios/projection' as const;
+export const PROJECTION_SCENARIO = '/api/v1/scenarios/projection/{id}' as const;
+export const PROJECTION_SIMULATE = '/api/v1/scenarios/projection/simulate' as const;

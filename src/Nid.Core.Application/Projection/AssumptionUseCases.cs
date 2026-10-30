@@ -9,6 +9,9 @@ public static class ProjectionCodes
 {
     public const string InvalidField = "projection.invalid_field";
 
+    /// <summary>Spec §4.5: an event names a person, loan, property or purchase scenario the writer does not know or cannot see.</summary>
+    public const string TargetNotFound = "projection.target_not_found";
+
     /// <summary>Spec §2.2: a retirement horizon names a person with no birth date, or no person the reader knows.</summary>
     public const string NoBirthDate = "projection.no_birth_date";
 

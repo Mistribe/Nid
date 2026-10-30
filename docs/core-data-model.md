@@ -183,6 +183,39 @@ Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou p
 - Les avis appartiennent à leurs déclarants, sans élément ni propriété : seuls les déclarants les lisent (« Foyer » = les avis à deux déclarants, « Moi » = les siens). Une personne qui figure sur un avis ne peut plus être supprimée.
 - Les deux tables sont auditées sans élément (`AuditRule.NoItem`) ; le PDF source est relié à chaque déclarant (`core.person`, rôle `tax_notice`, `documents-data-model.md` §5).
 
+### 4.7 Scénarios (`scenario`)
+
+Le document d'un scénario « et si », rattaché à un élément du registre (`item`) : le scénario d'achat immobilier (`superpowers/specs/2026-10-22-property-purchase-scenario-design.md` §5) et, depuis la tranche 2 de la #102, le scénario « Projection » (`superpowers/specs/2026-10-27-networth-projection-design.md` §6).
+
+**`scenario`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `item_id` | uuid | Clé primaire et clé étrangère vers `item`, `ON DELETE CASCADE` |
+| `kind` | text | `property_purchase` ou `projection` (`ck_scenario_kind`) |
+| `scope` | text | `me` ou `household` : la portée à laquelle le scénario se lit (`ck_scenario_scope`) |
+| `data` | jsonb | Le document, selon `kind` |
+
+Document `projection` (`ProjectionScenario`) :
+
+| Champ | Contenu |
+|---|---|
+| `version` | 1 |
+| `horizon` | `years` (1 à 40) ou `retireOf` (une personne : sa retraite), jamais les deux |
+| `assumptions` | Surcharges des hypothèses du foyer : `classRates` (par classe, fusionné clé par clé), `inflation`, `monthlySavings`, `savingsClass`, `freedPaymentsToSavings` ; un champ absent garde celui du foyer |
+| `events` | 30 événements au plus, chacun avec `id` (uuid), `kind`, `start` (et `until` pour les changements), `label` facultatif |
+
+Une date (`start`, `until`) est soit un jour (`on`), soit une personne avec un âge de 18 à 100 ans (`person`, `age`) : le dernier jour du mois où elle atteint cet âge. Les champs d'un événement selon son `kind` :
+
+| `kind` | Champs |
+|---|---|
+| `income_change` · `savings_change` | `monthlyAmount` (signé, variation mensuelle), `until` facultatif (après `start`) |
+| `early_repayment` | `amount` (> 0), `split` (`highest_rate`, `smallest_balance`, `chosen`), `loan` (si `chosen`, interdit sinon), `effect` (`reduce_term`, `reduce_payment`), `penalty` (≥ 0, saisie) |
+| `property_sale` | `property`, `price` facultatif (vide : valeur projetée), `costs` (≥ 0) ; un bien se vend une fois |
+| `property_purchase` | `scenario` : un scénario d'achat enregistré ; la date est sa `purchase_on` |
+
+Les cibles (biens, prêts, scénarios d'achat, personnes) sont des identifiants logiques, sans clé étrangère : elles sont revérifiées (existence, visibilité, archivage) à chaque lecture et écriture. Un événement dont la cible n'est plus visible du lecteur est écarté et compté dans l'avertissement `hidden_targets`. Un remplacement (`PUT`) conserve les événements que l'auteur ne voit pas si leurs cibles existent encore et sont actives, et abandonne ceux dont la cible a été archivée ou la personne retirée. Le document ne contient aucun montant calculé.
+
 ## 5. Valorisations et flux
 
 Core **stocke** des faits datés ; il ne calcule aucun gain. Investments définit le gain, RealEstate le coût réel du bien.

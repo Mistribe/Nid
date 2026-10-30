@@ -109,6 +109,99 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.NotEmpty(text);
     }
 
+    private static IEnumerable<string> YearEndPoints(JsonElement view)
+    {
+        var all = view.GetProperty("points").EnumerateArray().ToList();
+        return all.Where((p, i) => i == 0 || i == all.Count - 1 || p.GetProperty("on").GetString()!.EndsWith("-12-31", StringComparison.Ordinal))
+            .Select(p => p.ToString());
+    }
+
+    private static object ProjectionDocument(params object[] events)
+        => new { version = 1, horizon = "5y", assumptions = new { }, events };
+
+    private static object RetirementIncome()
+        => new { id = Guid.NewGuid(), kind = "income_change", label = "Retraite", start = new { on = "2028-01-01" }, monthlyAmount = "-1800" };
+
+    private static async Task<Guid> SaveAsync(NidApp app, string url, object document)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, url, new
+        {
+            name = "Test", visibility = "shared", scope = "household", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, document,
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, body);
+        return JsonDocument.Parse(body).RootElement.GetProperty("id").GetGuid();
+    }
+
+    /// <summary>Net worth projection §7: a saved projection scenario read by id answers as its route does, both curves at year ends; a purchase's id is « Not found. ».</summary>
+    [Fact]
+    public async Task Get_projection_with_a_scenario_returns_both_curves()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+        var id = await SaveAsync(app, "/api/v1/scenarios/projection", ProjectionDocument(RetirementIncome()));
+
+        var rest = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/scenarios/projection/{id}")).RootElement.GetProperty("result");
+        // The scenario's stored horizon (5y) governs, whatever horizon is sent.
+        var mcp = await AnswerAsync(client, "get_projection", new { scenarioId = id, horizon = "20y" });
+
+        Assert.Equal(YearEndPoints(rest.GetProperty("base")), YearEndPoints(mcp.GetProperty("base")));
+        Assert.Equal(YearEndPoints(rest.GetProperty("scenario")), YearEndPoints(mcp.GetProperty("scenario")));
+        Assert.Equal(7, mcp.GetProperty("scenario").GetProperty("points").GetArrayLength());
+        Assert.Equal(rest.GetProperty("gapNominal").GetString(), mcp.GetProperty("gapNominal").GetString());
+        // The gaps trimmed to the same year ends as the points, each the route's own.
+        var gaps = mcp.GetProperty("gaps").EnumerateArray().ToList();
+        Assert.Equal(7, gaps.Count);
+        var restGaps = rest.GetProperty("gaps").EnumerateArray().ToDictionary(g => g.GetProperty("on").GetString()!, g => g.GetProperty("nominal").GetString());
+        Assert.All(gaps, g => Assert.Equal(restGaps[g.GetProperty("on").GetString()!], g.GetProperty("nominal").GetString()));
+        Assert.Equal(rest.GetProperty("gapNominal").GetString(), gaps[^1].GetProperty("nominal").GetString());
+
+        var (error, text) = await CallAsync(client, "get_projection", new { scenarioId = Guid.NewGuid() });
+        Assert.True(error);
+        Assert.Equal("Not found.", text);
+    }
+
+    /// <summary>Net worth projection §7: simulating answers as the simulate route does, trimmed; an invalid event is a tool error naming its field.</summary>
+    [Fact]
+    public async Task Simulate_projection_returns_the_simulate_route_answer_trimmed()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+        var ev = RetirementIncome();
+
+        var rest = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/scenarios/projection/simulate",
+            new { scope = "household", document = ProjectionDocument(ev) })).Content.ReadAsStringAsync()).RootElement;
+        var mcp = await AnswerAsync(client, "simulate_projection", new { horizon = "5y", events = new[] { ev } });
+
+        Assert.Equal(YearEndPoints(rest.GetProperty("base")), YearEndPoints(mcp.GetProperty("base")));
+        Assert.Equal(YearEndPoints(rest.GetProperty("scenario")), YearEndPoints(mcp.GetProperty("scenario")));
+        Assert.Equal(7, mcp.GetProperty("base").GetProperty("points").GetArrayLength());
+        Assert.Equal(rest.GetProperty("gapNominal").GetString(), mcp.GetProperty("gapNominal").GetString());
+        Assert.Equal(rest.GetProperty("gapReal").GetString(), mcp.GetProperty("gapReal").GetString());
+    }
+
+    [Fact]
+    public async Task Simulate_projection_invalid_event_is_a_tool_error()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+
+        var (error, text) = await CallAsync(client, "simulate_projection", new
+        {
+            events = new[] { new { kind = "income_change", start = new { on = "2028-01-01" }, monthlyAmount = "abc" } },
+        });
+        Assert.True(error);
+        Assert.Contains("events[0].monthlyAmount", text);
+
+        var (badHorizon, horizonText) = await CallAsync(client, "simulate_projection", new { horizon = "soon", events = Array.Empty<object>() });
+        Assert.True(badHorizon);
+        Assert.Contains("horizon", horizonText);
+
+        var (badScope, scopeText) = await CallAsync(client, "simulate_projection", new { scope = "everyone", events = Array.Empty<object>() });
+        Assert.True(badScope);
+        Assert.Contains("'everyone' is not a scope", scopeText);
+    }
+
     /// <summary>« À valider » names each action from <c>proposals.action</c> of the web's locale.</summary>
     [Fact]
     public void Every_action_has_its_french_label()

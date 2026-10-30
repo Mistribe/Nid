@@ -232,7 +232,7 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
             var currency = LoanViews.CurrencyOf(item);
             foreach (var cost in property.Costs.Select(c => c.Cost))
             {
-                if (cost.StartsOn <= today && (cost.EndsOn is not { } end || today < end))
+                if (Running(cost, today))
                 {
                     count++;
                     DashboardParts.Add(amortized, currency, PropertyMath.MonthlyEquivalent(cost));
@@ -243,6 +243,12 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
         }
         return Result.Success(new CommitmentsPart(CommitmentSources.PropertyCosts, count, amortized, cash));
     }
+
+    private static bool Running(RecurringCost cost, LocalDate today) => cost.StartsOn <= today && (cost.EndsOn is not { } end || today < end);
+
+    /// <summary>Projection spec §4.3: a property's planned costs a month, as the amortized commitments count them, in its currency.</summary>
+    internal static decimal MonthlyCosts(StoredProperty property, LocalDate today)
+        => property.Costs.Select(c => c.Cost).Where(c => Running(c, today)).Sum(PropertyMath.MonthlyEquivalent);
 }
 
 /// <summary>

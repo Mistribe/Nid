@@ -58,3 +58,52 @@ test('alice simulates a primary home purchase, reads its payment and projection,
   await alice.getByRole('alertdialog').getByRole('button', { name: 'Confirmer' }).click();
   await expect(alice.getByRole('link', { name })).toHaveCount(0);
 });
+
+test('alice simulates an early repayment in a projection scenario, reads the gap with the base, then deletes it', async ({ browser }) => {
+  const stamp = Date.now();
+  const loan = `Prêt ${stamp}`;
+  const name = `Remboursement ${stamp}`;
+  const alice = await browser.newPage();
+  await signIn(alice, 'alice', '/loans/new');
+
+  // A shared loan to repay, disbursed a year ago.
+  await alice.getByLabel('Nom', { exact: true }).fill(loan);
+  await alice.getByRole('radio', { name: 'Oui, partagé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await alice.getByLabel('Capital emprunté').fill('200000');
+  await alice.getByLabel('Taux annuel (%)').fill('3,5');
+  await alice.getByLabel('Durée (mois)').fill('240');
+  await fillDate(alice, 'Date de déblocage', `${new Date().getFullYear() - 1}-01-15`);
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await alice.getByRole('button', { name: 'Créer le crédit' }).click();
+  await expect(alice.getByRole('heading', { name: loan, level: 1 })).toBeVisible();
+
+  await alice.goto('/scenarios');
+  await alice.getByRole('button', { name: 'Nouveau scénario' }).click();
+  await alice.getByRole('menuitem', { name: 'Projection' }).click();
+  await expect(alice.getByRole('heading', { name: 'Nouvelle projection', level: 1 })).toBeVisible();
+  await alice.getByLabel('Nom du scénario').fill(name);
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+
+  await alice.getByRole('button', { name: 'Ajouter un événement' }).click();
+  await alice.getByRole('menuitem', { name: 'Remboursement anticipé' }).click();
+  const dialog = alice.getByRole('dialog');
+  await fillDate(dialog, 'Date du remboursement', `${new Date().getFullYear() + 1}-03-15`);
+  await dialog.getByLabel('Montant remboursé').fill('20000');
+  await dialog.getByRole('button', { name: 'Ajouter l’événement' }).click();
+  await expect(alice.getByRole('table', { name: 'Événements du scénario' })).toContainText('Remboursement anticipé');
+  // The result is recomputed at the side by the server.
+  await expect(alice.getByRole('complementary', { name: 'Résultat' })).toContainText(/Écart.*€/s);
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+
+  await alice.getByRole('button', { name: 'Créer le scénario' }).click();
+  await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
+  await expect(alice.getByRole('region', { name: 'Chiffres clés' })).toContainText(/Écart avec la base.*€/s);
+
+  await alice.goto('/scenarios');
+  await expect(alice.getByRole('row', { name: new RegExp(name) })).toContainText('Projection');
+  await alice.getByRole('button', { name: `Actions pour ${name}` }).click();
+  await alice.getByRole('menuitem', { name: 'Supprimer' }).click();
+  await alice.getByRole('alertdialog').getByRole('button', { name: 'Confirmer' }).click();
+  await expect(alice.getByRole('link', { name })).toHaveCount(0);
+});

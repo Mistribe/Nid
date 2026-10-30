@@ -1,12 +1,12 @@
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useState } from 'react';
 import { FormProvider, useForm, useWatch, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
-import type { RootSearch } from '@/app/router';
+import type { NewScenarioSearch, RootSearch } from '@/app/router';
 import { PageHeader } from '@/components/page/PageHeader';
 import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -17,8 +17,19 @@ import { CapacitySummary } from './CapacitySummary';
 import { draftPath, firstStepOf, newDraft, ScenarioFields, STEP_FIELDS, toDocument, type ScenarioDraft, type ScenarioStep } from './ScenarioFields';
 import '@/locales/scenarios';
 
-/** Spec §7: a scenario created in four steps, its capacity recalculated at the side while it is typed. */
+// A projection's creation loads on its own (the projection spec §8): a purchase never fetches its forms and chart.
+const NewProjectionScenarioPage = lazy(() => import('../projection/routes').then((m) => ({ default: m.NewProjectionScenarioPage })));
+
+/** `/scenarios/new`: a purchase scenario, or a projection one with `?kind=projection`. */
 export function NewScenarioPage() {
+  const search: NewScenarioSearch = useSearch({ strict: false });
+  return search.kind === 'projection'
+    ? <Suspense fallback={null}><NewProjectionScenarioPage /></Suspense>
+    : <NewPurchaseScenarioPage />;
+}
+
+/** Spec §7: a scenario created in four steps, its capacity recalculated at the side while it is typed. */
+function NewPurchaseScenarioPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const search: RootSearch = useSearch({ strict: false });

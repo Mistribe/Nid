@@ -114,9 +114,13 @@ public sealed record ScenarioResultView(
         CapacityView.Money(projection.Gap, currency), loans.Select(l => ScenarioLoanView.From(l, currency)).ToList(), warnings);
 }
 
+/// <summary>
+/// One scenario of the list; <c>Kind</c> is <c>property_purchase</c> or <c>projection</c> (<see cref="ScenarioKinds"/>). A projection has no
+/// use, price, payment or debt ratio, and its <c>Gap</c> is the nominal gap at its horizon (null when its horizon can no longer be read).
+/// </summary>
 public sealed record ScenarioListItemView(
-    ItemId Id, string Name, string Use, DashboardMoneyView Price, DashboardMoneyView NewPayment, decimal? DebtRatioAfter,
-    DashboardMoneyView Gap, IReadOnlyList<ItemOwnerView> Owners, string Visibility);
+    ItemId Id, string Kind, string Name, string? Use, DashboardMoneyView? Price, DashboardMoneyView? NewPayment, decimal? DebtRatioAfter,
+    DashboardMoneyView? Gap, IReadOnlyList<ItemOwnerView> Owners, string Visibility);
 
 public sealed record ScenarioView(
     ItemId Id, string Name, string Visibility, string Scope, PropertyPurchaseView Document, ScenarioResultView Result, bool CanWrite)

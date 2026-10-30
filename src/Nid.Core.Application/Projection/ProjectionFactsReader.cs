@@ -20,6 +20,9 @@ public sealed record ProjectionHorizon(int? Years, PersonId? RetireOf)
     public static readonly ProjectionHorizon Default = new(10, null);
 
     public string ToWire() => RetireOf is { } person ? $"retire:{person.Value}" : $"{Years}y";
+
+    /// <summary>A scenario's stored horizon; a retirement follows the same rules as the route's.</summary>
+    public static ProjectionHorizon From(ScenarioHorizon horizon) => new(horizon.Years, horizon.RetireOf);
 }
 
 /// <summary>
@@ -29,7 +32,11 @@ public sealed record ProjectionHorizon(int? Years, PersonId? RetireOf)
 /// </summary>
 public sealed record ProjectionReading(
     ProjectionInputs Inputs, Currency Reference, LocalDate HorizonOn, string SavingsOrigin, IReadOnlyList<ExtendedSource> Extended,
-    IReadOnlyList<string> Missing, IReadOnlyList<RetirementHorizonView> Retirements);
+    IReadOnlyList<string> Missing, IReadOnlyList<RetirementHorizonView> Retirements)
+{
+    /// <summary>What RealEstate projected, with the outcomes of the scenario's sales and repayments (projection spec §5.2).</summary>
+    public RealEstateProjection RealEstate { get; init; } = new([], []);
+}
 
 /// <summary>
 /// Projection spec §3.2 and §6: the reader's figures in a scope, converted to the reference at today's rate, as the dashboard and the
@@ -47,7 +54,15 @@ public sealed class ProjectionFactsReader(
 
     private PersonId Reader => actor.Current!.PersonId!.Value;
 
-    public async Task<Result<ProjectionReading>> ReadAsync(VisibilityScope scope, ProjectionHorizon horizon, CancellationToken ct)
+    public Task<Result<ProjectionReading>> ReadAsync(VisibilityScope scope, ProjectionHorizon horizon, CancellationToken ct)
+        => ReadAsync(scope, horizon, null, RealEstateEvents.None, ct);
+
+    /// <summary>
+    /// Projection spec §4 and §6: a scenario's reading, on <paramref name="assumptions"/> (null: the household's) and with RealEstate
+    /// applying <paramref name="events"/>; the base is <see cref="RealEstateEvents.None"/> on the household's assumptions.
+    /// </summary>
+    public async Task<Result<ProjectionReading>> ReadAsync(
+        VisibilityScope scope, ProjectionHorizon horizon, ProjectionAssumptions? assumptions, RealEstateEvents events, CancellationToken ct)
     {
         var read = await scenario.TodayAsync(scope, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionReading>(failure!);
@@ -62,7 +77,7 @@ public sealed class ProjectionFactsReader(
         var thisMonth = today.ToYearMonth();
         var horizonOn = thisMonth.PlusMonths(months).ToDateInterval().End;
 
-        var assumptions = await household.ProjectionAssumptionsAsync(ct);
+        assumptions ??= await household.ProjectionAssumptionsAsync(ct);
 
         // Spec §2.1: the automatic savings are the last 12 months' net contributions, both ends included.
         var saved = assumptions.MonthlySavings is null
@@ -76,7 +91,7 @@ public sealed class ProjectionFactsReader(
         timelines.TryGetValue(out var earned);
 
         var projected = await realEstate.ProjectAsync(Reader, scope, today, months,
-            assumptions.ClassRates.GetValueOrDefault(AllocationClasses.RealEstate), ct);
+            assumptions.ClassRates.GetValueOrDefault(AllocationClasses.RealEstate), events, ct);
         if (projected.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
         projected.TryGetValue(out var property);
 
@@ -123,7 +138,7 @@ public sealed class ProjectionFactsReader(
         return Result.Success(new ProjectionReading(
             inputs, reference, horizonOn, assumptions.MonthlySavings is null ? AutoSavings : HouseholdSavings,
             earned!.SelectMany(t => t.Extended).DistinctBy(e => e.Source).ToList(),
-            missing.Union(property.MissingCurrencies).Order(StringComparer.Ordinal).ToList(), retirements));
+            missing.Union(property.MissingCurrencies).Order(StringComparer.Ordinal).ToList(), retirements) { RealEstate = property });
     }
 
     /// <summary>
@@ -142,7 +157,7 @@ public sealed class ProjectionFactsReader(
     /// Spec §2.2 and §2.3: the months from this one to the horizon's; a retirement is refused when <see cref="RetirementMonths"/>
     /// has none.
     /// </summary>
-    private async Task<Result<(int Months, PersonInfo? Retiring)>> MonthsAsync(ProjectionHorizon horizon, LocalDate today, CancellationToken ct)
+    internal async Task<Result<(int Months, PersonInfo? Retiring)>> MonthsAsync(ProjectionHorizon horizon, LocalDate today, CancellationToken ct)
     {
         if (horizon.RetireOf is not { } id) return Result.Success<(int, PersonInfo?)>((horizon.Years!.Value * 12, null));
         var person = await persons.FindAsync(id, ct);

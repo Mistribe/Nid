@@ -28,6 +28,8 @@ export type RoutineSearch = { on?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel; projection?: ProjectionHorizon; real?: 0 };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
+/** The kind of scenario to create: a purchase without it (the page it always was), a projection with `projection`. */
+export type NewScenarioSearch = { kind?: 'projection' };
 const RETIRE = /^retire:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -260,7 +262,7 @@ const taxAssessmentEditRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/tax/assessments/AssessmentForm'), 'EditAssessment'),
 });
 
-// Property purchase scenarios spec §7: list, creation in steps, detail.
+// Property purchase scenarios spec §7 and projection spec §8: list, creation in steps (the kind in `?kind=`), detail by kind.
 const scenariosRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/scenarios',
@@ -270,7 +272,15 @@ const scenariosRoute = createRoute({
 const scenarioNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/scenarios/new',
+  validateSearch: (search: Record<string, unknown>): NewScenarioSearch => (search.kind === 'projection' ? { kind: 'projection' } : {}),
   component: lazyRouteComponent(() => import('@/features/scenarios/new/NewScenarioPage'), 'NewScenarioPage'),
+});
+
+const projectionScenarioRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/scenarios/projection/$id',
+  validateSearch: detailSearch,
+  component: lazyRouteComponent(() => import('@/features/scenarios/projection/routes'), 'ProjectionScenarioPage'),
 });
 
 const scenarioDetailRoute = createRoute({
@@ -506,7 +516,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,

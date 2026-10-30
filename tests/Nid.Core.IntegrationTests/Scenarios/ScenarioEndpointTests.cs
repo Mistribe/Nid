@@ -109,4 +109,29 @@ public class ScenarioEndpointTests(PostgresFixture fixture, SharedNidApp shared)
 
         Assert.Equal("6", defaults.GetProperty("classRates").GetProperty("equity").GetString());
     }
+
+    [Fact]
+    public async Task Purchase_routes_answer_404_for_a_projection()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await SeedProjectionAsync(app);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{id}")).StatusCode);
+        // Projection spec §7: the list and the deletion are shared by both kinds.
+        var listed = Assert.Single((await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Url))).GetProperty("items").EnumerateArray());
+        Assert.Equal((id, "projection"), (listed.GetProperty("id").GetGuid(), listed.GetProperty("kind").GetString()));
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Url}/{id}")).StatusCode);
+    }
+
+    /// <summary>A projection scenario saved through its own route.</summary>
+    private static async Task<Guid> SeedProjectionAsync(NidApp app)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/scenarios/projection", new
+        {
+            name = "Projection", visibility = "shared", scope = "household", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            document = new { version = 1, horizon = "10y", assumptions = new { }, events = Array.Empty<object>() },
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await JsonOf(response)).GetProperty("id").GetGuid();
+    }
 }

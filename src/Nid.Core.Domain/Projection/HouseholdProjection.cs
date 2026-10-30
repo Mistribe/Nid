@@ -8,13 +8,25 @@ namespace Nid.Core.Domain.Projection;
 public sealed record ProjectionMilestone(LocalDate On, string Kind, string Label, ItemId? Item);
 
 /// <summary>
+/// An amount leaving an item's slices pro rata at the start of <paramref name="Month"/>, before growth; month 0 is today's point.
+/// </summary>
+public sealed record SliceWithdrawal(int Month, ItemId Item, decimal Amount);
+
+/// <summary>
 /// Projection spec §3.3: everything read and converted beforehand. <c>Income</c> and <c>RealEstate</c> have <c>Months + 1</c> entries
 /// (index k is this month plus k; <c>RealEstate</c> empty means none); <c>MonthlySavings</c> is the resolved S₀.
+/// The optional event inputs default to none: <c>MonthlyAdjustments</c> and <c>CashFlows</c> have <c>Months + 1</c> entries;
+/// <c>MonthlyAdjustments[k]</c> is added to S(k), <c>CashFlows[k]</c> (signed) enters the pot in month k after S(k); a withdrawal
+/// beyond its item's slices empties them and the rest leaves the pot. Month 0 is today's point: its cash flows and withdrawals (an
+/// event of this month, as RealEstate applies it to month 0) are in that point; <c>MonthlyAdjustments[0]</c> is not read, no monthly
+/// savings being added at today's point.
 /// </summary>
 public sealed record ProjectionInputs(
     LocalDate Today, int Months, IReadOnlyList<SavingsSlice> Savings,
     IReadOnlyList<decimal> Income, IReadOnlyList<RealEstateMonth> RealEstate,
-    decimal MonthlySavings, ProjectionAssumptions Assumptions, IReadOnlyList<ProjectionMilestone> Milestones);
+    decimal MonthlySavings, ProjectionAssumptions Assumptions, IReadOnlyList<ProjectionMilestone> Milestones,
+    IReadOnlyList<decimal>? MonthlyAdjustments = null, IReadOnlyList<decimal>? CashFlows = null,
+    IReadOnlyList<SliceWithdrawal>? Withdrawals = null);
 
 /// <summary>
 /// A month's last day (the first point is today), nominal and real net worth with its parts, nominal then real (each part divided
@@ -54,9 +66,25 @@ public static class HouseholdProjection
         RealEstateMonth At(int k) => inputs.RealEstate.Count == 0 ? new(thisMonth.PlusMonths(k), 0m, 0m, 0m) : inputs.RealEstate[k];
 
         var slices = inputs.Savings.ToList();
-        var pot = 0m;
+
+        // The month's withdrawals leave their items' slices; what the slices cannot give is returned, to leave the pot.
+        decimal Withdraw(int k)
+        {
+            var leftOver = 0m;
+            foreach (var withdrawal in inputs.Withdrawals?.Where(w => w.Month == k) ?? [])
+            {
+                var held = slices.Where(s => s.Item == withdrawal.Item).Sum(s => s.Amount);
+                var taken = Math.Min(withdrawal.Amount, Math.Max(held, 0m));
+                if (held > 0m)
+                    slices = slices.Select(s => s.Item == withdrawal.Item ? s with { Amount = s.Amount * (1m - taken / held) } : s).ToList();
+                leftOver += withdrawal.Amount - taken;
+            }
+            return leftOver;
+        }
+
+        var pot = -Withdraw(0) + (inputs.CashFlows?[0] ?? 0m);
         YearMonth? exhausted = null;
-        var points = new List<HouseholdPoint> { Point(inputs.Today, slices.Sum(s => s.Amount), At(0), 1m) };
+        var points = new List<HouseholdPoint> { Point(inputs.Today, slices.Sum(s => s.Amount) + pot, At(0), 1m) };
         var milestones = new List<ProjectionMilestone>();
 
         for (var k = 1; k <= inputs.Months; k++)
@@ -65,10 +93,13 @@ public static class HouseholdProjection
             var end = month.ToDateInterval().End;
             var re = At(k);
 
+            var leftOver = Withdraw(k);
+
             slices = slices.Select(s => s with { Amount = s.Amount * (1m + monthlyRate[s.Class]) }).ToList();
             var monthlySavings = inputs.MonthlySavings + (inputs.Income[k] - inputs.Income[0])
-                + (a.FreedPaymentsToSavings ? At(0).LoanPayments - re.LoanPayments : 0m);
-            pot = pot * (1m + monthlyRate[a.SavingsClass]) + monthlySavings;
+                + (a.FreedPaymentsToSavings ? At(0).LoanPayments - re.LoanPayments : 0m)
+                + (inputs.MonthlyAdjustments?[k] ?? 0m);
+            pot = (pot - leftOver) * (1m + monthlyRate[a.SavingsClass]) + monthlySavings + (inputs.CashFlows?[k] ?? 0m);
 
             if (exhausted is null && slices.Where(s => s.Liquidity == AllocationLiquidity.Available).Sum(s => s.Amount) + pot < 0m)
             {

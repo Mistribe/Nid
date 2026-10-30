@@ -1,4 +1,6 @@
 using System.Globalization;
+using Nid.Core.Application.Dashboard;
+using Nid.Core.Application.Projection;
 using Nid.Core.Contracts;
 using Nid.Core.Domain.Scenarios;
 using Nid.Platform.Contracts;
@@ -68,13 +70,17 @@ internal static class ScenarioResults
         return ScenarioResultView.From(capacity, projection, r.Facts.Loans, warnings.OrderBy(w => Array.IndexOf(Order, w.Code)).ToList(), r.Currency);
     }
 
+    /// <summary>
+    /// An active scenario of <paramref name="kind"/> (<see cref="ScenarioKinds"/>; null: of any kind, deleting). The routes of one kind
+    /// answer 404 for a scenario of the other (projection spec §7).
+    /// </summary>
     public static async Task<Result<(ItemAccess Item, StoredScenario Stored)>> LoadAsync(
-        IItemRegistry items, IScenarioStore store, ItemId id, CancellationToken ct)
+        IItemRegistry items, IScenarioStore store, ItemId id, CancellationToken ct, string? kind = ScenarioKinds.PropertyPurchase)
     {
         var item = await items.FindAsync(id, ct);
         var stored = await store.FindAsync(id, ct);
         // An archived scenario is deleted; an item of another kind is no scenario.
-        return item is { ArchivedAt: null } && stored is not null
+        return item is { ArchivedAt: null } && stored is not null && (kind is null || stored.Kind == kind)
             ? Result.Success((item, stored))
             : Result.Failure<(ItemAccess, StoredScenario)>(new NotFoundFailure("scenario", id.ToString()));
     }
@@ -82,7 +88,7 @@ internal static class ScenarioResults
     public static async Task<Result<ScenarioView>> ViewAsync(
         ScenarioFactsReader facts, IAccessPolicy policy, PersonId reader, ItemAccess item, StoredScenario stored, CancellationToken ct)
     {
-        var read = await facts.ReadAsync(stored.Document, stored.Scope, ct);
+        var read = await facts.ReadAsync(stored.Document!, stored.Scope, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ScenarioView>(failure!);
         read.TryGetValue(out var reading);
         var canWrite = (await policy.CheckAsync(reader, item.Id, AccessKind.Write, ct)).IsSuccess;
@@ -103,7 +109,8 @@ internal static class ScenarioResults
 
 [RequestHandler<ListScenariosQuery, ScenarioList>]
 public sealed class ListScenariosHandler(
-    IVisibleItems visible, IItemRegistry items, IScenarioStore store, ScenarioFactsReader facts, IActorAccessor actor)
+    IVisibleItems visible, IItemRegistry items, IScenarioStore store, ScenarioFactsReader facts, ProjectionScenarioReader projections,
+    IActorAccessor actor)
     : IRequestHandler<ListScenariosQuery, ScenarioList>
 {
     public async ValueTask<Result<ScenarioList>> HandleAsync(ListScenariosQuery query, CancellationToken ct = default)
@@ -116,16 +123,50 @@ public sealed class ListScenariosHandler(
         foreach (var scenario in stored)
         {
             var item = accesses[scenario.Item];
-            var read = await facts.ReadAsync(scenario.Document, scenario.Scope, ct);
-            if (read.TryGetFailure(out var failure)) return Result.Failure<ScenarioList>(failure!);
-            read.TryGetValue(out var reading);
-            var result = ScenarioResults.Of(reading!);
-            rows.Add(new ScenarioListItemView(
-                item.Id, item.DisplayName, scenario.Document.Use == PurchaseUse.Rental ? "rental" : "primary",
-                CapacityView.Money(scenario.Document.Price, reading!.Currency), result.Capacity.NewPayment, result.Capacity.DebtRatioAfter,
-                result.Gap, item.OwnerViews(), ScenarioResults.Wire(item.Visibility)));
+            var row = scenario.Kind == ScenarioKinds.Projection
+                ? await ProjectionRowAsync(item, scenario, ct)
+                : await PurchaseRowAsync(item, scenario, ct);
+            if (row.TryGetFailure(out var failure)) return Result.Failure<ScenarioList>(failure!);
+            row.TryGetValue(out var view);
+            rows.Add(view!);
         }
         return Result.Success(new ScenarioList(ScenarioResults.ByName(rows, r => r.Name).ToList()));
+    }
+
+    private async Task<Result<ScenarioListItemView>> PurchaseRowAsync(ItemAccess item, StoredScenario scenario, CancellationToken ct)
+    {
+        var read = await facts.ReadAsync(scenario.Document!, scenario.Scope, ct);
+        if (read.TryGetFailure(out var failure)) return Result.Failure<ScenarioListItemView>(failure!);
+        read.TryGetValue(out var reading);
+        var result = ScenarioResults.Of(reading!);
+        return Result.Success(new ScenarioListItemView(
+            item.Id, ScenarioKinds.PropertyPurchase, item.DisplayName, scenario.Document!.Use == PurchaseUse.Rental ? "rental" : "primary",
+            CapacityView.Money(scenario.Document.Price, reading!.Currency), result.Capacity.NewPayment, result.Capacity.DebtRatioAfter,
+            result.Gap, item.OwnerViews(), ScenarioResults.Wire(item.Visibility)));
+    }
+
+    /// <summary>
+    /// Projection spec §7: the nominal gap at the horizon, as the reader sees the scenario; null when its horizon can no longer be read
+    /// (a retirement whose person lost their birth date, or now past) or its projection fails for any reason, so one broken scenario
+    /// does not hide the others.
+    /// </summary>
+    private async Task<Result<ScenarioListItemView>> ProjectionRowAsync(ItemAccess item, StoredScenario scenario, CancellationToken ct)
+    {
+        var read = await projections.ReadAsync(scenario.Projection!, scenario.Scope, ct);
+        DashboardMoneyView? gap = null;
+        if (read.TryGetValue(out var reading))
+        {
+            try
+            {
+                gap = new DashboardMoneyView(ProjectionComparisonView.From(reading!).GapNominal, reading!.Base.Reference.Code);
+            }
+            catch (InvalidOperationException)
+            {
+                // grids that diverged: no gap for this row.
+            }
+        }
+        return Result.Success(new ScenarioListItemView(
+            item.Id, ScenarioKinds.Projection, item.DisplayName, null, null, null, null, gap, item.OwnerViews(), ScenarioResults.Wire(item.Visibility)));
     }
 }
 
@@ -182,7 +223,7 @@ public sealed class ReplaceScenarioHandler(
         // No envelope twice: the refusal above turns down any envelope the writer cannot see.
         var document = command.Document with
         {
-            Funding = [.. command.Document.Funding, .. found.Stored.Document.Funding.Where(f => !visible.Contains(f.Item))],
+            Funding = [.. command.Document.Funding, .. found.Stored.Document!.Funding.Where(f => !visible.Contains(f.Item))],
         };
         var owners = found.Item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
         var stored = found.Stored with { Scope = command.Scope, Document = document };
@@ -204,7 +245,7 @@ public sealed class DeleteScenarioHandler(IItemRegistry items, IScenarioStore st
     public async ValueTask<Result<ItemId>> HandleAsync(DeleteScenarioCommand command, CancellationToken ct = default)
     {
         // Only a scenario: this route never archives an item of another kind.
-        var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct);
+        var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct, kind: null);
         if (loaded.TryGetFailure(out var failure)) return Result.Failure<ItemId>(failure!);
         var archived = await items.ArchiveAsync(command.ItemId, clock.GetCurrentInstant(), ct);
         return archived.TryGetFailure(out failure) ? Result.Failure<ItemId>(failure!) : Result.Success(command.ItemId);

@@ -15,16 +15,23 @@ public sealed record HouseholdPointView(
 /// <summary>Spec §2.3: a retirement the reader can project to, an adult's within 40 years; <c>On</c> is that horizon's last day.</summary>
 public sealed record RetirementHorizonView(Guid Person, string Name, LocalDate On);
 
-/// <summary>Spec §3.5: <c>loan_end</c>, <c>property_free</c>, <c>retirement</c> or <c>savings_exhausted</c>; <c>Item</c> is the loan or property.</summary>
+/// <summary>
+/// Spec §3.5: <c>loan_end</c>, <c>property_free</c>, <c>retirement</c>, <c>savings_exhausted</c> or a scenario's <c>event</c> (its label, or
+/// its kind); <c>Item</c> is the loan, property or purchase scenario.
+/// </summary>
 public sealed record ProjectionMilestoneView(LocalDate On, string Kind, string Label, ItemId? Item);
 
-/// <summary>Spec §3.4: <c>income_end_extended</c> (the source's name), <c>savings_exhausted</c> (<c>yyyy-MM</c>), <c>fx_missing</c> (the currency).</summary>
+/// <summary>
+/// Spec §3.4: <c>income_end_extended</c> (the source's name), <c>savings_exhausted</c> (<c>yyyy-MM</c>), <c>fx_missing</c> (the currency);
+/// a scenario adds <c>hidden_targets</c>, <c>event_in_past</c> and <c>event_undated</c> (a count), <c>purchase_in_past</c> and
+/// <c>tax_estimate_unavailable</c>.
+/// </summary>
 public sealed record ProjectionWarningView(string Code, string? Detail);
 
 /// <summary>
-/// Spec §7: the base projection. <c>MonthlySavings</c> is the S₀ applied, from the household's assumptions (<c>"household"</c>) or the
-/// last 12 months' average (<c>"auto"</c>); <c>Horizon</c> is the wire form asked, <c>HorizonOn</c> the last point's date;
-/// <c>RetirementHorizons</c> the retirements the route accepts as a horizon, whatever the horizon asked.
+/// Spec §7: the base projection. <c>MonthlySavings</c> is the S₀ applied, from the household's assumptions (<c>"household"</c>), the
+/// last 12 months' average (<c>"auto"</c>) or a scenario's own (<c>"scenario"</c>); <c>Horizon</c> is the wire form asked,
+/// <c>HorizonOn</c> the last point's date; <c>RetirementHorizons</c> the retirements the route accepts as a horizon, whatever the horizon asked.
 /// </summary>
 public sealed record ProjectionView(
     string Currency, string Horizon, LocalDate HorizonOn, ProjectionAssumptionsView Assumptions, string MonthlySavings, string SavingsOrigin,
@@ -34,12 +41,15 @@ public sealed record ProjectionView(
 {
     public IEnumerable<ItemId> ExposedItems() => Milestones.Select(m => m.Item).OfType<ItemId>();
 
-    internal static ProjectionView From(ProjectionHorizon horizon, ProjectionReading reading, HouseholdProjectionResult result)
+    /// <summary><paramref name="extra"/>: a scenario's warnings (spec §3.4), after the reading's and in that order.</summary>
+    internal static ProjectionView From(
+        ProjectionHorizon horizon, ProjectionReading reading, HouseholdProjectionResult result, IReadOnlyList<ProjectionWarningView>? extra = null)
     {
         static string Amount(decimal v) => PropertyPurchaseView.Amount(v);
         var warnings = reading.Extended.Select(e => new ProjectionWarningView("income_end_extended", e.Name)).ToList();
         if (result.SavingsExhaustedIn is { } month) warnings.Add(new("savings_exhausted", $"{month.Year:0000}-{month.Month:00}"));
         warnings.AddRange(reading.Missing.Select(c => new ProjectionWarningView("fx_missing", c)));
+        warnings.AddRange(extra ?? []);
         return new ProjectionView(
             reading.Reference.Code, horizon.ToWire(), reading.HorizonOn, ProjectionAssumptionsView.From(reading.Inputs.Assumptions, reading.Reference.Code),
             Amount(reading.Inputs.MonthlySavings), reading.SavingsOrigin,

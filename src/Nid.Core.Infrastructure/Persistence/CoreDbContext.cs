@@ -78,7 +78,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
         {
             e.ToTable("scenario", t =>
             {
-                t.HasCheckConstraint("ck_scenario_kind", "kind = 'property_purchase'");
+                t.HasCheckConstraint("ck_scenario_kind", "kind in ('property_purchase','projection')");
                 t.HasCheckConstraint("ck_scenario_scope", "scope in ('me','household')");
             });
             e.HasKey(x => x.ItemId);

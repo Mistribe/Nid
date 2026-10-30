@@ -145,6 +145,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Core.Application.Tax.PerDeadline>();
         services.AddScoped<Nid.Core.Application.Scenarios.ScenarioFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionFactsReader>();
+        services.AddScoped<Nid.Core.Application.Projection.ProjectionScenarioReader>();
         services.AddScoped<FxCollector>();
 
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.

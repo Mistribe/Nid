@@ -48,11 +48,11 @@ public class ScenarioStoreTests(PostgresFixture postgres)
             Funding = Array.Empty<FundingLine>(), Loans = Array.Empty<ScenarioLoan>(),
             Assumptions = d.Assumptions with { ClassRates = new Dictionary<string, decimal>() },
         };
-        Assert.Equal(Flat(saved.Document) with { Assumptions = null! }, Flat(found.Document) with { Assumptions = null! });
-        Assert.Equal(Flat(saved.Document).Assumptions with { ClassRates = null! }, Flat(found.Document).Assumptions with { ClassRates = null! });
-        Assert.Equal(saved.Document.Funding, found.Document.Funding);
-        Assert.Equal(saved.Document.Loans, found.Document.Loans);
-        Assert.Equal(saved.Document.Assumptions.ClassRates.OrderBy(p => p.Key), found.Document.Assumptions.ClassRates.OrderBy(p => p.Key));
+        Assert.Equal(Flat(saved.Document!) with { Assumptions = null! }, Flat(found.Document!) with { Assumptions = null! });
+        Assert.Equal(Flat(saved.Document!).Assumptions with { ClassRates = null! }, Flat(found.Document!).Assumptions with { ClassRates = null! });
+        Assert.Equal(saved.Document!.Funding, found.Document!.Funding);
+        Assert.Equal(saved.Document!.Loans, found.Document!.Loans);
+        Assert.Equal(saved.Document!.Assumptions.ClassRates.OrderBy(p => p.Key), found.Document!.Assumptions.ClassRates.OrderBy(p => p.Key));
     }
 
     [Fact]
@@ -76,5 +76,60 @@ public class ScenarioStoreTests(PostgresFixture postgres)
 
         await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlRawAsync(
             "insert into core.scenario (item_id, kind, scope, data) values ({0}, 'salary', 'me', '{}')", item.Value));
+    }
+
+    [Fact]
+    public async Task Projection_scenario_round_trips()
+    {
+        var connection = await postgres.NewConnectionStringAsync();
+        await using var db = PostgresFixture.NewCoreContext(connection);
+        var item = await AddItemAsync(db, "Projection");
+        var person = PersonId.New();
+        var loan = ItemId.New();
+        var property = ItemId.New();
+        var origin = ItemId.New();
+        var projection = new ProjectionScenario(
+            1, new ScenarioHorizon(null, person),
+            new ProjectionOverrides(new Dictionary<string, decimal> { ["equity"] = 0.08m }, 0.03m, 750m, "equity", false),
+            [
+                new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.IncomeChange, new EventDate(new LocalDate(2028, 1, 1), null, null),
+                    new EventDate(null, person, 60), "Temps partiel", -500m, null, null, null, null, null, null, null, null, null),
+                new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.SavingsChange, new EventDate(null, person, 45), null, null, 200m,
+                    null, null, null, null, null, null, null, null, null),
+                new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.EarlyRepayment, new EventDate(new LocalDate(2029, 6, 1), null, null), null,
+                    null, null, 10_000m, "even", loan, "shorten", 100m, null, null, null, null),
+                new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.PropertySale, new EventDate(new LocalDate(2030, 1, 1), null, null), null,
+                    null, null, null, null, null, null, null, property, 300_000m, 15_000m, null),
+                new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.PropertyPurchase, new EventDate(new LocalDate(2031, 1, 1), null, null),
+                    null, null, null, null, null, null, null, null, null, null, null, origin),
+            ]);
+
+        await new ScenarioStore(db).SaveAsync(
+            new StoredScenario(item, ScenarioKinds.Projection, VisibilityScope.Household, null, projection), default);
+
+        await using var other = PostgresFixture.NewCoreContext(connection);
+        var found = await new ScenarioStore(other).FindAsync(item, default);
+
+        Assert.NotNull(found);
+        Assert.Equal(ScenarioKinds.Projection, found.Kind);
+        Assert.Null(found.Document);
+        var read = found.Projection!;
+        Assert.Equal(projection.Version, read.Version);
+        Assert.Equal(projection.Horizon, read.Horizon);
+        Assert.Equal(projection.Assumptions with { ClassRates = null }, read.Assumptions with { ClassRates = null });
+        Assert.Equal(projection.Assumptions.ClassRates!.OrderBy(p => p.Key), read.Assumptions.ClassRates!.OrderBy(p => p.Key));
+        Assert.Equal(projection.Events, read.Events);
+    }
+
+    [Fact]
+    public async Task The_migration_accepts_a_projection_kind()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var item = await AddItemAsync(db);
+
+        var inserted = await db.Database.ExecuteSqlAsync(
+            $"insert into core.scenario (item_id, kind, scope, data) values ({item.Value}, 'projection', 'me', '{{}}')");
+
+        Assert.Equal(1, inserted);
     }
 }

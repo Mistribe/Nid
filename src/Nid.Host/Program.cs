@@ -167,6 +167,7 @@ app.MapDashboardEndpoints();
 app.MapProjectionEndpoints();
 app.MapTaxEndpoints();
 app.MapScenarioEndpoints();
+app.MapProjectionScenarioEndpoints();
 app.MapImportEndpoints();
 app.MapExportEndpoints();
 app.MapPlatformEndpoints();
