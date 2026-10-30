@@ -47,6 +47,10 @@ public sealed record TaxRules(
             DonationAidEarlyCap: revenueYear == 2025 ? 1_000m : null, DonationAidRate: 0.75m, DonationRate: 0.66m, DonationIncomeShare: 0.20m, NicheCap: 10_000m);
     }
 
+    /// <summary>The 10 % deduction on salaries: at least the minimum, at most the maximum, never more than the salaries themselves.</summary>
+    public decimal SalaryAllowance(decimal income)
+        => Math.Min(income, Math.Min(SalaryAllowanceMax, Math.Max(SalaryAllowanceMin, SalaryAllowanceRate * income)));
+
     /// <summary>
     /// The deficit the global income takes (BOI-RFPI-BASE-30-20): 10 700 €, raised by the energy renovation works among the charges
     /// up to 21 400 € in the period.

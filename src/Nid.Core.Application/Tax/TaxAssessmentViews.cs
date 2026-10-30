@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Tax;
 
 namespace Nid.Core.Application.Tax;
 
@@ -59,4 +60,19 @@ public sealed record TaxAssessmentList(IReadOnlyList<TaxAssessmentView> Items) :
     public IEnumerable<Guid> ExposedDocuments() => Items.SelectMany(i => i.ExposedDocuments());
 
     public object WithReadableDocuments(IReadOnlySet<Guid> readable) => new TaxAssessmentList(Items.Select(i => (TaxAssessmentView)i.WithReadableDocuments(readable)).ToList());
+}
+
+/// <summary>
+/// The notice's « Déduction 10 % » line for declared salaries, and the net salaries left after it, as the form prefills them.
+/// Whole euros, as the notice prints them; the person may still correct either figure.
+/// </summary>
+public sealed record SalaryAllowanceView(DashboardMoneyView DeductionAmount, DashboardMoneyView NetSalaries)
+{
+    public static SalaryAllowanceView Of(TaxRules rules, decimal grossSalaries)
+    {
+        var deduction = Math.Round(rules.SalaryAllowance(grossSalaries), 0, MidpointRounding.AwayFromZero);
+        return new SalaryAllowanceView(Euros(deduction), Euros(grossSalaries - deduction));
+    }
+
+    private static DashboardMoneyView Euros(decimal v) => new(TaxEstimates.Amount(v), "EUR");
 }

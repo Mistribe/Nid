@@ -11,6 +11,7 @@ Pull requests use `.github/pull_request_template.md`.
 - `gh issue create` and `gh pr create` do not apply templates on their own: read the template file and pass its filled-in content as `--body`.
 - Link the issue a PR resolves with `Closes #N` in the Summary.
 - Keep the PR to one concern; list follow-ups in « Notes for the reviewer » instead of folding them in.
+- Open a pull request as soon as a branch is pushed, without waiting to be asked.
 - A PR the household would notice adds one `web/changelog/<slug>.json` (`{ "en": …, "fr": … }`, see its README): the
   version list behind the version number. The French lives there only, never in a commit message or a PR. A PR the
   household would not notice (CI, refactor, tests) gets the `no-changelog` label; the `changelog` workflow checks one or the other.

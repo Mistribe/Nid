@@ -559,4 +559,12 @@ public class TaxCalculatorTests
         Assert.Equal(135_445m, result.NetTaxableIncome);
         Assert.Equal(137_445m, result.ReferenceIncome);
     }
+
+    [Theory]
+    [InlineData(41_447, 4_144.7)]
+    [InlineData(3_000, 509)]   // the minimum
+    [InlineData(400, 400)]     // never more than the salaries
+    [InlineData(200_000, 14_555)] // the maximum
+    public void The_salary_allowance_is_ten_percent_between_its_bounds(double income, double allowance)
+        => Assert.Equal((decimal)allowance, TaxRules.For(2025).SalaryAllowance((decimal)income));
 }

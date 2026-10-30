@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Controller, get, useForm, type Path, type Resolver, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -20,13 +20,14 @@ import { Folded } from '../../loans/new/Folded';
 import { PERSONS } from '../../subscriptions/api';
 import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
+import { AMOUNT, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import { FIRST_ESTIMATE_YEAR } from '../api';
 import {
   assessmentDefaults, assessmentPath, assessmentSchema, fromView, NOTICE_AMOUNTS, PER_TYPED, perLineYear, RATES, stepFields, stepOf, toBody,
   type AssessmentValues, type StepId,
 } from './assessmentSchema';
-import { TAX_NOTICE_PREVIEW, useAddTaxAssessment, useCorrectTaxAssessment, useTaxAssessment, type TaxAssessment } from './api';
+import { SALARY_ALLOWANCE, TAX_NOTICE_PREVIEW, useAddTaxAssessment, useCorrectTaxAssessment, useTaxAssessment, type TaxAssessment } from './api';
 import { useQueryClient } from '@tanstack/react-query';
 import tax from '@/locales/fr.tax-assessments.json';
 import '@/locales/documents';
@@ -81,6 +82,32 @@ function HouseholdStep({ form, adults }: { form: Form; adults: { value: string; 
   );
 }
 
+/**
+ * « 10 % » fills the deduction with the server's figure (rules from the revenues of 2025 on), again whenever the salaries change;
+ * it stays editable, and the net salaries are the server's. What the step opened on is never refilled: a stored notice keeps the
+ * figures it prints.
+ */
+function SalaryAllowance({ form, index }: { form: Form; index: number }) {
+  const { $api } = useApi();
+  const year = form.watch('year');
+  const gross = toWireAmount(form.watch(`declarants.${index}.grossSalaries`));
+  const deduction = form.watch(`declarants.${index}.deduction`);
+  // The salaries once the person stops typing: one request, not one per digit.
+  const [settled, setSettled] = useState(gross);
+  useEffect(() => { const timer = setTimeout(() => setSettled(gross), 300); return () => clearTimeout(timer); }, [gross]);
+  const key = `${year}|${settled}|${deduction}`;
+  const filled = useRef(key);
+  const wanted = deduction === 'allowance' && AMOUNT.test(settled) && Number(year) >= FIRST_ESTIMATE_YEAR && key !== filled.current;
+  const allowance = $api.useQuery('get', SALARY_ALLOWANCE, { params: { query: { year: Number(year), grossSalaries: settled } } }, { enabled: wanted });
+  useEffect(() => {
+    if (!wanted || !allowance.data) return;
+    filled.current = key;
+    const options = { shouldDirty: true, shouldValidate: true };
+    form.setValue(`declarants.${index}.deductionAmount`, allowance.data.deductionAmount.amount, options);
+  }, [wanted, allowance.data, key, form, index]);
+  return null;
+}
+
 function DeclarantStep({ form, count }: { form: Form; count: number }) {
   const { t } = useTranslation();
   const id = useId();
@@ -102,6 +129,7 @@ function DeclarantStep({ form, count }: { form: Form; count: number }) {
                   options={[{ value: 'allowance', label: t('tax.assessment.deduction_allowance') }, { value: 'actual', label: t('tax.assessment.deduction_actual') }]} />
               )} />
             </div>
+            <SalaryAllowance form={form} index={i} />
             <Amount form={form} name={at('deductionAmount')} label={label('deductionAmount')} />
             <Amount form={form} name={at('withholding')} label={label('withholding_declarant')} />
             <Amount form={form} name={at('creditsAdvance')} label={label('creditsAdvance')} />

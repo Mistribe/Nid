@@ -50,6 +50,22 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task The_salary_allowance_prefills_the_deduction_and_the_net_salaries_in_whole_euros()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var allowance = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/salary-allowance?year=2025&grossSalaries=41447"));
+
+        // 10 % of 41 447 is 4 144.70: the notice prints 4 145, and 37 302 of net salaries.
+        Assert.Equal("4145.00", allowance.GetProperty("deductionAmount").GetProperty("amount").GetString());
+        Assert.Equal("37302.00", allowance.GetProperty("netSalaries").GetProperty("amount").GetString());
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.invalid", "year"),
+            await ProblemOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/salary-allowance?year=2023&grossSalaries=41447")));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.invalid", "grossSalaries"),
+            await ProblemOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/salary-allowance?year=2025&grossSalaries=-1")));
+    }
+
+    [Fact]
     public async Task Adds_reads_and_lists_a_joint_notice()
     {
         await using var app = await NidApp.StartAsync(fixture);

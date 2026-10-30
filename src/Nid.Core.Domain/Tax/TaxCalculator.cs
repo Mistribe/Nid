@@ -310,8 +310,7 @@ public static class TaxCalculator
 
     private static decimal Income(TaxDeclarant d) => NetSalary(d) + TaxRules.NonDeductibleCsg * d.SalaryGross + d.OtherTaxable;
 
-    private static decimal Allowance(TaxDeclarant d, TaxRules rules, decimal income) => Math.Min(income, d.ActualExpenses
-        ?? Math.Min(rules.SalaryAllowanceMax, Math.Max(rules.SalaryAllowanceMin, rules.SalaryAllowanceRate * income)));
+    private static decimal Allowance(TaxDeclarant d, TaxRules rules, decimal income) => Math.Min(income, d.ActualExpenses ?? rules.SalaryAllowance(income));
 
     /// <summary>
     /// The exempt income as the reference income counts it: the notice's « revenus exonérés nets », after the 10 % allowance the

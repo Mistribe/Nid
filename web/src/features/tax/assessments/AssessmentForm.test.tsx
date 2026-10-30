@@ -19,7 +19,7 @@ const pdf = (name: string) => new File(['%PDF-1.7'], name, { type: 'application/
 
 /** The household, the reader's documents, the writes (bodies kept) and the pages the form lands on. */
 function serve(people: Person[], over: { post?: () => Response; put?: () => Response; readers?: { id: string; name: string }[]; documents?: ReturnType<typeof summary>[]; slowUpload?: boolean; version?: () => number } = {}) {
-  const sent: { post: unknown[]; put: unknown[]; previews: string[][] } = { post: [], put: [], previews: [] };
+  const sent: { post: unknown[]; put: unknown[]; previews: string[][]; allowances: string[] } = { post: [], put: [], previews: [], allowances: [] };
   server.use(
     http.get('*/api/v1/core/persons', () => HttpResponse.json(people)),
     http.get('*/api/v1/documents', () => HttpResponse.json(documentList(over.documents ?? [summary({ id: DOCUMENT, title: 'avis 2025.pdf' })]))),
@@ -30,6 +30,10 @@ function serve(people: Person[], over: { post?: () => Response; put?: () => Resp
     http.post('*/api/v1/documents', async ({ request }) => { await request.formData(); if (over.slowUpload) await delay(300); return HttpResponse.json({ id: UPLOADED }, { status: 201 }); }),
     http.post('*/api/v1/tax/assessments', async ({ request }) => { sent.post.push(await request.json()); return over.post?.() ?? HttpResponse.json({ id: NOTICE }, { status: 201 }); }),
     http.put('*/api/v1/tax/assessments/:id', async ({ request }) => { sent.put.push(await request.json()); return over.put?.() ?? new HttpResponse(null, { status: 204 }); }),
+    http.get('*/api/v1/tax/assessments/salary-allowance', ({ request }) => {
+      sent.allowances.push(new URL(request.url).search);
+      return HttpResponse.json({ deductionAmount: eur('4145.00'), netSalaries: eur('37302.00') });
+    }),
     http.get('*/api/v1/tax/assessments/:id', () => HttpResponse.json(jointAssessment({ version: over.version?.() ?? 1 }))),
     http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, code: 'not_found', title: 'Gone.' }, { status: 404 })),
     http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [] })),
@@ -105,6 +109,23 @@ describe('AssessmentForm', () => {
       grossIncome: eur('1234.50'), taxableIncome: eur('72800'), scaleTax: null, referenceIncome: null, shares: null, balance: null, documentId: null,
       declarants: [{ personId: SESSION_PERSON, rank: 1, grossSalaries: eur('52000.5'), deduction: null, perCeilingYear: null }],
     });
+  });
+
+  it('Fills_the_deduction_from_the_server_on_10_percent', async () => {
+    const sent = serve(household);
+    const { user } = await renderApp('/tax/assessments/new');
+
+    await pick(user, 'Année des revenus', '2025');
+    await next(user);
+    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
+    await user.type(first.getByLabelText('Salaires'), '41447');
+    await user.click(first.getByRole('radio', { name: '10 %' }));
+
+    await waitFor(() => expect(first.getByLabelText('Montant de la déduction')).toHaveValue('4145.00'));
+    expect(sent.allowances).toEqual(['?year=2025&grossSalaries=41447']);
+    // Frais réels asks nothing: the person types the amount.
+    await user.click(first.getByRole('radio', { name: 'Frais réels' }));
+    expect(sent.allowances).toHaveLength(1);
   });
 
   it('Leaves_the_lines_the_notice_only_adds_up_to_the_server', async () => {
@@ -291,6 +312,8 @@ describe('AssessmentForm', () => {
     await submit(user);
 
     await waitFor(() => expect(sent.put).toHaveLength(1));
+    // The stored 10 % deduction is the notice's: opening it asks for no other figure.
+    expect(sent.allowances).toEqual([]);
     expect(sent.put[0]).toMatchObject({
       version: 1, year: 2025, netTax: null, scaleTax: eur('3200.00'), balance: eur('-312.00'), documentId: DOCUMENT, childcareExpenses: eur('1800.00'),
       declarants: [{ rank: 1 }, { rank: 2, overtimeExempt: eur('1250.00'), withholding: eur('6100.00'), creditsAdvance: eur('1250.00') }],

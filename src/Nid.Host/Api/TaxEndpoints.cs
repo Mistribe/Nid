@@ -56,6 +56,19 @@ public static class TaxEndpoints
             => (await invoker.InvokeAsync(new ListTaxAssessmentsQuery(ParseScope(scope), year), ct)).ToHttp(list => list))
             .Returns<TaxAssessmentList>();
 
+        // The « 10 % » deduction of a notice's declared salaries, for the form to prefill: no figure is computed in the browser.
+        api.MapGet("/assessments/salary-allowance", (int? year, string? grossSalaries) =>
+            {
+                var reader = new FieldReader();
+                if (year is null) reader.Add("year", "request.required", "The revenue year is required.");
+                else if (year < TaxRules.FirstYear) reader.Add("year", "request.year", $"The rules start with the revenues of {TaxRules.FirstYear}.");
+                var gross = reader.Decimal(grossSalaries, "grossSalaries");
+                if (grossSalaries is null) reader.Add("grossSalaries", "request.required", "The declared salaries are required.");
+                else if (gross is < 0 or >= 10_000_000m) reader.Add("grossSalaries", "request.amount", "An amount is not negative and below 10 000 000.");
+                return reader.Ok ? Results.Ok(SalaryAllowanceView.Of(TaxRules.For(year!.Value), gross!.Value)) : reader.Problem();
+            })
+            .Returns<SalaryAllowanceView>();
+
         api.MapGet("/assessments/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetTaxAssessmentQuery(id), ct)).ToHttp(view => view))
             .Returns<TaxAssessmentView>();

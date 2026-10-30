@@ -10,6 +10,7 @@ export type TaxAssessmentBody = components['schemas']['AddTaxAssessmentBody'];
 
 export const TAX_ASSESSMENTS = '/api/v1/tax/assessments' as const;
 export const TAX_ASSESSMENT = '/api/v1/tax/assessments/{id}' as const;
+export const SALARY_ALLOWANCE = '/api/v1/tax/assessments/salary-allowance' as const;
 export const TAX_NOTICE_PREVIEW = '/api/v1/documents/{id}/tax-notice-preview' as const;
 
 export function useTaxAssessments(scope: 'me' | 'household', year?: number) {
