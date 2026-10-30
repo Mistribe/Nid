@@ -268,14 +268,16 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Contains(forB.GetProperty("items").EnumerateArray(), e => e.GetProperty("id").GetGuid() == hidden.Value);
     }
 
-    [Fact]
-    public async Task A_life_insurance_keeps_its_premiums_before_2017_until_they_are_cleared()
+    [Theory]
+    [InlineData("life_insurance")]
+    [InlineData("tontine")]
+    public async Task A_life_insurance_or_a_tontine_keeps_its_premiums_before_2017_until_they_are_cleared(string kind)
     {
         await using var app = await NidApp.StartAsync(fixture);
         const string url = "/api/v1/investments/envelopes";
         var body = new
         {
-            displayName = "AV", kind = "life_insurance", currency = "EUR", visibility = "shared",
+            displayName = "AV", kind, currency = "EUR", visibility = "shared",
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, premiumsBefore2017 = "12000.50",
         };
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, url, body);

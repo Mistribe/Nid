@@ -113,6 +113,7 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 | Enveloppes (Placements, vue détaillée) | PER | 5 |
 | | CTO | 6 |
 | | Immobilier (valeur nette) | 7 |
+| | Tontine (juste avant « Autre ») | gris neutre |
 | Biens, par type (page Biens) | Résidence principale | 1 |
 | | Bien locatif | 2 |
 | | Résidence secondaire | 3 |

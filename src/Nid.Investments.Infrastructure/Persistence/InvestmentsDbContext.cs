@@ -34,7 +34,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
         {
             e.ToTable("envelope", t =>
             {
-                t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other')");
+                t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other','tontine')");
                 t.HasCheckConstraint("ck_envelope_cadence", "valuation_cadence in ('monthly','quarterly','yearly','manual')");
                 t.HasCheckConstraint("ck_envelope_account_hint", "account_hint is null or char_length(account_hint) between 1 and 4");
                 t.HasCheckConstraint("ck_envelope_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");

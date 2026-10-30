@@ -21,7 +21,7 @@ import { knownConflictMessage } from '../../subscriptions/fieldErrors';
 import { todayIso } from '../../subscriptions/today';
 import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '../api';
 import { placeFieldError, presentConflict } from '../entries/entries';
-import { CADENCES, KINDS } from '../format';
+import { CADENCES, hasPremiumsBefore2017, KINDS } from '../format';
 import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './settingsBody';
 import '@/locales/investments';
 import '@/locales/forms';
@@ -53,7 +53,7 @@ const schema = (t: TFunction) => z.object({
 }).superRefine((v, ctx) => {
   // A hidden field (another kind picked) never blocks a save.
   const premiums = v.premiumsBefore2017.replace(/\s/g, '');
-  if (v.kind === 'life_insurance' && premiums !== '' && !AMOUNT.test(premiums))
+  if (hasPremiumsBefore2017(v.kind) && premiums !== '' && !AMOUNT.test(premiums))
     ctx.addIssue({ code: 'custom', path: ['premiumsBefore2017'], message: t('envelope.settings.premiums_format') });
 });
 
@@ -63,8 +63,8 @@ function soleChangedField(body: EditBody) {
   return changed.length === 1 ? changed[0] : undefined;
 }
 
-/** The premiums the server keeps after a save: only a life insurance that stayed one (a kind change drops them, and never sends them). */
-const keepsPremiums = (before: EnvelopeDetail, values: SettingsValues) => before.kind === 'life_insurance' && values.kind === 'life_insurance';
+/** The premiums the server keeps after a save: only a life insurance or a tontine that kept its kind (a kind change drops them, and never sends them). */
+const keepsPremiums = (before: EnvelopeDetail, values: SettingsValues) => hasPremiumsBefore2017(before.kind) && values.kind === before.kind;
 
 /** The envelope as the form left it after a save: the trimmed values, an emptied optional field back to none. */
 function applied(before: EnvelopeDetail, values: SettingsValues): EnvelopeDetail {
@@ -181,7 +181,7 @@ export function SettingsForm({ envelope, onStart, onDone }: {
           </Field>
         )} />
         {/* The kind as the person is editing it: the field disappears as soon as another kind is picked. */}
-        {envelope.kind === 'life_insurance' && form.watch('kind') === 'life_insurance' ? (
+        {hasPremiumsBefore2017(envelope.kind) && form.watch('kind') === envelope.kind ? (
           <Field label={t('envelope.settings.premiums_before_2017')} hint={t('envelope.settings.premiums_before_2017_help')} error={e.premiumsBefore2017?.message}>
             {(c) => <Input inputMode="decimal" {...c} {...form.register('premiumsBefore2017')} />}
           </Field>

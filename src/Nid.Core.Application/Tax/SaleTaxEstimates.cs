@@ -51,20 +51,24 @@ public sealed class SaleTaxEstimates(IEnumerable<ISaleContribution> contribution
                 => Amount(counted.Sum(i => figure(i) is { } s ? decimal.Parse(s, CultureInfo.InvariantCulture) : 0m));
             totals = new SaleTotalsView(Sum(i => i.Value), Sum(i => i.IncomeTax), Sum(i => i.SocialTax), Sum(i => i.Surtax), Sum(i => i.Net));
         }
-        if (items.Any(i => i.Kind == Sale.LifeInsurance)) notes.Add("life_insurance_visible_contracts_only");
+        if (items.Any(i => Sale.IsLife(i.Kind))) notes.Add("life_insurance_visible_contracts_only");
         return Result.Success(new SaleTaxView("EUR", rules.RulesYear, rules.CarriedForward, item is null, items, totals, notes));
     }
 
     private sealed class Sale
     {
-        public const string LifeInsurance = "life_insurance";
+        private const string LifeInsurance = "life_insurance";
+        private const string Tontine = "tontine";
         private const string Pea = "pea";
+
+        /// <summary>Tontine spec §3: a tontine is taxed as a life insurance contract and shares its threshold and allowance.</summary>
+        public static bool IsLife(string kind) => kind is LifeInsurance or Tontine;
 
         private readonly IReadOnlyList<EnvelopeForSale> envelopes;
         private readonly SaleTaxRules rules;
         private readonly decimal allowance;
         private readonly LocalDate today;
-        // Every life insurance held at 31 December of the previous year or since: the threshold's contracts (D12).
+        // Every life insurance or tontine held at 31 December of the previous year or since: the threshold's contracts (D12).
         private readonly Dictionary<ItemId, (LifeContract Contract, bool Approximate)> lives;
         // The brokerage accounts and PEAs under 5 years with a figure: what the total nets (D14).
         private readonly Dictionary<ItemId, (SecuritiesSaleResult Result, bool IsPea)> nettable = [];
@@ -73,7 +77,7 @@ public sealed class SaleTaxEstimates(IEnumerable<ISaleContribution> contribution
         {
             (this.envelopes, this.rules, this.allowance, this.today) = (envelopes, rules, allowance, today);
             var yearEnd = new LocalDate(today.Year - 1, 12, 31);
-            lives = envelopes.Where(e => e.Kind == LifeInsurance && InEuros(e.Currency) && (e.ClosedOn is null || e.ClosedOn > yearEnd)).ToDictionary(
+            lives = envelopes.Where(e => IsLife(e.Kind) && InEuros(e.Currency) && (e.ClosedOn is null || e.ClosedOn > yearEnd)).ToDictionary(
                 e => e.Item,
                 e =>
                 {
@@ -120,23 +124,26 @@ public sealed class SaleTaxEstimates(IEnumerable<ISaleContribution> contribution
             var view = Base(e.Item, "investments", e.Name, e.Kind, e.Value, e.ValueOn, e.Estimated, e.Stale);
             if (!InEuros(e.Currency)) return Found(view, "other_currency");
             if (e.Kind is "checking" or "savings") return Noted(view with { Status = "not_taxable", Net = view.Value }, []);
-            if (e.Kind is not (Pea or LifeInsurance or "brokerage")) return Noted(view with { Status = "not_estimated" }, []);
-            if (e.Kind is Pea or LifeInsurance && e.OpenedOn is null) return Found(view, "opening_date_unknown");
+            if (e.Kind is not (Pea or LifeInsurance or Tontine or "brokerage")) return Noted(view with { Status = "not_estimated" }, []);
+            if (e.Kind is Pea or LifeInsurance or Tontine && e.OpenedOn is null) return Found(view, "opening_date_unknown");
             if (e.Value is not { } value) return Found(view, "no_value");
             // Ruling 5: an opening after the envelope opened is the net of the payments before tracking, so withdrawals before it count at
             // face value.
             var opening = e.Flows.FirstOrDefault(f => f.Kind == "opening");
             string[] tracked = opening is not null && opening.On > e.OpenedOn ? ["withdrawals_before_tracking_at_face_value"] : [];
 
-            if (e.Kind == LifeInsurance)
+            if (IsLife(e.Kind))
             {
                 var (contract, approximate) = lives[e.Item];
                 var alone = LifeInsuranceSurrender.Compute([contract], Visible, allowance, today, rules)[0];
                 // Without an opening every premium is dated; with one, its pre-2017 part is declared.
                 string[] premiums = opening is not null && e.PremiumsBefore2017 is null && e.OpenedOn < new LocalDate(2017, 9, 27)
                     ? ["premiums_before_2017_unknown"] : [];
-                return Noted(Life(view with { Approximate = approximate }, contract, alone),
-                    ["life_insurance_social_levies_already_paid", .. premiums, .. tracked]);
+                // A tontine cannot be surrendered before its term (decision 1) and has no euro fund levied each year.
+                return e.Kind == Tontine
+                    ? Noted(Life(view with { Approximate = true }, contract, alone), ["tontine_locked_until_term", .. premiums, .. tracked])
+                    : Noted(Life(view with { Approximate = approximate }, contract, alone),
+                        ["life_insurance_social_levies_already_paid", .. premiums, .. tracked]);
             }
             if (e.Kind == Pea)
             {
@@ -163,7 +170,7 @@ public sealed class SaleTaxEstimates(IEnumerable<ISaleContribution> contribution
         /// <summary>The pages with the allowance shared by every taxed contract (D13) and securities netted (D14).</summary>
         public List<SaleItemView> Total(IReadOnlyList<SaleItemView> pages)
         {
-            var taxed = pages.Where(v => v.Kind == LifeInsurance && v.Status is "taxed" or "loss").Select(v => lives[v.Item].Contract).ToList();
+            var taxed = pages.Where(v => IsLife(v.Kind) && v.Status is "taxed" or "loss").Select(v => lives[v.Item].Contract).ToList();
             var shared = LifeInsuranceSurrender.Compute(taxed, Visible, allowance, today, rules).ToDictionary(c => c.Item);
             var netted = SecuritiesSale.Netted(nettable.Select(n => new NettableGain(n.Key.Value, n.Value.Result.Gain, n.Value.IsPea)).ToList(), rules);
             return pages.Select(v =>

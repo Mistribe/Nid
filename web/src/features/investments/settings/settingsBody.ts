@@ -1,6 +1,7 @@
 import type { components } from '@/api/schema';
 import type { EnvelopeDetail } from '../api';
 import { toWireAmount } from '../../subscriptions/edits/amount';
+import { hasPremiumsBefore2017 } from '../format';
 
 /** What the settings form holds: every field as the text typed, compared and sent trimmed. */
 export type SettingsValues = {
@@ -50,8 +51,8 @@ export function toEditBody(before: EnvelopeDetail, values: SettingsValues): Edit
     body.ucShareFloorPct = Number(floor);
   }
 
-  // Only a life insurance has it, and the server drops it when the kind changes away: never sent with a kind change.
-  if (before.kind === 'life_insurance' && values.kind === 'life_insurance') {
+  // Only a life insurance or a tontine has it, and the server drops it when the kind changes: never sent with a kind change.
+  if (hasPremiumsBefore2017(before.kind) && values.kind === before.kind) {
     const premiums = toWireAmount(values.premiumsBefore2017.replace(/\s/g, ''));
     const current = before.premiumsBefore2017?.amount;
     if (premiums === '') {

@@ -16,7 +16,7 @@ public sealed class EnvelopesTax(IVisibleItems visible, IItemRegistry items, IEn
     public async Task<Result<IReadOnlyList<TaxLine>>> TaxLinesAsync(PersonId reader, VisibilityScope scope, int year, LocalDate today, CancellationToken ct)
     {
         var found = (await envelopes.FindManyAsync((await visible.ForAsync(reader, scope, includeArchived: true, ct)).ToList(), ct))
-            .Where(e => e.Kind is EnvelopeKind.Brokerage or EnvelopeKind.Per or EnvelopeKind.Pea or EnvelopeKind.LifeInsurance)
+            .Where(e => e.Kind is EnvelopeKind.Brokerage or EnvelopeKind.Per or EnvelopeKind.Pea or EnvelopeKind.LifeInsurance or EnvelopeKind.Tontine)
             .ToList();
         var ids = found.Select(e => e.ItemId).ToList();
         var accesses = await items.FindManyAsync(ids, ct);

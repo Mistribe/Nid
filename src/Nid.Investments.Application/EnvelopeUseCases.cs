@@ -109,8 +109,8 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
         }
 
         var change = command.Change with { Kind = kind, Cadence = cadence };
-        // Off a life insurance, premiums before 2017 mean nothing: the ones kept are dropped, the ones sent still refused.
-        if (kind is { } changed && changed != EnvelopeKind.LifeInsurance && change.PremiumsBefore2017 is null)
+        // Off a life insurance or a tontine, premiums before 2017 mean nothing: the ones kept are dropped, the ones sent still refused.
+        if (kind is { } changed && changed is not (EnvelopeKind.LifeInsurance or EnvelopeKind.Tontine) && change.PremiumsBefore2017 is null)
             change = change with { ClearPremiumsBefore2017 = true };
         if (EnvelopeRules.Check(change.Institution, change.AccountHint, change.StaleAfterDays, change.Note).TryGetFailure(out failure)
             || EnvelopeRules.UcShareFloor(change.UcShareFloorPct).TryGetFailure(out failure)

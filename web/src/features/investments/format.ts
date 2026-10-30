@@ -1,6 +1,9 @@
 import type { TFunction } from 'i18next';
 
-export const KINDS = ['checking', 'savings', 'pea', 'life_insurance', 'per', 'brokerage', 'other'] as const;
+export const KINDS = ['checking', 'savings', 'pea', 'life_insurance', 'per', 'brokerage', 'tontine', 'other'] as const;
+/** The kinds taxed as a life insurance contract, which keep the premiums paid before 27/09/2017. */
+export const hasPremiumsBefore2017 = (kind: string) => kind === 'life_insurance' || kind === 'tontine';
+
 export const CADENCES = ['monthly', 'quarterly', 'yearly', 'manual'] as const;
 export const FLOW_KINDS = ['contribution', 'withdrawal', 'expense', 'income', 'opening'] as const;
 export type Direction = 'up' | 'down' | 'flat';

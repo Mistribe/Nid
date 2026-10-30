@@ -29,14 +29,14 @@ Une **enveloppe** est un `item` du Core. Son nom, ses propriétaires, sa visibil
 | Champ | Type | Remarques |
 |---|---|---|
 | `item_id` | uuid | Clé primaire, référence l'`item` du Core |
-| `kind` | text | `checking` (compte courant), `savings` (livret), `pea`, `life_insurance`, `per`, `brokerage` (compte-titres), `other`. Détermine la couleur fixe du graphique (`frontend/dataviz.md` §5) |
+| `kind` | text | `checking` (compte courant), `savings` (livret), `pea`, `life_insurance`, `per`, `brokerage` (compte-titres), `tontine` (association tontinière), `other`. Détermine la couleur fixe du graphique (`frontend/dataviz.md` §5) |
 | `institution` | text? | Établissement, texte libre |
 | `account_hint` | text? | **Quatre derniers caractères** au plus, pour reconnaître le compte. Jamais le numéro complet |
 | `opened_on` | date? | |
 | `valuation_cadence` | text | `monthly` (défaut), `quarterly`, `yearly`, `manual` |
 | `stale_after_days` | int? | Remplace le seuil dérivé de la cadence |
 | `note` | text? | |
-| `premiums_before_2017` | numeric(19,4)? | `life_insurance` seulement, `>= 0` : les primes versées avant le 27/09/2017 restant dans le contrat quand Nid l'a suivi ; sert à estimer l'impôt d'un rachat |
+| `premiums_before_2017` | numeric(19,4)? | `life_insurance` ou `tontine` seulement, `>= 0` : les primes versées avant le 27/09/2017 restant dans le contrat quand Nid l'a suivi ; sert à estimer l'impôt d'un rachat |
 
 Colonnes de provenance et d'audit : celles du Core.
 
@@ -142,7 +142,7 @@ Section `envelopes` de `import-format.md` (les sections `valuations` et `flows` 
 | `opened_on` | date? | |
 | `currency` | string | ISO 4217, obligatoire |
 | `valuation_cadence`, `stale_after_days` | string?, int? | |
-| `premiums_before_2017` | string? | Montant décimal, `life_insurance` seulement, `>= 0` ; écrit à l'export seulement s'il est posé |
+| `premiums_before_2017` | string? | Montant décimal, `life_insurance` ou `tontine` seulement, `>= 0` ; écrit à l'export seulement s'il est posé |
 | `ownership` | `[{ person, share_bp }]` | Comme pour les abonnements |
 | `visibility` | string | `shared` (défaut) ou `private` |
 | `closed_on` | date? | La date de clôture ; une enveloppe clôturée est exportée |

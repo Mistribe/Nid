@@ -26,6 +26,7 @@ public class EnvelopeAllocationTests
         Assert.Equal([new AllocationSlice("equity", "days", 1000m, true)], EnvelopeAllocation.Of(EnvelopeKind.Pea, 1000m, null, Of()));
         Assert.Equal([new AllocationSlice("mixed", "locked", 1000m, true)], EnvelopeAllocation.Of(EnvelopeKind.Per, 1000m, null, Of()));
         Assert.Equal([new AllocationSlice("mixed", "days", 1000m, true)], EnvelopeAllocation.Of(EnvelopeKind.LifeInsurance, 1000m, null, Of()));
+        Assert.Equal([new AllocationSlice("mixed", "locked", 1000m, true)], EnvelopeAllocation.Of(EnvelopeKind.Tontine, 1000m, null, Of()));
     }
 
     [Fact]

@@ -38,6 +38,10 @@ describe('premiums before 2017', () => {
   it('never sends it with a kind change', () => {
     expect(toEditBody(detail(), values({ kind: 'life_insurance', premiumsBefore2017: '100' }))).toEqual({ kind: 'life_insurance' });
     expect(toEditBody(life({ premiumsBefore2017: eur('100') }), lifeValues({ kind: 'pea', premiumsBefore2017: '' }))).toEqual({ kind: 'pea' });
+    expect(toEditBody(life(), lifeValues({ kind: 'tontine', premiumsBefore2017: '100' }))).toEqual({ kind: 'tontine' });
+  });
+  it('applies to a tontine too', () => {
+    expect(toEditBody(detail({ kind: 'tontine' }), values({ kind: 'tontine', premiumsBefore2017: '5000' }))).toEqual({ premiumsBefore2017: '5000' });
   });
   it('sets and clears the opening date', () => {
     expect(toEditBody(detail(), values({ openedOn: '2015-03-02' }))).toEqual({ openedOn: '2015-03-02' });

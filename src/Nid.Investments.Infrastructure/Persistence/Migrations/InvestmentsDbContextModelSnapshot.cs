@@ -106,7 +106,7 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_envelope_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
-                            t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other')");
+                            t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other','tontine')");
 
                             t.HasCheckConstraint("ck_envelope_premiums_before_2017", "premiums_before_2017 is null or premiums_before_2017 >= 0");
 

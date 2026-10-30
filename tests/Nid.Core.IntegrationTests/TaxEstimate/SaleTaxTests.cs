@@ -247,6 +247,44 @@ public class SaleTaxTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     }
 
     [Fact]
+    public async Task A_tontine_is_taxed_as_a_life_insurance_marked_indicative()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var tontine = await EnvelopeAsync(app, "Tontine (terme 2031)", "tontine", "2016-06-01", premiumsBefore2017: "30000", opening: Opening("2020-01-01", "40000"));
+        await FlowAsync(app, tontine, "2021-01-01", "contribution", "20000");
+        await ValueAsync(app, tontine, "2025-10-01", "80000");
+        var undated = await EnvelopeAsync(app, "Tontine sans date", "tontine", opening: Opening("2020-01-01", "1000"));
+
+        var view = await ViewAsync(app);
+        var items = view.Items.ToDictionary(i => i.Item);
+
+        // The nine-year contract's figures, without the euro fund's note and approximate: it cannot be surrendered before its term.
+        Assert.Equal(("taxed", 9), (items[tontine].Status, items[tontine].YearsHeld));
+        Assert.Equal(("20000.00", "810.00", "3440.00", null, "75750.00"), Figures(items[tontine]));
+        Assert.True(items[tontine].Approximate);
+        Assert.Equal(["tontine_locked_until_term", "withdrawals_before_tracking_at_face_value", "approximate"], items[tontine].Notes);
+        Assert.Equal(("finding", "opening_date_unknown"), (items[undated].Status, items[undated].Finding));
+        Assert.Contains("life_insurance_visible_contracts_only", view.Notes);
+    }
+
+    [Fact]
+    public async Task A_tontine_and_a_life_insurance_share_the_allowance()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var life = await EnvelopeAsync(app, "AV", "life_insurance", "2015-01-01", opening: Opening("2020-01-01", "10000"));
+        await ValueAsync(app, life, "2025-10-01", "16000");
+        var tontine = await EnvelopeAsync(app, "Tontine", "tontine", "2015-01-01", opening: Opening("2020-01-01", "10000"));
+        await ValueAsync(app, tontine, "2025-10-01", "15000");
+
+        var items = (await ViewAsync(app)).Items.ToDictionary(i => i.Item);
+
+        // As two life insurance contracts: 9 200 over 11 000 of gains, pro rata.
+        Assert.Equal(("6000.00", "74.00", "1032.00", null, "14894.00"), Figures(items[life]));
+        Assert.Equal(("5000.00", "61.00", "860.00", null, "14079.00"), Figures(items[tontine]));
+        Assert.Equal(("5018.00", "4182.00"), (items[life].Envelope!.AllowanceUsed, items[tontine].Envelope!.AllowanceUsed));
+    }
+
+    [Fact]
     public async Task The_total_nets_securities()
     {
         await using var app = await NidApp.StartAsync(fixture);

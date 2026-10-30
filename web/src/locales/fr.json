@@ -593,7 +593,7 @@
     "stale_one": "Valeur de plus de {{count}} jour",
     "stale_other": "Valeur de plus de {{count}} jours",
     "direction": { "up": "en hausse", "down": "en baisse", "flat": "stable" },
-    "kind": { "checking": "Compte courant", "savings": "Livret", "pea": "PEA", "life_insurance": "Assurance-vie", "per": "PER", "brokerage": "Compte-titres", "other": "Autre" },
+    "kind": { "checking": "Compte courant", "savings": "Livret", "pea": "PEA", "life_insurance": "Assurance-vie", "per": "PER", "brokerage": "Compte-titres", "tontine": "Tontine", "other": "Autre" },
     "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "manual": "À la demande" },
     "flow_kind": { "contribution": "Versement", "withdrawal": "Retrait", "expense": "Frais", "income": "Revenu", "opening": "Versements antérieurs", "transfer": "Virement" }
   },

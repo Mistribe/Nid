@@ -3,7 +3,7 @@ using NodaTime;
 
 namespace Nid.Investments.Contracts;
 
-public enum EnvelopeKind { Checking, Savings, Pea, LifeInsurance, Per, Brokerage, Other }
+public enum EnvelopeKind { Checking, Savings, Pea, LifeInsurance, Per, Brokerage, Other, Tontine }
 public enum ValuationCadence { Monthly, Quarterly, Yearly, Manual }
 
 public static class EnvelopeWire
@@ -12,7 +12,7 @@ public static class EnvelopeWire
     {
         EnvelopeKind.Checking => "checking", EnvelopeKind.Savings => "savings", EnvelopeKind.Pea => "pea",
         EnvelopeKind.LifeInsurance => "life_insurance", EnvelopeKind.Per => "per", EnvelopeKind.Brokerage => "brokerage",
-        EnvelopeKind.Other => "other", _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        EnvelopeKind.Other => "other", EnvelopeKind.Tontine => "tontine", _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
     public static string Of(ValuationCadence cadence) => cadence switch
