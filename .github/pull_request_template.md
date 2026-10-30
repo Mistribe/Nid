@@ -18,3 +18,7 @@
 ## Notes for the reviewer
 
 <!-- Risks, migrations, follow-ups, anything not obvious from the diff. -->
+
+## Estimate
+
+<!-- Small, Medium, Large or Extra Large; add the label of the same name. Small: one layer, up to a day. Medium: several layers, a few days, one PR. Large: a whole feature in one area, a spec first, about a week. Extra Large: several areas or stages, several PRs. -->
