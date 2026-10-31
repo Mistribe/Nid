@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import type { components } from '@/api/schema';
 import { AccessBadge } from '@/components/AccessBadge';
 import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
@@ -31,6 +32,8 @@ import '@/locales/forms';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import '@/locales/subscriptions';
+
+type IncludedProvider = components['schemas']['IncludedProviderView'];
 
 /**
  * 1E2a design §4, redesign §5.3: one page without tabs. Under the title the costs and the next charge; the findings in a
@@ -103,6 +106,7 @@ export function SubscriptionDetailPage() {
         </section>
       </PageHeader>
       {status}
+      {detail.provider && detail.provider.included.length > 0 ? <IncludedProviders included={detail.provider.included} /> : null}
       {detail.canWrite ? null : <ReadOnly detail={detail} persons={persons} />}
       {findings.length > 0 ? (
         <ul aria-label={t('subscription.findings')} className="space-y-1 rounded-md border p-3">
@@ -229,5 +233,23 @@ export function SubscriptionDetailPage() {
 
       {detail.canWrite ? <Section title={t('edit.settings_title')}><SettingsForm detail={detail} /></Section> : null}
     </article>
+  );
+}
+
+/** What a bundle covers: the server gives the list, the link goes from the bundle to its services only. */
+function IncludedProviders({ included }: { included: readonly IncludedProvider[] }) {
+  const { t } = useTranslation();
+  return (
+    <section aria-label={t('subscription.included')} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+      <span className="text-muted-foreground">{t('subscription.included')}</span>
+      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {included.map((p) => (
+          <li key={p.key} className="inline-flex items-center gap-1.5">
+            <ProviderIcon name={p.name} iconUrl={p.iconUrl} color={p.labels[0]?.color} className="size-5 text-[0.6rem]" />
+            {p.name}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

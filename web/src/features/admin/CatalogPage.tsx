@@ -75,6 +75,15 @@ function reasonKey(reason: string) {
   }
 }
 
+function includeReasonKey(reason: string) {
+  switch (reason) {
+    case 'invalid_include': return 'admin.catalog.include_reasons.invalid_include' as const;
+    case 'unknown_include': return 'admin.catalog.include_reasons.unknown_include' as const;
+    case 'self_include': return 'admin.catalog.include_reasons.self_include' as const;
+    default: return 'admin.catalog.include_reasons.other' as const;
+  }
+}
+
 function iconReasonKey(reason: string) {
   switch (reason) {
     case 'unsupported_format': return 'admin.catalog.icon_reasons.unsupported_format' as const;
@@ -238,6 +247,13 @@ function Findings({ run }: { run: Run }) {
             lines={report.refused.map((r) => ({
               id: `${r.file}:${r.index}`,
               text: t('admin.catalog.refused_entry', { file: r.file, index: r.index, key: r.key ?? '—', reason: t(reasonKey(r.reason)) }),
+            }))}
+          />
+          <Lines
+            title={t('admin.catalog.report.includes_refused', { n: report.includesRefused.length })}
+            lines={report.includesRefused.map((r, index) => ({
+              id: `${r.key}:${index}`,
+              text: t('admin.catalog.include_entry', { key: r.key, included: r.included ?? '—', reason: t(includeReasonKey(r.reason)) }),
             }))}
           />
           <IconFindings icons={report.icons} />

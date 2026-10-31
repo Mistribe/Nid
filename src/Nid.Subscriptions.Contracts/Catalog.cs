@@ -93,6 +93,11 @@ public static class CatalogCodes
     public const string InvalidColor = "invalid_color";
     public const string NotAnObject = "not_an_object";
     public const string ReservedKey = "reserved_key";
+
+    /// <summary>Reasons of an <see cref="IncludeRefusal"/>: data as well.</summary>
+    public const string InvalidInclude = "invalid_include";
+    public const string UnknownInclude = "unknown_include";
+    public const string SelfInclude = "self_include";
 }
 
 /// <summary>A label (design §3.1). The UI translates labels by key; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>
@@ -120,13 +125,16 @@ public sealed record Provider(
 {
     public bool IsArchived => ArchivedAt is not null;
 
+    /// <summary>The providers included in every plan of this bundle, in catalog order. Only a catalog provider has any.</summary>
+    public IReadOnlyList<string> IncludedKeys { get; init; } = [];
+
     // The compiler-generated equality would compare LabelKeys by reference: two providers read back from storage
     // would never equal one another. Compare it by content instead (as FxSyncRun does in 1C2a).
     public bool Equals(Provider? other)
         => other is not null
            && Key == other.Key && Origin == other.Origin && Name == other.Name
            && Website == other.Website && PricingPage == other.PricingPage
-           && LabelKeys.SequenceEqual(other.LabelKeys)
+           && LabelKeys.SequenceEqual(other.LabelKeys) && IncludedKeys.SequenceEqual(other.IncludedKeys)
            && CatalogCommit == other.CatalogCommit && CreatedBy == other.CreatedBy
            && ArchivedAt == other.ArchivedAt && Import == other.Import
            && IconUrl == other.IconUrl && IconAsset == other.IconAsset && IconSource == other.IconSource;
@@ -140,6 +148,12 @@ public sealed record CatalogRefusal(string File, int Index, string? Key, string 
 
 /// <summary>A key a catalog file holds twice: the first occurrence wins (design §4).</summary>
 public sealed record CatalogDuplicate(string File, string Key);
+
+/// <summary>
+/// An entry of a provider's <c>includes</c> that was ignored, its provider kept. <paramref name="Included"/> is the
+/// entry as written, or null when it is not a string; <paramref name="Reason"/> is one of the <see cref="CatalogCodes"/>.
+/// </summary>
+public sealed record IncludeRefusal(string Key, string? Included, string Reason);
 
 /// <summary>What one sync did (design §3.6). Every list is sorted by key, ordinal.</summary>
 public sealed record CatalogReport(
@@ -161,6 +175,9 @@ public sealed record CatalogReport(
     /// <summary>The icon pass (1C2c design §5). A report stored before 1C2c reads with <see cref="IconReport.Empty"/>.</summary>
     // `set`, not `init`: the source-generated reader of .NET 10 and earlier would give a report stored before 1C2c a null.
     public IconReport Icons { get; set; } = IconReport.Empty;
+
+    /// <summary>What was ignored in <c>includes</c>, sorted by key. A report stored before them reads empty.</summary>
+    public IReadOnlyList<IncludeRefusal> IncludesRefused { get; set; } = [];
 }
 
 public enum CatalogRunStatus
@@ -301,7 +318,11 @@ public sealed record CatalogLabel(string Key, string Name, string Color);
 /// <paramref name="IconUrl"/> its <c>icon</c> when that is an https URL (1C2c design §5).
 /// </summary>
 public sealed record CatalogProvider(
-    string Key, string Name, string? Website, string? PricingPage, IReadOnlyList<string> LabelKeys, string? IconUrl = null);
+    string Key, string Name, string? Website, string? PricingPage, IReadOnlyList<string> LabelKeys, string? IconUrl = null)
+{
+    /// <summary>Its <c>includes</c>, without what the reader ignored.</summary>
+    public IReadOnlyList<string> IncludedKeys { get; init; } = [];
+}
 
 /// <summary>
 /// What the readers make of the two files (design §4). <paramref name="Labels"/> includes the labels created for a
@@ -316,6 +337,9 @@ public sealed record CatalogReading(
 {
     /// <summary>Icons the reader ignored, their provider kept (1C2c design §5): reported by the icon pass.</summary>
     public IReadOnlyList<IconRefusal> IconsRefused { get; init; } = [];
+
+    /// <summary>Entries of <c>includes</c> the reader ignored, their provider kept.</summary>
+    public IReadOnlyList<IncludeRefusal> IncludesRefused { get; init; } = [];
 }
 
 /// <summary>An icon that was not stored, with why (<see cref="IconCodes"/>). Only catalog providers appear: they are public.</summary>
@@ -365,10 +389,10 @@ public sealed class CatalogOptions
     public string BaseUrl { get; set; } = "https://raw.githubusercontent.com/Mistribe/SubTracker-Data";
 
     /// <summary>
-    /// 2026-09-25, the merge of Mistribe/SubTracker-Data#5 (1C2c spec §8): the target format, which the reader already
-    /// expected. Changing version is changing this and syncing again from Administration › Catalogue.
+    /// 2026-10-30, the merge of Mistribe/SubTracker-Data#7: the first version with <c>includes</c>. Changing version is
+    /// changing this and syncing again from Administration › Catalogue.
     /// </summary>
-    public string Commit { get; set; } = "882b195d7923ada66993548adda10791e05d198a";
+    public string Commit { get; set; } = "a918e789daaf8fd33fc81b6458d5e220fe0d77fa";
 }
 
 /// <summary>Starts the <c>catalog-sync</c> job now (Quartz in the host); <see cref="CatalogCodes.JobsDisabled"/> when jobs are off.</summary>

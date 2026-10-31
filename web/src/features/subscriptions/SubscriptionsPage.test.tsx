@@ -131,9 +131,9 @@ describe('Abonnements › liste', () => {
   });
 
   const labelled = list([
-    summary({ displayName: 'Netflix', provider: { key: 'netflix', name: 'Netflix', origin: 'catalog', iconUrl: null, labels: [VIDEO] } }),
+    summary({ displayName: 'Netflix', provider: { key: 'netflix', name: 'Netflix', origin: 'catalog', iconUrl: null, labels: [VIDEO], included: [] } }),
     summary({ id: '0192f0aa-0000-7000-8000-000000000002', displayName: 'Proton VPN', provider: { key: 'proton', name: 'Proton',
-      origin: 'catalog', iconUrl: null, labels: [VPN] } }),
+      origin: 'catalog', iconUrl: null, labels: [VPN], included: [] } }),
     summary({ id: '0192f0aa-0000-7000-8000-000000000003', displayName: 'Sans fournisseur' }),
   ]);
 
@@ -186,7 +186,7 @@ describe('Abonnements › liste', () => {
   });
 });
 
-const ANTHROPIC = { key: 'anthropic', name: 'Anthropic', origin: 'catalog' as const, iconUrl: null, labels: [] };
+const ANTHROPIC = { key: 'anthropic', name: 'Anthropic', origin: 'catalog' as const, iconUrl: null, labels: [], included: [] };
 const claude = summary({ id: '0192f0aa-0000-7000-8000-0000000000c1', displayName: 'Claude Pro', provider: ANTHROPIC });
 const api = summary({ id: '0192f0aa-0000-7000-8000-0000000000c2', displayName: 'Claude API', provider: ANTHROPIC });
 const netflix = summary({});

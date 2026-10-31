@@ -12,8 +12,8 @@ namespace Nid.TestSupport;
 /// </summary>
 public static class CatalogFixtures
 {
-    /// <summary>The merge of Mistribe/SubTracker-Data#5 (2026-09-25): the target format of 1C2b spec §8, no known defect.</summary>
-    public const string PinnedCommit = "882b195d7923ada66993548adda10791e05d198a";
+    /// <summary>The merge of Mistribe/SubTracker-Data#7 (2026-10-30): the first version with <c>includes</c>, no known defect.</summary>
+    public const string PinnedCommit = "a918e789daaf8fd33fc81b6458d5e220fe0d77fa";
 
     /// <summary>1C2b's pinned commit (2025-11-29): colours in <c>#AARRGGBB</c>, <c>hosting</c> twice, no <c>home</c> label.</summary>
     public const string LegacyCommit = "df0146a8f3532f5c790aa54a34d4871e96b62a95";
@@ -23,7 +23,7 @@ public static class CatalogFixtures
 
     public static byte[] RealProviders() => File.ReadAllBytes(PathOf("providers.json"));
 
-    /// <summary>The files at <see cref="PinnedCommit"/>, fetched once into <c>tests/fixtures/catalog/pinned</c> (1C2c Task 8).</summary>
+    /// <summary>The files at <see cref="PinnedCommit"/>, fetched once into <c>tests/fixtures/catalog/pinned</c>.</summary>
     public static byte[] PinnedLabels() => File.ReadAllBytes(PathOf(Path.Combine("pinned", "labels.json")));
 
     public static byte[] PinnedProviders() => File.ReadAllBytes(PathOf(Path.Combine("pinned", "providers.json")));

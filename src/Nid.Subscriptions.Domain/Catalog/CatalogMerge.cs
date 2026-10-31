@@ -37,7 +37,10 @@ public static class CatalogMerge
         {
             inCatalog.Add(entry.Key);
             var fresh = new Provider(
-                entry.Key, ProviderOrigin.Catalog, entry.Name, entry.Website, entry.PricingPage, entry.LabelKeys, commit, null, null, null, entry.IconUrl);
+                entry.Key, ProviderOrigin.Catalog, entry.Name, entry.Website, entry.PricingPage, entry.LabelKeys, commit, null, null, null, entry.IconUrl)
+            {
+                IncludedKeys = entry.IncludedKeys,
+            };
             if (!providers.TryGetValue(entry.Key, out var existing))
             {
                 writes.Add(fresh);
@@ -79,14 +82,20 @@ public static class CatalogMerge
 
         var report = new CatalogReport(
             Sorted(added), Sorted(updated), Sorted(unchanged), archive, Sorted(replaced), remaining, Sorted(conflicts),
-            Sorted(labelsAdded), Sorted(labelsUpdated), reading.LabelsCreated, reading.Duplicates, reading.Refused);
+            Sorted(labelsAdded), Sorted(labelsUpdated), reading.LabelsCreated, reading.Duplicates, reading.Refused)
+        {
+            // A conflict writes nothing: as for its icon, there is nothing to report about it.
+            IncludesRefused = reading.IncludesRefused
+                .Where(r => !conflicts.Contains(r.Key)).OrderBy(r => r.Key, StringComparer.Ordinal).ToList(),
+        };
         return new CatalogPlan(labelWrites, writes, archive, report);
     }
 
     private static bool SameContent(Provider stored, CatalogProvider entry)
         => stored.Name == entry.Name && stored.Website == entry.Website && stored.PricingPage == entry.PricingPage
            && stored.IconUrl == entry.IconUrl
-           && stored.LabelKeys.SequenceEqual(entry.LabelKeys, StringComparer.Ordinal);
+           && stored.LabelKeys.SequenceEqual(entry.LabelKeys, StringComparer.Ordinal)
+           && stored.IncludedKeys.SequenceEqual(entry.IncludedKeys, StringComparer.Ordinal);
 
     private static List<string> Sorted(List<string> keys) => keys.Order(StringComparer.Ordinal).ToList();
 }

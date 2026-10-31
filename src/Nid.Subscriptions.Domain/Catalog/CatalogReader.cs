@@ -9,7 +9,8 @@ namespace Nid.Subscriptions.Domain.Catalog;
 /// <c>labels.json</c> and <c>providers.json</c> of <c>Mistribe/SubTracker-Data</c> (design §4). Targets the format of
 /// design §8 and tolerates today's: <c>#AARRGGBB</c> colours, a duplicate key (the first wins), a category without a
 /// label (one is created), a member Nid does not read (<c>plans</c>); an <c>icon</c> that is not an https URL is ignored
-/// and reported, its provider kept (1C2c design §5). An entry breaking a rule is refused
+/// and reported, its provider kept (1C2c design §5), and so is an entry of <c>includes</c> that is malformed, unknown in
+/// the file or the provider's own key. An entry breaking a rule is refused
 /// and listed; a file that is not a JSON array fails the reading, so nothing is written. <c>JsonDocument</c> only:
 /// this assembly is AOT-compatible.
 /// </summary>
@@ -37,12 +38,13 @@ public static class CatalogReader
         var known = readLabels.Select(l => l.Key).Append(CatalogLimits.OtherLabel).ToHashSet(StringComparer.Ordinal);
         var created = new SortedSet<string>(StringComparer.Ordinal);
         var iconsRefused = new List<IconRefusal>();
-        var readProviders = ReadProviders(providers.RootElement, known, created, refused, duplicates, iconsRefused);
+        var includesRefused = new List<IncludeRefusal>();
+        var readProviders = ReadProviders(providers.RootElement, known, created, refused, duplicates, iconsRefused, includesRefused);
 
         var allLabels = readLabels
             .Concat(created.Select(key => new CatalogLabel(key, ProviderRules.NameFromKey(key, CatalogLimits.MaxLabelNameLength), CatalogLimits.NeutralColor)))
             .ToList();
-        return Result.Success(new CatalogReading(allLabels, readProviders, created.ToList(), duplicates, refused) { IconsRefused = iconsRefused });
+        return Result.Success(new CatalogReading(allLabels, readProviders, created.ToList(), duplicates, refused) { IconsRefused = iconsRefused, IncludesRefused = includesRefused });
     }
 
     private static List<CatalogLabel> ReadLabels(JsonElement entries, List<CatalogRefusal> refused, List<CatalogDuplicate> duplicates)
@@ -98,9 +100,10 @@ public static class CatalogReader
 
     private static List<CatalogProvider> ReadProviders(
         JsonElement entries, IReadOnlySet<string> knownLabels, SortedSet<string> created,
-        List<CatalogRefusal> refused, List<CatalogDuplicate> duplicates, List<IconRefusal> iconsRefused)
+        List<CatalogRefusal> refused, List<CatalogDuplicate> duplicates, List<IconRefusal> iconsRefused, List<IncludeRefusal> includesRefused)
     {
         var providers = new List<CatalogProvider>();
+        var includes = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         var keys = new HashSet<string>(StringComparer.Ordinal);
         var index = -1;
         foreach (var entry in entries.EnumerateArray())
@@ -146,9 +149,42 @@ public static class CatalogReader
                 created.Add(category);
             keys.Add(key);
             providers.Add(new CatalogProvider(key, name, website, pricingPage, categories, Icon(entry, key, iconsRefused)));
+            if (entry.TryGetProperty("includes", out var included))
+                includes[key] = included;
         }
 
-        return providers;
+        // Once every entry is read: a bundle may name a provider further down the file.
+        return providers
+            .Select(p => includes.TryGetValue(p.Key, out var value) ? p with { IncludedKeys = Included(p.Key, value, keys, includesRefused) } : p)
+            .ToList();
+    }
+
+    /// <summary>The distinct keys in file order; <c>null</c> is none, and whatever else cannot be read is reported.</summary>
+    private static List<string> Included(string key, JsonElement value, IReadOnlySet<string> read, List<IncludeRefusal> refused)
+    {
+        var included = new List<string>();
+        if (value.ValueKind == JsonValueKind.Null)
+            return included;
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            refused.Add(new IncludeRefusal(key, null, CatalogCodes.InvalidInclude));
+            return included;
+        }
+
+        foreach (var entry in value.EnumerateArray())
+        {
+            var other = entry.ValueKind == JsonValueKind.String ? entry.GetString() : null;
+            if (!ProviderRules.IsKey(other))
+                refused.Add(new IncludeRefusal(key, other, CatalogCodes.InvalidInclude));
+            else if (other == key)
+                refused.Add(new IncludeRefusal(key, other, CatalogCodes.SelfInclude));
+            else if (!read.Contains(other))
+                refused.Add(new IncludeRefusal(key, other, CatalogCodes.UnknownInclude));
+            else if (!included.Contains(other))
+                included.Add(other);
+        }
+
+        return included;
     }
 
     /// <summary>The distinct categories in file order, or the reason the entry is refused.</summary>

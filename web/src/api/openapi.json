@@ -24573,7 +24573,8 @@
           "labelsCreated",
           "duplicates",
           "refused",
-          "icons"
+          "icons",
+          "includesRefused"
         ],
         "type": "object",
         "properties": {
@@ -24651,6 +24652,12 @@
           },
           "icons": {
             "$ref": "#/components/schemas/IconReport"
+          },
+          "includesRefused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncludeRefusal"
+            }
           }
         }
       },
@@ -30067,6 +30074,55 @@
                 "$ref": "#/components/schemas/ImportAuditView"
               }
             ]
+          }
+        }
+      },
+      "IncludedProviderView": {
+        "required": [
+          "key",
+          "name",
+          "labels"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelView"
+            }
+          },
+          "iconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IncludeRefusal": {
+        "required": [
+          "key",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "included": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": "string"
           }
         }
       },
@@ -38536,7 +38592,8 @@
           "key",
           "name",
           "origin",
-          "labels"
+          "labels",
+          "included"
         ],
         "type": "object",
         "properties": {
@@ -38560,6 +38617,12 @@
               "null",
               "string"
             ]
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncludedProviderView"
+            }
           }
         }
       },
@@ -38569,7 +38632,8 @@
           "name",
           "origin",
           "labels",
-          "archived"
+          "archived",
+          "included"
         ],
         "type": "object",
         "properties": {
@@ -38602,6 +38666,12 @@
               "null",
               "string"
             ]
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncludedProviderView"
+            }
           }
         }
       },

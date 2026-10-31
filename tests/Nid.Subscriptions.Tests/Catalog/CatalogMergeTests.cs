@@ -27,6 +27,38 @@ public class CatalogMergeTests
     private static CatalogSnapshot Snapshot(params Provider[] providers) => new(providers, [StreamingLabel, OtherLabel]);
 
     [Fact]
+    public void A_change_to_includes_alone_is_an_update_and_the_same_includes_change_nothing()
+    {
+        var stored = Stored("one", ProviderOrigin.Catalog) with { IncludedKeys = ["music"] };
+
+        var changed = CatalogMerge.Plan(Snapshot(stored), Reading(Entry("one") with { IncludedKeys = ["music", "tv"] }), Commit);
+        Assert.Equal(["one"], changed.Report.ProvidersUpdated);
+        Assert.Equal(["music", "tv"], Assert.Single(changed.Providers).IncludedKeys);
+
+        var same = CatalogMerge.Plan(Snapshot(stored), Reading(Entry("one") with { IncludedKeys = ["music"] }), Commit);
+        Assert.Equal(["one"], same.Report.ProvidersUnchanged);
+        Assert.Empty(same.Providers);
+    }
+
+    [Fact]
+    public void What_the_reader_ignored_in_includes_reaches_the_report_sorted_except_for_a_conflict()
+    {
+        var reading = Reading(Entry("zed"), Entry("abc"), Entry("taken")) with
+        {
+            IncludesRefused =
+            [
+                new IncludeRefusal("zed", "ghost", CatalogCodes.UnknownInclude),
+                new IncludeRefusal("taken", "ghost", CatalogCodes.UnknownInclude),
+                new IncludeRefusal("abc", "abc", CatalogCodes.SelfInclude),
+            ],
+        };
+
+        var plan = CatalogMerge.Plan(Snapshot(Stored("taken", ProviderOrigin.Custom)), reading, Commit);
+
+        Assert.Equal(["abc", "zed"], plan.Report.IncludesRefused.Select(r => r.Key));
+    }
+
+    [Fact]
     public void A_new_key_becomes_a_catalog_provider_of_the_commit()
     {
         var plan = CatalogMerge.Plan(Snapshot(), Reading(Entry("netflix", "Netflix")), "c2");

@@ -29,7 +29,8 @@ public sealed class ListProvidersHandler(ProviderAccess access, IProviderStore p
 
         var visible = await access.ListAsync(person, query.Q, ct);
         var labels = await ProviderViews.LabelsAsync(providers, ct);
-        return Result.Success<IReadOnlyList<ProviderView>>(visible.Select(p => ProviderView.From(p, labels)).ToList());
+        var included = await ProviderViews.IncludedAsync(providers, visible, ct);
+        return Result.Success<IReadOnlyList<ProviderView>>(visible.Select(p => ProviderView.From(p, labels, included)).ToList());
     }
 }
 
@@ -78,7 +79,7 @@ public sealed class CreateProviderHandler(IProviderStore providers, ProviderKeys
                 await keys.NewAsync(name, ct), ProviderOrigin.Custom, name, website, pricingPage, labelKeys, null, person, null, null);
             var created = await providers.CreateAsync(provider, ct);
             if (!created.TryGetFailure(out var failure))
-                return Result.Success(ProviderView.From(provider, labels));
+                return Result.Success(ProviderView.From(provider, labels, ProviderViews.NoIncluded));
             if (failure!.Code != CatalogCodes.KeyTaken)
                 return Result.Failure<ProviderView>(failure);
         }

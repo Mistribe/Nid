@@ -152,6 +152,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                 t.HasCheckConstraint("ck_provider_origin", "origin in ('catalog','custom','adopted')");
                 t.HasCheckConstraint("ck_provider_name", "char_length(name) between 1 and 100");
                 t.HasCheckConstraint("ck_provider_labels", "cardinality(label_keys) >= 1");
+                t.HasCheckConstraint("ck_provider_included", "origin = 'catalog' or cardinality(included_keys) = 0");
                 t.HasCheckConstraint("ck_provider_urls", "char_length(website) <= 2048 and char_length(pricing_page) <= 2048");
                 t.HasCheckConstraint("ck_provider_created_by", "(origin = 'custom') = (created_by is not null)");
                 t.HasCheckConstraint("ck_provider_commit", "(origin = 'catalog') = (catalog_commit is not null)");
@@ -162,6 +163,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                 t.HasCheckConstraint("ck_provider_icon", "(icon_asset is null) = (icon_source is null)");
             });
             e.HasKey(x => x.Key);
+            e.Property(x => x.IncludedKeys).HasDefaultValueSql("'{}'");
             e.Property(x => x.ImportHash).HasColumnType("char(64)");
             e.Property(x => x.IconAsset).HasColumnType("char(64)");
             e.HasIndex(x => x.IconAsset); // the icon route asks whether a hash is a catalog provider's (Task 5)

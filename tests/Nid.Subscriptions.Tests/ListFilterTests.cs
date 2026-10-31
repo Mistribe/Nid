@@ -9,7 +9,7 @@ public class ListFilterTests
     private static readonly LocalDate Today = new(2025, 10, 15);
 
     private static ProviderSummaryView Provider(params string[] labels)
-        => new("p", "P", "catalog", labels.Select(l => new LabelView(l, l, "#000")).ToList(), null);
+        => new("p", "P", "catalog", labels.Select(l => new LabelView(l, l, "#000")).ToList(), null, []);
 
     private static ListFilter Only(string? q = null, ListStatus status = ListStatus.All, params string[] labels) => new(q, status, labels);
 

@@ -439,6 +439,13 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("import_ref");
 
+                    b.PrimitiveCollection<List<string>>("IncludedKeys")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasColumnName("included_keys")
+                        .HasDefaultValueSql("'{}'");
+
                     b.PrimitiveCollection<List<string>>("LabelKeys")
                         .IsRequired()
                         .HasColumnType("text[]")
@@ -492,6 +499,8 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_provider_icon_url", "char_length(icon_url) <= 2048");
 
                             t.HasCheckConstraint("ck_provider_import", "(import_ref is null) = (import_hash is null)");
+
+                            t.HasCheckConstraint("ck_provider_included", "origin = 'catalog' or cardinality(included_keys) = 0");
 
                             t.HasCheckConstraint("ck_provider_key", "origin = 'adopted' or key ~ '^[a-z0-9][a-z0-9-]{0,63}$'");
 

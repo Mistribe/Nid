@@ -20,7 +20,7 @@ public class OverviewMathTests
     private static Duration Years(int count) => Duration.Create(count, DurationUnit.Year).Ok();
 
     private static ProviderSummaryView Provider(string key, params string[] labels)
-        => new(key, key.ToUpperInvariant(), "custom", labels.Select(l => new LabelView(l, l.ToUpperInvariant(), "#" + l)).ToList(), null);
+        => new(key, key.ToUpperInvariant(), "custom", labels.Select(l => new LabelView(l, l.ToUpperInvariant(), "#" + l)).ToList(), null, []);
 
     private static BuiltSubscription Built(
         IReadOnlyList<BillingPhase> phases, IReadOnlyList<Purchase>? purchases = null, bool autoRenew = true, ItemId? id = null,

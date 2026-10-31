@@ -49,6 +49,7 @@
     "removed": "Assurance retirée."
   },
   "subscription": {
+    "included": "Inclut",
     "back": "Retour aux abonnements",
     "next_charge": "Prochaine échéance",
     "expires": "Expiration",

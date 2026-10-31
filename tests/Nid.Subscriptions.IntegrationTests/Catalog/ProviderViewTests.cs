@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,7 @@ using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
@@ -40,7 +42,8 @@ public class ProviderViewTests(PostgresFixture fixture) : IClassFixture<Postgres
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public sealed record LabelResponse(string Key, string Name, string Color);
-    public sealed record ProviderResponse(string Key, string Name, string Origin, List<LabelResponse> Labels);
+    public sealed record IncludedResponse(string Key, string Name, List<LabelResponse> Labels, string? IconUrl);
+    public sealed record ProviderResponse(string Key, string Name, string Origin, List<LabelResponse> Labels, List<IncludedResponse>? Included = null);
     public sealed record RowResponse(Guid Id, string DisplayName, ProviderResponse? Provider);
     public sealed record ListResponse(List<RowResponse> Items);
     public sealed record DetailResponse(Guid Id, ProviderResponse? Provider);
@@ -51,6 +54,84 @@ public class ProviderViewTests(PostgresFixture fixture) : IClassFixture<Postgres
         var (run, failure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
         Assert.Null(failure);
         Assert.Equal("succeeded", ((CatalogSyncRunView)run!).Status);
+    }
+
+    /// <summary>A bundle of two services, with two entries of <c>includes</c> the reader ignores.</summary>
+    private static async Task<CatalogSyncRunView> SyncBundleAsync(NidApp app)
+    {
+        app.Catalog.Serve(CatalogFixtures.StreamingLabels(), Encoding.UTF8.GetBytes("""
+            [
+              { "key": "bundle", "name": "Bundle", "categories": ["streaming"], "includes": ["music", "video", "ghost", "bundle"] },
+              { "key": "music", "name": "Music", "categories": ["streaming"] },
+              { "key": "video", "name": "Video", "categories": ["streaming"] }
+            ]
+            """));
+        var (run, failure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
+        Assert.Null(failure);
+        return (CatalogSyncRunView)run!;
+    }
+
+    private static List<string> KeysOf(ProviderResponse? provider) => provider!.Included!.Select(i => i.Key).ToList();
+
+    [Fact]
+    public async Task A_bundle_shows_what_it_includes_in_every_view_and_the_sync_report_what_it_ignored()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var run = await SyncBundleAsync(app);
+        Assert.Equal(
+            [new IncludeRefusal("bundle", "ghost", CatalogCodes.UnknownInclude), new IncludeRefusal("bundle", "bundle", CatalogCodes.SelfInclude)],
+            run.Report!.IncludesRefused);
+        var id = await CreateAsync(app, "My bundle", "bundle");
+
+        var providers = await app.GetAsync<List<ProviderResponse>>(app.AdultB, "/api/v1/subscriptions/providers?q=bundle");
+        var bundle = Assert.Single(providers);
+        Assert.Equal(["music", "video"], KeysOf(bundle));
+        Assert.Equal(new LabelResponse("streaming", "Streaming", "#6400F6"), Assert.Single(bundle.Included![0].Labels));
+        Assert.Equal(["music", "video"], KeysOf((await app.GetAsync<DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{id}")).Provider));
+        Assert.Equal(["music", "video"], KeysOf(Assert.Single((await app.GetAsync<ListResponse>(app.AdultB, "/api/v1/subscriptions")).Items).Provider));
+
+        var stored = await app.GetRawAsync(app.AdultA, "/api/v1/subscriptions/catalog/runs");
+        Assert.Contains("\"includesRefused\":[{\"key\":\"bundle\",\"included\":\"ghost\",\"reason\":\"unknown_include\"}", stored, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_archived_included_provider_leaves_the_bundle_readable()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SyncBundleAsync(app);
+        await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
+            await subs.Providers.Where(p => p.Key == "video").ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, SystemClock.Instance.GetCurrentInstant()));
+
+        var bundle = Assert.Single(await app.GetAsync<List<ProviderResponse>>(app.AdultA, "/api/v1/subscriptions/providers?q=bundle"));
+
+        Assert.Equal(["music", "video"], KeysOf(bundle));
+    }
+
+    [Fact]
+    public async Task An_included_key_held_by_a_custom_provider_is_never_shown()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedProviderAsync("video", "Private video club", ProviderOrigin.Custom, app.AdultB);
+        await SyncBundleAsync(app);
+
+        var bundle = Assert.Single(await app.GetAsync<List<ProviderResponse>>(app.AdultA, "/api/v1/subscriptions/providers?q=bundle"));
+
+        Assert.Equal(["music"], KeysOf(bundle));
+    }
+
+    [Fact]
+    public async Task Custom_and_adopted_providers_include_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedProviderAsync("old-key", "Old key", ProviderOrigin.Adopted);
+        var custom = await ProviderApi.CreateCustomAsync(app, app.AdultA, "Mine");
+        var adopted = await CreateAsync(app, "Old", null);
+        await app.LinkProviderAsync(new ItemId(adopted), "old-key");
+
+        var providers = await app.GetAsync<List<ProviderResponse>>(app.AdultA, "/api/v1/subscriptions/providers");
+
+        Assert.Empty(Assert.Single(providers, p => p.Key == custom).Included!);
+        Assert.Empty(Assert.Single(providers, p => p.Key == "old-key").Included!);
     }
 
     private static async Task<Guid> CreateAsync(NidApp app, string name, string? providerKey)

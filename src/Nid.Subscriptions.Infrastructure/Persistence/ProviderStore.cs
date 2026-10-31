@@ -230,7 +230,10 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         row.ImportRef is { } importRef ? new ImportRef(importRef, row.ImportHash!) : null,
         row.IconUrl,
         row.IconAsset,
-        row.IconSource);
+        row.IconSource)
+    {
+        IncludedKeys = row.IncludedKeys.ToList(),
+    };
 
     internal static ProviderRow ToRow(Provider provider)
     {
@@ -247,6 +250,7 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         row.Website = provider.Website;
         row.PricingPage = provider.PricingPage;
         row.LabelKeys = provider.LabelKeys.ToList();
+        row.IncludedKeys = provider.IncludedKeys.ToList();
         row.CatalogCommit = provider.CatalogCommit;
         row.CreatedBy = provider.CreatedBy?.Value;
         row.ArchivedAt = provider.ArchivedAt;

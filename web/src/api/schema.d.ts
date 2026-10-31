@@ -22291,6 +22291,7 @@ export interface components {
             duplicates: components["schemas"]["CatalogDuplicate"][];
             refused: components["schemas"]["CatalogRefusal"][];
             icons: components["schemas"]["IconReport"];
+            includesRefused: components["schemas"]["IncludeRefusal"][];
         };
         CatalogRunsView: {
             pinnedCommit: string;
@@ -23534,6 +23535,17 @@ export interface components {
             expiresAt: string;
             report?: null | components["schemas"]["ImportReport"];
             audit?: null | components["schemas"]["ImportAuditView"];
+        };
+        IncludedProviderView: {
+            key: string;
+            name: string;
+            labels: components["schemas"]["LabelView"][];
+            iconUrl?: null | string;
+        };
+        IncludeRefusal: {
+            key: string;
+            included?: null | string;
+            reason: string;
         };
         IncomeAmountView: {
             amount: string;
@@ -25474,6 +25486,7 @@ export interface components {
             origin: string;
             labels: components["schemas"]["LabelView"][];
             iconUrl?: null | string;
+            included: components["schemas"]["IncludedProviderView"][];
         };
         ProviderView: {
             key: string;
@@ -25483,6 +25496,7 @@ export interface components {
             website?: null | string;
             archived: boolean;
             iconUrl?: null | string;
+            included: components["schemas"]["IncludedProviderView"][];
         };
         PurchaseInput: {
             date?: null | string;

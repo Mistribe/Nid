@@ -27,6 +27,37 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task The_pinned_catalog_stores_what_apple_one_includes_and_syncing_it_again_changes_nothing()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
+        var reading = CatalogReader.Read(CatalogFixtures.PinnedLabels(), CatalogFixtures.PinnedProviders()).Ok();
+
+        await SyncAsync(db, reading);
+        var again = await SyncAsync(db, reading);
+
+        Assert.Equal(21, again.ProvidersUnchanged.Count);
+        Assert.Empty(again.ProvidersUpdated);
+        await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
+        var stored = await check.Providers.AsNoTracking().ToListAsync();
+        Assert.Equal(["apple-music", "apple-tv", "apple-arcade", "icloud-plus"], stored.Single(p => p.Key == "apple-one").IncludedKeys);
+        Assert.All(stored.Where(p => p.Key != "apple-one"), p => Assert.Empty(p.IncludedKeys));
+    }
+
+    [Theory]
+    [InlineData("insert into subscriptions.provider (key, origin, name, label_keys, included_keys, created_by) values ('p', 'custom', 'P', array['other'], array['netflix'], '00000000-0000-0000-0000-000000000001')")]
+    [InlineData("insert into subscriptions.provider (key, origin, name, label_keys, included_keys) values ('p', 'adopted', 'P', array['other'], array['netflix'])")]
+    public async Task Only_a_catalog_provider_includes_anything(string insert)
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
+
+        var refused = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync(insert));
+
+        Assert.Equal("ck_provider_included", refused.ConstraintName);
+    }
+
+    [Fact]
     public async Task The_real_catalog_is_written_then_found_unchanged()
     {
         var connectionString = await fixture.NewConnectionStringAsync();
@@ -198,7 +229,7 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
     /// entirely — see `specs/2026-09-25-provider-icons-design.md` §11).
     /// </summary>
     [Fact]
-    public async Task Moving_from_the_legacy_commit_to_the_pinned_one_only_moves_the_providers_commit_and_five_labels_change()
+    public async Task Moving_from_the_legacy_commit_to_the_pinned_one_adds_the_apple_providers_and_five_labels_change()
     {
         var connectionString = await fixture.NewConnectionStringAsync();
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
@@ -206,9 +237,9 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var moved = await SyncAtAsync(db, CatalogReader.Read(CatalogFixtures.PinnedLabels(), CatalogFixtures.PinnedProviders()).Ok(), CatalogFixtures.PinnedCommit);
 
-        Assert.Equal(17, moved.ProvidersUnchanged.Count);
-        Assert.Empty(moved.ProvidersAdded);
-        Assert.Empty(moved.ProvidersUpdated);
+        Assert.Equal(16, moved.ProvidersUnchanged.Count);
+        Assert.Equal(["apple-arcade", "apple-one", "apple-tv", "icloud-plus"], moved.ProvidersAdded);
+        Assert.Equal(["apple-music"], moved.ProvidersUpdated); // its icon
         Assert.Empty(moved.LabelsAdded);
         Assert.Equal(["cloud", "home", "hosting", "kid", "work"], moved.LabelsUpdated); // case of #A855B4, and home's own colour
         Assert.Empty(moved.LabelsCreated);

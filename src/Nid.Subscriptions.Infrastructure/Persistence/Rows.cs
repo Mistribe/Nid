@@ -107,6 +107,7 @@ public sealed class ProviderRow
     public string? Website { get; set; }
     public string? PricingPage { get; set; }
     public List<string> LabelKeys { get; set; } = [];
+    public List<string> IncludedKeys { get; set; } = [];
     public string? CatalogCommit { get; set; }
     public Guid? CreatedBy { get; set; }
     public Instant? ArchivedAt { get; set; }

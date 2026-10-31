@@ -15,6 +15,56 @@ public class CatalogReaderTests
 
     private static CatalogReading Read(string labels, string providers) => CatalogReader.Read(Utf8(labels), Utf8(providers)).Ok();
 
+    private static string Provider(string key, string? includes = null)
+        => $$"""{"key":"{{key}}","name":"{{key}}","categories":["streaming"]{{(includes is null ? "" : $",\"includes\":{includes}")}}}""";
+
+    [Fact]
+    public void A_bundle_reads_its_included_keys_in_file_order_wherever_they_are_in_the_file()
+    {
+        var reading = Read(Streaming, $"[{Provider("music")},{Provider("one", """["tv","music","tv"]""")},{Provider("tv")}]");
+
+        Assert.Equal(["tv", "music"], Assert.Single(reading.Providers, p => p.Key == "one").IncludedKeys);
+        Assert.Empty(Assert.Single(reading.Providers, p => p.Key == "tv").IncludedKeys);
+        Assert.Empty(reading.IncludesRefused);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("null")]
+    [InlineData("[]")]
+    public void No_includes_is_no_included_provider(string? includes)
+    {
+        var reading = Read(Streaming, $"[{Provider("one", includes)}]");
+
+        Assert.Empty(Assert.Single(reading.Providers).IncludedKeys);
+        Assert.Empty(reading.IncludesRefused);
+    }
+
+    [Theory]
+    [InlineData("""["Bad Key"]""", "Bad Key", CatalogCodes.InvalidInclude)]
+    [InlineData("[3]", null, CatalogCodes.InvalidInclude)]
+    [InlineData("\"music\"", null, CatalogCodes.InvalidInclude)]
+    [InlineData("""["ghost"]""", "ghost", CatalogCodes.UnknownInclude)]
+    [InlineData("""["refused"]""", "refused", CatalogCodes.UnknownInclude)] // a provider that was not read is not in the catalog
+    [InlineData("""["one"]""", "one", CatalogCodes.SelfInclude)]
+    public void What_cannot_be_included_is_ignored_and_reported_and_the_provider_kept(string includes, string? included, string reason)
+    {
+        var reading = Read(Streaming, $$"""[{{Provider("one", includes)}},{{Provider("music")}},{"key":"refused","categories":["streaming"]}]""");
+
+        Assert.Empty(Assert.Single(reading.Providers, p => p.Key == "one").IncludedKeys);
+        Assert.Equal(new IncludeRefusal("one", included, reason), Assert.Single(reading.IncludesRefused));
+        Assert.Empty(reading.Duplicates);
+    }
+
+    [Fact]
+    public void A_bad_entry_of_includes_leaves_the_good_ones()
+    {
+        var reading = Read(Streaming, $"[{Provider("one", """["ghost","music"]""")},{Provider("music")}]");
+
+        Assert.Equal(["music"], Assert.Single(reading.Providers, p => p.Key == "one").IncludedKeys);
+        Assert.Equal("ghost", Assert.Single(reading.IncludesRefused).Included);
+    }
+
     [Fact]
     public void The_real_files_of_the_pinned_commit_read_with_their_two_known_defects()
     {
@@ -244,8 +294,11 @@ public class CatalogReaderTests
     {
         var reading = CatalogReader.Read(Fixture(Path.Combine("pinned", "labels.json")), Fixture(Path.Combine("pinned", "providers.json"))).Ok();
 
-        Assert.Equal(17, reading.Providers.Count);
+        Assert.Equal(21, reading.Providers.Count);
         Assert.Equal(19, reading.Labels.Count);
+        Assert.Equal(["apple-music", "apple-tv", "apple-arcade", "icloud-plus"], Assert.Single(reading.Providers, p => p.Key == "apple-one").IncludedKeys);
+        Assert.Single(reading.Providers, p => p.IncludedKeys.Count > 0);
+        Assert.Empty(reading.IncludesRefused);
         Assert.Empty(reading.LabelsCreated); // home is a label of its own now
         Assert.Empty(reading.Duplicates); // hosting once
         Assert.Empty(reading.Refused);

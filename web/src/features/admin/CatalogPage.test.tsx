@@ -15,7 +15,7 @@ const PINNED = 'df0146a8f3532f5c790aa54a34d4871e96b62a95';
 
 const emptyReport: Report = {
   providersAdded: [], providersUpdated: [], providersUnchanged: [], providersArchived: [], adoptedReplaced: [],
-  adoptedRemaining: [], conflicts: [], labelsAdded: [], labelsUpdated: [], labelsCreated: [], duplicates: [], refused: [],
+  adoptedRemaining: [], conflicts: [], labelsAdded: [], labelsUpdated: [], labelsCreated: [], duplicates: [], refused: [], includesRefused: [],
   icons: { fetched: [], unchanged: 0, refused: [] },
 };
 
@@ -98,6 +98,25 @@ describe('Administration › Catalogue', () => {
     expect(within(last).getByText('labels : hosting')).toBeInTheDocument();
     expect(within(last).getByText('providers n° 3 (Netflix) : clé invalide')).toBeInTheDocument();
     expect(within(last).queryByText(/Conflits/)).not.toBeInTheDocument(); // an empty category is not shown
+  });
+
+  it('lists what was ignored in includes, each entry with its reason', async () => {
+    serveRuns([{
+      ...succeeded,
+      report: {
+        ...emptyReport,
+        includesRefused: [
+          { key: 'apple-one', included: 'ghost', reason: 'unknown_include' },
+          { key: 'apple-one', included: null, reason: 'invalid_include' },
+        ],
+      },
+    }]);
+    const { user } = await render();
+
+    const last = await lastCard();
+    await user.click(within(last).getByRole('button', { name: 'Inclusions ignorées (2)' }));
+    expect(within(last).getByText('apple-one inclut ghost : fournisseur absent du catalogue')).toBeInTheDocument();
+    expect(within(last).getByText('apple-one inclut — : clé invalide')).toBeInTheDocument();
   });
 
   it('lists the icons fetched and refused, each with its reason', async () => {

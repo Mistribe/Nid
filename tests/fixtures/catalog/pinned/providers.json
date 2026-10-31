@@ -141,10 +141,61 @@
     "key": "apple-music",
     "website": "https://music.apple.com",
     "pricing_page": "https://music.apple.com",
-    "icon": "https://1000logos.net/wp-content/uploads/2023/01/Apple-Music-Logo-1536x864.png",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Apple_Music_icon.svg/500px-Apple_Music_icon.svg.png",
     "categories": [
       "streaming-music",
       "streaming"
+    ]
+  },
+  {
+    "name": "Apple TV",
+    "key": "apple-tv",
+    "website": "https://tv.apple.com",
+    "pricing_page": "https://tv.apple.com",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Apple_TV_logo.svg/500px-Apple_TV_logo.svg.png",
+    "categories": [
+      "streaming",
+      "vod"
+    ]
+  },
+  {
+    "name": "Apple Arcade",
+    "key": "apple-arcade",
+    "website": "https://www.apple.com/apple-arcade/",
+    "pricing_page": "https://www.apple.com/apple-arcade/",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Apple-arcade-logo.svg/500px-Apple-arcade-logo.svg.png",
+    "categories": [
+      "gaming"
+    ]
+  },
+  {
+    "name": "iCloud+",
+    "key": "icloud-plus",
+    "website": "https://www.apple.com/icloud/",
+    "pricing_page": "https://www.apple.com/icloud/",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/ICloud.svg/500px-ICloud.svg.png",
+    "categories": [
+      "storage"
+    ]
+  },
+  {
+    "name": "Apple One",
+    "key": "apple-one",
+    "website": "https://www.apple.com/apple-one/",
+    "pricing_page": "https://www.apple.com/apple-one/",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Apple_One.svg/500px-Apple_One.svg.png",
+    "categories": [
+      "streaming",
+      "streaming-music",
+      "vod",
+      "gaming",
+      "storage"
+    ],
+    "includes": [
+      "apple-music",
+      "apple-tv",
+      "apple-arcade",
+      "icloud-plus"
     ]
   },
   {

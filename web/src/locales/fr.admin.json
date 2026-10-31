@@ -171,10 +171,18 @@
         "conflicts": "Conflits avec un fournisseur personnalisé ({{n}})",
         "duplicates": "Clés en double ({{n}})",
         "refused": "Entrées refusées ({{n}})",
+        "includes_refused": "Inclusions ignorées ({{n}})",
         "icons": "Icônes (récupérées : {{fetched}}, inchangées : {{unchanged}}, refusées : {{refused}})"
       },
       "duplicate_entry": "{{file}} : {{key}}",
       "refused_entry": "{{file}} n° {{index}} ({{key}}) : {{reason}}",
+      "include_entry": "{{key}} inclut {{included}} : {{reason}}",
+      "include_reasons": {
+        "invalid_include": "clé invalide",
+        "unknown_include": "fournisseur absent du catalogue",
+        "self_include": "le fournisseur s'inclut lui-même",
+        "other": "motif inconnu"
+      },
       "reasons": {
         "invalid_key": "clé invalide",
         "invalid_name": "nom vide ou trop long",

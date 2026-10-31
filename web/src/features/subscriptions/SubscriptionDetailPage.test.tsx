@@ -39,6 +39,26 @@ describe('Abonnements › détail', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('lists what a bundle includes, and nothing for a provider that includes nothing', async () => {
+    const bundle = { key: 'apple-one', name: 'Apple One', origin: 'catalog', labels: [], iconUrl: null };
+    serveDetail(detail({
+      provider: { ...bundle, included: [{ key: 'apple-tv', name: 'Apple TV', labels: [], iconUrl: null }, { key: 'icloud-plus', name: 'iCloud+', labels: [], iconUrl: null }] },
+    }));
+    const { container } = await renderApp(`/subscriptions/${SUB}`);
+
+    const included = await screen.findByRole('region', { name: 'Inclut' });
+    expect(within(included).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['ATApple TV', 'IiCloud+']);
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows no included services without a bundle', async () => {
+    serveDetail(detail({ provider: { key: 'spotify', name: 'Spotify', origin: 'catalog', labels: [], iconUrl: null, included: [] } }));
+    await renderApp(`/subscriptions/${SUB}`);
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('region', { name: 'Inclut' })).not.toBeInTheDocument();
+  });
+
   it('shows the findings as text', async () => {
     serveDetail(detail({ findings: [{ code: 'subscriptions.gap', message: 'Un trou de couverture existe.', reference: null }] }));
     await renderApp(`/subscriptions/${SUB}`);

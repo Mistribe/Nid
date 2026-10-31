@@ -11,7 +11,7 @@ const SPOTIFY = '0192f0aa-0000-7000-8000-0000000000d1';
 const PRIME = '0192f0aa-0000-7000-8000-0000000000d2';
 const CLAUDE_PRO = '0192f0aa-0000-7000-8000-0000000000d3';
 const CLAUDE_API = '0192f0aa-0000-7000-8000-0000000000d4';
-const ANTHROPIC = { key: 'anthropic', name: 'Anthropic', origin: 'catalog' as const, iconUrl: null, labels: [] };
+const ANTHROPIC = { key: 'anthropic', name: 'Anthropic', origin: 'catalog' as const, iconUrl: null, labels: [], included: [] };
 
 const serve = (body: Overview) => server.use(http.get('*/api/v1/subscriptions/overview', () => HttpResponse.json(body)));
 const region = (name: string) => screen.findByRole('region', { name });

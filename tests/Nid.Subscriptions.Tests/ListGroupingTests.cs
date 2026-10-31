@@ -7,7 +7,7 @@ namespace Nid.Subscriptions.Tests;
 public class ListGroupingTests
 {
     private static ProviderSummaryView Provider(string key, params string[] labels)
-        => new(key, key.ToUpperInvariant(), "custom", labels.Select(l => new LabelView(l, l, "#000")).ToList(), null);
+        => new(key, key.ToUpperInvariant(), "custom", labels.Select(l => new LabelView(l, l, "#000")).ToList(), null, []);
 
     private static Guid Person(int n) => new(n, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
