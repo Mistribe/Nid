@@ -41,7 +41,7 @@ public static class AdminCli
         {
             if (await PendingMigrationsAsync(provider, ct))
             {
-                await console.Error.WriteLineAsync("La base n'est pas à jour : démarrez d'abord nid-api, qui applique les migrations.");
+                await console.Error.WriteLineAsync("La base n'est pas à jour : démarrez d'abord nid, qui applique les migrations.");
                 return 1;
             }
             provider.GetRequiredService<IActorAccessor>().Current = Actor.Cli;

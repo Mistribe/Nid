@@ -38,12 +38,12 @@ Port `IDocumentStorage` : écrire un contenu sous son sha256 s'il n'existe pas, 
 
 | Adaptateur | Réglages | Détails |
 |---|---|---|
-| `filesystem` | `Documents:Storage:Path` (défaut `/var/lib/nid/documents`) | Chemin `{sha[0:2]}/{sha256}` ; écriture dans un fichier temporaire du même dossier puis renommage, pour qu'un fichier visible soit toujours complet. Volume nommé `documents` monté sur `nid-api`, hors de toute racine web |
+| `filesystem` | `Documents:Storage:Path` (défaut `/var/lib/nid/documents`) | Chemin `{sha[0:2]}/{sha256}` ; écriture dans un fichier temporaire du même dossier puis renommage, pour qu'un fichier visible soit toujours complet. Volume nommé `documents` monté sur `nid`, hors de toute racine web |
 | `s3` | `ServiceUrl`, `Bucket`, `AccessKey`, `SecretKey` (tous requis), `Region` (`us-east-1`), `ForcePathStyle` (`true`) | Même clé d'objet ; `AWSSDK.S3`, testé contre MinIO (Testcontainers) |
 
 - **Pas de chiffrement applicatif** : le chiffrement au repos est celui du disque de l'hôte, ou le chiffrement côté serveur du bucket.
 - **Dédoublonnage** : deux dépôts du même contenu donnent deux lignes `document` et un seul fichier. Pas de compteur de références. Aucune ligne n'étant supprimée en tranche 1, la purge des fichiers orphelins est laissée à plus tard.
-- **Image** : l'image `nid-api` crée `/var/lib/nid/documents` (propriétaire 1654, `0750`), pour qu'un volume neuf soit inscriptible.
+- **Image** : l'image `nid` crée `/var/lib/nid/documents` (propriétaire 1654, `0750`), pour qu'un volume neuf soit inscriptible.
 
 ## 4. Dépôt et lecture
 

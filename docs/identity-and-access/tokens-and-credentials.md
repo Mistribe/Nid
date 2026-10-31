@@ -112,7 +112,7 @@ Les workers d'ingestion appellent l'API interne (`../architecture.md` §9.3) ave
 ## 4. Extensions écartées
 
 - **Jeton d'accès par requête** (JWT courts) : inutile pour deux utilisateurs.
-- **mTLS entre nid-api et les workers** : le réseau compose segmenté suffit.
+- **mTLS entre nid et les workers** : le réseau compose segmenté suffit.
 
 ## 5. OAuth pour le MCP : écarté en v1
 

@@ -14,14 +14,13 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 backup() { "${COMPOSE[@]}" exec -T backup nid-backup "$@"; }
 in_backup() { "${COMPOSE[@]}" exec -T backup sh -c "$1"; }
 snapshots() { in_backup "$R snapshots --json | jq length"; }
-# nid-api has no healthcheck (a chiseled image), so `up --wait` can return before it listens: wait for its readiness
-# through nid-web, which proxies /health/ready to it, before a test opens a page.
+# After a restart of nid, wait for its readiness (nid healthcheck: the image has no shell or wget) before a test opens a page.
 api_ready() {
   for _ in $(seq 60); do
-    "${COMPOSE[@]}" exec -T nid-web wget -q --spider http://127.0.0.1:8080/health/ready 2>/dev/null && return 0
+    "${COMPOSE[@]}" exec -T nid nid healthcheck 2>/dev/null && return 0
     sleep 2
   done
-  fail "nid-api not ready after 120 s"
+  fail "nid not ready after 120 s"
 }
 
 # A previous run left its remote configured: the first checks are about the local repository alone.
@@ -129,7 +128,7 @@ echo "ok: a failed --verify says why and leaves nothing behind"
 
 # Final review: restore-files and check-keys on scratch volumes, which are Linux filesystems like a CI runner's (a bind
 # mount on macOS shows root's files as the user's). deploy/'s folders go to the host user, so --verify can remove its
-# work folder; a key nid-api adds after a restore is fine, a key of the backup gone is not.
+# work folder; a key nid adds after a restore is fine, a key of the backup gone is not.
 scratch() {
   docker run --rm --network none -v "$PWD/backups":/repo -v "$PWD/backup-secrets":/run/backup-secrets:ro \
     -v nid-scratch-keys:/target/volumes/dataprotection-keys -v nid-scratch-assets:/target/volumes/assets \
@@ -142,7 +141,7 @@ scratch nid-backup:local restore-files "$id"
 [ "$(scratch --entrypoint sh nid-backup:local -c "sha256sum < /target/volumes/documents/ab/$doc_sha" | cut -d' ' -f1)" = "$doc_hash" ] \
   || fail "the restored document differs"
 [ "$(scratch --entrypoint stat nid-backup:local -c '%u %a' /target/volumes/documents)" = "1654 750" ] || fail "documents folder owner or mode"
-echo "ok: restore-files puts the documents back, byte for byte, owned by nid-api"
+echo "ok: restore-files puts the documents back, byte for byte, owned by nid"
 owners=$(scratch --entrypoint stat nid-backup:local -c '%u' /target/deploy/secrets /target/deploy/.env | sort -u)
 [ "$owners" = 4242 ] || fail "deploy/ files not given to the host user: $owners"
 scratch --entrypoint touch nid-backup:local /target/volumes/dataprotection-keys/key-00000000-0000-0000-0000-000000000000.xml

@@ -1,4 +1,4 @@
-// frontend/architecture.md §9. One source for every server of the SPA: vite preview now, the nid-web image in 1F.
+// frontend/architecture.md §9. One source for every server of the SPA: vite preview now, the nid image's host in 1F.
 export const contentSecurityPolicy = [
   "default-src 'none'",
   "script-src 'self'",

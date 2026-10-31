@@ -55,7 +55,7 @@ Hors périmètre :
 | D21 | **Client HTTP sortant unique** (`SafeHttpClient`) avec garde SSRF et liste d'hôtes (`security/application.md` §3) | Décidé |
 | D22 | Emails **sans montants** par défaut | Décidé |
 | D23 | Fournisseurs LLM multiples : offres gratuites éligibles, puis local, puis payant **avec accord** ; local par défaut ; consentement à chaque dépôt ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`) | Décidé |
-| D24 | **Passerelle LLM** dans `nid-api` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |
+| D24 | **Passerelle LLM** dans `nid` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |
 | D25 | **Aspire** (`Nid.AppHost`) orchestre la pile de **développement local** : API, frontend Vite, PostgreSQL, Pocket ID, proxy TLS. Le déploiement reste Docker Compose (D4) ; Aspire n'est ni déployé ni requis en production (§10.3) | Décidé |
 
 ## 4. Stack et topologie
@@ -85,8 +85,7 @@ Hors périmètre :
 ```
 [reverse proxy de l'hébergeur : hors application]
         │
-        ├──> nid-web   (SPA statique)
-        └──> nid-api   (.NET : API + BFF + MCP + Quartz)
+        └──> nid       (.NET : SPA statique + API + BFF + MCP + Quartz, un seul port)
                 │  ▲
    OIDC ◄───────┘  │ API interne (port séparé, non routé par le proxy)
    Pocket ID       │
@@ -98,11 +97,11 @@ Hors périmètre :
 backup (restic, chiffré) ──> cible locale + cible distante
 ```
 
-Un seul processus `nid-api` porte l'API, le BFF, l'endpoint MCP et les tâches planifiées. On ne le scinde que si un besoin réel apparaît.
+Un seul processus `nid` porte l'API, le BFF, l'endpoint MCP et les tâches planifiées. On ne le scinde que si un besoin réel apparaît.
 
 ### 4.3 Native AOT : évalué et écarté
 
-Les générateurs de sources sont la règle (D13), mais **`nid-api` n'est pas publié en Native AOT**. État constaté dans la documentation :
+Les générateurs de sources sont la règle (D13), mais **`nid` n'est pas publié en Native AOT**. État constaté dans la documentation :
 
 | Brique | Support Native AOT |
 |---|---|
@@ -268,7 +267,7 @@ Le magasin persistant de Quartz est en Postgres, avec un préfixe de tables qual
 - Les workers **n'accèdent pas à la base**. Ils appellent l'API interne : `claim` (long-poll, `FOR UPDATE SKIP LOCKED` côté API), `heartbeat`, `complete`, `fail`. Bail expiré → remise en file. Retry avec délai croissant ; état `dead` après N essais, avec alerte email.
 - **Idempotence** : `(type, hash de l'entrée)` évite de retraiter le même document.
 - **Contrats** dans le dépôt : `contracts/jobs/{type}/v{n}/{input,output}.schema.json`. L'API valide la sortie du worker avant toute suite ; version inconnue = rejet. Ajouter une techno = respecter le contrat.
-- Types initiaux : `extract-statement` (relevés de placements), `extract-amortization`, `extract-invoice`. Plus tard : `fetch-mail`, `scrape-woob`. La banque n'est pas un job : elle tourne dans `nid-api` (§9.2, livré en 5A).
+- Types initiaux : `extract-statement` (relevés de placements), `extract-amortization`, `extract-invoice`. Plus tard : `fetch-mail`, `scrape-woob`. La banque n'est pas un job : elle tourne dans `nid` (§9.2, livré en 5A).
 - Les workers récupèrent le document par l'API (flux à jeton court), sans volume partagé : ils restent sans état.
 - Traçage OpenTelemetry API ↔ worker (`traceparent` dans le job). Page « jobs » dans l'interface.
 
@@ -281,7 +280,7 @@ Le magasin persistant de Quartz est en Postgres, avec un préfixe de tables qual
 
 Pour `extract-amortization`, RealEstate **recalcule** le tableau depuis les conditions du prêt et le compare à celui de la banque (`Project.md` §8.5) ; l'écart figure dans la proposition. Une extraction douteuse devient visible.
 
-Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relevés avec le JSON attendu pour mesurer la précision par champ. Le choix du modèle relève de la configuration, pas de l'architecture. L'extracteur est un port (`IDocumentExtractor`). Le modèle est appelé **par la passerelle LLM** de `nid-api` (D24) : Ollama en local, ou un fournisseur cloud **sur opt-in à chaque dépôt de document**, tracé dans la provenance et dans `llm_call`. Politique, consentement, budget, masquage et clés : `ingestion/llm-providers.md`.
+Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relevés avec le JSON attendu pour mesurer la précision par champ. Le choix du modèle relève de la configuration, pas de l'architecture. L'extracteur est un port (`IDocumentExtractor`). Le modèle est appelé **par la passerelle LLM** de `nid` (D24) : Ollama en local, ou un fournisseur cloud **sur opt-in à chaque dépôt de document**, tracé dans la provenance et dans `llm_call`. Politique, consentement, budget, masquage et clés : `ingestion/llm-providers.md`.
 
 ### 9.5 Proposal (Core)
 
@@ -307,12 +306,12 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 | Dépôt manuel d'un PDF | Job d'extraction selon le type |
 | Routine mensuelle (Quartz) | Rappels par email ; formulaire **pré-rempli** depuis le mois précédent pour chaque enveloppe |
 | Mail (étape 4 et après) | `fetch-mail` → factures → `extract-invoice` |
-| Banque (étape 5) | Tâche Quartz `bank-sync-nightly` (04:30) et bouton « Synchroniser », dans `nid-api` → soldes des comptes associés → proposition `investments.record_valuation` par fin de mois écoulé (et aujourd'hui sur un clic), ou valorisation écrite si le compte l'a demandé (**livré en 5A**). Ensuite (5B à 5D) : opérations, rapprochement avec les charges attendues → propositions « hausse de prix », « prélèvement récurrent inconnu », versements. Lecture seule ; session chiffrée ; alerte avant expiration. Spec : `superpowers/specs/2026-10-29-bank-sync-design.md` |
+| Banque (étape 5) | Tâche Quartz `bank-sync-nightly` (04:30) et bouton « Synchroniser », dans `nid` → soldes des comptes associés → proposition `investments.record_valuation` par fin de mois écoulé (et aujourd'hui sur un clic), ou valorisation écrite si le compte l'a demandé (**livré en 5A**). Ensuite (5B à 5D) : opérations, rapprochement avec les charges attendues → propositions « hausse de prix », « prélèvement récurrent inconnu », versements. Lecture seule ; session chiffrée ; alerte avant expiration. Spec : `superpowers/specs/2026-10-29-bank-sync-design.md` |
 
 ### 9.7 Sécurité de l'ingestion
 
 - Identifiants de service **par worker**, limités à ses types de jobs. Réseau compose segmenté : un worker d'extraction n'atteint que l'API interne (et, par elle, la passerelle LLM) ; **sans Internet, sans clés d'API**.
-- Les workers de **connecteurs** (mail, woob) exigent une sortie limitée à leurs hôtes et une **revue de risque préalable** (`security/risk-register.md` §7). La banque n'est pas un worker : elle tourne dans `nid-api` (§9.2), vers le seul `api.enablebanking.com`, et sa revue est `security/bank-sync-review.md`.
+- Les workers de **connecteurs** (mail, woob) exigent une sortie limitée à leurs hôtes et une **revue de risque préalable** (`security/risk-register.md` §7). La banque n'est pas un worker : elle tourne dans `nid` (§9.2), vers le seul `api.enablebanking.com`, et sa revue est `security/bank-sync-review.md`.
 - Aucun document ne quitte l'infrastructure par défaut ; tout envoi cloud exige le consentement du déposant (`ingestion/llm-providers.md` §6).
 - Menaces et mesures détaillées : `security/ai-ingestion.md`.
 
@@ -322,8 +321,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 
 | Service | Rôle | Obligatoire |
 |---|---|---|
-| `nid-api` | API + BFF + MCP + Quartz | oui |
-| `nid-web` | SPA statique ; relaie `/api`, `/auth`, `/mcp` et `/health` vers `nid-api` (origine unique, 1F1) | oui |
+| `nid` | SPA statique + API + BFF + MCP + Quartz, une seule image et un seul port ; l'hôte sert lui-même le SPA (fichiers hachés en cache immuable, repli sur `index.html` pour les routes du client, en-têtes de sécurité) : origine unique | oui |
 | `postgres` | Base | oui |
 | `pocket-id` | OIDC | oui |
 | `nid-worker-*` | Workers d'ingestion | à la carte |
@@ -332,8 +330,8 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 
 - Configuration par variables d'environnement et secrets Docker (fichiers). Aucun secret dans l'image ni dans le dépôt.
 - Images multi-architecture (amd64/arm64), utilisateur non-root, système de fichiers en lecture seule sauf volumes, healthchecks.
-- **Migrations** EF Core par module, appliquées au démarrage de `nid-api` sous verrou advisory Postgres. Migrations rétro-compatibles (expand/contract) pour permettre un retour arrière d'image.
-- Volumes : `pgdata`, `pocket-id` (sa base SQLite et ses images), `dataprotection-keys` (clés Data Protection de `nid-api`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/` (dont la clé de chiffrement de Pocket ID) et `deploy/.env`.
+- **Migrations** EF Core par module, appliquées au démarrage de `nid` sous verrou advisory Postgres. Migrations rétro-compatibles (expand/contract) pour permettre un retour arrière d'image.
+- Volumes : `pgdata`, `pocket-id` (sa base SQLite et ses images), `dataprotection-keys` (clés Data Protection de `nid`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/` (dont la clé de chiffrement de Pocket ID) et `deploy/.env`.
 - Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et `.env`, puis le secret du client OIDC une fois créé dans Pocket ID), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
 - Mises à jour : tags d'image épinglés, procédure documentée (sauvegarde → pull → up). Pas de mise à jour automatique.
 
@@ -342,9 +340,9 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 Le reverse proxy, le TLS et l'accès externe sont fournis par l'hébergeur, hors du compose applicatif. L'application suppose seulement :
 
 - HTTPS terminé en amont ;
-- en-têtes `X-Forwarded-*` de confiance (liste de proxys configurable) ;
+- en-têtes `X-Forwarded-*` de confiance : par défaut des plages privées et locales, où se trouve le proxy de l'hébergeur ; une liste de réseaux (`Auth__TrustedNetworks`) la remplace ;
 - une URL publique configurable (`PUBLIC_URL`) utilisée pour les redirections OIDC, les liens des emails et le manifeste PWA ;
-- **une seule origine** : le proxy de l'hébergeur envoie tout `nid.<domaine>` à `nid-web`, qui relaie lui-même `/api`, `/auth`, `/mcp` et `/health` vers `nid-api` (1F1) ; `auth.<domaine>` va à `pocket-id`. L'hébergeur a donc **deux cibles** et aucun routage par préfixe. Même nom d'hôte pour l'interface et l'API (cookie de session du BFF, pas de CORS) ;
+- **une seule origine** : le proxy de l'hébergeur envoie tout `nid.<domaine>` à `nid`, qui sert l'interface et l'API sur le même port ; `auth.<domaine>` va à `pocket-id`. L'hébergeur a donc **deux cibles** et aucun routage par préfixe. Même nom d'hôte pour l'interface et l'API (cookie de session du BFF, pas de CORS) ;
 - un accès sortant HTTPS vers le dépôt `SubTracker-Data` (taux de change et catalogue de fournisseurs) et vers l'historique de la Banque centrale européenne (`www.ecb.europa.eu`, taux de change depuis 1999), URL configurable, miroir ou dossier local possibles. Sans lui, les taux se saisissent à la main et les fournisseurs sont créés à la main.
 
 Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
@@ -374,7 +372,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 - **restic**, chiffré, règle 3-2-1 : cible locale + cible distante au choix de l'hébergeur (S3, SFTP, autre disque).
 - Contenu : dump Postgres (`pg_dump` cohérent, pas de copie à chaud du répertoire de données) + volume `documents` + clés Data Protection + base de Pocket ID (copie à chaud) + `deploy/secrets/`. **Sans les clés Data Protection, les jetons bancaires chiffrés sont perdus.**
 - **Test de restauration** documenté et scripté (restauration dans un compose jetable).
-- Alerte si la sauvegarde échoue ou dépasse N jours : **livrée** (notifications, PR 4) par `backup_failed`, aux admins. `nid-backup` écrit `status.json` dans le volume `backup-state`, que `nid-api` lit en lecture seule (`Nid:Backup:StatusPath`) ; le service `backup` devient aussi `unhealthy` (1F2).
+- Alerte si la sauvegarde échoue ou dépasse N jours : **livrée** (notifications, PR 4) par `backup_failed`, aux admins. `nid-backup` écrit `status.json` dans le volume `backup-state`, que `nid` lit en lecture seule (`Nid:Backup:StatusPath`) ; le service `backup` devient aussi `unhealthy` (1F2).
 - Livré en 1F2 (`superpowers/specs/2026-09-26-backup-design.md`) : service `backup` (chaque nuit à 03:30, rétention 7 quotidiennes, 4 hebdomadaires, 12 mensuelles, `restic check` le dimanche), un instantané par sauvegarde avec un manifeste (lignes par table, migrations, clés), dépôt local `deploy/backups/`, dépôt distant par la surcouche `compose.backup-remote.yaml`, y compris en ajout seulement ; `deploy/restore.sh`, réel (refuse une installation qui a des données) ou `--verify` dans un projet jetable. Le mot de passe restic reste hors de la sauvegarde.
 - **Export complet** JSON/CSV à la demande, format documenté et versionné, pour ne jamais dépendre de l'application. **Assemblé par le navigateur** à partir de pages fournies par le serveur (manifeste, pages de 500 entités, `import-format.md` §10), sans fichier construit côté serveur. Respecte la visibilité : chacun exporte ce qu'il voit.
 - **Import** : le même format que l'export JSON, spécifié dans `import-format.md`. Session en lots avec staging, validation complète par le serveur, écriture en une transaction, idempotence ; **orchestrée par le navigateur, sans tâche de fond**. Sert à la reprise initiale des données existantes et au transfert entre instances.

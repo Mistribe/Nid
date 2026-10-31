@@ -67,6 +67,9 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The host's root provider; create a scope before resolving scoped services.</summary>
     public IServiceProvider Services => factory.Services;
 
+    /// <summary>The in-memory server, for a request that needs a chosen remote address (<c>SendAsync</c>).</summary>
+    public Microsoft.AspNetCore.TestHost.TestServer Server => factory.Server;
+
     /// <summary>The household's admin (the first adult, administration-and-audit.md §2.1).</summary>
     public PersonId AdultA { get; }
 

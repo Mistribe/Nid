@@ -1,14 +1,14 @@
 # Nid, standalone: one file and one .env, nothing to run first. Take the pieces you need.
 #
-#   nid-api + nid-web   always: the application
+#   nid                 always: the application (the API and the web app, one image)
 #   postgres            --profile postgres    skip it when a Postgres (16 or later) already runs elsewhere
 #   pocket-id           --profile pocket-id   skip it when your Pocket ID already runs elsewhere
 #
 #   cp .env.example .env                                              # then fill it in
-#   docker compose up -d                                              # web + api only (Postgres and Pocket ID elsewhere)
+#   docker compose up -d                                              # nid only (Postgres and Pocket ID elsewhere)
 #   docker compose --profile postgres --profile pocket-id up -d       # everything, in this file
 #
-# No port is published but nid-web's (and Pocket ID's, when it runs here): TLS is your reverse proxy's. It must set
+# No port is published but nid's (and Pocket ID's, when it runs here): TLS is your reverse proxy's. It must set
 # X-Forwarded-Proto, -Host and -For itself. Details and the reference setup with backups: ../README.md.
 name: nid
 
@@ -19,37 +19,30 @@ x-hardened: &hardened
   restart: unless-stopped
 
 services:
-  nid-api:
+  nid:
     <<: *hardened
-    image: ${NID_API_IMAGE:-oriondev.azurecr.io/mistribe/nid-api:latest}
+    image: ${NID_IMAGE:-oriondev.azurecr.io/mistribe/nid:latest}
     environment:
       Auth__PublicUrl: ${NID_URL:?set NID_URL in .env (https://nid.example.org)}
       Auth__Authority: ${AUTH_URL:?set AUTH_URL in .env (https://auth.example.org)}
       Auth__ClientId: ${NID_OIDC_CLIENT_ID:-nid}
       Auth__ClientSecret: ${NID_OIDC_CLIENT_SECRET:?set NID_OIDC_CLIENT_SECRET in .env (the client of Nid in Pocket ID)}
       Auth__CsrfKey: ${NID_CSRF_KEY:?set NID_CSRF_KEY in .env (openssl rand -hex 32)}
-      # Forwarded headers are trusted from nid-web's network only.
-      Auth__TrustedNetworks__0: ${NID_APP_SUBNET:-172.30.10.0/24}
+      # Forwarded headers are trusted from the private ranges, where your reverse proxy is. To trust only its address,
+      # set Auth__TrustedNetworks__0 (README).
       ConnectionStrings__nid: Host=${NID_DB_HOST:-postgres};Port=${NID_DB_PORT:-5432};Database=${NID_DB_NAME:-nid};Username=${NID_DB_USER:-nid};Password=${NID_DB_PASSWORD:?set NID_DB_PASSWORD in .env}
     volumes:
       - dataprotection-keys:/var/lib/nid/keys
       - assets:/var/lib/nid/assets
       - documents:/var/lib/nid/documents
+    ports: ["${NID_WEB_BIND:-127.0.0.1}:${NID_WEB_PORT:-8080}:8080"]
     tmpfs: [/tmp]
-    # egress: catalog, rates, icons, Pocket ID's public URL, and a Postgres that runs elsewhere. data: the one of this file.
-    networks: [app, egress, data]
+    # egress: catalog, rates, icons, Pocket ID's public URL, and a Postgres that runs elsewhere; a normal network, so the
+    # port above can be published. data: the one of this file.
+    networks: [egress, data]
     # Waits for the Postgres of this file when it runs (--profile postgres), for nothing otherwise.
     depends_on: { postgres: { condition: service_healthy, required: false } }
     deploy: { resources: { limits: { cpus: "2.0", memory: 1g } } }
-
-  nid-web:
-    <<: *hardened
-    image: ${NID_WEB_IMAGE:-oriondev.azurecr.io/mistribe/nid-web:latest}
-    ports: ["${NID_WEB_BIND:-127.0.0.1}:${NID_WEB_PORT:-8080}:8080"]
-    tmpfs: [/tmp]
-    networks: [app, published]
-    depends_on: [nid-api]
-    deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
 
   postgres:
     profiles: [postgres]
@@ -109,14 +102,9 @@ services:
     deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
 
 networks:
-  # nid-web <-> nid-api only. The subnet is fixed because nid-api trusts it (NID_APP_SUBNET): change both together, or
-  # when it overlaps a network you use ("Pool overlaps").
-  app:
-    internal: true
-    ipam: { config: [{ subnet: "${NID_APP_SUBNET:-172.30.10.0/24}" }] }
-  # nid-api <-> the Postgres of this file; no way out.
+  # nid <-> the Postgres of this file; no way out.
   data: { internal: true }
-  # A normal network: a port cannot be published from an internal one.
+  # Pocket ID's: a normal network, as a port cannot be published from an internal one.
   published: {}
   egress: {}
 

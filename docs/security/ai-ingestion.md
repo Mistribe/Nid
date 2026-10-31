@@ -68,7 +68,7 @@ Décrits dans `../ingestion/llm-providers.md`. Ici, les risques et les mesures :
 | **Masquage incomplet** | Aperçu avant envoi ; **confirmation explicite** pour les documents sans couche texte ; non garanti (risque résiduel accepté) |
 | **Panne ou quotas** | Chaîne avec repli sur le local ; disjoncteur |
 | **Bulletins de paie** | Type `payslip` **inéligible au cloud** en v1, même avec consentement : traitement local uniquement (`../ingestion/llm-providers.md` §5.2) |
-| **Sortie du réseau** | Seul `nid-api` sort, par le `SafeHttpClient`, vers les hôtes des profils **activés** (`application.md` §3) |
+| **Sortie du réseau** | Seul `nid` sort, par le `SafeHttpClient`, vers les hôtes des profils **activés** (`application.md` §3) |
 
 ## 6. MCP
 

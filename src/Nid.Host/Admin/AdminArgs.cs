@@ -55,7 +55,7 @@ public static class AdminArgs
         if (command is not null && Commands.TryGetValue(command, out var spec))
             return $"{spec.Usage}\n  {spec.Summary}\n";
         var lines = Commands.Select(c => $"  {c.Key,-16} {c.Value.Summary}");
-        return "Commandes de secours de Nid, à lancer dans le conteneur nid-api :\n"
+        return "Commandes de secours de Nid, à lancer dans le conteneur nid :\n"
             + "  nid admin <commande> [options]\n\n" + string.Join('\n', lines)
             + "\n\n--person accepte un identifiant, un email ou un nom affiché exact.\n";
     }

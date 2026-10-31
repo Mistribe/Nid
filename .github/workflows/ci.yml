@@ -73,7 +73,7 @@ jobs:
       - run: pnpm --dir web check
 
 
-  # Release: build the three images, push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:
+  # Release: build the two images (nid, nid-backup), push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:
   # the pull request already ran its checks, and they cost too much CI time to run again on landing.
   images:
     if: github.event_name != 'pull_request'
@@ -104,8 +104,7 @@ jobs:
         run: node web/scripts/changelog.mjs "$VERSION" > web/public/changelog.json
       - name: Build images
         run: |
-          docker build -f src/Nid.Host/Dockerfile --build-arg VERSION="$VERSION" -t nid-api:local .
-          docker build -f web/Dockerfile --build-arg VERSION="$VERSION" -t nid-web:local .
+          docker build -f src/Nid.Host/Dockerfile --build-arg VERSION="$VERSION" -t nid:local .
           docker build -t nid-backup:local deploy/backup
       # The Azure login is the organisation's AZURE_* secrets and the federated credential of the « Github Actions » app for
       # repo:Mistribe/Nid:ref:refs/heads/main; the app is Contributor on the subscription, which includes AcrPush.
@@ -121,7 +120,7 @@ jobs:
         run: |
           registry=oriondev.azurecr.io/mistribe
           az acr login --name oriondev
-          for image in nid-api nid-web nid-backup; do
+          for image in nid nid-backup; do
             for tag in "$GITHUB_SHA" latest "$VERSION"; do
               docker tag "$image:local" "$registry/$image:$tag"
               docker push "$registry/$image:$tag"

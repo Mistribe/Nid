@@ -15,7 +15,7 @@ L'ingestion (étape 4 de la feuille de route) transforme un document déposé pa
 2. **Le cloud est un opt-in explicite**, à trois niveaux : activation du fournisseur, choix à chaque dépôt de document, plafond de dépense pour le payant.
 3. **Jamais d'entraînement sur des documents financiers.** Une offre dont les conditions autorisent l'entraînement sur les données pour la région du foyer est **inéligible**, sans contournement en v1.
 4. **L'IA propose, les humains valident** : rien ne change dans les propositions ni dans la file de validation.
-5. **Les workers restent sans Internet et sans clés d'API** ; toute sortie vers un fournisseur passe par la **passerelle LLM** de `nid-api`.
+5. **Les workers restent sans Internet et sans clés d'API** ; toute sortie vers un fournisseur passe par la **passerelle LLM** de `nid`.
 6. **Les conditions des fournisseurs sont revues par un humain**, datées, et jamais présumées par le code.
 7. **Les bulletins de paie restent en local** (voir §5.2).
 
@@ -139,13 +139,13 @@ Le traitement a lieu **dans le worker**, avant tout envoi.
 
 ## 9. Passerelle LLM
 
-La passerelle vit dans le module Ingestion de `nid-api` et se place entre les workers et les fournisseurs.
+La passerelle vit dans le module Ingestion de `nid` et se place entre les workers et les fournisseurs.
 
 ```
 worker (sans Internet, sans clé)
    │  POST /internal/v1/llm/complete  (identifiant de worker + jeton de job)
    ▼
-passerelle LLM (nid-api)
+passerelle LLM (nid)
    ├─ politique : éligibilité, quotas, budget, consentement du document
    ├─ Ollama (réseau workers)
    └─ SafeHttpClient ──> Gemini / OpenAI / Anthropic (hôtes des profils activés)
@@ -155,7 +155,7 @@ passerelle LLM (nid-api)
 - **Entrée** : `job_id`, `task` (`extract` ou `ocr`), contenu (texte et/ou images), identifiant de schéma, rapport de masquage.
 - **Contrôles avant tout appel** : le job est réclamé par ce worker, la tâche est autorisée pour ce type de job, taille bornée, quotas, éligibilité, budget, consentement du document. Le **modèle est imposé par le profil**.
 - **Aucun outil** : function calling désactivé chez tous les fournisseurs. Sortie structurée quand le fournisseur la propose, et **toujours validée par schéma côté serveur**.
-- **Sortie du réseau** : seul `nid-api` sort, par le `SafeHttpClient`, vers les hôtes des profils activés.
+- **Sortie du réseau** : seul `nid` sort, par le `SafeHttpClient`, vers les hôtes des profils activés.
 - **Ollama** est joint par la passerelle sur le réseau `workers` : mêmes comptes et mêmes quotas que les autres profils.
 - **OCR** : local par défaut (Tesseract dans le worker). La vision d'un fournisseur suit exactement les mêmes règles.
 

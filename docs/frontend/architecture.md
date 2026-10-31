@@ -97,7 +97,7 @@ Les réponses d'erreur sont des Problem Details (RFC 9457) avec un `code` stable
 
 ## 9. Sécurité du navigateur
 
-**En-têtes servis par `nid-web`** (l'hébergeur peut en ajouter, par exemple HSTS) :
+**En-têtes servis par `nid`** (l'hébergeur peut en ajouter, par exemple HSTS) :
 
 | En-tête | Valeur de référence |
 |---|---|
@@ -134,6 +134,6 @@ La sérialisation canonique suit la **RFC 8785** (JSON Canonicalization Scheme).
 
 ## 12. Build et livraison
 
-- Vite produit des fichiers hachés, servis par `nid-web` en cache immuable ; `index.html` et le service worker ne sont jamais mis en cache durablement.
+- Vite produit des fichiers hachés, servis par `nid` en cache immuable ; `index.html` et le service worker ne sont jamais mis en cache durablement.
 - Découpage par route ; Recharts, pdf.js et l'assistant d'import sont chargés à la demande (budgets dans `testing.md`).
 - Configuration d'exécution minimale : le SPA utilise des chemins relatifs sur une **seule origine** (`../identity-and-access/authentication.md` §7).

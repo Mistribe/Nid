@@ -7,7 +7,7 @@ services:
     ports: ["443:443"]
     networks:
       edge:
-        # nid-api reaches Pocket ID at its public URL: inside the stack, that name must lead to this proxy.
+        # nid reaches Pocket ID at its public URL: inside the stack, that name must lead to this proxy.
         aliases: [nid.localtest.me, auth.localtest.me]
       # edge is internal: publishing 443 needs a normal network, as the hoster's proxy has its own.
       outside: {}
@@ -18,15 +18,14 @@ services:
     environment:
       STATIC_API_KEY: nid-local-smoke-api-key-0123456789abcdef
 
-  # The mail catcher: nid-api sends its notification emails here and the journeys read them from its API (8025). Never on a real
-  # deployment. `app` is internal, so `outside` carries the published port.
+  # The mail catcher: nid sends its notification emails here and the journeys read them from its API (8025). Never on a real
+  # deployment. `edge` is internal, so `outside` carries the published port.
   mailpit:
     image: axllent/mailpit:v1.31.4
     ports: ["127.0.0.1:8025:8025"]
-    networks: [app, outside]
+    networks: [edge, outside]
 
-  nid-api:
-    networks: [app, data, egress, edge]
+  nid:
     environment:
       # The proxy's certificate comes from its own local authority; only this overlay accepts it.
       Auth__TrustAnyIdentityProviderCertificate: "true"

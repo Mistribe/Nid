@@ -28,7 +28,7 @@ if [ "$NID_HOST" = "$AUTH_HOST" ]; then
 fi
 
 # deploy/secrets/ is closed (0700); its files are readable (0644) because compose bind-mounts them as they are, and the
-# containers read them as their own non-root users (postgres 70, nid-api 1654, pocket-id 65532).
+# containers read them as their own non-root users (postgres 70, nid 1654, pocket-id 65532).
 mkdir -p secrets
 chmod 700 secrets
 secret() { # name, command printing the value: written once, never replaced

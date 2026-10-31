@@ -17,11 +17,11 @@ public static class AuthenticationSetup
         services.Configure<ForwardedHeadersOptions>(o =>
         {
             o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
-            // The reverse proxy is the host's responsibility (architecture.md §10.2): trust what it forwards.
+            // The reverse proxy is the host's responsibility (architecture.md §10.2): trust what it forwards, from the
+            // configured networks, else from the private ranges the hoster's proxy sits in.
             o.KnownIPNetworks.Clear();
             o.KnownProxies.Clear();
-            // Empty lists trust any proxy; the reference compose names the network nid-web lives on (1F1 design §2.3).
-            foreach (var network in options.TrustedNetworks)
+            foreach (var network in options.TrustedNetworks.Count > 0 ? options.TrustedNetworks : (IEnumerable<string>)NidAuthOptions.DefaultTrustedNetworks)
                 o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
         });
 

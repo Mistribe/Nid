@@ -8,10 +8,10 @@
 ## 1. Vue d'ensemble
 
 ```
-Navigateur ──cookie de session──> nid-api (BFF) ──OIDC (code + PKCE)──> Pocket ID
+Navigateur ──cookie de session──> nid (BFF) ──OIDC (code + PKCE)──> Pocket ID
 ```
 
-- Le SPA ne voit jamais de jeton : `nid-api` mène le flux OIDC côté serveur et ne remet au navigateur qu'un **cookie de session**.
+- Le SPA ne voit jamais de jeton : `nid` mène le flux OIDC côté serveur et ne remet au navigateur qu'un **cookie de session**.
 - On ne consomme que l'**ID token** (identité et groupes). Aucun appel d'API en aval avec un jeton d'accès, aucun refresh token en v1.
 - **Pocket ID décide** qui entre (groupe d'accès) et qui administre (groupe admin) ; Nid applique ce que le jeton de chaque connexion dit (§5).
 
@@ -48,7 +48,7 @@ Créé par l'hébergeur dans Pocket ID (`deploy/README.md` §2) ; son secret vie
 
 Le préfixe `__Host-` impose `Secure` : le HTTPS est terminé en amont (hypothèse §7) et l'application fait confiance aux en-têtes `X-Forwarded-*` du proxy pour le savoir.
 
-## 4. Routes (`nid-api`)
+## 4. Routes (`nid`)
 
 | Route | Rôle |
 |---|---|
@@ -87,9 +87,9 @@ La page `/login-refused` explique ces refus et affiche l'email reçu, pour qu'on
 
 ## 7. Hypothèses envers l'hébergeur
 
-- **Une seule origine** : le proxy route `/api`, `/auth`, `/mcp` et `/health` vers `nid-api`, et le reste vers `nid-web`, sur le même nom d'hôte. Le cookie de session en dépend, et cela évite toute configuration CORS.
+- **Une seule origine** : le proxy envoie tout le nom d'hôte de Nid à `nid`, qui sert l'interface et l'API sur le même port. Le cookie de session en dépend, et cela évite toute configuration CORS.
 - HTTPS terminé en amont, `X-Forwarded-*` de confiance, `PUBLIC_URL` correct (redirections OIDC, cookie, liens des emails).
-- Pocket ID joignable depuis `nid-api` (découverte OIDC au démarrage, `/health/ready`) sur son adresse publique.
+- Pocket ID joignable depuis `nid` (découverte OIDC au démarrage, `/health/ready`) sur son adresse publique.
 
 ## 8. Points à vérifier à l'intégration
 

@@ -20,13 +20,12 @@
 
 | Réseau | Membres | Accès Internet |
 |---|---|---|
-| `edge` | Proxy de l'hébergeur, `nid-web`, Pocket ID (le navigateur doit l'atteindre) | Non (`internal: true`) ; le proxy garde ses propres réseaux |
-| `app` | `nid-web`, `nid-api` (sous-réseau fixe, seule source d'en-têtes `X-Forwarded-*` acceptés par `nid-api`) | Non (`internal: true`) |
-| `data` | `nid-api`, Postgres | Non (`internal: true`) |
-| `egress` | `nid-api` ; `backup` seulement avec la surcouche `compose.backup-remote.yaml` (dépôt distant, 1F2) | **Oui** : le seul chemin vers Internet |
-| `workers` | `nid-api` (API interne et passerelle LLM), workers, Ollama | **Non** |
+| `edge` | Proxy de l'hébergeur, `nid`, Pocket ID (le navigateur doit l'atteindre) ; `nid` n'y croit par défaut que les plages privées pour `X-Forwarded-*` (`Auth__TrustedNetworks`) | Non (`internal: true`) ; le proxy garde ses propres réseaux |
+| `data` | `nid`, Postgres | Non (`internal: true`) |
+| `egress` | `nid` ; `backup` seulement avec la surcouche `compose.backup-remote.yaml` (dépôt distant, 1F2) | **Oui** : le seul chemin vers Internet |
+| `workers` | `nid` (API interne et passerelle LLM), workers, Ollama | **Non** |
 
-- **`nid-api` est le seul composant applicatif qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3). Le service `backup` ne sort que si l'hébergeur ajoute la surcouche du dépôt distant, et seulement vers ce dépôt (1F2).
+- **`nid` est le seul composant applicatif qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3). Le service `backup` ne sort que si l'hébergeur ajoute la surcouche du dépôt distant, et seulement vers ce dépôt (1F2).
 - Postgres, Ollama, Pocket ID et l'API interne **ne publient aucun port**.
 - Ollama n'a **pas d'authentification native** : le réseau `workers` tient lieu d'authentification.
 
@@ -38,7 +37,7 @@
 | Clés Data Protection | Volume dédié, droits `0700`, sauvegardé |
 | Secret client OIDC, secrets de workers, mot de passe restic, clés d'API de fournisseurs LLM | Séparés ; jamais partagés entre composants |
 | Clés d'API des fournisseurs | Chiffrées en base (Data Protection), jamais renvoyées (`../ingestion/llm-providers.md` §10) |
-| Banque (étape 5) | Clé privée d'Enable Banking : secret Docker `enable_banking_private_key` de `nid-api`, absent du compose de référence et déclaré par l'hébergeur dans `deploy/compose.override.yaml` quand il active la banque (`../../deploy/README.md` §12) ; le fichier vit dans `deploy/secrets/`, donc dans la sauvegarde ; sessions bancaires chiffrées en base (Data Protection, but `Nid.Banking.Session`) |
+| Banque (étape 5) | Clé privée d'Enable Banking : secret Docker `enable_banking_private_key` de `nid`, absent du compose de référence et déclaré par l'hébergeur dans `deploy/compose.override.yaml` quand il active la banque (`../../deploy/README.md` §12) ; le fichier vit dans `deploy/secrets/`, donc dans la sauvegarde ; sessions bancaires chiffrées en base (Data Protection, but `Nid.Banking.Session`) |
 | Rotation | Procédure documentée ; commandes d'administration pour les workers et les jetons |
 | Journaux | Aucun secret, jeton masqué |
 

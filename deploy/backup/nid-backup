@@ -210,7 +210,7 @@ restore_database() {
   rm -f /tmp/database.pgdump
 }
 
-# Row counts of a fresh dump of the restored base against the manifest's: run before nid-api starts, which could write.
+# Row counts of a fresh dump of the restored base against the manifest's: run before nid starts, which could write.
 check_database() {
   pgpass /target/deploy/secrets/postgres_password
   manifest "$1" | jq '.row_counts' > /tmp/expected.json
@@ -221,7 +221,7 @@ check_database() {
   echo "$(jq length /tmp/actual.json) tables, autant de lignes que dans la sauvegarde"
 }
 
-# Once nid-api is up: every key of the backup is there. nid-api may add one (an old backup's default key expired),
+# Once nid is up: every key of the backup is there. nid may add one (an old backup's default key expired),
 # which is normal; a key of the backup missing would sign everyone out and lose what it encrypted.
 check_keys() {
   manifest "$1" > /tmp/manifest.json

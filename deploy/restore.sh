@@ -35,7 +35,7 @@ NID_HOST_UID=$(id -u); NID_HOST_GID=$(id -g)
 
 PROJECT=(); WORK=""
 if [ "$VERIFY" = 1 ]; then
-  for image in "${NID_API_IMAGE:-nid-api:local}" "${NID_WEB_IMAGE:-nid-web:local}" "${NID_BACKUP_IMAGE:-nid-backup:local}"; do
+  for image in "${NID_IMAGE:-nid:local}" "${NID_BACKUP_IMAGE:-nid-backup:local}"; do
     docker image inspect "$image" >/dev/null 2>&1 ||
       die "image $image absente : construisez d'abord la pile (docker compose -f deploy/compose.yaml build)."
   done
@@ -108,8 +108,8 @@ ok "base rechargée"
 ok "$(tool check-database "$id")"
 
 c up -d --wait --wait-timeout 300
-[ "$(c exec -T nid-web wget -qO- http://nid-api:8080/health/ready)" = Healthy ] || die "nid-api n'est pas prêt"
-ok "nid-api est prêt"
+c exec -T nid nid healthcheck || die "nid n'est pas prêt"
+ok "nid est prêt"
 # A snapshot taken with an external Pocket ID (NID_BACKUP_POCKET_ID=external) holds none of it: nothing to read back.
 parts=$(tool parts "$id") || die "impossible de lire le manifeste de l'instantané $id"
 if grep -qx pocket-id <<<"$parts"; then

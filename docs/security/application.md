@@ -12,7 +12,7 @@
 | **XSS** | Échappement par défaut de React ; **lint interdisant `dangerouslySetInnerHTML`** ; les données importées (noms, notes, libellés du catalogue) sont du texte ; CSP `script-src 'self'` sans `unsafe-eval` (`../frontend/architecture.md` §9) |
 | **Visionneuse PDF** | pdf.js **4.2.67 ou plus** (la [CVE-2024-4367](https://codeanlabs.com/2024/05/cve-2024-4367-arbitrary-js-execution-in-pdf-js/) permettait l'exécution de JavaScript par les polices), `isEvalSupported: false`, `enableScripting: false` |
 | CSRF | En-tête personnalisé obligatoire, contrôle de `Origin` et de `Sec-Fetch-Site`, aucune configuration CORS |
-| Compression (BREACH) | `nid-web` compresse `/api` sauf `/api/v1/me/tokens` (secret d'un jeton à sa création), et ni `/auth` (jeton CSRF de `/auth/session`) ni `/mcp`. Le cookie de session voyage dans les en-têtes, que la compression ne touche pas. Le reste de `/api` ne porte que les données du foyer. Pour les deviner, un tiers devrait y faire écrire un texte de son choix, alors que `SameSite=Lax` sans CORS ne lui laisse que des navigations GET, dont les paramètres sont des dates, des listes fermées, des identifiants ou des nombres. Le seul texte libre, la recherche `q` du catalogue, ne renvoie que le catalogue public (`../../deploy/README.md` §3) |
+| Compression (BREACH) | `nid` compresse `/api` sauf les routes des jetons, `/api/v1/core/me/tokens` (secret d'un jeton à sa création), et ni `/auth` (jeton CSRF de `/auth/session`) ni `/mcp`. Le cookie de session voyage dans les en-têtes, que la compression ne touche pas. Le reste de `/api` ne porte que les données du foyer. Pour les deviner, un tiers devrait y faire écrire un texte de son choix, alors que `SameSite=Lax` sans CORS ne lui laisse que des navigations GET, dont les paramètres sont des dates, des listes fermées, des identifiants ou des nombres. Le seul texte libre, la recherche `q` du catalogue, ne renvoie que le catalogue public (`../../deploy/README.md` §3) |
 | Redirection ouverte | `returnUrl` limité à un **chemin relatif** |
 | Clickjacking | `frame-ancestors 'none'` |
 | Vol de session | Cookie `__Host-`, `HttpOnly`, `SameSite=Lax` ; durée absolue de 30 jours ; « déconnecter partout » (`../identity-and-access/authentication.md`) |
@@ -35,7 +35,7 @@
 
 ## 3. Client HTTP sortant unique (SSRF)
 
-Toute requête que `nid-api` émet vers l'extérieur passe par un **`SafeHttpClient`** (D21) : taux de change, catalogue, icônes, fournisseurs LLM, SMTP. Les [bonnes pratiques MCP](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) décrivent les mêmes attaques (plages privées, métadonnées cloud, redirections, liaison DNS).
+Toute requête que `nid` émet vers l'extérieur passe par un **`SafeHttpClient`** (D21) : taux de change, catalogue, icônes, fournisseurs LLM, SMTP. Les [bonnes pratiques MCP](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) décrivent les mêmes attaques (plages privées, métadonnées cloud, redirections, liaison DNS).
 
 | Règle | Détail |
 |---|---|

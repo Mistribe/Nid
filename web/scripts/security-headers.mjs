@@ -1,12 +1,12 @@
 // frontend/architecture.md §9: the security headers have one source, src/security-headers.ts. This turns it into the
-// header directives of the nid-web image's Caddyfile, at image build (1F1 design §2.2).
+// JSON file Nid.Host loads at startup to answer the SPA with them, at image build (single-image design §3.3).
 import { pathToFileURL } from 'node:url';
 
-export function caddyHeaders(headers) {
-  return Object.entries(headers).map(([name, value]) => `header ${name} "${value.replaceAll('"', '\\"')}"\n`).join('');
+export function securityHeadersJson(headers) {
+  return `${JSON.stringify(headers, null, 2)}\n`;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const { securityHeaders } = await import('../src/security-headers.ts');
-  process.stdout.write(caddyHeaders(securityHeaders()));
+  process.stdout.write(securityHeadersJson(securityHeaders()));
 }

@@ -77,7 +77,7 @@ public static class OutboundHandler
 }
 
 /// <summary>
-/// The single outbound HTTP client of <c>nid-api</c> (<c>security/application.md</c> §3, D21): HTTPS only, explicit
+/// The single outbound HTTP client of <c>nid</c> (<c>security/application.md</c> §3, D21): HTTPS only, explicit
 /// host list, every redirect revalidated, bounded time and size, each refusal logged with host and reason only.
 /// </summary>
 public sealed partial class SafeHttpClient(HttpMessageInvoker invoker, OutboundOptions options, ILogger<SafeHttpClient> logger)

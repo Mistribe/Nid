@@ -5,7 +5,7 @@
 
 nid.localtest.me {
 	tls internal
-	reverse_proxy nid-web:8080
+	reverse_proxy nid:8080
 }
 
 auth.localtest.me {

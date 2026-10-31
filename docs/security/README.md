@@ -44,15 +44,14 @@
 ## 4. Frontières de confiance
 
 ```
-Internet ── proxy hébergeur ──┬─ nid-web (statique)
-                              └─ nid-api ──┬─ Postgres, volume documents       [interne]
-Navigateur ──cookie──────────────►│        ├─ Pocket ID (OIDC)                 [interne]
-Client MCP ──jeton personnel─────►│        ├─ API interne ── workers ── Ollama [interne, sans Internet]
-                                           └─ sortie : SubTracker-Data, SMTP,
-                                              fournisseurs LLM (par la passerelle)
+Internet ── proxy hébergeur ──> nid (SPA + API) ──┬─ Postgres, volume documents       [interne]
+Navigateur ──cookie─────────────────────►│        ├─ Pocket ID (OIDC)                 [interne]
+Client MCP ──jeton personnel────────────►│        ├─ API interne ── workers ── Ollama [interne, sans Internet]
+                                                   └─ sortie : SubTracker-Data, SMTP,
+                                                      fournisseurs LLM (par la passerelle)
 ```
 
-- `nid-api` est le **seul composant applicatif qui sort vers Internet**, par un client HTTP unique (`application.md` §3).
+- `nid` est le **seul composant applicatif qui sort vers Internet**, par un client HTTP unique (`application.md` §3).
 - Les workers n'ont **ni Internet ni clés** ; ils ne parlent qu'à l'API interne.
 
 ## 5. Principes
@@ -73,7 +72,7 @@ Client MCP ──jeton personnel─────►│        ├─ API interne 
 | D21 | **Client HTTP sortant unique** (`SafeHttpClient`) avec garde SSRF |
 | D22 | Emails **sans montants** par défaut |
 | D23 | Fournisseurs LLM multiples : gratuit, puis local, puis payant **avec accord** ; local par défaut (`../ingestion/llm-providers.md`) |
-| D24 | **Passerelle LLM** dans `nid-api` |
+| D24 | **Passerelle LLM** dans `nid` |
 
 Voir `../architecture.md` §3.
 

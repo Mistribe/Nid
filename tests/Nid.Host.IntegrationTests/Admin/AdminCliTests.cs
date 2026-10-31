@@ -354,7 +354,7 @@ public class AdminCliTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var run = await CliAsync(app, args: ["rebind-subject", "--person", app.AdultB.Value.ToString(), "--sub", "fresh-sub-b", "--yes"]);
 
         Assert.Equal(1, run.Exit);
-        Assert.Contains("démarrez d'abord nid-api", run.Error);
+        Assert.Contains("démarrez d'abord nid,", run.Error);
         Assert.Equal(before, await PersonAsync(app, app.AdultB));
     }
 }

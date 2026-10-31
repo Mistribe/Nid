@@ -1,5 +1,5 @@
 # Nid reference compose (architecture.md §10.1, 1F1 design §3). Run deploy/setup.sh first.
-# The hoster's proxy reaches two targets on the `edge` network: nid-web:8080 (NID_HOST) and pocket-id:1411 (AUTH_HOST).
+# The hoster's proxy reaches two targets on the `edge` network: nid:8080 (NID_HOST) and pocket-id:1411 (AUTH_HOST).
 name: nid
 
 x-hardened: &hardened
@@ -51,7 +51,7 @@ services:
     environment:
       APP_URL: https://${AUTH_HOST:?run deploy/setup.sh first}
       ENCRYPTION_KEY_FILE: /run/secrets/pocket_id_encryption_key
-      # The hoster's proxy is the only thing on `edge` besides nid-web: trust what it forwards.
+      # The hoster's proxy is the only thing on `edge` besides nid: trust what it forwards.
       TRUST_PROXY: "true"
       ANALYTICS_DISABLED: "true"
       VERSION_CHECK_DISABLED: "true"
@@ -68,16 +68,19 @@ services:
     depends_on: { pocket-id-volume: { condition: service_completed_successfully } }
     deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
 
-  nid-api:
+  # The application: the API and the web app in one image, on one port. The hoster's proxy reaches it on `edge`, at nid:8080.
+  # The alias nid-web keeps a proxy configured for the old image working through an upgrade; drop it once the proxy
+  # points at nid (README, « Mise à jour »).
+  nid:
     <<: *hardened
     build: { context: .., dockerfile: src/Nid.Host/Dockerfile }
-    image: ${NID_API_IMAGE:-nid-api:local}
+    image: ${NID_IMAGE:-nid:local}
     environment:
       Auth__PublicUrl: https://${NID_HOST:?run deploy/setup.sh first}
       Auth__Authority: https://${AUTH_HOST:?run deploy/setup.sh first}
       Auth__ClientId: ${NID_OIDC_CLIENT_ID:-nid}
-      # Forwarded headers are trusted from nid-web's network only (1F1 design §2.3).
-      Auth__TrustedNetworks__0: 172.30.10.0/24
+      # Forwarded headers are trusted from the private ranges, where the hoster's proxy is. To trust only its address:
+      # Auth__TrustedNetworks__0 (README).
       # The backup's status.json, for the health notification: same age rule as the backup's own healthcheck.
       Nid__Backup__StatusPath: /run/backup-state/status.json
       Nid__Backup__MaxAgeHours: ${NID_BACKUP_MAX_AGE:-26}
@@ -92,18 +95,12 @@ services:
       - backup-state:/run/backup-state:ro
     tmpfs: [/tmp]
     # The only service with a way out (egress): catalog, rates, icons, Enable Banking, and the identity provider's public URL.
-    networks: [app, data, egress]
+    networks:
+      edge: { aliases: [nid-web] }
+      data: {}
+      egress: {}
     depends_on: { postgres: { condition: service_healthy } }
     deploy: { resources: { limits: { cpus: "2.0", memory: 1g } } }
-
-  nid-web:
-    <<: *hardened
-    build: { context: .., dockerfile: web/Dockerfile }
-    image: ${NID_WEB_IMAGE:-nid-web:local}
-    tmpfs: [/tmp]
-    networks: [edge, app]
-    depends_on: { nid-api: { condition: service_started } }
-    deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
 
   # Nightly restic backup (1F2 design §3). Root with three capabilities: it reads files of four owners (keys, assets and documents
   # 1654, Pocket ID 65532, deploy/secrets/ the host user), all mounted read-only; it writes the local repository, a folder
@@ -137,7 +134,7 @@ services:
       - pocket-id:/pocket-id:ro
       - ./secrets:/source/deploy/secrets:ro
       - ./.env:/source/deploy/.env:ro
-      # status.json for nid-api (read-only there). The volume is root's, 0755, and the backup is root: files it writes are 0644.
+      # status.json for nid (read-only there). The volume is root's, 0755, and the backup is root: files it writes are 0644.
       - backup-state:/state
       # Never under /source: what opens the backup stays out of it. Neither folder is created by compose: it would
       # make them root's, and a missing backups folder would silently become a new, empty repository.
@@ -180,13 +177,10 @@ services:
     tmpfs: ["/tmp:size=${NID_BACKUP_TMP_SIZE:-1g}"]
     networks: [data]
 
-# Only nid-api goes out to the Internet (security/infrastructure.md §2): every other network is internal. The hoster's
+# Only nid goes out to the Internet (security/infrastructure.md §2): every other network is internal. The hoster's
 # proxy joins `edge` and keeps its own networks for the outside.
 networks:
   edge: { internal: true }
-  app:
-    internal: true
-    ipam: { config: [{ subnet: 172.30.10.0/24 }] }
   data: { internal: true }
   egress: {}
 

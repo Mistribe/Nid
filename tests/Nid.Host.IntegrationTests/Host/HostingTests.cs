@@ -77,13 +77,47 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     }
 
     [Fact]
-    public async Task With_no_trusted_network_any_proxy_is_trusted_as_before()
+    public async Task With_no_trusted_network_the_private_and_loopback_ranges_are_trusted()
     {
         await using var app = await NidApp.StartAsync(fixture);
 
         var options = app.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
 
-        Assert.Empty(options.KnownIPNetworks);
+        Assert.Equal(
+            ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fd00::/8", "::1/128"],
+            options.KnownIPNetworks.Select(n => n.ToString()));
         Assert.Empty(options.KnownProxies);
+    }
+
+    [Fact]
+    public async Task Trusting_any_network_is_an_explicit_choice()
+    {
+        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string>
+        {
+            ["Auth:TrustedNetworks:0"] = "0.0.0.0/0",
+            ["Auth:TrustedNetworks:1"] = "::/0",
+        });
+
+        var options = app.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
+
+        Assert.Equal(["0.0.0.0/0", "::/0"], options.KnownIPNetworks.Select(n => n.ToString()));
+    }
+
+    [Theory]
+    [InlineData("10.1.2.3", "https")]
+    [InlineData("203.0.113.9", "http")]
+    public async Task A_forwarded_scheme_is_honoured_from_a_private_address_only(string remoteAddress, string expectedScheme)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var context = await app.Server.SendAsync(ctx =>
+        {
+            ctx.Request.Method = "GET";
+            ctx.Request.Path = "/health/live";
+            ctx.Request.Headers["X-Forwarded-Proto"] = "https";
+            ctx.Connection.RemoteIpAddress = IPAddress.Parse(remoteAddress);
+        });
+
+        Assert.Equal(expectedScheme, context.Request.Scheme);
     }
 }

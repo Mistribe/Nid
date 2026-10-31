@@ -15,7 +15,7 @@ Ce que 5A ajoute à la surface de Nid :
 
 | Élément | Détail |
 |---|---|
-| Hôte sortant | `api.enablebanking.com`, par `SafeHttpClient` (liste autorisée par défaut), depuis `nid-api` seul (D13) |
+| Hôte sortant | `api.enablebanking.com`, par `SafeHttpClient` (liste autorisée par défaut), depuis `nid` seul (D13) |
 | Secret | Clé privée RSA de l'application Enable Banking : secret Docker `enable_banking_private_key` (cible `EnableBanking__PrivateKey`), hors du compose de référence : l'hébergeur qui active la banque le déclare dans `deploy/compose.override.yaml` (`deploy/README.md` §12) ; sans lui, Nid démarre et dit la banque « non configurée » |
 | Données stockées | Schéma `banking` : connexions (`session_id` chiffré par Data Protection, but `Nid.Banking.Session` ; seul le SHA-256 du `state`), comptes (IBAN masqué et haché, libellé, type, devise, enveloppe), soldes quotidiens, journal des synchronisations |
 | Écritures dans les chiffres | Valorisations d'enveloppe : proposition `investments.record_valuation` par défaut, écriture directe `source = bank_api`, `created_via = job` si le compte l'a demandé (D5) |

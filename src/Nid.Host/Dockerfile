@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# nid-api (1F1 design §2.1). Build context: the repository root (docker build -f src/Nid.Host/Dockerfile .).
+# nid: the backend and the web app in one image (single-image design §2). Build context: the repository root (docker build -f src/Nid.Host/Dockerfile .).
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:0d99ebf1ccad15037b5c98c9fe8979d6b8dbac23812feae2277a0b277b5c5ffa AS build
 ARG TARGETARCH
 # The semver of the release (CI passes it); 0.0.0 for a local build.
@@ -23,11 +23,27 @@ RUN ln -s Nid.Host /app/nid
 RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets /volumes/var/lib/nid/documents \
  && chown -R 1654:1654 /volumes/var/lib/nid && chmod 0700 /volumes/var/lib/nid/keys && chmod 0750 /volumes/var/lib/nid/documents
 
+# The web app: its build and the security headers file the host answers the SPA with (frontend/architecture.md §9: one source).
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS web
+WORKDIR /web
+RUN corepack enable
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.npmrc ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm pnpm install --frozen-lockfile
+COPY web/ ./
+# The release version, shown in the sidebar (set by the images job of ci.yml).
+ARG VERSION=0.0.0
+ENV VITE_NID_VERSION=$VERSION
+# Node 24 strips the types of src/security-headers.ts.
+RUN pnpm build && node scripts/security-headers.mjs > /security-headers.json
+
 # -extra: ICU and time zone data. Globalization is not invariant (Directory.Build.props), so .NET needs ICU;
 # glibc, libstdc++ and libgcc_s, all SkiaSharp needs, are in every chiseled variant.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:3ed6558056b54d5c9dfefb7ff473728e022ff2bf1d976cbf8ee07b05ec594374
 WORKDIR /app
 COPY --from=build /app ./
+# The SPA the host serves (Web:Root) and its headers (Web:SecurityHeaders), both under the content root.
+COPY --from=web /web/dist ./wwwroot
+COPY --from=web /security-headers.json ./security-headers.json
 COPY --from=build /volumes/ /
 ENV PATH="/app:${PATH}" \
     ASPNETCORE_HTTP_PORTS=8080 \
@@ -35,4 +51,6 @@ ENV PATH="/app:${PATH}" \
     DataProtection__KeysPath=/var/lib/nid/keys
 USER 1654
 EXPOSE 8080
+# The chiseled image has no shell or wget: the host asks itself (nid healthcheck, Program.cs).
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s CMD ["dotnet", "Nid.Host.dll", "healthcheck"]
 ENTRYPOINT ["dotnet", "Nid.Host.dll"]

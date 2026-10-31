@@ -1,11 +1,11 @@
 # Déployer Nid
 
 Ce dossier contient le **compose de référence** de Nid : la seule forme livrée (`../docs/architecture.md` §10). Il lance
-cinq services : `postgres`, `pocket-id` (le fournisseur d'identité), `nid-api` (l'API), `nid-web` (l'interface, qui
-relaie aussi l'API sur la même origine) et `backup` (la sauvegarde chiffrée, §6).
+quatre services : `postgres`, `pocket-id` (le fournisseur d'identité), `nid` (l'application : l'API et l'interface, servies
+sur la même origine et le même port) et `backup` (la sauvegarde chiffrée, §6).
 
-**Plus simple : [`standalone/`](standalone/compose.yaml).** Un seul fichier et un `.env`, sans script. `nid-api` et `nid-web`
-tournent toujours ; Postgres et Pocket ID sont des profils (`--profile postgres`, `--profile pocket-id`) qu'on laisse de côté
+**Plus simple : [`standalone/`](standalone/compose.yaml).** Un seul fichier et un `.env`, sans script. `nid`
+tourne toujours ; Postgres et Pocket ID sont des profils (`--profile postgres`, `--profile pocket-id`) qu'on laisse de côté
 quand on les a déjà ailleurs. Pas de sauvegarde ni de `restore.sh` : le reste de ce document décrit la forme de référence.
 
 ## 1. Prérequis
@@ -15,18 +15,18 @@ quand on les a déjà ailleurs. Pas de sauvegarde ni de `restore.sh` : le reste 
 - **Des passkeys** : Pocket ID n'authentifie que par passkey (empreinte, clé de sécurité, gestionnaire de mots de passe). Chaque
   adulte doit pouvoir en créer une, sur un appareil qui voit `https://auth.<domaine>`.
 - **Un reverse proxy TLS** fourni par l'hébergeur (Caddy, Traefik, nginx…). Nid ne termine pas le TLS lui-même.
-- Un accès sortant HTTPS pour `nid-api` (catalogue de fournisseurs et taux de change, et Enable Banking si la synchronisation bancaire est activée, §12). Sans lui, Nid fonctionne, mais
-  les fournisseurs et les taux se saisissent à la main. `nid-api` est **le seul service qui sort** : tous les autres
+- Un accès sortant HTTPS pour `nid` (catalogue de fournisseurs et taux de change, et Enable Banking si la synchronisation bancaire est activée, §12). Sans lui, Nid fonctionne, mais
+  les fournisseurs et les taux se saisissent à la main. `nid` est **le seul service qui sort** : tous les autres
   réseaux du compose sont internes.
-- **`nid-api` doit joindre `https://auth.<domaine>` depuis l'intérieur.** Pour la connexion, il appelle Pocket ID à
+- **`nid` doit joindre `https://auth.<domaine>` depuis l'intérieur.** Pour la connexion, il appelle Pocket ID à
   son adresse publique (découverte, jeton, profil). Si votre routeur ne sait pas renvoyer vers lui-même le trafic
   destiné à votre adresse publique (« NAT loopback »), ou si votre DNS diffère à l'intérieur, la connexion échoue.
-  Dans ce cas, faites résoudre ce nom vers votre proxy depuis `nid-api`, par exemple avec un fichier
+  Dans ce cas, faites résoudre ce nom vers votre proxy depuis `nid`, par exemple avec un fichier
   `deploy/compose.override.yaml` :
 
   ```yaml
   services:
-    nid-api:
+    nid:
       extra_hosts: ["auth.example.org:192.168.1.10"]   # l'adresse de votre proxy sur le réseau local
   ```
 
@@ -64,7 +64,7 @@ docker compose -f deploy/compose.yaml up -d --build
 
 Vous pouvez le relancer : **il ne remplace jamais un secret existant**, sauf le secret du client quand vous le donnez avec
 `--oidc-client-secret`. Les noms de groupe `nid-users` et `nid-admins` sont des valeurs par défaut : pour d'autres noms,
-définissez `Auth__AccessGroup` et `Auth__AdminGroup` pour `nid-api` dans un `deploy/compose.override.yaml`.
+définissez `Auth__AccessGroup` et `Auth__AdminGroup` pour `nid` dans un `deploy/compose.override.yaml`.
 
 Une liste `Outbound:AllowedHosts` configurée remplace celle par défaut : elle doit contenir `www.boursorama.com` et
 `query2.finance.yahoo.com` pour la collecte des cours, `bdm.insee.fr` pour celle de l'IRL, `discord.com` et `discordapp.com` pour les webhooks Discord des notifications et `api.enablebanking.com` pour la synchronisation bancaire.
@@ -76,18 +76,31 @@ vient du nom du projet compose ; ce réseau est interne, votre proxy garde ses p
 
 | Nom public | Cible |
 |---|---|
-| `nid.<domaine>` | `nid-web:8080` (HTTP) |
+| `nid.<domaine>` | `nid:8080` (HTTP) |
 | `auth.<domaine>` | `pocket-id:1411` (HTTP) |
 
 Le proxy doit **fixer lui-même** `X-Forwarded-Proto`, `X-Forwarded-Host` et `X-Forwarded-For`, en écrasant ce que le
-client envoie. Caddy et Traefik le font par défaut ; nginx non (voir l'exemple ci-dessous). Le routage de `/api`,
-`/auth`, `/mcp` et `/health` vers l'API est fait par `nid-web` : le proxy n'a rien à router par préfixe.
+client envoie. Caddy et Traefik le font par défaut ; nginx non (voir l'exemple ci-dessous). `nid` sert l'interface et
+l'API sur la même origine : le proxy n'a rien à router par préfixe.
+
+**Quel proxy `nid` croit-il ?** `nid` n'accepte `X-Forwarded-*` que des réseaux de confiance. Par défaut, ce sont les
+plages privées et locales (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `fd00::/8`, `::1`) : là où
+se trouve votre proxy, sur `nid_edge` ou sur l'hôte. Pour ne croire que lui, donnez son adresse ou son réseau dans un
+`deploy/compose.override.yaml` : `Auth__TrustedNetworks__0` (puis `__1`, …) remplace la liste par défaut, et
+`0.0.0.0/0` avec `::/0` fait croire n'importe quelle source.
+
+```yaml
+services:
+  nid:
+    environment:
+      Auth__TrustedNetworks__0: 172.20.0.5/32   # l'adresse de votre proxy
+```
 
 Exemple avec Caddy, dans un conteneur rattaché au réseau `nid_edge` :
 
 ```
 nid.example.org {
-	reverse_proxy nid-web:8080
+	reverse_proxy nid:8080
 }
 auth.example.org {
 	reverse_proxy pocket-id:1411
@@ -102,7 +115,7 @@ http:
     nid: { rule: "Host(`nid.example.org`)", service: nid, tls: {} }
     auth: { rule: "Host(`auth.example.org`)", service: auth, tls: {} }
   services:
-    nid: { loadBalancer: { servers: [{ url: "http://nid-web:8080" }] } }
+    nid: { loadBalancer: { servers: [{ url: "http://nid:8080" }] } }
     auth: { loadBalancer: { servers: [{ url: "http://pocket-id:1411" }] } }
 ```
 
@@ -121,9 +134,8 @@ l'adresse locale avec un fichier `deploy/compose.override.yaml`, qui leur donne 
 
 ```yaml
 services:
-  nid-web:
-    ports: ["127.0.0.1:8080:8080"]
-    networks: [edge, app, published]
+  nid:
+    ports: ["127.0.0.1:8080:8080"]   # nid est déjà sur `egress`, un réseau ordinaire : rien d'autre à lui donner
   pocket-id:
     ports: ["127.0.0.1:1411:1411"]
     networks: [edge, published]
@@ -143,16 +155,13 @@ location / {
 }
 ```
 
-**Compression** : `nid-web` compresse déjà (zstd ou gzip) les fichiers de l'application et les réponses de `/api`.
+**Compression** : `nid` compresse déjà (Brotli ou gzip) les fichiers de l'application et les réponses de `/api`.
 Votre proxy n'a rien à ajouter, et les exemples ci-dessus ne compressent rien : Caddy ne compresse qu'avec `encode`,
 Traefik qu'avec le middleware `compress`, et nginx, même avec `gzip on`, ne compresse que le HTML sans `gzip_types`.
-Si votre proxy compresse quand même, n'activez pas la compression pour `/auth` et `/api/v1/me/tokens` : leurs réponses
-portent un secret (le jeton CSRF, un jeton d'accès à sa création), et une réponse compressée qui mêle un secret à des
-données qu'un tiers influence l'expose à l'attaque BREACH. Pour vérifier ce qui arrive au navigateur :
+Si votre proxy compresse quand même, n'activez pas la compression pour `/auth` et `/api/v1/core/me/tokens` : leurs
+réponses portent un secret (le jeton CSRF, un jeton d'accès à sa création), et une réponse compressée qui mêle un secret
+à des données qu'un tiers influence l'expose à l'attaque BREACH. Pour vérifier ce qui arrive au navigateur :
 `curl -sI -H "Accept-Encoding: gzip" https://nid.<domaine>/auth/session` ne doit pas montrer `Content-Encoding`.
-
-Le sous-réseau interne `172.30.10.0/24` est fixé par le compose : s'il chevauche un réseau que vous utilisez déjà,
-`docker compose up` refuse de démarrer avec « Pool overlaps ».
 
 **Essai sur un poste**, sans proxy : `deploy/compose.local.yaml` ajoute un Caddy à certificats locaux sur
 `nid.localtest.me` et `auth.localtest.me`. `deploy/smoke.sh` fait l'essai complet (préparation, démarrage, utilisateurs et client de Pocket ID par son API,
@@ -189,8 +198,33 @@ secrets, puis l'étape 3. Sans `deploy/backup-secrets/`, `up` s'arrête avec un 
 2. `git pull`.
 3. `docker compose -f deploy/compose.yaml up -d --build` (avec `-f deploy/compose.override.yaml` si vous en avez un).
 
-Les migrations de la base s'appliquent au démarrage de `nid-api`. Les images de base sont épinglées par empreinte ; une
+Les migrations de la base s'appliquent au démarrage de `nid`. Les images de base sont épinglées par empreinte ; une
 mise à jour de Nid les fait évoluer.
+
+### Depuis `nid-api` et `nid-web` (une seule image `nid`)
+
+L'API et l'interface sont désormais une seule image, `nid`, sur un seul service et un seul port. Les images `nid-api` et
+`nid-web` ne sont plus publiées. Les volumes, les secrets et la base ne changent pas : les données et les sauvegardes
+se retrouvent telles quelles.
+
+1. **Sauvegardez** (étape 1 ci-dessus).
+2. Prenez le nouveau `compose.yaml` (`git pull`, ou le fichier `standalone/`).
+3. Dans `deploy/.env` (ou le `.env` du standalone), retirez `NID_API_IMAGE`, `NID_WEB_IMAGE` et `NID_APP_SUBNET`.
+   `NID_IMAGE` les remplace pour une autre image ou une étiquette de version ; `NID_WEB_BIND` et `NID_WEB_PORT` gardent
+   leur nom. Le réseau interne `app` et son sous-réseau fixe n'existent plus, et `Auth__TrustedNetworks__0` non plus :
+   `nid` croit par défaut les plages privées (§3).
+4. **Si vous avez un `deploy/compose.override.yaml`** (§1, §2, §3, §11, §12), adaptez-le avant d'aller plus loin : les services
+   `nid-api` et `nid-web` s'y appellent maintenant `nid` (`ports`, `extra_hosts`, `environment`, `depends_on` vont sur ce seul
+   service), et le réseau `app` n'existe plus (retirez-le des listes `networks`). Un override qui nomme encore `nid-api`
+   ou `nid-web` fait échouer `up` (service sans image) ; passez-le toujours avec `-f deploy/compose.override.yaml` (§11).
+5. `docker compose -f deploy/compose.yaml pull && docker compose -f deploy/compose.yaml up -d --remove-orphans`
+   (ajoutez `-f deploy/compose.override.yaml` si vous en avez un ; `--build` au lieu de `pull` pour la référence construite depuis
+   le dépôt). Avec le `standalone/` : `docker compose pull && docker compose up -d --remove-orphans` dans son dossier, avec les
+   mêmes profils qu'avant. `--remove-orphans` retire les anciens conteneurs `nid-api` et `nid-web`.
+6. **Pointez votre proxy sur `nid:8080`** (§3). Le compose de référence garde l'alias `nid-web` sur `nid_edge` : un proxy
+   qui vise encore `nid-web:8080` continue de marcher, le temps de le changer. L'alias disparaîtra dans une version
+   suivante.
+7. Les commandes de secours se lancent désormais dans `nid` : `docker compose -f deploy/compose.yaml exec nid nid admin …` (§8).
 
 ## 6. Sauvegarder et restaurer
 
@@ -236,7 +270,7 @@ Une sauvegarde lancée pendant celle de la nuit attend qu'elle se termine.
 docker compose -f deploy/compose.yaml exec backup nid-backup status
 ```
 
-`backup` écrit aussi son état (`status.json`) dans le volume `backup-state`, que `nid-api` lit en lecture seule
+`backup` écrit aussi son état (`status.json`) dans le volume `backup-state`, que `nid` lit en lecture seule
 (`Nid__Backup__StatusPath=/run/backup-state/status.json`, `Nid__Backup__MaxAgeHours`, repris de `NID_BACKUP_MAX_AGE`, 26 par
 défaut). Quand la règle ci-dessus est violée, ou que le fichier est illisible, les admins reçoivent la notification
 `backup_failed` (centre, email et Discord selon leurs réglages ; Discord du foyer s'il est configuré). Sans fichier,
@@ -282,10 +316,10 @@ démarrer le temps que le verrou expire. Le compose le relance tout seul (`resta
 attend jusqu'à cinq minutes.
 
 Le script restaure le dernier instantané (ou `--snapshot <id>`) dans un projet jetable, `nid-restore-test`, sans port
-publié ni accès sortant. Il vérifie que chaque table a autant de lignes que dans la sauvegarde, que `nid-api` est prêt,
+publié ni accès sortant. Il vérifie que chaque table a autant de lignes que dans la sauvegarde, que `nid` est prêt,
 que Pocket ID lit sa base et que les clés Data Protection ont été reprises. Puis il supprime tout. Il ne touche pas votre
 installation. `--compose-file <chemin absolu>` ajoute un fichier compose à la restauration, par exemple un
-`extra_hosts` pour joindre le dépôt distant (comme §1 pour `nid-api`).
+`extra_hosts` pour joindre le dépôt distant (comme §1 pour `nid`).
 
 ### Après un sinistre
 
@@ -305,7 +339,7 @@ d'abord `git pull`.
 
 ### Les documents
 
-Les fichiers téléversés dans Nid sont rangés selon `Documents__Storage__Kind`, à régler dans `environment` de `nid-api`
+Les fichiers téléversés dans Nid sont rangés selon `Documents__Storage__Kind`, à régler dans `environment` de `nid`
 (un `compose.override.yaml` suffit) :
 
 - `filesystem` (par défaut) : dans `Documents__Storage__Path` (`/var/lib/nid/documents`, le volume `documents`). Ce volume
@@ -323,10 +357,10 @@ maximale d'un fichier que l'outil MCP `read_document` envoie ; au-delà, il n'en
 | Fichier | Rôle | Changer |
 |---|---|---|
 | `postgres_password`, `nid_connection_string` | Accès à la base | Pas par le script. Changez le mot de passe dans Postgres, puis les deux fichiers. |
-| `oidc_client_secret` | Secret du client de Nid dans Pocket ID | Dans Pocket ID, ajoutez un secret au client (l'ancien reste valable), passez-le à `setup.sh --oidc-client-secret`, redémarrez `nid-api`, puis supprimez l'ancien secret dans Pocket ID. |
-| `csrf_key` | Jetons anti-CSRF | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `nid-api`. Les pages ouvertes devront être rechargées. |
+| `oidc_client_secret` | Secret du client de Nid dans Pocket ID | Dans Pocket ID, ajoutez un secret au client (l'ancien reste valable), passez-le à `setup.sh --oidc-client-secret`, redémarrez `nid`, puis supprimez l'ancien secret dans Pocket ID. |
+| `csrf_key` | Jetons anti-CSRF | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `nid`. Les pages ouvertes devront être rechargées. |
 | `pocket_id_encryption_key` | Chiffre les clés de signature de Pocket ID dans sa base | **Ne la changez pas à la main : sa base deviendrait illisible.** Pour la renouveler, utilisez la commande `encryption-key-rotate` de Pocket ID (sa documentation), puis remplacez le fichier. |
-| `enable_banking_private_key` | Clé privée (PEM) de l'application Enable Banking ; n'existe que si vous avez activé la synchronisation bancaire (§12), `setup.sh` ne la crée pas | Remplacez la clé de l'application dans le portail d'Enable Banking, copiez la nouvelle clé privée dans le fichier, puis recréez `nid-api` (§12, étape 3). |
+| `enable_banking_private_key` | Clé privée (PEM) de l'application Enable Banking ; n'existe que si vous avez activé la synchronisation bancaire (§12), `setup.sh` ne la crée pas | Remplacez la clé de l'application dans le portail d'Enable Banking, copiez la nouvelle clé privée dans le fichier, puis recréez `nid` (§12, étape 3). |
 | `backup-secrets/restic_password` | Ouvre la sauvegarde ; hors de la sauvegarde | Jamais en supprimant le fichier : `restic key add` puis `restic key remove` (§6). |
 | `backup-secrets/remote_repository`, `remote_password`, `remote_credentials` | Dépôt distant | Changez le fichier, puis `backup-now`. |
 
@@ -342,9 +376,9 @@ règles que l'interface, et chacune est enregistrée : les admins la voient dans
 avec l'origine « Ligne de commande ».
 
 ```bash
-docker compose -f deploy/compose.yaml exec nid-api nid admin list-persons
-docker compose -f deploy/compose.yaml exec nid-api nid admin revoke-sessions --person alice@example.org
-docker compose -f deploy/compose.yaml exec nid-api nid admin rebind-subject --person alice@example.org --sub <nouveau sub>
+docker compose -f deploy/compose.yaml exec nid nid admin list-persons
+docker compose -f deploy/compose.yaml exec nid nid admin revoke-sessions --person alice@example.org
+docker compose -f deploy/compose.yaml exec nid nid admin rebind-subject --person alice@example.org --sub <nouveau sub>
 ```
 
 - `--person` accepte un identifiant (voir `list-persons`), un email (la casse ne compte pas) ou un nom affiché exact.
@@ -360,8 +394,8 @@ docker compose -f deploy/compose.yaml exec nid-api nid admin rebind-subject --pe
     "select at, data->>'subject' as sub, data->>'reason' as reason from platform.audit_log where action = 'login_refused' order by seq desc limit 5"
   ```
 - **Si l'API ne démarre pas**, lancez la commande dans un conteneur à part, sans `nid` (le point d'entrée de l'image
-  est déjà l'hôte) : `docker compose -f deploy/compose.yaml run --rm nid-api admin list-persons`.
-- La CLI n'applique jamais les migrations : si la base n'est pas à jour, elle le dit ; démarrez d'abord `nid-api`.
+  est déjà l'hôte) : `docker compose -f deploy/compose.yaml run --rm nid admin list-persons`.
+- La CLI n'applique jamais les migrations : si la base n'est pas à jour, elle le dit ; démarrez d'abord `nid`.
 - `nid admin --help` liste les commandes.
 
 ## 9. Frontière de confiance
@@ -408,9 +442,9 @@ passe est celui de `deploy/secrets/postgres_password`, puis faites pointer `depl
 ```yaml
 services:
   postgres: { profiles: [bundled] }
-  nid-api:
+  nid:
     depends_on: { postgres: { required: false } }
-    networks: [app, data, egress, db]
+    networks: { db: {} }
   backup:
     depends_on: { postgres: { required: false } }
     networks: [data, db]
@@ -423,7 +457,7 @@ networks:
 Dans `.env` : `NID_DB_HOST=<nom du serveur sur ce réseau>`. La sauvegarde lit alors cette base.
 
 **`restore.sh` ne sait pas restaurer dans un Postgres extérieur** : il démarre le service `postgres` du compose. À la main,
-`nid-api` arrêté : recréez la base (`DROP DATABASE nid; CREATE DATABASE nid OWNER nid;`), puis
+`nid` arrêté : recréez la base (`DROP DATABASE nid; CREATE DATABASE nid OWNER nid;`), puis
 `docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml run --rm --no-deps -T backup-restore restore-files <id>`
 et `… restore-database <id>` (l'identifiant vient de `… run --rm --no-deps -T backup-restore snapshot-id latest`), puis `up -d`.
 Une sauvegarde faite sur un serveur de version N ne se recharge pas sur un serveur plus ancien que N.
@@ -447,19 +481,19 @@ Pour l'activer :
    - reliez les comptes de chaque adulte que Nid doit lire, comme le portail le demande ;
    - notez l'**identifiant de l'application**.
 2. Copiez la clé privée dans `deploy/secrets/enable_banking_private_key` (droits `0644` comme les autres fichiers du
-   dossier, qui reste en `0700` ; elle entre ainsi dans la sauvegarde), puis déclarez-la à `nid-api` dans
+   dossier, qui reste en `0700` ; elle entre ainsi dans la sauvegarde), puis déclarez-la à `nid` dans
    `deploy/compose.override.yaml` :
 
    ```yaml
    services:
-     nid-api:
+     nid:
        secrets: [{ source: enable_banking_private_key, target: EnableBanking__PrivateKey }]
    secrets:
      enable_banking_private_key: { file: ./secrets/enable_banking_private_key }
    ```
 
-3. Recréez `nid-api` pour qu'il lise la clé (elle n'est lue qu'au démarrage) :
-   `docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d --force-recreate nid-api`. Dès lors, passez
+3. Recréez `nid` pour qu'il lise la clé (elle n'est lue qu'au démarrage) :
+   `docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d --force-recreate nid`. Dès lors, passez
    toujours les deux fichiers (§11), y compris à la restauration : `deploy/restore.sh --compose-file
    "$PWD/deploy/compose.override.yaml"` (chemin absolu). Une sauvegarde prise avant la clé ne la contient pas : restaurez-la
    sans ce fichier, puis refaites l'étape 2.
@@ -468,7 +502,7 @@ Pour l'activer :
 5. Chaque adulte relie **ses** banques dans Réglages › Banques (« Relier une banque » ; l'authentification se fait chez la
    banque, dans le navigateur), puis associe chaque compte à une enveloppe courante, d'épargne ou autre de même devise.
 
-Nid n'a pas besoin d'être joignable depuis Internet : le retour de la banque passe par le navigateur. Seul `nid-api` sort,
+Nid n'a pas besoin d'être joignable depuis Internet : le retour de la banque passe par le navigateur. Seul `nid` sort,
 vers `api.enablebanking.com`. Le consentement dure ce que la banque permet (souvent 180 jours) : Nid prévient 14 puis 3 jours
 avant la fin, puis à l'expiration ; « Renouveler » le prolonge en gardant les comptes. Administration › Banque montre le
 journal des synchronisations (compteurs et codes d'erreur, sans nom de compte ni montant).
@@ -481,7 +515,7 @@ Avec [`standalone/`](standalone/compose.yaml), même chose dans son `compose.ove
 
 ```yaml
 services:
-  nid-api:
+  nid:
     secrets: [{ source: enable_banking_private_key, target: EnableBanking__PrivateKey }]
 secrets:
   enable_banking_private_key: { file: ./enable_banking_private_key.pem }

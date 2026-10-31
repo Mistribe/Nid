@@ -107,7 +107,7 @@ public static class JobsSetup
 {
     /// <summary>
     /// Quartz in the process (D8) on a persistent PostgreSQL store in the platform schema. The tables come from the
-    /// Platform migration; Quartz only validates them. No clustering: one nid-api instance runs (architecture §10),
+    /// Platform migration; Quartz only validates them. No clustering: one nid instance runs (architecture §10),
     /// and a second instance would be the moment to turn it on, with its own test.
     /// </summary>
     public static IServiceCollection AddNidJobs(this IServiceCollection services, string connectionString, FxOptions options, PriceOptions prices, IrlOptions irl, Nid.Banking.Contracts.BankingOptions banking,

@@ -11,6 +11,7 @@ using Nid.Host.Auth;
 using Nid.Host.Jobs;
 using Nid.Host.Mcp;
 using Nid.Host.Notifications;
+using Nid.Host.Web;
 using Nid.Documents.Application;
 using Nid.Documents.Infrastructure.Persistence;
 using Nid.Documents.Infrastructure.Storage;
@@ -40,9 +41,17 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(DocumentMaskBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
+// The container's HEALTHCHECK: asks the running host for readiness and exits, before any host is built.
+if (args is ["healthcheck"])
+    return await HealthcheckCommand.RunAsync(
+        HealthcheckCommand.DefaultUrl(Environment.GetEnvironmentVariable("ASPNETCORE_HTTP_PORTS")), TimeSpan.FromSeconds(3));
+
 // 1F4: `nid admin …` runs one use case and stops (AdminCli).
 var adminMode = args is ["admin", ..];
 var builder = WebApplication.CreateBuilder(args);
+// The built SPA, in the image only: with no index.html to serve (development, tests) nothing is mounted.
+var webApp = WebAppOptions.Load(builder.Configuration, builder.Environment.ContentRootPath);
+if (webApp is not null) builder.Services.AddNidWebApp(webApp);
 // The CLI's output is for the person at the terminal, not EF's SQL.
 if (adminMode) builder.Logging.SetMinimumLevel(LogLevel.Warning);
 // The upload's fileName, title and note travel in the query string: no request-start line (path + query) at Information.
@@ -154,6 +163,8 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
 app.MapDefaultEndpoints();
 app.MapNidHealth();
 app.UseForwardedHeaders();
+// Before authentication: the SPA and its files need no session; routing has run, so endpoints keep their own answers.
+if (webApp is not null) app.UseNidWebApp(webApp);
 app.UseMiddleware<TokenFailureGateMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<TokenRateLimitMiddleware>();

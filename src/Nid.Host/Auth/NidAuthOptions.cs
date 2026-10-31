@@ -23,9 +23,13 @@ public sealed class NidAuthOptions
     public int SessionSlidingDays { get; set; } = 7;
     public int SessionAbsoluteDays { get; set; } = 30;
 
+    /// <summary>The private and loopback ranges: where the hoster's proxy is (Caddy's <c>private_ranges</c>).</summary>
+    public static readonly string[] DefaultTrustedNetworks =
+        ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fd00::/8", "::1/128"];
+
     /// <summary>
-    /// Networks whose forwarded headers are trusted (CIDR), e.g. the compose's `app` network where `nid-web` lives.
-    /// Empty trusts any: development, and a host only its proxy can reach.
+    /// Networks whose forwarded headers are trusted (CIDR). Empty means <see cref="DefaultTrustedNetworks"/>; a list
+    /// replaces them, e.g. the address of the hoster's proxy alone. <c>0.0.0.0/0</c> and <c>::/0</c> trust any.
     /// </summary>
     public List<string> TrustedNetworks { get; set; } = [];
 
