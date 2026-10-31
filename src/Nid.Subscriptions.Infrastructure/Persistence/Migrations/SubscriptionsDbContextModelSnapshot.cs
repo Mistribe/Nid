@@ -331,6 +331,40 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.InsuranceGuaranteeRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<string>("Ceiling")
+                        .HasColumnType("text")
+                        .HasColumnName("ceiling");
+
+                    b.Property<string>("Deductible")
+                        .HasColumnType("text")
+                        .HasColumnName("deductible");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("label");
+
+                    b.HasKey("ItemId", "Position")
+                        .HasName("pk_insurance_guarantee");
+
+                    b.ToTable("insurance_guarantee", "subscriptions", t =>
+                        {
+                            t.HasCheckConstraint("ck_insurance_guarantee_position", "\"position\" >= 0");
+
+                            t.HasCheckConstraint("ck_insurance_guarantee_text", "char_length(label) between 1 and 200 and char_length(ceiling) <= 200 and char_length(deductible) <= 200");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.LabelRow", b =>
                 {
                     b.Property<string>("Key")
@@ -556,6 +590,65 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionInsuranceRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
+                    b.Property<string>("InsuredLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("insured_label");
+
+                    b.Property<string>("InsurerContact")
+                        .HasColumnType("text")
+                        .HasColumnName("insurer_contact");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("PolicyNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("policy_number");
+
+                    b.Property<Guid?>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.HasKey("ItemId")
+                        .HasName("pk_subscription_insurance");
+
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscription_insurance_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
+                    b.ToTable("subscription_insurance", "subscriptions", t =>
+                        {
+                            t.HasCheckConstraint("ck_subscription_insurance_import", "(import_ref is null) = (import_hash is null)");
+
+                            t.HasCheckConstraint("ck_subscription_insurance_imported_by", "imported_by is null or import_ref is not null");
+
+                            t.HasCheckConstraint("ck_subscription_insurance_kind", "kind in ('home','car','health','provident','other')");
+
+                            t.HasCheckConstraint("ck_subscription_insurance_text", "char_length(insured_label) <= 200 and char_length(policy_number) <= 200 and char_length(insurer_contact) <= 200");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionRow", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -673,6 +766,26 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_coverage_grant_purchase_purchase_id");
                 });
 
+            modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.InsuranceGuaranteeRow", b =>
+                {
+                    b.HasOne("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionInsuranceRow", null)
+                        .WithMany("Guarantees")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_insurance_guarantee_subscription_insurance_item_id");
+                });
+
+            modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionInsuranceRow", b =>
+                {
+                    b.HasOne("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionRow", null)
+                        .WithOne()
+                        .HasForeignKey("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionInsuranceRow", "ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_insurance_subscription_item_id");
+                });
+
             modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionRow", b =>
                 {
                     b.HasOne("Nid.Subscriptions.Infrastructure.Persistence.ProviderRow", null)
@@ -695,6 +808,11 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.PurchaseRow", b =>
                 {
                     b.Navigation("Grants");
+                });
+
+            modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionInsuranceRow", b =>
+                {
+                    b.Navigation("Guarantees");
                 });
 
             modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionRow", b =>

@@ -23,7 +23,9 @@ public sealed class SubscriptionTools
     [McpServerTool(Name = "get_subscription", ReadOnly = true)]
     [Description("One subscription: its phases, purchases, costs and next charge. It also returns contractTerms (anniversaryOn, "
         + "notice {count, unit: day, week, month or year}, commitmentEndsOn, cancellableFrom: ISO dates, what the household typed) and "
-        + "cancellation (the computed last day to cancel, or from when it is free). " + McpSetup.Untrusted)]
+        + "cancellation (the computed last day to cancel, or from when it is free). It also returns insurance (kind, insured label, "
+        + "policy number, guarantees, the linked property): its property is null when there is no link or when the person cannot "
+        + "read the linked property, so a null property can hide a link. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSubscription(IServiceProvider services, [Description("The subscription's id.")] Guid id,
         [Description(Window)] string? from = null, [Description(Window)] string? to = null, [Description(Window)] string? horizon = null,
         CancellationToken ct = default)

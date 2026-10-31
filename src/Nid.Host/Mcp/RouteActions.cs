@@ -226,6 +226,12 @@ public static class RouteActions
             + "minimum commitment; cancellableFrom is the date from which it can be cancelled at any time. Each has a clear flag "
             + "(clearAnniversaryOn, clearNotice, clearCommitmentEndsOn, clearCancellableFrom) to remove it, never sent with its value; "
             + "terms not mentioned are kept. get_subscription returns them as contractTerms, with the computed cancellation. " + Ids),
+        new("set_insurance", "PUT", "/api/v1/subscriptions/{id:guid}/insurance", typeof(InsuranceBody),
+            "Record what an insurance subscription covers: kind, insured property, guarantees; it replaces the whole record. "
+            + "Read the current record with get_subscription first and resend everything you keep: what is not sent is removed. "
+            + "keepProperty=true (without propertyId, else refused) leaves the stored property link as it is, for a writer who cannot read it; "
+            + "unless you are setting the link or deliberately removing it, always send keepProperty: true, because omitting it removes any "
+            + "link, seen or not. " + Ids),
         new("add_subscription_phase", "POST", "/api/v1/subscriptions/{id:guid}/phases", typeof(PhaseBody),
             "Add a billing period to a subscription. " + Ids + Amounts),
         new("end_subscription_phase", "PATCH", "/api/v1/subscriptions/{id:guid}/phases/{phaseId:guid}", typeof(ClosePhaseBody),

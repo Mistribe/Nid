@@ -9,6 +9,7 @@ namespace Nid.Subscriptions.Application.Import;
 [JsonSerializable(typeof(BillingPhaseRecord))]
 [JsonSerializable(typeof(PurchaseRecord))]
 [JsonSerializable(typeof(ProviderRecord))]
+[JsonSerializable(typeof(InsuranceRecord))]
 internal sealed partial class SubscriptionsFileJson : JsonSerializerContext
 {
     public static SubscriptionsFileJson Records { get; } = new(NidDataJson.NewOptions());

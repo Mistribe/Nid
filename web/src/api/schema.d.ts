@@ -1874,6 +1874,176 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/subscriptions/{id}/insurance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InsuranceBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subscriptions/{id}/phases": {
         parameters: {
             query?: never;
@@ -23127,6 +23297,16 @@ export interface components {
             annualCostConverted?: null | components["schemas"]["MoneyView"];
             convertedIsEstimate: boolean;
         };
+        GuaranteeBody: {
+            label?: null | string;
+            ceiling?: null | string;
+            deductible?: null | string;
+        };
+        GuaranteeView: {
+            label: string;
+            ceiling?: null | string;
+            deductible?: null | string;
+        };
         HoldingBody: {
             name?: null | string;
             isin?: null | string;
@@ -23647,6 +23827,30 @@ export interface components {
             /** Format: date */
             endedOn?: null | string;
             owners: components["schemas"]["ItemOwnerView"][];
+        };
+        InsuranceBody: {
+            kind?: null | string;
+            /** Format: uuid */
+            propertyId?: null | string;
+            insuredLabel?: null | string;
+            policyNumber?: null | string;
+            insurerContact?: null | string;
+            guarantees?: null | components["schemas"]["GuaranteeBody"][];
+            /** @default false */
+            keepProperty: boolean;
+        };
+        InsuranceView: {
+            kind: string;
+            property?: null | components["schemas"]["InsuredPropertyView"];
+            insuredLabel?: null | string;
+            policyNumber?: null | string;
+            insurerContact?: null | string;
+            guarantees: components["schemas"]["GuaranteeView"][];
+        };
+        InsuredPropertyView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         InvestmentsHoldings: {
             currency: string;
@@ -25902,6 +26106,7 @@ export interface components {
             canWrite: boolean;
             contractTerms?: null | components["schemas"]["ContractTermsView"];
             cancellation: components["schemas"]["CancellationView"];
+            insurance?: null | components["schemas"]["InsuranceView"];
         };
         SubscriptionList: {
             items: components["schemas"]["SubscriptionSummary"][];

@@ -96,7 +96,8 @@ public sealed class SubscriptionsImportSection(
         // Before subscriptions: their provider_key may name an entry of this section (design §5 "Import").
         var providerCounts = await providerImport.ValidateAllAsync(context, staged, issues, ct);
 
-        var subscriptionRecords = ImportSectionKit.ReadAll(staged, Subscriptions, SubscriptionsFileJson.Records.SubscriptionRecord, r => r.Id, issues, RecordParsing.TryElements);
+        var subscriptionRecords = ImportSectionKit.ReadAll(staged, Subscriptions, SubscriptionsFileJson.Records.SubscriptionRecord, r => r.Id, issues, RecordParsing.TryElements,
+            unread: id => context.FailedItems.Add((Subscriptions, id))); // the sections after skip what names it
         var phaseRecords = ImportSectionKit.ReadAll(staged, Phases, SubscriptionsFileJson.Records.BillingPhaseRecord, r => r.Id, issues, RecordParsing.TryElements);
         var purchaseRecords = ImportSectionKit.ReadAll(staged, Purchases, SubscriptionsFileJson.Records.PurchaseRecord, r => r.Id, issues, RecordParsing.TryElements);
 
@@ -116,6 +117,12 @@ public sealed class SubscriptionsImportSection(
         };
         var runs = new Dictionary<string, DryRun>(StringComparer.Ordinal);    // file id → what the engine will walk
         var failed = new HashSet<string>(StringComparer.Ordinal);            // subscriptions already reported
+        // Also told to the sections after this one (subscription_insurances), so they do not report it again.
+        void Fail(string fileId)
+        {
+            failed.Add(fileId);
+            context.FailedItems.Add((Subscriptions, fileId));
+        }
         var existing = new HashSet<string>(StringComparer.Ordinal);          // subscriptions imported before
         var paths = new Dictionary<string, string>(StringComparer.Ordinal);  // engine reference → file path
         var person = Persons(context);
@@ -125,14 +132,14 @@ public sealed class SubscriptionsImportSection(
             var path = NidDataJson.Path(Subscriptions, entity.Index);
             if (!RecordParsing.TrySubscription(record, path, r => context.Persons.GetValueOrDefault(r), issues, out var parsed))
             {
-                failed.Add(record.Id);
+                Fail(record.Id);
                 continue;
             }
 
             if (rules.ValidateOwners(parsed.Visibility, parsed.Owners).TryGetFailure(out var ownership))
             {
                 issues.Add(ImportIssue.Error(ownership!.Code, ownership.Message, path + ".ownership"));
-                failed.Add(record.Id);
+                Fail(record.Id);
                 continue;
             }
 
@@ -141,7 +148,7 @@ public sealed class SubscriptionsImportSection(
             if (resolved.OwnHidden)
             {
                 issues.Add(ImportedUnseen(path, record.Id));
-                failed.Add(record.Id);
+                Fail(record.Id);
                 continue;
             }
 
@@ -156,7 +163,7 @@ public sealed class SubscriptionsImportSection(
                     {
                         issues.Add(Conflict(path, record.Id));
                         tally[Subscriptions] += new SectionCounts(0, 0, 1);
-                        failed.Add(record.Id);
+                        Fail(record.Id);
                         continue;
                     }
 
@@ -168,13 +175,13 @@ public sealed class SubscriptionsImportSection(
                     if (refusal is not null)
                     {
                         issues.Add(refusal);
-                        failed.Add(record.Id);
+                        Fail(record.Id);
                         continue;
                     }
 
                     if (ProviderKeyUnresolved(record.ProviderKey, linkable, issues, path))
                     {
-                        failed.Add(record.Id);
+                        Fail(record.Id);
                         continue;
                     }
 
@@ -195,13 +202,13 @@ public sealed class SubscriptionsImportSection(
                 {
                     issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
                         "An item is imported by one of its owners, unless every owner is a dependent.", path));
-                    failed.Add(record.Id);
+                    Fail(record.Id);
                     continue;
                 }
 
                 if (ProviderKeyUnresolved(record.ProviderKey, linkable, issues, path))
                 {
-                    failed.Add(record.Id);
+                    Fail(record.Id);
                     continue;
                 }
 

@@ -130,3 +130,27 @@ public sealed class CatalogSyncRunRow
     public string? FailureMessage { get; set; }
     public string? Report { get; set; }
 }
+
+/// <summary>Keyed by the subscription it describes; gone with it. <c>PropertyId</c> has no foreign key: it is another module's.</summary>
+public sealed class SubscriptionInsuranceRow
+{
+    public Guid ItemId { get; set; }
+    public string Kind { get; set; } = "other";
+    public Guid? PropertyId { get; set; }
+    public string? InsuredLabel { get; set; }
+    public string? PolicyNumber { get; set; }
+    public string? InsurerContact { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
+    public List<InsuranceGuaranteeRow> Guarantees { get; set; } = [];
+}
+
+public sealed class InsuranceGuaranteeRow
+{
+    public Guid ItemId { get; set; }
+    public int Position { get; set; }
+    public string Label { get; set; } = "";
+    public string? Ceiling { get; set; }
+    public string? Deductible { get; set; }
+}

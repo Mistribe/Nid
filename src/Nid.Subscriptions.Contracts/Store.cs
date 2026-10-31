@@ -23,6 +23,7 @@ public enum ImportedTable
     Subscription,
     BillingPhase,
     Purchase,
+    Insurance,
 }
 
 /// <summary>
@@ -40,6 +41,9 @@ public sealed record StoredSubscription(
 public sealed record StoredPhase(ItemId SubscriptionId, BillingPhase Phase, string? Note, ImportRef? Import);
 
 public sealed record StoredPurchase(Purchase Purchase, string? Note, ImportRef? Import);
+
+/// <summary>The insurance details of a subscription as stored, with where they were imported from.</summary>
+public sealed record StoredInsurance(ItemId SubscriptionId, InsuranceDetails Details, ImportRef? Import);
 
 public sealed record StoredRows(IReadOnlyList<StoredSubscription> Subscriptions, IReadOnlyList<StoredPhase> Phases, IReadOnlyList<StoredPurchase> Purchases);
 
@@ -135,4 +139,18 @@ public interface ISubscriptionStore
     /// disclosed to a caller who merely knows its id.
     /// </summary>
     Task<Result> DeletePurchaseAsync(ItemId id, PurchaseId purchase, CancellationToken ct);
+
+    /// <summary>The insurance details of a subscription, or null when it has none.</summary>
+    Task<InsuranceDetails?> FindInsuranceAsync(ItemId id, CancellationToken ct);
+
+    /// <summary>The insurance details of each of <paramref name="ids"/> that has some, for the export.</summary>
+    Task<IReadOnlyDictionary<ItemId, StoredInsurance>> ReadInsurancesAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
+    /// <summary>
+    /// Sets the insurance details, guarantees replaced whole (positions from the list order). Not found when the
+    /// subscription does not exist. <paramref name="import"/>, when given, is the row's import provenance.
+    /// </summary>
+    Task<Result> SetInsuranceAsync(ItemId id, InsuranceDetails details, ImportRef? import, CancellationToken ct);
+
+    Task<Result> DeleteInsuranceAsync(ItemId id, CancellationToken ct);
 }

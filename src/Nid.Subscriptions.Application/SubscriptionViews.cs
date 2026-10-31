@@ -66,7 +66,7 @@ public static class SubscriptionViews
 
     public static SubscriptionDetail Detail(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
-        SubscriptionEditing editing, LocalDate today)
+        SubscriptionEditing editing, LocalDate today, InsuranceView? insurance = null)
         => new(
             input.Subscription.Id,
             displayName,
@@ -91,7 +91,8 @@ public static class SubscriptionViews
             timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList(),
             editing.Visibility, editing.Owners, editing.Users, editing.Note, editing.Phases, editing.Purchases, editing.CanWrite,
             ContractTermsView.From(input.Subscription.Terms),
-            CancellationView.From(ContractCancellation.Outlook(input, timeline, today)));
+            CancellationView.From(ContractCancellation.Outlook(input, timeline, today)),
+            insurance);
 }
 
 /// <summary>

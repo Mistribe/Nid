@@ -60,9 +60,11 @@ export function RoutePayload({ p }: { p: ProposalView }) {
   const { body, ...route } = payloadOf(p);
   // The target is the « Élément » line already; a line's id (`flowId`), a version and an id that is no target (a document's) stay.
   const rows = [...lines(Object.fromEntries(Object.entries(route).filter(([k]) => k !== 'id' || !p.targetItemId)), '', []), ...lines(body ?? {}, '', [])];
+  const replacesInsurance = actionOf(p.kind) === 'set_insurance';
   return (
     <section aria-label={t('proposal.route.fields')} className="max-w-2xl">
       <h2 className="mb-2 text-base font-medium">{t('proposal.route.fields')}</h2>
+      {replacesInsurance ? <p role="note" className="mb-2 text-sm text-muted-foreground">{t('proposal.route.replaces_insurance')}</p> : null}
       {rows.length === 0 ? <p>{t('proposal.route.no_fields')}</p> : (
         <Table>
           <TableBody>{rows.map(([label, v]) => <Row key={label} label={label}>{v}</Row>)}</TableBody>

@@ -55,6 +55,22 @@ public static class SubscriptionEndpoints
             => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
+        api.MapPut("/{id:guid}/insurance", async (Guid id, InsuranceBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                if (body.KeepProperty && body.PropertyId is not null)
+                    throw new BadHttpRequestException("propertyId and keepProperty contradict each other: send one or the other.");
+                var reader = new FieldReader();
+                var details = body.Read(reader);
+                return details is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new SetInsuranceCommand(new ItemId(id), details, body.KeepProperty), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/{id:guid}/insurance", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new DeleteInsuranceCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
         api.MapPost("/{id:guid}/phases", async (Guid id, PhaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToOpenCommand(new ItemId(id)), ct))
                 .ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created))
@@ -228,6 +244,36 @@ public static class SubscriptionEndpoints
             if (contradiction)
                 throw new BadHttpRequestException($"{field} and clear{char.ToUpperInvariant(field[0])}{field[1..]} contradict each other: send one or the other.");
         }
+    }
+
+    public sealed record GuaranteeBody(string? Label, string? Ceiling, string? Deductible);
+
+    /// <summary>An insurance as the PUT reads it: it replaces the whole, every refusal located.</summary>
+    public sealed record InsuranceBody(
+        string? Kind, Guid? PropertyId, string? InsuredLabel, string? PolicyNumber, string? InsurerContact, IReadOnlyList<GuaranteeBody>? Guarantees,
+        bool KeepProperty = false)
+    {
+        private static readonly Dictionary<string, InsuranceKind> Kinds = new(StringComparer.Ordinal)
+        {
+            ["home"] = InsuranceKind.Home, ["car"] = InsuranceKind.Car, ["health"] = InsuranceKind.Health,
+            ["provident"] = InsuranceKind.Provident, ["other"] = InsuranceKind.Other,
+        };
+
+        internal InsuranceDetails? Read(FieldReader reader)
+        {
+            InsuranceKind? kind = Kind is not null && Kinds.TryGetValue(Kind, out var k) ? k : null;
+            if (kind is null)
+                reader.Add("kind", "request.kind", "An insurance kind is home, car, health, provident or other.");
+            if (Guarantees?.Any(g => g is null) == true)
+                reader.Add("guarantees", "request.invalid", "A guarantee is an object with a label.");
+            return reader.Ok
+                ? new InsuranceDetails(
+                    kind!.Value, PropertyId is { } p ? new ItemId(p) : null, Blank(InsuredLabel), Blank(PolicyNumber), Blank(InsurerContact),
+                    (Guarantees ?? []).Select(g => new InsuranceGuarantee(g.Label ?? "", Blank(g.Ceiling), Blank(g.Deductible))).ToList())
+                : null;
+        }
+
+        private static string? Blank(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
     public sealed record ClosePhaseBody(string EndsOn);

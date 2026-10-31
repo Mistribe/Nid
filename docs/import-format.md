@@ -52,6 +52,7 @@ Un **seul format** sert à trois usages :
 | `holdings`, `holding_snapshots`, `holding_movements` | tableaux | Module Investments, le détail par support (`investments-data-model.md` §9 et §16) |
 | `properties`, `property_recurring_costs`, `tenancies` | tableaux | Module RealEstate, le bien (`realestate/README.md` §10) |
 | `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) ; `loan_bank_schedule` livrée en 3F2 (§12bis) |
+| `subscription_insurances` | tableau | Module Abonnements : l'assurance d'un abonnement (§5.3bis), appliquée après `properties`, que l'assurance peut nommer |
 | `income_sources`, `income_phases` | tableaux | Module Revenus (`income-data-model.md` §9) |
 | `income_one_off_taxable` | tableau | Module Revenus : le net imposable d'un revenu ponctuel, `{ flow_id, taxable_amount }`, où `flow_id` est l'`id` d'une entité de `flows` (catégorie `one_off`) ; appliqué après `flows` |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
@@ -118,6 +119,28 @@ Un fournisseur ainsi créé garde `import_ref`/`import_hash` comme toute autre e
 | `note` | string? | |
 
 Les quatre membres de conditions sont facultatifs : un ancien fichier, qui n'en nomme aucun, reste valide et garde son empreinte. L'export ne les écrit que s'ils sont renseignés. Avec `replace`, un abonnement déjà importé prend les conditions du fichier, et les perd si le fichier n'en nomme aucune. Une date mal formée est refusée à son propre chemin (`subscriptions[i].anniversary_on`…).
+
+### 5.3bis `subscription_insurances`
+
+`subscriptions` passe avant `properties` : un champ de l'abonnement ne pourrait pas nommer un bien du même fichier. L'assurance a donc sa propre section, appliquée après l'immobilier (ordre 45, entre `loan_bank_schedule` et `valuations`).
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id` | string | Préfixe dérivé à l'export : `ins-` |
+| `subscription` | string | Un abonnement du même fichier, sinon `import.unresolved_reference` à `subscription_insurances[i].subscription`. Une deuxième assurance pour le même abonnement est refusée : `import.duplicate_id` au même chemin |
+| `kind` | string | `home`, `car`, `health`, `provident` ou `other`, sinon `import.invalid_value` à `.kind` |
+| `property` | string? | Un bien du même fichier, sinon `import.unresolved_reference` à `.property` |
+| `insured_label`, `policy_number`, `insurer_contact` | string? | Texte libre, 200 caractères au plus (`subscriptions.insurance_text_length`) |
+| `guarantees` | `[{ label, ceiling?, deductible? }]` | Dans l'ordre de saisie, 50 au plus (`subscriptions.too_many_guarantees`) ; `label` est obligatoire (`subscriptions.guarantee_label`). `ceiling` et `deductible` sont du texte libre : Nid ne les lit pas et ne les additionne pas |
+
+- **Idempotence** (§8) : une assurance déjà importée avec le même contenu est `unchanged` ; avec un autre contenu, c'est un `conflict` sans `replace`, et un remplacement avec `replace` (une écriture sur l'abonnement). Une modification faite à l'écran garde la provenance de la ligne, dont l'empreinte reste celle du dernier fichier importé : réimporter le même fichier reste `unchanged` et la modification reste, comme pour un abonnement.
+- **Remplacement** : une ligne remplacée reste attribuée à son premier importeur (`imported_by`), celui qui a déjà la référence ; une ligne qui n'avait aucune provenance (saisie à l'écran) est attribuée à la personne qui importe. Elle prend la référence et l'empreinte du fichier.
+- Une référence déjà portée par l'assurance d'un autre abonnement du même importeur est refusée : `import.invalid_value` à `subscription_insurances[i].subscription` ; l'assurance ne change pas d'abonnement, donnez-lui un `id` à elle.
+- Un abonnement que l'importeur lit sans pouvoir le modifier refuse l'ajout ou le remplacement : `import.not_permitted` à `subscription_insurances[i]`.
+- Un abonnement n'a qu'une assurance : si l'écran en a saisi une, ou si une autre référence d'import l'a posée, le fichier est un `conflict`, et avec `replace` il la remplace. Un remplacement par un fichier sans `property` retire aussi un lien vers un bien que l'importeur ne peut pas lire : le fichier remplace toute l'assurance, lien compris, vu ou non.
+- Un abonnement ou un bien que le fichier a refusé est déjà signalé : l'assurance qui le nomme est ignorée, sans second rapport.
+- **Export** : l'assurance de chaque abonnement exporté, triée par `id`. Une assurance liée à un bien que le lecteur ne peut pas lire est exportée **sans** `property` (la valeur est `null`) : le bien n'est pas dans le fichier et rien ne le révèle ; réimporter ce fichier perd le lien. C'est la règle des prêts (voir « Export » de l'Immobilier, plus bas).
+- Un fichier sans cette section reste valide.
 
 ### 5.4 `billing_phases`
 
@@ -360,7 +383,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

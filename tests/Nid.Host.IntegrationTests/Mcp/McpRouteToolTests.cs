@@ -35,6 +35,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/banking/statements",
         // A line linked to a charge: propose_bank_link proposes it, with the line and the charge in its preview.
         "POST /api/v1/banking/transactions/{id:guid}/link",
+        // An insurance is set by propose_set_insurance (spec 2026-10-30 §10); removing it is a click in the web app.
+        "DELETE /api/v1/subscriptions/{id:guid}/insurance",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)
@@ -425,5 +427,56 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var terms = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{id.Value}")).RootElement.GetProperty("contractTerms");
         Assert.Equal("2026-03-01", terms.GetProperty("anniversaryOn").GetString());
         Assert.Equal((2, "month"), (terms.GetProperty("notice").GetProperty("count").GetInt32(), terms.GetProperty("notice").GetProperty("unit").GetString()));
+    }
+
+    /// <summary>Issue #208: the insurance is proposed through set_insurance, approved, then read back by the web's route.</summary>
+    [Fact]
+    public async Task Insurance_is_proposed_through_set_insurance_and_set_when_approved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewMonthlyAsync(app.AdultA, 10m);
+        var property = await app.NewPropertyAsync("Maison", Visibility.Shared, (app.AdultA, 10_000));
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+
+        var proposed = await AnswerAsync(propose, "propose_set_insurance", new
+        {
+            id = id.Value,
+            body = new
+            {
+                kind = "home", propertyId = property.Value, policyNumber = "HX-123",
+                guarantees = new[] { new { label = "Fire", ceiling = "100 000 EUR", deductible = "150 EUR" } },
+            },
+        });
+        Assert.Equal(id.Value, proposed.GetProperty("proposal").GetProperty("targetItemId").GetGuid());
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+
+        var insurance = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{id.Value}")).RootElement.GetProperty("insurance");
+        Assert.Equal("home", insurance.GetProperty("kind").GetString());
+        Assert.Equal(property.Value, insurance.GetProperty("property").GetProperty("id").GetGuid());
+        Assert.Equal("Fire", insurance.GetProperty("guarantees")[0].GetProperty("label").GetString());
+    }
+
+    /// <summary>A co-owner who cannot read the property proposes with keepProperty: once approved, the stored link is still there.</summary>
+    [Fact]
+    public async Task A_set_insurance_proposal_with_keep_property_keeps_a_stored_link_once_approved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewOwnedSubscriptionAsync("Home insurance", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
+        var property = await app.NewPropertyAsync("Private house", Visibility.Private, (app.AdultA, 10_000));
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/subscriptions/{id.Value}/insurance",
+            new { kind = "home", propertyId = property.Value, guarantees = new[] { new { label = "Fire" } } })).EnsureSuccessStatusCode();
+        await using var propose = await ClientAsync(app, TokenPresets.Propose, app.AdultB);
+
+        var proposed = await AnswerAsync(propose, "propose_set_insurance", new
+        {
+            id = id.Value,
+            body = new { kind = "home", keepProperty = true, policyNumber = "HX-999", guarantees = new[] { new { label = "Fire" }, new { label = "Flood" } } },
+        });
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultB, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+
+        var insurance = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{id.Value}")).RootElement.GetProperty("insurance");
+        Assert.Equal(property.Value, insurance.GetProperty("property").GetProperty("id").GetGuid());
+        Assert.Equal("HX-999", insurance.GetProperty("policyNumber").GetString());
+        Assert.Equal(2, insurance.GetProperty("guarantees").GetArrayLength());
     }
 }

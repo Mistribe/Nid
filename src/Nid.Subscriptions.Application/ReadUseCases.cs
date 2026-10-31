@@ -182,9 +182,19 @@ public sealed class GetSubscriptionHandler(
                     g.SubscriptionId.Value, DurationView.From(g.Duration), g.Source.ToString().ToLowerInvariant(), g.StartsOn)).ToList(),
                 p.Note)).ToList(),
             !(await policy.CheckAsync(reader, query.ItemId, AccessKind.Write, ct)).TryGetFailure(out _));
+        // Spec §8: a property the reader does not see (or that no longer exists) has no name and no link.
+        var insurance = await store.FindInsuranceAsync(query.ItemId, ct) is { } details
+            ? InsuranceView.From(details, await InsuredPropertyAsync(details.PropertyId, visibleItems, ct))
+            : null;
         return Result.Success(SubscriptionViews.Detail(
-            input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing, today));
+            input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing, today,
+            insurance));
     }
+
+    private async Task<InsuredPropertyView?> InsuredPropertyAsync(ItemId? property, IReadOnlySet<ItemId> visibleItems, CancellationToken ct)
+        => property is { } id && visibleItems.Contains(id) && await items.FindAsync(id, ct) is { } found
+            ? new InsuredPropertyView(id.Value, found.DisplayName)
+            : null;
 }
 
 /// <summary>One rate query per read, whatever the number of subscriptions (1C2a design §5.2).</summary>

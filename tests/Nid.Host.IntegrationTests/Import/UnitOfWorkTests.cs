@@ -259,5 +259,9 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         public Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct) => inner.GrantedItemsAsync(purchase, ct);
         public Task<Result> DeletePurchaseAsync(ItemId id, PurchaseId purchase, CancellationToken ct) => inner.DeletePurchaseAsync(id, purchase, ct);
         public Task<IReadOnlyDictionary<ItemId, string>> ProviderKeysAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct) => inner.ProviderKeysAsync(ids, ct);
+        public Task<InsuranceDetails?> FindInsuranceAsync(ItemId id, CancellationToken ct) => inner.FindInsuranceAsync(id, ct);
+        public Task<IReadOnlyDictionary<ItemId, StoredInsurance>> ReadInsurancesAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct) => inner.ReadInsurancesAsync(ids, ct);
+        public Task<Result> SetInsuranceAsync(ItemId id, InsuranceDetails details, ImportRef? import, CancellationToken ct) => inner.SetInsuranceAsync(id, details, import, ct);
+        public Task<Result> DeleteInsuranceAsync(ItemId id, CancellationToken ct) => inner.DeleteInsuranceAsync(id, ct);
     }
 }

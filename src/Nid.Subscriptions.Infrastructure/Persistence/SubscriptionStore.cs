@@ -327,6 +327,11 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
                     .Select(r => new { Ref = r.ImportRef!, r.Id, Hash = r.ImportHash!, r.ImportedBy, r.ItemId })
                     .ToListAsync(ct))
                 .Select(r => (r.Ref, Row: Row(r.Id, r.Hash, r.ImportedBy, [r.ItemId]))),
+            ImportedTable.Insurance => (await db.Insurances.AsNoTracking()
+                    .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
+                    .Select(r => new { Ref = r.ImportRef!, Id = r.ItemId, Hash = r.ImportHash!, r.ImportedBy })
+                    .ToListAsync(ct))
+                .Select(r => (r.Ref, Row: Row(r.Id, r.Hash, r.ImportedBy, [r.Id]))),
             _ => (await db.Purchases.AsNoTracking()
                     .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
                     .Select(r => new
@@ -366,6 +371,90 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             return Result.Failure(new NotFoundFailure("purchase", purchase.ToString()));
 
         db.Purchases.Remove(row); // grants cascade
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<InsuranceDetails?> FindInsuranceAsync(ItemId id, CancellationToken ct)
+        => (await ReadInsurancesAsync([id], ct)).GetValueOrDefault(id)?.Details;
+
+    public async Task<IReadOnlyDictionary<ItemId, StoredInsurance>> ReadInsurancesAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+            return new Dictionary<ItemId, StoredInsurance>();
+
+        var keys = ids.Select(i => i.Value).ToHashSet();
+        var rows = await db.Insurances.AsNoTracking().Include(i => i.Guarantees).Where(i => keys.Contains(i.ItemId)).ToListAsync(ct);
+        return rows.ToDictionary(
+            r => new ItemId(r.ItemId),
+            r => new StoredInsurance(
+                new ItemId(r.ItemId),
+                new InsuranceDetails(
+                    ParseInsuranceKind(r.Kind), r.PropertyId is { } property ? new ItemId(property) : null,
+                    r.InsuredLabel, r.PolicyNumber, r.InsurerContact,
+                    r.Guarantees.OrderBy(g => g.Position).Select(g => new InsuranceGuarantee(g.Label, g.Ceiling, g.Deductible)).ToList()),
+                r.ImportRef is null ? null : new ImportRef(r.ImportRef, r.ImportHash!, r.ImportedBy is { } by ? new PersonId(by) : null)));
+    }
+
+    public async Task<Result> SetInsuranceAsync(ItemId id, InsuranceDetails details, ImportRef? import, CancellationToken ct)
+    {
+        if (!await db.Subscriptions.AnyAsync(s => s.ItemId == id.Value, ct))
+            return NotFound(id);
+
+        var row = await db.Insurances.Include(i => i.Guarantees).FirstOrDefaultAsync(i => i.ItemId == id.Value, ct);
+        if (row is null)
+        {
+            row = new SubscriptionInsuranceRow { ItemId = id.Value };
+            db.Insurances.Add(row);
+        }
+
+        row.Kind = InsuranceKindName(details.Kind);
+        row.PropertyId = details.PropertyId?.Value;
+        row.InsuredLabel = details.InsuredLabel;
+        row.PolicyNumber = details.PolicyNumber;
+        row.InsurerContact = details.InsurerContact;
+        if (import is not null)
+        {
+            row.ImportRef = import.Ref;
+            row.ImportHash = import.Hash;
+            row.ImportedBy = import.ImportedBy?.Value;
+        }
+
+        // Guarantees are replaced whole, by position: a position kept is updated in place, the surplus is deleted.
+        // One save: no key is deleted and inserted again.
+        for (var position = 0; position < details.Guarantees.Count; position++)
+        {
+            var guarantee = details.Guarantees[position];
+            var stored = row.Guarantees.FirstOrDefault(g => g.Position == position);
+            if (stored is null)
+            {
+                row.Guarantees.Add(new InsuranceGuaranteeRow
+                {
+                    ItemId = id.Value, Position = position, Label = guarantee.Label,
+                    Ceiling = guarantee.Ceiling, Deductible = guarantee.Deductible,
+                });
+                continue;
+            }
+
+            stored.Label = guarantee.Label;
+            stored.Ceiling = guarantee.Ceiling;
+            stored.Deductible = guarantee.Deductible;
+        }
+
+        foreach (var surplus in row.Guarantees.Where(g => g.Position >= details.Guarantees.Count).ToList())
+            row.Guarantees.Remove(surplus);
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result> DeleteInsuranceAsync(ItemId id, CancellationToken ct)
+    {
+        var row = await db.Insurances.Include(i => i.Guarantees).FirstOrDefaultAsync(i => i.ItemId == id.Value, ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("insurance", id.ToString()));
+
+        db.Insurances.Remove(row); // guarantees cascade, loaded so each is audited under the item
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }
@@ -427,6 +516,9 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         PurchaseKind.PrepaidTerm => "prepaid_term",
         _ => kind.ToString().ToLowerInvariant(),
     };
+
+    private static string InsuranceKindName(InsuranceKind kind) => kind.ToString().ToLowerInvariant();
+    private static InsuranceKind ParseInsuranceKind(string s) => Enum.Parse<InsuranceKind>(s, ignoreCase: true);
 
     private static DurationUnit ParseUnit(string s) => Enum.Parse<DurationUnit>(s, ignoreCase: true);
     private static PayerType ParsePayer(string s) => Enum.Parse<PayerType>(s, ignoreCase: true);

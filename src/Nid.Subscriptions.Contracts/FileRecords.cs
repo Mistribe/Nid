@@ -87,6 +87,32 @@ public sealed record PurchaseRecord
     public string? Note { get; init; }
 }
 
+/// <summary>One guarantee of a policy (issue #208): ceiling and deductible are text, never parsed.</summary>
+public sealed record GuaranteeRecord
+{
+    public required string Label { get; init; }
+    public string? Ceiling { get; init; }
+    public string? Deductible { get; init; }
+}
+
+/// <summary>
+/// import-format.md §5.3bis: the insurance of a subscription (issue #208). <c>subscription</c> and <c>property</c> name an
+/// entity of this file; at most one insurance names a subscription.
+/// </summary>
+public sealed record InsuranceRecord
+{
+    public required string Id { get; init; }
+    public required string Subscription { get; init; }
+    public required string Kind { get; init; }
+    public string? Property { get; init; }
+    public string? InsuredLabel { get; init; }
+    public string? PolicyNumber { get; init; }
+    public string? InsurerContact { get; init; }
+
+    // `set`, not `init`: see the note at the top of this file.
+    public IReadOnlyList<GuaranteeRecord> Guarantees { get; set; } = [];
+}
+
 /// <summary>import-format.md §5.2: a custom provider. <c>key</c> is local to the file (design §3.3), mapped at commit.</summary>
 public sealed record ProviderRecord
 {

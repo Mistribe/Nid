@@ -102,10 +102,12 @@ public sealed record SubscriptionDetail(
     IReadOnlyList<PurchaseView> Purchases,
     bool CanWrite,
     ContractTermsView? ContractTerms,
-    CancellationView Cancellation) : IExposesItems
+    CancellationView Cancellation,
+    InsuranceView? Insurance = null) : IExposesItems
 {
-    // Every item the detail names: the output guard then proves each grant target is the reader's to see.
-    public IEnumerable<ItemId> ExposedItems() => [Id, ..Purchases.SelectMany(p => p.Grants).Select(g => new ItemId(g.SubscriptionId))];
+    // Every item the detail names: the output guard then proves each grant target and the insured property are the reader's to see.
+    public IEnumerable<ItemId> ExposedItems() => [Id, ..Purchases.SelectMany(p => p.Grants).Select(g => new ItemId(g.SubscriptionId)),
+        ..Insurance?.Property is { } property ? [new ItemId(property.Id)] : Array.Empty<ItemId>()];
 }
 
 public sealed record OwnerView(Guid PersonId, int ShareBp);
@@ -135,6 +137,21 @@ public sealed record ContractTermsView(LocalDate? AnniversaryOn, DurationView? N
         => terms is not { IsEmpty: false }
             ? null
             : new(terms.AnniversaryOn, terms.Notice is { } notice ? DurationView.From(notice) : null, terms.CommitmentEndsOn, terms.CancellableFrom);
+}
+
+/// <summary>The property an insurance covers, only when its reader sees it: otherwise the view has none (spec §8).</summary>
+public sealed record InsuredPropertyView(Guid Id, string Name);
+
+public sealed record GuaranteeView(string Label, string? Ceiling, string? Deductible);
+
+/// <summary>What an insurance subscription covers (design 2026-10-30-contract-terms-insurance §7 and §10).</summary>
+public sealed record InsuranceView(
+    string Kind, InsuredPropertyView? Property, string? InsuredLabel, string? PolicyNumber, string? InsurerContact,
+    IReadOnlyList<GuaranteeView> Guarantees)
+{
+    public static InsuranceView From(InsuranceDetails details, InsuredPropertyView? property) => new(
+        details.Kind.ToString().ToLowerInvariant(), property, details.InsuredLabel, details.PolicyNumber, details.InsurerContact,
+        details.Guarantees.Select(g => new GuaranteeView(g.Label, g.Ceiling, g.Deductible)).ToList());
 }
 
 /// <summary>The server's answer to "until when can this be left?". <paramref name="Status"/> is none, deadline, free_from or free_now.</summary>

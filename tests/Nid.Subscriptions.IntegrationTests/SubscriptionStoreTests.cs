@@ -1,4 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -205,5 +208,113 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var found = Assert.Single((await store.FindImportedAsync(ImportedTable.Subscription, ["sub-old"], default))["sub-old"]);
 
         Assert.Null(found.ImportedBy);
+    }
+
+    private static InsuranceGuarantee G(string label, string? ceiling, string? deductible) => new(label, ceiling, deductible);
+
+    private static InsuranceDetails Home(params InsuranceGuarantee[] guarantees) => new(
+        InsuranceKind.Home, new ItemId(Guid.CreateVersion7()), "Appartement", "POL-1", "01 23 45 67 89", guarantees);
+
+    [Fact]
+    public async Task Set_then_find_keeps_guarantee_order()
+    {
+        var (store, id) = await NewStoreAsync(fixture);
+        var details = Home(new("Water damage", "10 000 EUR", "150 EUR"), new("Theft", null, null), new("Fire", "100 000 EUR", null));
+
+        (await store.SetInsuranceAsync(id, details, null, default)).Ok();
+        var found = await store.FindInsuranceAsync(id, default);
+
+        Assert.NotNull(found);
+        Assert.Equal(details.Kind, found!.Kind);
+        Assert.Equal(details.PropertyId, found.PropertyId);
+        Assert.Equal("Appartement", found.InsuredLabel);
+        Assert.Equal("POL-1", found.PolicyNumber);
+        Assert.Equal("01 23 45 67 89", found.InsurerContact);
+        Assert.Equal(details.Guarantees, found.Guarantees);
+        var read = await store.ReadInsurancesAsync([id, new ItemId(Guid.CreateVersion7())], default);
+        Assert.Equal(id, Assert.Single(read).Value.SubscriptionId);
+    }
+
+    [Fact]
+    public async Task Set_twice_replaces_guarantees()
+    {
+        var (store, id) = await NewStoreAsync(fixture);
+        (await store.SetInsuranceAsync(id, Home(new("A", null, null), new("B", null, null), new("C", null, null)), null, default)).Ok();
+
+        (await store.SetInsuranceAsync(
+            id, new InsuranceDetails(InsuranceKind.Car, null, null, null, null, [new("Z", "1", "2"), new("A", null, null)]), null, default)).Ok();
+        var found = await store.FindInsuranceAsync(id, default);
+
+        Assert.Equal(InsuranceKind.Car, found!.Kind);
+        Assert.Null(found.PropertyId);
+        Assert.Null(found.PolicyNumber);
+        Assert.Equal([new InsuranceGuarantee("Z", "1", "2"), new InsuranceGuarantee("A", null, null)], found.Guarantees);
+    }
+
+    [Fact]
+    public async Task Delete_removes_guarantees()
+    {
+        var (store, id) = await NewStoreAsync(fixture);
+        (await store.SetInsuranceAsync(id, Home(G("A", null, null)), null, default)).Ok();
+
+        (await store.DeleteInsuranceAsync(id, default)).Ok();
+
+        Assert.Null(await store.FindInsuranceAsync(id, default));
+        Assert.Empty(await store.ReadInsurancesAsync([id], default));
+        Assert.True((await store.DeleteInsuranceAsync(id, default)).IsFailure);
+    }
+
+    [Fact]
+    public async Task Setting_insurance_on_an_unknown_subscription_is_not_found()
+    {
+        var (store, _) = await NewStoreAsync(fixture);
+
+        Assert.True((await store.SetInsuranceAsync(new ItemId(Guid.CreateVersion7()), Home(), null, default)).IsFailure);
+    }
+
+    [Fact]
+    public async Task Deleting_the_subscription_cascades()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
+        var store = new SubscriptionStore(db);
+        var id = new ItemId(Guid.CreateVersion7());
+        (await store.CreateAsync(id, new NewSubscription(null, true, [], null), default)).Ok();
+        (await store.SetInsuranceAsync(id, Home(G("A", null, null)), null, default)).Ok();
+
+        await using var other = PostgresFixture.NewSubscriptionsContext(connectionString);
+        await other.Subscriptions.Where(s => s.ItemId == id.Value).ExecuteDeleteAsync();
+
+        Assert.Equal(0, await other.Database.SqlQueryRaw<int>("select count(*)::int as \"Value\" from subscriptions.subscription_insurance").SingleAsync());
+        Assert.Equal(0, await other.Database.SqlQueryRaw<int>("select count(*)::int as \"Value\" from subscriptions.insurance_guarantee").SingleAsync());
+    }
+
+    [Fact]
+    public async Task Set_is_audited_under_the_item()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewMonthlyAsync(app.AdultA, 10m);
+        await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+
+        Guid property;
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+            var store = scope.ServiceProvider.GetRequiredService<ISubscriptionStore>();
+            var details = Home(G("Theft", null, null));
+            (await store.SetInsuranceAsync(id, details, null, default)).Ok();
+            property = details.PropertyId!.Value.Value;
+        }
+
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var rows = await platform.AuditLog.Where(r => r.Seq > lastSeq && r.Category == "write").ToListAsync();
+        var insurance = Assert.Single(rows, r => r.Entity == "subscriptions.subscription_insurance");
+        var guarantee = Assert.Single(rows, r => r.Entity == "subscriptions.insurance_guarantee");
+        // Under the linked property too, so a co-owner who cannot read it never sees the row in the history.
+        Assert.Equivalent(new[] { id.Value, property }, insurance.ItemIds);
+        Assert.Equal([id.Value], guarantee.ItemIds);
+        Assert.Contains("POL-1", insurance.Data);
+        Assert.Contains("Theft", guarantee.Data);
     }
 }

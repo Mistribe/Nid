@@ -12,6 +12,8 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
     public DbSet<BillingPhaseRow> Phases => Set<BillingPhaseRow>();
     public DbSet<PurchaseRow> Purchases => Set<PurchaseRow>();
     public DbSet<GrantRow> Grants => Set<GrantRow>();
+    public DbSet<SubscriptionInsuranceRow> Insurances => Set<SubscriptionInsuranceRow>();
+    public DbSet<InsuranceGuaranteeRow> InsuranceGuarantees => Set<InsuranceGuaranteeRow>();
     public DbSet<LabelRow> Labels => Set<LabelRow>();
     public DbSet<ProviderRow> Providers => Set<ProviderRow>();
     public DbSet<CatalogSyncRunRow> CatalogSyncRuns => Set<CatalogSyncRunRow>();
@@ -99,6 +101,34 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             });
             e.HasKey(x => new { x.PurchaseId, x.Index });
             e.HasIndex(x => x.SubscriptionItemId);
+        });
+
+        modelBuilder.Entity<SubscriptionInsuranceRow>(e =>
+        {
+            e.ToTable("subscription_insurance", t =>
+            {
+                t.HasCheckConstraint("ck_subscription_insurance_kind", "kind in ('home','car','health','provident','other')");
+                t.HasCheckConstraint("ck_subscription_insurance_text",
+                    "char_length(insured_label) <= 200 and char_length(policy_number) <= 200 and char_length(insurer_contact) <= 200");
+                ImportConstraint(t, "subscription_insurance");
+                ImportedByConstraint(t, "subscription_insurance");
+            });
+            e.HasKey(x => x.ItemId);
+            e.Property(x => x.ItemId).ValueGeneratedNever();
+            e.HasOne<SubscriptionRow>().WithOne().HasForeignKey<SubscriptionInsuranceRow>(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Guarantees).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+            MapImport(e);
+        });
+
+        modelBuilder.Entity<InsuranceGuaranteeRow>(e =>
+        {
+            e.ToTable("insurance_guarantee", t =>
+            {
+                t.HasCheckConstraint("ck_insurance_guarantee_position", "\"position\" >= 0");
+                t.HasCheckConstraint("ck_insurance_guarantee_text",
+                    "char_length(label) between 1 and 200 and char_length(ceiling) <= 200 and char_length(deductible) <= 200");
+            });
+            e.HasKey(x => new { x.ItemId, x.Position });
         });
 
         modelBuilder.Entity<LabelRow>(e =>

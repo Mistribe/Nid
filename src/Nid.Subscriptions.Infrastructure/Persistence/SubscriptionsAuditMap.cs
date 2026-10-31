@@ -11,6 +11,11 @@ public sealed class SubscriptionsAuditMap : IAuditMap
         [typeof(SubscriptionUserRow)] = new(e => AuditItems.Of(e, nameof(SubscriptionUserRow.ItemId))),
         [typeof(BillingPhaseRow)] = new(e => AuditItems.Of(e, nameof(BillingPhaseRow.ItemId))),
         [typeof(GrantRow)] = new(e => AuditItems.Of(e, nameof(GrantRow.SubscriptionItemId))),
+        // Under the linked property too: the row carries its id, so a co-owner who cannot read the property must not
+        // find it in the subscription's history (the reader keeps an entry only when every item it names is visible).
+        [typeof(SubscriptionInsuranceRow)] = new(e => AuditItems.Of(e, nameof(SubscriptionInsuranceRow.ItemId))
+            .Concat(AuditItems.Of(e, nameof(SubscriptionInsuranceRow.PropertyId))).Distinct()),
+        [typeof(InsuranceGuaranteeRow)] = new(e => AuditItems.Of(e, nameof(InsuranceGuaranteeRow.ItemId))),
         // A purchase has no item of its own: it belongs to every subscription its grants reach. The store always
         // loads the grants with the purchase it changes (DeletePurchaseAsync includes them); a replacement also
         // names the items of the grants it removed (ReplacePurchaseAsync), so the old value is in their history too.

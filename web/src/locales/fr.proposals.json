@@ -1,6 +1,6 @@
 {
   "proposal": {
-    "route": { "fields": "Champs proposés", "no_fields": "Aucun champ.", "new": "Nouvel élément" },
+    "route": { "fields": "Champs proposés", "no_fields": "Aucun champ.", "new": "Nouvel élément", "replaces_insurance": "Remplace toute l’assurance : ce qui n’est pas listé est retiré." },
     "back": "Retour à « À valider »",
     "next": "Proposition suivante",
     "target": "Élément",
@@ -162,6 +162,7 @@
       "delete_goal_progress": "Suppression d’un relevé d’objectif",
       "create_subscription": "Nouvel abonnement",
       "edit_subscription": "Modification d’un abonnement",
+      "set_insurance": "Assurance d’un abonnement",
       "add_subscription_phase": "Nouvelle période d’abonnement",
       "end_subscription_phase": "Fin d’une période d’abonnement",
       "change_subscription_price": "Changement de prix",

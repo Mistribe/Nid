@@ -50,4 +50,25 @@ describe('Une proposition d’action du web', () => {
     expect(await screen.findByRole('link', { name: 'Salaire' })).toHaveAttribute('href', `/income/${p.targetItemId}`);
     expect(screen.getByRole('row', { name: /^amount/ })).toHaveTextContent(/1\s500,00\s€/);
   });
+  it('warns that a set_insurance proposal replaces the whole insurance', async () => {
+    const id = '00000000-0000-7000-8000-0000000000e3';
+    const p = proposal({
+      kind: 'subscriptions.set_insurance', targetItemId: id, targetName: 'Assurance habitation', subjectKey: null,
+      payload: { id, body: { kind: 'home', keepProperty: true, guarantees: [{ label: 'Incendie' }] } },
+    });
+    serve([p], { preview: {} });
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByText('Remplace toute l’assurance : ce qui n’est pas listé est retiré.')).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /^keepProperty/ })).toHaveTextContent('true');
+  });
+
+  it('shows no such notice on another action', async () => {
+    const p = creation();
+    serve([p], { preview: {} });
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nouveau bien' })).toBeInTheDocument();
+    expect(screen.queryByText(/Remplace toute l’assurance/)).not.toBeInTheDocument();
+  });
 });

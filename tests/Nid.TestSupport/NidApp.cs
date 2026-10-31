@@ -546,6 +546,17 @@ public sealed class NidApp : IAsyncDisposable
         return (await store.AddPurchaseAsync(purchase, RowOrigin.None, CancellationToken.None)).Ok();
     }
 
+    /// <summary>
+    /// Removes a subscription's insurance straight through the store, bypassing the pipeline: the leak bench sets a link per request
+    /// and a link kept from the request before would turn a new link into « the same one », which needs no read of the property.
+    /// </summary>
+    public async Task ClearInsuranceAsync(ItemId subscription)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<ISubscriptionStore>().DeleteInsuranceAsync(subscription, CancellationToken.None); // not found: none to clear
+    }
+
     public async Task<ItemId> NewMonthlyAsync(PersonId owner, decimal price)
     {
         var id = await NewSubscriptionAsync($"monthly-{price}", owner, Visibility.Shared);

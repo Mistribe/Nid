@@ -217,6 +217,20 @@ public static class RequestCatalogue
         {
             BuildLinkingProvider = (_, _, target, key) => new EditSubscriptionCommand(target, null, null, false, null, key),
         },
+        new(typeof(SetInsuranceCommand), true,
+            (_, item) => new SetInsuranceCommand(item, new InsuranceDetails(InsuranceKind.Other, null, null, null, null, [])))
+        {
+            // Spec 2026-10-30 §8: an insurance links to a property its actor reads; the bench names the property twin of the other row.
+            // A link kept from the request before is no new link, so each request starts without one.
+            BuildNamingAnother = async (d, target, other) =>
+            {
+                await d.App.ClearInsuranceAsync(target);
+                return new SetInsuranceCommand(target, new InsuranceDetails(InsuranceKind.Home, d.PropertyTwinOfSubscription(other), null, null, null, []));
+            },
+            SecondItemAccess = AccessKind.Read,
+        },
+        new(typeof(DeleteInsuranceCommand), true,
+            (_, item) => new DeleteInsuranceCommand(item)),
         new(typeof(ChangePriceCommand), true,
             (_, item) => new ChangePriceCommand(item, new NodaTime.LocalDate(2025, 6, 1), Money.Create(1m, Currency.Eur).Ok(), null, null, null, null)),
         new(typeof(OpenPhaseCommand), true,

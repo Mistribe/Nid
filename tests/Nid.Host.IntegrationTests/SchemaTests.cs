@@ -137,7 +137,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             .ToListAsync();
 
         Assert.Equal(
-            ["__ef_migrations_history", "billing_phase", "catalog_sync_run", "coverage_grant", "label", "provider", "purchase", "subscription", "subscription_user"],
+            ["__ef_migrations_history", "billing_phase", "catalog_sync_run", "coverage_grant", "insurance_guarantee", "label", "provider", "purchase", "subscription", "subscription_insurance", "subscription_user"],
             tables);
     }
 

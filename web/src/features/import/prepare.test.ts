@@ -107,6 +107,12 @@ describe('prepareFile against the batches the server computes (tests/vectors/imp
     expect(prepared.batches.map((b) => b.section)).toEqual(['flows', 'income_one_off_taxable']);
   });
 
+  it('accepts the insurances of subscriptions, after the subscriptions and properties they name', async () => {
+    const prepared = ready(await prepareFile(bytesOf(
+      '{"format":"nid.data","version":1,"subscription_insurances":[{"id":"i","subscription":"s","kind":"home","guarantees":[]}],"properties":[{"id":"p"}],"subscriptions":[{"id":"s"}]}')));
+    expect(prepared.batches.map((b) => b.section)).toEqual(['subscriptions', 'properties', 'subscription_insurances']);
+  });
+
   it('accepts the goals section, last, after the envelopes it funds from', async () => {
     const prepared = ready(await prepareFile(bytesOf(
       '{"format":"nid.data","version":1,"goals":[{"id":"g","funding":[{"envelope":"e","share_bp":5000}]}],"holdings":[{"id":"h"}],"envelopes":[{"id":"e"}]}')));
