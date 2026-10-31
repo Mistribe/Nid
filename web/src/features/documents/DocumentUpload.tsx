@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { UploadIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Problem } from '@/api/errors';
+import type { FieldControl } from '@/components/form/Field';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { invalidateDocuments, uploadDocument } from './api';
@@ -31,7 +32,8 @@ export function useUploads() {
       ));
     }
   };
-  return { uploads, send };
+  const refuse = (file: File) => setUploads((list) => [...list, { key: next.current++, name: file.name, state: UNSUPPORTED }]);
+  return { uploads, send, refuse };
 }
 
 /** « Déposer »: the file picker, several files at once. */
@@ -49,19 +51,64 @@ export function UploadPicker({ onFiles }: { onFiles: (files: File[]) => void }) 
   );
 }
 
-/** The drop zone; the picker in the header is its keyboard way. */
-export function UploadZone({ onFiles, hint }: { onFiles: (files: File[]) => void; hint?: string }) {
-  const { t } = useTranslation();
+/** What the API answers for a file of a type it does not take: a file refused before it is sent reads the same. */
+export const UNSUPPORTED: Problem = { status: 415, code: 'documents.unsupported_type' };
+
+/** Whether an input's `accept` list (extensions and media types) takes the file, as the picker's own filter does. */
+export function accepts(accept: string, file: File) {
+  const name = file.name.toLowerCase();
+  return accept.split(',').map((a) => a.trim().toLowerCase()).some((a) =>
+    a.startsWith('.') ? name.endsWith(a) : a.endsWith('/*') ? file.type.startsWith(a.slice(0, -1)) : file.type === a);
+}
+
+type Take = { onFiles: (files: [File, ...File[]]) => void; onRefused?: (file: File) => void; accept?: string; multiple?: boolean; disabled?: boolean };
+
+/** Dropped or picked files sorted by `accept` when there is `onRefused` (only the first unless `multiple`), and the drag handlers that take them on any element. */
+export function useDropFiles({ onFiles, onRefused, accept = ACCEPT, multiple = true, disabled = false }: Take) {
   const [over, setOver] = useState(false);
+  const take = (files: File[]) => {
+    const kept = multiple ? files : files.slice(0, 1);
+    // Without `onRefused` every file goes on, for the caller to word what the API refuses.
+    const refused = onRefused ? kept.filter((file) => !accepts(accept, file)) : [];
+    for (const file of refused) onRefused?.(file);
+    const [first, ...rest] = kept.filter((file) => !refused.includes(file));
+    if (first) onFiles([first, ...rest]);
+  };
+  const handlers = {
+    'data-drop-zone': '',
+    onDragOver: (event: DragEvent) => { event.preventDefault(); if (!disabled) setOver(true); },
+    onDragLeave: () => setOver(false),
+    onDrop: (event: DragEvent) => { event.preventDefault(); setOver(false); if (!disabled) take([...event.dataTransfer.files]); },
+  };
+  return { over, take, handlers };
+}
+
+/**
+ * The drop zone, the one way to add a file. With `pick` it holds its own picker (its keyboard way), which takes the
+ * `id` and `aria-describedby` a `Field` hands it; without, a picker beside it (`UploadPicker`) does. `picked` names the file taken.
+ */
+export function UploadZone({ hint, pick, picked, id, className, 'aria-describedby': describedBy, 'aria-invalid': invalid, ...take }: Take & Partial<FieldControl> & {
+  hint?: string; pick?: string; picked?: string | null; className?: string;
+}) {
+  const { t } = useTranslation();
+  const { over, take: send, handlers } = useDropFiles(take);
   return (
-    <div data-drop-zone=""
-      onDragOver={(event) => { event.preventDefault(); setOver(true); }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(event) => { event.preventDefault(); setOver(false); onFiles([...event.dataTransfer.files]); }}
-      className={cn('flex flex-col items-center gap-1 rounded-lg border-2 border-dashed p-4 text-center transition-colors', over && 'border-primary bg-accent')}>
+    <div {...handlers}
+      className={cn('flex flex-col items-center gap-1 rounded-lg border-2 border-dashed p-4 text-center transition-colors', over && 'border-primary bg-accent', className)}>
       <UploadIcon aria-hidden="true" className="size-6 text-muted-foreground" />
-      <p>{t('documents_page.upload.drop')}</p>
+      <p>{t(take.multiple === false ? 'documents_page.upload.drop_one' : 'documents_page.upload.drop')}</p>
       <p className="text-sm text-muted-foreground">{hint ?? t('documents_page.upload.hint')}</p>
+      {pick ? (
+        <label className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'mt-2 cursor-pointer focus-within:ring-[3px] focus-within:ring-ring/50', take.disabled && 'pointer-events-none opacity-50')}>
+          {pick}
+          <input id={id} aria-describedby={describedBy} aria-invalid={invalid} type="file" multiple={take.multiple !== false} accept={take.accept ?? ACCEPT} disabled={take.disabled} className="sr-only" onChange={(event) => {
+            const files = [...(event.currentTarget.files ?? [])];
+            event.currentTarget.value = ''; // picking the same file again still takes it
+            send(files);
+          }} />
+        </label>
+      ) : null}
+      {picked ? <p className="mt-1 text-sm font-medium break-all">{picked}</p> : null}
     </div>
   );
 }

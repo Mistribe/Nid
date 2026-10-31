@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CSRF_HEADER } from '@/api/client';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { accepts } from './DocumentUpload';
 import { list, summary } from './testData';
 
 type Sent = { name: string; fields: string[]; contentType: string; csrf: string | null };
@@ -81,7 +82,16 @@ describe('DocumentUpload', () => {
     expect(await screen.findByText('notes.txt : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).')).toBeInTheDocument();
     expect(await screen.findByText('scan.pdf : le fichier dépasse la taille permise (25 Mo).')).toBeInTheDocument();
     expect(await screen.findAllByText('Déposé')).toHaveLength(1);
-    expect(api.sent).toHaveLength(3);
+    // The text file is refused before it is sent; the API refuses the large one.
+    expect(api.sent.map((s) => s.name).sort()).toEqual(['bail.pdf', 'scan.pdf']);
+  });
+
+  it('takes a file by its extension or its media type, as the picker does', () => {
+    const accept = '.pdf,image/png,image/*';
+    expect(accepts(accept, new File([''], 'BAIL.PDF'))).toBe(true);
+    expect(accepts(accept, new File([''], 'scan', { type: 'image/png' }))).toBe(true);
+    expect(accepts(accept, new File([''], 'photo.heic', { type: 'image/heic' }))).toBe(true);
+    expect(accepts('.pdf,image/png', new File([''], 'notes.txt', { type: 'text/plain' }))).toBe(false);
   });
 
   it('the picker takes several files', async () => {

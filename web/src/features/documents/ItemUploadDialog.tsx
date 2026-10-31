@@ -8,10 +8,9 @@ import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { todayIso } from '../subscriptions/today';
 import { invalidateDocuments, uploadDocument } from './api';
-import { ACCEPT, refusal } from './DocumentUpload';
+import { refusal, UNSUPPORTED, UploadZone } from './DocumentUpload';
 import { roleText, ROLES } from './format';
 import '@/locales/documents';
 
@@ -58,7 +57,8 @@ export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
         <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void send(done); }}>
           {problem && file ? <p role="alert" className="text-sm text-destructive">{t(`documents_page.upload.${refusal(problem)}`, { name: file.name })}</p> : null}
           <Field label={t('documents_item.file')}>
-            {(control) => <Input {...control} type="file" accept={ACCEPT} onChange={(e) => { setFile(e.currentTarget.files?.[0] ?? null); setProblem(null); }} />}
+            {(control) => <UploadZone {...control} multiple={false} pick={t('documents_page.upload.pick_one')} hint={t('documents_page.upload.types')} picked={file?.name}
+              onFiles={([picked]) => { setFile(picked); setProblem(null); }} onRefused={(picked) => { setFile(picked); setProblem(UNSUPPORTED); }} />}
           </Field>
           <Field label={t('documents_item.col_role')}>
             {(control) => <SelectField {...control} value={role} onValueChange={setRole} options={ROLES.map((r) => ({ value: r, label: roleText(t, r) }))} />}
@@ -68,7 +68,7 @@ export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('documents_page.links.cancel')}</Button>
-            <Button type="submit" disabled={!file || pending}>{t('documents_item.upload')}</Button>
+            <Button type="submit" disabled={!file || pending || problem === UNSUPPORTED}>{t('documents_item.upload')}</Button>
           </div>
         </form>
       )}

@@ -1,5 +1,5 @@
 import { File as NodeFile } from 'node:buffer';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -150,6 +150,20 @@ describe('PayslipCell', () => {
       method: 'POST', path: '/api/v1/documents',
       form: { targetKind: 'income.phase', targetId: 'p1', role: 'payslip', date: '2026-09-30', title: 'Bulletin de paie septembre 2026' },
     }]));
+  });
+
+  it('attaches a file dropped on « Joindre », and refuses one of another type without sending it', async () => {
+    const sent = serve();
+    await renderApp(HISTORY);
+    const cell = await month('septembre 2026');
+    const zone = (await within(cell).findByRole('button', { name: 'Joindre' })).closest('[data-drop-zone]')!;
+
+    fireEvent.drop(zone, { dataTransfer: { files: [new File(['hello'], 'notes.txt', { type: 'text/plain' })] } });
+    expect(await within(cell).findByText('notes.txt : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).')).toBeInTheDocument();
+    expect(sent).toEqual([]);
+
+    fireEvent.drop(zone, { dataTransfer: { files: [pdf('scan.pdf')] } });
+    await waitFor(() => expect(sent.map((s) => s.form?.title)).toEqual(['Bulletin de paie septembre 2026']));
   });
 
   it('dates the current month’s payslip today when its payment comes later', async () => {

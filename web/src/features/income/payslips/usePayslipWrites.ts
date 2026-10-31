@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Problem } from '@/api/errors';
+import { UNSUPPORTED } from '../../documents/DocumentUpload';
 import { invalidateDocuments, uploadDocument, useUnlinkDocument, type DocumentLink, type DocumentSummary } from '../../documents/api';
 
 type Target = { kind: string; id: string };
@@ -44,6 +45,8 @@ export function usePayslipWrites() {
     replace: (old: DocumentSummary, links: DocumentLink[], picked: File, target: Target, date: string, title: string) =>
       run(async () => { await upload(picked, target, date, title); await unlinkAll(old, links); }),
     remove: (doc: DocumentSummary, links: DocumentLink[]) => run(() => unlinkAll(doc, links)),
+    /** A dropped file of a type the API does not take, worded as its refusal and not sent. */
+    refuse: (picked: File) => { setProblem(UNSUPPORTED); setFile(picked.name); },
     pending, problem, file,
   };
 }

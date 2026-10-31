@@ -10,8 +10,8 @@ import { formatCurrency } from '@/components/Money';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ACCOUNTS, CONNECTIONS } from '@/features/settings/banks/api';
+import { UploadZone } from '../../documents/DocumentUpload';
 import { invalidateInvestments } from '../api';
 import { importStatement, statementErrorText, TRANSACTIONS, type StatementImport } from './api';
 import '@/locales/banks';
@@ -36,6 +36,14 @@ export default function ImportStatementDialog({ envelopeId, onClose, onDone }: {
   const [pending, setPending] = useState(false);
   // The file picked now: an answer about another one (picked while it was read) is dropped.
   const picked = useRef<File | null>(null);
+
+  const choose = (next: File | null, refused: Problem | null) => {
+    picked.current = next;
+    setFile(next);
+    setPreview(null);
+    setKeep(false);
+    setProblem(refused);
+  };
 
   const send = async (done: (message?: string) => void) => {
     if (!file) return;
@@ -64,13 +72,8 @@ export default function ImportStatementDialog({ envelopeId, onClose, onDone }: {
           {problem ? <p role="alert" className="text-sm text-destructive">{statementErrorText(t, problem)}</p> : null}
           <Field label={t('banks.import.file')}>
             {(control) => (
-              <Input {...control} type="file" accept={ACCEPT} disabled={pending} onChange={(e) => {
-                picked.current = e.currentTarget.files?.[0] ?? null;
-                setFile(picked.current);
-                setPreview(null);
-                setKeep(false);
-                setProblem(null);
-              }} />
+              <UploadZone {...control} accept={ACCEPT} multiple={false} disabled={pending} pick={t('banks.import.pick')} hint={t('banks.import.file_hint')} picked={file?.name}
+                onFiles={([next]) => choose(next, null)} onRefused={() => choose(null, { status: 415, code: 'banking.file_format' })} />
             )}
           </Field>
           {/* Always on the page, empty at first: a live region added with its first message is not announced. */}

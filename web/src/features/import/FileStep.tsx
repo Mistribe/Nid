@@ -1,8 +1,6 @@
-import { UploadIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { UploadZone } from '../documents/DocumentUpload';
 import type { ReadyFile } from './draft';
 import { StepCard } from './StepCard';
 import type { LocalProblem } from './prepare';
@@ -16,7 +14,6 @@ type Reading = { status: 'idle' } | { status: 'reading' } | { status: 'failed'; 
 export function FileStep({ title, hint, onReady }: { title: string; hint: string; onReady: (file: ReadyFile) => void }) {
   const { t } = useTranslation();
   const [reading, setReading] = useState<Reading>({ status: 'idle' });
-  const [over, setOver] = useState(false);
 
   const read = async (file: File) => {
     setReading({ status: 'reading' });
@@ -38,34 +35,8 @@ export function FileStep({ title, hint, onReady }: { title: string; hint: string
     <StepCard>
     <section className="space-y-3">
       <h2 id="import-file-title" className="text-lg font-semibold">{title}</h2>
-      <div
-        data-drop-zone=""
-        onDragOver={(event) => { event.preventDefault(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setOver(false);
-          const file = event.dataTransfer.files[0];
-          if (file) void read(file);
-        }}
-        className={cn('flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 text-center transition-colors', over && 'border-primary bg-accent')}
-      >
-        <UploadIcon aria-hidden="true" className="size-8 text-muted-foreground" />
-        <p className="text-muted-foreground">{hint}</p>
-        <label className={cn(buttonVariants({ variant: 'outline' }), 'cursor-pointer focus-within:ring-[3px] focus-within:ring-ring/50')}>
-          {t('import.file_pick')}
-          <input
-            type="file"
-            accept=".json,application/json"
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = ''; // choosing the same file again still triggers a read
-              if (file) void read(file);
-            }}
-          />
-        </label>
-      </div>
+      <UploadZone accept=".json,application/json" multiple={false} hint={hint} pick={t('import.file_pick')} className="gap-3 p-8"
+        onFiles={([file]) => void read(file)} onRefused={() => setReading({ status: 'failed', problems: [{ code: 'unreadable' }] })} />
       {reading.status === 'reading' ? (
         <div aria-busy="true" className="h-16 shimmer rounded-md bg-muted">
           <span className="sr-only">{t('import.reading')}</span>

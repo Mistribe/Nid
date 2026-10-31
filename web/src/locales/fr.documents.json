@@ -50,6 +50,9 @@
     "upload": {
       "pick": "Déposer",
       "drop": "Glissez vos fichiers ici",
+      "drop_one": "Glissez un fichier ici",
+      "pick_one": "Choisir un fichier",
+      "types": "PDF, PNG, JPEG ou e-mail (.eml), 25 Mo au plus.",
       "hint": "PDF, PNG, JPEG ou e-mail (.eml), 25 Mo au plus. Chaque fichier arrive dans « À classer ».",
       "progress": "Dépôts",
       "sending": "Envoi…",

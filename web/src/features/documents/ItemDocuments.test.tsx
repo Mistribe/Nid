@@ -1,6 +1,6 @@
 import { File as NodeFile } from 'node:buffer';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -180,6 +180,24 @@ describe('ItemDocuments', () => {
       await user.upload(within(dialog).getByLabelText('Fichier'), pdf('notes.pdf'));
       await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
       expect(await within(dialog).findByText('notes.pdf : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).')).toBeInTheDocument();
+    });
+
+    it('takes the first dropped file, and refuses one of another type without sending it', async () => {
+      const api = serve();
+      const { user } = await renderItem();
+      await user.click(await screen.findByRole('button', { name: 'Déposer' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Déposer un document' });
+      const zone = within(dialog).getByText('Glissez un fichier ici').closest('[data-drop-zone]')!;
+
+      fireEvent.drop(zone, { dataTransfer: { files: [new File(['hello'], 'notes.txt', { type: 'text/plain' })] } });
+      expect(await within(dialog).findByText('notes.txt : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).')).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Déposer' })).toBeDisabled();
+
+      fireEvent.drop(zone, { dataTransfer: { files: [pdf('bail.pdf'), pdf('avis.pdf')] } });
+      expect(await within(dialog).findByText('bail.pdf')).toBeInTheDocument();
+      expect(within(dialog).queryByText('avis.pdf')).not.toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+      await waitFor(() => expect(api.writes).toHaveLength(1));
     });
   });
 

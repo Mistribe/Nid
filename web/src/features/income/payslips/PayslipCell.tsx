@@ -6,8 +6,9 @@ import { present } from '@/api/errors';
 import { RowMenu } from '@/components/page/RowMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { contentUrl, type DocumentLink, type DocumentSummary } from '../../documents/api';
-import { ACCEPT, refusal } from '../../documents/DocumentUpload';
+import { ACCEPT, refusal, useDropFiles } from '../../documents/DocumentUpload';
 import type { IncomeSourceDetail } from '../api';
 import { linksOnSource, payslipTitle, type MonthKey } from './payslip';
 import { usePayslipWrites, type AttachFields, type PayslipWrites } from './usePayslipWrites';
@@ -26,6 +27,8 @@ export function PayslipCell({ source, month, docs, missing, target, writable }: 
   const input = useRef<HTMLInputElement>(null);
   const phaseIds = new Set(source.phases.map((p) => p.id));
   const fields: AttachFields | null = target && { target: { kind: 'income.phase', id: target.phaseId }, date: target.date, title: payslipTitle(t, month) };
+  const attach = (file: File) => { if (fields) void writes.attach(file, fields.target, fields.date, fields.title); };
+  const drop = useDropFiles({ multiple: false, disabled: writes.pending, onFiles: ([file]) => attach(file), onRefused: writes.refuse });
   return (
     <div className="space-y-1">
       {docs.length > 0 ? (
@@ -40,10 +43,10 @@ export function PayslipCell({ source, month, docs, missing, target, writable }: 
       ) : null}
       {missing ? <p className="text-muted-foreground">{t('income_detail.payslips.missing')}</p> : null}
       {docs.length === 0 && writable && fields ? (
-        <>
+        <div {...drop.handlers} className={cn('w-fit rounded-md', drop.over && 'bg-accent ring-2 ring-primary')}>
           <Button variant="outline" size="sm" disabled={writes.pending} onClick={() => input.current?.click()}>{t('income_detail.payslips.attach')}</Button>
-          <FileInput ref={input} label={t('income_detail.payslips.attach')} onFile={(file) => void writes.attach(file, fields.target, fields.date, fields.title)} />
-        </>
+          <FileInput ref={input} label={t('income_detail.payslips.attach')} onFile={attach} />
+        </div>
       ) : null}
       <PayslipProblem writes={writes} />
     </div>

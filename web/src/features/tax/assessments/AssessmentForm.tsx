@@ -15,7 +15,7 @@ import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Input } from '@/components/ui/input';
 import { DOCUMENT, invalidateDocuments, uploadDocument, useDocuments } from '../../documents/api';
-import { ACCEPT, refusal } from '../../documents/DocumentUpload';
+import { refusal, UNSUPPORTED, UploadZone } from '../../documents/DocumentUpload';
 import { Folded } from '../../loans/new/Folded';
 import { DeclarantGrid, type GridRow } from '../profile/DeclarantGrid';
 import { PERSONS } from '../../subscriptions/api';
@@ -220,7 +220,8 @@ function SourceStep({ form, stored, onUploading }: { form: Form; stored?: string
       )} />
       {problem ? <p role="alert" className="text-sm text-destructive">{t(`documents_page.upload.${refusal(problem)}`, { name: file })}</p> : null}
       <Field label={t('tax.assessment_form.field.upload')}>
-        {(c) => <Input {...c} type="file" accept={ACCEPT} onChange={(e) => { const picked = e.currentTarget.files?.[0]; if (picked) void upload(picked); }} />}
+        {(c) => <UploadZone {...c} multiple={false} pick={t('documents_page.upload.pick_one')} hint={t('documents_page.upload.types')}
+          onFiles={([picked]) => void upload(picked)} onRefused={(picked) => { setFile(picked.name); setProblem(UNSUPPORTED); }} />}
       </Field>
       {NOTICE_AMOUNTS.carried.map((k) => <Amount key={k} form={form} name={k} label={t(`tax.assessment.field.${k}`)} />)}
       {gained.length > 0 ? <p className="text-sm text-muted-foreground">{t('tax.assessment_form.also_reads', { names: new Intl.ListFormat('fr').format(gained.map((r) => r.name)) })}</p> : null}

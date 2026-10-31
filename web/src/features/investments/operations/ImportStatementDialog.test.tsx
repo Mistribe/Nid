@@ -57,6 +57,21 @@ describe('ImportStatementDialog', () => {
   }, 30_000);
   afterAll(() => { vi.unstubAllGlobals(); });
 
+  it('reads a dropped statement, and refuses a file of another type without sending it', async () => {
+    const api = serve();
+    const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+    await user.click(await screen.findByRole('button', { name: 'Importer un relevé' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Importer un relevé' });
+    const zone = within(dialog).getByText('Glissez un fichier ici').closest('[data-drop-zone]')!;
+
+    fireEvent.drop(zone, { dataTransfer: { files: [new File(['%PDF'], 'releve.pdf', { type: 'application/pdf' })] } });
+    expect(await within(dialog).findByText('Ce fichier n\'est ni un relevé OFX ni un relevé CAMT.053.')).toBeInTheDocument();
+
+    fireEvent.drop(zone, { dataTransfer: { files: [ofx()] } });
+    await user.click(within(dialog).getByRole('button', { name: 'Lire le relevé' }));
+    await waitFor(() => expect(api.sent.map((s) => s.file)).toEqual(['releve.ofx']));
+  });
+
   it('previews the file, then imports it with « Importer » and refreshes the tab', async () => {
     const api = serve();
     const { user, dialog, container } = await openFromEnvelope();

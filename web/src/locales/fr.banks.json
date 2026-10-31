@@ -119,6 +119,8 @@
       "open": "Importer un relevé",
       "title": "Importer un relevé",
       "file": "Relevé (OFX ou CAMT.053)",
+      "pick": "Choisir un fichier",
+      "file_hint": "Fichier .ofx, .qfx ou .xml.",
       "read": "Lire le relevé",
       "submit": "Importer",
       "new_account": "Nouveau compte",
