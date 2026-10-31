@@ -616,4 +616,91 @@ public class TaxCalculatorTests
     [InlineData(200_000, 14_555)] // the maximum
     public void The_salary_allowance_is_ten_percent_between_its_bounds(double income, double allowance)
         => Assert.Equal((decimal)allowance, TaxRules.For(2025).SalaryAllowance((decimal)income));
+
+    /// <summary>Spec §4bis, art. 1729 G and 204 J CGI: a cut of 5 % to 10 %, never beyond 10 % with the rate one tenth lower.</summary>
+    private static WithholdingCut SafeCut(TaxResult result)
+    {
+        var (w, cut) = (result.Withholding, result.Withholding.Cut!);
+        Assert.InRange(cut.Rate, 0.9m * w.Rate + 0.1m, 0.95m * w.Rate);
+        Assert.Equal(w.Annual - cut.Annual, cut.Less);
+        Assert.Equal(result.IncomeTax - cut.Annual, cut.Balance);
+        Assert.True(cut.Balance <= 0m);
+        return cut;
+    }
+
+    private static TaxInputs YoungCouple() => Inputs([
+        new("A", 50_000m, EmploymentStatus.NonExecutive, 0m, 0m),
+        new("B", 40_000m, EmploymentStatus.Executive, 0m, 0m)], dependents: 2) with { ChildrenUnder6 = 2, ChildcareOutsideHome = 6_000m };
+
+    [Fact]
+    public void The_safe_cut_lowers_both_salaries_in_the_same_ratio()
+    {
+        var result = TaxCalculator.Compute(YoungCouple());
+
+        // 4.5 % × 90 % + 0.1 = 4.15, so 4.2 % on the real 71 564.33: 3 005.70, 214.69 less than at 4.5 %.
+        var cut = SafeCut(result);
+        Assert.Equal(4.2m, cut.Rate);
+        Assert.Equal(3_005.70m, cut.Annual);
+        Assert.Equal(214.69m, cut.Less);
+        Assert.Equal(141.49m, cut.Declarants[0].Monthly); // 4.2 % × 40 424.63 ÷ 12, on the real salaries
+        var (a, b) = (cut.Declarants[0].Salaries, cut.Declarants[1].Salaries);
+        Assert.True(a < result.Withholding.Declarants[0].Salaries && b < result.Withholding.Declarants[1].Salaries);
+        Assert.Equal(result.Withholding.Declarants[0].Salaries / result.Withholding.Declarants[1].Salaries, a / b, 3);
+        // The entered salaries do give that rate.
+        var entered = YoungCouple() with
+        {
+            Declarants = [new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: a), new("B", 0m, EmploymentStatus.Executive, 0m, 0m, SalaryTaxable: b)],
+        };
+        Assert.Equal(4.2m, TaxCalculator.Compute(entered).Withholding.Rate);
+    }
+
+    [Fact]
+    public void A_single_declarant_with_home_employment_gets_a_safe_cut()
+    {
+        var result = TaxCalculator.Compute(Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: 60_000m)]) with { HomeEmployment = 10_000m });
+
+        var cut = SafeCut(result);
+        Assert.Single(cut.Declarants);
+        Assert.True(cut.Declarants[0].Salaries < 60_000m);
+    }
+
+    [Fact]
+    public void Rental_income_stays_as_it_is_and_its_instalment_follows_the_cut_rate()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(40_000m), Other(0m)]) with { RentalGross = 10_000m, Donations = 2_000m });
+
+        var cut = SafeCut(result);
+        Assert.Equal(0m, cut.Declarants[1].Salaries);
+        Assert.Equal(Math.Round((cut.Rate / 100 + 0.172m) * 7_000m / 12, 2, MidpointRounding.AwayFromZero), cut.RentalMonthly);
+    }
+
+    [Fact]
+    public void Without_reductions_or_credits_there_is_no_cut()
+        => Assert.Null(TaxCalculator.Compute(Inputs([Other(60_000m), Other(30_000m)])).Withholding.Cut);
+
+    [Fact]
+    public void The_cut_stops_where_the_refund_ends()
+    {
+        // 60 000 at 15.5 %: 9 300 withheld. A 250 € donation leaves a refund of 161 €, under the 5 % minimum (465 €).
+        Assert.Null(TaxCalculator.Compute(Inputs([Other(60_000m)]) with { Donations = 250m }).Withholding.Cut);
+
+        // 1 000 € (660 € off): a 656 € refund, so 14.5 % (8 700, 600 less) rather than the 14.1 % the 10 % would allow.
+        var result = TaxCalculator.Compute(Inputs([Other(60_000m)]) with { Donations = 1_000m });
+        var cut = SafeCut(result);
+        Assert.Equal(-656m, result.Withholding.Balance);
+        Assert.Equal(14.5m, cut.Rate);
+        Assert.Equal(600m, cut.Less);
+    }
+
+    [Theory]
+    [InlineData(30_000)]
+    [InlineData(45_000)]
+    [InlineData(71_000)]
+    [InlineData(120_000)]
+    public void The_rounded_cut_rate_never_goes_beyond_ten_percent(double salaries)
+    {
+        var result = TaxCalculator.Compute(Inputs([Other((decimal)salaries)]) with { HomeEmployment = 12_000m });
+        if (result.Withholding.Cut is not null)
+            SafeCut(result);
+    }
 }

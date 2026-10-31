@@ -218,7 +218,18 @@
       "annual": "Prélevé sur l’année",
       "left_out": "Réductions et crédits non pris en compte par le taux",
       "balance": "Solde à la déclaration (négatif : remboursé)",
-      "help": "Le taux se calcule avant les réductions et crédits d’impôt (garde, emploi à domicile, dons, Pinel) : ils sont rendus l’année suivante, 60 % en janvier puis le solde l’été. Une baisse du taux n’est acceptée que si le prélèvement diminue d’au moins 5 %. Non calculés : le taux individualisé du couple, l’avance de janvier. Les dividendes du compte-titres sont prélevés par la banque, hors de ce taux."
+      "help": "Le taux se calcule avant les réductions et crédits d’impôt (garde, emploi à domicile, dons, Pinel) : ils sont rendus l’année suivante, 60 % en janvier puis le solde l’été. Une baisse du taux n’est acceptée que si le prélèvement diminue d’au moins 5 %. Non calculés : le taux individualisé du couple, l’avance de janvier. Les dividendes du compte-titres sont prélevés par la banque, hors de ce taux.",
+      "cut": {
+        "title": "Baisse sans risque",
+        "intro": "Pour être moins prélevé dès maintenant, saisissez plutôt ces salaires : le prélèvement baisse autant que la loi le permet sans majoration.",
+        "salaries": "{{name}} : salaires à saisir",
+        "rate": "Taux attendu",
+        "monthly": "{{name}} : prélevé chaque mois",
+        "rental_monthly": "Acompte mensuel sur les revenus fonciers",
+        "less": "Prélevé en moins sur l’année",
+        "balance": "Solde restant à la déclaration (négatif : remboursé)",
+        "help": "La baisse reste sous la tolérance de 10 % (art. 1729 G du CGI) : au-delà, l’écart est majoré. Le reste des réductions et crédits revient par l’avance de janvier (60 % de ceux de l’an dernier) et le solde de l’été."
+      }
     },
     "profile": {
       "title": "Profil fiscal",

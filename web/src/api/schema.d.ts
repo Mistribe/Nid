@@ -26691,6 +26691,14 @@ export interface components {
             hint: string;
             status: string;
         };
+        WithholdingCutView: {
+            rate: string;
+            declarants: components["schemas"]["DeclarantWithholdingView"][];
+            rentalMonthly: string;
+            annual: string;
+            less: string;
+            balance: string;
+        };
         WithholdingView: {
             rate: string;
             taxBase: string;
@@ -26701,6 +26709,7 @@ export interface components {
             annual: string;
             leftOut: string;
             balance: string;
+            cut?: null | components["schemas"]["WithholdingCutView"];
         };
     };
     responses: never;

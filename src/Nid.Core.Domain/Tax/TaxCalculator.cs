@@ -91,10 +91,18 @@ public sealed record TaxResult(
 /// </summary>
 public sealed record Withholding(
     decimal Rate, decimal TaxBase, decimal Income, IReadOnlyList<DeclarantWithholding> Declarants,
-    decimal RentalDeclared, decimal RentalMonthly, decimal Annual, decimal LeftOut, decimal Balance);
+    decimal RentalDeclared, decimal RentalMonthly, decimal Annual, decimal LeftOut, decimal Balance, WithholdingCut? Cut = null);
 
 /// <summary>A declarant's salaries to declare (net taxable, before the 10 % allowance) and the monthly amount withheld at the household rate.</summary>
 public sealed record DeclarantWithholding(string Name, decimal Salaries, decimal Monthly);
+
+/// <summary>
+/// Spec §4bis, the « baisse sans risque »: the salaries to enter (<c>Declarants[i].Salaries</c>) for the rate <c>Rate</c>, and the
+/// monthly amounts that rate withholds on the real salaries. <c>Less</c>: withheld less over the year; <c>Balance</c>: what is left
+/// at the declaration (negative: paid back).
+/// </summary>
+public sealed record WithholdingCut(
+    decimal Rate, IReadOnlyList<DeclarantWithholding> Declarants, decimal RentalMonthly, decimal Annual, decimal Less, decimal Balance);
 
 public static class TaxWarnings
 {
@@ -113,7 +121,51 @@ public static class TaxWarnings
 /// <summary>Tax estimate spec §4: a joint declaration (or a single one), pure and in exact decimals.</summary>
 public static class TaxCalculator
 {
-    public static TaxResult Compute(TaxInputs inputs) => Compute(inputs, withTaxSaved: true);
+    public static TaxResult Compute(TaxInputs inputs)
+    {
+        var result = Compute(inputs, withTaxSaved: true);
+        return result with { Withholding = result.Withholding with { Cut = SafeCut(inputs, result) } };
+    }
+
+    /// <summary>
+    /// Spec §4bis: the lowest entered salaries (same ratio between the declarants, PER and rents unchanged) whose rate, one tenth
+    /// lower for the DGFiP's rounding, still withholds at least 90 % of the real figures' (art. 1729 G CGI), and no less than the
+    /// income tax. Null when that cut is under 5 % (art. 204 J refuses it), or when the balance is no refund.
+    /// </summary>
+    private static WithholdingCut? SafeCut(TaxInputs inputs, TaxResult result)
+    {
+        var w = result.Withholding;
+        if (w.Balance >= 0m || w.Income == 0m)
+            return null;
+        var floor = Math.Max(0.9m * w.Rate + 0.1m, result.IncomeTax / w.Income * 100);
+        var minRate = Math.Ceiling(floor * 10) / 10;
+        if (minRate > 0.95m * w.Rate)
+            return null;
+
+        var salaries = w.Declarants.Select(d => d.Salaries).ToList();
+        decimal[] Entered(decimal f) => [.. salaries.Select(s => Math.Ceiling(f * s))];
+        decimal RateOf(decimal[] entered) => Compute(inputs with
+        {
+            Declarants = [.. inputs.Declarants.Select((d, i) => d with { SalaryGross = 0m, SalaryTaxable = entered[i], OtherTaxable = 0m, ContributionRate = null })],
+        }, withTaxSaved: false).Withholding.Rate;
+
+        // The rate is rounded, so no closed form: the smallest factor whose rate reaches minRate (the factor 1 does).
+        var (low, high) = (0m, 1m);
+        for (var i = 0; i < 40; i++)
+        {
+            var mid = (low + high) / 2;
+            if (RateOf(Entered(mid)) >= minRate) high = mid; else low = mid;
+        }
+        var final = Entered(high);
+        var rate = RateOf(final);
+        // A rounding step may jump over minRate and land within 5 % of the real rate.
+        if (rate > 0.95m * w.Rate)
+            return null;
+        var annual = Euros(rate / 100 * w.Income);
+        return new WithholdingCut(
+            rate, w.Declarants.Select((d, i) => new DeclarantWithholding(d.Name, final[i], Euros(rate / 100 * d.Salaries / 12))).ToList(),
+            Euros((rate / 100 + TaxRules.For(inputs.Year).RentalSocialRate) * w.RentalDeclared / 12), annual, w.Annual - annual, result.IncomeTax - annual);
+    }
 
     /// <summary><paramref name="withTaxSaved"/> false: the inner run without PER, which needs no tax saved of its own.</summary>
     private static TaxResult Compute(TaxInputs inputs, bool withTaxSaved)

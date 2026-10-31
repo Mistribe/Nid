@@ -31,6 +31,15 @@ export function WithholdingSection({ estimate }: { estimate: TaxEstimate }) {
     [t('tax.withholding.left_out'), eur(w.leftOut)],
     [t('tax.withholding.balance'), eur(w.balance)],
   ];
+  const cut = w.cut;
+  const safeCut: [string, string][] = cut ? [
+    ...cut.declarants.map((d): [string, string] => [t('tax.withholding.cut.salaries', { name: d.name }), eur(d.salaries)]),
+    [t('tax.withholding.cut.rate'), percentText(t, cut.rate)],
+    ...cut.declarants.map((d): [string, string] => [t('tax.withholding.cut.monthly', { name: d.name }), eur(d.monthly)]),
+    ...(ZERO.test(w.rentalDeclared) ? [] : [[t('tax.withholding.cut.rental_monthly'), eur(cut.rentalMonthly)] as [string, string]]),
+    [t('tax.withholding.cut.less'), eur(cut.less)],
+    [t('tax.withholding.cut.balance'), eur(cut.balance)],
+  ] : [];
   const table = (label: string, rows: [string, string][]) => (
     <Table aria-label={label}>
       <TableHeader><TableRow><TableHead>{t('tax.withholding.line')}</TableHead><TableHead className="text-right">{t('tax.withholding.amount')}</TableHead></TableRow></TableHeader>
@@ -53,6 +62,13 @@ export function WithholdingSection({ estimate }: { estimate: TaxEstimate }) {
         {table(t('tax.withholding.expected'), expected)}
         <p className="text-sm text-muted-foreground">{t('tax.withholding.help')}</p>
       </Section>
+      {cut ? (
+        <Section title={t('tax.withholding.cut.title')}>
+          <p className="text-sm text-muted-foreground">{t('tax.withholding.cut.intro')}</p>
+          {table(t('tax.withholding.cut.title'), safeCut)}
+          <p className="text-sm text-muted-foreground">{t('tax.withholding.cut.help')}</p>
+        </Section>
+      ) : null}
     </>
   );
 }

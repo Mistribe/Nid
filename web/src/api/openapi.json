@@ -43958,6 +43958,40 @@
           }
         }
       },
+      "WithholdingCutView": {
+        "required": [
+          "rate",
+          "declarants",
+          "rentalMonthly",
+          "annual",
+          "less",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "rate": {
+            "type": "string"
+          },
+          "declarants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeclarantWithholdingView"
+            }
+          },
+          "rentalMonthly": {
+            "type": "string"
+          },
+          "annual": {
+            "type": "string"
+          },
+          "less": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "string"
+          }
+        }
+      },
       "WithholdingView": {
         "required": [
           "rate",
@@ -44001,6 +44035,16 @@
           },
           "balance": {
             "type": "string"
+          },
+          "cut": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WithholdingCutView"
+              }
+            ]
           }
         }
       }

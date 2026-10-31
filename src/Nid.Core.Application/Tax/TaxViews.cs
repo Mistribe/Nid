@@ -188,13 +188,22 @@ public sealed record DeclarantWithholdingView(string Name, string Salaries, stri
 /// <summary>Spec §4bis. <c>Rate</c> in percent, to the tenth (<c>"4.5"</c>).</summary>
 public sealed record WithholdingView(
     string Rate, string TaxBase, string Income, IReadOnlyList<DeclarantWithholdingView> Declarants,
-    string RentalDeclared, string RentalMonthly, string Annual, string LeftOut, string Balance)
+    string RentalDeclared, string RentalMonthly, string Annual, string LeftOut, string Balance, WithholdingCutView? Cut = null)
 {
     public static WithholdingView Of(Withholding w) => new(
-        w.Rate.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), Amount(w.TaxBase), Amount(w.Income),
-        w.Declarants.Select(d => new DeclarantWithholdingView(d.Name, Amount(d.Salaries), Amount(d.Monthly))).ToList(),
-        Amount(w.RentalDeclared), Amount(w.RentalMonthly), Amount(w.Annual), Amount(w.LeftOut), Amount(w.Balance));
+        TenthRate(w.Rate), Amount(w.TaxBase), Amount(w.Income), DeclarantViews(w.Declarants),
+        Amount(w.RentalDeclared), Amount(w.RentalMonthly), Amount(w.Annual), Amount(w.LeftOut), Amount(w.Balance),
+        w.Cut is { } c ? new WithholdingCutView(TenthRate(c.Rate), DeclarantViews(c.Declarants), Amount(c.RentalMonthly), Amount(c.Annual), Amount(c.Less), Amount(c.Balance)) : null);
+
+    private static string TenthRate(decimal rate) => rate.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static List<DeclarantWithholdingView> DeclarantViews(IReadOnlyList<DeclarantWithholding> declarants)
+        => declarants.Select(d => new DeclarantWithholdingView(d.Name, Amount(d.Salaries), Amount(d.Monthly))).ToList();
 }
+
+/// <summary>Spec §4bis, the « baisse sans risque ». <c>Declarants[i].Salaries</c>: the salaries to enter.</summary>
+public sealed record WithholdingCutView(
+    string Rate, IReadOnlyList<DeclarantWithholdingView> Declarants, string RentalMonthly, string Annual, string Less, string Balance);
 
 /// <summary>Tax assessments spec §5: what the notices of <c>Year</c> handed to the estimate, in euros; only the figures they print. <c>RentalDeficitCarried</c> is a suggestion for the profile's field, not laid over the estimate.</summary>
 public sealed record TaxCarryView(

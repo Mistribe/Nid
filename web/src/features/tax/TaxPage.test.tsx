@@ -51,6 +51,26 @@ describe('TaxPage', () => {
     expect(within(expected).getByRole('row', { name: /Taux du foyer/ })).toHaveTextContent('4,5 %');
     expect(within(expected).getByRole('row', { name: /Alice : prélevé chaque mois/ })).toHaveTextContent('151,59 €');
     expect(within(expected).getByRole('row', { name: /Solde à la déclaration/ })).toHaveTextContent('-2 973,39 €');
+    expect(screen.queryByRole('table', { name: 'Baisse sans risque' })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('suggests the salaries for the largest cut without surcharge', async () => {
+    const withCut = estimate();
+    withCut.result.withholding.cut = {
+      rate: '4.2', declarants: [{ name: 'Alice', salaries: '37518.00', monthly: '141.49' }],
+      rentalMonthly: '0.00', annual: '3005.70', less: '214.69', balance: '-2758.70',
+    };
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(withCut)));
+    const { container } = await renderApp('/tax?tab=withholding');
+
+    const cut = await screen.findByRole('table', { name: 'Baisse sans risque' });
+    expect(within(cut).getByRole('row', { name: /Alice : salaires à saisir/ })).toHaveTextContent('37 518,00 €');
+    expect(within(cut).getByRole('row', { name: /Taux attendu/ })).toHaveTextContent('4,2 %');
+    expect(within(cut).getByRole('row', { name: /Alice : prélevé chaque mois/ })).toHaveTextContent('141,49 €');
+    expect(within(cut).getByRole('row', { name: /Prélevé en moins/ })).toHaveTextContent('214,69 €');
+    expect(within(cut).getByRole('row', { name: /Solde restant/ })).toHaveTextContent('-2 758,70 €');
+    expect(within(cut).queryByText(/revenus fonciers/)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
