@@ -331,7 +331,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 - Configuration par variables d'environnement et secrets Docker (fichiers). Aucun secret dans l'image ni dans le dépôt.
 - Images multi-architecture (amd64/arm64), utilisateur non-root, système de fichiers en lecture seule sauf volumes, healthchecks.
 - **Migrations** EF Core par module, appliquées au démarrage de `nid` sous verrou advisory Postgres. Migrations rétro-compatibles (expand/contract) pour permettre un retour arrière d'image.
-- Volumes : `pgdata`, `pocket-id` (sa base SQLite et ses images), `dataprotection-keys` (clés Data Protection de `nid`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/` (dont la clé de chiffrement de Pocket ID) et `deploy/.env`.
+- Volumes : `pgdata`, `pocket-id` (sa base SQLite et ses images), `dataprotection-keys` (clés Data Protection de `nid`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/` (dont la clé de chiffrement de Pocket ID) et `deploy/.env`. S'y ajoute `logs` (journaux de `nid`), hors sauvegarde.
 - Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et `.env`, puis le secret du client OIDC une fois créé dans Pocket ID), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
 - Mises à jour : tags d'image épinglés, procédure documentée (sauvegarde → pull → up). Pas de mise à jour automatique.
 

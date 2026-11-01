@@ -520,3 +520,31 @@ services:
 secrets:
   enable_banking_private_key: { file: ./enable_banking_private_key.pem }
 ```
+
+## 13. Journaux
+
+Le service `nid` écrit ses journaux dans la console (`docker compose logs nid`) et dans le volume `logs`, monté sur
+`/var/lib/nid/logs` : ils survivent à la mise à jour de l'image. Le volume n'entre pas dans les sauvegardes, et
+`restore.sh` le vide. Un fichier `nid-AAAAMMJJ.log` par jour, suivi de `_001`, `_002`… quand il dépasse la taille limite.
+Les commandes `nid admin` n'y écrivent pas, et ces fichiers ne contiennent rien de plus que la console.
+
+Lire les dernières lignes, puis copier les fichiers sur l'hôte :
+
+```bash
+docker run --rm -v nid_logs:/logs:ro busybox:1.37 sh -c 'tail -n 100 /logs/nid-*.log'
+```
+
+```bash
+docker run --rm -v nid_logs:/logs:ro -v "$PWD":/out busybox:1.37 cp -r /logs /out/nid-logs
+```
+
+Pour changer la rétention, dans `.env` (puis `docker compose up -d nid`) :
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `NID_LOG_MAX_FILE_MB` | `50` | Taille maximale d'un fichier |
+| `NID_LOG_KEEP_FILES` | `30` | Nombre de fichiers conservés |
+| `NID_LOG_KEEP_DAYS` | `14` | Âge maximal d'un fichier, en jours |
+
+Le premier seuil atteint supprime les fichiers les plus anciens : avec les valeurs par défaut, le volume reste sous 1,5 Go.
+Si le dossier n'est pas accessible en écriture, Nid démarre quand même et le signale dans la console.

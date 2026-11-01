@@ -30,11 +30,16 @@ services:
       Auth__CsrfKey: ${NID_CSRF_KEY:?set NID_CSRF_KEY in .env (openssl rand -hex 32)}
       # Forwarded headers are trusted from the private ranges, where your reverse proxy is. To trust only its address,
       # set Auth__TrustedNetworks__0 (README).
+      FileLogs__Path: /var/lib/nid/logs
+      FileLogs__MaxFileSizeMb: ${NID_LOG_MAX_FILE_MB:-50}
+      FileLogs__RetainedFiles: ${NID_LOG_KEEP_FILES:-30}
+      FileLogs__RetainedDays: ${NID_LOG_KEEP_DAYS:-14}
       ConnectionStrings__nid: Host=${NID_DB_HOST:-postgres};Port=${NID_DB_PORT:-5432};Database=${NID_DB_NAME:-nid};Username=${NID_DB_USER:-nid};Password=${NID_DB_PASSWORD:?set NID_DB_PASSWORD in .env}
     volumes:
       - dataprotection-keys:/var/lib/nid/keys
       - assets:/var/lib/nid/assets
       - documents:/var/lib/nid/documents
+      - logs:/var/lib/nid/logs
     ports: ["${NID_WEB_BIND:-127.0.0.1}:${NID_WEB_PORT:-8080}:8080"]
     tmpfs: [/tmp]
     # egress: catalog, rates, icons, Pocket ID's public URL, and a Postgres that runs elsewhere; a normal network, so the
@@ -112,5 +117,6 @@ volumes:
   dataprotection-keys: {}
   assets: {}
   documents: {}
+  logs: {}
   pgdata: {}
   pocket-id: {}

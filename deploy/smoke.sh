@@ -33,6 +33,8 @@ echo "ok: the session route answers"
 # answers for an asset or an API path.
 [ "$(docker run --rm -v nid_dataprotection-keys:/k busybox:1.37 stat -c %a /k)" = "700" ]
 echo "ok: the Data Protection key folder is 0700"
+docker run --rm -v nid_logs:/l:ro busybox:1.37 sh -c 'test "$(stat -c %a /l)" = 700 && cat /l/nid-*.log' | grep -q "Now listening on"
+echo "ok: nid writes its log file to the logs volume"
 if "${COMPOSE[@]}" exec -T pocket-id wget -q -T 5 -O /dev/null https://raw.githubusercontent.com 2>/dev/null; then
   echo "FAIL: pocket-id reaches the Internet" >&2; exit 1
 fi

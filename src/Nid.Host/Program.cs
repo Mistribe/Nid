@@ -58,6 +58,7 @@ if (adminMode) builder.Logging.SetMinimumLevel(LogLevel.Warning);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Configuration.AddSecretFiles();
 builder.AddServiceDefaults();
+if (!adminMode) builder.Logging.AddNidFileLogs(builder.Configuration);
 // Build-time OpenAPI generation (Microsoft.Extensions.ApiDescription.Server) runs this entry point up to
 // Build() with no configuration: it must not throw for a missing connection string, and nothing may connect
 // (the data source is built lazily, on first use). The entry point keeps running after Build() while the

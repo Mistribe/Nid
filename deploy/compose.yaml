@@ -84,6 +84,10 @@ services:
       # The backup's status.json, for the health notification: same age rule as the backup's own healthcheck.
       Nid__Backup__StatusPath: /run/backup-state/status.json
       Nid__Backup__MaxAgeHours: ${NID_BACKUP_MAX_AGE:-26}
+      FileLogs__Path: /var/lib/nid/logs
+      FileLogs__MaxFileSizeMb: ${NID_LOG_MAX_FILE_MB:-50}
+      FileLogs__RetainedFiles: ${NID_LOG_KEEP_FILES:-30}
+      FileLogs__RetainedDays: ${NID_LOG_KEEP_DAYS:-14}
     secrets:
       - { source: nid_connection_string, target: ConnectionStrings__nid }
       - { source: oidc_client_secret, target: Auth__ClientSecret }
@@ -92,6 +96,7 @@ services:
       - dataprotection-keys:/var/lib/nid/keys
       - assets:/var/lib/nid/assets
       - documents:/var/lib/nid/documents
+      - logs:/var/lib/nid/logs
       - backup-state:/run/backup-state:ro
     tmpfs: [/tmp]
     # The only service with a way out (egress): catalog, rates, icons, Enable Banking, and the identity provider's public URL.
@@ -190,6 +195,7 @@ volumes:
   dataprotection-keys: {}
   assets: {}
   documents: {}
+  logs: {}
   backup-state: {}
 
 # Plain files (compose outside Swarm bind-mounts them): deploy/secrets/ is 0700, so only its owner and the daemon read them.

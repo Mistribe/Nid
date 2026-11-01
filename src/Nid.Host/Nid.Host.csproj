@@ -12,6 +12,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Quartz" />
     <PackageReference Include="MailKit" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
