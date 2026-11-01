@@ -168,7 +168,8 @@ describe('PayslipCell', () => {
 
   it('dates the current month’s payslip today when its payment comes later', async () => {
     const today = todayIso();
-    const sent = serve({ months: [paid(`${today.slice(0, 7)}-31`)], docs: [] });
+    const endOfMonth = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0)).toISOString().slice(0, 10);
+    const sent = serve({ months: [paid(endOfMonth)], docs: [] });
     const { user } = await renderApp(HISTORY);
     const cell = (await screen.findByRole('button', { name: 'Joindre' })).closest('tbody')!;
 

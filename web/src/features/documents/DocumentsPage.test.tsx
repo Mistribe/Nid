@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { stubLocalDay } from '@/test/timeZone';
 import type { DocumentList } from './api';
 import { DOC, link, list, summary } from './testData';
 
@@ -133,15 +134,10 @@ describe('DocumentsPage', () => {
   });
 
   it('shows and filters the upload day in the browser time zone', async () => {
-    const before = process.env.TZ;
-    process.env.TZ = 'Pacific/Auckland'; // UTC+12/13: 2026-10-26T23:30Z is already the 27th there
-    try {
-      serve(list([summary({ documentDate: null, uploadedAt: '2026-10-26T23:30:00Z' })]));
-      await renderApp('/documents');
-      expect((await rows())[0]).toHaveTextContent('27 oct. 2026');
-    } finally {
-      if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
-    }
+    stubLocalDay(13); // Auckland: 2026-10-26T23:30Z is already the 27th there
+    serve(list([summary({ documentDate: null, uploadedAt: '2026-10-26T23:30:00Z' })]));
+    await renderApp('/documents');
+    expect((await rows())[0]).toHaveTextContent('27 oct. 2026');
   });
 
   it('offers only the download on a document the reader cannot edit', async () => {

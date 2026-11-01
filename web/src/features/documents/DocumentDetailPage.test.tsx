@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { stubLocalDay } from '@/test/timeZone';
 import { serveDocument } from './serveDocument';
 import { DOC, detail, target } from './testData';
 
@@ -24,16 +25,11 @@ describe('DocumentDetailPage', () => {
   });
 
   it('shows the local day of the upload', async () => {
-    const before = process.env.TZ;
-    process.env.TZ = 'Pacific/Auckland';
-    try {
-      serveDocument({ doc: detail({ uploadedAt: '2026-10-26T23:30:00Z' }) });
-      await renderApp(PATH);
-      const figures = await screen.findByRole('region', { name: 'Chiffres du document' });
-      expect(within(figures).getByText('Déposé le').nextSibling).toHaveTextContent('27 octobre 2026');
-    } finally {
-      if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
-    }
+    stubLocalDay(13); // Auckland
+    serveDocument({ doc: detail({ uploadedAt: '2026-10-26T23:30:00Z' }) });
+    await renderApp(PATH);
+    const figures = await screen.findByRole('region', { name: 'Chiffres du document' });
+    expect(within(figures).getByText('Déposé le').nextSibling).toHaveTextContent('27 octobre 2026');
   });
 
   it('shows the title, then the file type, size, upload day and uploader', async () => {

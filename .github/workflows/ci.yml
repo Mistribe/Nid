@@ -1,8 +1,9 @@
 name: ci
 
 # The monthly Actions minutes are the budget (1000), so each commit is paid for once:
-#  - a pull request builds the solution, runs the fast tests and checks the web app (`build`, `web`): the .NET unit tests, the
-#    handler attributes and vitest (about two minutes, no Docker). The integration tests, about 25 minutes, are in e2e.yml;
+#  - a pull request builds the solution, runs the fast tests and checks the web app (`build`, `web`), each only when its files
+#    change (`changes`): the .NET unit tests, the handler attributes and vitest (no Docker). The integration tests, about 25 minutes,
+#    are in e2e.yml;
 #  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
 #    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
 #    acted on. The smoke test and the backup test (`deploy/smoke.sh`, `deploy/backup-smoke.sh`) run on the developer's machine;
@@ -27,8 +28,38 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # The jobs a pull request needs, from the files it changes: a job costs minutes (`web` about 12, `build` about 4), so a change to the
+  # C# tests does not lint the web app, nor a change to the web app build the solution. `web` follows `src/` for check:api and
+  # tests/vectors/ for the vectors its tests read. Without a pull request (workflow_dispatch), both run.
+  changes:
     if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # the changed files, read from the API: no checkout
+    outputs:
+      dotnet: ${{ steps.files.outputs.dotnet }}
+      web: ${{ steps.files.outputs.web }}
+    steps:
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$PR" ]; then
+            echo "dotnet=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | .filename, .previous_filename // empty')
+          if grep -qv '^web/' <<< "$files"; then dotnet=true; else dotnet=false; fi
+          if grep -qE '^(web/|src/|tests/vectors/|global\.json$|Directory\.|\.github/workflows/ci\.yml$)' <<< "$files"; then web=true; else web=false; fi
+          echo "dotnet=$dotnet" >> "$GITHUB_OUTPUT"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.dotnet == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -50,7 +81,8 @@ jobs:
       - run: dotnet test tests/Nid.Host.IntegrationTests --configuration Release --no-build --filter "FullyQualifiedName~HandlerAttributeTests"
 
   web:
-    if: github.event_name != 'push'
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -71,6 +103,9 @@ jobs:
       - run: pnpm --dir web check:api
       # Typecheck, lint, vitest, build, budget.
       - run: pnpm --dir web check
+        env:
+          # Typed linting outgrows Node's default heap of about 2 GB.
+          NODE_OPTIONS: --max-old-space-size=4096
 
 
   # Release: build the two images (nid, nid-backup), push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:

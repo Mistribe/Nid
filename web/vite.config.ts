@@ -24,6 +24,8 @@ export default defineConfig({
     // so src/test/setup.ts resets what a test leaves behind.
     pool: 'threads',
     isolate: false,
+    // A pull request's runner has 2 vCPUs, and the default (one less than the CPUs) would run every file in a single worker.
+    ...(process.env.CI ? { maxWorkers: 2 } : {}),
     setupFiles: ['./src/test/setup.ts'],
     // A form test typing through jsdom takes 1–3 s on an idle machine, a cold import of a lazy part (calendar, cmdk) more:
     // the 5 s and 10 s defaults timed out under load (two suites at once, CI runners).
