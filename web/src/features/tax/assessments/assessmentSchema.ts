@@ -77,6 +77,8 @@ export function assessmentPath(path: string): Path<AssessmentValues> | undefined
 
 export function assessmentSchema(t: TFunction, adults: number) {
   const amount = z.string().trim().refine((v) => v === '' || AMOUNT.test(v.replace(/\s/g, '')), t('tax.amount_format'));
+  // A rental deficit: the notice prints the net rental income negative.
+  const signedAmount = z.string().trim().refine((v) => amount.safeParse(v.replace(/^-(?=.)/, '')).success, t('tax.amount_format'));
   const declarant = z.object({
     personId: z.string(), deduction: z.enum(['', 'allowance', 'actual']),
     ...Object.fromEntries(DECLARANT_MONEY.map((k) => [k, amount])),
@@ -87,6 +89,7 @@ export function assessmentSchema(t: TFunction, adults: number) {
     declarants: z.array(declarant), shares: amount,
     balanceSign: z.enum(['due', 'refund']), documentId: z.string(),
     ...Object.fromEntries([...AMOUNT_FIELDS, ...RATES].map((k) => [k, amount])),
+    rentalIncomeNet: signedAmount,
   }).superRefine((v, ctx) => {
     if (!v.declarants[0]?.personId) ctx.addIssue({ code: 'custom', path: ['declarants', 0, 'personId'], message: t('tax.assessment_form.error.declarant_required') });
     const [first, second] = v.declarants;

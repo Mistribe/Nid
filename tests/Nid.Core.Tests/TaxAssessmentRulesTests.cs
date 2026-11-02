@@ -49,11 +49,12 @@ public class TaxAssessmentRulesTests
     }
 
     [Fact]
-    public void Amounts_are_not_negative_except_the_balance()
+    public void Amounts_are_not_negative_except_the_balance_and_the_rental_income()
     {
         Assert.Equal(["netTax"], Paths(Notice(netTax: -1m)));
         Assert.Equal(["declarants[0].grossSalaries"], Paths(Notice(declarants: [Declarant(A, 1, gross: -1m)])));
         Assert.Empty(Paths(Notice(balance: -312.00m)));
+        Assert.Empty(Paths(Notice() with { RentalIncomeNet = -1037m }));
     }
 
     [Fact]

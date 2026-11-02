@@ -62,7 +62,7 @@ public static class TaxAssessmentRules
         Amount("taxableIncome", a.TaxableIncome);
         Amount("capitalIncomeDeclared", a.CapitalIncomeDeclared);
         Amount("capitalIncomeTaxable", a.CapitalIncomeTaxable);
-        Amount("rentalIncomeNet", a.RentalIncomeNet);
+        Amount("rentalIncomeNet", a.RentalIncomeNet, signed: true);
         Amount("flatRateIncome", a.FlatRateIncome);
         Amount("exemptIncomeDeclared", a.ExemptIncomeDeclared);
         Amount("exemptIncomeNet", a.ExemptIncomeNet);
