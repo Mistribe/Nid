@@ -54,8 +54,13 @@ public static partial class McpCalls
         where T : notnull
         => RunAsync<T, T>(services, build, view => view, ct);
 
-    public static async Task<CallToolResult> RunAsync<T, TOut>(
+    public static Task<CallToolResult> RunAsync<T, TOut>(
         IServiceProvider services, Func<IQuery<T>> build, Func<T, TOut> map, CancellationToken ct)
+        where T : notnull
+        => RunAsync<T, TOut>(services, build, view => Task.FromResult(map(view)), ct);
+
+    public static async Task<CallToolResult> RunAsync<T, TOut>(
+        IServiceProvider services, Func<IQuery<T>> build, Func<T, Task<TOut>> map, CancellationToken ct)
         where T : notnull
     {
         IQuery<T> request;
@@ -73,7 +78,7 @@ public static partial class McpCalls
             return ReadRefusal(failure!);
 
         result.TryGetValue(out var view);
-        return Answer(services, map(view!));
+        return Answer(services, await map(view!));
     }
 
     /// <summary>A read refused: not found and unauthorized stay « Not found. », any other refusal names its code.</summary>

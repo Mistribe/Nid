@@ -24,6 +24,17 @@ public static class McpSeed
             firstValuation = new { asOf = "2025-01-31", amount = new { amount = "21000.00", currency = "EUR" } },
         }));
 
+    /// <summary>A shared envelope both adults own, so either may decide.</summary>
+    public static async Task<Guid> JointEnvelopeAsync(NidApp app)
+        => await IdOf(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "PEA commun", kind = "pea", currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 5_000 }, new { personId = app.AdultB.Value, shareBp = 5_000 } },
+            institution = "Banque", valuationCadence = "monthly",
+            opening = new { occurredOn = "2025-01-31", amount = new { amount = "20000.00", currency = "EUR" } },
+            firstValuation = new { asOf = "2025-01-31", amount = new { amount = "21000.00", currency = "EUR" } },
+        }));
+
     public static async Task<Guid> IncomeSourceAsync(NidApp app, PersonId owner, string visibility = "shared")
         => await IdOf(await app.RawAsync(owner, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
         {

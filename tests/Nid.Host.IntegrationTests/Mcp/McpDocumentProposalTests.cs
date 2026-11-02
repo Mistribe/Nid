@@ -54,27 +54,12 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
     private static Guid? DocumentOf(JsonElement proposal)
         => proposal.GetProperty("documentId").ValueKind == JsonValueKind.Null ? null : proposal.GetProperty("documentId").GetGuid();
 
-    /// <summary>A shared envelope both adults own, so either may decide.</summary>
-    private static async Task<Guid> JointEnvelopeAsync(NidApp app)
-    {
-        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
-        {
-            displayName = "PEA commun", kind = "pea", currency = "EUR", visibility = "shared",
-            owners = new[] { new { personId = app.AdultA.Value, shareBp = 5_000 }, new { personId = app.AdultB.Value, shareBp = 5_000 } },
-            institution = "Banque", valuationCadence = "monthly",
-            opening = new { occurredOn = "2025-01-31", amount = new { amount = "20000.00", currency = "EUR" } },
-            firstValuation = new { asOf = "2025-01-31", amount = new { amount = "21000.00", currency = "EUR" } },
-        });
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
-    }
-
     // Review Focus 2.
     [Fact]
     public async Task A_statement_on_a_shared_envelope_links_its_inbox_document_which_the_decider_reads_and_approval_stamps()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var envelope = await JointEnvelopeAsync(app);
+        var envelope = await McpSeed.JointEnvelopeAsync(app);
         var document = await UploadedAsync(app, app.AdultA, Pdf, "fileName=releve.pdf");
         await using var client = await ClientAsync(app);
 
@@ -123,7 +108,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
     public async Task Another_adults_private_document_answers_as_a_missing_one_and_nothing_is_proposed_or_linked()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var envelope = await JointEnvelopeAsync(app);
+        var envelope = await McpSeed.JointEnvelopeAsync(app);
         var theirs = await UploadedAsync(app, app.AdultB, Pdf);
         await using var propose = await ClientAsync(app);
         await using var direct = await ClientAsync(app, TokenPresets.Direct);
@@ -186,7 +171,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
     public async Task A_proposals_document_is_hidden_from_an_adult_who_cannot_read_it()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var envelope = await JointEnvelopeAsync(app);
+        var envelope = await McpSeed.JointEnvelopeAsync(app);
         var document = await UploadedAsync(app, app.AdultA, Pdf);
         await using (var client = await ClientAsync(app))
             await ProposedAsync(client, "propose_statement", Statement(envelope, document));
@@ -213,7 +198,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
     public async Task Approving_a_proposal_answers_the_adult_who_cannot_read_its_document_without_it()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var envelope = await JointEnvelopeAsync(app);
+        var envelope = await McpSeed.JointEnvelopeAsync(app);
         var document = await UploadedAsync(app, app.AdultA, Pdf);
         await using (var client = await ClientAsync(app))
             await ProposedAsync(client, "propose_statement", Statement(envelope, document));

@@ -189,6 +189,7 @@ public static class RequestCatalogue
         new(typeof(GetProposalQuery), false, (data, _) => new GetProposalQuery(data.Proposals["P-B"][2])),
         new(typeof(ApproveProposalCommand), false, (data, _) => new ApproveProposalCommand(data.Proposals["P-B"][0], 0, null)),
         new(typeof(RejectProposalCommand), false, (data, _) => new RejectProposalCommand(data.Proposals["P-B"][0], 0, null)),
+        new(typeof(DeleteProposalCommand), false, (data, _) => new DeleteProposalCommand(data.Proposals["P-B"][0], 0)),
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
         new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null, null)),
         new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),

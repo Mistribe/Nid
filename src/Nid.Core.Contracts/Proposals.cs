@@ -43,6 +43,7 @@ public static class ProposalCodes
     public const string Decided = "core.proposal_decided";
     public const string VersionUnsupported = "core.proposal_version_unsupported";
     public const string TargetRequired = "core.proposal_target_required";
+    public const string NotSubmitter = "core.proposal_not_submitter";
 
     /// <summary>Warning codes.</summary>
     public const string ApplyFailed = "apply_failed";
@@ -74,6 +75,9 @@ public interface IProposalStore
     /// <summary>`pending` → approved or rejected; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
     Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,
         string? note, IReadOnlyList<Guid> appliedRefs, CancellationToken ct);
+
+    /// <summary>A `pending` row removed; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
+    Task<Result<Guid>> DeleteAsync(Guid id, uint version, CancellationToken ct);
 
     /// <summary>Appends one warning in its own write (after a rolled-back approval), to a row still pending only.</summary>
     Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct);

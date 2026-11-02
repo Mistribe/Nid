@@ -68,6 +68,15 @@ public sealed record ApproveProposalCommand(Guid Id, uint Version, JsonElement? 
 public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) : ICommand<ProposalView>, IBrowserOnly;
 
 /// <summary>
+/// A token takes back what a token of its person submitted, while it waits: no decision, and nothing of another person's, of the
+/// browser's or of a job's. The answer is the deleted id.
+/// </summary>
+public sealed record DeleteProposalCommand(Guid Id, uint Version) : ICommand<Guid>, IRequiresScope
+{
+    public string RequiredScope => ScopeNames.Write;
+}
+
+/// <summary>
 /// Spec 4D1 §5: a document written directly — the kind's validation then its application in one unit of work, as the
 /// token's actor; no proposal row (the write log records the module's rows). <paramref name="DocumentId"/> as <see cref="SubmitProposalCommand"/>'s.
 /// </summary>
@@ -343,6 +352,24 @@ public sealed class RejectProposalHandler(
             return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
         await notifier.ResolveAsync(ProposalAccess.NoticeKey(stored.Id), ct);
         return Result.Success(ProposalView.From(stored, names(stored.Target)));
+    }
+}
+
+[RequestHandler<DeleteProposalCommand, Guid>]
+public sealed class DeleteProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, INotifier notifier)
+    : IRequestHandler<DeleteProposalCommand, Guid>
+{
+    public async ValueTask<Result<Guid>> HandleAsync(DeleteProposalCommand command, CancellationToken ct = default)
+    {
+        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Read, ct);
+        if (!loaded.TryGetValue(out var found))
+            return Result.Failure<Guid>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        if (found.Proposal.CreatedBy != found.Me || found.Proposal.TokenId is null)
+            return Result.Failure<Guid>(new Failure(ProposalCodes.NotSubmitter, "Only a proposal your own token submitted can be deleted.", null));
+        var deleted = await store.DeleteAsync(command.Id, command.Version, ct);
+        if (deleted.IsSuccess)
+            await notifier.ResolveAsync(ProposalAccess.NoticeKey(command.Id), ct);
+        return deleted;
     }
 }
 

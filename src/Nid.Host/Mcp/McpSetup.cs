@@ -64,6 +64,7 @@ public static class McpSetup
             .WithTools<BankingTools>(json)
             .WithTools<RealEstateTools>(json)
             .WithTools<TaxTools>(json)
+            .WithTools<ProposalTools>(json)
             .WithTools<DocumentTools>(json)
             .WithTools<WriteTools>(json)
             .WithTools(RouteActions.All.Select(action => (McpServerTool)new RouteTool(action)));

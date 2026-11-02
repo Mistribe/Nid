@@ -118,6 +118,29 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
         return Result.Success(ToStored(row));
     }
 
+    public async Task<Result<Guid>> DeleteAsync(Guid id, uint version, CancellationToken ct)
+    {
+        var row = await db.Proposals.SingleOrDefaultAsync(r => r.Id == id, ct);
+        if (row is null)
+            return Result.Failure<Guid>(new NotFoundFailure("proposal", id.ToString()));
+        if (row.Status != "pending")
+            return Result.Failure<Guid>(new Failure(ProposalCodes.Decided, "This proposal was already decided or replaced.", null));
+        if (row.Version != version)
+            return Result.Failure<Guid>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+
+        db.Proposals.Remove(row);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return Result.Failure<Guid>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+        }
+        return Result.Success(id);
+    }
+
     public Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct)
     {
         var item = JsonSerializer.Serialize([warning], ProposalJson.Default.ListProposalWarning);
