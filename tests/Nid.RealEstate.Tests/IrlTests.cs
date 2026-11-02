@@ -35,4 +35,26 @@ public sealed class IrlTests
         Assert.False(IrlPlausibility.Plausible(137m, 145m));
         Assert.True(IrlPlausibility.Plausible(146.6m, null));
     }
+
+    [Theory]
+    [InlineData(95)]
+    [InlineData(110)]
+    public void Plausible_at_exactly_minus5_or_plus10(int value) => Assert.True(IrlPlausibility.Plausible(value, 100m));
+
+    [Theory]
+    [InlineData("2026-Q")]
+    [InlineData("2026-Q22")]
+    [InlineData("2026/Q2")]
+    [InlineData("2026-T2")]
+    [InlineData("20a6-Q2")]
+    [InlineData("2026-Q0")]
+    [InlineData("2026-Q5")]
+    public void A_quarter_valid_only_in_part_is_refused(string text) => Assert.Throws<FormatException>(() => IrlQuarter.Parse(text));
+
+    [Fact]
+    public void An_observation_without_a_publication_date_is_read()
+    {
+        var (quarter, value, published) = Assert.Single(IrlReader.Read(Encoding.UTF8.GetBytes("<Obs TIME_PERIOD=\"2026-Q2\" OBS_VALUE=\"148.37\"/>")));
+        Assert.Equal((new IrlQuarter(2026, 2), 148.37m, (LocalDate?)null), (quarter, value, published));
+    }
 }

@@ -127,4 +127,60 @@ public class LoanMathTests
         var after = LoanMath.At(t, s, Loans.Disbursed.PlusDays(6));
         Assert.Equal((190_000m, 10_000m), (after.Balance, after.PrincipalRepaid));
     }
+
+    [Fact]
+    public void A_fee_counts_from_its_own_day_before_and_after_disbursement()
+    {
+        LocalDate signing = Loans.Disbursed.PlusDays(-10), later = new(2030, 1, 1);
+        var (t, s) = Golden(x => x with { Fees = [new LoanFee(FeeKind.File, 1_000m, signing), new LoanFee(FeeKind.Other, 200m, later)] });
+        Assert.Equal(1_000m, LoanMath.At(t, s, signing).FeesPaid);
+        Assert.Equal(1_200m, LoanMath.At(t, s, later).FeesPaid);
+    }
+
+    [Fact]
+    public void Before_disbursement_the_next_payment_includes_the_insurance()
+    {
+        var (t, s) = Golden(x => x with { Insurances = [new LoanInsurance(InsuranceMode.FixedMonthly, 20m, null, Loans.First)] });
+        Assert.Equal(1179.92m, LoanMath.At(t, s, Loans.Disbursed.PlusDays(-1)).NextPaymentTotal);
+    }
+
+    [Fact]
+    public void An_empty_schedule_has_no_next_payment_before_disbursement()
+    {
+        var f = LoanMath.At(Loans.Golden(), new LoanSchedule([], []), Loans.Disbursed.PlusDays(-1));
+        Assert.Equal(((int?)null, (decimal?)null, (LocalDate?)null, (decimal?)null), (f.CurrentPhaseSeq, f.CurrentRate, f.NextPaymentOn, f.NextPaymentTotal));
+    }
+
+    [Fact]
+    public void The_current_phase_is_the_next_payment_s_then_the_last_one_s()
+    {
+        var (t, s) = Golden(x => x with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.03m, RateType.Fixed, 12), new LoanPhase(2, PhaseMode.Annuity, 0.04m, RateType.Fixed)] });
+        var during = LoanMath.At(t, s, Loans.First);
+        Assert.Equal((1, 0.03m), (during.CurrentPhaseSeq, during.CurrentRate));
+        var after = LoanMath.At(t, s, new LocalDate(2050, 1, 1));
+        Assert.Equal((2, 0.04m), (after.CurrentPhaseSeq, after.CurrentRate));
+    }
+
+    [Fact]
+    public void The_cost_paid_adds_the_insurance_to_the_interest()
+    {
+        var (t, s) = Golden(x => x with { Insurances = [new LoanInsurance(InsuranceMode.FixedMonthly, 20m, null, Loans.First)] });
+        var f = LoanMath.At(t, s, Loans.First.PlusMonths(59));
+        Assert.Equal(31848.32m + 1_200m, f.CostPaid);
+        Assert.Equal(f.TotalCost - f.CostPaid, f.CostRemaining);
+    }
+
+    [Fact]
+    public void A_simulation_after_the_last_payment_has_no_payment_left()
+    {
+        var o = Loans.Ok(LoanMath.SimulateEarlyRepayment(Loans.Golden(), new LocalDate(2050, 1, 1), 0m, RepaymentEffect.ReduceTerm, 0m)).Outcomes.Single();
+        Assert.Equal((0m, 0m), (o.PaymentBefore, o.PaymentAfter));
+    }
+
+    [Fact]
+    public void A_simulation_with_an_unknown_effect_is_refused_at_effect()
+    {
+        var f = Loans.Fail(LoanMath.SimulateEarlyRepayment(Loans.Golden(), Loans.First, 10m, (RepaymentEffect)9, 0m));
+        Assert.Equal((LoanCodes.InvalidLoan, "effect"), (f.Code, Loans.FieldOf(f)));
+    }
 }

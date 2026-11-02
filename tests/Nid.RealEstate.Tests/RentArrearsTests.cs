@@ -283,4 +283,58 @@ public class RentArrearsTests
         var months = RentArrears.Of([(a, b, Lease(new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 1))), (b, a, Lease(new LocalDate(2025, 6, 1)))], [], new LocalDate(2025, 8, 20));
         Assert.NotEmpty(months);
     }
+
+    [Fact]
+    public void A_revision_chain_reads_oldest_first_whatever_order_it_comes_in()
+    {
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid();
+        Tenancy old = Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 1, 1)), revised = Lease(new LocalDate(2026, 1, 1));
+        Assert.Equal([old, revised], Assert.Single(RentLedger.Accounts([(b, a, revised), (a, null, old)], [])).Tenancies);
+    }
+
+    [Fact]
+    public void A_payment_on_a_lease_s_first_day_within_the_next_tenant_s_15_days_is_the_next_tenant_s()
+    {
+        var on = new LocalDate(2026, 6, 1);
+        IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies = [(Martin, null, Lease(on)), (Durand, null, Lease(on.PlusDays(9)))];
+        Assert.Single(RentLedger.Accounts(tenancies, [Cash(on, 1m)]).Single(a => a.Chain == Durand).Cash);
+    }
+
+    [Fact]
+    public void Two_leases_covering_a_date_give_it_to_the_latest_started_even_when_revised()
+    {
+        Guid revised = Guid.NewGuid();
+        IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies =
+        [
+            (Martin, null, Lease(new LocalDate(2025, 1, 1))),
+            (Durand, null, Lease(new LocalDate(2025, 3, 1), new LocalDate(2025, 6, 1))),
+            (revised, Durand, Lease(new LocalDate(2025, 6, 1))),
+        ];
+        Assert.Single(RentLedger.Accounts(tenancies, [Cash(new LocalDate(2025, 7, 5), 1m)]).Single(a => a.Chain == revised).Cash);
+    }
+
+    [Fact]
+    public void After_every_lease_ended_the_cash_goes_to_the_one_that_ended_last()
+    {
+        IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies =
+            [(Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2021, 1, 1))), (Durand, null, Lease(new LocalDate(2022, 1, 1), new LocalDate(2023, 1, 1)))];
+        Assert.Single(RentLedger.Accounts(tenancies, [Cash(new LocalDate(2024, 1, 5), 1m)]).Single(a => a.Chain == Durand).Cash);
+    }
+
+    [Fact]
+    public void A_chain_ends_with_its_last_link_not_its_first()
+    {
+        Guid revised = Guid.NewGuid();
+        IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies =
+        [
+            (Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2021, 1, 1))),
+            (revised, Martin, Lease(new LocalDate(2021, 1, 1), new LocalDate(2023, 1, 1))),
+            (Durand, null, Lease(new LocalDate(2021, 6, 1), new LocalDate(2022, 1, 1))),
+        ];
+        Assert.Single(RentLedger.Accounts(tenancies, [Cash(new LocalDate(2024, 1, 5), 1m)]).Single(a => a.Chain == revised).Cash);
+    }
+
+    [Fact]
+    public void Without_any_lease_the_cash_is_a_credit()
+        => Assert.Equal(-100m, RentLedger.PropertyArrears([], [Cash(October23, 100m)], October23));
 }

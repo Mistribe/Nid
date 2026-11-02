@@ -295,4 +295,136 @@ public class RentLedgerTests
         Assert.Equal(new[] { 0m, 0m }, months.Select(m => m.Remaining));
         Assert.Equal(new LocalDate(2025, 3, 1), months[0].Month);
     }
+
+    private static readonly LocalDate Fallback = new(2025, 10, 24); // October23 − 12 months + 1 day
+
+    /// <summary>Money that moves on the property without being a tenant's cash.</summary>
+    public static TheoryData<FlowKind, string> NotCash => new()
+    {
+        { FlowKind.Income, "other_income" },
+        { FlowKind.Expense, PropertyCategories.Rent },
+    };
+
+    private static Flow Flow(LocalDate on, FlowKind kind, string category) => new(Guid.NewGuid(), Home, on, kind, Eur(100m), category, null, null);
+
+    [Fact]
+    public void A_payment_on_the_lease_s_first_day_counts_from_the_lease_start()
+        => Assert.Equal(SinceMarch.StartsOn, RentLedger.Tracked(SinceMarch, [Cash(SinceMarch.StartsOn, 850m)], October23));
+
+    [Fact]
+    public void A_payment_on_the_evaluation_day_is_a_first_rent()
+        => Assert.Equal(new LocalDate(2026, 10, 1), RentLedger.Tracked(Since2018, [Cash(October23, 850m)], October23));
+
+    [Fact]
+    public void A_first_rent_on_the_day_after_the_lease_s_second_month_starts_the_count_in_its_month()
+        => Assert.Equal(new LocalDate(2025, 5, 1), RentLedger.Tracked(SinceMarch, [Cash(new LocalDate(2025, 5, 1), 850m)], October23));
+
+    [Fact]
+    public void Cash_before_the_lease_start_is_no_first_rent()
+        => Assert.Equal(Fallback, RentLedger.Tracked(SinceMarch, [Cash(new LocalDate(2025, 2, 22), 850m)], October23));
+
+    [Theory]
+    [MemberData(nameof(NotCash))]
+    public void A_flow_that_is_not_a_tenant_s_cash_is_no_first_rent(FlowKind kind, string category)
+        => Assert.Equal(Fallback, RentLedger.Tracked(SinceMarch, [Flow(new LocalDate(2025, 3, 5), kind, category)], October23));
+
+    [Theory]
+    [MemberData(nameof(NotCash))]
+    public void A_flow_that_is_not_a_tenant_s_cash_settles_nothing(FlowKind kind, string category)
+    {
+        List<Flow> flows = [Flow(new LocalDate(2026, 4, 5), kind, category)];
+        Assert.Equal(RentLedger.Arrears([Standard], [], Today), RentLedger.Arrears([Standard], flows, Today));
+        Assert.All(RentLedger.Months([Standard], flows, Today), m => Assert.Equal(0m, m.Imputed));
+    }
+
+    [Fact]
+    public void The_tracked_start_is_never_before_the_lease()
+    {
+        Assert.Equal(SinceMarch.StartsOn, RentLedger.Tracked(SinceMarch with { RentsTrackedFrom = new LocalDate(2025, 1, 1) }, [], October23));
+        Assert.Equal(SinceMarch.StartsOn, RentLedger.Tracked(SinceMarch, [], new LocalDate(2025, 4, 30))); // the 12 months reach back before it
+    }
+
+    [Fact]
+    public void Without_any_tenancy_the_ledger_starts_12_months_back()
+        => Assert.Equal(Fallback, RentLedger.Start([], [], October23));
+
+    [Fact]
+    public void A_lease_ended_before_the_month_owes_none_of_it_whatever_its_tracked_start()
+    {
+        var gone = Lease(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 1));
+        Assert.False(RentLedger.Counts(gone, gone.StartsOn, new LocalDate(2025, 4, 1)));
+    }
+
+    [Theory]
+    [MemberData(nameof(NotCash))]
+    public void A_former_tenant_with_only_other_flows_owes_nothing(FlowKind kind, string category)
+    {
+        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2026, 1, 1));
+        Assert.Empty(RentLedger.Started([gone], [Flow(new LocalDate(2025, 6, 5), kind, category)], October23));
+    }
+
+    [Fact]
+    public void A_former_tenant_s_payment_on_the_evaluation_day_is_recorded_cash()
+    {
+        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2026, 1, 1));
+        Assert.Single(RentLedger.Started([gone], [Cash(October23, 850m)], October23));
+    }
+
+    [Fact]
+    public void A_payment_on_the_evaluation_day_is_imputed()
+    {
+        var month = Assert.Single(RentLedger.Months([Standard], [Cash(Today, 850m)], Today));
+        Assert.Equal((850m, Today), (month.Imputed, month.LastPaidOn));
+    }
+
+    [Fact]
+    public void A_tracked_start_inside_a_month_prorates_that_month()
+    {
+        var first = RentLedger.Months([Since2018], [], October23)[0];
+        Assert.Equal((new LocalDate(2025, 10, 1), 219.35m), (first.Month, first.Due)); // 850 × 8 ÷ 31, from the 24th
+    }
+
+    [Fact]
+    public void A_month_with_nothing_due_is_never_paid_nor_a_quittance()
+    {
+        var free = Lease(new LocalDate(2025, 1, 1), rent: 0m, charges: 0m);
+        List<Flow> flows = [Cash(new LocalDate(2026, 4, 5), 10m)];
+        var month = Assert.Single(RentLedger.Months([free], flows, Today));
+        Assert.Equal((0m, 0m, (LocalDate?)null), (month.Due, month.Imputed, month.LastPaidOn));
+        Assert.Equal("unpaid", RentReceipt.For([free], flows, new LocalDate(2026, 4, 1), Today)!.Kind);
+    }
+
+    private static readonly LocalDate October1 = new(2026, 10, 1);
+    private static readonly Tenancy TrackedFromOctober = Standard with { RentsTrackedFrom = October1 };
+
+    [Fact]
+    public void A_receipt_for_the_current_month_reads_the_cash_to_the_month_s_last_day()
+        => Assert.Equal("quittance", RentReceipt.For([Standard], [Cash(new LocalDate(2026, 10, 20), 850m)], October1, new LocalDate(2026, 10, 3))!.Kind);
+
+    [Fact]
+    public void A_receipt_for_the_current_month_stops_at_the_month_s_last_day()
+        => Assert.Equal("unpaid", RentReceipt.For([TrackedFromOctober], [Cash(new LocalDate(2026, 11, 1), 850m)], October1, new LocalDate(2026, 10, 3))!.Kind);
+
+    [Fact]
+    public void A_receipt_for_a_past_month_reads_the_cash_to_today()
+    {
+        var november1 = new LocalDate(2026, 11, 1);
+        Assert.Equal("quittance", RentReceipt.For([TrackedFromOctober], [Cash(november1, 850m)], October1, november1)!.Kind);
+    }
+
+    [Fact]
+    public void A_month_can_be_asked_for_from_its_first_day()
+    {
+        var april1 = new LocalDate(2026, 4, 1);
+        Assert.NotNull(RentReceipt.For([Standard], [], april1, april1));
+        Assert.True(RentReceipt.InRange([Standard], [], april1, april1));
+    }
+
+    [Fact]
+    public void A_month_after_today_or_that_no_tenancy_owes_is_out_of_range()
+    {
+        Assert.False(RentReceipt.InRange([Standard], [], new LocalDate(2026, 5, 1), Today));
+        Assert.False(RentReceipt.InRange([Standard], [], new LocalDate(2025, 4, 1), Today)); // before the last 12 months
+        Assert.True(RentReceipt.InRange([Standard], [], new LocalDate(2026, 4, 15), Today)); // read as its month
+    }
 }

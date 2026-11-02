@@ -38,7 +38,24 @@ public class LoanValidationTests
         { "insurances[0].mode", Loans.Golden() with { Insurances = [new LoanInsurance((InsuranceMode)9, 10m, 0.01m, Loans.First)] } },
         { "fees[0].kind", Loans.Golden() with { Fees = [new LoanFee((FeeKind)9, 10m, Loans.Disbursed)] } },
         { "events[0].effect", Loans.Golden() with { Events = [new EarlyRepayment(Loans.First, 10m, (RepaymentEffect)9)] } },
+        { "phases[0].payments", Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.03m, RateType.Fixed, 0)] } },
+        { "phases[0].openingBalanceOverride", Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.03m, RateType.Fixed, OpeningBalanceOverride: 0m)] } },
+        { "phases[0].openingBalanceOverride", Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.03m, RateType.Fixed, OpeningBalanceOverride: -1m)] } },
+        { "insurances[0].monthlyAmount", Loans.Golden() with { Insurances = [new LoanInsurance(InsuranceMode.FixedMonthly, 0m, null, Loans.First)] } },
+        { "insurances[0].annualRate", Loans.Golden() with { Insurances = [new LoanInsurance(InsuranceMode.RateOnRemaining, null, 1m, Loans.First)] } },
     };
+
+    public static TheoryData<LoanTerms> AtTheBoundary() =>
+    [
+        Loans.Golden() with { FirstPaymentDate = Loans.Disbursed }, // a first payment on the disbursement date
+        Loans.Golden() with { Events = [new EarlyRepayment(Loans.Disbursed, 10m, RepaymentEffect.ReduceTerm)] }, // a repayment on the disbursement date
+        Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.03m, RateType.Fixed, OpeningBalanceOverride: 1m)] },
+        Loans.Golden() with { Insurances = [new LoanInsurance(InsuranceMode.RateOnRemaining, null, 0m, Loans.First)] }, // a rate of exactly 0
+    ];
+
+    [Theory]
+    [MemberData(nameof(AtTheBoundary))]
+    public void A_loan_at_a_boundary_passes(LoanTerms terms) => Assert.Null(Refusal(terms));
 
     [Theory]
     [MemberData(nameof(Invalid))]
