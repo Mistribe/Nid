@@ -36,7 +36,7 @@ describe('Abonnements › calendrier', () => {
     const { container } = await renderApp('/subscriptions?tab=calendar&month=2027-01');
 
     expect(await screen.findByRole('heading', { name: 'janvier 2027' })).toBeInTheDocument();
-    expect(month(seen)).toBe('2027-01');
+    await waitFor(() => expect(month(seen)).toBe('2027-01'));
     const figures = (await screen.findByText('Total du mois')).closest('dl')!;
     expect(figures).toHaveTextContent('42,00 €');
     expect(figures).toHaveTextContent('Prélèvements1');
@@ -48,7 +48,7 @@ describe('Abonnements › calendrier', () => {
     await renderApp('/subscriptions?tab=calendar&month=2026-13');
 
     expect(await screen.findByRole('heading', { name: 'novembre 2026' })).toBeInTheDocument();
-    expect(month(seen)).toBe('2026-11');
+    await waitFor(() => expect(month(seen)).toBe('2026-11'));
   });
 
   it('Three_charges_or_fewer_show_in_full_and_more_show_plus_n', async () => {
