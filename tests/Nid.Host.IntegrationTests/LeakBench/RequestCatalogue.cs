@@ -333,6 +333,7 @@ public static class RequestCatalogue
         new(typeof(GetInvestmentsOverviewQuery), false, (_, _) => new GetInvestmentsOverviewQuery(VisibilityScope.Me, OverviewSpan.All)),
         new(typeof(GetInvestmentsPerformanceQuery), false, (_, _) => new GetInvestmentsPerformanceQuery(VisibilityScope.Me, new LocalDate(2024, 12, 31), new LocalDate(2025, 10, 15))),
         new(typeof(GetInvestmentsHoldingsQuery), false, (_, _) => new GetInvestmentsHoldingsQuery(VisibilityScope.Me)),
+        new(typeof(SaveFeeReferencesCommand), false, (_, _) => new SaveFeeReferencesCommand(FeesProjection.Defaults)),
         new(typeof(GetRoutineQuery), false, (_, _) => new GetRoutineQuery(null)),
         new(typeof(GetEnvelopeQuery), true, (_, item) => new GetEnvelopeQuery(item)),
         new(typeof(EditEnvelopeCommand), true, (_, item) => new EditEnvelopeCommand(item, null, null, new EnvelopeChange(Note: "bench"), null)),

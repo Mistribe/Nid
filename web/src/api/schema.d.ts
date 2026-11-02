@@ -3060,8 +3060,6 @@ export interface paths {
             parameters: {
                 query?: {
                     scope?: string;
-                    assumedReturn?: number;
-                    referenceFees?: number;
                 };
                 header?: never;
                 path?: never;
@@ -3135,6 +3133,99 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/fee-references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeeReferencesBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeeReferences"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -23113,6 +23204,12 @@ export interface components {
             stale: components["schemas"]["EstimateLineView"][];
             missingReason?: null | string;
         };
+        EnvelopeFeesCostView: {
+            /** Format: uuid */
+            envelopeId: string;
+            total: components["schemas"]["FeesCostView"];
+            holdings: components["schemas"]["FeesCostView"][];
+        };
         EnvelopeFeesView: {
             /** Format: uuid */
             envelopeId: string;
@@ -23262,22 +23359,48 @@ export interface components {
             at: string;
             error: string;
         };
-        FeesHorizonView: {
-            /** Format: int32 */
-            years: number;
-            withFees: components["schemas"]["AmountView"];
-            withReference: components["schemas"]["AmountView"];
-            difference: components["schemas"]["AmountView"];
+        FeeReferences: {
+            /** Format: double */
+            assumedReturnPct: number;
+            envelopes: {
+                [key: string]: number;
+            };
+            holdings: {
+                [key: string]: number;
+            };
         };
-        FeesProjectionView: {
-            base: components["schemas"]["AmountView"];
+        FeeReferencesBody: {
+            /** Format: double */
+            assumedReturnPct: number;
+            envelopes?: null | {
+                [key: string]: number;
+            };
+            holdings?: null | {
+                [key: string]: number;
+            };
+        };
+        FeesCostView: {
+            /** Format: uuid */
+            holdingId?: null | string;
+            name: string;
+            value?: null | components["schemas"]["AmountView"];
             /** Format: double */
             feesPct: number;
             /** Format: double */
-            assumedReturnPct: number;
+            referencePct: number;
+            yearly?: null | components["schemas"]["AmountView"];
+            cost10?: null | components["schemas"]["AmountView"];
+            cost20?: null | components["schemas"]["AmountView"];
+            gap20?: null | components["schemas"]["AmountView"];
+        };
+        FeesProjectionView: {
             /** Format: double */
-            referenceFeesPct: number;
-            horizons: components["schemas"]["FeesHorizonView"][];
+            assumedReturnPct: number;
+            envelopes: components["schemas"]["EnvelopeFeesCostView"][];
+            yearly?: null | components["schemas"]["AmountView"];
+            cost10?: null | components["schemas"]["AmountView"];
+            cost20?: null | components["schemas"]["AmountView"];
+            aboveReference20?: null | components["schemas"]["AmountView"];
         };
         FiguresView: {
             value?: null | components["schemas"]["AmountView"];
@@ -24078,6 +24201,7 @@ export interface components {
             envelopeFees: components["schemas"]["EnvelopeFeesView"][];
             projection?: null | components["schemas"]["FeesProjectionView"];
             estimated: boolean;
+            references: components["schemas"]["FeeReferences"];
         };
         InvestmentsOverview: {
             currency: string;

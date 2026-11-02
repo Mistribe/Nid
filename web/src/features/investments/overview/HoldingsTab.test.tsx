@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -77,22 +77,26 @@ describe('Placements › supports et frais', () => {
     expect(within(watch[1]!).getByRole('link', { name: 'Assurance-vie' })).toHaveAttribute('href', expect.stringContaining(`/investments/${LIFE}/holdings/`));
   });
 
-  it('shows each envelope’s fees and projects them, again with the assumptions typed', async () => {
-    const seen: string[] = [];
+  it('shows each envelope’s fees and what they cost against the household’s references, which it saves', async () => {
     const eur = (amount: string) => ({ amount, currency: 'EUR' });
+    const cost = (name: string, feesPct: number, referencePct: number, gap20: string, holdingId: string | null = null) => ({
+      holdingId, name, value: eur('28200.00'), feesPct, referencePct, yearly: eur('169.20'), cost10: eur('2346.67'), cost20: eur('6752.02'), gap20: eur(gap20),
+    });
     serve(householdHoldings({
       envelopeFees: [
         { envelopeId: LIFE, name: 'Assurance-vie', contractFeesPct: 0.6, supportFeesPct: 0, totalFeesPct: 0.73, yearlyCost: eur('436.10'), coveredPct: 76 },
         { envelopeId: PEA, name: 'PEA', contractFeesPct: null, supportFeesPct: null, totalFeesPct: null, yearlyCost: null, coveredPct: 0 },
       ],
       projection: {
-        base: eur('59600.00'), feesPct: 0.73, assumedReturnPct: 4, referenceFeesPct: 0.2,
-        horizons: [
-          { years: 10, withFees: eur('82208.37'), withReference: eur('86540.58'), difference: eur('4332.21') },
-          { years: 20, withFees: eur('113392.90'), withReference: eur('125658.92'), difference: eur('12266.02') },
-        ],
+        assumedReturnPct: 4, yearly: eur('436.10'), cost10: eur('6008.78'), cost20: eur('17166.54'), aboveReference20: eur('2796.18'),
+        envelopes: [{ envelopeId: LIFE, total: cost('Assurance-vie', 0.73, 0.61, '2796.18'), holdings: [cost('Fonds euros', 0.6, 0.5, '1074.40', '0192f0aa-0000-7000-8000-00000000e001')] }],
       },
-    }), seen);
+    }));
+    let sent: Record<string, unknown> = {};
+    server.use(http.put('*/api/v1/investments/fee-references', async ({ request }) => {
+      sent = await request.json() as Record<string, unknown>;
+      return HttpResponse.json(sent);
+    }));
     const { container, user } = await renderApp('/investments?tab=holdings');
 
     const table = await screen.findByRole('table', { name: 'Frais de chaque enveloppe' });
@@ -102,21 +106,27 @@ describe('Placements › supports et frais', () => {
     expect(rows[2]).not.toHaveTextContent('0,00 €');
 
     const projection = await region('Ce que coûtent les frais dans le temps');
-    expect(projection).toHaveTextContent('59 600,00 € de supports avec un rapport de frais, à 0,73 % de frais par an.');
-    const horizons = within(within(projection).getByRole('table')).getAllByRole('row');
-    expect(horizons[0]).toHaveTextContent('Avec 0,2 % de frais');
-    expect(horizons[2]).toHaveTextContent('20 ans113 392,90 €125 658,92 €12 266,02 €');
+    expect(projection).toHaveTextContent('Au-dessus de la référence sur 20 ans2 796,18 €');
+    const lines = within(within(projection).getByRole('table')).getAllByRole('row');
+    expect(lines[1]).toHaveTextContent('Assurance-vie');
+    expect(lines[2]).toHaveTextContent('Fonds euros0,6 % · référence 0,5 %0,6 %0,5 %169,20 €2 346,67 €6 752,02 €1 074,40 €');
+    expect(projection).toHaveTextContent('Indicatif');
+    expect(projection).toHaveTextContent('La référence est votre choix, pas un conseil');
     await expectNoAxeViolations(container);
 
-    const rate = within(projection).getByRole('textbox', { name: 'Rendement brut supposé (% par an)' });
-    await user.clear(rate);
-    await user.type(rate, '25');
-    await user.click(within(projection).getByRole('button', { name: 'Recalculer' }));
-    expect(within(projection).getByRole('alert')).toHaveTextContent('Rendement de -10 à 20 %, frais de 0 à 10 %.');
-    await user.clear(rate);
-    await user.type(rate, '5,5');
-    await user.click(within(projection).getByRole('button', { name: 'Recalculer' }));
-    await vi.waitFor(() => expect(seen.at(-1)).toBe('?scope=household&assumedReturn=5.5&referenceFees=0.2'));
+    await user.click(within(projection).getByRole('button', { name: 'Références…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Frais de référence' });
+    const etf = within(dialog).getByRole('textbox', { name: 'ETF' });
+    expect(etf).toHaveValue('0,2');
+    await user.clear(etf);
+    await user.type(etf, '12');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Rendement de -10 à 20 %, chaque frais de 0 à 10 %.');
+    await user.clear(etf);
+    await user.type(etf, '0,1');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    expect(await within(projection).findByRole('status')).toHaveTextContent('Références enregistrées.');
+    expect(sent).toMatchObject({ assumedReturnPct: 4, envelopes: { life_insurance: 0.5 }, holdings: { etf: 0.1, euro_fund: 0 } });
   });
 
   it('says why last year is not estimated when reports exist, and names a holding without one once', async () => {

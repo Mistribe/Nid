@@ -299,7 +299,7 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
     }
 
     [Fact]
-    public async Task The_fees_by_envelope_and_their_projection_follow_the_assumptions_sent()
+    public async Task The_fees_by_envelope_and_their_cost_follow_the_saved_references()
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await DetailedAsync(app, "Assurance-vie", app.AdultA, Visibility.Shared);
@@ -308,18 +308,25 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put,
             $"/api/v1/investments/envelopes/{id.Value}/holdings/{etf}/cost-reports/2024", new { grossReturnPct = 8m, totalFeesPct = 0.5m, netReturnPct = 7.5m })).StatusCode);
 
-        // The reference's fees equal the holding's: no difference whatever the horizon.
-        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?assumedReturn=5&referenceFees=0.5"));
+        // The reference's fees equal the holding's (0.3 % of contract and 0.2 % of ETF): no gap whatever the horizon.
+        var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/investments/fee-references",
+            new { assumedReturnPct = 5m, envelopes = new Dictionary<string, decimal> { ["savings"] = 0.3m } });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal(0.2m, (await JsonAsync(saved)).GetProperty("holdings").GetProperty("etf").GetDecimal()); // left out: its default
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Holdings));
 
         var fees = Assert.Single(body.GetProperty("envelopeFees").EnumerateArray());
         Assert.Equal((0.5m, "45.00", 37.5m), (fees.GetProperty("totalFeesPct").GetDecimal(), S(fees.GetProperty("yearlyCost"), "amount"), fees.GetProperty("coveredPct").GetDecimal()));
         var projection = body.GetProperty("projection");
-        Assert.Equal(("9000.00", 5m, 0.5m), (S(projection.GetProperty("base"), "amount"), projection.GetProperty("assumedReturnPct").GetDecimal(),
-            projection.GetProperty("referenceFeesPct").GetDecimal()));
-        Assert.All(projection.GetProperty("horizons").EnumerateArray(), h => Assert.Equal("0.00", S(h.GetProperty("difference"), "amount")));
+        var total = Assert.Single(projection.GetProperty("envelopes").EnumerateArray()).GetProperty("total");
+        Assert.Equal((5m, "9000.00", 0.5m, "0.00", "0.00"), (projection.GetProperty("assumedReturnPct").GetDecimal(), S(total.GetProperty("value"), "amount"),
+            total.GetProperty("referencePct").GetDecimal(), S(total.GetProperty("gap20"), "amount"), S(projection.GetProperty("aboveReference20"), "amount")));
+        Assert.Equal(0.3m, body.GetProperty("references").GetProperty("envelopes").GetProperty("savings").GetDecimal());
 
-        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?assumedReturn=30")).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?referenceFees=-1")).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/investments/fee-references",
+            new { assumedReturnPct = 30m })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/investments/fee-references",
+            new { assumedReturnPct = 4m, holdings = new Dictionary<string, decimal> { ["cash"] = 1m } })).StatusCode);
     }
 
     /// <summary>

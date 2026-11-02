@@ -107,7 +107,13 @@ export const LIFE = '0192f0aa-0000-7000-8000-00000000e004';
 export const holdings = (over: Partial<HouseholdHoldings> = {}): HouseholdHoldings => ({
   currency: 'EUR', value: null, detailed: null, unallocated: null, undetailed: null, detailedPct: null, detailedCount: 0, envelopeCount: 0,
   byKind: [], ucSharePct: null, envelopesUc: [], holdings: [], concentrations: [], costYear: 2024, cost: null, costPct: null,
-  withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], envelopeFees: [], projection: null, estimated: false, ...over,
+  withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], envelopeFees: [], projection: null, estimated: false,
+  references: {
+    assumedReturnPct: 4,
+    envelopes: { checking: 0, savings: 0, pea: 0, life_insurance: 0.5, per: 0.5, brokerage: 0, other: 0, tontine: 0 },
+    holdings: { euro_fund: 0, fund: 0.2, etf: 0.2, equity: 0, bond: 0, structured: 0.2, other: 0.2 },
+  },
+  ...over,
 });
 
 export const holdingRow = (over: Partial<HoldingOverviewRow>): HoldingOverviewRow => ({

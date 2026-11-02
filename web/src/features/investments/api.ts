@@ -24,11 +24,14 @@ export type HouseholdPerformance = components['schemas']['InvestmentsPerformance
 export type EnvelopePeriodRow = components['schemas']['EnvelopePeriodRow'];
 export type HouseholdHoldings = components['schemas']['InvestmentsHoldings'];
 export type HoldingOverviewRow = components['schemas']['HoldingOverviewRow'];
+export type FeesCost = components['schemas']['FeesCostView'];
+export type FeeReferences = components['schemas']['FeeReferences'];
 
 export const ENVELOPES = '/api/v1/investments/envelopes' as const;
 export const OVERVIEW = '/api/v1/investments/overview' as const;
 export const HOUSEHOLD_PERFORMANCE = '/api/v1/investments/overview/performance' as const;
 export const HOUSEHOLD_HOLDINGS = '/api/v1/investments/overview/holdings' as const;
+export const FEE_REFERENCES = '/api/v1/investments/fee-references' as const;
 export const ENVELOPE = '/api/v1/investments/envelopes/{id}' as const;
 export const VALUATIONS = '/api/v1/investments/envelopes/{id}/valuations' as const;
 export const VALUATION = '/api/v1/investments/envelopes/{id}/valuations/{valuationId}' as const;

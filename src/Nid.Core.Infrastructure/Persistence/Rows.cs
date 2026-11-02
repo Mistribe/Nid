@@ -14,6 +14,8 @@ public sealed class HouseholdSettingsRow
     public string? AllocationTarget { get; set; }
     /// <summary>Net worth projection spec §2.1: the household's assumptions as JSON (fractions); null until it chose some.</summary>
     public string? ProjectionAssumptions { get; set; }
+    /// <summary>Issue #209: the fee references as JSON (%); null until the household saved some.</summary>
+    public string? FeeReferences { get; set; }
     /// <summary>The admin switch of the nightly price collection (holding prices spec §2.1).</summary>
     public bool PricesEnabled { get; set; }
     public bool IrlEnabled { get; set; }

@@ -1,13 +1,14 @@
-import { keepPreviousData } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { Info } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { present, toProblem } from '@/api/errors';
-import { Field } from '@/components/form/Field';
+import { present, toProblem, type Presentation } from '@/api/errors';
+import { Field, type FieldControl } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
+import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
@@ -19,10 +20,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { HOUSEHOLD_HOLDINGS, type HoldingOverviewRow, type HouseholdHoldings } from '../api';
+import { FEE_REFERENCES, HOUSEHOLD_HOLDINGS, type FeeReferences, type FeesCost, type HoldingOverviewRow, type HouseholdHoldings } from '../api';
 import { toPlot } from '../chart/plot';
 import { pct } from '../Figures';
-import { holdingKindText } from '../holdings/holdingFormat';
+import { KINDS } from '../format';
+import { HOLDING_KINDS, holdingKindText } from '../holdings/holdingFormat';
 import { holdingKindColor } from './colors';
 import '@/locales/investments';
 
@@ -34,16 +36,11 @@ const share = (value: number) => new Intl.NumberFormat('fr-FR', { minimumFractio
 /** A fee rate as the server rounded it, to 0.01 %. */
 const rate = (value: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
 
-/** Issue #103: the projection's assumptions, in %; absent, the server's defaults. */
-type Assumptions = { assumedReturn?: number; referenceFees?: number };
-
 /** Investments dashboard §5.3: the holdings of every envelope together, from the server's figures; nothing computed here. */
 export function HoldingsTab({ scope }: { scope: Scope }) {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const [assumptions, setAssumptions] = useState<Assumptions>({});
-  // The previous figures stay while new assumptions load, so the tab does not blink.
-  const answer = $api.useQuery('get', HOUSEHOLD_HOLDINGS, { params: { query: { scope, ...assumptions } } }, { placeholderData: keepPreviousData });
+  const answer = $api.useQuery('get', HOUSEHOLD_HOLDINGS, { params: { query: { scope } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
   if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('investments_holdings.loading')} className="h-64 w-full" />;
@@ -63,7 +60,7 @@ export function HoldingsTab({ scope }: { scope: Scope }) {
         <WatchCard d={d} />
       </div>
       <EnvelopeFees d={d} />
-      <Projection d={d} onChange={setAssumptions} />
+      <Projection d={d} />
     </div>
   );
 }
@@ -291,67 +288,128 @@ function EnvelopeFees({ d }: { d: HouseholdHoldings }) {
   );
 }
 
-/** Issue #103: the reported holdings grown with their fees and with the reference's, at the assumptions the person sets. */
-function Projection({ d, onChange }: { d: HouseholdHoldings; onChange: (a: Assumptions) => void }) {
+/** Issue #209: what the fees take over 10 and 20 years against the household's references, by envelope then holding; all server figures. */
+function Projection({ d }: { d: HouseholdHoldings }) {
   const { t } = useTranslation();
-  const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState('');
   const p = d.projection;
-  if (!p) return <SectionCard title={t('investments_holdings.projection_title')}><p className="text-sm text-muted-foreground">{t('investments_holdings.projection_none', { year: d.costYear })}</p></SectionCard>;
+  const money = (v?: MoneyValue | null) => (v ? formatMoney(v) : t('investments.dash'));
   const percentText = (v: number) => t('investments.pct', { value: rate(v) });
+  const actions = <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>{t('investments_holdings.references_edit')}</Button>;
+  const row = (c: FeesCost, key: string, total: boolean) => (
+    <TableRow key={key}>
+      <TableHead scope="row" className={total ? 'whitespace-normal' : 'whitespace-normal pl-6 font-normal'}>
+        {c.name}
+        {/* On a phone the rates move under the name, so three columns fit. */}
+        <span className="block text-xs font-normal text-muted-foreground md:hidden">
+          {t('investments_holdings.fees_vs_reference', { fees: percentText(c.feesPct), reference: percentText(c.referencePct) })}
+        </span>
+      </TableHead>
+      <TableCell className="hidden text-right tabular-nums md:table-cell">{percentText(c.feesPct)}</TableCell>
+      <TableCell className="hidden text-right tabular-nums md:table-cell">{percentText(c.referencePct)}</TableCell>
+      <TableCell className="hidden text-right tabular-nums md:table-cell">{money(c.yearly)}</TableCell>
+      <TableCell className="hidden text-right tabular-nums md:table-cell">{money(c.cost10)}</TableCell>
+      <TableCell className="text-right tabular-nums">{money(c.cost20)}</TableCell>
+      <TableCell className={total ? 'text-right font-medium tabular-nums' : 'text-right tabular-nums'}>{money(c.gap20)}</TableCell>
+    </TableRow>
+  );
   return (
-    <SectionCard title={t('investments_holdings.projection_title')}>
-      <p className="text-sm">{t('investments_holdings.projection_intro', { base: formatMoney(p.base), fees: percentText(p.feesPct) })}</p>
-      <form noValidate className="flex flex-wrap items-end gap-3" onSubmit={(event) => {
-        event.preventDefault();
-        const fields = new FormData(event.currentTarget);
-        // Rates in %, not amounts: a French keyboard types a comma.
-        const read = (name: string) => Number(((fields.get(name) as string | null) ?? '').trim().replace(',', '.'));
-        const assumedReturn = read('assumedReturn');
-        const referenceFees = read('referenceFees');
-        if (Number.isNaN(assumedReturn) || Number.isNaN(referenceFees) || assumedReturn < -10 || assumedReturn > 20 || referenceFees < 0 || referenceFees > 10) {
-          setError(t('investments_holdings.projection_invalid'));
-          return;
-        }
-        setError('');
-        onChange({ assumedReturn, referenceFees });
-      }}>
-        <Field label={t('investments_holdings.projection_return')}>
-          {(c) => <Input {...c} name="assumedReturn" inputMode="decimal" className="w-24" defaultValue={rate(p.assumedReturnPct)} />}
-        </Field>
-        <Field label={t('investments_holdings.projection_reference')}>
-          {(c) => <Input {...c} name="referenceFees" inputMode="decimal" className="w-24" defaultValue={rate(p.referenceFeesPct)} />}
-        </Field>
-        <Button type="submit" variant="outline">{t('investments_holdings.projection_apply')}</Button>
-      </form>
-      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      <Table aria-label={t('investments_holdings.projection_table')}>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('investments_holdings.col_horizon')}</TableHead>
-            <TableHead className="text-right">{t('investments_holdings.col_with_fees')}</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">{t('investments_holdings.col_with_reference', { pct: percentText(p.referenceFeesPct) })}</TableHead>
-            <TableHead className="text-right">{t('investments_holdings.col_difference')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {p.horizons.map((h) => (
-            <TableRow key={h.years}>
-              <TableHead scope="row" className="font-normal">{t('investments_holdings.years', { count: h.years })}</TableHead>
-              <TableCell className="text-right tabular-nums">{formatMoney(h.withFees)}</TableCell>
-              <TableCell className="hidden text-right tabular-nums sm:table-cell">{formatMoney(h.withReference)}</TableCell>
-              <TableCell className="text-right font-medium tabular-nums">
-                {formatMoney(h.difference)}
-                {/* On a phone the reference's value moves under the gap, so three columns fit. */}
-                <span className="block text-xs font-normal text-muted-foreground sm:hidden">
-                  {t('investments_holdings.with_reference_short', { pct: percentText(p.referenceFeesPct), amount: formatMoney(h.withReference) })}
-                </span>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <p className="text-sm text-muted-foreground">{t('investments_holdings.projection_note')}</p>
+    <SectionCard title={t('investments_holdings.projection_title')} actions={actions}>
+      {p ? (
+        <>
+          <StatLine items={[
+            { label: t('investments_holdings.projection_yearly'), value: money(p.yearly) },
+            { label: t('investments_holdings.projection_cost', { count: 10 }), value: money(p.cost10) },
+            { label: t('investments_holdings.projection_cost', { count: 20 }), value: money(p.cost20) },
+            { label: t('investments_holdings.projection_above'), value: money(p.aboveReference20) },
+          ]} />
+          <Table aria-label={t('investments_holdings.projection_table')}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('investments_holdings.col_envelope_holding')}</TableHead>
+                <TableHead className="hidden text-right md:table-cell">{t('investments_holdings.col_total_fees')}</TableHead>
+                <TableHead className="hidden text-right md:table-cell">{t('investments_holdings.col_reference')}</TableHead>
+                <TableHead className="hidden text-right md:table-cell">{t('investments_holdings.col_yearly_cost')}</TableHead>
+                <TableHead className="hidden text-right md:table-cell">{t('investments_holdings.col_cost', { count: 10 })}</TableHead>
+                <TableHead className="text-right">{t('investments_holdings.col_cost', { count: 20 })}</TableHead>
+                <TableHead className="text-right">{t('investments_holdings.col_gap')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {p.envelopes.flatMap((e) => [
+                row(e.total, e.envelopeId, true),
+                ...e.holdings.map((h) => row(h, `${e.envelopeId}-${h.holdingId}`, false)),
+              ])}
+            </TableBody>
+          </Table>
+        </>
+      ) : <p className="text-sm text-muted-foreground">{t('investments_holdings.projection_none', { year: d.costYear })}</p>}
+      <p className="text-sm text-muted-foreground">{t('investments_holdings.projection_note', { pct: percentText(d.references.assumedReturnPct) })}</p>
+      <p role="status" className="text-sm">{saved}</p>
+      {editing ? <ReferencesDialog references={d.references} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); setSaved(message); }} /> : null}
     </SectionCard>
+  );
+}
+
+/** Issue #209: the household's references and assumed return, every kind with its current value (a default until changed). */
+function ReferencesDialog({ references, onClose, onDone }: { references: FeeReferences; onClose: () => void; onDone: (message: string) => void }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const [problem, setProblem] = useState<Presentation | null>(null);
+  const [error, setError] = useState('');
+  const save = $api.useMutation('put', FEE_REFERENCES, {
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD_HOLDINGS] }),
+    onError: (e) => setProblem(present(toProblem(e))),
+  });
+  const envelopeKinds = KINDS.filter((k) => k in references.envelopes);
+  const holdingKinds = HOLDING_KINDS.filter((k) => k in references.holdings);
+  const input = (name: string, value: number) => (control: FieldControl) =>
+    <Input {...control} name={name} inputMode="decimal" className="w-24" defaultValue={rate(value)} />;
+  return (
+    <FormDialog title={t('investments_holdings.references_title')} onClose={onClose} onDone={onDone}>
+      {({ titleId, done }) => (
+        <form aria-labelledby={titleId} noValidate className="space-y-4" onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const fields = new FormData(event.currentTarget);
+          // Rates in %, not amounts: a French keyboard types a comma.
+          const read = (name: string) => Number(((fields.get(name) as string | null) ?? '').trim().replace(',', '.') || Number.NaN);
+          const assumedReturnPct = read('return');
+          const envelopes = Object.fromEntries(envelopeKinds.map((k) => [k, read(`envelope-${k}`)]));
+          const holdings = Object.fromEntries(holdingKinds.map((k) => [k, read(`holding-${k}`)]));
+          const fees = [...Object.values(envelopes), ...Object.values(holdings)];
+          if (Number.isNaN(assumedReturnPct) || assumedReturnPct < -10 || assumedReturnPct > 20 || fees.some((v) => Number.isNaN(v) || v < 0 || v > 10)) {
+            setError(t('investments_holdings.references_invalid'));
+            return;
+          }
+          setError('');
+          save.mutate({ body: { assumedReturnPct, envelopes, holdings } }, { onSuccess: () => done(t('investments_holdings.references_saved')) });
+        }}>
+          {problem ? <ProblemMessage problem={problem} /> : null}
+          <p className="text-sm text-muted-foreground">{t('investments_holdings.references_hint')}</p>
+          {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+          <Field label={t('investments_holdings.projection_return')}>{input('return', references.assumedReturnPct)}</Field>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">{t('investments_holdings.references_contract')}</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {envelopeKinds.map((k) => <Field key={k} label={t(`investments.kind.${k}`)}>{input(`envelope-${k}`, references.envelopes[k]!)}</Field>)}
+            </div>
+          </fieldset>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">{t('investments_holdings.references_support')}</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {holdingKinds.map((k) => <Field key={k} label={holdingKindText(t, k)}>{input(`holding-${k}`, references.holdings[k]!)}</Field>)}
+            </div>
+          </fieldset>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
+            <Button type="submit" disabled={save.isPending}>{t('investments_holdings.references_save')}</Button>
+          </div>
+        </form>
+      )}
+    </FormDialog>
   );
 }
 

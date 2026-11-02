@@ -6,15 +6,14 @@ using Nid.Investments.Domain;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Investments.Application.InvestmentsOverviewMath;
 
 namespace Nid.Investments.Application;
 
 /// <summary>Investments dashboard spec §5.2: the holdings of the household's envelopes together, in the Foyer / Moi scope.</summary>
-public sealed record GetInvestmentsHoldingsQuery(
-    VisibilityScope Scope, decimal AssumedReturnPct = FeesProjection.DefaultReturnPct,
-    decimal ReferenceFeesPct = FeesProjection.DefaultReferencePct) : IQuery<InvestmentsHoldings>;
+public sealed record GetInvestmentsHoldingsQuery(VisibilityScope Scope) : IQuery<InvestmentsHoldings>;
 
 /// <summary>A kind of holding (euro fund, ETF…) and its share of what is detailed, 0.1 %.</summary>
 public sealed record HoldingKindShareView(string Kind, AmountView? Value, decimal? SharePct);
@@ -44,12 +43,25 @@ public sealed record UndetailedEnvelopeView(ItemId EnvelopeId, string Name, Amou
 public sealed record EnvelopeFeesView(
     ItemId EnvelopeId, string Name, decimal? ContractFeesPct, decimal? SupportFeesPct, decimal? TotalFeesPct, AmountView? YearlyCost, decimal? CoveredPct);
 
-/// <summary>Issue #103: the reported holdings' value after <c>Years</c> at the assumed return less their fees, and less the reference's.</summary>
-public sealed record FeesHorizonView(int Years, AmountView WithFees, AmountView WithReference, AmountView Difference);
+/// <summary>
+/// Issue #209: a holding with a report of <c>CostYear</c> (cash aside), or an envelope's together. Today's value; its total fees and its
+/// reference (the envelope kind's contract fees plus the holding kind's support fees), in %, value-weighted for an envelope; a year of
+/// fees at that rate; what the fees take from the value in 10 and 20 years at the assumed return; and over 20 years what they take
+/// beyond the reference's (negative when cheaper). An amount is null when a rate is missing.
+/// </summary>
+public sealed record FeesCostView(
+    Guid? HoldingId, string Name, AmountView? Value, decimal FeesPct, decimal ReferencePct, AmountView? Yearly, AmountView? Cost10,
+    AmountView? Cost20, AmountView? Gap20);
 
-/// <summary>Issue #103: what the household's fees cost over time, on today's value of the holdings with a report.</summary>
+public sealed record EnvelopeFeesCostView(ItemId EnvelopeId, FeesCostView Total, IReadOnlyList<FeesCostView> Holdings);
+
+/// <summary>
+/// Issue #209: what the fees cost over time, by envelope and together; <c>AboveReference20</c> adds up the holdings dearer than their
+/// reference only. Indicative: the reference and the return are the household's choice.
+/// </summary>
 public sealed record FeesProjectionView(
-    AmountView Base, decimal FeesPct, decimal AssumedReturnPct, decimal ReferenceFeesPct, IReadOnlyList<FeesHorizonView> Horizons);
+    decimal AssumedReturnPct, IReadOnlyList<EnvelopeFeesCostView> Envelopes, AmountView? Yearly, AmountView? Cost10, AmountView? Cost20,
+    AmountView? AboveReference20);
 
 /// <summary>
 /// Spec §5.2. D16: <c>Detailed + Unallocated + Undetailed = Value</c>, the overview's. D18: <c>Cost</c> is an estimate of
@@ -63,7 +75,7 @@ public sealed record InvestmentsHoldings(
     IReadOnlyList<EnvelopeUcShareView> EnvelopesUc, IReadOnlyList<HoldingOverviewRow> Holdings, IReadOnlyList<ConcentrationView> Concentrations,
     int CostYear, AmountView? Cost, decimal? CostPct, int WithoutReportCount, IReadOnlyList<UndetailedEnvelopeView> UndetailedEnvelopes,
     IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings,
-    IReadOnlyList<EnvelopeFeesView> EnvelopeFees, FeesProjectionView? Projection, bool Estimated) : IExposesItems
+    IReadOnlyList<EnvelopeFeesView> EnvelopeFees, FeesProjectionView? Projection, bool Estimated, FeeReferences References) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
         => Holdings.Select(h => h.EnvelopeId).Concat(UndetailedEnvelopes.Select(e => e.EnvelopeId)).Concat(EnvelopeFees.Select(e => e.EnvelopeId)).Distinct();
@@ -105,15 +117,62 @@ public sealed class GetInvestmentsHoldingsHandler(
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
-        return Result.Success(InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, query.AssumedReturnPct, query.ReferenceFeesPct, estimates));
+        var references = FeesProjection.Effective(await household.FeeReferencesAsync(ct));
+        return Result.Success(InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, references, estimates));
     }
 }
 
-/// <summary>Issue #103: the projection's defaults — a gross return, and the fees of a low-cost world ETF — in %.</summary>
+/// <summary>Issue #209: replaces the household's fee references; a kind left out keeps its default.</summary>
+public sealed record SaveFeeReferencesCommand(FeeReferences References) : ICommand<FeeReferences>;
+
+[RequestHandler<SaveFeeReferencesCommand, FeeReferences>]
+public sealed class SaveFeeReferencesHandler(IHouseholdSettings household) : IRequestHandler<SaveFeeReferencesCommand, FeeReferences>
+{
+    public async ValueTask<Result<FeeReferences>> HandleAsync(SaveFeeReferencesCommand command, CancellationToken ct = default)
+    {
+        if (FeesProjection.Check(command.References) is { } failure)
+            return Result.Failure<FeeReferences>(failure);
+        var references = FeesProjection.Effective(command.References);
+        await household.SaveFeeReferencesAsync(references, ct);
+        return Result.Success(references);
+    }
+}
+
+/// <summary>
+/// Issues #103, #209: the defaults, in % — a gross return; the contract fees of an online life insurance or PER; the support fees of a
+/// low-cost world ETF for a fund, an ETF, a structured product or another holding, none for a euro fund (its fees are the contract's),
+/// a share or a bond.
+/// </summary>
 public static class FeesProjection
 {
     public const decimal DefaultReturnPct = 4m;
-    public const decimal DefaultReferencePct = 0.2m;
+
+    public static readonly FeeReferences Defaults = new(DefaultReturnPct,
+        Enum.GetValues<EnvelopeKind>().Select(EnvelopeWire.Of)
+            .ToDictionary(k => k, k => k is "life_insurance" or "per" ? 0.5m : 0m),
+        HoldingWire.Kinds.Where(k => k != "cash")
+            .ToDictionary(k => k, k => k is "fund" or "etf" or "structured" or "other" ? 0.2m : 0m));
+
+    /// <summary>The defaults, overridden by what was saved: a kind saved before it existed (or left out) keeps its default.</summary>
+    public static FeeReferences Effective(FeeReferences? saved)
+    {
+        if (saved is null) return Defaults;
+        static Dictionary<string, decimal> Merge(IReadOnlyDictionary<string, decimal> defaults, IReadOnlyDictionary<string, decimal> chosen)
+            => defaults.ToDictionary(d => d.Key, d => chosen.TryGetValue(d.Key, out var v) ? v : d.Value);
+        return new FeeReferences(saved.AssumedReturnPct, Merge(Defaults.Envelopes, saved.Envelopes), Merge(Defaults.Holdings, saved.Holdings));
+    }
+
+    /// <summary>A return from −10 to 20 %, known kinds only, each fee from 0 to 10 %.</summary>
+    public static Failure? Check(FeeReferences references)
+    {
+        if (references.AssumedReturnPct is < -10m or > 20m)
+            return new Failure(InvestmentsCodes.InvalidFeeReferences, "The assumed return is from -10 to 20 %.", null);
+        if (references.Envelopes.Keys.Any(k => !Defaults.Envelopes.ContainsKey(k)) || references.Holdings.Keys.Any(k => !Defaults.Holdings.ContainsKey(k)))
+            return new Failure(InvestmentsCodes.InvalidFeeReferences, "A reference names a known envelope or holding kind (cash has no fees).", null);
+        return references.Envelopes.Values.Concat(references.Holdings.Values).Any(v => v is < 0m or > 10m)
+            ? new Failure(InvestmentsCodes.InvalidFeeReferences, "Each reference is from 0 to 10 %.", null)
+            : null;
+    }
 }
 
 /// <summary>Spec §5's figures, pure: tested in Nid.Investments.Tests.</summary>
@@ -129,9 +188,10 @@ internal static class InvestmentsHoldingsMath
     /// <param name="estimates">The envelopes' estimates (holding prices spec §5.4); none, the valuations and snapshots.</param>
     public static InvestmentsHoldings Build(
         IReadOnlyList<EnvelopePerformance.Facts> facts, HoldingsExport export, IReadOnlyDictionary<ItemId, IReadOnlyList<CostReport>> reports,
-        Currency reference, RateTable rates, LocalDate today, decimal assumedReturnPct = FeesProjection.DefaultReturnPct, decimal referenceFeesPct = FeesProjection.DefaultReferencePct,
+        Currency reference, RateTable rates, LocalDate today, FeeReferences? references = null,
         IReadOnlyDictionary<ItemId, Prices.EnvelopeEstimate>? estimates = null)
     {
+        references ??= FeesProjection.Defaults;
         var convert = new Converter(reference, rates);
         decimal? At(decimal amount, Currency currency) => convert.Of(amount, currency, today);
         var costYear = today.Year - 1;
@@ -148,7 +208,7 @@ internal static class InvestmentsHoldingsMath
         var unitLinkedLines = new List<decimal?>();
         var watch = new List<EnvelopeWatchView>();
         var envelopeFees = new List<EnvelopeFeesView>();
-        var reportedLines = new List<(decimal? Converted, decimal FeesPct)>();
+        var feeLines = new List<FeeLine>();
         var detailedCount = 0;
         var estimated = false;
 
@@ -200,7 +260,13 @@ internal static class InvestmentsHoldingsMath
             var reported = feeable
                 .Select(l => (l.HoldingId, l.Value, l.Converted, Report: envelopeReports.FirstOrDefault(r => r.HoldingId == l.HoldingId && r.Year == costYear)))
                 .Where(l => l.Report is not null).ToList();
-            reportedLines.AddRange(reported.Select(l => (l.Converted, l.Report!.TotalFeesPct)));
+            var contractReference = references.Envelopes.GetValueOrDefault(EnvelopeWire.Of(f.Envelope.Kind));
+            foreach (var l in reported)
+            {
+                var holding = holdingsOf.GetValueOrDefault(l.HoldingId);
+                feeLines.Add(new FeeLine(f.Item.Id, f.Item.DisplayName, l.HoldingId, holding?.Name ?? string.Empty, l.Value, l.Converted,
+                    l.Report!.TotalFeesPct, contractReference + references.Holdings.GetValueOrDefault(holding?.Kind ?? "other")));
+            }
             if (feeable.Count > 0)
             {
                 var weight = reported.Sum(l => l.Value);
@@ -272,27 +338,51 @@ internal static class InvestmentsHoldingsMath
             watch.OrderBy(w => w.On ?? LocalDate.MaxIsoValue).ThenBy(w => w.Code, StringComparer.Ordinal).ThenBy(w => w.EnvelopeId.Value).ToList(),
             convert.Missing,
             envelopeFees.OrderBy(e => e.TotalFeesPct is null).ThenByDescending(e => e.TotalFeesPct).ThenBy(e => e.Name, French).ToList(),
-            Projection(reportedLines, assumedReturnPct, referenceFeesPct, convert), estimated);
+            Projection(feeLines, references.AssumedReturnPct, convert), estimated, references);
     }
 
+    /// <summary>Issue #209: a holding with a report of the cost year, its value in its envelope's currency and converted.</summary>
+    internal sealed record FeeLine(
+        ItemId EnvelopeId, string EnvelopeName, Guid HoldingId, string Name, decimal Value, decimal? Converted, decimal FeesPct, decimal ReferencePct);
+
     /// <summary>
-    /// Issue #103: base × (1 + return − fees)^years, against the same base at the reference's fees; null without a reported holding
-    /// or with a missing rate. A power of a decimal has no exact form: computed in double, as the annual returns, then rounded.
+    /// Issue #209: v × (1 + return)^n − v × (1 + return − fees)^n is what the fees take in n years; the same at the reference's fees,
+    /// less, is the gap. Null without a reported holding. A power of a decimal has no exact form: computed in double, as the annual
+    /// returns, each holding's figure rounded to the cent and the totals added up from them.
     /// </summary>
-    internal static FeesProjectionView? Projection(
-        IReadOnlyList<(decimal? Converted, decimal FeesPct)> lines, decimal assumedReturnPct, decimal referenceFeesPct, Converter convert)
+    internal static FeesProjectionView? Projection(IReadOnlyList<FeeLine> lines, decimal assumedReturnPct, Converter convert)
     {
-        if (SumOrNull(lines.Select(l => l.Converted)) is not { } @base || @base <= 0m) return null;
-        var fees = lines.Sum(l => l.Converted!.Value * l.FeesPct) / @base;
-        decimal Grown(decimal feesPct, int years)
-            => Math.Round(@base * (decimal)Math.Pow(1 + (double)((assumedReturnPct - feesPct) / 100m), years), 2, MidpointRounding.AwayFromZero);
-        return new FeesProjectionView(convert.View(@base)!, Math.Round(fees, 2, MidpointRounding.AwayFromZero), assumedReturnPct, referenceFeesPct,
-            Horizons.Select(n =>
-            {
-                var withFees = Grown(fees, n);
-                var withReference = Grown(referenceFeesPct, n);
-                return new FeesHorizonView(n, convert.View(withFees)!, convert.View(withReference)!, convert.View(withReference - withFees)!);
-            }).ToList());
+        if (lines.Count == 0) return null;
+        decimal Grown(decimal value, decimal feesPct, int years) => value * (decimal)Math.Pow(1 + (double)((assumedReturnPct - feesPct) / 100m), years);
+        static decimal Cent(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+        static decimal Weighted(IEnumerable<FeeLine> of, Func<FeeLine, decimal> pick)
+        {
+            var list = of.ToList();
+            var weight = list.Sum(l => l.Value);
+            return weight > 0m ? Math.Round(list.Sum(l => l.Value * pick(l)) / weight, 2, MidpointRounding.AwayFromZero) : 0m;
+        }
+
+        var costs = lines.Select(l => (Line: l, Amounts: l.Converted is { } v
+            ? new decimal?[] { Cent(v * l.FeesPct / 100m), Cent(Grown(v, 0m, 10) - Grown(v, l.FeesPct, 10)),
+                Cent(Grown(v, 0m, 20) - Grown(v, l.FeesPct, 20)), Cent(Grown(v, l.ReferencePct, 20) - Grown(v, l.FeesPct, 20)) }
+            : [null, null, null, null])).ToList();
+        FeesCostView View(Guid? id, string name, decimal? value, decimal fees, decimal reference, IReadOnlyList<decimal?[]> amounts)
+            => new(id, name, convert.View(value), fees, reference,
+                convert.View(SumOrNull(amounts.Select(a => a[0]))), convert.View(SumOrNull(amounts.Select(a => a[1]))),
+                convert.View(SumOrNull(amounts.Select(a => a[2]))), convert.View(SumOrNull(amounts.Select(a => a[3]))));
+
+        // The dearest against their reference first.
+        var envelopes = costs.GroupBy(c => c.Line.EnvelopeId)
+            .OrderByDescending(g => SumOrNull(g.Select(c => c.Amounts[3])) ?? decimal.MinValue).ThenBy(g => g.First().Line.EnvelopeName, French)
+            .Select(g => new EnvelopeFeesCostView(g.Key,
+                View(null, g.First().Line.EnvelopeName, SumOrNull(g.Select(c => c.Line.Converted)), Weighted(g.Select(c => c.Line), l => l.FeesPct),
+                    Weighted(g.Select(c => c.Line), l => l.ReferencePct), g.Select(c => c.Amounts).ToList()),
+                g.OrderByDescending(c => c.Amounts[3] ?? decimal.MinValue).ThenBy(c => c.Line.Name, French)
+                    .Select(c => View(c.Line.HoldingId, c.Line.Name, c.Line.Converted, c.Line.FeesPct, c.Line.ReferencePct, [c.Amounts])).ToList()))
+            .ToList();
+        decimal? Total(int i) => SumOrNull(costs.Select(c => c.Amounts[i]));
+        return new FeesProjectionView(assumedReturnPct, envelopes, convert.View(Total(0)), convert.View(Total(1)), convert.View(Total(2)),
+            convert.View(SumOrNull(costs.Select(c => c.Amounts[3] is { } gap ? Math.Max(gap, 0m) : (decimal?)null))));
     }
 
     /// <summary>D18: the mean of the holding's values the estimate uses (end of the year before and of the year), converted.</summary>

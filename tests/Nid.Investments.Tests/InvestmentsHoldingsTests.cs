@@ -144,22 +144,72 @@ public class InvestmentsHoldingsTests
     }
 
     [Fact]
-    public void The_projection_grows_the_reported_holdings_at_the_return_less_their_fees_against_the_reference()
+    public void Each_holding_costs_its_fees_compounded_against_its_envelopes_and_its_kinds_reference()
     {
-        var (h, _, _) = Fixture();
+        var (h, lifeWorld, _) = Fixture();
         var life = h.Facts[0].Item.Id;
+        var pea = h.Facts[1].Item.Id;
         var euro = h.Holdings.Single(x => x.Name == "Fonds euros").Id;
+        var emerging = h.Holdings.Single(x => x.Name == "Amundi Emerging").Id;
         h.Reports[life] = [.. h.Reports[life], new CostReport(euro, 2025, 2.6m, 0.6m, 2m, 0.6m, 0m, null, null, null)];
+        h.Reports[pea] = [new CostReport(emerging, 2025, 5m, 0.1m, 4.9m, null, null, null, null, null)];
 
         var p = h.Build().Projection!;
 
-        Assert.Equal((59_600m, 0.73m, 4m, 0.2m), (N(p.Base), p.FeesPct, p.AssumedReturnPct, p.ReferenceFeesPct));
-        Assert.Equal([10, 20], p.Horizons.Select(x => x.Years));
-        // 59 600 × (1 + 4 % − 0.7317 %)^10 and × 1.038^10; computed in double, so to the cent at most.
-        Assert.InRange(N(p.Horizons[0].WithFees), 82_208.36m, 82_208.38m);
-        Assert.InRange(N(p.Horizons[0].WithReference), 86_540.57m, 86_540.59m);
-        Assert.Equal(N(p.Horizons[0].WithReference) - N(p.Horizons[0].WithFees), N(p.Horizons[0].Difference));
-        Assert.InRange(N(p.Horizons[1].Difference), 12_266.00m, 12_266.04m);
+        Assert.Equal(4m, p.AssumedReturnPct);
+        // The life insurance first: dearer than its reference. Its euro fund's reference is the contract's 0.5 % alone, its ETF's 0.5 + 0.2 %.
+        Assert.Equal([life, pea], p.Envelopes.Select(e => e.EnvelopeId));
+        var lifeCost = p.Envelopes[0];
+        var etf = lifeCost.Holdings.Single(x => x.HoldingId == lifeWorld);
+        var fund = lifeCost.Holdings.Single(x => x.HoldingId == euro);
+        Assert.Equal((0.85m, 0.7m, 266.90m), (etf.FeesPct, etf.ReferencePct, N(etf.Yearly)));
+        Assert.Equal((0.6m, 0.5m, 169.20m), (fund.FeesPct, fund.ReferencePct, N(fund.Yearly)));
+        // 28 200 × (1.04^n − 1.034^n), and × (1.035^20 − 1.034^20) beyond the reference; computed in double, so to the cent at most.
+        Assert.InRange(N(fund.Cost10), 2_346.66m, 2_346.68m);
+        Assert.InRange(N(fund.Cost20), 6_752.01m, 6_752.03m);
+        Assert.InRange(N(fund.Gap20), 1_074.39m, 1_074.41m);
+        Assert.InRange(N(etf.Gap20), 1_721.77m, 1_721.79m);
+        // The envelope adds its holdings up and weights its rates by their values.
+        Assert.Equal((59_600m, 0.73m, 0.61m), (N(lifeCost.Total.Value), lifeCost.Total.FeesPct, lifeCost.Total.ReferencePct));
+        Assert.Equal(N(etf.Gap20) + N(fund.Gap20), N(lifeCost.Total.Gap20));
+
+        // The PEA's emerging ETF costs 0.1 % against 0.2 %: a negative gap, left out of the fees above the reference.
+        var cheap = Assert.Single(p.Envelopes[1].Holdings);
+        Assert.InRange(N(cheap.Gap20), -393.59m, -393.57m);
+        Assert.Equal(N(lifeCost.Total.Gap20), N(p.AboveReference20));
+        Assert.Equal(N(etf.Yearly) + N(fund.Yearly) + N(cheap.Yearly), N(p.Yearly));
+        Assert.Equal(N(etf.Cost20) + N(fund.Cost20) + N(cheap.Cost20), N(p.Cost20));
+    }
+
+    [Fact]
+    public void The_households_references_and_return_replace_the_defaults()
+    {
+        var (h, lifeWorld, _) = Fixture();
+        var chosen = FeesProjection.Effective(new FeeReferences(5m, new Dictionary<string, decimal> { ["life_insurance"] = 0.6m },
+            new Dictionary<string, decimal> { ["etf"] = 0.25m }));
+
+        var o = InvestmentsHoldingsMath.Build(h.Facts, new HoldingsExport(h.Holdings, h.Snapshots, h.Movements, new Dictionary<Guid, ImportMark>()),
+            h.Reports, Currency.Eur, Rates, Today, chosen);
+
+        // 0.6 + 0.25 % is the ETF's 0.85 %: no gap, whatever the return.
+        var etf = o.Projection!.Envelopes.Single().Holdings.Single(x => x.HoldingId == lifeWorld);
+        Assert.Equal((5m, 0.85m, 0m), (o.Projection.AssumedReturnPct, etf.ReferencePct, N(etf.Gap20)));
+        Assert.Equal(0m, N(o.Projection.AboveReference20));
+        // What was not chosen keeps its default; the response says what was used.
+        Assert.Equal((0.5m, 0.2m), (o.References.Envelopes["per"], o.References.Holdings["fund"]));
+        Assert.False(o.References.Holdings.ContainsKey("cash"));
+    }
+
+    [Theory]
+    [InlineData(21, "etf", 0.2)]
+    [InlineData(4, "cash", 0.2)]
+    [InlineData(4, "etf", -0.1)]
+    [InlineData(4, "etf", 10.5)]
+    public void A_reference_out_of_range_or_of_an_unknown_kind_is_refused(decimal ret, string kind, decimal fees)
+    {
+        var failure = FeesProjection.Check(new FeeReferences(ret, new Dictionary<string, decimal>(), new Dictionary<string, decimal> { [kind] = fees }));
+        Assert.Equal(InvestmentsCodes.InvalidFeeReferences, failure?.Code);
+        Assert.Null(FeesProjection.Check(FeesProjection.Defaults));
     }
 
     [Fact]
@@ -180,7 +230,7 @@ public class InvestmentsHoldingsTests
 
         // 0.5 % of 10 000 $ is 50 $, 45 € at 0.9.
         Assert.Equal((0.5m, 45m), (o.EnvelopeFees.Single().TotalFeesPct, N(o.EnvelopeFees.Single().YearlyCost)));
-        Assert.Equal(9_000m, N(o.Projection!.Base));
+        Assert.Equal((9_000m, 45m), (N(o.Projection!.Envelopes.Single().Total.Value), N(o.Projection.Yearly)));
     }
 
     [Fact]

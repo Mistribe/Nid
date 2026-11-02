@@ -25,4 +25,5 @@ public static class InvestmentsCodes
     public const string SnapshotExists = "investments.snapshot_exists";
     public const string InvalidMovement = "investments.invalid_movement";
     public const string InvalidCostReport = "investments.invalid_cost_report";
+    public const string InvalidFeeReferences = "investments.invalid_fee_references";
 }

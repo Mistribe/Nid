@@ -34,12 +34,15 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetInvestmentsPerformanceQuery(ParseScope(scope), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
             .Returns<InvestmentsPerformance>();
 
-        // Issue #103: the fees projection's assumptions, in %; absent is the default, out of range a bad request.
-        api.MapGet("/overview/holdings", async (string? scope, decimal? assumedReturn, decimal? referenceFees, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetInvestmentsHoldingsQuery(ParseScope(scope),
-                Pct(assumedReturn, FeesProjection.DefaultReturnPct, -10m, 20m, nameof(assumedReturn)),
-                Pct(referenceFees, FeesProjection.DefaultReferencePct, 0m, 10m, nameof(referenceFees))), ct)).ToHttp(h => h))
+        api.MapGet("/overview/holdings", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetInvestmentsHoldingsQuery(ParseScope(scope)), ct)).ToHttp(h => h))
             .Returns<InvestmentsHoldings>();
+
+        // Issue #209: the household's fee references; a kind left out keeps its default.
+        api.MapPut("/fee-references", async (FeeReferencesBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SaveFeeReferencesCommand(new FeeReferences(body.AssumedReturnPct,
+                body.Envelopes ?? new Dictionary<string, decimal>(), body.Holdings ?? new Dictionary<string, decimal>())), ct)).ToHttp(r => r))
+            .Returns<FeeReferences>();
 
         api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
@@ -245,12 +248,6 @@ public static class InvestmentEndpoints
     }
 
     /// <summary>Investments dashboard spec §3.2, as the net worth curve: absent is the default, an unknown span a bad request.</summary>
-    /// <summary>Issue #103: a percentage within its bounds, or the default when absent.</summary>
-    private static decimal Pct(decimal? value, decimal fallback, decimal min, decimal max, string name)
-        => value is not { } v ? fallback
-            : v >= min && v <= max ? v
-            : throw new BadHttpRequestException($"'{name}' is a percentage from {min} to {max}.");
-
     private static OverviewSpan ParseSpan(string? span) => span switch
     {
         null or "12m" => OverviewSpan.TwelveMonths,
@@ -277,6 +274,9 @@ public static class InvestmentEndpoints
             : body.ToMoney();
 
     public sealed record OpeningBody(string OccurredOn, MoneyBody Amount);
+
+    /// <summary>Issue #209: in %; contract fees by envelope kind, support fees by holding kind.</summary>
+    public sealed record FeeReferencesBody(decimal AssumedReturnPct, Dictionary<string, decimal>? Envelopes, Dictionary<string, decimal>? Holdings);
 
     public sealed record FirstValuationBody(string AsOf, MoneyBody Amount);
 

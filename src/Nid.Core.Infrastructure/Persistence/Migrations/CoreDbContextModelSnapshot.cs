@@ -283,6 +283,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("enable_banking_app_id");
 
+                    b.Property<string>("FeeReferences")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("fee_references");
+
                     b.Property<bool>("IrlEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")

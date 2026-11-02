@@ -41,6 +41,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.ReferenceCurrency).HasColumnType("char(3)");
             e.Property(x => x.AllocationTarget).HasColumnType("jsonb");
             e.Property(x => x.ProjectionAssumptions).HasColumnType("jsonb");
+            e.Property(x => x.FeeReferences).HasColumnType("jsonb");
             e.Property(x => x.MaxAdults).HasDefaultValue(2);
             e.Property(x => x.PricesEnabled).HasDefaultValue(false);
             e.Property(x => x.IrlEnabled).HasDefaultValue(false);

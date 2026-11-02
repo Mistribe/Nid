@@ -13,6 +13,7 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
     [JsonSerializable(typeof(Dictionary<string, decimal>))]
     [JsonSerializable(typeof(IReadOnlyDictionary<string, decimal>))]
     [JsonSerializable(typeof(ProjectionAssumptions))]
+    [JsonSerializable(typeof(FeeReferences))]
     private sealed partial class HouseholdJson : JsonSerializerContext;
 
     public async Task<Currency> ReferenceCurrencyAsync(CancellationToken ct)
@@ -120,6 +121,21 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
         if (row is null)
             db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
         row.ProjectionAssumptions = JsonSerializer.Serialize(assumptions, HouseholdJson.Default.ProjectionAssumptions);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct)
+    {
+        var json = await db.HouseholdSettings.AsNoTracking().Select(s => s.FeeReferences).FirstOrDefaultAsync(ct);
+        return json is null ? null : JsonSerializer.Deserialize(json, HouseholdJson.Default.FeeReferences);
+    }
+
+    public async Task SaveFeeReferencesAsync(FeeReferences references, CancellationToken ct)
+    {
+        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
+        if (row is null)
+            db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
+        row.FeeReferences = JsonSerializer.Serialize(references, HouseholdJson.Default.FeeReferences);
         await db.SaveChangesAsync(ct);
     }
 

@@ -3159,22 +3159,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "assumedReturn",
-            "in": "query",
-            "schema": {
-              "type": "number",
-              "format": "double"
-            }
-          },
-          {
-            "name": "referenceFees",
-            "in": "query",
-            "schema": {
-              "type": "number",
-              "format": "double"
-            }
           }
         ],
         "responses": {
@@ -3184,6 +3168,95 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvestmentsHoldings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/fee-references": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeeReferencesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeeReferences"
                 }
               }
             }
@@ -27759,6 +27832,29 @@
           }
         }
       },
+      "EnvelopeFeesCostView": {
+        "required": [
+          "envelopeId",
+          "total",
+          "holdings"
+        ],
+        "type": "object",
+        "properties": {
+          "envelopeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "total": {
+            "$ref": "#/components/schemas/FeesCostView"
+          },
+          "holdings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeesCostView"
+            }
+          }
+        }
+      },
       "EnvelopeFeesView": {
         "required": [
           "envelopeId",
@@ -28329,60 +28425,200 @@
           }
         }
       },
-      "FeesHorizonView": {
+      "FeeReferences": {
         "required": [
-          "years",
-          "withFees",
-          "withReference",
-          "difference"
+          "assumedReturnPct",
+          "envelopes",
+          "holdings"
         ],
         "type": "object",
         "properties": {
-          "years": {
-            "type": "integer",
-            "format": "int32"
+          "assumedReturnPct": {
+            "type": "number",
+            "format": "double"
           },
-          "withFees": {
-            "$ref": "#/components/schemas/AmountView"
+          "envelopes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
           },
-          "withReference": {
-            "$ref": "#/components/schemas/AmountView"
-          },
-          "difference": {
-            "$ref": "#/components/schemas/AmountView"
+          "holdings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
           }
         }
       },
-      "FeesProjectionView": {
+      "FeeReferencesBody": {
         "required": [
-          "base",
-          "feesPct",
-          "assumedReturnPct",
-          "referenceFeesPct",
-          "horizons"
+          "assumedReturnPct"
         ],
         "type": "object",
         "properties": {
-          "base": {
-            "$ref": "#/components/schemas/AmountView"
+          "assumedReturnPct": {
+            "type": "number",
+            "format": "double"
+          },
+          "envelopes": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "holdings": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      },
+      "FeesCostView": {
+        "required": [
+          "name",
+          "feesPct",
+          "referencePct"
+        ],
+        "type": "object",
+        "properties": {
+          "holdingId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
           },
           "feesPct": {
             "type": "number",
             "format": "double"
           },
+          "referencePct": {
+            "type": "number",
+            "format": "double"
+          },
+          "yearly": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "cost10": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "cost20": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "gap20": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          }
+        }
+      },
+      "FeesProjectionView": {
+        "required": [
+          "assumedReturnPct",
+          "envelopes"
+        ],
+        "type": "object",
+        "properties": {
           "assumedReturnPct": {
             "type": "number",
             "format": "double"
           },
-          "referenceFeesPct": {
-            "type": "number",
-            "format": "double"
-          },
-          "horizons": {
+          "envelopes": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/FeesHorizonView"
+              "$ref": "#/components/schemas/EnvelopeFeesCostView"
             }
+          },
+          "yearly": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "cost10": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "cost20": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "aboveReference20": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
           }
         }
       },
@@ -31745,7 +31981,8 @@
           "watch",
           "findings",
           "envelopeFees",
-          "estimated"
+          "estimated",
+          "references"
         ],
         "type": "object",
         "properties": {
@@ -31899,6 +32136,9 @@
           },
           "estimated": {
             "type": "boolean"
+          },
+          "references": {
+            "$ref": "#/components/schemas/FeeReferences"
           }
         }
       },
