@@ -1,6 +1,6 @@
 import { File as NodeFile } from 'node:buffer';
 import { screen, waitFor, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';

@@ -1,6 +1,6 @@
 import { File as NodeFile } from 'node:buffer';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CSRF_HEADER } from '@/api/client';
 import { expectNoAxeViolations } from '@/test/axe';

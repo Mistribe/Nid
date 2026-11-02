@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 
 type Failure = { section: string; page: number; status: number; code?: string };
 

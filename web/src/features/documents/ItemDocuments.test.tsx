@@ -2,7 +2,7 @@ import { File as NodeFile } from 'node:buffer';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApi } from '@/api/client';
 import { createQueryClient } from '@/app/bootstrap';

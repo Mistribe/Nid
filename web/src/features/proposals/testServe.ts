@@ -1,4 +1,4 @@
-import { HttpResponse, http } from 'msw';
+import { HttpResponse, http } from 'msw/http';
 import { server } from '@/test/server';
 import type { ProposalView } from './api';
 

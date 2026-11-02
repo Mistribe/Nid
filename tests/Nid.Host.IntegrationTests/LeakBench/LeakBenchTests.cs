@@ -114,7 +114,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     {
         var blind = new List<string>();
 
-        foreach (var request in RequestCatalogue.Discover().Where(t => !typeof(ICommandMarker).IsAssignableFrom(t)))
+        foreach (var request in RequestCatalogue.Discover().Where(t => !RequestCatalogue.IsCommand(t)))
         {
             var response = RequestCatalogue.ResponseTypeOf(request);
             if (response is null || typeof(IExposesItems).IsAssignableFrom(response))
@@ -321,7 +321,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     {
         var data = await MixedDataset.CreateAsync(fixture);
         await using var app = data.App;
-        var commands = RequestCatalogue.Entries.Where(e => e.OnEveryRow && typeof(ICommandMarker).IsAssignableFrom(e.RequestType)).ToList();
+        var commands = RequestCatalogue.Entries.Where(e => e.OnEveryRow && RequestCatalogue.IsCommand(e.RequestType)).ToList();
         Assert.Equal(2, commands.Count);
 
         foreach (var entry in commands)
@@ -525,7 +525,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 $"{entry.RequestType.Name} as B (not admin): expected {AdminCodes.Required}, got {refused?.Code ?? "success"}");
         }
 
-        foreach (var entry in adminOnly.Where(e => !typeof(ICommandMarker).IsAssignableFrom(e.RequestType)))
+        foreach (var entry in adminOnly.Where(e => !RequestCatalogue.IsCommand(e.RequestType)))
         {
             var (response, failure) = await app.InvokeAsync(app.AdultA, entry.Build(data, data["S-A"]));
             // The bench runs without a scheduler: a job's detail is not found by design (admin jobs design §3.4); B is still refused above.
@@ -969,7 +969,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 var sample = entry.Build(data, rows["S-A"]);
                 Assert.IsType(entry.RequestType, sample);
 
-                if (typeof(ICommandMarker).IsAssignableFrom(entry.RequestType))
+                if (RequestCatalogue.IsCommand(entry.RequestType))
                     continue;
 
                 List<ItemId> targets = entry.IsItemScoped || entry.OnEveryRow ? [.. rows.Values] : [rows["S-A"]];

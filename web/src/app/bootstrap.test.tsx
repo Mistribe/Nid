@@ -1,6 +1,6 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Root } from 'react-dom/client';
 import { allGuidesSeen } from '@/features/guides/guideData';

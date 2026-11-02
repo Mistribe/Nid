@@ -1,6 +1,7 @@
 import { File as NodeFile } from 'node:buffer';
 import { screen, waitFor, within } from '@testing-library/react';
-import { delay, http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
+import { delay } from 'msw/utils/delay';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { pick } from '@/test/controls';

@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PROPERTY } from '../properties/testData';
 import { expectNoAxeViolations } from '@/test/axe';

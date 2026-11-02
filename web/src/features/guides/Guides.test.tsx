@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Preferences } from '@/app/session';
 import { expectNoAxeViolations } from '@/test/axe';

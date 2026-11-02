@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { delay, http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
+import { delay } from 'msw/utils/delay';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';

@@ -46,7 +46,7 @@ globalThis.ResizeObserver = class {
 configure({ asyncUtilTimeout: 10_000 });
 
 // Any request no test expects is a failure, not a silent network call.
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 
 afterEach(() => {
   cleanup();

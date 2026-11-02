@@ -2,8 +2,9 @@ namespace Nid.Platform.Infrastructure.Persistence;
 
 /// <summary>
 /// The tables of Quartz.NET 4.1.1 (<c>database/tables/tables_postgres.sql</c> at tag v4.1.1), in the platform
-/// schema. Created by a migration so the schema has one owner (EF); Quartz only validates it at startup. A Quartz
-/// upgrade that changes the schema needs a new migration with the upstream migration script.
+/// schema, brought to 4.6.2 by <see cref="Upgrade46"/>. Created by migrations so the schema has one owner (EF);
+/// Quartz only validates it at startup. A Quartz upgrade that changes the schema needs a new migration with the
+/// upstream migration scripts.
 /// </summary>
 public static class QuartzSchema
 {
@@ -88,6 +89,40 @@ public static class QuartzSchema
         CREATE INDEX idx_qrtz_ft_inst_job_req_rcvry ON platform.qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
         CREATE INDEX idx_qrtz_ft_j_g ON platform.qrtz_fired_triggers (sched_name, job_name, job_group);
         CREATE INDEX idx_qrtz_ft_t_g ON platform.qrtz_fired_triggers (sched_name, trigger_name, trigger_group);
+        """;
+
+    /// <summary>
+    /// 4.1.1 → 4.6.2: the columns of upstream <c>database/migrations/4.2/add_continuations</c>,
+    /// <c>4.3/add_fire_progress</c>, <c>4.3/add_overlap_policy</c>, <c>4.3/add_pause_reason</c>,
+    /// <c>4.6/add_scheduler_version</c>, <c>4.6/add_fired_trigger_interrupt</c> and
+    /// <c>4.6/add_trigger_misfire_threshold</c> (<c>_postgres.sql</c>, tag v4.6.2), all nullable.
+    /// </summary>
+    public const string Upgrade46 = """
+        ALTER TABLE platform.qrtz_triggers
+            ADD COLUMN continues_trigger_name TEXT NULL, ADD COLUMN continues_trigger_group TEXT NULL,
+            ADD COLUMN continuation_condition INTEGER NULL, ADD COLUMN overlap_policy INTEGER NULL,
+            ADD COLUMN pause_reason VARCHAR(250) NULL, ADD COLUMN paused_by VARCHAR(200) NULL,
+            ADD COLUMN paused_at BIGINT NULL, ADD COLUMN misfire_threshold BIGINT NULL;
+        ALTER TABLE platform.qrtz_fired_triggers
+            ADD COLUMN progress INTEGER NULL, ADD COLUMN progress_message VARCHAR(250) NULL,
+            ADD COLUMN interrupt_requested_time BIGINT NULL;
+        ALTER TABLE platform.qrtz_paused_trigger_grps
+            ADD COLUMN pause_reason VARCHAR(250) NULL, ADD COLUMN paused_by VARCHAR(200) NULL, ADD COLUMN paused_at BIGINT NULL;
+        ALTER TABLE platform.qrtz_paused_job_grps
+            ADD COLUMN pause_reason VARCHAR(250) NULL, ADD COLUMN paused_by VARCHAR(200) NULL, ADD COLUMN paused_at BIGINT NULL;
+        ALTER TABLE platform.qrtz_scheduler_state ADD COLUMN quartz_version VARCHAR(20) NULL;
+        """;
+
+    public const string Downgrade46 = """
+        ALTER TABLE platform.qrtz_triggers
+            DROP COLUMN continues_trigger_name, DROP COLUMN continues_trigger_group, DROP COLUMN continuation_condition,
+            DROP COLUMN overlap_policy, DROP COLUMN pause_reason, DROP COLUMN paused_by, DROP COLUMN paused_at,
+            DROP COLUMN misfire_threshold;
+        ALTER TABLE platform.qrtz_fired_triggers
+            DROP COLUMN progress, DROP COLUMN progress_message, DROP COLUMN interrupt_requested_time;
+        ALTER TABLE platform.qrtz_paused_trigger_grps DROP COLUMN pause_reason, DROP COLUMN paused_by, DROP COLUMN paused_at;
+        ALTER TABLE platform.qrtz_paused_job_grps DROP COLUMN pause_reason, DROP COLUMN paused_by, DROP COLUMN paused_at;
+        ALTER TABLE platform.qrtz_scheduler_state DROP COLUMN quartz_version;
         """;
 
     public const string Drop = """

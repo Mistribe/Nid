@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { server } from '@/test/server';
 import type { DocumentDetail, DocumentTargetList } from './api';
 import { detail, targets as allTargets } from './testData';

@@ -675,6 +675,10 @@ public static class RequestCatalogue
             .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>))
             ?.GetGenericArguments()[0];
 
+    /// <summary>A request that changes state, i.e. an <c>ICommand&lt;T&gt;</c>.</summary>
+    public static bool IsCommand(Type request)
+        => request.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<>));
+
     /// <summary>
     /// <c>Nid.Host</c> — where <c>AddNid</c> lives — and every <c>Nid.*</c> assembly it references, directly
     /// or not. Anything <c>AddNid</c> can wire up is in here by construction.

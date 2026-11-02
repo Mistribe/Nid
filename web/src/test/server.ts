@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { setupServer } from 'msw/node';
 import { emptyDashboard, emptyProjection, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';

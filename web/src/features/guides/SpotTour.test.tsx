@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { dashboard } from '@/features/dashboard/testData';
 import { LOAN, loanDetail, schedule } from '@/features/loans/testData';

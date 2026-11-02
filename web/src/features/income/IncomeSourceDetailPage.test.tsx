@@ -1,6 +1,6 @@
 import { link, list, summary } from '../documents/testData';
 import { screen, waitFor, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { reduceMotion } from '@/test/motion';
 import { expectNoAxeViolations } from '@/test/axe';

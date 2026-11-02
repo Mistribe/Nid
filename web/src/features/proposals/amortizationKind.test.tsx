@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';

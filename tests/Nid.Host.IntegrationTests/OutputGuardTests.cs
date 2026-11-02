@@ -2,6 +2,7 @@ using Nid.Core.Contracts;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Synapse.Abstractions;
 using Nid.TestSupport;
 
 namespace Nid.Host.IntegrationTests;

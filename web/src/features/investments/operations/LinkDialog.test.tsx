@@ -1,5 +1,5 @@
 import { screen } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';

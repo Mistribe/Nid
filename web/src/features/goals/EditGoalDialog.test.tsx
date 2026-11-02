@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { list as envelopeList, summary as envelope } from '../investments/testData';
 import { renderApp } from '@/test/renderApp';

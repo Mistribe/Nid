@@ -98,7 +98,7 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
 
         var required = request is IRequiresScope declared
             ? declared.RequiredScope
-            : request is ICommandMarker ? ScopeNames.WriteDirect : ScopeNames.Read;
+            : request is ICommand<TResponse> ? ScopeNames.WriteDirect : ScopeNames.Read;
         return actor.Has(required)
             ? next(request, cancellationToken)
             : ValueTask.FromResult(Result.Failure<TResponse>(new UnauthorizedFailure($"The '{required}' scope is required.", null)));

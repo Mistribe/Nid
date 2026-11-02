@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
-import { HttpResponse } from 'msw';
+import { HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { todayIso } from '../subscriptions/today';
