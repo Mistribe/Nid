@@ -29,6 +29,15 @@ public sealed class InvestmentTools
         => McpCalls.RunAsync(services, () => new GetPeriodPerformanceQuery(new ItemId(id),
             SubscriptionEndpoints.RequireDate(from), SubscriptionEndpoints.RequireDate(to)), ct);
 
+    [McpServerTool(Name = "get_passive_income", ReadOnly = true)]
+    [Description("What the household's capital earned over the last 12 months (dividends, interest, distributions, net rents): totals by "
+        + "kind, by month and by envelope or property, the yield, and an estimate of the next 12 months — the last 12 months of the "
+        + "sources still open, not a forecast. Amounts are converted at today's rate. Savings accounts linked to the bank or without "
+        + "recorded deposits are listed as not counted. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetPassiveIncome(IServiceProvider services,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetPassiveIncomeQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+
     [McpServerTool(Name = "get_envelope_holdings", ReadOnly = true)]
     [Description("An envelope's holdings (funds, euro fund…) at its latest holdings snapshot on or before a date: each line, weight, gain "
         + "and annual return, the unallocated remainder and the warnings. " + McpSetup.Untrusted)]
