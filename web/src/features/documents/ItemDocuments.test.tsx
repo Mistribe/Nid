@@ -199,7 +199,7 @@ describe('ItemDocuments', () => {
       await user.upload(within(dialog).getByLabelText('Fichiers'), [pdf('janvier.pdf'), pdf('fevrier.pdf')]);
       expect(within(dialog).queryByRole('textbox', { name: 'Date du document' })).not.toBeInTheDocument();
       await pick(user, 'Type', 'Assurance');
-      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer 2 fichiers' }));
 
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(api.sent).toEqual(['janvier.pdf', 'fevrier.pdf']);
@@ -218,7 +218,7 @@ describe('ItemDocuments', () => {
       expect(await within(dialog).findByText('edl.pdf')).toBeInTheDocument();
       await user.click(within(dialog).getByRole('button', { name: 'Retirer avis.pdf' }));
       expect(within(dialog).queryByText('avis.pdf')).not.toBeInTheDocument();
-      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer 2 fichiers' }));
       await waitFor(() => expect(api.sent).toEqual(['bail.pdf', 'edl.pdf']));
     });
 
@@ -259,7 +259,7 @@ describe('ItemDocuments', () => {
       const dialog = await open(user);
       await user.upload(within(dialog).getByLabelText('Fichiers'), [pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')]);
       const before = api.gets();
-      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer 3 fichiers' }));
 
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('b.pdf');
       expect(api.sent).toEqual(['a.pdf', 'b.pdf', 'c.pdf']);
@@ -272,6 +272,62 @@ describe('ItemDocuments', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(api.sent).toEqual(['a.pdf', 'b.pdf', 'c.pdf', 'b.pdf']);
       expect(screen.getByText('3 documents déposés.')).toBeInTheDocument();
+    });
+
+    it('keeps the type and the buttons out of the list that scrolls, whatever the number of files', async () => {
+      serve();
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      const long = 'Avis d’opération (investissement progressif) - Vita 1234567';
+      await user.upload(within(dialog).getByLabelText('Fichiers'), Array.from({ length: 30 }, (_, i) => pdf(`${long} ${i}.pdf`)));
+
+      const list = within(dialog).getByRole('list');
+      expect(list).toHaveClass('overflow-y-auto');
+      expect(within(list).getAllByRole('listitem')).toHaveLength(30);
+      expect(within(list).getByText(`${long} 7.pdf`)).toHaveAttribute('title', `${long} 7.pdf`);
+      expect(within(list).getByText(`${long} 7.pdf`)).toHaveClass('truncate');
+      expect(list).not.toContainElement(within(dialog).getByRole('combobox', { name: 'Type' }));
+      const send = within(dialog).getByRole('button', { name: 'Déposer 30 fichiers' });
+      expect(send.parentElement).toHaveClass('shrink-0');
+      expect(send.parentElement?.parentElement).toHaveClass('min-h-0');
+    });
+
+    it('folds the drop zone to the count and total size, and clears the list', async () => {
+      const api = serve();
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      expect(within(dialog).getByText('Glissez vos fichiers ici')).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: 'Tout retirer' })).not.toBeInTheDocument();
+      const input = within(dialog).getByLabelText('Fichiers');
+      await user.upload(input, new File(['x'.repeat(2048)], 'bail.pdf', { type: 'application/pdf' }));
+      expect(within(dialog).getByText('1 fichier · 2 Ko')).toBeInTheDocument();
+      await user.upload(within(dialog).getByLabelText('Fichiers'), new File(['x'.repeat(2048)], 'avis.pdf', { type: 'application/pdf' }));
+      expect(within(dialog).getByText('2 fichiers · 4 Ko')).toBeInTheDocument();
+      // The same input: the focus stays on it as the zone folds.
+      expect(within(dialog).getByLabelText('Fichiers')).toBe(input);
+
+      await user.click(within(dialog).getByRole('button', { name: 'Tout retirer' }));
+      expect(within(dialog).queryByRole('list')).not.toBeInTheDocument();
+      expect(within(dialog).getByText('Glissez vos fichiers ici')).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Déposer' })).toBeDisabled();
+      expect(api.sent).toEqual([]);
+    });
+
+    it('keeps a sent file when the list is cleared after a failure', async () => {
+      const api = serve({ upload: (name) => (name === 'b.pdf'
+        ? HttpResponse.json({ status: 413, code: 'documents.too_large', title: 'Too large.' }, { status: 413 })
+        : HttpResponse.json({ id: D2 }, { status: 201 })) });
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      await user.upload(within(dialog).getByLabelText('Fichiers'), [pdf('a.pdf'), pdf('b.pdf')]);
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer 2 fichiers' }));
+      await within(dialog).findByRole('alert');
+
+      await user.click(within(dialog).getByRole('button', { name: 'Tout retirer' }));
+      expect(within(dialog).getByText('a.pdf')).toBeInTheDocument();
+      expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Fermer' })).toBeInTheDocument();
+      expect(api.sent).toEqual(['a.pdf', 'b.pdf']);
     });
 
     it('passes the axe check with files listed', async () => {

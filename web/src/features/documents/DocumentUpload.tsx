@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { UploadIcon } from 'lucide-react';
-import { useRef, useState, type DragEvent } from 'react';
+import { useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Problem } from '@/api/errors';
@@ -86,28 +86,37 @@ export function useDropFiles({ onFiles, onRefused, accept = ACCEPT, multiple = t
 /**
  * The drop zone, the one way to add a file. With `pick` it holds its own picker (its keyboard way), which takes the
  * `id` and `aria-describedby` a `Field` hands it; without, a picker beside it (`UploadPicker`) does. `picked` names the file taken.
+ * `summary` folds the zone to one line once files are chosen, `children` beside the picker.
  */
-export function UploadZone({ hint, pick, picked, id, className, 'aria-describedby': describedBy, 'aria-invalid': invalid, ...take }: Take & Partial<FieldControl> & {
-  hint?: string; pick?: string; picked?: string | null; className?: string;
+export function UploadZone({ hint, pick, picked, summary, children, id, className, 'aria-describedby': describedBy, 'aria-invalid': invalid, ...take }: Take & Partial<FieldControl> & {
+  hint?: string; pick?: string; picked?: string | null; summary?: string; children?: ReactNode; className?: string;
 }) {
   const { t } = useTranslation();
   const { over, take: send, handlers } = useDropFiles(take);
   return (
     <div {...handlers}
-      className={cn('flex flex-col items-center gap-1 rounded-lg border-2 border-dashed p-4 text-center transition-colors', over && 'border-primary bg-accent', className)}>
-      <UploadIcon aria-hidden="true" className="size-6 text-muted-foreground" />
-      <p>{t(take.multiple === false ? 'documents_page.upload.drop_one' : 'documents_page.upload.drop')}</p>
-      <p className="text-sm text-muted-foreground">{hint ?? t('documents_page.upload.hint')}</p>
-      {pick ? (
-        <label className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'mt-2 cursor-pointer focus-within:ring-[3px] focus-within:ring-ring/50', take.disabled && 'pointer-events-none opacity-50')}>
-          {pick}
-          <input id={id} aria-describedby={describedBy} aria-invalid={invalid} type="file" multiple={take.multiple !== false} accept={take.accept ?? ACCEPT} disabled={take.disabled} className="sr-only" onChange={(event) => {
-            const files = [...(event.currentTarget.files ?? [])];
-            event.currentTarget.value = ''; // picking the same file again still takes it
-            send(files);
-          }} />
-        </label>
-      ) : null}
+      className={cn('flex flex-col items-center gap-1 rounded-lg border-2 border-dashed p-4 text-center transition-colors', summary && 'flex-row flex-wrap gap-2 px-3 py-2 text-left', over && 'border-primary bg-accent', className)}>
+      <UploadIcon aria-hidden="true" className={cn('size-6 text-muted-foreground', summary && 'size-4')} />
+      {summary ? <p className="min-w-0 flex-auto text-sm font-medium">{summary}</p> : (
+        <>
+          <p>{t(take.multiple === false ? 'documents_page.upload.drop_one' : 'documents_page.upload.drop')}</p>
+          <p className="text-sm text-muted-foreground">{hint ?? t('documents_page.upload.hint')}</p>
+        </>
+      )}
+      {/* The picker and `children` wrap as one, on a phone. */}
+      <div className={summary ? 'ml-auto flex gap-2' : 'contents'}>
+        {pick ? (
+          <label className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), !summary && 'mt-2', 'cursor-pointer focus-within:ring-[3px] focus-within:ring-ring/50', take.disabled && 'pointer-events-none opacity-50')}>
+            {pick}
+            <input id={id} aria-describedby={describedBy} aria-invalid={invalid} type="file" multiple={take.multiple !== false} accept={take.accept ?? ACCEPT} disabled={take.disabled} className="sr-only" onChange={(event) => {
+              const files = [...(event.currentTarget.files ?? [])];
+              event.currentTarget.value = ''; // picking the same file again still takes it
+              send(files);
+            }} />
+          </label>
+        ) : null}
+        {children}
+      </div>
       {picked ? <p className="mt-1 text-sm font-medium break-all">{picked}</p> : null}
     </div>
   );
