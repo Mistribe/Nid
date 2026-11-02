@@ -39,18 +39,22 @@ public abstract partial class FxJob(IServiceScopeFactory scopes, ILogger logger)
             var invoker = scope.ServiceProvider.GetRequiredService<IInvoker>();
             var result = await invoker.InvokeAsync(Command, cancellationToken);
             if (result.TryGetFailure(out var failure))
+            {
                 LogRefused(GetType().Name, failure!.Code);
+                JobRun.Skipped(context, failure.Code);
+            }
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted(GetType().Name);
+            JobRun.Interrupted(context);
         }
         catch (Exception e)
         {
             LogCrashed(GetType().Name, e);
-            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
+            await JobIncidents.CrashedAsync(scopes, context, e, cancellationToken);
         }
     }
 
@@ -179,8 +183,12 @@ public static class JobsSetup
 
             // A shutdown cancels a running collection, then waits for it: the collector closes the run as
             // interrupted instead of leaving it "running" for an hour.
+            q.AddJobListener<JobRunListener>();
+
             q.ConfigureScheduler(o => o.ShutdownJobInterruption = ShutdownJobInterruption.WhenWaitingForJobs);
         });
+        // Before the scheduler's own hosted service: the stale runs are closed before a new one can start.
+        services.AddHostedService<JobRunStaleClose>();
         services.AddQuartzHostedService(schedulerName, o => o.WaitForJobsToComplete = true);
 
         // A named scheduler's parts are keyed services: there is no unkeyed ISchedulerFactory to inject.

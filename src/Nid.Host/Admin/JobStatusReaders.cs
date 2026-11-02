@@ -6,38 +6,36 @@ namespace Nid.Host.Admin;
 /// <summary>Jobs disabled on this instance (<c>Jobs:Enabled=false</c>): nothing is scheduled.</summary>
 public sealed class NoJobStatusReader : IJobStatusReader
 {
-    public Task<IReadOnlyList<JobStatusView>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<JobStatusView>>([]);
+    public Task<IReadOnlyList<JobSchedule>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<JobSchedule>>([]);
 }
 
 /// <summary>
-/// Reads the scheduler: last and next fire time from each job's triggers. A job fired only on demand (the backfill)
-/// has no trigger left once it ran, so its last run is unknown here; the rate collection journal has it.
+/// Reads the scheduler: each job's cron (its own schedule) and next fire time. The last run comes from the runs journal, which
+/// also knows the runs of a job fired only on demand.
 /// </summary>
 public sealed class QuartzJobStatusReader(ISchedulerFactory schedulers) : IJobStatusReader
 {
-    public async Task<IReadOnlyList<JobStatusView>> ListAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<JobSchedule>> ListAsync(CancellationToken ct)
     {
         var scheduler = await schedulers.GetScheduler(ct);
-        // Quartz 4.1.1: GetCurrentlyExecutingJobs was replaced by QueryFireInstances, which defaults to the
-        // "Executing" state and pages its result; a couple of scheduled jobs never come close to a page.
-        var running = (await scheduler.QueryFireInstances(new FireInstanceQuery(), ct)).Items
-            .Select(f => f.JobKey)
-            .Where(key => key is not null)
-            .Select(key => key!)
-            .ToHashSet();
-        var views = new List<JobStatusView>();
-
+        var jobs = new List<JobSchedule>();
         foreach (var key in (await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup(), ct)).OrderBy(k => k.Name, StringComparer.Ordinal))
         {
             var triggers = await scheduler.GetTriggersOfJob(key, ct);
-            views.Add(new JobStatusView(
+            jobs.Add(new JobSchedule(
                 key.Name,
-                // Quartz 4.1.1: these are properties on ITrigger, not methods.
-                triggers.Select(t => t.PreviousFireTimeUtc).Max(),
-                triggers.Select(t => t.NextFireTimeUtc).Min(),
-                running.Contains(key) ? "running" : "idle"));
+                triggers.OfType<ICronTrigger>().Select(t => t.CronExpressionString).FirstOrDefault(),
+                // Quartz 4.1.1: a property on ITrigger, not a method.
+                triggers.Select(t => t.NextFireTimeUtc).Min()));
         }
 
-        return views;
+        return jobs;
     }
+}
+
+/// <summary><see cref="IJobRunLogs"/> over the runs' log folder.</summary>
+public sealed class JobRunLogs(Nid.Host.Jobs.RunLogFolder folder) : IJobRunLogs
+{
+    public bool Available => folder.Available;
+    public IReadOnlyList<string>? Read(string jobKey, Guid runId) => folder.Read(jobKey, runId);
 }

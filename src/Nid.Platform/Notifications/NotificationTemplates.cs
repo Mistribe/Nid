@@ -126,7 +126,7 @@ public static class NotificationTemplates
         "banking.consent_expiring" or "banking.consent_expired" or "banking.sync_failing" => "/settings/banks",
         "proposal_pending" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",
-        "job_failed" => "/admin/jobs",
+        "job_failed" => n.Params.GetValueOrDefault("job") is { Length: > 0 } job ? $"/admin/jobs/{job}" : "/admin/jobs",
         "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" ? $"/admin/{n.Params["source"]}" : "/admin/system",
         _ => "/",
     };

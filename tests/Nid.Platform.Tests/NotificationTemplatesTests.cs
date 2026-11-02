@@ -83,6 +83,15 @@ public class NotificationTemplatesTests
     }
 
     [Fact]
+    public void A_failed_job_opens_its_own_page()
+    {
+        NotificationRecord Job(Dictionary<string, string> parameters) => Record("job_failed", key: "job_failed:fx-daily") with { ItemIds = [], Params = parameters };
+
+        Assert.Equal("/admin/jobs/fx-daily", NotificationTemplates.Render(Job(new() { ["job"] = "fx-daily" }), KindOf("job_failed", "platform"), new Dictionary<ItemId, string>()).Link);
+        Assert.Equal("/admin/jobs", NotificationTemplates.Render(Job([]), KindOf("job_failed", "platform"), new Dictionary<ItemId, string>()).Link);
+    }
+
+    [Fact]
     public void Investments_and_income_open_their_screens_and_name_the_date()
     {
         var names = new Dictionary<ItemId, string> { [Item] = "Assurance-vie" };
@@ -138,7 +147,7 @@ public class NotificationTemplatesTests
             (Published("banking.sync_failing", "banking.sync_failing:abc:2027-03-01"), "La synchronisation d'une banque échoue", "/settings/banks"),
             (Published("proposal_pending", $"proposal_pending:{proposal}", withItem: true), "Une proposition attend votre décision", $"/proposals/{proposal}"),
             (Published("backup_failed", "backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),
-            (Published("job_failed", "job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs"),
+            (Published("job_failed", "job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs/fx-sync"),
             (Published("sync_failed", "sync_failed:prices:never", new() { ["source"] = "prices" }), "Une synchronisation a échoué", "/admin/prices"),
         };
         foreach (var (record, title, link) in cases)

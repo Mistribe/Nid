@@ -6,7 +6,7 @@ namespace Nid.Host.IntegrationTests.Admin;
 
 public class AdminSystemTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    public sealed record Job(string Key, DateTimeOffset? LastRunAt, DateTimeOffset? NextRunAt, string State);
+    public sealed record Job(string Key, string? Cron, DateTimeOffset? NextRunAt);
     public sealed record Health(string Database, string IdentityProvider);
     public sealed record SystemStatus(string Version, DateTimeOffset StartedAt, Health Health, long? DatabaseSizeBytes);
 

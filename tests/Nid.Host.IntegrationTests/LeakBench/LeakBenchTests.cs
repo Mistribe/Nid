@@ -528,6 +528,9 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         foreach (var entry in adminOnly.Where(e => !typeof(ICommandMarker).IsAssignableFrom(e.RequestType)))
         {
             var (response, failure) = await app.InvokeAsync(app.AdultA, entry.Build(data, data["S-A"]));
+            // The bench runs without a scheduler: a job's detail is not found by design (admin jobs design §3.4); B is still refused above.
+            if (JobsOffNotFound.Contains(entry.RequestType) && failure?.Code == "NOT_FOUND")
+                continue;
             Assert.True(failure is null, $"{entry.RequestType.Name} as A (admin) failed with {failure?.Code}");
 
             var serialised = JsonSerializer.Serialize(response, ResponseJson);
@@ -535,6 +538,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 Assert.DoesNotContain(label, serialised, StringComparison.Ordinal);
         }
     }
+
+    private static readonly HashSet<Type> JobsOffNotFound = [typeof(Nid.Platform.Admin.GetJobQuery), typeof(Nid.Platform.Admin.GetJobRunQuery)];
 
     /// <summary>Truthful where the guard looks (Me), generous where the handler looks (Household).</summary>
     private sealed class GenerousInTheHouseholdScope(CoreDbContext db) : IVisibleItems

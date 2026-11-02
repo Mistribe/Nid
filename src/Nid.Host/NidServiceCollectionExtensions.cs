@@ -157,6 +157,9 @@ public static class NidServiceCollectionExtensions
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.
         services.AddSingleton(new ProcessStart());
         services.TryAddSingleton<IJobStatusReader, NoJobStatusReader>();
+        // File logs off (no FileLogs:Path, or it cannot be written): runs are recorded without logs.
+        services.TryAddSingleton(new Nid.Host.Jobs.RunLogFolder(null));
+        services.AddSingleton<IJobRunLogs, JobRunLogs>();
         services.TryAddSingleton<IIdentityProviderProbe, OidcIdentityProviderProbe>();
         services.AddScoped<ISystemStatusSource, SystemStatusSource>();
 
@@ -328,6 +331,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportStaging, ImportStagingStore>();
         services.AddScoped<Nid.Platform.Notifications.INotificationStore, Nid.Platform.Infrastructure.Notifications.NotificationStore>();
         services.AddScoped<Nid.Platform.Notifications.IWebhookStore, Nid.Platform.Infrastructure.Notifications.WebhookStore>();
+        services.AddScoped<Nid.Platform.Admin.IJobRunStore, Nid.Platform.Infrastructure.Admin.JobRunStore>();
         // Scoped: the sources depend on scoped stores, a singleton catalog would capture them.
         services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Platform.Notifications.SystemHealthNotificationSource>();

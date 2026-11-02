@@ -220,6 +220,58 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.JobRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Instant?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<bool>("HasLogs")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_logs");
+
+                    b.Property<string>("JobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("job_key");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("outcome");
+
+                    b.Property<Instant>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("trigger");
+
+                    b.HasKey("Id")
+                        .HasName("pk_job_run");
+
+                    b.HasIndex("JobKey", "StartedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_job_run_job_key_started_at");
+
+                    b.ToTable("job_run", "platform", t =>
+                        {
+                            t.HasCheckConstraint("ck_job_run_outcome", "outcome in ('running','succeeded','failed','skipped','interrupted')");
+
+                            t.HasCheckConstraint("ck_job_run_trigger", "trigger in ('scheduled','on_demand')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationDeliveryRow", b =>
                 {
                     b.Property<Guid>("Id")

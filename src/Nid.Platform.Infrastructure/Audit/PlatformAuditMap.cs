@@ -12,5 +12,5 @@ public sealed class PlatformAuditMap : IAuditMap
         [typeof(NotificationWebhookRow)] = AuditRule.NoItem,
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(ImportSessionRow), typeof(ImportBatchRow), typeof(AuditEntryRow), typeof(NotificationRow), typeof(NotificationRunRow), typeof(NotificationDeliveryRow), typeof(NotificationDigestRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(ImportSessionRow), typeof(ImportBatchRow), typeof(AuditEntryRow), typeof(NotificationRow), typeof(NotificationRunRow), typeof(JobRunRow), typeof(NotificationDeliveryRow), typeof(NotificationDigestRow) };
 }

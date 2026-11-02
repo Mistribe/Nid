@@ -11,8 +11,9 @@ internal static class JobIncidents
 {
     public static string Key(IJobExecutionContext context) => $"job_failed:{context.JobDetail.Key.Name}";
 
-    public static async Task CrashedAsync(IServiceScopeFactory scopes, IJobExecutionContext context, CancellationToken ct)
+    public static async Task CrashedAsync(IServiceScopeFactory scopes, IJobExecutionContext context, Exception exception, CancellationToken ct)
     {
+        JobRun.Failed(context, exception);
         await using var scope = scopes.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<INotifier>().PublishAsync(
             new Notice("job_failed", new Recipients.Admins(), Key(context), [], new Dictionary<string, string> { ["job"] = context.JobDetail.Key.Name }), ct);
@@ -20,6 +21,7 @@ internal static class JobIncidents
 
     public static async Task SucceededAsync(IServiceScopeFactory scopes, IJobExecutionContext context, CancellationToken ct)
     {
+        JobRun.Succeeded(context);
         await using var scope = scopes.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<INotifier>().ResolveAsync(Key(context), ct);
     }

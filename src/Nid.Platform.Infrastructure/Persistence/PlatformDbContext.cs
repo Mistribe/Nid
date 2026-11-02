@@ -18,6 +18,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<NotificationDeliveryRow> Deliveries => Set<NotificationDeliveryRow>();
     public DbSet<NotificationDigestRow> Digests => Set<NotificationDigestRow>();
     public DbSet<NotificationWebhookRow> Webhooks => Set<NotificationWebhookRow>();
+    public DbSet<JobRunRow> JobRuns => Set<JobRunRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -122,6 +123,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.Property(x => x.Id).ValueGeneratedNever();
             // Null is the household's: one row each.
             e.HasIndex(x => x.PersonId).IsUnique().AreNullsDistinct(false);
+        });
+
+        modelBuilder.Entity<JobRunRow>(e =>
+        {
+            e.ToTable("job_run", t =>
+            {
+                t.HasCheckConstraint("ck_job_run_outcome", "outcome in ('running','succeeded','failed','skipped','interrupted')");
+                t.HasCheckConstraint("ck_job_run_trigger", "trigger in ('scheduled','on_demand')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.JobKey, x.StartedAt }).IsDescending(false, true);
         });
 
         modelBuilder.MapAuditLog(ownedHere: true);

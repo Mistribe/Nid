@@ -57,6 +57,9 @@ public static class HostingSetup
         // Not AddSerilog: its provider-wide Trace rule overrides Logging:LogLevel, and the files must hold no more than the
         // console. Built by a factory so the container disposes it, which closes the file.
         logging.Services.AddSingleton<ILoggerProvider>(_ => new SerilogLoggerProvider(logger, dispose: true));
+        // A run's own file, under the same root: what the admin's run page shows (admin jobs design §3.3).
+        logging.Services.AddSingleton(new Nid.Host.Jobs.RunLogFolder(path));
+        logging.Services.AddSingleton<ILoggerProvider>(sp => new Nid.Host.Jobs.RunLogProvider(Nid.Host.Jobs.RunLogProvider.FromQuartz(sp)));
     }
 
     public static void AddNidHealth(this IServiceCollection services)

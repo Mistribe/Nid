@@ -527,6 +527,8 @@ const adminIrlRoute = createRoute({ getParentRoute: () => rootRoute, path: '/adm
 const adminBankingRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/banking', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/BankingPage'), 'BankingPage') });
 const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/catalog', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/CatalogPage'), 'CatalogPage') });
 const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage') });
+const adminJobRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs/$key', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobDetailPage'), 'JobDetailPage') });
+const adminJobRunRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs/$key/runs/$runId', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobRunPage'), 'JobRunPage') });
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SystemPage'), 'SystemPage') });
 const adminNotificationsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/notifications', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/NotificationsAdminPage'), 'NotificationsAdminPage') });
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SecurityJournalPage'), 'SecurityJournalPage') });
@@ -535,7 +537,7 @@ export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, banksSettingsRoute,
-  securityRoute, operationsRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute,
+  securityRoute, operationsRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
 ]);
 

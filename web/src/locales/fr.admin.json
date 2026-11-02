@@ -216,16 +216,87 @@
     },
     "jobs": {
       "title": "Tâches planifiées",
-      "key": "Tâche",
       "last": "Dernière exécution",
       "next": "Prochaine exécution",
-      "state": "État",
       "never": "jamais",
       "on_demand": "à la demande",
-      "running": "en cours",
-      "idle": "en attente",
       "empty_title": "Aucune tâche planifiée",
-      "empty_body": "Les tâches planifiées sont désactivées sur cette instance : les taux de change ne sont pas collectés automatiquement."
+      "empty_body": "Les tâches planifiées sont désactivées sur cette instance : les taux de change ne sont pas collectés automatiquement.",
+      "job": "Tâche",
+      "schedule_col": "Planification",
+      "names": {
+        "fx-daily": "Taux de change du jour",
+        "fx-backfill": "Historique des taux de change",
+        "prices-daily": "Cours des supports",
+        "bank-sync-nightly": "Synchronisation bancaire",
+        "irl-weekly": "Indice de référence des loyers",
+        "notifications-evaluate": "Évaluation des notifications",
+        "notifications-dispatch": "Envoi des notifications",
+        "notifications-digest": "Résumé des notifications",
+        "catalog-sync": "Catalogue des fournisseurs"
+      },
+      "descriptions": {
+        "fx-daily": "Collecte les taux de change de la BCE, qui convertissent les montants dans la devise de référence.",
+        "fx-backfill": "Récupère l'historique des taux de la BCE : au démarrage tant qu'il n'a pas réussi, puis à la demande.",
+        "prices-daily": "Met à jour les cours des supports cotés des placements.",
+        "bank-sync-nightly": "Récupère les soldes et les opérations des banques connectées et propose les rapprochements.",
+        "irl-weekly": "Récupère le dernier IRL publié par l'Insee, qui sert à réviser les loyers.",
+        "notifications-evaluate": "Vérifie une fois par jour, pour chaque adulte, ce qui mérite une notification.",
+        "notifications-dispatch": "Envoie les emails et les messages Discord en attente.",
+        "notifications-digest": "Envoie à chaque adulte, le jour qu'il a choisi, le résumé de ses notifications.",
+        "catalog-sync": "Synchronise le catalogue des fournisseurs d'abonnements et leurs icônes."
+      },
+      "depends": {
+        "prices-daily": "La collecte des cours activée (Administration › Cours).",
+        "bank-sync-nightly": "La synchronisation bancaire activée et configurée (Administration › Banque), et des connexions bancaires valides.",
+        "irl-weekly": "La collecte de l'IRL activée (Administration › IRL).",
+        "notifications-dispatch": "Les canaux d'envoi configurés (Administration › Notifications).",
+        "notifications-digest": "Les canaux d'envoi configurés (Administration › Notifications)."
+      },
+      "schedule": {
+        "every_minute": "Chaque minute",
+        "hourly": "Chaque heure",
+        "hourly_at": "Chaque heure à la minute {{minute}}",
+        "daily": "Chaque jour à {{time}}",
+        "weekdays": "Du lundi au vendredi à {{time}}",
+        "weekly": "Chaque {{day}} à {{time}}",
+        "on_demand": "À la demande",
+        "days": [
+          "dimanche",
+          "lundi",
+          "mardi",
+          "mercredi",
+          "jeudi",
+          "vendredi",
+          "samedi"
+        ]
+      },
+      "outcomes": {
+        "running": "en cours",
+        "succeeded": "succès",
+        "failed": "échec",
+        "skipped": "ignorée",
+        "interrupted": "interrompue"
+      },
+      "about": "À propos",
+      "depends_on": "Dépend de",
+      "history": "Historique",
+      "no_runs": "Aucune exécution enregistrée",
+      "started": "Début",
+      "finished": "Fin",
+      "duration": "Durée",
+      "trigger": "Déclenchement",
+      "outcome": "Résultat",
+      "summary": "Résumé",
+      "logs": "Logs",
+      "no_logs": "Aucun log pour cette exécution.",
+      "logs_off": "Les logs fichier sont désactivés sur cette instance (FileLogs:Path).",
+      "run_title": "Exécution du {{date}}",
+      "key_label": "Clé : {{key}}",
+      "triggers": {
+        "scheduled": "Planifiée",
+        "on_demand": "À la demande"
+      }
     },
     "system": {
       "title": "Système",

@@ -31,18 +31,22 @@ public sealed partial class NotificationsDispatchJob(IServiceScopeFactory scopes
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new DispatchNotificationsCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
+            {
                 LogRefused(failure!.Code);
+                JobRun.Skipped(context, failure.Code);
+            }
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
+            JobRun.Interrupted(context);
         }
         catch (Exception e)
         {
             LogCrashed(e);
-            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
+            await JobIncidents.CrashedAsync(scopes, context, e, cancellationToken);
         }
     }
 
@@ -71,18 +75,22 @@ public sealed partial class NotificationsEvaluateJob(IServiceScopeFactory scopes
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new EvaluateNotificationsCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
+            {
                 LogRefused(failure!.Code);
+                JobRun.Skipped(context, failure.Code);
+            }
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
+            JobRun.Interrupted(context);
         }
         catch (Exception e)
         {
             LogCrashed(e);
-            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
+            await JobIncidents.CrashedAsync(scopes, context, e, cancellationToken);
         }
     }
 
@@ -176,18 +184,22 @@ public sealed partial class NotificationsDigestJob(IServiceScopeFactory scopes, 
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SendDigestsCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
+            {
                 LogRefused(failure!.Code);
+                JobRun.Skipped(context, failure.Code);
+            }
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
+            JobRun.Interrupted(context);
         }
         catch (Exception e)
         {
             LogCrashed(e);
-            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
+            await JobIncidents.CrashedAsync(scopes, context, e, cancellationToken);
         }
     }
 

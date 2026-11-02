@@ -69,6 +69,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
         ["src/Nid.Investments.Infrastructure/Persistence/SecurityPriceStore.cs"] = 3, // security_price: excluded
         ["src/Nid.Platform.Infrastructure/Notifications/NotificationStore.cs"] = 8, // notification, notification_run: excluded (+1: the ExecuteUpdateAsync of ResolveKeyAsync)
+        ["src/Nid.Platform.Infrastructure/Admin/JobRunStore.cs"] = 3, // job_run: excluded (a technical journal)
         ["src/Nid.Platform.Infrastructure/Notifications/DeliveryStore.cs"] = 7, // notification_delivery, notification_digest, notification: excluded (the outbox)
         ["src/Nid.Platform.Infrastructure/Persistence/ImportStagingStore.cs"] = 4, // import staging: excluded
         ["src/Nid.RealEstate.Infrastructure/Persistence/IrlRunLog.cs"] = 3, // irl_run: excluded

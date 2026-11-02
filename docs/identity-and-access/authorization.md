@@ -114,6 +114,7 @@ Source unique : deux fonctions pures, testées par propriétés (`access-tests.m
 | Journaux techniques | Ni libellés ni montants au niveau info |
 | Tableau de bord, MCP | Mêmes requêtes que l'API, donc mêmes contrôles |
 | Zone admin | Aucun libellé, aucun montant, **aucun compteur d'éléments** (un total révélerait l'existence d'éléments privés de l'autre adulte) |
+| Logs d'une tâche (zone admin, #266) | Le fichier d'une exécution ne garde que les lignes du job (`Nid.Host.Jobs.*`, des codes), et des autres catégories les avertissements et erreurs, écrits comme leur modèle sans les valeurs (« failed for person {Person} ») : ni SQL, ni identifiant, ni libellé ; une exception, son type et son message |
 
 ## 9. Jobs, workers et import
 

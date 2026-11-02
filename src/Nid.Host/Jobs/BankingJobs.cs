@@ -25,18 +25,22 @@ public sealed partial class BankSyncNightlyJob(IServiceScopeFactory scopes, ILog
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
+            {
                 LogRefused(failure!.Code);
+                JobRun.Skipped(context, failure.Code);
+            }
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
+            JobRun.Interrupted(context);
         }
         catch (Exception e)
         {
             LogCrashed(e);
-            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
+            await JobIncidents.CrashedAsync(scopes, context, e, cancellationToken);
         }
     }
 

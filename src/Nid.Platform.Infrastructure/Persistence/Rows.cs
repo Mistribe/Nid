@@ -149,3 +149,16 @@ public sealed class NotificationWebhookRow
     public string Status { get; set; } = "ok";
     public Instant UpdatedAt { get; set; }
 }
+
+/// <summary>One run of a scheduled job (admin jobs design §2.1). Not audited: a technical journal, like <see cref="NotificationRunRow"/>.</summary>
+public sealed class JobRunRow
+{
+    public Guid Id { get; set; }
+    public string JobKey { get; set; } = "";
+    public string Trigger { get; set; } = "";
+    public Instant StartedAt { get; set; }
+    public Instant? FinishedAt { get; set; }
+    public string Outcome { get; set; } = "running";
+    public string? Summary { get; set; }
+    public bool HasLogs { get; set; }
+}
