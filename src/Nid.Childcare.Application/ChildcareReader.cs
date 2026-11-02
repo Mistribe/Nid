@@ -21,6 +21,10 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
         var names = (await persons.ListAsync(ct)).ToDictionary(p => p.Id, p => p.DisplayName);
         var currency = await household.ReferenceCurrencyAsync(ct);
         var today = await calendar.TodayAsync(ct);
+        var estimates = new Dictionary<ItemId, decimal?>();
+        foreach (var id in ids)
+            estimates[id] = StatementContext.CmgEstimate((await store.StatementsOfAsync(id, ct))
+                .Where(st => st is { Validated: true, Figures: not null }).Select(st => (st.Month, st.Figures!.Cmg)).ToList());
 
         return found.Select(f =>
         {
@@ -36,7 +40,8 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
             return new ChildcareDetail(summary, arrangement.CarerPajemploi, arrangement.CarerApproval, views,
                 placed.Select(g => new CareGapView(g.Monday, g.Weeks, g.Monday.PlusWeeks(g.Weeks).PlusDays(-1))).ToList(),
                 ContractCheck.GapWeeksToPlace(revisions[0].From, revisions[^1].ProgrammedWeeks, placed, today),
-                StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today), arrangement.Version);
+                StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today), arrangement.Version,
+                estimates[arrangement.ItemId] is { } cmg ? ChildcareMoneyView.Of(cmg, currency) : null);
         }).ToList();
     }
 

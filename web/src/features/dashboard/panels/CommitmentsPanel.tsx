@@ -6,7 +6,7 @@ import type { DashboardView } from '../api';
 import { percent } from '../format';
 import { Value } from '../KeyFigures';
 
-const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs', 'tax'] as const;
+const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs', 'tax', 'childcare'] as const;
 
 /** Spec §4.2: what the month's commitments are made of, as the server split them. */
 export function CommitmentsPanel({ d }: { d: DashboardView }) {
@@ -24,7 +24,11 @@ export function CommitmentsPanel({ d }: { d: DashboardView }) {
       <ul className="space-y-1">
         {d.commitmentSources.flatMap((s) => {
           const key = SOURCE_KEYS.find((k) => k === s.source);
-          return key && s.amortized ? [<li key={key} className="tabular-nums">{t(`dashboard.commitment_source.${key}`, { amount: formatMoney(s.amortized) })}</li>] : [];
+          return key && s.amortized ? [
+            <li key={key} className="tabular-nums">
+              {t(`dashboard.commitment_source.${key}`, { amount: formatMoney(s.amortized) })}{s.estimated ? ` ${t('dashboard.estimated')}` : ''}
+            </li>,
+          ] : [];
         })}
       </ul>
       <div className="flex flex-wrap gap-4 text-sm">

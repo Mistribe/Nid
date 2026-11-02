@@ -154,7 +154,9 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
             evaluation.Problems.Select(p => new FieldProblemView(p.Field, p.Code)).ToList(),
             evaluation.Missing.Select(Format).ToList(),
             canWrite, canWrite && stored is { Validated: true } && !context.Stored.Any(s => s.Month == next && s.Validated),
-            stored?.Version ?? 0);
+            stored?.Version ?? 0,
+            StatementContext.CmgEstimate(context.Stored.Where(s => s is { Validated: true, Figures: not null }).Select(s => (s.Month, s.Figures!.Cmg)).ToList()) is { } estimate
+                ? Amount(estimate) : null);
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)

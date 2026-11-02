@@ -267,6 +267,12 @@ describe('key figure panels', () => {
     await user.keyboard('{Escape}');
   });
 
+  it('an estimated childcare source says so', async () => {
+    serve(dashboard({ commitmentSources: [{ ...commitment('childcare', '660.47'), estimated: true }] }));
+    await renderApp('/dashboard?panel=commitments');
+    expect(await dialog('Engagements / mois')).toHaveTextContent('Garde 660,47 € (estimation)');
+  });
+
   it('lists the commitment sources with links to subscriptions and loans', async () => {
     serve(dashboard({
       commitmentSources: [commitment('subscriptions', '250.56'), commitment('loans', '800.00'), commitment('property_costs', '90.00')],

@@ -58,6 +58,13 @@ public static class StatementContext
         return PaidLeave.Accrued(months);
     }
 
+    /// <summary>Decision 19: the mean of the three latest validated months' CMG, to the cent; none without a validated month.</summary>
+    public static decimal? CmgEstimate(IReadOnlyList<(YearMonth Month, decimal Cmg)> validated)
+    {
+        var latest = validated.OrderByDescending(v => v.Month).Take(3).ToList();
+        return latest.Count == 0 ? null : Mensualisation.Round(latest.Average(v => v.Cmg));
+    }
+
     private static bool Overlaps(YearMonth month, LocalDate start, LocalDate? end)
         => month.OnDayOfMonth(1) <= (end ?? LocalDate.MaxIsoValue) && month.OnDayOfMonth(month.Calendar.GetDaysInMonth(month.Year, month.Month)) >= start;
 

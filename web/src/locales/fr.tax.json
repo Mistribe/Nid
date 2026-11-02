@@ -134,6 +134,7 @@
       "rental_fee_not_counted": "{{name}} : {{amount}} de pénalité de remboursement anticipé ou de frais de prêt non comptés en ligne 250.",
       "contribution_rate_differs": "{{name}} : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins ({{amount}}).",
       "per_without_contributions": "{{name}} : aucun versement enregistré cette année.",
+      "childcare_from_statements": "Frais de garde : {{amount}} d’après les relevés de garde validés, à la place du montant du profil.",
       "rental_to_check": "{{name}} : {{amount}} de dépenses à vérifier (travaux, autres) non comptées — voir Déclaration 2044."
     },
     "per": {

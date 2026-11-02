@@ -274,7 +274,7 @@ function Rules() {
     if (!r.itemName) return <span className="text-muted-foreground">{t('banks.rules.hidden')}</span>;
     const listed = (list: { items: { id: string }[] } | undefined) => list?.items.some((i) => i.id === r.itemId) === true;
     // Found in neither list (archived, module off, still loading): the name alone, never a wrong page.
-    const to = r.module === 'subscriptions' ? '/subscriptions/$id'
+    const to = r.module === 'subscriptions' ? '/subscriptions/$id' : r.module === 'childcare' ? '/childcare/$id'
       : listed(loans.data) ? '/loans/$id' : listed(properties.data) ? '/properties/$id' : null;
     return to ? <Link to={to} params={{ id: r.itemId }} className="underline">{r.itemName}</Link> : r.itemName;
   };

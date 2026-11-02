@@ -24416,6 +24416,7 @@ export interface components {
             leaveDaysAccrued: number;
             /** Format: uint32 */
             version: number;
+            cmgEstimate?: null | components["schemas"]["ChildcareMoneyView"];
         };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
@@ -24450,6 +24451,7 @@ export interface components {
             canReopen: boolean;
             /** Format: uint32 */
             version: number;
+            cmgEstimate?: null | string;
         };
         ChildcareSummary: {
             /** Format: uuid */
@@ -24807,6 +24809,8 @@ export interface components {
             amortized?: null | components["schemas"]["DashboardMoneyView"];
             /** Format: double */
             pct?: null | number;
+            /** @default false */
+            estimated: boolean;
         };
         DashboardEnvelopeView: {
             /** Format: uuid */

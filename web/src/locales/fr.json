@@ -197,14 +197,17 @@
       "subscriptions": "Abonnements {{amount}}",
       "loans": "Crédits {{amount}}",
       "property_costs": "Charges des biens {{amount}}",
-      "tax": "Impôts estimés {{amount}}"
+      "tax": "Impôts estimés {{amount}}",
+      "childcare": "Garde {{amount}}"
     },
     "commitment_name": {
       "subscriptions": "Abonnements",
       "loans": "Crédits",
       "property_costs": "Charges des biens",
-      "tax": "Impôts estimés"
+      "tax": "Impôts estimés",
+      "childcare": "Garde"
     },
+    "estimated": "(estimation)",
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
     "margin_unknown_rate": "Marge inconnue : taux de change manquant ({{code}})",

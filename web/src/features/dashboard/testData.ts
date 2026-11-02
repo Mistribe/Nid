@@ -13,7 +13,7 @@ export const dashboard = (over: Partial<DashboardView> = {}): DashboardView => (
   income: figure('2500.00'), incomeSources: 1, margin: eur('2249.45'), committedPct: 10,
   change: figure('1000.00'), changeContributions: figure('1000.00'), changePct: 9.1,
   envelopeSplit: [], people: [], peopleMissingCurrency: null, upcoming: [], todo: [], envelopesWithoutStart: 0,
-  commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56') }], allocation: null,
+  commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56'), estimated: false }], allocation: null,
   ...over,
 });
 
@@ -32,7 +32,7 @@ export const person = (over: Partial<DashboardPerson> = {}): DashboardPerson => 
   id: '00000000-0000-7000-8000-0000000000a1', name: 'Alice', slot: 0, amount: eur('12500.00'), pct: 50, ...over,
 });
 
-export const commitment = (source: string, amortized: string) => ({ source, amortized: eur(amortized) });
+export const commitment = (source: string, amortized: string) => ({ source, amortized: eur(amortized), estimated: false });
 
 export const event = (over: Partial<DashboardEvent> = {}): DashboardEvent => ({
   on: '2025-11-10', kind: 'subscription_renewal', id: '00000000-0000-7000-8000-0000000000c1', module: 'subscriptions',

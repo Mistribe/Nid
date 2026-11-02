@@ -20,6 +20,7 @@ const SOURCES = [
   { key: 'loans', color: 'var(--chart-2)' },
   { key: 'property_costs', color: 'var(--chart-3)' },
   { key: 'tax', color: 'var(--chart-4)' },
+  { key: 'childcare', color: 'var(--chart-5)' },
 ] as const;
 // The income in the theme's accent: what comes in reads apart from where it goes (the commitments' fixed chart colours).
 const INCOME_COLOR = 'var(--primary)';

@@ -3,7 +3,7 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Core.Contracts;
 
-public enum ChargeKind { Subscription, LoanInstalment, PropertyCost, Rent }
+public enum ChargeKind { Subscription, LoanInstalment, PropertyCost, Rent, Childcare }
 
 /// <summary>
 /// 5C spec §6.1: a debit (a credit for a rent) a module expects on an item. <c>Key</c> is stable and unique per item and kind;

@@ -146,21 +146,26 @@ public sealed class BankingNotificationSource(
                 {
                     ["amount"] = charge.Amount.AmountText,
                     ["currency"] = charge.Amount.Currency.Code,
-                    ["module"] = charge.Kind switch
-                    {
-                        ChargeKind.Subscription => "subscriptions",
-                        ChargeKind.LoanInstalment => "loans",
-                        ChargeKind.PropertyCost or ChargeKind.Rent => "properties",
-                        _ => throw new InvalidOperationException($"No page for the charge kind {charge.Kind}."),
-                    },
+                    ["module"] = ModuleOf(charge.Kind),
                 }));
         }
     }
+
+    /// <summary>The page a charge's finding opens, as the notification templates name it.</summary>
+    public static string ModuleOf(ChargeKind kind) => kind switch
+    {
+        ChargeKind.Subscription => "subscriptions",
+        ChargeKind.LoanInstalment => "loans",
+        ChargeKind.PropertyCost or ChargeKind.Rent => "properties",
+        ChargeKind.Childcare => "childcare",
+        _ => throw new InvalidOperationException($"No page for the charge kind {kind}."),
+    };
 
     /// <summary>The screen of the link's target, <c>null</c> when it is unknown (the notice then opens the home page): a loan's key is its due date, a property's carries a prefix.</summary>
     private static string? PageOf(string? module, string? key) => (module, key) switch
     {
         ("subscriptions", _) => "subscriptions",
+        ("childcare", _) => "childcare",
         ("realestate", not null) when key.StartsWith("cost:") || key.StartsWith("rent:") || key.StartsWith("flow:") => "properties",
         ("realestate", not null) when LocalDatePattern.Iso.Parse(key).Success => "loans",
         _ => null,

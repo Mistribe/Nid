@@ -133,7 +133,10 @@
     "revision_month_hint": "Une révision datée en cours de mois s'applique au relevé du mois suivant.",
     "col_month": "Mois",
     "col_state": "État",
-    "col_cost": "Coût du mois"
+    "col_cost": "Coût du mois",
+    "cmg_estimate": "CMG estimé",
+    "tab_documents": "Documents",
+    "no_payslip": "Pas de bulletin"
   },
   "childcare_statement": {
     "loading": "Chargement du relevé",
@@ -218,6 +221,7 @@
       "childcare_cmg_required": "Saisissez le CMG du récapitulatif Pajemploi (0 s'il n'y en a pas) avant de valider.",
       "amount_format": "Saisissez un montant, par exemple 12,50.",
       "childcare_previous_not_validated": "Validez d'abord le mois précédent : le quota enfant malade et la première semaine de ce mois en dépendent."
-    }
+    },
+    "cmg_estimate": "Estimé d’après les derniers mois : {{amount}}"
   }
 }

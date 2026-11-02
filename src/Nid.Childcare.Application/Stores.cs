@@ -18,7 +18,7 @@ public sealed record Terms(
 /// <c>Days</c> is empty when listed; <c>Version</c> 0 means not stored yet.
 /// </summary>
 public sealed record Statement(
-    ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version);
+    ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version, Instant? ValidatedAt = null);
 
 public interface IChildcareStore
 {

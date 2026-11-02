@@ -31,7 +31,7 @@ public sealed record DashboardPersonView(Guid Id, string Name, int Slot, Dashboa
 /// 3E1 spec §3: one source of the commitments, its amortized month in the household currency; null when a rate is missing.
 /// <c>Pct</c> is its share of the month's income, null without an income above 0 or without its amount.
 /// </summary>
-public sealed record DashboardCommitmentSourceView(string Source, DashboardMoneyView? Amortized, decimal? Pct);
+public sealed record DashboardCommitmentSourceView(string Source, DashboardMoneyView? Amortized, decimal? Pct, bool Estimated = false);
 
 /// <summary>
 /// Issue #104: an asset class or a liquidity of the allocation, its share of the assets (0.1 %). With a target for the class:
@@ -112,7 +112,7 @@ public static class DashboardMath
             {
                 var sum = Of(g.Select(p => p.Amortized));
                 decimal? total = sum.Missing is null ? sum.Total ?? 0m : null;
-                return new DashboardCommitmentSourceView(g.Key, total is { } t ? Money(t, reference) : null, ShareOfIncome(total));
+                return new DashboardCommitmentSourceView(g.Key, total is { } t ? Money(t, reference) : null, ShareOfIncome(total), g.Any(p => p.Estimated));
             })
             .ToList();
         decimal? changePct = gain.Total is { } g && start.Total is { } s && net.Total is { } n && s + n > 0m ? Percent(g / (s + n)) : null;

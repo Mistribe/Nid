@@ -56,10 +56,11 @@ public static class AllocationLiquidity
 /// <summary>
 /// 2D1 spec §4: this month's amortized and cash cost of one source of the reader's visible commitments. 3E1 spec §3:
 /// <c>Source</c> is one of <see cref="CommitmentSources"/>; <c>Count</c> the items it counted, so a source counting items
-/// that cost nothing this month still reads « aucun coût ce mois-ci », not « aucun engagement ».
+/// that cost nothing this month still reads « aucun coût ce mois-ci », not « aucun engagement ». <c>Estimated</c>: a figure not yet
+/// known (childcare spec decision 20: a month not yet validated).
 /// </summary>
 public sealed record CommitmentsPart(
-    string Source, int Count, IReadOnlyDictionary<Currency, decimal> Amortized, IReadOnlyDictionary<Currency, decimal> Cash);
+    string Source, int Count, IReadOnlyDictionary<Currency, decimal> Amortized, IReadOnlyDictionary<Currency, decimal> Cash, bool Estimated = false);
 
 /// <summary>3E1 spec §3: the sources of the commitments, as the wire names them.</summary>
 public static class CommitmentSources
@@ -68,6 +69,7 @@ public static class CommitmentSources
     public const string Loans = "loans";
     public const string PropertyCosts = "property_costs";
     public const string Tax = "tax";
+    public const string Childcare = "childcare";
 }
 
 /// <summary>

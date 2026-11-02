@@ -100,7 +100,7 @@ describe('DashboardPage', () => {
   it('says « Aucun coût ce mois-ci » when a source costs nothing this month', async () => {
     serve(dashboard({
       commitments: figure(null), cashThisMonth: figure(null), committedPct: null, subscriptions: 0,
-      commitmentSources: [{ source: 'loans', amortized: { amount: '0.00', currency: 'EUR' } }],
+      commitmentSources: [{ source: 'loans', amortized: { amount: '0.00', currency: 'EUR' }, estimated: false }],
     }));
     await renderApp('/dashboard');
 
@@ -144,10 +144,10 @@ describe('DashboardPage', () => {
       income: figure('4100.00'), margin: { amount: '1185.00', currency: 'EUR' },
       commitments: figure('2605.00'), cashThisMonth: figure('120.00'),
       commitmentSources: [
-        { source: 'subscriptions', amortized: { amount: '125.00', currency: 'EUR' } },
-        { source: 'loans', amortized: { amount: '2250.00', currency: 'EUR' } },
-        { source: 'property_costs', amortized: { amount: '230.00', currency: 'EUR' } },
-        { source: 'tax', amortized: { amount: '310.00', currency: 'EUR' } },
+        { source: 'subscriptions', amortized: { amount: '125.00', currency: 'EUR' }, estimated: false },
+        { source: 'loans', amortized: { amount: '2250.00', currency: 'EUR' }, estimated: false },
+        { source: 'property_costs', amortized: { amount: '230.00', currency: 'EUR' }, estimated: false },
+        { source: 'tax', amortized: { amount: '310.00', currency: 'EUR' }, estimated: false },
       ],
     }));
     const { container } = await renderApp('/dashboard');
@@ -162,7 +162,7 @@ describe('DashboardPage', () => {
   });
 
   it('draws the flow from today\'s income split to the commitments and the rest, each with its share', async () => {
-    serve(dashboard({ marginPct: 90, commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56'), pct: 10 }] }));
+    serve(dashboard({ marginPct: 90, commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56'), pct: 10, estimated: false }] }));
     const PROPERTY = '0192f0aa-0000-7000-8000-00000000d001';
     server.use(http.get('*/api/v1/income/overview', () => HttpResponse.json(overview({
       nowSplit: [
@@ -217,7 +217,7 @@ describe('DashboardPage', () => {
 
   it('draws no segment for a source without an amortized amount, nor for an unknown income', async () => {
     serve(dashboard({
-      commitmentSources: [{ source: 'subscriptions', amortized: null }, { source: 'loans', amortized: { amount: '100.00', currency: 'EUR' } }],
+      commitmentSources: [{ source: 'subscriptions', amortized: null, estimated: false }, { source: 'loans', amortized: { amount: '100.00', currency: 'EUR' }, estimated: false }],
     }));
     await renderApp('/dashboard');
     const labels = within(within(await screen.findByRole('region', { name: 'Où part le revenu du mois' })).getByRole('list', { name: 'Où il part' })).getAllByRole('listitem').map((li) => li.textContent?.replace(/[\u00a0\u202f]/g, ' '));

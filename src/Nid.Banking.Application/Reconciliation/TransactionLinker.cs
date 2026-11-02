@@ -24,7 +24,7 @@ public sealed class TransactionLinker(
     public const int AskDays = 45;
 
     /// <summary>The modules whose items a line may pay.</summary>
-    public static bool Linkable(string? module) => module is "subscriptions" or "realestate";
+    public static bool Linkable(string? module) => module is "subscriptions" or "realestate" or "childcare";
 
     /// <summary>
     /// The line, when the actor may link it to <paramref name="item"/>: they write its account, as unlinking asks (not found when they cannot
@@ -38,7 +38,7 @@ public sealed class TransactionLinker(
         if ((await access.AccountAsync(line.Account, AccessKind.Write, ct)).TryGetFailure(out var denied))
             return Result.Failure<BankTransaction>(denied is UnauthorizedFailure ? denied : new NotFoundFailure("bank transaction", transaction.ToString()));
         if (!Linkable(module))
-            return BankingAccess.Fail<BankTransaction>(BankingCodes.LinkTarget, "A line pays a subscription, a loan or a property.");
+            return BankingAccess.Fail<BankTransaction>(BankingCodes.LinkTarget, "A line pays a subscription, a loan, a property or a childminder.");
         // Write first: an item the actor cannot read is not found, whatever its module.
         var write = await policy.CheckAsync(access.Person, item, AccessKind.Write, ct);
         if (!write.IsSuccess)

@@ -337,6 +337,10 @@ public sealed class TaxEstimates(
             notices.Add(new TaxNoticeView("per_without_contributions", envelope.Key.Item, envelope.Key.Name, Amount(0m)));
 
         decimal All(string code) => lines.Where(l => l.Code == code).Sum(l => l.Amount);
+        // Childcare decision 21: the validated statements of the year replace the profile's childcare costs.
+        var statements = lines.Where(l => l.Code == TaxLineCodes.ChildcareOutsideHome).ToList();
+        if (statements.Count > 0)
+            notices.Add(new TaxNoticeView("childcare_from_statements", statements[0].Item, statements[0].Name, Amount(statements.Sum(l => l.Amount))));
         var rentals = lines.Where(l => l.Code == TaxLineCodes.RentalProperty).ToList();
         var pinel = 0m;
         foreach (var commitment in profile.Pinel)
@@ -361,7 +365,7 @@ public sealed class TaxEstimates(
             columns.Sum(c => c.L215), columns.Sum(c => c.L250), columns.Sum(c => c.L240),
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
             All(TaxLineCodes.CapitalIncome), All(TaxLineCodes.NonTaxable), pinel,
-            profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
+            statements.Count > 0 ? statements.Sum(l => l.Amount) : profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
             profile.DonationsAidLate, profile.RentalEnergyWorks);
         return (inputs, notices, columns);
     }

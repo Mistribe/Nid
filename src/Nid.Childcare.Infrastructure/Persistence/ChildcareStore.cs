@@ -233,7 +233,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
                     r.BasePay!.Value, r.Deduction!.Value, r.ExtraPay!.Value, r.PaidLeavePay!.Value, r.Cmg!.Value, r.Cost!.Value, r.TaxBase!.Value,
                     r.ChildSickDeducted!.Value)
                 : null,
-            r.Version);
+            r.Version, r.ValidatedAt);
 
     private static StatementDay ToDay(StatementDayRow d)
         => new(d.Date, d.Planned, d.Present, d.Arrival, d.Departure, d.Meal, d.Absence is { } a ? AbsenceCodes.Parse(a) : null);

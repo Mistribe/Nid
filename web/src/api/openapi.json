@@ -27189,6 +27189,16 @@
           "version": {
             "type": "integer",
             "format": "uint32"
+          },
+          "cmgEstimate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
           }
         }
       },
@@ -27340,6 +27350,12 @@
           "version": {
             "type": "integer",
             "format": "uint32"
+          },
+          "cmgEstimate": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -29047,7 +29063,8 @@
       },
       "DashboardCommitmentSourceView": {
         "required": [
-          "source"
+          "source",
+          "estimated"
         ],
         "type": "object",
         "properties": {
@@ -29070,6 +29087,10 @@
               "number"
             ],
             "format": "double"
+          },
+          "estimated": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
