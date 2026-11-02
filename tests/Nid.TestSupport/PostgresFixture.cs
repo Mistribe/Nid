@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Banking.Infrastructure.Persistence;
+using Nid.Childcare.Infrastructure.Persistence;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Documents.Infrastructure.Persistence;
 using Nid.Goals.Infrastructure.Persistence;
@@ -80,6 +81,8 @@ public sealed class PostgresFixture : IAsyncLifetime
             await documents.Database.MigrateAsync();
         await using (var banking = NewBankingContext(connectionString))
             await banking.Database.MigrateAsync();
+        await using (var childcare = NewChildcareContext(connectionString))
+            await childcare.Database.MigrateAsync();
     }
 
     private static async Task<string> NewDatabaseAsync(string? template)
@@ -130,6 +133,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public static BankingDbContext NewBankingContext(string connectionString)
         => new(new DbContextOptionsBuilder<BankingDbContext>().Configure(connectionString).Options);
+
+    public static ChildcareDbContext NewChildcareContext(string connectionString)
+        => new(new DbContextOptionsBuilder<ChildcareDbContext>().Configure(connectionString).Options);
 
     public static IClock Clock { get; } = SystemClock.Instance;
 }

@@ -10,6 +10,7 @@ import { Field } from '@/components/form/Field';
 import { CancelImport } from './CancelImport';
 import { IssueList, SectionCounts } from './ReportView';
 import { StepCard } from './StepCard';
+import '@/locales/import';
 
 type Session = components['schemas']['ImportSessionView'];
 

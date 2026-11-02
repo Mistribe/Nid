@@ -15,6 +15,8 @@ using Nid.Core.Domain.Scenarios;
 using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
+using Nid.Childcare.Application;
+using Nid.Childcare.Contracts;
 using Nid.Goals.Application;
 using Nid.Goals.Contracts;
 using Nid.Income.Application;
@@ -133,6 +135,10 @@ public static class RequestCatalogue
     /// never registered is unreachable and still has to be explained, and a request registered from an
     /// assembly the bench does not scan must not slip through either.
     /// </summary>
+    /// <summary>A childminder's terms from <paramref name="from"/>: 4 € net, Mondays 08:00–17:30, 46 weeks.</summary>
+    public static TermsInput BenchChildcareTerms(LocalDate from)
+        => new(from, 4m, null, 0.1m, 4m, null, 46, [new WeekdaySlot(IsoDayOfWeek.Monday, new LocalTime(8, 0), new LocalTime(17, 30), false)]);
+
     public static IReadOnlyList<Type> Discover()
         => Declared.Union(Registered).OrderBy(t => t.FullName, StringComparer.Ordinal).ToList();
 
@@ -492,6 +498,18 @@ public static class RequestCatalogue
         new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
         new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
         new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),
+
+        new(typeof(ListChildcareQuery), false, (_, _) => new ListChildcareQuery(VisibilityScope.Me, true)),
+        new(typeof(GetChildcareQuery), true, (_, item) => new GetChildcareQuery(item)),
+        new(typeof(CreateChildcareCommand), false, (d, _) => new CreateChildcareCommand("bench", d.App.Dependent, new CarerInput("bench", null, null),
+            BenchChildcareTerms(new LocalDate(2025, 9, 1)), [], Visibility.Shared, [new OwnerShare(d.App.AdultA, 10_000)])),
+        // Version 1 is never a row's xmin: an allowed writer meets childcare.conflict, never an access refusal.
+        new(typeof(EditChildcareCommand), true, (_, item) => new EditChildcareCommand(item, "bench", new CarerInput("bench", null, null),
+            BenchChildcareTerms(new LocalDate(2025, 9, 1)), 1)),
+        new(typeof(ReviseChildcareCommand), true, (_, item) => new ReviseChildcareCommand(item, BenchChildcareTerms(new LocalDate(2026, 1, 1)))),
+        new(typeof(ReplaceGapsCommand), true, (_, item) => new ReplaceGapsCommand(item, [])),
+        new(typeof(CloseChildcareCommand), true, (_, item) => new CloseChildcareCommand(item, new LocalDate(2030, 1, 1))),
+        new(typeof(ReopenChildcareCommand), true, (_, item) => new ReopenChildcareCommand(item)),
 
         new(typeof(GetBankingStatusQuery), false, (_, _) => new GetBankingStatusQuery()),
         new(typeof(ListAspspsQuery), false, (_, _) => new ListAspspsQuery()),

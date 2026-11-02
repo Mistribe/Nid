@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw/http';
 import { delay } from 'msw/utils/delay';
 import type { components } from '@/api/schema';
 import { ACTIVE_STATES, effectiveState } from '@/features/import/states';
+import '@/locales/import';
 
 type Session = components['schemas']['ImportSessionView'];
 type Report = components['schemas']['ImportReport'];

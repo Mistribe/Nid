@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatInstant } from '@/features/admin/format';
 import { StepCard } from './StepCard';
 import { ACTIVE_STATES, effectiveState, useStateLabel } from './states';
+import '@/locales/import';
 
 /** The person's recent sessions (import-format.md §11.1, `GET /imports`); an active one can be resumed. */
 export function RecentImports() {

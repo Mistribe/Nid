@@ -5,6 +5,7 @@ import { FileCheck } from './FileCheck';
 import { FileStep } from './FileStep';
 import { RecentImports } from './RecentImports';
 import { StartImport } from './StartImport';
+import '@/locales/import';
 
 /** `/import`: recent imports, then the file, its local check and its adults. */
 export function ImportHome() {

@@ -13,6 +13,7 @@ import { useRefreshImports } from './queries';
 import { SendStep } from './SendStep';
 import { effectiveState, useStateLabel } from './states';
 import { ValidationStep } from './ValidationStep';
+import '@/locales/import';
 
 const route = getRouteApi('/import/$id');
 

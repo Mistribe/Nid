@@ -8,10 +8,10 @@ public sealed record PaidLeaveInput(int MonthsWithCare, decimal ReferenceNetPay)
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
-/// share a week with it; <c>Cmg</c>: read from the Pajemploi summary.
+/// share a week with it; <c>ProgrammedWeeks</c>: the contract's (spec §1.10); <c>Cmg</c>: read from the Pajemploi summary.
 /// </summary>
 public sealed record MonthInput(
-    YearMonth Month, ContractTerms Terms, IReadOnlyList<WeekdaySlot> Schedule, IReadOnlyList<CareGap> Gaps,
+    YearMonth Month, ContractTerms Terms, IReadOnlyList<WeekdaySlot> Schedule, IReadOnlyList<CareGap> Gaps, int ProgrammedWeeks,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
     decimal Mileage, decimal Cmg, PaidLeaveInput? June);
 
@@ -22,7 +22,7 @@ public static class ChildcareMonth
     {
         Validate(input);
         var weeklyHours = Mensualisation.WeeklyHours(input.Schedule);
-        var weeks = Mensualisation.ProgrammedWeeks(input.Gaps);
+        var weeks = input.ProgrammedWeeks;
         var fullPay = Mensualisation.BasePay(input.Terms.NetHourlyRate, weeklyHours, weeks);
 
         // A month the contract enters or leaves pays its share of the template hours (the deduction's own ratio, art. 111).

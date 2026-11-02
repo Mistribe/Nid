@@ -24,3 +24,5 @@ deploy/backups/
 
 # Brainstorming mockups (superpowers visual companion); never committed
 .superpowers/
+# A build host on macOS can write a folder literally named bin\Debug
+bin\\*/

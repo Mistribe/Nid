@@ -13,7 +13,7 @@ public static class NidJsonContexts
     private static readonly IJsonTypeInfoResolver[] All =
     [
         CoreJsonContext.Default, SubscriptionsJsonContext.Default, InvestmentsJsonContext.Default, IncomeJsonContext.Default,
-        GoalsJsonContext.Default, BankingJsonContext.Default, DocumentsJsonContext.Default, RealEstateJsonContext.Default, PlatformJsonContext.Default, Mcp.McpCalls.Answers,
+        GoalsJsonContext.Default, BankingJsonContext.Default, ChildcareJsonContext.Default, DocumentsJsonContext.Default, RealEstateJsonContext.Default, PlatformJsonContext.Default, Mcp.McpCalls.Answers,
     ];
 
     public static void AddTo(JsonSerializerOptions options)

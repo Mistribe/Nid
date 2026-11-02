@@ -5,6 +5,7 @@ import type { ReadyFile } from './draft';
 import { StepCard } from './StepCard';
 import type { LocalProblem } from './prepare';
 import { prepareInBackground } from './prepareInBackground';
+import '@/locales/import';
 
 const SHOWN = 20;
 

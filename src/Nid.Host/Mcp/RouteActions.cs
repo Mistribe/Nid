@@ -1,5 +1,6 @@
 using static Nid.Host.Api.BankingEndpoints;
 using static Nid.Host.Api.CatalogEndpoints;
+using static Nid.Host.Api.ChildcareEndpoints;
 using static Nid.Host.Api.DocumentEndpoints;
 using static Nid.Host.Api.GoalEndpoints;
 using static Nid.Host.Api.IncomeEndpoints;
@@ -199,6 +200,24 @@ public static class RouteActions
             "End an income source on a date. " + Ids + Amounts, Destructive: true),
         new("reopen_income_source", "POST", "/api/v1/income/sources/{id:guid}/reopen", null,
             "Reopen an ended income source. " + Ids),
+
+        // Childcare (childminder, Pajemploi).
+        new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
+            "Record a childminder's contract (assistante maternelle, année incomplète): childId is a dependent (list_persons); carer name, "
+            + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, "
+            + "the meal price, programmedWeeks (1 to 46) and the weekly schedule (day 1 = Monday, arrival and departure HH:mm, meal); "
+            + "gaps are weeks without care, each from a Monday. " + Owners + Amounts),
+        new("edit_childcare", "PUT", "/api/v1/childcare/{id:guid}", typeof(EditChildcareBody),
+            "Correct an arrangement's name, carer and current terms in place (terms.from stays the current one's; a change from a date is propose_revise_childcare). "
+            + Ids + Versioned + Amounts),
+        new("revise_childcare", "POST", "/api/v1/childcare/{id:guid}/revisions", typeof(ReviseChildcareBody),
+            "Revise an arrangement from a date after its current terms' start: the current terms end the day before. " + Ids + Amounts),
+        new("replace_childcare_gaps", "PUT", "/api/v1/childcare/{id:guid}/gaps", typeof(GapsBody),
+            "Replace an arrangement's weeks without care (each from a Monday, 1 to 52 weeks; send them all). " + Ids + Amounts),
+        new("close_childcare", "POST", "/api/v1/childcare/{id:guid}/close", typeof(CloseChildcareBody),
+            "End an arrangement on its last day (on). " + Ids + Amounts),
+        new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,
+            "Reopen an ended arrangement. " + Ids),
 
         // Savings goals.
         new("create_goal", "POST", "/api/v1/goals/", typeof(CreateGoalBody),

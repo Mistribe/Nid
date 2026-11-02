@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import '@/locales/import';
 
 /** Session states of import-format.md §11.1. */
 export const STATES = ['open', 'validated', 'invalid', 'committed', 'cancelled', 'expired'] as const;

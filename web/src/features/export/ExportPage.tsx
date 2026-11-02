@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { runExport } from './assemble';
 import { downloadBlob } from './download';
+import '@/locales/export';
 
 type State =
   | { kind: 'rest' }

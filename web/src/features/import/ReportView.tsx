@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import '@/locales/export';
+import '@/locales/import';
 
 type Issue = components['schemas']['ImportIssue'];
 type Report = components['schemas']['ImportReport'];

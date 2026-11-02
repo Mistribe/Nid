@@ -7,6 +7,7 @@ import { formatInstant } from '@/features/admin/format';
 import { downloadReport } from './report';
 import { IssueList, SectionCounts } from './ReportView';
 import { StepCard } from './StepCard';
+import '@/locales/import';
 
 type Session = components['schemas']['ImportSessionView'];
 

@@ -34,6 +34,8 @@
     <ProjectReference Include="..\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.Documents.Application\Nid.Documents.Application.csproj" />
     <ProjectReference Include="..\Nid.Documents.Infrastructure\Nid.Documents.Infrastructure.csproj" />
+    <ProjectReference Include="..\Nid.Childcare.Application\Nid.Childcare.Application.csproj" />
+    <ProjectReference Include="..\Nid.Childcare.Infrastructure\Nid.Childcare.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.Goals.Application\Nid.Goals.Application.csproj" />
     <ProjectReference Include="..\Nid.Goals.Infrastructure\Nid.Goals.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.Income.Application\Nid.Income.Application.csproj" />

@@ -10,6 +10,7 @@ import type { PreparedBatch } from './prepare';
 import { StepCard } from './StepCard';
 import { IssueList } from './ReportView';
 import { sendBatches, type BatchView, type PutResult } from './sender';
+import '@/locales/import';
 
 type Phase =
   | { kind: 'sending' }

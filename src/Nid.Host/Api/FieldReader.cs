@@ -36,6 +36,19 @@ internal sealed class FieldReader
         return null;
     }
 
+    public LocalTime? Time(string? value, string path)
+    {
+        if (value is null)
+        {
+            Add(path, "request.required", "This time is required.");
+            return null;
+        }
+        if (NodaTime.Text.LocalTimePattern.CreateWithInvariantCulture("HH:mm").Parse(value) is { Success: true } parsed)
+            return parsed.Value;
+        Add(path, "request.time", $"'{value}' is not a time (HH:mm).");
+        return null;
+    }
+
     public Money? Money(MoneyBody? body, string path)
     {
         if (body is null) { Add(path, "request.required", "An amount is required."); return null; }

@@ -14,6 +14,7 @@ const CREATE = [
   { module: 'subscriptions', to: '/subscriptions/new', label: 'palette.new_subscription' },
   { module: 'income', to: '/income/new', label: 'palette.new_income' },
   { module: 'goals', to: '/goals/new', label: 'palette.new_goal' },
+  { module: 'childcare', to: '/childcare/new', label: 'palette.new_childcare' },
 ] as const;
 
 /**

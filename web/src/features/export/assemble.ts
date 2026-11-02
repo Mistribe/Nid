@@ -1,6 +1,7 @@
 import type { Api } from '@/api/client';
 import { ProblemError, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
+import '@/locales/export';
 
 type Manifest = components['schemas']['ExportManifestView'];
 type Client = Api['fetchClient'];

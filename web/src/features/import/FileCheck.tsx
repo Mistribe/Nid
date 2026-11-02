@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { ReadyFile } from './draft';
 import { StepCard } from './StepCard';
+import '@/locales/import';
 
 /** Step 2 of web design §6.2 once the file passes: what will be sent. */
 export function FileCheck({ file }: { file: ReadyFile }) {

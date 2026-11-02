@@ -202,6 +202,8 @@ public static class ResultHttp
                 or BreakdownCodes.Not100 or BreakdownCodes.NotMarket => StatusCodes.Status400BadRequest,
             _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
+            _ when failure.Code is Nid.Childcare.Contracts.ChildcareCodes.Closed or Nid.Childcare.Contracts.ChildcareCodes.Open
+                or Nid.Childcare.Contracts.ChildcareCodes.Conflict => StatusCodes.Status409Conflict,
             _ when failure.Code is GoalsCodes.GoalClosed or GoalsCodes.GoalOpen or GoalsCodes.ShareExceeded or GoalsCodes.Conflict => StatusCodes.Status409Conflict,
             _ when failure.Code is LoanCodes.LoanConflict or LoanCodes.FeeConflict or LoanCodes.RepaymentConflict
                 or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,

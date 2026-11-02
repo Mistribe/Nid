@@ -13,6 +13,7 @@ import type { ReadyFile } from './draft';
 import { StepCard } from './StepCard';
 import { useRefreshImports } from './queries';
 import { ACTIVE_STATES, effectiveState } from './states';
+import '@/locales/import';
 
 type Person = components['schemas']['PersonDto'];
 

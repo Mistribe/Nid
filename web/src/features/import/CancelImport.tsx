@@ -5,6 +5,7 @@ import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { useRefreshImports } from './queries';
+import '@/locales/import';
 
 /** `DELETE /imports/{id}`: cancels the session and clears its staging, after a confirmation in place. */
 export function CancelImport({ id, label, onCancelled, beforeCancel }: {
