@@ -38,6 +38,10 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetInvestmentsHoldingsQuery(ParseScope(scope)), ct)).ToHttp(h => h))
             .Returns<InvestmentsHoldings>();
 
+        api.MapGet("/overview/income", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPassiveIncomeQuery(ParseScope(scope)), ct)).ToHttp(i => i))
+            .Returns<PassiveIncome>();
+
         // Issue #209: the household's fee references; a kind left out keeps its default.
         api.MapPut("/fee-references", async (FeeReferencesBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SaveFeeReferencesCommand(new FeeReferences(body.AssumedReturnPct,

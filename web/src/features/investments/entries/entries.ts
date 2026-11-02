@@ -29,6 +29,7 @@ export const valueSchema = (t: TFunction) => z.object({
 export const flowSchema = (t: TFunction) => z.object({
   occurredOn: pastDate(t),
   kind: z.enum(FLOW_KINDS),
+  nature: z.string(),
   amount: z.string().regex(POSITIVE_AMOUNT, t('investments_form.positive_amount_format')),
   note: z.string().max(2000, t('investments_form.note_too_long')),
 });

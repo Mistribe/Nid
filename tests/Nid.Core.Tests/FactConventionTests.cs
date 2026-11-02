@@ -26,4 +26,19 @@ public class FactConventionTests
         Assert.Equal("category", Property.Refusal(FlowKind.Income, null)?.Member);
         Assert.Null((Property with { CategoryRequired = false }).Refusal(FlowKind.Income, null));
     }
+
+    private static readonly FactConvention Envelope = new("investments", "envelope", "envelopes", "investments.invalid_income_category", false,
+        new Dictionary<FlowKind, IReadOnlyList<string>> { [FlowKind.Withdrawal] = ["dividend"], [FlowKind.Income] = ["dividend"] }, OpenCategories: true);
+
+    [Fact]
+    public void An_open_convention_refuses_a_listed_category_on_a_kind_that_does_not_list_it()
+        => Assert.Equal("category", Envelope.Refusal(FlowKind.Contribution, "dividend")?.Member);
+
+    [Fact]
+    public void An_open_convention_keeps_the_kind_that_lists_the_category_and_any_other_category_or_kind()
+    {
+        Assert.Null(Envelope.Refusal(FlowKind.Withdrawal, "dividend"));
+        Assert.Null(Envelope.Refusal(FlowKind.Contribution, "import"));
+        Assert.Null(Envelope.Refusal(FlowKind.Opening, null));
+    }
 }

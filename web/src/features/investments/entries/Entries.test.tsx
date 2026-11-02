@@ -154,8 +154,8 @@ describe('recording values and flows', () => {
     const { user } = await renderApp(`/investments/${PEA}`);
 
     const flow = await openFlow(user);
-    await pick(user, 'Nature', 'Retrait');
-    await pick(user, 'Nature', 'Versement');
+    await pick(user, 'Type', 'Retrait');
+    await pick(user, 'Type', 'Versement');
     await user.type(flow.getByLabelText('Montant'), '150');
     await user.click(flow.getByRole('button', { name: 'Ajouter le flux' }));
 
@@ -165,12 +165,81 @@ describe('recording values and flows', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Ajouter un flux' })).toHaveFocus());
   });
 
+  it('records a withdrawal as a dividend', async () => {
+    const calls: Call[] = [];
+    serve(detail(), calls);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const flow = await openFlow(user);
+    await pick(user, 'Type', 'Retrait');
+    await pick(user, 'Nature', 'Dividende');
+    await user.type(flow.getByLabelText('Montant'), '40');
+    await user.click(flow.getByRole('button', { name: 'Ajouter le flux' }));
+
+    await waitFor(() => expect(calls).toEqual([{ method: 'POST', path: 'flows', body: expect.objectContaining({ kind: 'withdrawal', category: 'dividend' }) as unknown }]));
+  });
+
+  it('offers no nature on a contribution', async () => {
+    serve(detail(), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+    const flow = await openFlow(user);
+    expect(flow.queryByLabelText('Nature')).not.toBeInTheDocument();
+    await pick(user, 'Type', 'Retrait');
+    expect(flow.getByLabelText('Nature')).toBeInTheDocument();
+  });
+
+  it('offers no nature on a savings account', async () => {
+    serve(detail({ kind: 'savings' }), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+    const flow = await openFlow(user);
+    await pick(user, 'Type', 'Retrait');
+    expect(flow.queryByLabelText('Nature')).not.toBeInTheDocument();
+  });
+
+  it('reclassifies a withdrawal and keeps an unknown category untouched', async () => {
+    const calls: Call[] = [];
+    serve(detail({ flows: [{ id: 'w1', occurredOn: '2025-06-15', kind: 'withdrawal', amount: eur('50.0000'), category: 'import', externalRef: 'import:1', note: null }] }), calls);
+    const { user } = await renderApp(`/investments/${PEA}?tab=flows`);
+
+    await rowAction(user, await screen.findByRole('table', { name: 'Flux de l’enveloppe' }), FLOW_ROW, 'Corriger');
+    const edit = within(await screen.findByRole('dialog', { name: 'Corriger le flux' }));
+    expect(edit.getByRole('combobox', { name: 'Nature' })).toHaveTextContent('Retrait ordinaire');
+    await user.click(edit.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(calls).toEqual([{ method: 'PUT', path: 'flows/w1', body: expect.objectContaining({ category: 'import' }) as unknown }]));
+
+    calls.length = 0;
+    await rowAction(user, await screen.findByRole('table', { name: 'Flux de l’enveloppe' }), FLOW_ROW, 'Corriger');
+    await screen.findByRole('dialog', { name: 'Corriger le flux' });
+    await pick(user, 'Nature', 'Intérêts');
+    await user.click(within(screen.getByRole('dialog', { name: 'Corriger le flux' })).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(calls).toEqual([{ method: 'PUT', path: expect.stringContaining('flows/') as unknown, body: expect.objectContaining({ category: 'interest' }) as unknown }]));
+  });
+
+  it.each([['an ordinary withdrawal', 'Nature', 'Retrait ordinaire'], ['a contribution', 'Type', 'Versement']])('drops a dividend category when corrected into %s', async (_n, field, option) => {
+    const calls: Call[] = [];
+    serve(detail({ flows: [{ id: 'w3', occurredOn: '2025-06-15', kind: 'withdrawal', amount: eur('50.0000'), category: 'dividend', externalRef: null, note: null }] }), calls);
+    const { user } = await renderApp(`/investments/${PEA}?tab=flows`);
+    await rowAction(user, await screen.findByRole('table', { name: 'Flux de l’enveloppe' }), FLOW_ROW, 'Corriger');
+    const edit = within(await screen.findByRole('dialog', { name: 'Corriger le flux' }));
+    await pick(user, field, option);
+    await user.click(edit.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]?.body).not.toHaveProperty('category');
+  });
+
+  it('labels a classified withdrawal by its nature in the list', async () => {
+    serve(detail({ flows: [{ id: 'w2', occurredOn: '2025-06-15', kind: 'withdrawal', amount: eur('50.0000'), category: 'dividend', externalRef: null, note: null }] }), []);
+    await renderApp(`/investments/${PEA}?tab=flows`);
+    const table = await screen.findByRole('table', { name: 'Flux de l’enveloppe' });
+    expect(within(table).getByText('Dividende')).toBeInTheDocument();
+  });
+
   it('offers versements antérieurs only while there is none', async () => {
     serve(detail(), []);
     const { user } = await renderApp(`/investments/${PEA}`);
 
     await openFlow(user);
-    await user.click(screen.getByRole('combobox', { name: 'Nature' }));
+    await user.click(screen.getByRole('combobox', { name: 'Type' }));
     const list = await screen.findByRole('listbox');
     expect(within(list).getByRole('option', { name: 'Versement' })).toBeInTheDocument();
     expect(within(list).queryByRole('option', { name: 'Versements antérieurs' })).not.toBeInTheDocument();
@@ -183,8 +252,8 @@ describe('recording values and flows', () => {
     await rowAction(user, await screen.findByRole('table', { name: 'Flux de l’enveloppe' }), OPENING_ROW, 'Corriger');
     await screen.findByRole('dialog', { name: 'Corriger le flux' });
 
-    expect(screen.getByRole('combobox', { name: 'Nature' })).toHaveTextContent('Versements antérieurs');
-    await user.click(screen.getByRole('combobox', { name: 'Nature' }));
+    expect(screen.getByRole('combobox', { name: 'Type' })).toHaveTextContent('Versements antérieurs');
+    await user.click(screen.getByRole('combobox', { name: 'Type' }));
     expect(within(await screen.findByRole('listbox')).getByRole('option', { name: 'Versements antérieurs' })).toBeInTheDocument();
   });
 
@@ -446,13 +515,13 @@ describe('recording values and flows', () => {
 
     const warning = await screen.findByRole('button', { name: 'Saisir les versements antérieurs' });
     await user.click(warning);
-    expect(await screen.findByRole('combobox', { name: 'Nature' })).toHaveTextContent('Versements antérieurs');
+    expect(await screen.findByRole('combobox', { name: 'Type' })).toHaveTextContent('Versements antérieurs');
     await user.click(screen.getByRole('button', { name: 'Annuler' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: 'Ajouter un flux' }));
-    expect(await screen.findByRole('combobox', { name: 'Nature' })).toHaveTextContent('Versement');
-    expect(screen.getByRole('combobox', { name: 'Nature' })).not.toHaveTextContent('antérieurs');
+    expect(await screen.findByRole('combobox', { name: 'Type' })).toHaveTextContent('Versement');
+    expect(screen.getByRole('combobox', { name: 'Type' })).not.toHaveTextContent('antérieurs');
   });
 
   it('goes back to versement after saving the versements antérieurs', async () => {
@@ -468,6 +537,6 @@ describe('recording values and flows', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(calls).toEqual([{ method: 'POST', path: 'flows', body: expect.objectContaining({ kind: 'opening' }) as unknown }]);
     await user.click(screen.getByRole('button', { name: 'Ajouter un flux' }));
-    expect(await screen.findByRole('combobox', { name: 'Nature' })).toHaveTextContent('Versement');
+    expect(await screen.findByRole('combobox', { name: 'Type' })).toHaveTextContent('Versement');
   });
 });

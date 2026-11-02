@@ -87,7 +87,7 @@ public sealed class GetInvestmentsPerformanceHandler(
 /// <summary>Spec §4's figures, pure: tested in Nid.Investments.Tests.</summary>
 internal static class InvestmentsPerformanceMath
 {
-    private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
+    internal static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
     private sealed record Counted(EnvelopePerformance.Facts Facts, PeriodPerformance Period);
 

@@ -92,6 +92,11 @@
     "new_flow": "Nouveau flux",
     "edit_flow": "Corriger le flux",
     "add_flow": "Ajouter le flux",
+    "flow_type": "Type",
+    "nature": "Nature",
+    "nature_ordinary": "Retrait ordinaire",
+    "nature_income": "Revenu",
+    "nature_hint": "Seul l’argent versé directement hors de l’enveloppe ; un retrait d’un PEA reste un retrait.",
     "flow_saved": "Flux ajouté.",
     "flow_corrected": "Flux corrigé.",
     "save": "Enregistrer",
@@ -227,6 +232,7 @@
     "none_open_body": "Vos enveloppes sont toutes clôturées. La liste les garde.",
     "see_closed": "Voir les enveloppes clôturées",
     "tab_performance": "Performance",
+    "tab_income": "Revenus",
     "tab_holdings": "Supports et frais"
   },
   "investments_performance": {
@@ -276,6 +282,27 @@
       "stale_start_value": "une valeur trop ancienne au début de la période"
     },
     "empty": "Aucune enveloppe n’a de valeur au début de cette période."
+  },
+  "investments_income": {
+    "loading": "Chargement des revenus",
+    "total": "Sur 12 mois",
+    "yield": "Rendement",
+    "col_total": "Revenus",
+    "yield_short": "Rendement",
+    "estimate": "Estimation 12 prochains mois",
+    "estimate_note": "d’après les 12 derniers mois et les loyers en cours",
+    "kind": { "dividend": "Dividendes", "interest": "Intérêts", "distribution": "Distributions", "rent": "Loyers nets", "other": "Autres" },
+    "months_title": "Revenus mois par mois",
+    "months_table": "Revenus de chaque mois",
+    "month": "Mois",
+    "partial": "{{month}} est en cours : ses revenus ne sont pas complets.",
+    "partial_label": "{{month}} (en cours)",
+    "rows_title": "Ce qui a rapporté",
+    "property": "Bien locatif",
+    "unknown": "Inconnu",
+    "excluded": "Non comptés : {{names}}.",
+    "excluded_reason": { "bank_linked_savings": "relié à la banque", "savings_without_flows": "sans mouvement" },
+    "empty": "Aucun revenu sur 12 mois. Il en apparaît dès que vous classez un retrait en dividende, intérêts ou distribution, saisissez un mouvement sur un support, tenez un livret dont les versements sont enregistrés, ou avez un bien loué."
   },
   "holding_prices": {
     "price": "Cours",

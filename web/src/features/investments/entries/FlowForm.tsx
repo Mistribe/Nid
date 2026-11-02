@@ -15,11 +15,12 @@ import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { FLOW, FLOWS, invalidateInvestments, type EnvelopeDetail, type Flow } from '../api';
-import { FLOW_KINDS } from '../format';
+import { FLOW_KINDS, INCOME_CATEGORIES } from '../format';
 import { flowSchema, placeFieldError, presentConflict, trimAmount } from './entries';
 import '@/locales/investments';
 
-const PATHS = { occurredOn: 'occurredOn', kind: 'kind', amount: 'amount', note: 'note' } as const;
+const isNature = (c?: string | null) => INCOME_CATEGORIES.some((k) => k === c);
+const PATHS = { occurredOn: 'occurredOn', kind: 'kind', category: 'nature', amount: 'amount', note: 'note' } as const;
 const FALLBACK: Record<string, 'occurredOn' | 'amount'> = {
   'core.date_in_future': 'occurredOn', 'core.currency_mismatch': 'amount', 'core.invalid_fact': 'amount',
   'core.amount_not_positive': 'amount',
@@ -45,6 +46,7 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
     defaultValues: {
       occurredOn: editing?.occurredOn ?? todayIso(),
       kind: (editing?.kind as (typeof FLOW_KINDS)[number] | undefined) ?? (opening ? 'opening' : 'contribution'),
+      nature: INCOME_CATEGORIES.find((c) => c === editing?.category) ?? '',
       amount: editing ? trimAmount(editing.amount.amount) : '',
       note: editing?.note ?? '',
     },
@@ -68,12 +70,17 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
       note: values.note || undefined,
       // A correction replaces the whole row (PUT): the category and external reference a value or an import gave
       // it (finding 8) travel unchanged — this form never lets a person set or clear them.
-      ...(editing ? { category: editing.category, externalRef: editing.externalRef } : {}),
+      ...(editing ? { externalRef: editing.externalRef } : {}),
+      // « Retrait ordinaire » / « Revenu » keeps the category the flow already had (an import's, say): only a chosen nature replaces it.
+      // An income category is dropped when « ordinaire » is chosen or Nature is hidden; any other category stays.
+      category: (showNature && values.nature) || (isNature(editing?.category) ? undefined : editing?.category) || undefined,
     };
     if (editing) update.mutate({ params: { path: { id: envelope.id, flowId: editing.id } }, body });
     else create.mutate({ params: { path: { id: envelope.id } }, body });
   });
 
+  const kind = form.watch('kind');
+  const showNature = (kind === 'withdrawal' || kind === 'income') && envelope.kind !== 'savings';
   const e = form.formState.errors;
   const pending = editing ? update.isPending : create.isPending;
   // A conflict shows its own sentence when known (final findings #5), read from the mutation's own error rather
@@ -95,11 +102,22 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
           </Field>
         )} />
         <Controller control={form.control} name="kind" render={({ field }) => (
-          <Field label={t('envelope.kind')} error={e.kind?.message}>
+          <Field label={t('envelope.flow_type')} error={e.kind?.message}>
             {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
               options={kinds.map((k) => ({ value: k, label: t(`investments.flow_kind.${k}`) }))} />}
           </Field>
         )} />
+        {showNature ? (
+          <Controller control={form.control} name="nature" render={({ field }) => (
+            <Field label={t('envelope.nature')} hint={t('envelope.nature_hint')} error={e.nature?.message}>
+              {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+                options={[
+                  { value: '', label: t(kind === 'income' ? 'envelope.nature_income' : 'envelope.nature_ordinary') },
+                  ...INCOME_CATEGORIES.map((k) => ({ value: k, label: t(`investments.flow_nature.${k}`) })),
+                ]} />}
+            </Field>
+          )} />
+        ) : null}
         <Field label={t('envelope.amount')} error={e.amount?.message}>
           {(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}
         </Field>

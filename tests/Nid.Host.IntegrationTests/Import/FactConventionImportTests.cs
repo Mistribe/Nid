@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.TestSupport;
@@ -32,7 +33,7 @@ public class FactConventionImportTests(PostgresFixture fixture) : IClassFixture<
     [Fact]
     public async Task A_flow_outside_its_items_convention_is_refused_at_its_member()
     {
-        await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<IFactConventions>(new EnvelopeFees()));
+        await using var app = await NidApp.StartAsync(fixture, services => services.RemoveAll<IFactConventions>().AddSingleton<IFactConventions>(new EnvelopeFees()));
 
         var validated = await ValidateAsync(new ImportClient(app), app, app.AdultA, FactsImportTests.Facts(valuations: "[]", flows: Flows));
 
@@ -52,6 +53,20 @@ public class FactConventionImportTests(PostgresFixture fixture) : IClassFixture<
 
         Assert.Equal("validated", validated.State);
         Assert.Equal(new CountsResponse(4, 0, 0), validated.Report!.Sections["flows"]);
+    }
+
+    [Fact]
+    public async Task An_income_category_follows_the_envelope_flow_kind()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string flows = """
+            [{"id":"f-bad","item":"env-pea","occurred_on":"2025-03-15","kind":"contribution","amount":{"amount":"2","currency":"EUR"},"category":"dividend"},
+             {"id":"f-ok","item":"env-pea","occurred_on":"2025-03-16","kind":"withdrawal","amount":{"amount":"2","currency":"EUR"},"category":"dividend"}]
+            """;
+
+        var validated = await ValidateAsync(new ImportClient(app), app, app.AdultA, FactsImportTests.Facts(valuations: "[]", flows: flows));
+
+        Assert.Equal([("investments.invalid_income_category", "flows[0].category")], ErrorsOf(validated));
     }
 
     [Fact]

@@ -372,3 +372,93 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
         Assert.DoesNotContain(hidden.Value.ToString(), body.ToString());
     }
 }
+
+/// <summary>Passive income spec §3.2: <c>GET /investments/overview/income</c>, its three sources, its scope.</summary>
+public class InvestmentsPassiveIncomeEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private const string Income = "/api/v1/investments/overview/income";
+
+    private static object Eur(string amount) => new { amount, currency = "EUR" };
+
+    private static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
+        => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+
+    private static async Task<ItemId> NewAsync(NidApp app, string kind, Visibility visibility = Visibility.Shared, PersonId? owner = null)
+    {
+        var who = owner ?? app.AdultA;
+        var response = await app.RawAsync(who, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = kind, kind, currency = "EUR", visibility = visibility == Visibility.Private ? "private" : "shared",
+            owners = new[] { new { personId = who.Value, shareBp = 10_000 } },
+        });
+        response.EnsureSuccessStatusCode();
+        return new ItemId((await JsonAsync(response)).GetProperty("id").GetGuid());
+    }
+
+    private static async Task FlowAsync(NidApp app, ItemId id, string on, string kind, string amount, string? category = null, PersonId? who = null)
+        => (await app.RawAsync(who ?? app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/flows",
+            new { occurredOn = on, kind, amount = Eur(amount), category })).EnsureSuccessStatusCode();
+
+    private static async Task<ItemId> DividendPeaAsync(NidApp app, Visibility visibility = Visibility.Shared, PersonId? owner = null)
+    {
+        var id = await NewAsync(app, "pea", visibility, owner);
+        await FlowAsync(app, id, "2025-01-01", "opening", "1000.00", who: owner);
+        await FlowAsync(app, id, "2025-06-15", "withdrawal", "100.00", "dividend", owner);
+        return id;
+    }
+
+    [Fact]
+    public async Task Passive_income_reads_a_dividend_envelope_a_savings_account_and_a_let_property()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pea = await DividendPeaAsync(app);
+        var savings = await NewAsync(app, "savings");
+        await FlowAsync(app, savings, "2025-01-01", "opening", "1000.00");
+        await FlowAsync(app, savings, "2025-03-01", "contribution", "200.00");
+        foreach (var (asOf, amount) in new[] { ("2025-01-01", "1000.00"), ("2025-09-30", "1300.00") })
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{savings.Value}/valuations", new { asOf, amount = Eur(amount) });
+        var home = await PropertyApi.NewPropertyAsync(app, PropertyApi.Home(app));
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{PropertyApi.Properties}/{home}/tenancies",
+            new { label = "Bail", startsOn = "2025-01-01", rentMonthly = "750" })).EnsureSuccessStatusCode();
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{PropertyApi.Properties}/{home}/flows",
+            new { occurredOn = "2025-09-05", kind = "income", amount = "750", category = "rent" })).EnsureSuccessStatusCode();
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Income}?scope=household");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await JsonAsync(response);
+        Assert.Equal(12, body.GetProperty("months").GetArrayLength());
+        var rows = body.GetProperty("rows").EnumerateArray().ToList();
+        Assert.Contains(rows, r => r.GetProperty("id").GetGuid() == pea.Value && r.GetProperty("source").GetString() == "envelope");
+        Assert.Contains(rows, r => r.GetProperty("id").GetGuid() == savings.Value);
+        Assert.Contains(rows, r => r.GetProperty("id").GetGuid() == home && r.GetProperty("source").GetString() == "property");
+        var byKind = body.GetProperty("byKind").EnumerateArray().ToDictionary(k => k.GetProperty("kind").GetString()!, k => k.GetProperty("amount").GetProperty("amount").GetString());
+        Assert.Equal(("100.00", "750.00"), (byKind["dividend"], byKind["rent"]));
+    }
+
+    [Fact]
+    public async Task A_property_without_a_tenancy_gives_no_row()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PropertyApi.NewPropertyAsync(app, PropertyApi.Home(app));
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Income}?scope=household"));
+
+        Assert.Empty(body.GetProperty("rows").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Passive_income_under_me_includes_the_reader_s_private_envelope_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mine = await DividendPeaAsync(app, Visibility.Private);
+        var theirs = await DividendPeaAsync(app, Visibility.Private, app.AdultB);
+
+        var household = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Income}?scope=household"));
+        var me = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Income}?scope=me"));
+
+        Assert.Equal([mine.Value], me.GetProperty("rows").EnumerateArray().Select(r => r.GetProperty("id").GetGuid()));
+        Assert.DoesNotContain(theirs.Value.ToString(), me.ToString());
+        Assert.DoesNotContain(theirs.Value.ToString(), household.ToString());
+    }
+}

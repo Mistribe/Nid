@@ -181,7 +181,7 @@ public static class ResultHttp
             _ when failure.Code is InvestmentsCodes.EnvelopeClosed or InvestmentsCodes.EnvelopeOpen => StatusCodes.Status409Conflict,
             _ when failure.Code is InvestmentsCodes.HoldingInUse or InvestmentsCodes.HoldingConflict or InvestmentsCodes.HoldingClosed
                 or InvestmentsCodes.SnapshotExists => StatusCodes.Status409Conflict,
-            _ when failure.Code == InvestmentsCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
+            _ when failure.Code is InvestmentsCodes.InvalidPeriod or InvestmentsCodes.InvalidIncomeCategory or InvestmentsCodes.TransferLeg => StatusCodes.Status400BadRequest,
             _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
             _ when failure.Code is GoalsCodes.GoalClosed or GoalsCodes.GoalOpen or GoalsCodes.ShareExceeded or GoalsCodes.Conflict => StatusCodes.Status409Conflict,

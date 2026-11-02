@@ -1,4 +1,4 @@
-import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, HoldingOverviewRow, HouseholdHoldings, HouseholdPerformance, InvestmentsOverview } from './api';
+import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, HoldingOverviewRow, HouseholdHoldings, HouseholdPerformance, InvestmentsOverview, PassiveIncome } from './api';
 
 export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -142,4 +142,26 @@ export const householdHoldings = (over: Partial<HouseholdHoldings> = {}): Househ
     { code: 'holding_maturity', envelopeId: LIFE, holdingId: '0192f0aa-0000-7000-8000-0000000000c3', on: '2025-12-05' },
   ],
   ...over,
+});
+
+const INCOME_KINDS = ['dividend', 'interest', 'distribution', 'rent', 'other'] as const;
+/** The five kinds in the server's order, « 0.00 » when empty. */
+export const incomeKinds = (amounts: Partial<Record<(typeof INCOME_KINDS)[number], string>> = {}) =>
+  INCOME_KINDS.map((kind) => ({ kind, amount: eur(amounts[kind] ?? '0.00') }));
+
+export const RENTAL = '0192f0aa-0000-7000-8000-0000000000d1';
+
+/** Twelve months to October 2025 (the last partial): a PEA's dividends and a flat's net rent; the Livret A left out. */
+export const passiveIncome = (over: Partial<PassiveIncome> = {}): PassiveIncome => ({
+  currency: 'EUR', from: '2024-11-01', to: '2025-10-15', total: eur('2400.00'), yieldPct: 3.2,
+  byKind: incomeKinds({ dividend: '900.00', rent: '1500.00' }),
+  months: ['2024-11', '2024-12', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10']
+    .map((month, i) => ({ month, partial: i === 11, total: eur('200.00'), byKind: incomeKinds({ dividend: '75.00', rent: '125.00' }) })),
+  rows: [
+    { source: 'envelope', id: PEA, name: 'PEA', kind: 'pea', total: eur('900.00'), byKind: incomeKinds({ dividend: '900.00' }), yieldPct: 3.6 },
+    { source: 'property', id: RENTAL, name: 'Studio Lyon', kind: 'rental', total: eur('1500.00'), byKind: incomeKinds({ rent: '1500.00' }), yieldPct: null },
+  ],
+  estimate: { total: eur('2520.00'), byKind: incomeKinds({ dividend: '960.00', rent: '1560.00' }) },
+  excluded: [{ envelopeId: LIVRET, name: 'Livret A', code: 'bank_linked_savings' }],
+  findings: [], ...over,
 });

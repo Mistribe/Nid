@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillDate } from './controls';
+import { fillDate, pick } from './controls';
 import { signIn } from './session';
 
 test('alice follows a private PEA and bob never sees it', async ({ browser }) => {
@@ -24,7 +24,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
 
   await alice.getByRole('button', { name: 'Ajouter un flux' }).click();
   const flow = alice.getByRole('dialog', { name: 'Nouveau flux' });
-  await flow.getByLabel('Nature').click();
+  await flow.getByLabel('Type').click();
   await alice.getByRole('option', { name: 'Versement', exact: true }).click();
   await fillDate(flow, 'Date', '2025-06-15');
   await flow.getByLabel('Montant').fill('2000');
@@ -98,4 +98,28 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(bob.getByText(name)).toHaveCount(0);
   await bob.goto(url);
   await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();
+});
+
+test('a withdrawal classed as a dividend shows in the Income tab', async ({ browser }) => {
+  const name = `PEA ${Date.now()}`;
+  const alice = await browser.newPage();
+  await signIn(alice, 'alice', '/investments/new');
+  await alice.getByLabel('Nom').fill(name);
+  await pick(alice, 'Type', 'PEA');
+  await alice.getByRole('radio', { name: 'Privé' }).check();
+  await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
+  await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
+
+  await alice.getByRole('button', { name: 'Ajouter un flux' }).click();
+  const flow = alice.getByRole('dialog', { name: 'Nouveau flux' });
+  await pick(alice, 'Type', 'Retrait');
+  await pick(alice, 'Nature', 'Dividende');
+  await fillDate(flow, 'Date', new Date().toISOString().slice(0, 10));
+  await flow.getByLabel('Montant').fill('120');
+  await flow.getByRole('button', { name: 'Ajouter le flux' }).click();
+  await expect(alice.getByRole('status').filter({ hasText: 'Flux ajouté.' })).toBeVisible();
+
+  await alice.goto('/investments?tab=income&scope=me');
+  const row = alice.getByRole('table', { name: 'Ce qui a rapporté' }).getByRole('row').filter({ has: alice.getByRole('link', { name }) });
+  await expect(row).toContainText('120,00 €');
 });

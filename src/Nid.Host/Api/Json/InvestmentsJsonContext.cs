@@ -34,6 +34,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(HoldingSnapshotList))]
 [JsonSerializable(typeof(HoldingsView))]
 [JsonSerializable(typeof(InvestmentsHoldings))]
+[JsonSerializable(typeof(PassiveIncome))]
 [JsonSerializable(typeof(InvestmentEndpoints.FeeReferencesBody))]
 [JsonSerializable(typeof(InvestmentsOverview))]
 [JsonSerializable(typeof(InvestmentsPerformance))]

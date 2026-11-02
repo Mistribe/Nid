@@ -3140,6 +3140,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/overview/income": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassiveIncome"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/fee-references": {
         parameters: {
             query?: never;
@@ -23875,6 +23966,10 @@ export interface components {
             count: number;
             unit: string;
         };
+        IncomeEstimateView: {
+            total?: null | components["schemas"]["AmountView"];
+            byKind: components["schemas"]["IncomeKindView"][];
+        };
         IncomeExpected: {
             /** Format: uuid */
             id: string;
@@ -23898,6 +23993,10 @@ export interface components {
             /** Format: date */
             endsOn: string;
         };
+        IncomeKindView: {
+            kind: string;
+            amount?: null | components["schemas"]["AmountView"];
+        };
         IncomeLabelAmount: {
             label: string;
             amount: components["schemas"]["IncomeMoneyView"];
@@ -23905,6 +24004,12 @@ export interface components {
         IncomeMoneyView: {
             amount: string;
             currency: string;
+        };
+        IncomeMonthView: {
+            month: string;
+            partial: boolean;
+            total?: null | components["schemas"]["AmountView"];
+            byKind: components["schemas"]["IncomeKindView"][];
         };
         IncomeOccurrenceView: {
             /** Format: uuid */
@@ -24068,6 +24173,17 @@ export interface components {
             /** Format: uint32 */
             version: number;
             taxableAmount?: null | components["schemas"]["IncomeMoneyView"];
+        };
+        IncomeRowView: {
+            source: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            total?: null | components["schemas"]["AmountView"];
+            byKind: components["schemas"]["IncomeKindView"][];
+            /** Format: double */
+            yieldPct?: null | number;
         };
         IncomeSourceDetail: {
             /** Format: uuid */
@@ -24960,6 +25076,22 @@ export interface components {
             personId: string;
             /** Format: int32 */
             shareBp: number;
+        };
+        PassiveIncome: {
+            currency: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            total?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            yieldPct?: null | number;
+            byKind: components["schemas"]["IncomeKindView"][];
+            months: components["schemas"]["IncomeMonthView"][];
+            rows: components["schemas"]["IncomeRowView"][];
+            estimate: components["schemas"]["IncomeEstimateView"];
+            excluded: components["schemas"]["ExcludedEnvelopeView"][];
+            findings: components["schemas"]["OverviewFindingView"][];
         };
         PayerBody: {
             type: string;

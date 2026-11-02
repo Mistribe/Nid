@@ -75,10 +75,10 @@ public sealed class TransferHandler(
         var transfer = Guid.CreateVersion7();
         var reference = $"transfer:{transfer}";
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var withdrawal = await flows.RecordAsync(new NewFlow(command.ItemId, command.OccurredOn, FlowKind.Withdrawal, command.Amount, "transfer", reference, command.Note), ct);
+        var withdrawal = await flows.RecordAsync(new NewFlow(command.ItemId, command.OccurredOn, FlowKind.Withdrawal, command.Amount, FlowCategories.Transfer, reference, command.Note), ct);
         if (withdrawal.TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
-        var contribution = await flows.RecordAsync(new NewFlow(command.To, command.OccurredOn, FlowKind.Contribution, command.Amount, "transfer", reference, command.Note), ct);
+        var contribution = await flows.RecordAsync(new NewFlow(command.To, command.OccurredOn, FlowKind.Contribution, command.Amount, FlowCategories.Transfer, reference, command.Note), ct);
         if (contribution.TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
         await transaction.CommitAsync(ct);

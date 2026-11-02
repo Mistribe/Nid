@@ -221,6 +221,8 @@ Achat de 250 000 € + notaire 19 000 € + travaux 12 000 € (`works`).
 | `visibility_mismatch` | Avertissement émis |
 | Coût réel | Le capital remboursé n'est pas compté ; composantes présentes |
 
+`IPropertyIncome` (lu par Investments, spec des revenus du capital C7) donne, pour chaque bien loué visible (archivés compris), le loyer encaissé (`rent`) et les coûts de chaque mois : dépenses hors `works`, moins les `recoverable_charges` encaissées, comptées seulement si un bail couvre au moins un jour du mois. Le dernier prix estimé à chaque date demandée l'accompagne.
+
 ## 14. Limites
 
 - Aucune **fiscalité** : plus-value, revenus fonciers, régimes locatifs. **Évolution envisagée** à cause de sa complexité (`../Project.md` §10) ; la plus-value fiscale n'est pas notre prix de revient économique.

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
 
@@ -184,5 +185,98 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
         var flows = (await DetailAsync(app, id)).GetProperty("flows").EnumerateArray().ToList();
         Assert.Single(flows);
         Assert.Equal("90.0000", flows[0].GetProperty("amount").GetProperty("amount").GetString());
+    }
+    private static async Task<ItemId> NewEnvelopeOfKindAsync(NidApp app, string kind)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = kind, kind, currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        response.EnsureSuccessStatusCode();
+        return new ItemId((await JsonAsync(response)).GetProperty("id").GetGuid());
+    }
+
+    private static async Task<string> GainAsync(NidApp app, ItemId id)
+        => (await DetailAsync(app, id)).GetProperty("figures").GetProperty("gain").GetProperty("amount").GetString()!;
+
+    private static async Task<HttpResponseMessage> PostFlowAsync(NidApp app, ItemId id, string kind, string? category)
+        => await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/flows",
+            new { occurredOn = "2025-06-15", kind, amount = Eur("100.00"), category });
+
+    private static async Task AssertRefusedAsync(HttpResponseMessage response, string code)
+    {
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await JsonAsync(response);
+        Assert.Equal(code, body.GetProperty("code").GetString());
+        Assert.Equal("category", body.GetProperty("errors")[0].GetProperty("path").GetString());
+    }
+
+    [Fact]
+    public async Task A_withdrawal_can_be_recorded_as_a_dividend()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var plain = await NewEnvelopeOfKindAsync(app, "pea");
+        var classified = await NewEnvelopeOfKindAsync(app, "pea");
+        foreach (var id in new[] { plain, classified })
+        {
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/flows", new { occurredOn = "2025-01-01", kind = "opening", amount = Eur("1000.00") });
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/valuations", new { asOf = "2025-09-30", amount = Eur("1200.00") });
+        }
+        Assert.Equal(HttpStatusCode.Created, (await PostFlowAsync(app, plain, "withdrawal", null)).StatusCode);
+
+        var recorded = await PostFlowAsync(app, classified, "withdrawal", "dividend");
+
+        Assert.Equal(HttpStatusCode.Created, recorded.StatusCode);
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        Assert.Equal("dividend", (await core.Flows.SingleAsync(f => f.ItemId == classified.Value && f.Kind == "withdrawal")).Category);
+        Assert.Equal(await GainAsync(app, plain), await GainAsync(app, classified));
+    }
+
+    [Theory]
+    [InlineData("pea", "contribution")]
+    [InlineData("savings", "withdrawal")]
+    public async Task An_income_category_off_a_withdrawal_or_on_a_savings_account_is_refused(string envelopeKind, string flowKind)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewEnvelopeOfKindAsync(app, envelopeKind);
+
+        await AssertRefusedAsync(await PostFlowAsync(app, id, flowKind, "dividend"), "investments.invalid_income_category");
+    }
+
+    [Fact]
+    public async Task A_withdrawal_is_reclassified_by_a_correction()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewEnvelopeOfKindAsync(app, "pea");
+        var url = $"/api/v1/investments/envelopes/{id.Value}/flows";
+        var flow = (await JsonAsync(await PostFlowAsync(app, id, "withdrawal", null))).GetProperty("id").GetGuid();
+
+        var corrected = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{url}/{flow}",
+            new { occurredOn = "2025-06-15", kind = "withdrawal", amount = Eur("100.00"), category = "interest" });
+
+        Assert.Equal(HttpStatusCode.OK, corrected.StatusCode);
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        var replacement = (await JsonAsync(corrected)).GetProperty("id").GetGuid();
+        Assert.Equal("interest", (await core.Flows.SingleAsync(f => f.Id == replacement)).Category);
+    }
+
+    [Fact]
+    public async Task A_transfer_leg_cannot_be_reclassified()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var from = await NewEnvelopeOfKindAsync(app, "pea");
+        var to = await NewEnvelopeOfKindAsync(app, "pea");
+        var transfer = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
+            new { from = from.Value, to = to.Value, occurredOn = "2025-06-15", amount = Eur("100.00") }))).GetProperty("id").GetGuid();
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        var leg = await core.Flows.SingleAsync(f => f.ExternalRef == $"transfer:{transfer}" && f.Kind == "withdrawal");
+        var url = $"/api/v1/investments/envelopes/{from.Value}/flows/{leg.Id}";
+
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url,
+            new { occurredOn = "2025-06-15", kind = "withdrawal", amount = Eur("100.00"), category = "dividend" }), "investments.transfer_leg");
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url,
+            new { occurredOn = "2025-06-15", kind = "withdrawal", amount = Eur("100.00"), category = "transfer" })).StatusCode);
     }
 }

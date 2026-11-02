@@ -24,9 +24,9 @@ internal sealed class EnvelopeFacts(string name, EnvelopeKind kind, string curre
 
     public ItemId Id => id;
 
-    public EnvelopeFacts Value(LocalDate on, decimal amount)
+    public EnvelopeFacts Value(LocalDate on, decimal amount, FactSource source = FactSource.Manual)
     {
-        values.Add(new Valuation(Guid.NewGuid(), id, on, M(amount, money), null));
+        values.Add(new Valuation(Guid.NewGuid(), id, on, M(amount, money), null, null, source));
         return this;
     }
 

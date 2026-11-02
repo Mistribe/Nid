@@ -5,7 +5,12 @@ export const KINDS = ['checking', 'savings', 'pea', 'life_insurance', 'per', 'br
 export const hasPremiumsBefore2017 = (kind: string) => kind === 'life_insurance' || kind === 'tontine';
 
 export const CADENCES = ['monthly', 'quarterly', 'yearly', 'manual'] as const;
+/** The categories that classify a withdrawal or an income as passive income (the server's own list). */
+export const INCOME_CATEGORIES = ['dividend', 'interest', 'distribution'] as const;
 export const FLOW_KINDS = ['contribution', 'withdrawal', 'expense', 'income', 'opening'] as const;
+/** The currencies a response could not convert, from its `core.fx_rate_missing` findings (reference `USD:2025-10-15`). */
+export const missingRateCodes = (findings: { code: string; reference?: string | null }[]) =>
+  [...new Set(findings.filter((f) => f.code === 'core.fx_rate_missing').map((f) => (f.reference ?? '').split(':')[0]))].join(', ');
 export type Direction = 'up' | 'down' | 'flat';
 
 /** A kind the server added later reads as its raw name rather than breaking the page (as subscriptions' kindText). */
@@ -25,6 +30,8 @@ export const isTransferLeg = (flow: { category?: string | null }) => flow.catego
 /** A transfer leg reads as « Virement »; a flow kind the server added later reads as its raw name, as kindText. */
 export function flowKindText(t: TFunction, flow: { kind: string; category?: string | null }): string {
   if (isTransferLeg(flow)) return t('investments.flow_kind.transfer');
+  const nature = INCOME_CATEGORIES.find((c) => c === flow.category);
+  if (nature) return t(`investments.flow_nature.${nature}`);
   const known = FLOW_KINDS.find((k) => k === flow.kind);
   return known ? t(`investments.flow_kind.${known}`) : flow.kind;
 }

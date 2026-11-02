@@ -24,6 +24,7 @@ import { ISO_DATE } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import { HOUSEHOLD_PERFORMANCE, OVERVIEW, type HouseholdPerformance } from '../api';
 import { toPlot } from '../chart/plot';
+import { missingRateCodes } from '../format';
 import { pct } from '../Figures';
 import { presetRange } from '../period/periods';
 import { kindColor } from './colors';
@@ -122,7 +123,7 @@ const month = (ym: string, style: 'long' | 'short' = 'long') => monthLabel(Numbe
 
 function useMissing(d: HouseholdPerformance) {
   const { t } = useTranslation();
-  const codes = [...new Set(d.findings.filter((f) => f.code === 'core.fx_rate_missing').map((f) => (f.reference ?? '').split(':')[0]))].join(', ');
+  const codes = missingRateCodes(d.findings);
   return (value: MoneyValue | null | undefined, render: (v: MoneyValue) => ReactNode = formatMoney): ReactNode =>
     value ? render(value)
       : <span>{t('investments_performance.unknown')}{codes ? <span className="block text-sm font-normal text-muted-foreground">{t('investments_performance.unknown_rate', { codes })}</span> : null}</span>;

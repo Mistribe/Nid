@@ -343,7 +343,7 @@ internal static class InvestmentsOverviewMath
         return span == OverviewSpan.All ? points.SkipWhile(p => p.ByKind.Count == 0).ToList() : points;
     }
 
-    internal static bool IsTransfer(Flow f) => f.Category == "transfer";
+    internal static bool IsTransfer(Flow f) => f.Category == FlowCategories.Transfer;
 
     private static decimal? Share(decimal? part, decimal? total)
         => part is { } p && total is { } t && t > 0m ? EnvelopeMath.RoundPercent(p / t * 100m) : null;

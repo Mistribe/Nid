@@ -32,10 +32,12 @@ const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ d
 
 const PerformanceTab = lazy(() => import('./overview/PerformanceTab').then((m) => ({ default: m.PerformanceTab })));
 
+const IncomeTab = lazy(() => import('./overview/IncomeTab'));
+
 const HoldingsTab = lazy(() => import('./overview/HoldingsTab').then((m) => ({ default: m.HoldingsTab })));
 
-const WITH_HOLDINGS = ['overview', 'performance', 'holdings', 'list'] as const;
-const WITHOUT_HOLDINGS = ['overview', 'performance', 'list'] as const;
+const WITH_HOLDINGS = ['overview', 'performance', 'income', 'holdings', 'list'] as const;
+const WITHOUT_HOLDINGS = ['overview', 'performance', 'income', 'list'] as const;
 
 /**
  * Investments dashboard §3.1, §4.3 and §5.3: the overview opens first, then « Performance », « Supports et frais » while an envelope has a
@@ -58,6 +60,8 @@ export function EnvelopesPage() {
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
         { id: 'performance', label: t('investments_overview.tab_performance'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><PerformanceTab scope={scope} /></Suspense> },
+        { id: 'income', label: t('investments_overview.tab_income'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><IncomeTab scope={scope} /></Suspense> },
         ...(detailed ? [{ id: 'holdings' as const, label: t('investments_overview.tab_holdings'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><HoldingsTab scope={scope} /></Suspense> }] : []),
         { id: 'list', label: t('investments_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },

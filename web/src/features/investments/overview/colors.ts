@@ -12,3 +12,8 @@ export const kindColor = (kind: string): string => (SLOTS[kind] ? `var(--chart-$
 const HOLDING_SLOTS: Record<string, number> = { euro_fund: 3, fund: 7, etf: 1, equity: 2, bond: 5, structured: 4 };
 
 export const holdingKindColor = (kind: string): string => (HOLDING_SLOTS[kind] ? `var(--chart-${HOLDING_SLOTS[kind]})` : NEUTRAL_COLOR);
+
+/** dataviz.md §5, « Placements : revenus passifs »: a fixed colour per nature of income, never by rank; « Autres » neutral. */
+const INCOME_SLOTS: Record<string, number> = { dividend: 1, interest: 3, distribution: 7, rent: 2 };
+
+export const incomeColor = (kind: string): string => (INCOME_SLOTS[kind] ? `var(--chart-${INCOME_SLOTS[kind]})` : NEUTRAL_COLOR);

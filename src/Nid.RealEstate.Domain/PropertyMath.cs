@@ -71,6 +71,20 @@ public static class PropertyMath
             warnings, Rental(property, flows, tenancies, costPrice, d));
     }
 
+    /// <summary>
+    /// Passive income spec C7: the rent cashed in <paramref name="month"/> (first day), and its costs — expenses but works, less
+    /// the recoverable charges cashed — only when a tenancy covers a day of the month (a late rent still counts as rent).
+    /// </summary>
+    public static PropertyIncomeMonth IncomeIn(LocalDate month, IReadOnlyList<Flow> flows, IReadOnlyList<Tenancy> tenancies)
+    {
+        var next = month.PlusMonths(1);
+        var inMonth = flows.Where(f => f.OccurredOn >= month && f.OccurredOn < next).ToList();
+        decimal Sum(FlowKind kind, Func<string?, bool> category) => inMonth.Where(f => f.Kind == kind && category(f.Category)).Sum(f => f.Amount.Amount);
+        var let = tenancies.Any(t => t.StartsOn < next && (t.EndsOn is not { } end || end > month));
+        var costs = Sum(FlowKind.Expense, c => c != PropertyCategories.Works) - Sum(FlowKind.Income, c => c == PropertyCategories.RecoverableCharges);
+        return new PropertyIncomeMonth(month, Sum(FlowKind.Income, c => c == PropertyCategories.Rent), let ? costs : 0m);
+    }
+
     /// <summary>Spec 3C2 §3: the amount over the months of its period (count, or count × 12 for years), rounded to the cent.</summary>
     public static decimal MonthlyEquivalent(RecurringCost cost)
     {
