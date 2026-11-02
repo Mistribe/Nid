@@ -26,6 +26,9 @@ export type PassiveIncome = components['schemas']['PassiveIncome'];
 export type HouseholdHoldings = components['schemas']['InvestmentsHoldings'];
 export type HoldingOverviewRow = components['schemas']['HoldingOverviewRow'];
 export type FeesCost = components['schemas']['FeesCostView'];
+export type HoldingBreakdown = components['schemas']['HoldingBreakdownView'];
+export type HoldingBreakdownBody = components['schemas']['BreakdownBody'];
+export type HoldingsExposure = components['schemas']['HoldingsExposureView'];
 export type FeeReferences = components['schemas']['FeeReferences'];
 
 export const ENVELOPES = '/api/v1/investments/envelopes' as const;
@@ -51,6 +54,7 @@ export const MOVEMENTS = '/api/v1/investments/envelopes/{id}/holdings/{holdingId
 export const HOLDING_SERIES = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/series' as const;
 export const COST_REPORTS = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/cost-reports' as const;
 export const COST_REPORT = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/cost-reports/{year}' as const;
+export const HOLDING_BREAKDOWN = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/breakdown' as const;
 export const SNAPSHOTS = '/api/v1/investments/envelopes/{id}/holding-snapshots' as const;
 export const SWITCHES = '/api/v1/investments/envelopes/{id}/switches' as const;
 
@@ -69,6 +73,6 @@ export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', SERIES] }),
     queryClient.invalidateQueries({ queryKey: ['get', PERFORMANCE] }),
     // A goal's figures are its envelopes' values and flows (paths inline: goals/api stays out of the initial chunk).
-    ...[HOLDINGS, MOVEMENTS, HOLDING_SERIES, COST_REPORTS, SNAPSHOTS, '/api/v1/goals', '/api/v1/goals/{id}'].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
+    ...[HOLDINGS, MOVEMENTS, HOLDING_SERIES, HOLDING_BREAKDOWN, COST_REPORTS, SNAPSHOTS, '/api/v1/goals', '/api/v1/goals/{id}'].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
   ]).then(() => undefined);
 }

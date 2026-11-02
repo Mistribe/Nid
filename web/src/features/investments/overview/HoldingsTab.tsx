@@ -26,6 +26,7 @@ import { pct } from '../Figures';
 import { KINDS } from '../format';
 import { HOLDING_KINDS, holdingKindText } from '../holdings/holdingFormat';
 import { holdingKindColor } from './colors';
+import { ExposureSection } from './ExposureSection';
 import '@/locales/investments';
 
 type Scope = 'household' | 'me';
@@ -54,6 +55,7 @@ export function HoldingsTab({ scope }: { scope: Scope }) {
         </p>
       ))}
       <Kinds d={d} />
+      <ExposureSection d={d} />
       <Rows d={d} />
       <div className="grid gap-4 md:grid-cols-2">
         <Fees d={d} />

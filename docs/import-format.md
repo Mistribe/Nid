@@ -50,6 +50,7 @@ Un **seul format** sert à trois usages :
 | `subscriptions`, `billing_phases`, `purchases` | tableaux | Module Abonnements (§5.3 à §5.5) |
 | `envelopes` | tableau | Module Investments (`investments-data-model.md` §9) |
 | `holdings`, `holding_snapshots`, `holding_movements` | tableaux | Module Investments, le détail par support (`investments-data-model.md` §9 et §16) |
+| `security_breakdowns` | tableau | Module Investments : les répartitions par région et par secteur des supports (§5.8) |
 | `properties`, `property_recurring_costs`, `tenancies` | tableaux | Module RealEstate, le bien (`realestate/README.md` §10) |
 | `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) ; `loan_bank_schedule` livrée en 3F2 (§12bis) |
 | `subscription_insurances` | tableau | Module Abonnements : l'assurance d'un abonnement (§5.3bis), appliquée après `properties`, que l'assurance peut nommer |
@@ -272,6 +273,21 @@ Règles :
 - **Banque désactivée** : ces sections s'exportent et s'importent même quand la synchronisation bancaire est désactivée pour le foyer (`banking_enabled`) : quitter l'application ou restaurer ses données n'en dépend pas.
 - Les quatre sections passent en dernier (ordre 110) : les enveloppes, les abonnements, les biens, les prêts et les personnes existent déjà, et les liens et règles viennent après les opérations.
 
+### 5.8 `security_breakdowns` (Investments)
+
+La répartition d'un support par région et, en option, par secteur, à une date : une ligne par ISIN et par date. L'export liste **toutes les versions** des ISIN détenus par les supports des enveloppes exportées.
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `isin` | string | ISIN d'un support du fichier (`holdings`) ; jamais celui d'un fonds en euros ou d'un compte espèces seuls |
+| `as_of` | date | Non future |
+| `regions` | tableau | Lignes `{ code, pct }` ; codes `north_america`, `europe_ex_france`, `france`, `japan`, `asia_pacific_ex_japan`, `emerging`, `other` |
+| `sectors` | tableau? | Mêmes lignes ; codes `information_technology`, `health_care`, `financials`, `industrials`, `consumer_discretionary`, `consumer_staples`, `energy`, `materials`, `communication_services`, `utilities`, `real_estate`, `other` |
+
+Règles : chaque code une fois, `pct` > 0 avec une décimale au plus, et les parts d'une liste font **exactement 100** (`investments.breakdown_not_100`, au chemin `security_breakdowns[i].regions` ou `.sectors`). L'ISIN est rogné et mis en majuscules (comme celui d'un support) avant d'être rapproché des supports et écrit. Un même ISIN à la même date deux fois dans le fichier est refusé (`import.duplicate_fact`, au chemin `security_breakdowns[i].as_of`). Un ISIN qu'aucun support du fichier ne porte est refusé (`request.invalid`, au chemin `isin`), comme celui d'un fonds en euros ou d'un compte espèces seuls (`investments.breakdown_not_market`).
+
+Une ligne de même ISIN et de même date qu'une répartition connue la **remplace** (sans `replace` nécessaire : ce n'est pas une saisie du foyer à protéger) ; identique, elle est comptée « inchangée ». Le justificatif (`document_id`) n'est pas exporté : une version remplacée par des valeurs différentes perd son justificatif (les chiffres viennent du fichier) ; une ligne identique ne touche à rien et le garde. L'auteur et la date de saisie sont ceux de l'import.
+
 ## 6. Résolution des personnes
 
 - Chaque `adult` du fichier doit être **associé à un compte existant** lors de l'import (par `email`, ou par une correspondance fournie à l'import). Un import ne crée jamais d'adulte : un adulte naît à sa première connexion (`core-data-model.md` §4.4). Un `adult` non résolu est une erreur.
@@ -383,7 +399,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

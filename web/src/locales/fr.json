@@ -340,6 +340,7 @@
       "holdings": "Supports",
       "holding_snapshots": "Relevés par support",
       "holding_movements": "Mouvements par support",
+      "security_breakdowns": "Répartitions des supports",
       "goals": "Objectifs"
     }
   },
@@ -817,13 +818,14 @@
     "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)", "job": "par la synchronisation" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
-    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement", "link": "Opération bancaire à relier", "recurring": "Prélèvement récurrent" },
+    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "breakdown": "Répartition d’un support", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement", "link": "Opération bancaire à relier", "recurring": "Prélèvement récurrent" },
     "summary": {
       "valuation": "{{name}} — valeur au {{date}} : {{amount}}",
       "statement_one": "{{name}} — relevé au {{date}} ({{count}} mouvement)",
       "statement_other": "{{name}} — relevé au {{date}} ({{count}} mouvements)",
       "holdings_one": "{{name}} — supports au {{date}} ({{count}} ligne)",
       "holdings_other": "{{name}} — supports au {{date}} ({{count}} lignes)",
+      "breakdown": "{{name}} — répartition de {{isin}} au {{date}}",
       "payslip": "{{name}} — bulletin du {{date}} : net {{amount}}",
       "invoice": "{{name}} — facture du {{date}} : {{amount}}",
       "amortization_one": "{{name}} — tableau de la banque, {{count}} échéance",

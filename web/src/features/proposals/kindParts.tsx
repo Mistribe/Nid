@@ -21,7 +21,7 @@ export type LinkTarget = { to: '/investments/$id' | '/income/$id' | '/subscripti
 /** Spec 4D1 §5: what a kind brings to « À valider ». Each kind reads its own payload and preview. */
 export type KindUi = {
   /** An i18n key. */
-  label: `proposals.kind.${'valuation' | 'statement' | 'holdings' | 'payslip' | 'invoice' | 'amortization' | 'link' | 'recurring'}`;
+  label: `proposals.kind.${'valuation' | 'statement' | 'holdings' | 'breakdown' | 'payslip' | 'invoice' | 'amortization' | 'link' | 'recurring'}`;
   summary: (t: TFunction, p: ProposalView) => string;
   /** `original`: the payload, for a kind whose server preview leaves out what it proposes. */
   Preview: (props: { preview: unknown; original: unknown }) => JSX.Element;

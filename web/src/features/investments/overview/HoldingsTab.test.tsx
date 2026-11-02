@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { HouseholdHoldings } from '../api';
+import type { HouseholdHoldings, HoldingsExposure } from '../api';
 import { holdingRow, householdHoldings, LIFE, PEA, WORLD_PEA } from '../testData';
 
 const serve = (body: HouseholdHoldings, seen: string[] = []) =>
@@ -140,5 +140,67 @@ describe('Placements › supports et frais', () => {
     expect(fees).toHaveTextContent('Coût de 2024 non estimé : il faut la valeur du support au relevé de fin 2023 et à celui de fin 2024.');
     expect(fees).not.toHaveTextContent('Aucun rapport de frais');
     expect(fees).toHaveTextContent('Sans rapport de frais pour 2024 : Fonds euros (2).');
+  });
+
+  describe('exposure', () => {
+    const REGIONS = ['north_america', 'europe_ex_france', 'france', 'japan', 'asia_pacific_ex_japan', 'emerging', 'other'];
+    const SECTORS = ['information_technology', 'health_care', 'financials', 'industrials', 'consumer_discretionary', 'consumer_staples', 'energy',
+      'materials', 'communication_services', 'utilities', 'real_estate', 'other'];
+    const rest = (amount: string, sharePct: number) => ({ value: { amount, currency: 'EUR' }, sharePct });
+    const spread = (codes: string[], some: Record<string, [string, number]>) =>
+      codes.map((code) => ({ code, ...rest(...(some[code] ?? ['0.00', 0])) }));
+    const exposure = (over: Partial<HoldingsExposure> = {}): HoldingsExposure => ({
+      regions: spread(REGIONS, { north_america: ['60000.00', 36.8], europe_ex_france: ['20000.00', 12.3] }),
+      sectors: spread(SECTORS, { information_technology: ['50000.00', 30.7], health_care: ['10000.00', 6.1] }),
+      outsideMarkets: rest('59800.00', 36.7), unknown: rest('23050.00', 14.2), unclassifiedSectors: rest('20000.00', 12.3), ...over,
+    });
+
+    it('shows the exposure by region and by sector from the server, zeros hidden', async () => {
+      serve(householdHoldings({ exposure: exposure() }));
+      const { container } = await renderApp('/investments?tab=holdings');
+
+      const section = await region('Exposition par région et par secteur');
+      const regions = within(within(section).getByRole('table', { name: 'Exposition par région' }));
+      const regionsRows = regions.getAllByRole('row');
+      [
+        'Amérique du Nord60 000,00 €36,8 %', 'Europe hors France20 000,00 €12,3 %', 'Hors marchés59 800,00 €36,7 %', 'Inconnu23 050,00 €14,2 %',
+      ].forEach((text, i) => expect(regionsRows[i]).toHaveTextContent(text));
+      expect(regionsRows).toHaveLength(4);
+      const sectors = within(within(section).getByRole('table', { name: 'Exposition par secteur' }));
+      const sectorsRows = sectors.getAllByRole('row');
+      [
+        'Technologies de l’information50 000,00 €30,7 %', 'Santé10 000,00 €6,1 %', 'Hors marchés59 800,00 €36,7 %', 'Inconnu23 050,00 €14,2 %', 'Non classé20 000,00 €12,3 %',
+      ].forEach((text, i) => expect(sectorsRows[i]).toHaveTextContent(text));
+      expect(sectorsRows).toHaveLength(5);
+      await expectNoAxeViolations(container);
+    });
+
+    it('names the old factsheets', async () => {
+      serve(householdHoldings({ exposure: exposure({ staleValue: { amount: '4000.00', currency: 'EUR' } }) }));
+      await renderApp('/investments?tab=holdings');
+
+      expect(await region('Exposition par région et par secteur')).toHaveTextContent('dont 4 000,00 € sur des fiches de plus d’un an');
+    });
+
+    it('explains how to fill a breakdown when all is unknown', async () => {
+      serve(householdHoldings({ exposure: exposure({
+        regions: spread(REGIONS, {}), sectors: spread(SECTORS, {}), outsideMarkets: rest('0.00', 0), unknown: rest('139700.00', 100), unclassifiedSectors: rest('0.00', 0),
+      }) }));
+      await renderApp('/investments?tab=holdings');
+
+      expect(await region('Exposition par région et par secteur')).toHaveTextContent('Aucune répartition n’est renseignée : ouvrez la fiche d’un support et choisissez « Renseigner » dans « Répartition ».');
+    });
+
+    it('shows nothing when the exposure is null and says a rate is missing', async () => {
+      serve(householdHoldings({
+        exposure: null,
+        findings: [{ code: 'core.fx_rate_missing', reference: 'USD:EUR', message: 'x' }],
+      }));
+      await renderApp('/investments?tab=holdings');
+
+      const section = await region('Exposition par région et par secteur');
+      expect(section).toHaveTextContent('Taux de change manquant : USD');
+      expect(within(section).queryByRole('table')).not.toBeInTheDocument();
+    });
   });
 });

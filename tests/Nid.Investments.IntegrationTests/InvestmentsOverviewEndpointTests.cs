@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Investments.Contracts;
+using NodaTime;
 using Nid.TestSupport;
 using static Nid.TestSupport.EnvelopeEstimateApi;
 
@@ -357,6 +360,43 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
         Assert.Equal(("2200.00", "1000.00"), (byKind["etf"], byKind["euro_fund"]));
         Assert.All(body.GetProperty("holdings").EnumerateArray().Where(h => S(h, "name") == "ETF Monde"),
             h => Assert.Equal(("1100.00", "2025-10-14"), (S(h, "value"), S(h, "asOf"))));
+    }
+
+    private static async Task<ItemId> EtfAsync(NidApp app, string name, PersonId owner, Visibility visibility, string isin, string value)
+    {
+        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(owner, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-09-30", amount = Eur(value) });
+        var etf = (await JsonAsync(await app.RawAsync(owner, HttpMethod.Post, $"{url}/holdings", new { name = "ETF", kind = "etf", isin })))
+            .GetProperty("id").GetGuid();
+        var snapshot = await app.RawAsync(owner, HttpMethod.Post, $"{url}/holding-snapshots",
+            new { asOf = "2025-09-30", complete = true, lines = new object[] { new { holdingId = etf, value = Eur(value) } } });
+        Assert.Equal(HttpStatusCode.Created, snapshot.StatusCode);
+        return id;
+    }
+
+    [Fact]
+    public async Task Holdings_overview_returns_the_exposure_without_another_adult_s_private_holding()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<ISecurityBreakdownStore>();
+        var ct = TestContext.Current.CancellationToken;
+        BreakdownPart[] Of(string code) => [new BreakdownPart(code, 100m)];
+        await store.WriteAsync(new SecurityBreakdown(Guid.NewGuid(), "IE00B4L5Y983", new LocalDate(2026, 1, 1), Of("japan"), null, null, app.AdultA,
+            Instant.FromUtc(2026, 11, 2, 10, 0)), ct);
+        await store.WriteAsync(new SecurityBreakdown(Guid.NewGuid(), "FR0000120271", new LocalDate(2026, 1, 1), Of("emerging"), null, null, app.AdultB,
+            Instant.FromUtc(2026, 11, 2, 10, 0)), ct);
+        await EtfAsync(app, "ETF de A", app.AdultA, Visibility.Shared, "IE00B4L5Y983", "10000.00");
+        await EtfAsync(app, "ETF secret de B", app.AdultB, Visibility.Private, "FR0000120271", "4000.00");
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Holdings));
+
+        var exposure = body.GetProperty("exposure");
+        var regions = exposure.GetProperty("regions").EnumerateArray().ToDictionary(r => S(r, "code")!, r => S(r.GetProperty("value"), "amount"));
+        Assert.Equal(("10000.00", "0.00"), (regions["japan"], regions["emerging"]));
+        Assert.Equal("10000.00", S(body.GetProperty("detailed"), "amount"));
+        Assert.Equal("10000.00", S(exposure.GetProperty("unclassifiedSectors").GetProperty("value"), "amount"));
     }
 
     [Fact]

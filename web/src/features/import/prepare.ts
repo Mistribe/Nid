@@ -22,7 +22,7 @@ export const SECTIONS = [
   'subscriptions', 'envelopes', 'properties', 'loans', 'income_sources',
   'billing_phases', 'purchases', 'valuations', 'flows', 'property_recurring_costs', 'tenancies', 'loan_phases',
   'loan_insurances', 'loan_fees', 'loan_events', 'loan_bank_schedule', 'subscription_insurances', 'income_phases', 'income_one_off_taxable',
-  'holdings', 'holding_snapshots', 'holding_movements',
+  'holdings', 'holding_snapshots', 'holding_movements', 'security_breakdowns',
   'goals',
 ] as const;
 const RESERVED = new Set(['documents']);

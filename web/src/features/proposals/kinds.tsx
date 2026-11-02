@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import type { ProposalView } from './api';
 import { DateInput, ValueComparison, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 import { amortization } from './amortizationKind';
+import { breakdown } from './breakdownKind';
 import { holdings } from './holdingsKind';
 import { invoice } from './invoiceKind';
 import { link } from './linkKind';
@@ -69,6 +70,7 @@ const KINDS: Record<string, KindUi> = {
   'investments.record_valuation': valuation,
   'investments.record_statement': statement,
   'investments.record_holdings_snapshot': holdings,
+  'investments.record_breakdown': breakdown,
   'income.change_pay': payslip,
   'subscriptions.change_price': invoice,
   'realestate.import_amortization': amortization,

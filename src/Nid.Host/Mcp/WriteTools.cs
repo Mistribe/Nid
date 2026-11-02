@@ -44,6 +44,11 @@ public sealed record HoldingsMovement(
     [property: Description("The line's text as printed, 200 characters at most.")] string? Label,
     [property: Description("The insurer's reference for the line, if printed, 200 characters at most.")] string? Ref);
 
+/// <summary>One share of a breakdown, as the factsheet prints it.</summary>
+public sealed record BreakdownShare(
+    [property: Description("The region or sector code.")] string? Code,
+    [property: Description("The share in percent, above 0, one decimal at most, e.g. 62.5.")] decimal? Pct);
+
 /// <summary>One row of a bank's amortisation table, as printed (spec 4D2 §2, 3F2's <c>BankRow</c>).</summary>
 public sealed record AmortizationRow(
     [property: Description("The due date, ISO (yyyy-mm-dd).")] string? DueDate,
@@ -62,6 +67,8 @@ public sealed partial class WriteTools
     private sealed record HoldingsSnapshotArguments(
         string AsOf, string? SourceLabel, HoldingsLine[] Lines, HoldingsMovement[]? Movements, bool RecordValuation);
 
+    private sealed record BreakdownArguments(string Isin, string AsOf, BreakdownShare[] Regions, BreakdownShare[]? Sectors);
+
     private sealed record PayslipArguments(string PaidOn, MoneyArgument Net, MoneyArgument? Gross, MoneyArgument? Taxable, string? PhaseLabel);
 
     private sealed record InvoiceArguments(string ChargedOn, MoneyArgument Amount);
@@ -74,6 +81,7 @@ public sealed partial class WriteTools
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(StatementArguments))]
     [JsonSerializable(typeof(HoldingsSnapshotArguments))]
+    [JsonSerializable(typeof(BreakdownArguments))]
     [JsonSerializable(typeof(PayslipArguments))]
     [JsonSerializable(typeof(InvoiceArguments))]
     [JsonSerializable(typeof(AmortizationArguments))]
@@ -121,6 +129,27 @@ public sealed partial class WriteTools
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "investments.record_holdings_snapshot", envelopeId,
             JsonSerializer.SerializeToElement(new HoldingsSnapshotArguments(asOf, sourceLabel, lines, movements, recordValuation), ArgumentsJson.Default.HoldingsSnapshotArguments), sourceLabel, apply, documentId, ct);
+
+    [McpServerTool(Name = "propose_breakdown", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("A security's breakdown by region, and by sector if given, copied from its factsheet (DIC, fund sheet, issuer's page), "
+        + "for the holding of that ISIN in one envelope; it applies to every holding of that ISIN. A euro fund or cash has none. Regions, each "
+        + "share adding up to exactly 100: north_america (United States and Canada), europe_ex_france (United Kingdom, Switzerland and the "
+        + "euro-area countries other than France, and the rest of Europe), france, japan, asia_pacific_ex_japan (Australia, Hong Kong, "
+        + "Singapore, New Zealand), emerging (China, India, Brazil, Taiwan, Korea and the other emerging markets), other. Sectors (GICS): "
+        + "information_technology, health_care, financials, industrials, consumer_discretionary, consumer_staples, energy, materials, "
+        + "communication_services, utilities, real_estate, other. A breakdown of the same ISIN and date is replaced. " + Rules)]
+    public static Task<CallToolResult> ProposeBreakdown(IServiceProvider services,
+        [Description("The envelope's id (list_envelopes) holding the security.")] Guid envelopeId,
+        [Description("The security's ISIN (12 characters).")] string isin,
+        [Description("The factsheet's date, ISO (yyyy-mm-dd).")] string asOf,
+        [Description("The regions, the shares adding up to exactly 100.")] BreakdownShare[] regions,
+        [Description("The sectors, if the factsheet gives them, adding up to exactly 100.")] BreakdownShare[]? sectors = null,
+        [Description("The document's name, e.g. 'Fiche Amundi MSCI World', 200 characters at most.")] string? sourceLabel = null,
+        [Description(DocumentArgument)] Guid? documentId = null,
+        [Description("true: write directly instead of proposing.")] bool apply = false,
+        CancellationToken ct = default)
+        => McpCalls.ProposeAsync(services, "investments.record_breakdown", envelopeId,
+            JsonSerializer.SerializeToElement(new BreakdownArguments(isin, asOf, regions, sectors), ArgumentsJson.Default.BreakdownArguments), sourceLabel, apply, documentId, ct);
 
     [McpServerTool(Name = "propose_payslip", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A payslip for one income source. Nid compares its net with the expected pay: within the tolerance (2 % by default), "

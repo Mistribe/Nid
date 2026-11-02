@@ -24,6 +24,8 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
 
     public DbSet<SecurityPriceRow> SecurityPrices => Set<SecurityPriceRow>();
 
+    public DbSet<SecurityBreakdownRow> SecurityBreakdowns => Set<SecurityBreakdownRow>();
+
     public DbSet<PriceRunRow> PriceRuns => Set<PriceRunRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -152,6 +154,17 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.Property(x => x.Price).HasColumnType("numeric(20,6)");
             e.Property(x => x.Previous).HasColumnType("numeric(20,6)");
             e.Property(x => x.Currency).HasColumnType("char(3)");
+        });
+
+        modelBuilder.Entity<SecurityBreakdownRow>(e =>
+        {
+            e.ToTable("security_breakdown");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Isin).HasColumnType("char(12)");
+            e.Property(x => x.Regions).HasColumnType("jsonb");
+            e.Property(x => x.Sectors).HasColumnType("jsonb");
+            e.HasIndex(x => new { x.Isin, x.AsOf }).IsUnique();
         });
 
         modelBuilder.Entity<PriceRunRow>(e =>

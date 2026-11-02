@@ -19,7 +19,7 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("investments")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -525,6 +525,52 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_price_run_status", "status in ('running','succeeded','failed')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.SecurityBreakdownRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<LocalDate>("AsOf")
+                        .HasColumnType("date")
+                        .HasColumnName("as_of");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<string>("Isin")
+                        .IsRequired()
+                        .HasColumnType("char(12)")
+                        .HasColumnName("isin");
+
+                    b.Property<Instant>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<Guid>("RecordedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by");
+
+                    b.Property<string>("Regions")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("regions");
+
+                    b.Property<string>("Sectors")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("sectors");
+
+                    b.HasKey("Id")
+                        .HasName("pk_security_breakdown");
+
+                    b.HasIndex("Isin", "AsOf")
+                        .IsUnique()
+                        .HasDatabaseName("ix_security_breakdown_isin_as_of");
+
+                    b.ToTable("security_breakdown", "investments");
                 });
 
             modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.SecurityListingRow", b =>

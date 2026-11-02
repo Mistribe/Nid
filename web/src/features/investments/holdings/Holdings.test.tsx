@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { CostReport, Holding, HoldingsView, Movement, Snapshot } from '../api';
+import type { CostReport, Holding, HoldingBreakdown, HoldingsView, Movement, Snapshot } from '../api';
 import { detail, eur, PEA } from '../testData';
 import { signedUnits, trimUnits } from './holdingFormat';
 import { startLines } from './SnapshotDialog';
@@ -55,6 +55,7 @@ function serve(holdings: HoldingsView, calls: Call[] = []) {
         calls.push({ method: 'POST', path, body: await request.json() });
         return HttpResponse.json({ id: 'new', warnings: [] }, { status: 201 });
       })),
+    http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/breakdown', () => HttpResponse.json({ status: 404 }, { status: 404 })),
     http.put('*/api/v1/investments/envelopes/:id/holdings/:holdingId', async ({ request }) => {
       calls.push({ method: 'PUT', path: 'holding', body: await request.json() });
       return HttpResponse.json({ id: FUND });
@@ -405,5 +406,127 @@ describe('a holding’s page', () => {
     expect(await screen.findByText('Rapport de frais enregistré.')).toBeInTheDocument();
     expect(puts).toHaveLength(1);
     expect(puts[0]).toMatchObject({ year: '2024', body: { grossReturnPct: 8, totalFeesPct: 2.5, netReturnPct: 5.5, retrocessionPct: null } });
+  });
+});
+
+describe('a holding’s breakdown', () => {
+  beforeAll(async () => { await import('./HoldingPage'); }, 30_000);
+
+  const BREAKDOWN = '*/api/v1/investments/envelopes/:id/holdings/:holdingId/breakdown';
+  const known = (over: Partial<HoldingBreakdown> = {}): HoldingBreakdown => ({
+    asOf: '2025-03-31', regions: [{ code: 'north_america', pct: 70 }, { code: 'europe_ex_france', pct: 30 }],
+    sectors: [{ code: 'information_technology', pct: 100 }], stale: false, documentId: null, ...over,
+  });
+  const open = (holdings: HoldingsView) => {
+    serve(holdings);
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/movements', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, items: [] })),
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/series', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, points: [] })),
+    );
+    return { puts: [] as unknown[] };
+  };
+  const putInto = (puts: unknown[], status = 200, body: HoldingBreakdown = known()) =>
+    server.use(http.put(BREAKDOWN, async ({ request }) => { puts.push(await request.json()); return HttpResponse.json(body, { status }); }));
+
+  it('shows the holding’s breakdown and its date, flagged when old', async () => {
+    open(view());
+    server.use(http.get(BREAKDOWN, () => HttpResponse.json(known({ stale: true }))));
+    const { container } = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    const block = await screen.findByRole('region', { name: 'Répartition' });
+    expect(await within(block).findByText('Amérique du Nord')).toBeInTheDocument();
+    expect(block).toHaveTextContent('70,0 %');
+    expect(block).toHaveTextContent('Technologies de l’information');
+    expect(block).toHaveTextContent('Fiche du 31 mars 2025');
+    expect(block).toHaveTextContent('plus d’un an');
+    await expectNoAxeViolations(container);
+  });
+
+  it('links the document a breakdown comes from', async () => {
+    open(view());
+    server.use(http.get(BREAKDOWN, () => HttpResponse.json(known({ documentId: '0194ee77-0000-7000-8000-00000000d0c1' }))));
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    const block = await screen.findByRole('region', { name: 'Répartition' });
+    expect(await within(block).findByRole('link', { name: /source/i })).toHaveAttribute('href', '/documents/0194ee77-0000-7000-8000-00000000d0c1');
+  });
+
+  it('records a breakdown, one line per region and per sector, with the numbers typed', async () => {
+    const { puts } = open(view());
+    putInto(puts);
+    const { user } = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Renseigner' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Répartition de Monde ESG' }));
+    expect(within(dialog.getByRole('group', { name: 'Régions' })).getAllByRole('textbox')).toHaveLength(7);
+    expect(within(dialog.getByRole('group', { name: 'Secteurs' })).getAllByRole('textbox')).toHaveLength(12);
+    await user.type(dialog.getByLabelText('Date de la fiche'), '31/03/2025');
+    const regions = within(dialog.getByRole('group', { name: 'Régions' }));
+    await user.type(regions.getByRole('textbox', { name: 'Amérique du Nord' }), '70,5');
+    await user.type(regions.getByRole('textbox', { name: 'Europe hors France' }), '29,5');
+    expect(regions.getByText('Total : 100 %')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('Répartition enregistrée.')).toBeInTheDocument();
+    // No sector typed: the key is absent, an empty list would be refused.
+    expect(puts).toEqual([{ asOf: '2025-03-31', regions: [{ code: 'north_america', pct: 70.5 }, { code: 'europe_ex_france', pct: 29.5 }] }]);
+  });
+
+  it('records an equity in one line: a region and a sector at 100 %', async () => {
+    const { puts } = open(view({ holdings: [holding({ kind: 'equity' }), euroFund] }));
+    putInto(puts);
+    const { user } = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Renseigner' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Répartition de Monde ESG' }));
+    await user.type(dialog.getByLabelText('Date de la fiche'), '31/03/2025');
+    await pick(user, 'Région', 'France');
+    await pick(user, 'Secteur', 'Finance');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('Répartition enregistrée.')).toBeInTheDocument();
+    expect(puts).toEqual([{ asOf: '2025-03-31', regions: [{ code: 'france', pct: 100 }], sectors: [{ code: 'financials', pct: 100 }] }]);
+  });
+
+  it('shows the server’s 100 % refusal under the regions', async () => {
+    open(view());
+    server.use(http.put(BREAKDOWN, () => HttpResponse.json(
+      { status: 400, code: 'investments.breakdown_not_100', errors: [{ path: 'regions', code: 'investments.breakdown_not_100', message: 'x' }] }, { status: 400 })));
+    const { user } = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Renseigner' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Répartition de Monde ESG' }));
+    await user.type(dialog.getByLabelText('Date de la fiche'), '31/03/2025');
+    await user.type(within(dialog.getByRole('group', { name: 'Régions' })).getByRole('textbox', { name: 'Japon' }), '99,9');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await within(dialog.getByRole('group', { name: 'Régions' })).findByText('Chaque série saisie doit faire exactement 100 %.')).toBeInTheDocument();
+    expect(dialog.getByRole('group', { name: 'Secteurs' })).not.toHaveTextContent('exactement 100 %');
+  });
+
+  it('offers no breakdown on a euro fund', async () => {
+    open(view());
+    await renderApp(`/investments/${PEA}/holdings/${EURO}`);
+
+    expect(await screen.findByRole('heading', { name: 'Fonds euros', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Répartition' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Renseigner' })).not.toBeInTheDocument();
+  });
+
+  it('offers no breakdown on a fund without an ISIN', async () => {
+    open(view({ holdings: [holding({ isin: null }), euroFund] }));
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    expect(await screen.findByRole('heading', { name: 'Monde ESG', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Répartition' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Renseigner' })).not.toBeInTheDocument();
+  });
+
+  it('keeps « Renseigner » disabled while the breakdown is being read', async () => {
+    open(view());
+    server.use(http.get(BREAKDOWN, () => new Promise(() => {})));
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    expect(await screen.findByRole('button', { name: 'Renseigner' })).toBeDisabled();
   });
 });

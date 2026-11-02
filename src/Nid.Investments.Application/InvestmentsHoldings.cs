@@ -75,7 +75,7 @@ public sealed record InvestmentsHoldings(
     IReadOnlyList<EnvelopeUcShareView> EnvelopesUc, IReadOnlyList<HoldingOverviewRow> Holdings, IReadOnlyList<ConcentrationView> Concentrations,
     int CostYear, AmountView? Cost, decimal? CostPct, int WithoutReportCount, IReadOnlyList<UndetailedEnvelopeView> UndetailedEnvelopes,
     IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings,
-    IReadOnlyList<EnvelopeFeesView> EnvelopeFees, FeesProjectionView? Projection, bool Estimated, FeeReferences References) : IExposesItems
+    IReadOnlyList<EnvelopeFeesView> EnvelopeFees, FeesProjectionView? Projection, bool Estimated, FeeReferences References, HoldingsExposureView? Exposure = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
         => Holdings.Select(h => h.EnvelopeId).Concat(UndetailedEnvelopes.Select(e => e.EnvelopeId)).Concat(EnvelopeFees.Select(e => e.EnvelopeId)).Distinct();
@@ -84,7 +84,7 @@ public sealed record InvestmentsHoldings(
 [RequestHandler<GetInvestmentsHoldingsQuery, InvestmentsHoldings>]
 public sealed class GetInvestmentsHoldingsHandler(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdings,
-    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, EnvelopeEstimator estimator)
+    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, EnvelopeEstimator estimator, ISecurityBreakdownStore breakdowns)
     : IRequestHandler<GetInvestmentsHoldingsQuery, InvestmentsHoldings>
 {
     public async ValueTask<Result<InvestmentsHoldings>> HandleAsync(GetInvestmentsHoldingsQuery query, CancellationToken ct = default)
@@ -118,7 +118,10 @@ public sealed class GetInvestmentsHoldingsHandler(
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
         var references = FeesProjection.Effective(await household.FeeReferencesAsync(ct));
-        return Result.Success(InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, references, estimates));
+        var overview = InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, references, estimates);
+        var isins = overview.Holdings.Select(h => h.Isin).OfType<string>().Distinct().ToList();
+        var latest = await breakdowns.LatestAsync(isins, ct);
+        return Result.Success(overview with { Exposure = HoldingsExposureMath.Build(overview.Holdings, latest, reference.Code, today) });
     }
 }
 

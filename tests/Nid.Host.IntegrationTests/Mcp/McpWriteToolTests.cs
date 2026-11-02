@@ -109,6 +109,33 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
             (await AnswerAsync(direct, "get_holding_performance", new { id = envelope, holdingId = fund, from = "2025-01-01", to = "2025-09-30" })).ToString());
     }
 
+    [Fact]
+    public async Task A_breakdown_is_proposed_then_applied_directly_and_a_refused_share_names_its_path()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/holdings", new { name = "Fonds A", kind = "etf", isin = "FR0000120271" });
+        Assert.True(created.IsSuccessStatusCode);
+        object Breakdown(bool apply, decimal second = 40m) => new
+        {
+            envelopeId = envelope, isin = "FR0000120271", asOf = "2025-09-30", apply,
+            regions = new[] { new { code = "north_america", pct = 60m }, new { code = "europe_ex_france", pct = second } },
+        };
+
+        await using (var propose = await ClientAsync(app, TokenPresets.Propose))
+        {
+            var proposed = await AnswerAsync(propose, "propose_breakdown", Breakdown(apply: false));
+            Assert.Equal(("proposed", "investments.record_breakdown"),
+                (proposed.GetProperty("outcome").GetString(), proposed.GetProperty("proposal").GetProperty("kind").GetString()));
+            var (error, text) = await CallAsync(propose, "propose_breakdown", Breakdown(apply: false, second: 30m));
+            Assert.True(error);
+            Assert.Contains("payload.regions", text);
+        }
+
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        Assert.Equal(1, (await AnswerAsync(direct, "propose_breakdown", Breakdown(apply: true))).GetProperty("appliedRefs").GetArrayLength());
+    }
+
     // Final fix 2: a write answer echoes its input (bounded per field); the result limit is the read tools'.
     [Fact]
     public async Task A_write_answer_is_never_refused_as_too_large()

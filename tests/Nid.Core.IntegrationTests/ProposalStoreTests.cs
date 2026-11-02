@@ -29,7 +29,7 @@ public class ProposalStoreTests(PostgresFixture postgres)
         return (connection, new PersonId(person), new ItemId(item));
     }
 
-    private static ProposalStore Store(string connection) => new(PostgresFixture.NewCoreContext(connection), new StepClock(Now));
+    private static ProposalStore Store(string connection) => new(PostgresFixture.NewCoreContext(connection), new StepClock(Now), []);
 
     private static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
 

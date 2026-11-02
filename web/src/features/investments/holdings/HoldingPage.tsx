@@ -14,9 +14,12 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
-import { COST_REPORTS, ENVELOPE, HOLDING_SERIES, HOLDINGS, MOVEMENTS, type CostReport, type Holding } from '../api';
+import { COST_REPORTS, ENVELOPE, HOLDING_BREAKDOWN, HOLDING_SERIES, HOLDINGS, MOVEMENTS, type CostReport, type Holding } from '../api';
 import { SeriesChart } from '../chart/ValueChart';
 import { AnnualReturn, Direction, pct } from '../Figures';
+import { BreakdownDialog } from './BreakdownDialog';
+import { SourceLink } from '@/features/documents/SourceLink';
+import { hasBreakdown, REGIONS, regionText, SECTORS, sectorText, sharePct } from './breakdown';
 import { CostReportDialog } from './CostReportDialog';
 import { HoldingDialog } from './HoldingDialog';
 import { formatUnits, holdingKindText, movementKindText, percent } from './holdingFormat';
@@ -26,7 +29,7 @@ import '@/locales/investments';
 import '@/locales/forms';
 
 const TABS = ['overview', 'movements', 'costs'] as const;
-type Dialog = { kind: 'movement' } | { kind: 'edit' } | { kind: 'cost'; editing?: CostReport };
+type Dialog = { kind: 'movement' } | { kind: 'edit' } | { kind: 'cost'; editing?: CostReport } | { kind: 'breakdown' };
 
 /**
  * Issue #34 §7: one holding of an envelope, on the page grammar — its figures inline, then its curve (value against
@@ -42,6 +45,11 @@ export function HoldingPage() {
   const movements = $api.useQuery('get', MOVEMENTS, path);
   const reports = $api.useQuery('get', COST_REPORTS, path);
   const series = $api.useQuery('get', HOLDING_SERIES, path);
+  const listed = holdings.data?.holdings.find((h) => h.id === holdingId);
+  const marketHolding = listed?.kind;
+  const hasIsin = Boolean(listed?.isin);
+  // 404: no breakdown yet. A euro fund, a cash or a holding without an ISIN (a breakdown is keyed by it) has none: nothing is asked.
+  const breakdown = $api.useQuery('get', HOLDING_BREAKDOWN, path, { enabled: marketHolding !== undefined && hasBreakdown(marketHolding) && hasIsin, retry: false });
   const [tab, setTab] = useDetailTab(TABS);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -100,6 +108,7 @@ export function HoldingPage() {
       <p role="status" aria-live="polite">{announcement}</p>
       {dialog?.kind === 'movement' ? <MovementDialog envelope={detail} holding={holding} onClose={() => setDialog(null)} onDone={done} /> : null}
       {dialog?.kind === 'edit' ? <HoldingDialog envelope={detail} editing={holding} pricesOn={pricesOn} onClose={() => setDialog(null)} onDone={done} /> : null}
+      {dialog?.kind === 'breakdown' ? <BreakdownDialog envelope={detail} holding={holding} current={breakdown.data} onClose={() => setDialog(null)} onDone={done} /> : null}
       {dialog?.kind === 'cost' ? <CostReportDialog envelope={detail} holding={holding} editing={dialog.editing} onClose={() => setDialog(null)} onDone={done} /> : null}
 
       <DetailTabs value={tab} onChange={setTab} tabs={[
@@ -113,6 +122,24 @@ export function HoldingPage() {
                     : <SeriesChart id={holding.id} points={series.data.points} currency={detail.currency} netLabel={t('holdings.net_money_in')}
                       title={t('holdings.chart_title')} tableLabel={t('holdings.chart_table')} />}
               </Section>
+              {hasBreakdown(holding.kind) && holding.isin ? (
+                <Section title={t('breakdown.title')}>
+                  {breakdown.data ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        {t('breakdown.as_of', { date: formatLocalDate(breakdown.data.asOf) })}<SourceLink documentId={breakdown.data.documentId} />
+                        {breakdown.data.stale ? <span className="ml-2 inline-flex items-center gap-1 text-foreground"><AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />{t('breakdown.old')}</span> : null}
+                      </p>
+                      <Parts label={t('breakdown.regions')} parts={breakdown.data.regions} codes={REGIONS} kind="region" />
+                      {breakdown.data.sectors ? <Parts label={t('breakdown.sectors')} parts={breakdown.data.sectors} codes={SECTORS} kind="sector" /> : null}
+                    </div>
+                  ) : breakdown.error && toProblem(breakdown.error).status !== 404 ? <ProblemMessage problem={present(toProblem(breakdown.error))} />
+                    : breakdown.isPending ? null : <p className="text-muted-foreground">{t('breakdown.none')}</p>}
+                  {writable && !holding.closedOn ? (
+                    <Button type="button" variant="outline" size="sm" disabled={breakdown.isPending} onClick={() => open({ kind: 'breakdown' })}>{t(breakdown.data ? 'breakdown.update' : 'breakdown.fill')}</Button>
+                  ) : null}
+                </Section>
+              ) : null}
               {holding.note ? <Section title={t('holdings.form.note')}><p className="whitespace-pre-line">{holding.note}</p></Section> : null}
             </>
           ),
@@ -226,4 +253,19 @@ function Meta({ holding }: { holding: Holding }) {
     holding.closedOn ? t('holdings.closed_on', { date: formatLocalDate(holding.closedOn) }) : null,
   ].filter(Boolean);
   return <span className="text-sm text-muted-foreground">{parts.join(' · ')}</span>;
+}
+
+/** A breakdown's parts in the fixed order, as the factsheet gave them. */
+function Parts({ label, parts, codes, kind }: { label: string; parts: { code: string; pct: number }[]; codes: readonly string[]; kind: 'region' | 'sector' }) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <h3 className="text-sm font-medium">{label}</h3>
+      <ul className="text-sm">
+        {codes.map((c) => parts.find((p) => p.code === c)).filter((p) => p !== undefined).map((p) => (
+          <li key={p.code} className="flex justify-between gap-4"><span>{(kind === 'region' ? regionText : sectorText)(t, p.code)}</span><span className="tabular-nums">{t('investments.pct', { value: sharePct(p.pct) })}</span></li>
+        ))}
+      </ul>
+    </div>
+  );
 }

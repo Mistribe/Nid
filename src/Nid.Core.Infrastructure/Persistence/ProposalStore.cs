@@ -12,7 +12,7 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Core.Infrastructure.Persistence;
 
 /// <summary>core-data-model.md §7 on <c>core.proposal</c> (spec 4C1 §2–§4).</summary>
-public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IProposalStore
+public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnumerable<IAppliedDocumentStamp> moduleStamps) : IProposalStore
 {
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
     [JsonSerializable(typeof(IReadOnlyList<ProposalWarning>))]
@@ -158,6 +158,8 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
         foreach (var row in await db.Flows.Where(r => ids.Contains(r.Id)).ToListAsync(ct))
             row.DocumentId = documentId;
         await db.SaveChangesAsync(ct);
+        foreach (var stamp in moduleStamps)
+            await stamp.StampAsync(documentId, appliedRefs, ct);
     }
 
     private static string Wire(ProposalStatus status) => status.ToString().ToLowerInvariant();

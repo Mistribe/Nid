@@ -109,3 +109,23 @@ public sealed record HoldingMovementRecord
     public string? Label { get; init; }
     public string? ExternalRef { get; init; }
 }
+
+/// <summary>One share of a breakdown, as the file spells it; the percentage is read from a string or a number and written as a string.</summary>
+public sealed record BreakdownPartRecord
+{
+    public required string Code { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public required decimal Pct { get; init; }
+}
+
+/// <summary>A dated region and sector breakdown of an ISIN (holdings exposure spec D9); the document that backs it is not part of the file.</summary>
+public sealed record SecurityBreakdownRecord
+{
+    public required string Isin { get; init; }
+    public required string AsOf { get; init; }
+    public required IReadOnlyList<BreakdownPartRecord> Regions { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<BreakdownPartRecord>? Sectors { get; init; }
+}

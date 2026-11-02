@@ -413,6 +413,50 @@
       "other": "À vérifier"
     }
   },
+  "exposure": {
+    "title": "Exposition par région et par secteur",
+    "regions": "Régions",
+    "sectors": "Secteurs",
+    "regions_table": "Exposition par région",
+    "sectors_table": "Exposition par secteur",
+    "none": "Exposition non calculée.",
+    "stale": "dont {{amount}} sur des fiches de plus d’un an",
+    "all_unknown": "Aucune répartition n’est renseignée : ouvrez la fiche d’un support et choisissez « Renseigner » dans « Répartition ».",
+    "outside": "Hors marchés",
+    "unknown": "Inconnu",
+    "unclassified": "Non classé",
+    "region": {
+      "north_america": "Amérique du Nord", "europe_ex_france": "Europe hors France", "france": "France", "japan": "Japon",
+      "asia_pacific_ex_japan": "Asie-Pacifique hors Japon", "emerging": "Émergents", "other": "Autres"
+    },
+    "sector": {
+      "information_technology": "Technologies de l’information", "health_care": "Santé", "financials": "Finance", "industrials": "Industrie",
+      "consumer_discretionary": "Consommation discrétionnaire", "consumer_staples": "Consommation de base", "energy": "Énergie",
+      "materials": "Matériaux", "communication_services": "Services de communication", "utilities": "Services aux collectivités",
+      "real_estate": "Immobilier", "other": "Autres"
+    }
+  },
+  "breakdown": {
+    "title": "Répartition",
+    "as_of": "Fiche du {{date}}",
+    "old": "Fiche de plus d’un an",
+    "none": "Aucune répartition renseignée.",
+    "fill": "Renseigner",
+    "update": "Mettre à jour",
+    "dialog_title": "Répartition de {{name}}",
+    "as_of_field": "Date de la fiche",
+    "regions": "Régions",
+    "sectors": "Secteurs",
+    "sectors_hint": "Laissez vide si la fiche n’en donne pas.",
+    "total": "Total : {{value}} %",
+    "mode": "Saisie",
+    "mode_single": "Une ligne",
+    "mode_detail": "Détail",
+    "region": "Région",
+    "sector": "Secteur",
+    "not_100": "Chaque série saisie doit faire exactement 100 %.",
+    "saved": "Répartition enregistrée."
+  },
   "holdings": {
     "tab_label": "Supports",
     "tab": { "movements": "Mouvements ({{count}})", "costs": "Coûts" },

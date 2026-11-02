@@ -9,6 +9,7 @@ namespace Nid.Investments.Application.Import;
 [JsonSerializable(typeof(HoldingRecord))]
 [JsonSerializable(typeof(HoldingSnapshotRecord))]
 [JsonSerializable(typeof(HoldingMovementRecord))]
+[JsonSerializable(typeof(SecurityBreakdownRecord))]
 internal sealed partial class InvestmentsFileJson : JsonSerializerContext
 {
     public static InvestmentsFileJson Records { get; } = new(NidDataJson.NewOptions());

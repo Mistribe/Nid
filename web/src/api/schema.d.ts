@@ -5113,6 +5113,269 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    holdingId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HoldingBreakdownView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    holdingId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BreakdownBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/breakdown/{asOf}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    holdingId: string;
+                    asOf: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/movements": {
         parameters: {
             query?: never;
@@ -22601,6 +22864,21 @@ export interface components {
             accepted: boolean;
             issues: components["schemas"]["ImportIssue"][];
         };
+        BreakdownBody: {
+            asOf?: null | string;
+            regions?: null | components["schemas"]["BreakdownPartBody"][];
+            sectors?: null | components["schemas"]["BreakdownPartBody"][];
+        };
+        BreakdownPart: {
+            code: string;
+            /** Format: double */
+            pct: number;
+        };
+        BreakdownPartBody: {
+            code?: null | string;
+            /** Format: double */
+            pct?: null | number;
+        };
         CancellationView: {
             status: string;
             /** Format: date */
@@ -23441,6 +23719,17 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        ExposureRestView: {
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sharePct?: null | number;
+        };
+        ExposureShareView: {
+            code: string;
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sharePct?: null | number;
+        };
         FailedDeliveryView: {
             /** Format: uuid */
             id: string;
@@ -23722,6 +24011,15 @@ export interface components {
             version?: null | number;
             autoPrice?: null | boolean;
         };
+        HoldingBreakdownView: {
+            /** Format: date */
+            asOf: string;
+            regions: components["schemas"]["BreakdownPart"][];
+            sectors?: null | components["schemas"]["BreakdownPart"][];
+            stale: boolean;
+            /** Format: uuid */
+            documentId?: null | string;
+        };
         HoldingFiguresView: {
             /** Format: date */
             asOf: string;
@@ -23783,6 +24081,14 @@ export interface components {
             /** Format: uuid */
             holdingId: string;
             points: components["schemas"]["SeriesPoint"][];
+        };
+        HoldingsExposureView: {
+            regions: components["schemas"]["ExposureShareView"][];
+            sectors: components["schemas"]["ExposureShareView"][];
+            outsideMarkets: components["schemas"]["ExposureRestView"];
+            unknown: components["schemas"]["ExposureRestView"];
+            unclassifiedSectors: components["schemas"]["ExposureRestView"];
+            staleValue?: null | components["schemas"]["AmountView"];
         };
         HoldingSnapshotList: {
             /** Format: uuid */
@@ -24318,6 +24624,7 @@ export interface components {
             projection?: null | components["schemas"]["FeesProjectionView"];
             estimated: boolean;
             references: components["schemas"]["FeeReferences"];
+            exposure?: null | components["schemas"]["HoldingsExposureView"];
         };
         InvestmentsOverview: {
             currency: string;

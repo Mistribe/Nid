@@ -7,6 +7,7 @@ using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
 using Nid.Investments.Application;
+using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
@@ -222,6 +223,19 @@ public sealed class MixedDataset
                 envelopes[row.Name], new FlowDraft(new LocalDate(2025, 3, 1), "contribution", Money.Create(900m, Currency.Eur).Ok(), null, null, row.Label)));
             if (valueRefused is not null || flowRefused is not null)
                 throw new InvalidOperationException($"Seeding {row.Name}'s facts failed: {(valueRefused ?? flowRefused)!.Code}");
+
+            // A private twin's holding with an ISIN and a breakdown, so the response scan of the breakdown requests sees a real one.
+            if (row.Visibility == Visibility.Private)
+            {
+                var (holding, holdingRefused) = await app.InvokeAsync(writer, new AddHoldingCommand(
+                    envelopes[row.Name], new HoldingDraft(row.Label, row.Name == "P-A" ? "FR0000120271" : "FR0000131104", "fund", null, null, null, null, null, null, null, null)));
+                var (_, breakdownRefused) = holdingRefused is null
+                    ? await app.InvokeAsync(writer, new RecordHoldingBreakdownCommand(envelopes[row.Name], (Guid)holding!, new LocalDate(2025, 3, 31),
+                        [new BreakdownPart("france", 100m)], [new BreakdownPart("financials", 100m)]))
+                    : (null, holdingRefused);
+                if (breakdownRefused is not null)
+                    throw new InvalidOperationException($"Seeding {row.Name}'s breakdown failed: {breakdownRefused.Code}");
+            }
 
             // The property twin's estimate and flow too, the label in their notes: a property read returning another item's facts is caught.
             var (_, estimateRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.RecordPropertyValuationCommand(

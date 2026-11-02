@@ -257,6 +257,6 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
             .Where(t => t.JsonSchema.TryGetProperty("properties", out var properties) && properties.TryGetProperty("documentId", out _))
             .Select(t => t.Name).Order().ToArray();
 
-        Assert.Equal(["propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement"], offering);
+        Assert.Equal(["propose_amortization", "propose_breakdown", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement"], offering);
     }
 }

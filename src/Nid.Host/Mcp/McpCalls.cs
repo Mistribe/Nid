@@ -90,6 +90,7 @@ public static partial class McpCalls
     {
         ["investments.record_statement"] = DocumentRoles.Statement,
         ["investments.record_holdings_snapshot"] = DocumentRoles.Statement,
+        ["investments.record_breakdown"] = DocumentRoles.Other, // a factsheet is none of the listed roles
         ["income.change_pay"] = DocumentRoles.Payslip,
         ["realestate.import_amortization"] = DocumentRoles.AmortizationTable,
         ["subscriptions.change_price"] = DocumentRoles.Invoice,

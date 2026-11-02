@@ -26,7 +26,7 @@ public sealed class ImportClient(NidApp app)
     private static readonly IReadOnlyList<string> CommitOrder =
         ["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "income_sources", "income_phases",
          "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases", "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "subscription_insurances", "valuations", "flows", "income_one_off_taxable",
-         "holdings", "holding_snapshots", "holding_movements", "goals", "bank_accounts", "bank_transactions", "bank_links", "bank_rules"];
+         "holdings", "holding_snapshots", "holding_movements", "security_breakdowns", "goals", "bank_accounts", "bank_transactions", "bank_links", "bank_rules"];
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

@@ -173,6 +173,33 @@ public static class InvestmentEndpoints
             })
             .Returns<bool>();
 
+        api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/breakdown", async (Guid id, Guid holdingId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetHoldingBreakdownQuery(new ItemId(id), holdingId), ct)).ToHttp(v => v))
+            .Returns<HoldingBreakdownView>();
+
+        api.MapPut("/envelopes/{id:guid}/holdings/{holdingId:guid}/breakdown", async (Guid id, Guid holdingId, BreakdownBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var asOf = reader.Date(body.AsOf, "asOf");
+                var regions = body.Read(body.Regions, "regions", reader, required: true);
+                var sectors = body.Read(body.Sectors, "sectors", reader, required: false);
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordHoldingBreakdownCommand(new ItemId(id), holdingId, asOf!.Value, regions!, sectors), ct)).ToHttp(x => new IdResponse(x));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/envelopes/{id:guid}/holdings/{holdingId:guid}/breakdown/{asOf}", async (Guid id, Guid holdingId, string asOf, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var date = reader.Date(asOf, "asOf");
+                if (date is null)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeleteHoldingBreakdownCommand(new ItemId(id), holdingId, date.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
         api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/movements", async (Guid id, Guid holdingId, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListHoldingMovementsQuery(new ItemId(id), holdingId), ct)).ToHttp(v => v))
             .Returns<HoldingMovementList>();
@@ -336,6 +363,26 @@ public static class InvestmentEndpoints
     // binds to null regardless of the declared type (Task 4 controller ruling) — RequireMoney is what turns
     // that null into a located 400 instead of a NullReferenceException.
     public sealed record AcceptPriceBody(string? OnDate);
+
+    public sealed record BreakdownPartBody(string? Code, decimal? Pct);
+
+    public sealed record BreakdownBody(string? AsOf, List<BreakdownPartBody>? Regions, List<BreakdownPartBody>? Sectors)
+    {
+        internal List<BreakdownPart>? Read(List<BreakdownPartBody>? parts, string path, FieldReader reader, bool required)
+        {
+            if (parts is null)
+            {
+                if (required) reader.Add(path, "request.required", "The regions are required.");
+                return null;
+            }
+            for (var i = 0; i < parts.Count; i++)
+            {
+                if (parts[i]?.Code is null) reader.Add($"{path}[{i}].code", "request.required", "A code is required.");
+                if (parts[i]?.Pct is null) reader.Add($"{path}[{i}].pct", "request.required", "A share is required.");
+            }
+            return reader.Ok ? parts.Select(p => new BreakdownPart(p.Code!, p.Pct!.Value)).ToList() : null;
+        }
+    }
 
     public sealed record ValuationBody(string AsOf, MoneyBody? Amount, string? Note);
 

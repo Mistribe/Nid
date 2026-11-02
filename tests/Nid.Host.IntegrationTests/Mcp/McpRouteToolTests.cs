@@ -35,6 +35,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "POST /api/v1/banking/transactions/{id:guid}/link",
         // An insurance is set by propose_set_insurance (spec 2026-10-30 §10); removing it is a click in the web app.
         "DELETE /api/v1/subscriptions/{id:guid}/insurance",
+        // A holding's breakdown is proposed by propose_breakdown (from its factsheet, with its document), by ISIN; changing or deleting one is a click.
+        "/holdings/{holdingId:guid}/breakdown",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)

@@ -42,3 +42,16 @@ public sealed class PriceRunRow
     public string? FailureCode { get; set; }
     public string? FailureMessage { get; set; }
 }
+
+/// <summary>investments.security_breakdown (holdings exposure spec §3); regions and sectors are jsonb text.</summary>
+public sealed class SecurityBreakdownRow
+{
+    public Guid Id { get; set; }
+    public string Isin { get; set; } = "";
+    public LocalDate AsOf { get; set; }
+    public string Regions { get; set; } = "";
+    public string? Sectors { get; set; }
+    public Guid? DocumentId { get; set; }
+    public Guid RecordedBy { get; set; }
+    public Instant RecordedAt { get; set; }
+}

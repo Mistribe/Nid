@@ -98,6 +98,36 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Contains(updates, e => e.ItemIds.SequenceEqual([envelope]) && e.Data.Contains("document_id") && e.Data.Contains(DocA.ToString()));
     }
 
+    private sealed class RecordingStamp : IAppliedDocumentStamp
+    {
+        public List<(Guid Document, IReadOnlyList<Guid> Refs)> Calls { get; } = [];
+
+        public Task StampAsync(Guid documentId, IReadOnlyList<Guid> appliedRefs, CancellationToken ct)
+        {
+            Calls.Add((documentId, appliedRefs));
+            return Task.CompletedTask;
+        }
+    }
+
+    // Breakdowns spec C10: a module stamps the document on its own rows; nothing applied, nothing stamped.
+    [Fact]
+    public async Task Approval_hands_the_document_and_the_applied_ids_to_each_module_stamp_and_empty_refs_stamp_nothing()
+    {
+        var stamp = new RecordingStamp();
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<IAppliedDocumentStamp>(stamp));
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        var approved = await ApproveAsync(app, (await SubmitAsync(app, "investments.record_statement", envelope, Statement(), DocA)).Proposal!);
+
+        var call = Assert.Single(stamp.Calls);
+        Assert.Equal(DocA, call.Document);
+        Assert.Equal(approved.AppliedRefs.Order(), call.Refs.Order());
+
+        await using var scope = app.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<IProposalStore>().StampAsync(DocA, [], TestContext.Current.CancellationToken);
+        Assert.Single(stamp.Calls);
+    }
+
     // Review Focus 4: re-recording a value on its date is how a value is corrected (core-data-model.md §5.4, « Corriger la valeur »).
     [Fact]
     public async Task A_value_re_recorded_on_its_date_keeps_its_document_unless_a_new_source_replaces_it()

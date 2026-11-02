@@ -39,6 +39,14 @@
       "kind": { "euro_fund": "Fonds euros", "fund": "Fonds (UC)", "etf": "ETF", "equity": "Action", "bond": "Obligation", "structured": "Produit structuré", "cash": "Liquidités", "other": "Autre" },
       "movement_kind": { "allocation_in": "Versement", "allocation_out": "Rachat", "maturity": "Échéance", "fee": "Frais", "interest": "Intérêts", "income": "Revenu" }
     },
+    "breakdown": {
+      "title": "Répartition proposée de {{name}}",
+      "dates": "Fiche du {{proposed}} ; répartition actuelle du {{current}}.",
+      "part": "Part",
+      "proposed": "Proposée",
+      "current": "Actuelle",
+      "as_proposed": "Les parts sont enregistrées telles que la fiche les donne : approuvez-les, ou rejetez la proposition."
+    },
     "payslip": {
       "expected_net": "Net attendu",
       "proposed_net": "Net du bulletin",

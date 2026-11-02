@@ -89,6 +89,13 @@ public interface IProposalStore
     Task StampAsync(Guid documentId, IReadOnlyList<Guid> appliedRefs, CancellationToken ct);
 }
 
+/// <summary>Breakdowns spec C10: a module stamps the source document on its own rows that an approval wrote.</summary>
+public interface IAppliedDocumentStamp
+{
+    /// <summary>Runs in the approval's transaction; ids that are not this module's rows are ignored.</summary>
+    Task StampAsync(Guid documentId, IReadOnlyList<Guid> appliedRefs, CancellationToken ct);
+}
+
 /// <summary>
 /// One per proposal kind, in its module (spec 4C1 D3). Payloads travel as JSON; the handler parses its own type.
 /// <see cref="ApplyAsync"/> runs inside the decision's (or the direct write's) transaction; a command it sends may open its own <c>IUnitOfWork</c>, which joins that transaction under a savepoint.

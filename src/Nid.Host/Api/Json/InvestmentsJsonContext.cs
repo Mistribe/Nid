@@ -11,6 +11,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(IReadOnlyList<PriceRunView>))]
 [JsonSerializable(typeof(InvestmentEndpoints.AcceptPriceBody))]
 [JsonSerializable(typeof(List<InvestmentEndpoints.SwitchLegBody>))]
+[JsonSerializable(typeof(InvestmentEndpoints.BreakdownBody))]
+[JsonSerializable(typeof(HoldingBreakdownView))]
 [JsonSerializable(typeof(InvestmentEndpoints.CloseBody))]
 [JsonSerializable(typeof(InvestmentEndpoints.CostReportBody))]
 [JsonSerializable(typeof(InvestmentEndpoints.CreateEnvelopeBody))]

@@ -17,3 +17,12 @@ export const holdingKindColor = (kind: string): string => (HOLDING_SLOTS[kind] ?
 const INCOME_SLOTS: Record<string, number> = { dividend: 1, interest: 3, distribution: 7, rent: 2 };
 
 export const incomeColor = (kind: string): string => (INCOME_SLOTS[kind] ? `var(--chart-${INCOME_SLOTS[kind]})` : NEUTRAL_COLOR);
+
+/** dataviz.md §5, « Placements : exposition »: a fixed colour per region and per sector, never by rank; « Autres », the sectors past the eighth hue and the rests (hors marchés, inconnu, non classé) neutral. */
+const REGION_SLOTS: Record<string, number> = { north_america: 1, europe_ex_france: 2, france: 3, japan: 4, asia_pacific_ex_japan: 5, emerging: 6 };
+const SECTOR_SLOTS: Record<string, number> = {
+  information_technology: 1, health_care: 2, financials: 3, industrials: 4, consumer_discretionary: 5, consumer_staples: 6, energy: 7, materials: 8,
+};
+
+export const regionColor = (code: string): string => (REGION_SLOTS[code] ? `var(--chart-${REGION_SLOTS[code]})` : NEUTRAL_COLOR);
+export const sectorColor = (code: string): string => (SECTOR_SLOTS[code] ? `var(--chart-${SECTOR_SLOTS[code]})` : NEUTRAL_COLOR);

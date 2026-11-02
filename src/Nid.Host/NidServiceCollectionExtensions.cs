@@ -188,6 +188,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IEnvelopeStore, EnvelopeStore>();
         services.AddScoped<IHoldingStore, HoldingStore>();
         services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
+        services.AddScoped<ISecurityBreakdownStore, SecurityBreakdownStore>();
+        services.AddScoped<IAppliedDocumentStamp, Nid.Investments.Application.BreakdownDocumentStamp>();
         services.AddScoped<IPriceRunLog, PriceRunLog>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Investments.Infrastructure.Persistence.PriceSyncHealth>();
         services.AddScoped<Nid.Investments.Application.Prices.PriceCollector>();
@@ -205,6 +207,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.StatementProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.HoldingsSnapshotProposal>();
+        services.AddScoped<IProposalHandler, Nid.Investments.Application.BreakdownProposal>();
 
         services.AddDbContext<IncomeDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -354,6 +357,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, InsuranceImportSection>();
         services.AddScoped<IImportSection, EnvelopesImportSection>();
         services.AddScoped<IImportSection, HoldingsImportSection>();
+        services.AddScoped<IImportSection, BreakdownsImportSection>();
         services.AddScoped<IImportSection, IncomeImportSection>();
         services.AddScoped<IImportSection, IncomeOneOffTaxableImportSection>();
         services.AddScoped<IImportSection, Nid.Goals.Application.Import.GoalsImportSection>();
