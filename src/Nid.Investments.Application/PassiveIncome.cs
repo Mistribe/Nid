@@ -98,10 +98,10 @@ internal static class PassiveIncomeMath
                 f.Envelope.ClosedOn is null && f.Item.ArchivedAt is null,
                 ends.Select(d => f.Values.Where(v => v.AsOf <= d).MaxBy(v => v.AsOf)?.Value.Amount).ToList());
             envelopes[f.Item.Id] = source;
-            foreach (var x in f.Flows.Where(x => InWindow(x.OccurredOn)))
+            // D3: a savings account's withdrawals and income flows are in its performance already.
+            foreach (var x in f.Flows.Where(x => !savings && InWindow(x.OccurredOn)))
             {
-                // D3: a savings account's withdrawals are in its performance already.
-                if (x.Kind == FlowKind.Withdrawal && !savings && FlowCategories.IsIncome(x.Category))
+                if (x.Kind == FlowKind.Withdrawal && FlowCategories.IsIncome(x.Category))
                     entries.Add((source, x.OccurredOn, x.Category!, x.Amount.Amount));
                 else if (x.Kind == FlowKind.Income)
                     entries.Add((source, x.OccurredOn, FlowCategories.IsIncome(x.Category) ? x.Category! : PassiveIncomeKinds.Other, x.Amount.Amount));

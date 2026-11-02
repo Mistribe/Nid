@@ -164,6 +164,21 @@ public class PassiveIncomeTests
     }
 
     [Fact]
+    public void An_income_flow_on_a_savings_account_is_counted_once_as_interest()
+    {
+        // The valuation holds the 507.25 credited: they are the performance, not an income on top of it.
+        var savings = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+            .Flow(D(2025, 1, 1), FlowKind.Opening, 10_000m).Value(D(2025, 11, 30), 10_000m)
+            .Flow(D(2026, 1, 1), FlowKind.Income, 507.25m).Value(D(2026, 1, 1), 10_507.25m).Build();
+
+        var p = Build([savings]);
+
+        Assert.Equal([0m, 507.25m, 0m, 0m, 0m], Kinds(Month(p, "2026-01").ByKind));
+        Assert.Equal([0m, 507.25m, 0m, 0m, 0m], Kinds(Assert.Single(p.Rows).ByKind));
+        Assert.Equal(507.25m, N(p.Total));
+    }
+
+    [Fact]
     public void A_savings_account_s_holding_movements_are_in_its_performance_already()
     {
         var savings = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
