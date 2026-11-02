@@ -8,7 +8,9 @@ using Duration = Nid.Core.Contracts.Duration;
 namespace Nid.Subscriptions.Application.Import;
 
 /// <summary>A subscription record, parsed; owners carry their kind so the Core's rules can run on it.</summary>
-internal sealed record ParsedSubscription(Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<PersonId> Users, LocalDate? CancelledAt, ContractTerms? Terms);
+internal sealed record ParsedSubscription(
+    Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<PersonId> Users, LocalDate? CancelledAt, ContractTerms? Terms,
+    ShareLevel ShareLevel = ShareLevel.View);
 
 /// <summary>
 /// File records to engine inputs. Every refusal names the member it concerns. Methods collect every issue of
@@ -55,6 +57,8 @@ internal static class RecordParsing
             visibility = Visibility.Private;
         else if (r.Visibility != "shared")
             ok = Invalid(issues, path + ".visibility", "Visibility is shared or private.");
+        if (ImportSectionKit.ShareLevelRefusal(r.ShareLevel, visibility, out var level) is { } refused)
+            ok = Invalid(issues, path + ".share_level", refused);
 
         var owners = new List<Owner>();
         for (var j = 0; j < r.Ownership.Count; j++)
@@ -83,7 +87,7 @@ internal static class RecordParsing
         ok &= TryOptionalDate(r.CancelledAt, path + ".cancelled_at", issues, out var cancelledAt);
         ok &= TryTerms(r, path, issues, out var terms);
         if (ok)
-            parsed = new ParsedSubscription(visibility, owners, users, cancelledAt, terms);
+            parsed = new ParsedSubscription(visibility, owners, users, cancelledAt, terms, level);
         return ok;
     }
 

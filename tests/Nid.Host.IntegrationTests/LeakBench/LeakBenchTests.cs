@@ -242,8 +242,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             var all = await export.ExportAllAsync(actor);
             var ids = all["envelopes"].ToDictionary(e => e.GetProperty("name").GetString()!, e => e.GetProperty("id").GetString()!);
             var properties = all["properties"].ToDictionary(e => e.GetProperty("name").GetString()!, e => e.GetProperty("id").GetString()!);
-            Assert.Equal(6, ids.Count);
-            Assert.Equal(6, properties.Count);
+            Assert.Equal(7, ids.Count);
+            Assert.Equal(7, properties.Count);
             Assert.Contains(own, ids.Keys);
             Assert.Contains(own, properties.Keys);
             Assert.DoesNotContain(other, ids.Keys);
@@ -252,21 +252,21 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             {
                 // The reader's own private income source adds its one-off income to the flows (the other adult's stays hidden).
                 var oneOff = section == "flows" ? [all["income_sources"].Single(e => e.GetProperty("name").GetString() == own).GetProperty("id").GetString()!] : Array.Empty<string>();
-                Assert.Equal(12 + oneOff.Length, all[section].Count);
+                Assert.Equal(14 + oneOff.Length, all[section].Count);
                 Assert.Equal(ids.Values.Concat(properties.Values).Concat(oneOff).Order(StringComparer.Ordinal),
                     all[section].Select(f => f.GetProperty("item").GetString()!).Order(StringComparer.Ordinal));
                 Assert.DoesNotContain(other, JsonSerializer.Serialize(all[section]));
             }
             foreach (var section in new[] { "property_recurring_costs", "tenancies" })
             {
-                Assert.Equal(6, all[section].Count);
+                Assert.Equal(7, all[section].Count);
                 Assert.Equal(properties.Values.Order(StringComparer.Ordinal),
                     all[section].Select(r => r.GetProperty("property").GetString()!).Order(StringComparer.Ordinal));
                 Assert.DoesNotContain(other, JsonSerializer.Serialize(all[section]));
             }
 
             // The loan twins: each linked to a property twin the reader exports (a private one to its owner's shared one).
-            Assert.Equal(6, all["loans"].Count);
+            Assert.Equal(7, all["loans"].Count);
             Assert.All(all["loans"], l => Assert.Contains(l.GetProperty("property").GetString()!, properties.Values));
             Assert.DoesNotContain(other, JsonSerializer.Serialize(all["loans"]));
         }
@@ -1096,10 +1096,10 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                     continue;
                 }
 
-                if (access == AccessKind.Write && !data.ExpectedWritable(name, actor))
+                if ((access == AccessKind.Write && !data.ExpectedWritable(name, actor)) || (access == AccessKind.Own && !data.ExpectedOwned(name, actor)))
                 {
                     Assert.True(failure is UnauthorizedFailure,
-                        $"{where}: the rules let this actor read but not write, so it must be forbidden, "
+                        $"{where}: the rules let this actor read but not {access.ToString().ToLowerInvariant()}, so it must be forbidden, "
                         + $"but the pipeline answered {Describe(failure)}");
                     continue;
                 }

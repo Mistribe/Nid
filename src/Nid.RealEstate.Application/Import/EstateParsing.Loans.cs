@@ -9,7 +9,9 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.RealEstate.Application.Import;
 
 /// <summary>A loan record, parsed: its terms; the phases and insurances come with the whole loan.</summary>
-internal sealed record ParsedLoan(Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners, LoanContract Terms, ScheduleSource Source);
+internal sealed record ParsedLoan(
+    Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners, LoanContract Terms, ScheduleSource Source,
+    ShareLevel ShareLevel = ShareLevel.View);
 
 internal static partial class EstateParsing
 {
@@ -23,6 +25,7 @@ internal static partial class EstateParsing
         var currency = TryCurrency(r.Currency, path, issues);
         var ok = currency is not null
                  & TryVisibility(r.Visibility, path, issues, out var visibility)
+                 & TryShareLevel(r.ShareLevel, r.Visibility, path, issues, out var level)
                  & TryOwners(r.Ownership, path, person, issues, out var owners)
                  & TryWire<InterestRounding>(r.RoundingMode, path + ".rounding_mode", issues, out var rounding)
                  & TryWire<FirstPeriod>(r.FirstPeriodMode, path + ".first_period_mode", issues, out var firstPeriod)
@@ -35,7 +38,7 @@ internal static partial class EstateParsing
         var terms = new LoanContract(principal!.Value, disbursedOn!.Value, firstPayment!.Value, r.TotalPayments, rounding, firstPeriod, [], []);
         if (!Check(LoanRules.Name(r.Name) ?? LoanRules.Details(r.Lender, r.Note) ?? LoanRules.Contract(terms), path, issues))
             return false;
-        parsed = new ParsedLoan(currency!.Value, visibility, owners, terms, source);
+        parsed = new ParsedLoan(currency!.Value, visibility, owners, terms, source, level);
         return true;
     }
 

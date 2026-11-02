@@ -152,7 +152,12 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
 
         modelBuilder.Entity<ItemRow>(e =>
         {
-            e.ToTable("item", t => t.HasCheckConstraint("ck_item_visibility", "visibility in ('shared','private')"));
+            e.ToTable("item", t =>
+            {
+                t.HasCheckConstraint("ck_item_visibility", "visibility in ('shared','private')");
+                t.HasCheckConstraint("ck_item_share_level", "share_level = 'view' or (share_level = 'edit' and visibility = 'shared')");
+            });
+            e.Property(x => x.ShareLevel).HasDefaultValue("view");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Currency).HasColumnType("char(3)");

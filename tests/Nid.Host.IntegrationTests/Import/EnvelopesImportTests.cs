@@ -360,4 +360,33 @@ public class EnvelopesImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await client.CancelRawAsync(app.AdultA, session.Id);
         Assert.Equal([("investments.invalid_envelope", "envelopes[1].premiums_before_2017")], batch.Issues.Select(i => (i.Code, i.Path)).ToList());
     }
+
+    /// <summary>#294: <c>share_level</c> imports and exports; an adult who may edit the envelope replaces it, never its sharing.</summary>
+    [Fact]
+    public async Task The_share_level_imports_exports_and_stays_with_the_owners()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        const string file = """
+            [{"id":"env-cto","name":"CTO","kind":"brokerage","currency":"EUR","share_level":"edit",
+              "ownership":[{"person":"adult-1","share_bp":10000}]}]
+            """;
+        await CommitAsync(client, app, app.AdultA, File(file));
+        var id = await IdOf(app, "CTO");
+        Assert.Equal("edit", (await JsonAsync(app, app.AdultB, $"/api/v1/core/items/{id}/sharing")).GetProperty("shareLevel").GetString());
+        var exported = (await new Export.ExportClient(app).ExportAllAsync(app.AdultA))["envelopes"];
+        Assert.Equal("edit", Assert.Single(exported).GetProperty("share_level").GetString());
+
+        // Adult-2 edits it: the content, yes; back to view only, no.
+        await CommitAsync(client, app, app.AdultB, File(file.Replace("\"CTO\"", "\"CTO joint\"")), replace: true);
+        var narrowed = await ValidateAsync(client, app, app.AdultB, File(file.Replace("\"share_level\":\"edit\",", "")), replace: true);
+        var issue = Assert.Single(narrowed.Report!.Issues, i => i.Severity == "error");
+        Assert.Equal((ImportCodes.NotPermitted, "envelopes[0].ownership"), (issue.Code, issue.Path));
+        await client.CancelRawAsync(app.AdultB, narrowed.Id);
+
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutAsync(app.AdultA, session.Id, "envelopes", 0, file.Replace("\"share_level\":\"edit\",", "\"share_level\":\"edit\",\"visibility\":\"private\","));
+        await client.CancelRawAsync(app.AdultA, session.Id);
+        Assert.Equal(["envelopes[0].share_level"], batch.Issues.Select(i => i.Path).ToList());
+    }
 }

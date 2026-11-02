@@ -314,13 +314,14 @@ public static class InvestmentEndpoints
     public sealed record CreateEnvelopeBody(
         string DisplayName, string Kind, string Currency, string? Visibility, IReadOnlyList<OwnerBody> Owners,
         string? Institution, string? AccountHint, string? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
-        OpeningBody? Opening, FirstValuationBody? FirstValuation, string? PremiumsBefore2017)
+        OpeningBody? Opening, FirstValuationBody? FirstValuation, string? PremiumsBefore2017, string? ShareLevel = null)
     {
         internal CreateEnvelopeCommand? ToCommand(FieldReader reader)
         {
             // FieldReader.Visibility fails a null value rather than defaulting it, unlike Subscriptions' body
             // (whose Visibility is effectively required too): an omitted visibility here defaults to shared.
             var visibility = reader.Visibility(Visibility ?? "shared", "visibility");
+            var level = reader.ShareLevel(ShareLevel, "shareLevel");
             if (!Nid.Core.Contracts.Currency.TryCreate(Currency, out var currency))
                 reader.Add("currency", "invalid_currency", "A currency is a three-letter ISO 4217 code, in capitals.");
             var openedOn = reader.Date(OpenedOn, "openedOn", required: false);
@@ -334,7 +335,7 @@ public static class InvestmentEndpoints
                     (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(),
                     Institution, AccountHint, openedOn, ValuationCadence, StaleAfterDays, Note,
                     Opening is null ? null : new OpeningDraft(openingOn!.Value, openingAmount!.Value),
-                    FirstValuation is null ? null : new FirstValuationDraft(firstOn!.Value, firstAmount!.Value), premiums)
+                    FirstValuation is null ? null : new FirstValuationDraft(firstOn!.Value, firstAmount!.Value), premiums, level!.Value)
                 : null;
         }
     }

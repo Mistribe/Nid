@@ -9,7 +9,8 @@ using Duration = Nid.Core.Contracts.Duration;
 namespace Nid.Income.Application.Import;
 
 /// <summary>A source record, parsed; owners carry their kind so the Core's rules can run on it.</summary>
-internal sealed record ParsedSource(IncomeKind Kind, Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners, LocalDate? EndedOn);
+internal sealed record ParsedSource(IncomeKind Kind, Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners, LocalDate? EndedOn,
+    ShareLevel ShareLevel = ShareLevel.View);
 
 /// <summary>A phase record, parsed; the label is trimmed, as the API stores it.</summary>
 internal sealed record ParsedPhase(
@@ -57,6 +58,8 @@ internal static class IncomeParsing
             visibility = Visibility.Private;
         else if (r.Visibility != "shared")
             ok = Invalid(issues, path + ".visibility", "Visibility is shared or private.");
+        if (ImportSectionKit.ShareLevelRefusal(r.ShareLevel, visibility, out var level) is { } refused)
+            ok = Invalid(issues, path + ".share_level", refused);
 
         var owners = new List<Owner>();
         for (var j = 0; j < r.Ownership.Count; j++)
@@ -76,7 +79,7 @@ internal static class IncomeParsing
             ok = false;
         }
         if (ok)
-            parsed = new ParsedSource(kind, currency, visibility, owners, endedOn);
+            parsed = new ParsedSource(kind, currency, visibility, owners, endedOn, level);
         return ok;
     }
 

@@ -43,7 +43,7 @@ public sealed partial class RealEstateImportSection
                 continue;
             }
             var plan = new PropertyPlan(entity, record, parsed, path);
-            if (await ResolveItemAsync(plan, PropertiesSection, "property", known.GetValueOrDefault(record.Id), parsed.Visibility, parsed.Owners,
+            if (await ResolveItemAsync(plan, PropertiesSection, "property", known.GetValueOrDefault(record.Id), parsed.Visibility, parsed.ShareLevel, parsed.Owners,
                     parsed.Currency, issues, ct))
                 propertyPlans.Add(plan);
         }
@@ -133,7 +133,7 @@ public sealed partial class RealEstateImportSection
         foreach (var plan in propertyPlans.Where(p => p.Mode == Mode.Created))
         {
             var p = plan.Parsed;
-            var made = await items.CreateAsync(new NewItem("realestate", "property", plan.Record.Name, p.Visibility, p.Currency.Code, OwnerShares(p.Owners)), ct);
+            var made = await items.CreateAsync(new NewItem("realestate", "property", plan.Record.Name, p.Visibility, p.Currency.Code, OwnerShares(p.Owners), p.ShareLevel), ct);
             if (made.TryGetFailure(out var failure))
                 return Result.Failure(failure!);
             made.TryGetValue(out var id);
@@ -145,7 +145,7 @@ public sealed partial class RealEstateImportSection
         foreach (var plan in propertyPlans.Where(p => p.Mode == Mode.Replaced))
         {
             var p = plan.Parsed;
-            var replaced = await items.ReplaceAsync(plan.Id, plan.Record.Name, p.Visibility, OwnerShares(p.Owners), ct);
+            var replaced = await items.ReplaceAsync(plan.Id, plan.Record.Name, p.Visibility, OwnerShares(p.Owners), ct, p.ShareLevel);
             if (!replaced.IsSuccess)
                 return replaced;
             await properties.UpdateAsync(plan.Id, p.Details, ct);
@@ -194,7 +194,7 @@ public sealed partial class RealEstateImportSection
                 OtherAcquisitionCosts = Money(d.OtherAcquisitionCosts, currency),
                 SurfaceM2 = d.SurfaceM2 is { } surface ? decimal.Parse(LoanReading.Amount(surface), CultureInfo.InvariantCulture) : null,
                 LocationLabel = d.LocationLabel, ValuationCadence = LoanWire.Of(d.Cadence), StaleAfterDays = d.StaleAfterDays,
-                RentalStartsOn = Iso(d.RentalStartsOn), Note = d.Note, EnergyClass = d.EnergyClass, PostalAddress = d.PostalAddress, Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility),
+                RentalStartsOn = Iso(d.RentalStartsOn), Note = d.Note, EnergyClass = d.EnergyClass, PostalAddress = d.PostalAddress, Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility), ShareLevel = ImportSectionKit.ShareLevelText(head),
             });
         }
         sections[PropertiesSection] = Elements(records);

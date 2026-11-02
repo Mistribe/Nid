@@ -19,8 +19,8 @@ public sealed record GetPropertyQuery(ItemId ItemId) : IQuery<PropertyDetail>, I
 
 /// <summary>Spec 3C1 §4: open to every adult (<c>ICreatesItem</c>); owners, visibility and currency never change afterwards.</summary>
 public sealed record CreatePropertyCommand(
-    string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, PropertyDetails Details)
-    : ICommand<ItemId>, ICreatesItem;
+    string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, PropertyDetails Details,
+    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
 /// <summary>A PATCH: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
 public sealed record PropertyChange(
@@ -110,7 +110,7 @@ public sealed class CreatePropertyHandler(IItemRegistry items, IPropertyStore pr
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(
-            new NewItem("realestate", "property", command.Name, command.Visibility, command.Currency.Code, command.Owners), ct);
+            new NewItem("realestate", "property", command.Name, command.Visibility, command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (created.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "owners")); // disposed without commit: nothing is left
         created.TryGetValue(out var id);

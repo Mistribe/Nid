@@ -10,6 +10,7 @@ import { Money } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
@@ -50,11 +51,13 @@ export function GoalDetailPage() {
   const pending = close.isPending || reopen.isPending;
   const error = close.error ?? reopen.error;
   const params = { params: { path: { id } } };
+  const sharing = <SharingMenu item={id} onAnnounce={setSaved} shared={goal.visibility === 'shared'} />;
   const actions = !goal.canWrite ? null : goal.closed
-    ? <Button type="button" variant="outline" disabled={pending} onClick={() => reopen.mutate(params)}>{t('goals_list.reopen')}</Button>
+    ? <><Button type="button" variant="outline" disabled={pending} onClick={() => reopen.mutate(params)}>{t('goals_list.reopen')}</Button>{sharing}</>
     : <>
       <Button type="button" variant="outline" onClick={() => { setSaved(''); setEditing(true); }}>{t('goals_form.edit')}</Button>
       <ConfirmAction label={t('goals_list.close')} confirmation={t('goals_list.close_confirmation', { name: goal.name })} pending={pending} onConfirm={() => close.mutate(params)} />
+      {sharing}
     </>;
   const money = (m: GoalMoney | null | undefined) => m ? <Money value={m} tabular /> : <Dash />;
   // A reached goal has no date ahead, whatever its pace.

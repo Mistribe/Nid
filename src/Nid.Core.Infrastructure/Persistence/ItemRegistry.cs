@@ -43,6 +43,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             Kind = item.Kind,
             DisplayName = item.DisplayName,
             Visibility = item.Visibility == Visibility.Private ? "private" : "shared",
+            ShareLevel = Level(item.Visibility, item.ShareLevel),
             Currency = item.Currency,
             CreatedAt = clock.GetCurrentInstant(),
             Owners = owners!.Select(o => new OwnershipRow { ItemId = id.Value, PersonId = o.PersonId.Value, ShareBp = o.ShareBp }).ToList(),
@@ -51,7 +52,8 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         return Result.Success(id);
     }
 
-    public async Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct)
+    public async Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct,
+        ShareLevel? shareLevel = null)
     {
         var validated = await ValidateOwnersAsync(visibility, owners, ct);
         if (validated.TryGetFailure(out var failure))
@@ -63,6 +65,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
 
         row.DisplayName = displayName;
         row.Visibility = visibility == Visibility.Private ? "private" : "shared";
+        row.ShareLevel = Level(visibility, shareLevel ?? (row.ShareLevel == "edit" ? ShareLevel.Edit : ShareLevel.View));
         var wanted = owners.ToDictionary(o => o.PersonId.Value, o => o.ShareBp);
         foreach (var owner in row.Owners.Where(o => !wanted.ContainsKey(o.PersonId)).ToList())
             row.Owners.Remove(owner);
@@ -74,6 +77,23 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }
+
+    public async Task<Result> SetShareLevelAsync(ItemId id, ShareLevel level, CancellationToken ct)
+    {
+        var row = await db.Items.SingleOrDefaultAsync(i => i.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("item", id.ToString()));
+        if (row.Visibility == "private" && level == ShareLevel.Edit)
+            return Result.Failure(new Failure(ItemCodes.PrivateHasNoLevel, "A private item has no sharing level.", null));
+
+        row.ShareLevel = Level(Visibility.Shared, level);
+        await db.SaveChangesAsync(ct); // a tracked update: the write audit records share_level
+        return Result.Success();
+    }
+
+    /// <summary>A private item has no level: it is stored as <c>view</c>.</summary>
+    private static string Level(Visibility visibility, ShareLevel level)
+        => visibility == Visibility.Shared && level == ShareLevel.Edit ? "edit" : "view";
 
     public async Task<ItemAccess?> FindAsync(ItemId id, CancellationToken ct)
     {
@@ -110,6 +130,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             row.Visibility == "private" ? Visibility.Private : Visibility.Shared,
             row.Owners.Select(o => new Owner(new PersonId(o.PersonId), kinds[o.PersonId], o.ShareBp)).ToList())
         {
+            ShareLevel = row.ShareLevel == "edit" ? ShareLevel.Edit : ShareLevel.View,
             ArchivedAt = row.ArchivedAt,
             Currency = row.Currency?.Trim(),
             Module = row.Module,

@@ -29,6 +29,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(FxRateView))]
 [JsonSerializable(typeof(FxSyncRequested))]
 [JsonSerializable(typeof(PrivateItemsView))]
+[JsonSerializable(typeof(ItemSharingView))]
+[JsonSerializable(typeof(PersonEndpoints.SharingBody))]
 [JsonSerializable(typeof(ProjectionAssumptionsView))]
 [JsonSerializable(typeof(ProjectionView))]
 [JsonSerializable(typeof(ProjectionComparisonView))]

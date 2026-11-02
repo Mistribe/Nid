@@ -14,7 +14,7 @@ public sealed record FundingShare(ItemId Envelope, int ShareBp);
 
 public sealed record CreateGoalCommand(
     string Name, string Kind, decimal? TargetAmount, int? Months, LocalDate? TargetDate, string? Note, IReadOnlyList<FundingShare> Funding,
-    Visibility Visibility, IReadOnlyList<OwnerShare> Owners) : ICommand<ItemId>, ICreatesItem;
+    Visibility Visibility, IReadOnlyList<OwnerShare> Owners, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
 /// <summary>Replaces every editable field; the kind, the visibility and the owners never change (D10b). <paramref name="Version"/>: the one read with the goal.</summary>
 public sealed record EditGoalCommand(
@@ -70,7 +70,7 @@ public sealed class CreateGoalHandler(
             return Result.Failure<ItemId>(failure!);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var created = await items.CreateAsync(new NewItem("goals", command.Kind, command.Name, command.Visibility, null, command.Owners), ct);
+        var created = await items.CreateAsync(new NewItem("goals", command.Kind, command.Name, command.Visibility, null, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
             return created; // disposed without commit: nothing is left
         await goals.CreateAsync(new Goal(id, command.Kind, command.TargetAmount, months, command.TargetDate, command.Note, 0), ct);

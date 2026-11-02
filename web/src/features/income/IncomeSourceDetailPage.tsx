@@ -11,7 +11,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
-import { RowMenu } from '@/components/page/RowMenu';
+import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { SOURCE, SOURCE_OVERVIEW } from './api';
@@ -132,13 +132,13 @@ export function IncomeSourceDetailPage() {
     <>
       <ChangeAmountAction phases={changeable} onChange={(phaseId) => startEdit(phaseId, 'change', CHANGE_AMOUNT_ID)} />
       <Button type="button" variant="outline" aria-label={t('income_detail.one_offs.add')} onClick={startOneOff}><Plus aria-hidden="true" />{t('income_detail.add_one_off')}</Button>
-      <RowMenu label={t('income_detail.more_actions')} triggerRef={menuRef}
+      <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={source.visibility === 'shared'} label={t('income_detail.more_actions')} triggerRef={menuRef}
         items={[
           { label: t('income_detail.add_component'), onSelect: () => startAdd(newPhase()) },
           { label: t('income_detail.ending.open'), onSelect: () => { setStatusAnnouncement(''); setEndOpen(true); } },
         ]} />
     </>
-  ) : null;
+  ) : source.canWrite ? <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={source.visibility === 'shared'} /> : null;
 
   return (
     <article className="space-y-6">

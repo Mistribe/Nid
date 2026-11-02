@@ -25,6 +25,10 @@ public sealed record LoanRecord
     public string FirstPeriodMode { get; set; } = "full";
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public string Visibility { get; set; } = "shared";
+
+    /// <summary>#294: <c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ShareLevel { get; set; }
     public string? Note { get; init; }
 }
 

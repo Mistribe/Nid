@@ -19,7 +19,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("core")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -375,6 +375,13 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("module");
 
+                    b.Property<string>("ShareLevel")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("view")
+                        .HasColumnName("share_level");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -394,6 +401,8 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.ToTable("item", "core", t =>
                         {
+                            t.HasCheckConstraint("ck_item_share_level", "share_level = 'view' or (share_level = 'edit' and visibility = 'shared')");
+
                             t.HasCheckConstraint("ck_item_visibility", "visibility in ('shared','private')");
                         });
                 });

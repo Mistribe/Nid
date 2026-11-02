@@ -15,7 +15,7 @@ export const DEFAULT_MONTHS = '6';
 export type GoalValues = {
   kind: (typeof KINDS)[number]; name: string; amount: string; months: string; targetDate: string; note: string;
   mode: 'envelopes' | 'free'; funding: { envelopeId: string; share: string }[];
-  visibility: 'shared' | 'private'; owners: OwnerRow[];
+  visibility: 'shared' | 'private'; owners: OwnerRow[]; shareLevel?: 'view' | 'edit';
 };
 
 /**

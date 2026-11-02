@@ -15,7 +15,8 @@ public sealed record FirstValuationDraft(LocalDate AsOf, Money Amount);
 public sealed record CreateEnvelopeCommand(
     string DisplayName, string Kind, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
-    OpeningDraft? Opening, FirstValuationDraft? FirstValuation, decimal? PremiumsBefore2017 = null) : ICommand<ItemId>, ICreatesItem;
+    OpeningDraft? Opening, FirstValuationDraft? FirstValuation, decimal? PremiumsBefore2017 = null, ShareLevel ShareLevel = ShareLevel.View)
+    : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditEnvelopeCommand(ItemId ItemId, string? DisplayName, string? Kind, EnvelopeChange Change, string? ValuationCadence)
     : ICommand<ItemId>, IItemScoped
@@ -50,7 +51,7 @@ public sealed class CreateEnvelopeHandler(
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("investments", "envelope", command.DisplayName, command.Visibility,
-            command.Currency.Code, command.Owners), ct);
+            command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
             return created;
         await envelopes.CreateAsync(new Envelope(id, k, command.Institution, command.AccountHint, command.OpenedOn, c,

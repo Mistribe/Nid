@@ -19,14 +19,30 @@ public class AccessRulesTests
     {
         IReadOnlyList<Owner> owners = [Adult(Alice, 10_000)];
         Assert.Equal(Adults.ToHashSet(), AccessRules.Readers(Visibility.Shared, owners, Adults));
-        Assert.Equal(new HashSet<PersonId> { Alice }, AccessRules.Writers(Visibility.Shared, owners, Adults));
+        Assert.Equal(new HashSet<PersonId> { Alice }, AccessRules.Writers(Visibility.Shared, ShareLevel.View, owners, Adults));
+    }
+
+    [Fact]
+    public void Shared_item_at_the_edit_level_is_written_by_every_adult_without_making_them_owners()
+    {
+        IReadOnlyList<Owner> owners = [Adult(Alice, 10_000)];
+        Assert.Equal(Adults.ToHashSet(), AccessRules.Writers(Visibility.Shared, ShareLevel.Edit, owners, Adults));
+        Assert.Equal(new HashSet<PersonId> { Alice }, AccessRules.Writers(Visibility.Shared, ShareLevel.View, owners, Adults));
+        Assert.False(AccessRules.CanCreate(Bob, owners)); // the level, the visibility and the owners stay Alice's
+    }
+
+    [Fact]
+    public void A_private_item_has_no_edit_level()
+    {
+        IReadOnlyList<Owner> owners = [Adult(Alice, 10_000)];
+        Assert.Equal(new HashSet<PersonId> { Alice }, AccessRules.Writers(Visibility.Private, ShareLevel.Edit, owners, Adults));
     }
 
     [Fact]
     public void Shared_item_with_two_owners_is_written_by_both()
     {
         IReadOnlyList<Owner> owners = [Adult(Alice, 5_000), Adult(Bob, 5_000)];
-        Assert.Equal(Adults.ToHashSet(), AccessRules.Writers(Visibility.Shared, owners, Adults));
+        Assert.Equal(Adults.ToHashSet(), AccessRules.Writers(Visibility.Shared, ShareLevel.View, owners, Adults));
     }
 
     [Fact]
@@ -35,17 +51,17 @@ public class AccessRulesTests
         IReadOnlyList<Owner> owners = [Adult(Alice, 10_000)];
         var only = new HashSet<PersonId> { Alice };
         Assert.Equal(only, AccessRules.Readers(Visibility.Private, owners, Adults));
-        Assert.Equal(only, AccessRules.Writers(Visibility.Private, owners, Adults));
+        Assert.Equal(only, AccessRules.Writers(Visibility.Private, ShareLevel.View, owners, Adults));
     }
 
     [Fact]
     public void Item_owned_by_a_dependent_is_managed_by_both_adults()
     {
         IReadOnlyList<Owner> owners = [Child(10_000)];
-        Assert.Equal(Adults.ToHashSet(), AccessRules.Writers(Visibility.Shared, owners, Adults));
+        Assert.Equal(Adults.ToHashSet(), AccessRules.Writers(Visibility.Shared, ShareLevel.View, owners, Adults));
 
         IReadOnlyList<Owner> mixed = [Adult(Alice, 5_000), Child(5_000)];
-        Assert.Equal(Adults.ToHashSet(), AccessRules.Writers(Visibility.Shared, mixed, Adults));
+        Assert.Equal(Adults.ToHashSet(), AccessRules.Writers(Visibility.Shared, ShareLevel.View, mixed, Adults));
     }
 
     [Fact]
@@ -54,11 +70,11 @@ public class AccessRulesTests
         var random = new Random(20260919);
         for (var i = 0; i < 5_000; i++)
         {
-            var (visibility, owners) = RandomValidItem(random);
+            var (visibility, level, owners) = RandomValidItem(random);
             Assert.True(OwnershipRules.Validate(visibility, owners).IsSuccess);
 
             var readers = AccessRules.Readers(visibility, owners, Adults);
-            var writers = AccessRules.Writers(visibility, owners, Adults);
+            var writers = AccessRules.Writers(visibility, level, owners, Adults);
 
             Assert.NotEmpty(writers);
             Assert.True(writers.IsSubsetOf(readers), $"writers must be readers: {visibility} {string.Join(",", owners)}");
@@ -72,13 +88,13 @@ public class AccessRulesTests
         var random = new Random(7);
         for (var i = 0; i < 5_000; i++)
         {
-            var (visibility, owners) = RandomValidItem(random);
+            var (visibility, level, owners) = RandomValidItem(random);
             if (visibility != Visibility.Private)
                 continue;
 
             var other = owners[0].PersonId == Alice ? Bob : Alice;
             Assert.DoesNotContain(other, AccessRules.Readers(visibility, owners, Adults));
-            Assert.DoesNotContain(other, AccessRules.Writers(visibility, owners, Adults));
+            Assert.DoesNotContain(other, AccessRules.Writers(visibility, level, owners, Adults));
         }
     }
 
@@ -102,16 +118,17 @@ public class AccessRulesTests
         { false, "an item with no owner is nobody's", [] },
     };
 
-    private static (Visibility, IReadOnlyList<Owner>) RandomValidItem(Random random)
+    private static (Visibility, ShareLevel, IReadOnlyList<Owner>) RandomValidItem(Random random)
     {
         var shape = random.Next(5);
+        var level = random.Next(2) == 0 ? ShareLevel.View : ShareLevel.Edit; // a private item is stored at view
         return shape switch
         {
-            0 => (Visibility.Private, [Adult(random.Next(2) == 0 ? Alice : Bob, 10_000)]),
-            1 => (Visibility.Shared, [Adult(random.Next(2) == 0 ? Alice : Bob, 10_000)]),
-            2 => (Visibility.Shared, SplitBetweenAdults(random.Next(1, 10_000))),
-            3 => (Visibility.Shared, [Child(10_000)]),
-            _ => (Visibility.Shared, [Adult(Alice, 6_000), Child(4_000)]),
+            0 => (Visibility.Private, ShareLevel.View, [Adult(random.Next(2) == 0 ? Alice : Bob, 10_000)]),
+            1 => (Visibility.Shared, level, [Adult(random.Next(2) == 0 ? Alice : Bob, 10_000)]),
+            2 => (Visibility.Shared, level, SplitBetweenAdults(random.Next(1, 10_000))),
+            3 => (Visibility.Shared, level, [Child(10_000)]),
+            _ => (Visibility.Shared, level, [Adult(Alice, 6_000), Child(4_000)]),
         };
     }
 

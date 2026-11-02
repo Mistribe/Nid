@@ -67,7 +67,7 @@ public sealed partial class RealEstateImportSection
                 continue;
             }
             var plan = new LoanPlan(entity, record, parsed, path, property);
-            if (await ResolveItemAsync(plan, LoansSection, "loan", known.GetValueOrDefault(record.Id), parsed.Visibility, parsed.Owners, parsed.Currency, issues, ct))
+            if (await ResolveItemAsync(plan, LoansSection, "loan", known.GetValueOrDefault(record.Id), parsed.Visibility, parsed.ShareLevel, parsed.Owners, parsed.Currency, issues, ct))
                 loanPlans.Add(plan);
         }
         // Locked in id order before they are read, as the screens lock one (LoanCheck.LockAsync): at commit, no contract PUT, fee or
@@ -256,7 +256,7 @@ public sealed partial class RealEstateImportSection
         foreach (var plan in loanPlans.Where(l => l.Mode == Mode.Created))
         {
             var p = plan.Parsed;
-            var made = await items.CreateAsync(new NewItem("realestate", "loan", plan.Record.Name, p.Visibility, p.Currency.Code, OwnerShares(p.Owners)), ct);
+            var made = await items.CreateAsync(new NewItem("realestate", "loan", plan.Record.Name, p.Visibility, p.Currency.Code, OwnerShares(p.Owners), p.ShareLevel), ct);
             if (made.TryGetFailure(out var failure))
                 return Result.Failure(failure!);
             made.TryGetValue(out var id);
@@ -270,7 +270,7 @@ public sealed partial class RealEstateImportSection
         foreach (var plan in loanPlans.Where(l => l.Mode == Mode.Replaced))
         {
             var (p, r) = (plan.Parsed, plan.Record);
-            var replaced = await items.ReplaceAsync(plan.Id, r.Name, p.Visibility, OwnerShares(p.Owners), ct);
+            var replaced = await items.ReplaceAsync(plan.Id, r.Name, p.Visibility, OwnerShares(p.Owners), ct, p.ShareLevel);
             if (!replaced.IsSuccess)
                 return replaced;
             await loans.UpdateDetailsAsync(plan.Id, new LoanDetailsChange(r.Lender, r.Lender is null, r.Note, r.Note is null,
@@ -329,7 +329,7 @@ public sealed partial class RealEstateImportSection
                 DisbursedOn = Iso(c.DisbursedOn), FirstPaymentDate = Iso(c.FirstPaymentDate), TotalPayments = c.TotalPayments,
                 Property = l.PropertyId is { } linked && propertyFileIds.TryGetValue(linked.Value, out var propertyId) ? propertyId : null,
                 ScheduleSource = LoanWire.Of(l.Source), RoundingMode = LoanWire.Of(c.Rounding), FirstPeriodMode = LoanWire.Of(c.FirstPeriod),
-                Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility), Note = l.Note,
+                Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility), ShareLevel = ImportSectionKit.ShareLevelText(head), Note = l.Note,
             });
         }
         sections[LoansSection] = Elements(records);

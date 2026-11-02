@@ -197,11 +197,12 @@ public static class SubscriptionEndpoints
     public sealed record CreateSubscriptionBody(
         string DisplayName, string? Visibility, IReadOnlyList<OwnerBody> Owners,
         string? ProviderKey, bool AutoRenew, IReadOnlyList<Guid>? Users, string? Note,
-        IReadOnlyList<PhaseInput>? Phases = null, IReadOnlyList<PurchaseInput>? Purchases = null)
+        IReadOnlyList<PhaseInput>? Phases = null, IReadOnlyList<PurchaseInput>? Purchases = null, string? ShareLevel = null)
     {
         internal CreateSubscriptionCommand? ToCommand(FieldReader reader)
         {
             var visibility = reader.Visibility(Visibility, "visibility");
+            var level = reader.ShareLevel(ShareLevel, "shareLevel");
             var phases = (Phases ?? []).Select((p, i) => p.Read(reader, $"phases[{i}]")).ToList();
             var purchases = (Purchases ?? []).Select((p, i) => p.Read(reader, $"purchases[{i}]")).ToList();
             return reader.Ok
@@ -210,7 +211,7 @@ public static class SubscriptionEndpoints
                     (Owners ?? []).Select(o => new OwnerShare(new Core.Contracts.PersonId(o.PersonId), o.ShareBp)).ToList(),
                     ProviderKey, AutoRenew,
                     (Users ?? []).Select(u => new Core.Contracts.PersonId(u)).ToList(),
-                    Note, phases.Select(p => p!).ToList(), purchases.Select(p => p!).ToList())
+                    Note, phases.Select(p => p!).ToList(), purchases.Select(p => p!).ToList(), level!.Value)
                 : null;
         }
     }

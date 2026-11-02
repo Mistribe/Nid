@@ -157,7 +157,7 @@ public sealed partial class RealEstateImportSection(
     /// False when refused, the issue added and the item marked failed for the sections after.
     /// </summary>
     private async Task<bool> ResolveItemAsync(ItemPlan plan, string section, string noun, IReadOnlyList<ImportedEstateRow>? known,
-        Visibility visibility, IReadOnlyList<Owner> owners, Currency currency, List<ImportIssue> issues, CancellationToken ct)
+        Visibility visibility, ShareLevel shareLevel, IReadOnlyList<Owner> owners, Currency currency, List<ImportIssue> issues, CancellationToken ct)
     {
         // Every importer's rows under this id: only ImportResolver's answer may reach an issue.
         var candidates = known?.Select(k => new ImportCandidate(k.Id, k.Hash, k.ImportedBy, [k.Item])).ToList();
@@ -184,7 +184,7 @@ public sealed partial class RealEstateImportSection(
                 return Refuse(issues, ImportIssue.Error(ImportCodes.Conflict,
                     $"'{plan.FileId}' was imported before with other content; nothing is overwritten (import-format.md §8).", plan.Path), section, plan.FileId);
             }
-            var refusal = await ImportSectionKit.ReplaceRefusalAsync(policy, rules, context.Actor, plan.Id, current, visibility, owners,
+            var refusal = await ImportSectionKit.ReplaceRefusalAsync(policy, rules, context.Actor, plan.Id, current, visibility, shareLevel, owners,
                 currency.Code, noun, plan.Path, async () => adults ??= await persons.AdultIdsAsync(ct), ct);
             if (refusal is not null)
                 return Refuse(issues, refusal, section, plan.FileId);

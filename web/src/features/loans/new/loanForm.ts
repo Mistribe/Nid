@@ -109,6 +109,7 @@ export function newLoanSchema(t: TFunction) {
     // Not aborting: an aborting issue would skip the superRefine below and hide its checks until a second submit.
     visibility: z.custom<'shared' | 'private'>((x) => x === 'shared' || x === 'private', { error: t('loan_form.visibility_required'), abort: false }),
     owners: ownershipShape(t).owners,
+    shareLevel: ownershipShape(t).shareLevel,
     propertyId: z.string(),
     ...contractShape(t),
   }).superRefine((v, ctx) => {
@@ -160,9 +161,9 @@ export function toContractBody(v: ContractValues): Omit<components['schemas']['L
 
 /** The one creation request (spec §6): the loan's identity, then its contract. */
 export function toCreateBody(v: NewLoanValues): components['schemas']['CreateLoanBody'] {
-  const { visibility, owners } = ownershipToWire(v);
+  const { owners, ...sharing } = ownershipToWire(v);
   return {
-    name: v.name.trim(), currency: v.currency, visibility, borrowers: owners,
+    name: v.name.trim(), currency: v.currency, ...sharing, borrowers: owners,
     ...(v.lender.trim() ? { lender: v.lender.trim() } : {}),
     ...(v.note.trim() ? { note: v.note } : {}),
     ...(v.propertyId ? { propertyId: v.propertyId } : {}),

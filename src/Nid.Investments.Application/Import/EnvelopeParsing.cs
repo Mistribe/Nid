@@ -10,7 +10,7 @@ namespace Nid.Investments.Application.Import;
 /// <summary>An envelope record, parsed; owners carry their kind so the Core's rules can run on it.</summary>
 internal sealed record ParsedEnvelope(
     EnvelopeKind Kind, ValuationCadence Cadence, Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners,
-    LocalDate? OpenedOn, LocalDate? ClosedOn);
+    LocalDate? OpenedOn, LocalDate? ClosedOn, ShareLevel ShareLevel = ShareLevel.View);
 
 /// <summary>
 /// File records to envelope inputs. Every refusal names the member it concerns; an entity's issues are all collected
@@ -48,6 +48,8 @@ internal static class EnvelopeParsing
             visibility = Visibility.Private;
         else if (r.Visibility != "shared")
             ok = Invalid(issues, path + ".visibility", "Visibility is shared or private.");
+        if (ImportSectionKit.ShareLevelRefusal(r.ShareLevel, visibility, out var level) is { } refused)
+            ok = Invalid(issues, path + ".share_level", refused);
 
         var owners = new List<Owner>();
         for (var j = 0; j < r.Ownership.Count; j++)
@@ -63,7 +65,7 @@ internal static class EnvelopeParsing
         ok &= TryDate(r.OpenedOn, path + ".opened_on", today, issues, out var openedOn)
               & TryDate(r.ClosedOn, path + ".closed_on", today, issues, out var closedOn);
         if (ok)
-            parsed = new ParsedEnvelope(kind, cadence, currency, visibility, owners, openedOn, closedOn);
+            parsed = new ParsedEnvelope(kind, cadence, currency, visibility, owners, openedOn, closedOn, level);
         return ok;
     }
 

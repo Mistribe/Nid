@@ -176,18 +176,19 @@ public static class IncomeEndpoints
     /// </summary>
     public sealed record CreateIncomeSourceBody(
         string DisplayName, string Kind, string Currency, string? Visibility, IReadOnlyList<OwnerBody> Owners,
-        string? PayerLabel, string? Note, IReadOnlyList<IncomePhaseBody>? Phases)
+        string? PayerLabel, string? Note, IReadOnlyList<IncomePhaseBody>? Phases, string? ShareLevel = null)
     {
         internal CreateIncomeSourceCommand? ToCommand(FieldReader reader)
         {
             var visibility = reader.Visibility(Visibility, "visibility");
+            var level = reader.ShareLevel(ShareLevel, "shareLevel");
             if (!Nid.Core.Contracts.Currency.TryCreate(Currency, out var currency))
                 reader.Add("currency", "invalid_currency", "A currency is a three-letter ISO 4217 code, in capitals.");
             var phases = (Phases ?? []).Select((p, i) => p is null ? Missing(reader, i) : p.Read(reader, $"phases[{i}]")).ToList();
             return reader.Ok
                 ? new CreateIncomeSourceCommand(DisplayName, Kind, currency, visibility!.Value,
                     (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(),
-                    PayerLabel, Note, phases.Select(p => p!).ToList())
+                    PayerLabel, Note, phases.Select(p => p!).ToList(), level!.Value)
                 : null;
         }
 

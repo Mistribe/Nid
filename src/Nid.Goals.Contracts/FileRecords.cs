@@ -20,6 +20,11 @@ public sealed record GoalRecord
     public string? TargetDate { get; init; }
     public string? Note { get; init; }
     public string Visibility { get; set; } = "shared";
+
+    /// <summary>#294: <c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ShareLevel { get; set; }
+
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public bool Closed { get; init; }
     public IReadOnlyList<GoalFundingRecord> Funding { get; set; } = [];

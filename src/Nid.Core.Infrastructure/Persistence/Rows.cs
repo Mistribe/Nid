@@ -81,6 +81,7 @@ public sealed class ItemRow
     public string Kind { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string Visibility { get; set; } = "shared";
+    public string ShareLevel { get; set; } = "view";
     public string? Currency { get; set; }
     public Instant? ArchivedAt { get; set; }
     public Instant CreatedAt { get; set; }

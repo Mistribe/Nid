@@ -170,7 +170,7 @@ public sealed class SubscriptionsImportSection(
                     // 1F3b spec §3.2 and the 2026-09-28 ruling: replacing is a write, on the item as it is now,
                     // that never takes it from another adult.
                     var refusal = await ImportSectionKit.ReplaceRefusalAsync(policy, rules, context.Actor, id,
-                        await items.FindAsync(id, ct), parsed.Visibility, parsed.Owners, null, "subscription", path,
+                        await items.FindAsync(id, ct), parsed.Visibility, parsed.ShareLevel, parsed.Owners, null, "subscription", path,
                         async () => adults ??= await persons.AdultIdsAsync(ct), ct);
                     if (refusal is not null)
                     {
@@ -472,7 +472,7 @@ public sealed class SubscriptionsImportSection(
 
             var created = await items.CreateAsync(new NewItem(
                 "subscriptions", "subscription", record.Name, parsed.Visibility, null,
-                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList()), ct);
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), parsed.ShareLevel), ct);
             if (!created.TryGetValue(out var id))
                 return ImportSectionKit.FailureOf(created);
 
@@ -492,7 +492,7 @@ public sealed class SubscriptionsImportSection(
                 return ImportSectionKit.Drift(issues);
 
             var item = await items.ReplaceAsync(id, record.Name, parsed.Visibility,
-                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct, parsed.ShareLevel);
             if (item.TryGetFailure(out var itemFailure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(itemFailure!);
 

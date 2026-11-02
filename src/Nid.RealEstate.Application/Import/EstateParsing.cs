@@ -9,7 +9,8 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.RealEstate.Application.Import;
 
 /// <summary>A property record, parsed; owners carry their kind so the Core's rules can run on it.</summary>
-internal sealed record ParsedProperty(PropertyDetails Details, Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners);
+internal sealed record ParsedProperty(
+    PropertyDetails Details, Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners, ShareLevel ShareLevel = ShareLevel.View);
 
 /// <summary>
 /// Spec 3F1 §2: file records to real estate inputs. The rules are the screens' (<see cref="PropertyRules"/>, <see cref="LoanRules"/>,
@@ -42,6 +43,7 @@ internal static partial class EstateParsing
         var currency = TryCurrency(r.Currency, path, issues);
         var ok = currency is not null
                  & TryVisibility(r.Visibility, path, issues, out var visibility)
+                 & TryShareLevel(r.ShareLevel, r.Visibility, path, issues, out var level)
                  & TryOwners(r.Ownership, path, person, issues, out var owners)
                  & TryWire<PropertyType>(r.PropertyType, path + ".property_type", issues, out var type)
                  & TryWire<PropertyCadence>(r.ValuationCadence, path + ".valuation_cadence", issues, out var cadence)
@@ -57,7 +59,7 @@ internal static partial class EstateParsing
             r.LocationLabel, cadence, r.StaleAfterDays, rentalStartsOn, r.Note, r.EnergyClass, r.PostalAddress?.Trim());
         if (!Check(PropertyRules.Name(r.Name) ?? PropertyRules.Details(details, today ?? LocalDate.MaxIsoValue), path, issues))
             return false;
-        parsed = new ParsedProperty(details, currency!.Value, visibility, owners);
+        parsed = new ParsedProperty(details, currency!.Value, visibility, owners, level);
         return true;
     }
 
@@ -128,6 +130,11 @@ internal static partial class EstateParsing
         Invalid(issues, path + ".currency", "A currency is an ISO 4217 code in capitals.");
         return null;
     }
+
+    /// <summary>#294: the record's <c>share_level</c>, by <see cref="ImportSectionKit.ShareLevelRefusal"/>.</summary>
+    private static bool TryShareLevel(string? level, string visibility, string path, List<ImportIssue> issues, out ShareLevel parsed)
+        => ImportSectionKit.ShareLevelRefusal(level, visibility == "private" ? Visibility.Private : Visibility.Shared, out parsed) is not { } refused
+           || Invalid(issues, path + ".share_level", refused);
 
     private static bool TryVisibility(string visibility, string path, List<ImportIssue> issues, out Visibility parsed)
     {

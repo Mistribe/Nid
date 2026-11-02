@@ -9,7 +9,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
-import { RowMenu } from '@/components/page/RowMenu';
+import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -187,12 +187,12 @@ export function EnvelopeDetailPage() {
         <Plus aria-hidden="true" />{t('envelope.enter_value')}
       </Button>
       <Button ref={flowRef} type="button" variant="outline" onClick={() => setFlowDialog({})}>{t('envelope.add_flow_open')}</Button>
-      <RowMenu label={t('envelope.more_actions')} triggerRef={menuRef} items={[
+      <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={detail.visibility === 'shared'} label={t('envelope.more_actions')} triggerRef={menuRef} items={[
         { label: t('envelope.transfer.open'), onSelect: openTransfer },
         { label: t('envelope.closing.open'), onSelect: () => { setStatusAnnouncement(''); setCloseOpen(true); } },
       ]} />
     </>
-  ) : null;
+  ) : detail.canWrite ? <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={detail.visibility === 'shared'} /> : null;
 
   return (
     <article className="space-y-6">

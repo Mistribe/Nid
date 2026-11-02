@@ -84,17 +84,18 @@ public static class GoalEndpoints
     /// </summary>
     public sealed record CreateGoalBody(
         string? Name, string? Kind, string? TargetAmount, int? Months, string? TargetDate, string? Note,
-        IReadOnlyList<GoalFundingBody>? Funding, string? Visibility, IReadOnlyList<OwnerBody>? Owners)
+        IReadOnlyList<GoalFundingBody>? Funding, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? ShareLevel = null)
     {
         internal CreateGoalCommand? ToCommand(FieldReader reader)
         {
             var visibility = reader.Visibility(Visibility, "visibility");
+            var level = reader.ShareLevel(ShareLevel, "shareLevel");
             var target = LoanBodies.Number(reader, TargetAmount, "targetAmount", required: false);
             var targetDate = reader.Date(TargetDate, "targetDate", required: false);
             var funding = GoalBodies.Funding(reader, Funding);
             return reader.Ok
                 ? new CreateGoalCommand(Name!, Kind ?? "", target, Months, targetDate, Note, funding, visibility!.Value,
-                    (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList())
+                    (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(), level!.Value)
                 : null;
         }
     }

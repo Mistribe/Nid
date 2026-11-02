@@ -8,6 +8,7 @@ import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Section } from '@/components/page/Section';
@@ -63,11 +64,16 @@ export function PropertyDetailPage() {
 
   const rented = property.type === 'rental' || property.tenancies.length > 0;
   const shown = (tab === 'settings' && !property.canWrite) || (tab === 'rental' && !rented) ? 'overview' : tab;
-  const actions = property.canWrite ? (
-    <Button ref={estimateRef} type="button" onClick={() => { setAnnouncement(''); setEstimating(true); }}>
-      <Plus aria-hidden="true" />{t('property_valuations.add')}
-    </Button>
-  ) : null;
+  const actions = (
+    <>
+      {property.canWrite ? (
+        <Button ref={estimateRef} type="button" onClick={() => { setAnnouncement(''); setEstimating(true); }}>
+          <Plus aria-hidden="true" />{t('property_valuations.add')}
+        </Button>
+      ) : null}
+      <SharingMenu item={id} onAnnounce={setAnnouncement} shared={property.canWrite && property.visibility === 'shared'} />
+    </>
+  );
 
   return (
     <article className="space-y-6">

@@ -447,18 +447,19 @@ public static class RealEstateEndpoints
     public sealed record CreateLoanBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Borrowers, string? Lender, string? Note,
         string? Principal, string? DisbursedOn, string? FirstPaymentDate, int? TotalPayments, string? Rounding, string? FirstPeriod,
-        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances, Guid? PropertyId)
+        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances, Guid? PropertyId, string? ShareLevel = null)
     {
         internal CreateLoanCommand? ToCommand(FieldReader reader)
         {
             var visibility = reader.Visibility(Visibility, "visibility");
+            var level = reader.ShareLevel(ShareLevel, "shareLevel");
             if (!Nid.Core.Contracts.Currency.TryCreate(Currency, out var currency))
                 reader.Add("currency", PersonCodes.UnknownCurrency, "A currency is a three-letter ISO 4217 code, in capitals.");
             var borrowers = LoanBodies.Borrowers(reader, Borrowers);
             var contract = LoanBodies.Contract(reader, Principal, DisbursedOn, FirstPaymentDate, TotalPayments, Rounding, FirstPeriod, Phases, Insurances);
             return reader.Ok
                 ? new CreateLoanCommand(Name ?? "", currency, visibility!.Value, borrowers!, Lender, Note, contract!,
-                    PropertyId is { } property ? new ItemId(property) : null)
+                    PropertyId is { } property ? new ItemId(property) : null, level!.Value)
                 : null;
         }
     }
@@ -589,11 +590,13 @@ public static class RealEstateEndpoints
     public sealed record CreatePropertyBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Type, string? PurchaseDate,
         string? PurchasePrice, string? NotaryFees, string? AgencyFees, string? OtherAcquisitionCosts, string? SurfaceM2,
-        string? LocationLabel, string? ValuationCadence, int? StaleAfterDays, string? RentalStartsOn, string? Note, string? EnergyClass = null, string? PostalAddress = null)
+        string? LocationLabel, string? ValuationCadence, int? StaleAfterDays, string? RentalStartsOn, string? Note, string? EnergyClass = null, string? PostalAddress = null,
+        string? ShareLevel = null)
     {
         internal CreatePropertyCommand? ToCommand(FieldReader reader)
         {
             var visibility = reader.Visibility(Visibility, "visibility");
+            var level = reader.ShareLevel(ShareLevel, "shareLevel");
             if (!Nid.Core.Contracts.Currency.TryCreate(Currency, out var currency))
                 reader.Add("currency", PersonCodes.UnknownCurrency, "A currency is a three-letter ISO 4217 code, in capitals.");
             var owners = LoanBodies.Borrowers(reader, Owners, "owners");
@@ -609,7 +612,7 @@ public static class RealEstateEndpoints
             return reader.Ok
                 ? new CreatePropertyCommand(Name ?? "", currency, visibility!.Value, owners!, new PropertyDetails(
                     type!.Value, purchaseDate!.Value, price!.Value, notary ?? 0m, agency ?? 0m, other ?? 0m, surface, LocationLabel,
-                    cadence ?? PropertyCadence.Yearly, StaleAfterDays, rentalStartsOn, Note, EnergyClass, PostalAddress?.Trim()))
+                    cadence ?? PropertyCadence.Yearly, StaleAfterDays, rentalStartsOn, Note, EnergyClass, PostalAddress?.Trim()), level!.Value)
                 : null;
         }
     }

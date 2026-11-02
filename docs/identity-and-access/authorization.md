@@ -55,7 +55,7 @@ Définis dans `Core.Contracts`.
 
 | Marqueur | Contrôle |
 |---|---|
-| `IItemScoped { ItemId, Access }` | `Access` : `Read`, `Write`, `ChangeVisibility`, `ChangeOwners`. Vérifié à l'étape 4 |
+| `IItemScoped { ItemId, Access }` | `Access` : `Read`, `Write`, `Own` (le niveau de partage, la visibilité, les propriétaires : §5). Vérifié à l'étape 4 |
 | `ICreatesItem { Owners, Visibility }` | Vérifié à la création (§5) |
 | `IHouseholdQuery` | Requête de liste : le handler filtre avec `IVisibleItems` (§6) |
 | `[NoItemAccess]` | Données de référence : catalogue, taux, réglages |
@@ -70,15 +70,23 @@ Source unique : deux fonctions pures, testées par propriétés (`access-tests.m
 | Fonction | Définition |
 |---|---|
 | `Readers(item)` | `private` → le propriétaire seul ; sinon les deux adultes |
-| `Writers(item)` | Un propriétaire `dependent` → les deux adultes ; sinon `private` → le propriétaire ; sinon un seul propriétaire → lui ; sinon → tous les propriétaires |
+| `Writers(item)` | Un propriétaire `dependent` → les deux adultes ; sinon `shared` au niveau `edit` → les deux adultes ; sinon `private` → le propriétaire ; sinon un seul propriétaire → lui ; sinon → tous les propriétaires |
+
+Un élément `shared` a un **niveau de partage** (#294), choisi par ses propriétaires à la création et ensuite (« Partage ») :
+
+- **`view`, lecture seule** (le défaut, et le niveau de tout élément partagé d'avant #294) : les deux adultes lisent, les propriétaires écrivent.
+- **`edit`, lecture et modification** : les deux adultes lisent et écrivent, sans que l'autre devienne propriétaire ; ses parts et les chiffres attribués à chacun ne changent pas.
+
+Un élément `private` n'a pas de niveau (il est stocké `view`). Le niveau ne change que `Writers` : tout ce qui s'appuie dessus (écrire, décider une proposition, en être notifié, rattacher un document) suit. **Modifier n'est pas posséder** : le niveau, la visibilité et les propriétaires restent aux propriétaires (`Own` : la règle de création ci-dessous, sur l'état actuel).
 
 | Opération | Règle |
 |---|---|
 | Lire | `Readers` |
 | Écrire (valorisation, flux, modification, archivage) | `Writers` |
 | **Créer** un élément | L'acteur est l'un des propriétaires, ou tous les propriétaires sont des `dependent`. On ne crée pas un élément au seul nom de l'autre adulte |
-| **Changer les propriétaires** | L'acteur est dans `Writers` de l'état **actuel** ; le résultat respecte les invariants du Core. Un adulte ne peut jamais s'ajouter lui-même à l'élément de l'autre. Se retirer d'un élément est un transfert explicite (confirmation dans l'interface) |
-| Changer la visibilité | Le propriétaire seul (`../core-data-model.md` §4.3). `private` → `shared` révèle l'élément à l'autre immédiatement |
+| **Changer les propriétaires** | L'acteur est propriétaire de l'état **actuel** (`Own`) — être dans `Writers` ne suffit pas : un adulte qui modifie un élément au niveau `edit` ne s'en rend pas propriétaire ; le résultat respecte les invariants du Core. Un adulte ne peut jamais s'ajouter lui-même à l'élément de l'autre. Se retirer d'un élément est un transfert explicite (confirmation dans l'interface) |
+| Changer la visibilité | Le propriétaire seul (`Own`, `../core-data-model.md` §4.3). `private` → `shared` révèle l'élément à l'autre immédiatement |
+| Changer le niveau de partage | Les propriétaires (`Own`), jamais un adulte qui ne fait que modifier l'élément. Repasser en `view` lui retire l'écriture tout de suite ; une proposition qu'il a soumise reste en attente pour les propriétaires. Aucun outil MCP ne le propose : c'est un geste du propriétaire dans l'application |
 | Proposition | Création : mêmes droits que l'écriture directe sur la cible. Lecture : `Readers` de la cible. **Décision : `Writers`** de la cible. Sans cible : la personne concernée seule |
 | Document | Rattacher à un élément : `Writers`. Lire : le déposant et les `Readers` des éléments liés |
 

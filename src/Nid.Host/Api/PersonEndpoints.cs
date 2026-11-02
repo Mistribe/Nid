@@ -27,6 +27,8 @@ public static class PersonEndpoints
 
     public sealed record CreateDependentBody(string DisplayName);
 
+    public sealed record SharingBody(string? ShareLevel);
+
     /// <summary>A key nobody reads is refused rather than silently dropped (400, like any unreadable body).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record PreferencesBody(string? Theme, string? Mode, bool? ChartPatterns, Dictionary<string, int>? GuidesSeen);
@@ -72,6 +74,21 @@ public static class PersonEndpoints
         api.MapGet("/me/private-items", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetMyPrivateItemsQuery(), ct)).ToHttp(v => v))
             .Returns<PrivateItemsView>();
+
+        // #294: an item's sharing level, read by whoever reads the item, changed by its owners only.
+        api.MapGet("/items/{id:guid}/sharing", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetItemSharingQuery(new ItemId(id)), ct)).ToHttp(v => v))
+            .Returns<ItemSharingView>();
+
+        api.MapPut("/items/{id:guid}/sharing", async (Guid id, SharingBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var level = reader.ShareLevel(body.ShareLevel ?? "", "shareLevel");
+                return level is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new SetItemSharingCommand(new ItemId(id), level.Value), ct)).ToHttp(v => v);
+            })
+            .Returns<ItemSharingView>();
 
         // Spec 4A §6: « Mes jetons », browser sessions only (IBrowserOnly).
         api.MapGet("/me/tokens", async (IInvoker invoker, CancellationToken ct)

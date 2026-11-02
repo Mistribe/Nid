@@ -158,7 +158,7 @@ public sealed class EnvelopesImportSection(
                 return ImportSectionKit.Drift(issues);
 
             var made = await items.CreateAsync(new NewItem("investments", "envelope", record.Name, parsed.Visibility, parsed.Currency.Code,
-                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList()), ct);
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), parsed.ShareLevel), ct);
             if (!made.TryGetValue(out var id))
                 return ImportSectionKit.FailureOf(made);
 
@@ -182,7 +182,7 @@ public sealed class EnvelopesImportSection(
                 return ImportSectionKit.Drift(issues);
 
             var item = await items.ReplaceAsync(id, record.Name, parsed.Visibility,
-                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct, parsed.ShareLevel);
             if (item.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
 
@@ -241,6 +241,7 @@ public sealed class EnvelopesImportSection(
                     .Select(w => new ShareRecord { Person = context.PersonRef(w.PersonId), ShareBp = w.ShareBp })
                     .OrderBy(w => w.Person, StringComparer.Ordinal).ToList(),
                 Visibility = head.Visibility == Visibility.Private ? "private" : "shared",
+                ShareLevel = ImportSectionKit.ShareLevelText(head),
             });
         }
 
@@ -314,7 +315,7 @@ public sealed class EnvelopesImportSection(
     private Task<ImportIssue?> ReplaceRefusalAsync(
         PersonId actor, ItemId id, ItemAccess current, ParsedEnvelope parsed, string path,
         Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)
-        => ImportSectionKit.ReplaceRefusalAsync(policy, rules, actor, id, current, parsed.Visibility, parsed.Owners,
+        => ImportSectionKit.ReplaceRefusalAsync(policy, rules, actor, id, current, parsed.Visibility, parsed.ShareLevel, parsed.Owners,
             parsed.Currency.Code, "envelope", path, adults, ct);
 
     private static Envelope ToEnvelope(ItemId id, EnvelopeRecord record, ParsedEnvelope parsed)

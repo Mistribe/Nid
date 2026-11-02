@@ -55,6 +55,7 @@ export function newPropertySchema(t: TFunction) {
     // Not aborting: an aborting issue would skip the superRefine below and hide its checks until a second submit.
     visibility: z.custom<'shared' | 'private'>((x) => x === 'shared' || x === 'private', { error: t('loan_form.visibility_required'), abort: false }),
     owners: ownershipShape(t).owners,
+    shareLevel: ownershipShape(t).shareLevel,
     // Issue #17: never sent; the loan is entered next, on its own form, already linked to the property.
     withLoan: z.boolean(),
   }).superRefine((v, ctx) => checkOwnership(v, ctx, t));
@@ -64,9 +65,9 @@ export type NewPropertyValues = z.infer<ReturnType<typeof newPropertySchema>>;
 
 /** The one creation request (spec §5): amounts as typed with a dot, empty optional fields left out; the rental start is the settings' (3D2 §5). */
 export function toCreateBody(v: NewPropertyValues): components['schemas']['CreatePropertyBody'] {
-  const { visibility, owners } = ownershipToWire(v);
+  const { owners, ...sharing } = ownershipToWire(v);
   return {
-    name: v.name.trim(), currency: v.currency, visibility, owners, type: v.type, purchaseDate: v.purchaseDate,
+    name: v.name.trim(), currency: v.currency, ...sharing, owners, type: v.type, purchaseDate: v.purchaseDate,
     purchasePrice: toWireAmount(v.purchasePrice), notaryFees: toWireAmount(v.notaryFees), agencyFees: toWireAmount(v.agencyFees),
     otherAcquisitionCosts: toWireAmount(v.otherAcquisitionCosts), valuationCadence: v.valuationCadence,
     ...(v.surfaceM2.trim() ? { surfaceM2: toWireAmount(v.surfaceM2) } : {}),

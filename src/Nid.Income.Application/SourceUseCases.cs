@@ -17,7 +17,7 @@ public sealed record PhaseDraft(
 
 public sealed record CreateIncomeSourceCommand(
     string DisplayName, string Kind, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
-    string? PayerLabel, string? Note, IReadOnlyList<PhaseDraft> Phases) : ICommand<ItemId>, ICreatesItem;
+    string? PayerLabel, string? Note, IReadOnlyList<PhaseDraft> Phases, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditIncomeSourceCommand(ItemId ItemId, string? DisplayName, string? Kind, IncomeSourceChange Change)
     : ICommand<ItemId>, IItemScoped
@@ -66,7 +66,7 @@ public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore 
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("income", "source", command.DisplayName, command.Visibility,
-            command.Currency.Code, command.Owners), ct);
+            command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
             return created; // disposed without commit: nothing is left
         await sources.CreateAsync(new IncomeSource(id, k, command.PayerLabel, command.Note), null, ct);

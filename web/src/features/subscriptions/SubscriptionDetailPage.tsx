@@ -10,6 +10,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
@@ -70,12 +71,14 @@ export function SubscriptionDetailPage() {
     if (message) setAnnouncement(message);
     ({ price: priceRef, purchase: purchaseRef, terms: termsRef, insurance: insuranceRef })[was ?? 'purchase'].current?.focus();
   };
+  const sharing = <SharingMenu item={id} onAnnounce={setAnnouncement} shared={detail.visibility === 'shared'} />;
   const actions = detail.canWrite ? (
     <>
       <Button ref={priceRef} type="button" onClick={() => { setAnnouncement(''); setDialog('price'); }}>{t('edit.price_title')}</Button>
       <Button ref={purchaseRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('purchase'); }}>{t('edit.purchase_title')}</Button>
       <Button ref={termsRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('terms'); }}>{t('contract_terms.edit')}</Button>
       <Button ref={insuranceRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('insurance'); }}>{detail.insurance ? t('insurance.change') : t('insurance.add')}</Button>
+      {sharing}
     </>
   ) : null;
   const nextCharge = detail.nextChargeOn

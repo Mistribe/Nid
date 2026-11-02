@@ -2,6 +2,7 @@ using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Projection;
@@ -107,7 +108,7 @@ public sealed class CreateProjectionScenarioHandler(IItemRegistry items, IScenar
 
 [RequestHandler<ReplaceProjectionScenarioCommand, ProjectionScenarioView>]
 public sealed class ReplaceProjectionScenarioHandler(
-    IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, IAccessPolicy policy, IActorAccessor actor,
+    IItemRegistry items, IItemRules rules, IScenarioStore store, ProjectionScenarioReader reader, IAccessPolicy policy, IActorAccessor actor,
     IHouseholdSettings household, IUnitOfWork unitOfWork)
     : IRequestHandler<ReplaceProjectionScenarioCommand, ProjectionScenarioView>
 {
@@ -116,6 +117,9 @@ public sealed class ReplaceProjectionScenarioHandler(
         var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct, ScenarioKinds.Projection);
         if (loaded.TryGetFailure(out var failure)) return Result.Failure<ProjectionScenarioView>(failure!);
         loaded.TryGetValue(out var found);
+        // #294: an adult who may edit the scenario does not own it: its visibility stays with its owners.
+        if (command.Visibility != found.Item.Visibility && !rules.CanCreate(actor.Current!.PersonId!.Value, found.Item.Owners))
+            return Result.Failure<ProjectionScenarioView>(new UnauthorizedFailure("Only the scenario's owners change its visibility.", null));
         if ((ScenarioResults.Name(command.Name) ?? await reader.RefusalAsync(command.Document, command.Scope, ct)) is { } refused)
             return Result.Failure<ProjectionScenarioView>(refused);
 

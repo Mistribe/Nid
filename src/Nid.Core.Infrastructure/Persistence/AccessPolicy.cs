@@ -20,7 +20,12 @@ public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons) :
         if (kind == AccessKind.Read)
             return Result.Success();
 
-        return AccessRules.Writers(access.Visibility, access.Owners, adults).Contains(actor)
+        if (kind == AccessKind.Own)
+            return AccessRules.CanCreate(actor, access.Owners)
+                ? Result.Success()
+                : Result.Failure(new UnauthorizedFailure("Only the item's owners change its sharing, its visibility or its owners.", null));
+
+        return AccessRules.Writers(access.Visibility, access.ShareLevel, access.Owners, adults).Contains(actor)
             ? Result.Success()
             : Result.Failure(new UnauthorizedFailure("You can read this item but not change it.", null));
     }
@@ -35,7 +40,12 @@ public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons) :
         // CheckAsync's rule: a reader, and for a write a writer too; an unknown item is nobody's.
         return found.Values
             .Where(a => AccessRules.Readers(a.Visibility, a.Owners, adults).Contains(actor)
-                && (kind == AccessKind.Read || AccessRules.Writers(a.Visibility, a.Owners, adults).Contains(actor)))
+                && kind switch
+                {
+                    AccessKind.Read => true,
+                    AccessKind.Own => AccessRules.CanCreate(actor, a.Owners),
+                    _ => AccessRules.Writers(a.Visibility, a.ShareLevel, a.Owners, adults).Contains(actor),
+                })
             .Select(a => a.Id)
             .ToHashSet();
     }

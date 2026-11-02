@@ -8,6 +8,7 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { LocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -78,8 +79,13 @@ export function LoanDetailPage() {
   }
   if (!loan) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
-  const actions = loan.ended ? null : (
-    <Button type="button" data-guide="loans.simulation" onClick={() => { setLandOnSimulation(true); setTab('operations'); }}>{t('loan_detail.simulate')}</Button>
+  const actions = (
+    <>
+      {loan.ended ? null : (
+        <Button type="button" data-guide="loans.simulation" onClick={() => { setLandOnSimulation(true); setTab('operations'); }}>{t('loan_detail.simulate')}</Button>
+      )}
+      <SharingMenu item={id} onAnnounce={setAnnouncement} shared={loan.canWrite && loan.visibility === 'shared'} />
+    </>
   );
 
   return (

@@ -27,7 +27,7 @@ public sealed class GoalsImportSection(
     /// <summary>A goal record, parsed; <paramref name="Funding"/> is filled once its envelopes resolve.</summary>
     private sealed record Parsed(
         string Kind, int? Months, LocalDate? TargetDate, Visibility Visibility, IReadOnlyList<Owner> Owners,
-        IReadOnlyList<(LocalDate On, decimal Amount)> Entries);
+        IReadOnlyList<(LocalDate On, decimal Amount)> Entries, ShareLevel ShareLevel = ShareLevel.View);
 
     private sealed class Plan(StagedEntity entity, GoalRecord record, Parsed parsed, string path)
     {
@@ -120,7 +120,7 @@ public sealed class GoalsImportSection(
                         continue;
                     }
                     var refusal = await ImportSectionKit.ReplaceRefusalAsync(policy, rules, context.Actor, plan.Id, current, parsed.Visibility,
-                        parsed.Owners, currency: null, "goal", path, async () => adults ??= await persons.AdultIdsAsync(ct), ct);
+                        parsed.ShareLevel, parsed.Owners, currency: null, "goal", path, async () => adults ??= await persons.AdultIdsAsync(ct), ct);
                     if (refusal is not null)
                     {
                         issues.Add(refusal);
@@ -168,7 +168,7 @@ public sealed class GoalsImportSection(
             var kept = new List<Funding>(); // D10c: links to envelopes the importer does not see stay as they are
             if (plan.Mode == Mode.Created)
             {
-                var made = await items.CreateAsync(new NewItem("goals", parsed.Kind, plan.Record.Name, parsed.Visibility, null, owners), ct);
+                var made = await items.CreateAsync(new NewItem("goals", parsed.Kind, plan.Record.Name, parsed.Visibility, null, owners, parsed.ShareLevel), ct);
                 if (!made.TryGetValue(out var id))
                     return ImportSectionKit.FailureOf(made);
                 plan.Id = id;
@@ -177,7 +177,7 @@ public sealed class GoalsImportSection(
             }
             else
             {
-                var item = await items.ReplaceAsync(plan.Id, plan.Record.Name, parsed.Visibility, owners, ct);
+                var item = await items.ReplaceAsync(plan.Id, plan.Record.Name, parsed.Visibility, owners, ct, parsed.ShareLevel);
                 if (item.TryGetFailure(out var failure))
                     return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
                 await goals.ReplaceAsync(ToGoal(plan, plan.Stored!.Version), mark, ct);
@@ -242,6 +242,7 @@ public sealed class GoalsImportSection(
                 TargetDate = g.Goal.TargetDate is { } d ? LocalDatePattern.Iso.Format(d) : null,
                 Note = g.Goal.Note,
                 Visibility = head.Visibility == Visibility.Private ? "private" : "shared",
+                ShareLevel = ImportSectionKit.ShareLevelText(head),
                 Ownership = head.Owners
                     .Select(w => new ShareRecord { Person = context.PersonRef(w.PersonId), ShareBp = w.ShareBp })
                     .OrderBy(w => w.Person, StringComparer.Ordinal).ToList(),
@@ -311,6 +312,8 @@ public sealed class GoalsImportSection(
             visibility = Visibility.Private;
         else if (r.Visibility != "shared")
             ok = Invalid(issues, path + ".visibility", "Visibility is shared or private.");
+        if (ImportSectionKit.ShareLevelRefusal(r.ShareLevel, visibility, out var level) is { } refused)
+            ok = Invalid(issues, path + ".share_level", refused);
 
         var owners = new List<Owner>();
         for (var j = 0; j < r.Ownership.Count; j++)
@@ -359,7 +362,7 @@ public sealed class GoalsImportSection(
         }
 
         if (ok)
-            parsed = new Parsed(r.Kind, months, targetDate, visibility, owners, entries);
+            parsed = new Parsed(r.Kind, months, targetDate, visibility, owners, entries, level);
         return ok;
     }
 

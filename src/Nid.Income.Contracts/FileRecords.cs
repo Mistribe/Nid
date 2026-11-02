@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 
 namespace Nid.Income.Contracts;
@@ -17,6 +18,10 @@ public sealed record IncomeSourceRecord
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public string Visibility { get; set; } = "shared";
     public string? EndedOn { get; init; }
+
+    /// <summary>#294: <c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ShareLevel { get; set; }
 }
 
 public sealed record IncomeDurationRecord

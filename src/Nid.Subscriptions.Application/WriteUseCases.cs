@@ -25,7 +25,8 @@ public sealed record CreateSubscriptionCommand(
     IReadOnlyList<PersonId> Users,
     string? Note,
     IReadOnlyList<BillingPhase>? Phases = null,
-    IReadOnlyList<PurchaseDraft>? Purchases = null) : ICommand<ItemId>, ICreatesItem;
+    IReadOnlyList<PurchaseDraft>? Purchases = null,
+    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
@@ -83,7 +84,7 @@ public sealed class CreateSubscriptionHandler(
         await using var transaction = await unitOfWork.BeginAsync(ct);
 
         var created = await items.CreateAsync(
-            new NewItem("subscriptions", "subscription", command.DisplayName, command.Visibility, null, command.Owners), ct);
+            new NewItem("subscriptions", "subscription", command.DisplayName, command.Visibility, null, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
             return created.TryGetFailure(out var refusedOwners) ? Result.Failure<ItemId>(FieldErrors.At(refusedOwners!, "owners")) : created;
 

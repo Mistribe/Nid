@@ -40,10 +40,14 @@ public static class AccessRules
         return Readers(beforeVisibility, before, adults).Any(p => p != actor && adults.Contains(p) && !still.Contains(p));
     }
 
+    /// <summary>
+    /// #294: a shared item at the <see cref="ShareLevel.Edit"/> level is written by every adult; editing is not owning,
+    /// so changing its level, visibility or owners stays with whoever <see cref="CanCreate"/> it.
+    /// </summary>
     public static IReadOnlySet<PersonId> Writers(
-        Visibility visibility, IReadOnlyList<Owner> owners, IReadOnlyCollection<PersonId> adults)
+        Visibility visibility, ShareLevel level, IReadOnlyList<Owner> owners, IReadOnlyCollection<PersonId> adults)
     {
-        if (owners.Any(o => o.Kind == PersonKind.Dependent))
+        if (owners.Any(o => o.Kind == PersonKind.Dependent) || (visibility == Visibility.Shared && level == ShareLevel.Edit))
             return adults.ToHashSet();
 
         // Private items have exactly one owner, a single owner writes alone, several owners write together:

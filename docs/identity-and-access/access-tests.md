@@ -22,6 +22,9 @@ Deux adultes A (admin) et B, un dépendant D. Chaque élément porte des valoris
 | `P-B` | B | privé | B | B |
 | `D` | D | partagé | A, B | A, B |
 | `M-AD` | A + D | partagé | A, B | A, B |
+| `E-A` | A | partagé, niveau `edit` | A, B | A, B |
+
+Les propriétaires de chaque ligne sont aussi la colonne de `Own` (le niveau, la visibilité, les propriétaires) : A seul pour `E-A`, que B écrit sans le posséder ; les deux adultes pour `D`.
 
 Le jeu inclut au moins un élément de chaque `module` / `kind`, pour couvrir chaque requête.
 
@@ -48,6 +51,7 @@ Générateur d'éléments respectant les invariants du Core (`../core-data-model
 - `private` ⇒ `Readers` = {le propriétaire}.
 - `Writers ⊆ Readers`.
 - Un élément avec un propriétaire `dependent` ⇒ les deux adultes écrivent.
+- Sans propriétaire `dependent`, un adulte non propriétaire écrit un élément `shared` **seulement** au niveau `edit`, et ne le possède à aucun niveau (#294).
 - Un adulte ne peut jamais s'ajouter comme propriétaire à l'élément de l'autre (`ChangeOwners`).
 - Passer `private` → `shared` puis `shared` → `private` (propriétaire unique) rend un élément à l'état initial du point de vue des lecteurs.
 - Les totaux du foyer ne dépendent d'aucun élément privé.

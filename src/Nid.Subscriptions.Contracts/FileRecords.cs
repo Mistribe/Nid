@@ -28,6 +28,11 @@ public sealed record SubscriptionRecord
     public required string Name { get; init; }
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public string Visibility { get; set; } = "shared";
+
+    /// <summary>#294: <c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ShareLevel { get; set; }
+
     public IReadOnlyList<string> ServiceUsers { get; set; } = [];
     public required bool AutoRenew { get; init; }
     public string? CancelledAt { get; init; }

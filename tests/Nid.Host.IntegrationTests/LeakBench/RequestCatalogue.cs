@@ -180,6 +180,9 @@ public static class RequestCatalogue
         new(typeof(RevokeMySessionsCommand), false, (_, _) => new RevokeMySessionsCommand()),
         new(typeof(ListMyTokensQuery), false, (_, _) => new ListMyTokensQuery()),
         new(typeof(GetMyPrivateItemsQuery), false, (_, _) => new GetMyPrivateItemsQuery()),
+        new(typeof(GetItemSharingQuery), true, (_, item) => new GetItemSharingQuery(item)),
+        // The twin keeps its level: a level changed here would change what the rest of the matrix expects.
+        new(typeof(SetItemSharingCommand), true, (d, item) => new SetItemSharingCommand(item, d.ShareLevelOf(item))),
         new(typeof(CreateTokenCommand), false, (_, _) => new CreateTokenCommand("bench-token", TokenPresets.Read, 30)),
         new(typeof(RevokeMyTokenCommand), false, (_, _) => new RevokeMyTokenCommand(Guid.NewGuid())),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),

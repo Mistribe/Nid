@@ -83,6 +83,15 @@ internal sealed class FieldReader
         return null;
     }
 
+    /// <summary>#294: <c>view</c> or <c>edit</c>; an omitted level is <c>view</c>, today's sharing.</summary>
+    public ShareLevel? ShareLevel(string? value, string path)
+    {
+        if (value is null) return Nid.Core.Contracts.ShareLevel.View;
+        if (Enum.TryParse<ShareLevel>(value, ignoreCase: true, out var level) && Enum.IsDefined(level)) return level;
+        Add(path, "request.share_level", "The sharing level is view or edit.");
+        return null;
+    }
+
     public string? Text(string? value, string path)
     {
         if (!string.IsNullOrWhiteSpace(value)) return value.Trim();

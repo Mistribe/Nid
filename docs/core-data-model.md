@@ -80,6 +80,7 @@ fx_rate (indépendante)
 | `module`, `kind` | text | ex. `subscriptions` / `subscription`, `investments` / `envelope`, `realestate` / `property`, `realestate` / `loan` |
 | `display_name` | text | **Dénormalisé** : tenu à jour par le module via un contrat, pour que listes et tableau de bord n'interrogent pas les modules |
 | `visibility` | text | `shared` (défaut) ou `private` |
+| `share_level` | text | #294 : `view` (défaut, lecture seule) ou `edit` (lecture et modification) ; toujours `view` sur un élément `private` |
 | `currency` | char(3)? | Devise de l'élément (voir §5.5). Vide pour les éléments qui n'utilisent pas `Valuation` ni `Flow` |
 | `archived_at` | timestamptz? | Masque un élément clos ; son historique reste comptable |
 | `created_at` | timestamptz | |
@@ -96,7 +97,7 @@ fx_rate (indépendante)
 Vérifiés à l'écriture par Core, doublés de tests d'intégration :
 
 - Un `item` a **au moins un** propriétaire ; la somme de ses `share_bp` vaut exactement 10 000 ; chaque `share_bp` est compris entre 1 et 10 000.
-- `visibility = private` ⇒ **exactement un** propriétaire.
+- `visibility = private` ⇒ **exactement un** propriétaire, et `share_level = view` (contrainte `ck_item_share_level`).
 - Ajouter un propriétaire à un élément privé le passe en `shared`.
 - Pas de suppression physique d'un `item` : on l'archive.
 - `module` + `kind` appartiennent au module : Core n'interprète pas ces valeurs.
@@ -114,12 +115,14 @@ Appliquée par `IAccessPolicy` (règles de `Project.md` §5.1) à l'API, au tabl
 
 | Élément | Lecture | Écriture | Total du foyer |
 |---|---|---|---|
-| `shared`, 1 propriétaire | les deux | le propriétaire seul | oui |
+| `shared`, 1 propriétaire, niveau `view` | les deux | le propriétaire seul | oui |
+| `shared`, niveau `edit` | les deux | les deux, sans que l'autre devienne propriétaire | oui, au prorata des parts (inchangées) |
 | `shared`, 2 propriétaires | les deux | les deux | oui, au prorata des parts |
 | `private` (1 propriétaire adulte) | le propriétaire | le propriétaire | non ; compte seulement dans son total « moi » |
 | au moins un propriétaire `dependent` | les deux adultes | les deux adultes (ils gèrent les biens de l'enfant) | oui, ventilé par personne |
 
 - **Changer la visibilité** : le propriétaire seul. `private` → `shared` est possible ; `shared` → `private` est réservé au propriétaire unique.
+- **Changer le niveau de partage** (#294) : les propriétaires seuls, comme les propriétaires eux-mêmes ; un adulte qui modifie un élément au niveau `edit` n'en change ni le niveau, ni la visibilité, ni les propriétaires.
 - **Répartition par personne** : somme des `share_bp` × valeur de l'élément.
 - **Total « moi »** : éléments partagés au prorata de mes parts, plus mes éléments privés.
 - **Personne agissante** : les contrats d'accès (`IAccessPolicy`, `IVisibleItems`) prennent toujours un `adult`. La répartition par personne (« moi », « ma femme », un enfant) couvre tous les `person`, y compris les `dependent`.

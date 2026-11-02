@@ -14,7 +14,7 @@ namespace Nid.RealEstate.Application;
 /// </summary>
 public sealed record CreateLoanCommand(
     string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, string? Lender, string? Note,
-    LoanContract Contract, ItemId? PropertyId = null) : ICommand<ItemId>, ICreatesItem;
+    LoanContract Contract, ItemId? PropertyId = null, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
 /// <summary>Spec 3A2 §4: name, lender, note, linked property and (3F2) the schedule's reference, only what is sent; borrowers, visibility and currency are set at creation.</summary>
 public sealed record EditLoanCommand(ItemId ItemId, string? Name, LoanDetailsChange Change) : ICommand<ItemId>, IItemScoped
@@ -45,7 +45,7 @@ public sealed class CreateLoanHandler(
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(
-            new NewItem("realestate", "loan", command.Name, command.Visibility, command.Currency.Code, command.Owners), ct);
+            new NewItem("realestate", "loan", command.Name, command.Visibility, command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (created.TryGetFailure(out failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "borrowers")); // disposed without commit: nothing is left
         created.TryGetValue(out var id);

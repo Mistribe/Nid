@@ -3,7 +3,8 @@ import { z } from 'zod';
 import '@/locales/forms';
 
 export type OwnerRow = { personId: string; share: string };
-export type OwnershipValues = { visibility: 'shared' | 'private'; owners: OwnerRow[] };
+/** #294: `shareLevel` only means something on a shared item; absent is `view`. */
+export type OwnershipValues = { visibility: 'shared' | 'private'; owners: OwnerRow[]; shareLevel?: 'view' | 'edit' };
 
 /**
  * A share typed in percent as basis points, by reading the text (`33.33` → 3333): no floating point touches it.
@@ -20,6 +21,7 @@ export function percentToBp(text: string): number | null {
 export function ownershipShape(t: TFunction) {
   return {
     visibility: z.enum(['shared', 'private']),
+    shareLevel: z.enum(['view', 'edit']).optional(),
     owners: z.array(z.object({ personId: z.string().min(1, t('edit.required')), share: z.string() })).min(1, t('edit.required')),
   };
 }
@@ -33,8 +35,14 @@ export function checkOwnership(v: OwnershipValues, ctx: z.RefinementCtx, t: TFun
     ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.core_private_single_owner') });
 }
 
-export function ownershipToWire(v: OwnershipValues): { visibility: 'shared' | 'private'; owners: { personId: string; shareBp: number }[] } {
-  return { visibility: v.visibility, owners: v.owners.map((o) => ({ personId: o.personId, shareBp: percentToBp(o.share) ?? 0 })) };
+/** `shareLevel` goes only at `edit`: the server reads an omitted level as `view`, and a private item has none. */
+export function ownershipToWire(v: OwnershipValues): {
+  visibility: 'shared' | 'private'; shareLevel?: 'edit'; owners: { personId: string; shareBp: number }[];
+} {
+  return {
+    visibility: v.visibility, ...(v.visibility === 'shared' && v.shareLevel === 'edit' ? { shareLevel: 'edit' as const } : {}),
+    owners: v.owners.map((o) => ({ personId: o.personId, shareBp: percentToBp(o.share) ?? 0 })),
+  };
 }
 
 /** `owners[1].shareBp` → `owners.1.share`, `visibility` / `owners` as themselves; undefined otherwise. */

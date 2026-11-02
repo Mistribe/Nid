@@ -38,6 +38,10 @@ public sealed record PropertyRecord
     public string? PostalAddress { get; init; }
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public string Visibility { get; set; } = "shared";
+
+    /// <summary>#294: <c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ShareLevel { get; set; }
 }
 
 /// <summary>A planned cost's period: <c>{ count, unit }</c>, months or years.</summary>

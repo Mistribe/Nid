@@ -110,6 +110,7 @@ Un fournisseur ainsi créé garde `import_ref`/`import_hash` comme toute autre e
 | `name` | string | |
 | `ownership` | `[{ person, share_bp }]` | Références vers `persons`. Somme des `share_bp` = 10 000 |
 | `visibility` | string | `shared` (défaut) ou `private` (un seul propriétaire adulte) |
+| `share_level` | string? | #294 : `view` (défaut, omis à l'export) ou `edit` ; jamais `edit` sur un élément `private`. Vaut pour toutes les sections d'éléments (enveloppes, sources de revenu, biens, prêts, objectifs, abonnements) |
 | `service_users` | `[person]` | Références vers `persons`, `dependent` possibles |
 | `auto_renew` | bool | |
 | `cancelled_at` | date? | |
@@ -324,7 +325,7 @@ Une ligne de même ISIN et de même date qu'une répartition connue la **remplac
   - même `id`, contenu différent → `conflict`, **rien n'est écrasé** ;
   - option `replace` : le contenu de l'entité est mis à jour, l'ancienne valeur restant dans l'audit.
 - Une entité importée par l'importeur et qu'il ne voit plus (ses droits ont changé) est refusée (`import.not_permitted`) plutôt que dupliquée.
-- **(1F3b)** `replace` vaut pour tout l'import : chaque entité en conflit est remplacée, avec le droit d'écriture sur l'élément ; le rapport la compte en `replaced`. Un fournisseur personnalisé archivé reste en conflit. Un remplacement ne retire pas un élément à l'autre adulte : il ne peut ni retirer des propriétaires un adulte autre que la personne qui importe (`import.not_permitted` sur `ownership`), ni rendre privé un élément qu'un autre adulte voit aujourd'hui (`import.not_permitted` sur `visibility`).
+- **(1F3b)** `replace` vaut pour tout l'import : chaque entité en conflit est remplacée, avec le droit d'écriture sur l'élément ; le rapport la compte en `replaced`. Un fournisseur personnalisé archivé reste en conflit. Un remplacement ne retire pas un élément à l'autre adulte : il ne peut ni retirer des propriétaires un adulte autre que la personne qui importe (`import.not_permitted` sur `ownership`), ni rendre privé un élément qu'un autre adulte voit aujourd'hui (`import.not_permitted` sur `visibility`). **(#294)** Changer la visibilité, le niveau de partage ou les propriétaires est réservé aux propriétaires : un adulte qui ne fait que modifier l'élément (niveau `edit`) le remplace sans y toucher, sinon `import.not_permitted` sur `ownership`.
 
 ## 9. Provenance, audit et rapport
 

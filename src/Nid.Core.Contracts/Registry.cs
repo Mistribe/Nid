@@ -11,7 +11,8 @@ public sealed record NewItem(
     string DisplayName,
     Visibility Visibility,
     string? Currency,
-    IReadOnlyList<OwnerShare> Owners);
+    IReadOnlyList<OwnerShare> Owners,
+    ShareLevel ShareLevel = ShareLevel.View);
 
 /// <summary>An owner of an item on the wire, as the lists show it so two items of the same name can be told apart.</summary>
 public sealed record ItemOwnerView(Guid PersonId, int ShareBp);
@@ -19,6 +20,9 @@ public sealed record ItemOwnerView(Guid PersonId, int ShareBp);
 public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibility, IReadOnlyList<Owner> Owners)
 {
     public IReadOnlyList<ItemOwnerView> OwnerViews() => Owners.Select(o => new ItemOwnerView(o.PersonId.Value, o.ShareBp)).ToList();
+
+    /// <summary>#294: <see cref="ShareLevel.View"/> for a private item.</summary>
+    public ShareLevel ShareLevel { get; init; }
 
     /// <summary>2B1a: set when the item is archived (a closed envelope); null while it is active.</summary>
     public Instant? ArchivedAt { get; init; }
@@ -48,6 +52,12 @@ public enum AccessKind
 {
     Read,
     Write,
+
+    /// <summary>
+    /// #294: what editing does not give — the item's sharing level, visibility and owners. Its owners, or any adult when every
+    /// owner is a dependent (<c>AccessRules.CanCreate</c>): an adult who may only edit a shared item is refused.
+    /// </summary>
+    Own,
 }
 
 public interface IPersonRegistry
@@ -112,8 +122,17 @@ public interface IItemRegistry
     /// <summary>
     /// 1F3b: an import's replacement of an item it created before. Same rules as a creation (OwnershipRules); the row is
     /// updated in place, its owners reconciled (removed, changed, added), so the audit keeps the previous values.
+    /// <paramref name="shareLevel"/> null keeps the item's level; a private item always ends at <see cref="ShareLevel.View"/>.
+    /// Checks no access: whoever changes the visibility, the owners or the level must own the item (<see cref="IItemRules.CanCreate"/>).
     /// </summary>
-    Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct);
+    Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct,
+        ShareLevel? shareLevel = null);
+
+    /// <summary>
+    /// #294: sets a shared item's level. A private item has none: <see cref="ShareLevel.Edit"/> on it is
+    /// <see cref="ItemCodes.PrivateHasNoLevel"/>, <see cref="ShareLevel.View"/> changes nothing. Checks no access.
+    /// </summary>
+    Task<Result> SetShareLevelAsync(ItemId id, ShareLevel level, CancellationToken ct);
 
     /// <summary>2B1a: archives the item (a closed envelope). Checks no access: the caller has.</summary>
     Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct);
@@ -122,11 +141,17 @@ public interface IItemRegistry
     Task<Result> UnarchiveAsync(ItemId id, CancellationToken ct);
 }
 
+public static class ItemCodes
+{
+    /// <summary>#294: a private item has no sharing level. HTTP 422.</summary>
+    public const string PrivateHasNoLevel = "core.private_has_no_level";
+}
+
 public interface IAccessPolicy
 {
     /// <summary>
     /// <c>NotFoundFailure</c> when the actor cannot read the item (existence is not disclosed),
-    /// <c>UnauthorizedFailure</c> when the actor can read but not write.
+    /// <c>UnauthorizedFailure</c> when the actor can read but not write (or not own, for <see cref="AccessKind.Own"/>).
     /// </summary>
     Task<Result> CheckAsync(PersonId actor, ItemId item, AccessKind kind, CancellationToken ct);
 

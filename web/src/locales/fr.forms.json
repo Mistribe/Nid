@@ -261,5 +261,17 @@
     "website_too_long": "{{max}} caractères au plus.",
     "cancel": "Annuler",
     "create": "Créer"
+  },
+  "sharing": {
+    "level": "Partage",
+    "view": "Lecture seule",
+    "edit": "Lecture et modification",
+    "view_effect": "L’autre adulte le consulte ; seuls les propriétaires le modifient.",
+    "edit_effect": "L’autre adulte le consulte et le modifie (saisies, documents, propositions), sans en devenir propriétaire.",
+    "menu": "Partage…",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "saved": "Partage enregistré.",
+    "not_owner": "Seuls les propriétaires changent le partage."
   }
 }

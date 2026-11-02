@@ -563,6 +563,194 @@
         }
       }
     },
+    "/api/v1/core/items/{id}/sharing": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemSharingView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharingBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemSharingView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/core/me/tokens": {
       "get": {
         "tags": [
@@ -26517,6 +26705,12 @@
               "null",
               "string"
             ]
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -26583,6 +26777,12 @@
             "items": {
               "$ref": "#/components/schemas/OwnerBody"
             }
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -26636,6 +26836,12 @@
             "items": {
               "$ref": "#/components/schemas/IncomePhaseBody"
             }
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -26742,6 +26948,12 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -26859,6 +27071,12 @@
               "null",
               "string"
             ]
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -26959,6 +27177,12 @@
             "items": {
               "$ref": "#/components/schemas/PurchaseInput"
             }
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -33415,6 +33639,25 @@
           "shareBp": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ItemSharingView": {
+        "required": [
+          "visibility",
+          "shareLevel",
+          "canChange"
+        ],
+        "type": "object",
+        "properties": {
+          "visibility": {
+            "type": "string"
+          },
+          "shareLevel": {
+            "type": "string"
+          },
+          "canChange": {
+            "type": "boolean"
           }
         }
       },
@@ -41945,6 +42188,17 @@
         "type": "object",
         "properties": {
           "role": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SharingBody": {
+        "type": "object",
+        "properties": {
+          "shareLevel": {
             "type": [
               "null",
               "string"

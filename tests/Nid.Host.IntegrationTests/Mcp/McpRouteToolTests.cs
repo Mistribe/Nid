@@ -37,6 +37,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "DELETE /api/v1/subscriptions/{id:guid}/insurance",
         // A holding's breakdown is proposed by propose_breakdown (from its factsheet, with its document), by ISIN; changing or deleting one is a click.
         "/holdings/{holdingId:guid}/breakdown",
+        // #294: who may edit an item is its owners' click in the web app, never a proposal.
+        "PUT /api/v1/core/items/{id:guid}/sharing",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)

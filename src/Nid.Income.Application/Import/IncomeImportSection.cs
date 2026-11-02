@@ -323,7 +323,7 @@ public sealed class IncomeImportSection(
         {
             var parsed = source.Parsed;
             var made = await items.CreateAsync(new NewItem("income", "source", source.Record.Name, parsed.Visibility, parsed.Currency.Code,
-                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList()), ct);
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), parsed.ShareLevel), ct);
             if (!made.TryGetValue(out var id))
                 return ImportSectionKit.FailureOf(made);
 
@@ -345,7 +345,7 @@ public sealed class IncomeImportSection(
         {
             var parsed = source.Parsed;
             var item = await items.ReplaceAsync(source.Id, source.Record.Name, parsed.Visibility,
-                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct, parsed.ShareLevel);
             if (item.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
 
@@ -417,6 +417,7 @@ public sealed class IncomeImportSection(
                     .Select(w => new ShareRecord { Person = context.PersonRef(w.PersonId), ShareBp = w.ShareBp })
                     .OrderBy(w => w.Person, StringComparer.Ordinal).ToList(),
                 Visibility = head.Visibility == Visibility.Private ? "private" : "shared",
+                ShareLevel = ImportSectionKit.ShareLevelText(head),
                 EndedOn = s.Source.EndedOn is { } e ? LocalDatePattern.Iso.Format(e) : null,
             });
         }
@@ -486,7 +487,7 @@ public sealed class IncomeImportSection(
     private Task<ImportIssue?> ReplaceRefusalAsync(
         PersonId actor, ItemId id, ItemAccess current, ParsedSource parsed, string path,
         Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)
-        => ImportSectionKit.ReplaceRefusalAsync(policy, rules, actor, id, current, parsed.Visibility, parsed.Owners,
+        => ImportSectionKit.ReplaceRefusalAsync(policy, rules, actor, id, current, parsed.Visibility, parsed.ShareLevel, parsed.Owners,
             parsed.Currency.Code, "income source", path, adults, ct);
 
     private static SectionCounts Count(Mode mode) => mode switch

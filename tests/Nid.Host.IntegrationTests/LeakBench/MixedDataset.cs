@@ -36,7 +36,7 @@ public sealed class MixedDataset
     /// than against itself. <c>AccessRulesPropertyTests</c> checks the rules themselves.
     /// </summary>
     private sealed record Row(
-        string Name, string Label, Visibility Visibility, string[] Owners, string[] Readers, string[] Writers);
+        string Name, string Label, Visibility Visibility, string[] Owners, string[] Readers, string[] Writers, ShareLevel Level = ShareLevel.View);
 
     private static readonly Row[] Rows =
     [
@@ -47,6 +47,7 @@ public sealed class MixedDataset
         new("P-B", PrivateLabelB, Visibility.Private, ["B"], ["B"], ["B"]),
         new("D", "dependent-owned", Visibility.Shared, ["D"], ["A", "B"], ["A", "B"]),
         new("M-AD", "mixed-ad", Visibility.Shared, ["A", "D"], ["A", "B"], ["A", "B"]),
+        new("E-A", "edit-a", Visibility.Shared, ["A"], ["A", "B"], ["A", "B"], ShareLevel.Edit),
     ];
 
     private readonly Dictionary<ItemId, string> names;
@@ -212,6 +213,15 @@ public sealed class MixedDataset
                 RequestCatalogue.BenchProjection()));
             projectionScenarios[row.Name] = (ItemId?)projection
                 ?? throw new InvalidOperationException($"Seeding {row.Name}'s projection scenario failed: {projectionRefused!.Code}");
+
+            // #294: the row's level on every twin, as its owner's « Partage » dialog would set it.
+            if (row.Level == ShareLevel.Edit)
+                await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+                {
+                    Guid[] twins = [items[row.Name].Value, envelopes[row.Name].Value, incomeSources[row.Name].Value, loans[row.Name].Value,
+                        properties[row.Name].Value, goals[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value];
+                    await core.Items.Where(i => twins.Contains(i.Id)).ExecuteUpdateAsync(s => s.SetProperty(i => i.ShareLevel, "edit"));
+                }
 
             // One value and one flow per twin, through the real requests: without facts the valuations and flows
             // export pages are empty for everyone and the output guard would check nothing on them. The label in
@@ -496,6 +506,14 @@ public sealed class MixedDataset
                 Goals[r.Name],
             })
             .ToHashSet();
+
+    /// <summary>The §2 level of a twin's row.</summary>
+    public ShareLevel ShareLevelOf(ItemId twin)
+        => Rows.Single(r => r.Name == NameOf(twin).Split(' ')[0]).Level;
+
+    /// <summary>#294: whether access-tests.md §2 makes this actor an owner of this row — or every owner is a dependent.</summary>
+    public bool ExpectedOwned(string name, PersonId actor)
+        => Rows.Single(r => r.Name == name) is var row && (row.Owners.Contains(NameOf(actor)) || row.Owners.All(o => o == "D"));
 
     /// <summary>Whether access-tests.md §2 says this actor may change this item.</summary>
     public bool ExpectedWritable(string name, PersonId actor)

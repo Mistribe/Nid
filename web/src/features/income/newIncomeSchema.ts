@@ -20,6 +20,7 @@ export function newIncomeSchema(t: TFunction) {
     // No default (spec §5): the person answers, or nothing is sent.
     visibility: z.enum(['shared', 'private'], { error: t('income_form.visibility_required') }),
     owners: ownershipShape(t).owners,
+    shareLevel: ownershipShape(t).shareLevel,
     phases: z.array(phaseShape(t)),
   }).superRefine((v, ctx) => {
     checkOwnership(v, ctx, t);

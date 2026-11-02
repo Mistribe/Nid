@@ -622,6 +622,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/items/{id}/sharing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemSharingView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SharingBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemSharingView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/me/tokens": {
         parameters: {
             query?: never;
@@ -23180,6 +23350,7 @@ export interface components {
             opening?: null | components["schemas"]["OpeningBody"];
             firstValuation?: null | components["schemas"]["FirstValuationBody"];
             premiumsBefore2017?: null | string;
+            shareLevel?: null | string;
         };
         CreateGoalBody: {
             name?: null | string;
@@ -23192,6 +23363,7 @@ export interface components {
             funding?: null | components["schemas"]["GoalFundingBody"][];
             visibility?: null | string;
             owners?: null | components["schemas"]["OwnerBody"][];
+            shareLevel?: null | string;
         };
         CreateIncomeSourceBody: {
             displayName: string;
@@ -23202,6 +23374,7 @@ export interface components {
             payerLabel?: null | string;
             note?: null | string;
             phases?: null | components["schemas"]["IncomePhaseBody"][];
+            shareLevel?: null | string;
         };
         CreateLoanBody: {
             name?: null | string;
@@ -23221,6 +23394,7 @@ export interface components {
             insurances?: null | components["schemas"]["LoanInsuranceBody"][];
             /** Format: uuid */
             propertyId?: null | string;
+            shareLevel?: null | string;
         };
         CreatePropertyBody: {
             name?: null | string;
@@ -23242,6 +23416,7 @@ export interface components {
             note?: null | string;
             energyClass?: null | string;
             postalAddress?: null | string;
+            shareLevel?: null | string;
         };
         CreateProviderBody: {
             name: string;
@@ -23259,6 +23434,7 @@ export interface components {
             note?: null | string;
             phases?: null | components["schemas"]["PhaseInput"][];
             purchases?: null | components["schemas"]["PurchaseInput"][];
+            shareLevel?: null | string;
         };
         CurrentTenancyView: {
             label: string;
@@ -24747,6 +24923,11 @@ export interface components {
             personId: string;
             /** Format: int32 */
             shareBp: number;
+        };
+        ItemSharingView: {
+            visibility: string;
+            shareLevel: string;
+            canChange: boolean;
         };
         JobDetailView: {
             key: string;
@@ -26737,6 +26918,9 @@ export interface components {
         };
         SetLinkRoleBody: {
             role?: null | string;
+        };
+        SharingBody: {
+            shareLevel?: null | string;
         };
         SimulateBody: {
             scope?: null | string;

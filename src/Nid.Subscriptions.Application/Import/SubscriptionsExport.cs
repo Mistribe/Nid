@@ -47,6 +47,7 @@ internal sealed class SubscriptionsExport(IVisibleItems visible, ISubscriptionSt
                     .Select(o => new ShareRecord { Person = context.PersonRef(o.PersonId), ShareBp = o.ShareBp })
                     .OrderBy(o => o.Person, StringComparer.Ordinal).ToList(),
                 Visibility = heads[s.Id].Visibility == Visibility.Private ? "private" : "shared",
+                ShareLevel = ImportSectionKit.ShareLevelText(heads[s.Id]),
                 ServiceUsers = s.Users.Select(context.PersonRef).Order(StringComparer.Ordinal).ToList(),
                 AutoRenew = s.AutoRenew,
                 CancelledAt = s.CancelledAt is { } c ? Date(c) : null,

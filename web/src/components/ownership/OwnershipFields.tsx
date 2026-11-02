@@ -21,6 +21,7 @@ type Person = components['schemas']['PersonDto'];
  * something RHF's generics can see on their own.
  *
  * The income form asks its own visibility question (2C2a design §5) and passes `withVisibility={false}`.
+ * #294: a shared item's level (view only, or view and edit) follows the visibility, whoever asks it.
  */
 export function OwnershipFields<T extends OwnershipValues>({ form, persons, withVisibility = true }: { form: UseFormReturn<T>; persons: Person[]; withVisibility?: boolean }) {
   const { t } = useTranslation();
@@ -31,6 +32,9 @@ export function OwnershipFields<T extends OwnershipValues>({ form, persons, with
   const ownersError = e.owners?.message ?? e.owners?.root?.message;
   const visibilityId = useId();
   const effectId = useId();
+  const levelId = useId();
+  const levelEffectId = useId();
+  const shared = form.watch('visibility' as Path<T>) === 'shared';
   return (
     <>
       {withVisibility ? (
@@ -42,6 +46,18 @@ export function OwnershipFields<T extends OwnershipValues>({ form, persons, with
           )} />
           <p id={effectId} className="text-sm text-muted-foreground">
             {form.watch('visibility' as Path<T>) === 'private' ? t('wizard.private_effect') : t('wizard.shared_effect')}
+          </p>
+        </div>
+      ) : null}
+      {shared ? (
+        <div className="space-y-1">
+          <span id={levelId} className="block text-sm">{t('sharing.level')}</span>
+          <Controller control={form.control} name={'shareLevel' as Path<T>} render={({ field }) => (
+            <Segmented aria-labelledby={levelId} aria-describedby={levelEffectId} value={(field.value as string | undefined) ?? 'view'} onValueChange={field.onChange}
+              options={(['view', 'edit'] as const).map((v) => ({ value: v, label: t(`sharing.${v}`) }))} />
+          )} />
+          <p id={levelEffectId} className="text-sm text-muted-foreground">
+            {t(form.watch('shareLevel' as Path<T>) === 'edit' ? 'sharing.edit_effect' : 'sharing.view_effect')}
           </p>
         </div>
       ) : null}

@@ -85,14 +85,30 @@ public static class ImportSectionKit
         => !(await policy.CheckAsync(actor, item, kind, ct)).TryGetFailure(out _);
 
     /// <summary>
-    /// 1F3b spec §3.2: replacing is a write, on the item as it is now, that never takes it from another adult. The first
+    /// #294: a record's <c>share_level</c>: omitted or <c>view</c> (every file written before it), or <c>edit</c> on a shared item.
+    /// The refusal's message, or null with <paramref name="level"/> set.
+    /// </summary>
+    public static string? ShareLevelRefusal(string? value, Visibility visibility, out ShareLevel level)
+    {
+        level = value == "edit" ? ShareLevel.Edit : ShareLevel.View;
+        if (value is not (null or "view" or "edit"))
+            return "The sharing level is view or edit.";
+        return level == ShareLevel.Edit && visibility == Visibility.Private ? "A private item has no sharing level." : null;
+    }
+
+    /// <summary>#294: an item's <c>share_level</c> in the file, omitted at the view level so a file reads as it did before.</summary>
+    public static string? ShareLevelText(ItemAccess item) => item.ShareLevel == ShareLevel.Edit ? "edit" : null;
+
+    /// <summary>
+    /// 1F3b spec §3.2: replacing is a write, on the item as it is now, that never takes it from another adult; #294: changing its
+    /// visibility, sharing level or owners is its owners' alone, not an editor's (<see cref="IItemRules.CanCreate"/>). The first
     /// refusal, or null. <paramref name="current"/> null (the item vanished) skips the owner and visibility checks;
     /// <paramref name="currency"/> null skips the currency check, otherwise a replacement keeps the item's currency.
     /// <paramref name="noun"/> is the item's name without article ("envelope").
     /// </summary>
     public static async Task<ImportIssue?> ReplaceRefusalAsync(
         IAccessPolicy policy, IItemRules rules, PersonId actor, ItemId id, ItemAccess? current,
-        Visibility visibility, IReadOnlyList<Owner> owners, string? currency, string noun, string path,
+        Visibility visibility, ShareLevel shareLevel, IReadOnlyList<Owner> owners, string? currency, string noun, string path,
         Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)
     {
         if (!await CanAsync(policy, actor, id, AccessKind.Write, ct))
@@ -100,6 +116,11 @@ public static class ImportSectionKit
                 $"This replaces {(noun[0] is 'a' or 'e' or 'i' or 'o' or 'u' ? "an" : "a")} {noun} you cannot change.", path);
         if (current is null)
             return null;
+        var level = visibility == Visibility.Private ? ShareLevel.View : shareLevel;
+        var sameOwners = current.Owners.Select(o => (o.PersonId, o.ShareBp)).ToHashSet().SetEquals(owners.Select(o => (o.PersonId, o.ShareBp)));
+        if ((current.Visibility != visibility || current.ShareLevel != level || !sameOwners) && !rules.CanCreate(actor, current.Owners))
+            return ImportIssue.Error(ImportCodes.NotPermitted,
+                $"This replacement changes the sharing or the owners of a {noun} you do not own.", path + ".ownership");
         if (rules.DropsAnotherAdultOwner(actor, current.Owners, owners))
             return ImportIssue.Error(ImportCodes.NotPermitted, "This replacement removes another adult from the owners.", path + ".ownership");
         if (rules.TakesReadAway(actor, current.Visibility, current.Owners, visibility, owners, await adults()))

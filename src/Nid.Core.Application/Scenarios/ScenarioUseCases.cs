@@ -207,7 +207,7 @@ public sealed class CreateScenarioHandler(IItemRegistry items, IScenarioStore st
 
 [RequestHandler<ReplaceScenarioCommand, ScenarioView>]
 public sealed class ReplaceScenarioHandler(
-    IItemRegistry items, IScenarioStore store, ScenarioFactsReader facts, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
+    IItemRegistry items, IItemRules rules, IScenarioStore store, ScenarioFactsReader facts, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
     : IRequestHandler<ReplaceScenarioCommand, ScenarioView>
 {
     public async ValueTask<Result<ScenarioView>> HandleAsync(ReplaceScenarioCommand command, CancellationToken ct = default)
@@ -215,6 +215,9 @@ public sealed class ReplaceScenarioHandler(
         var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure)) return Result.Failure<ScenarioView>(failure!);
         loaded.TryGetValue(out var found);
+        // #294: an adult who may edit the scenario does not own it: its visibility stays with its owners.
+        if (command.Visibility != found.Item.Visibility && !rules.CanCreate(actor.Current!.PersonId!.Value, found.Item.Owners))
+            return Result.Failure<ScenarioView>(new UnauthorizedFailure("Only the scenario's owners change its visibility.", null));
         if (ScenarioResults.Name(command.Name) is { } unnamed) return Result.Failure<ScenarioView>(unnamed);
         var (refused, visible) = await facts.RefusalAsync(command.Document, command.Scope, ct);
         if (refused is not null) return Result.Failure<ScenarioView>(refused);
