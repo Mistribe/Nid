@@ -229,7 +229,7 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
 
         Assert.Equal(HttpStatusCode.Created, recorded.StatusCode);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal("dividend", (await core.Flows.SingleAsync(f => f.ItemId == classified.Value && f.Kind == "withdrawal")).Category);
+        Assert.Equal("dividend", (await core.Flows.SingleAsync(f => f.ItemId == classified.Value && f.Kind == "withdrawal", TestContext.Current.CancellationToken)).Category);
         Assert.Equal(await GainAsync(app, plain), await GainAsync(app, classified));
     }
 
@@ -258,7 +258,7 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
         Assert.Equal(HttpStatusCode.OK, corrected.StatusCode);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         var replacement = (await JsonAsync(corrected)).GetProperty("id").GetGuid();
-        Assert.Equal("interest", (await core.Flows.SingleAsync(f => f.Id == replacement)).Category);
+        Assert.Equal("interest", (await core.Flows.SingleAsync(f => f.Id == replacement, TestContext.Current.CancellationToken)).Category);
     }
 
     [Fact]
@@ -270,7 +270,7 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
         var transfer = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
             new { from = from.Value, to = to.Value, occurredOn = "2025-06-15", amount = Eur("100.00") }))).GetProperty("id").GetGuid();
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var leg = await core.Flows.SingleAsync(f => f.ExternalRef == $"transfer:{transfer}" && f.Kind == "withdrawal");
+        var leg = await core.Flows.SingleAsync(f => f.ExternalRef == $"transfer:{transfer}" && f.Kind == "withdrawal", TestContext.Current.CancellationToken);
         var url = $"/api/v1/investments/envelopes/{from.Value}/flows/{leg.Id}";
 
         await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url,

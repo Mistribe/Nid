@@ -82,7 +82,7 @@ public class PropertyIncomeTests(PostgresFixture fixture) : IClassFixture<Postgr
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             Assert.True((await scope.ServiceProvider.GetRequiredService<IItemRegistry>()
-                .ArchiveAsync(new ItemId(id), Instant.FromUtc(2025, 10, 2, 0, 0), default)).IsSuccess);
+                .ArchiveAsync(new ItemId(id), Instant.FromUtc(2025, 10, 2, 0, 0), TestContext.Current.CancellationToken)).IsSuccess);
         }
 
         var source = Assert.Single(await IncomeAsync(app, app.AdultA));
