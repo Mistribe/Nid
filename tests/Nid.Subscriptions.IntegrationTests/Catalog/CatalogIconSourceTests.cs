@@ -53,7 +53,7 @@ public class CatalogIconSourceTests
     {
         var handler = new StubHandler(Answer(HttpStatusCode.OK, IconSamples.Png(1024, 512), "image/png"));
 
-        var icon = (await Source(handler).FetchAsync(Logo, default)).Ok();
+        var icon = (await Source(handler).FetchAsync(Logo, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal((256, 128), (icon.Width, icon.Height));
         Assert.Equal([new Uri(Logo)], handler.Requested);
@@ -65,7 +65,7 @@ public class CatalogIconSourceTests
     {
         var handler = new StubHandler(Answer(HttpStatusCode.OK, IconSamples.Png(64, 64), "image/jpeg"));
 
-        var icon = (await Source(handler).FetchAsync("https://1000logos.net/Google-Logo.jpg", default)).Ok();
+        var icon = (await Source(handler).FetchAsync("https://1000logos.net/Google-Logo.jpg", TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(IconProcessor.Process(IconSamples.Png(64, 64)).Ok().Hash, icon.Hash);
     }
@@ -74,7 +74,7 @@ public class CatalogIconSourceTests
     public async Task An_svg_is_refused_whatever_it_is_served_as()
     {
         var handler = new StubHandler(Answer(HttpStatusCode.OK, IconSamples.Svg, "image/png"));
-        Assert.Equal(IconCodes.UnsupportedFormat, (await Source(handler).FetchAsync("https://www.nounou-top.fr/logo.svg", default)).FailureCode());
+        Assert.Equal(IconCodes.UnsupportedFormat, (await Source(handler).FetchAsync("https://www.nounou-top.fr/logo.svg", TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public class CatalogIconSourceTests
     {
         var handler = new StubHandler(Answer(HttpStatusCode.OK, IconSamples.Png(64, 64)));
 
-        Assert.Equal(IconCodes.HostNotAllowed, (await Source(handler).FetchAsync("https://cdn.example.com/netflix.png", default)).FailureCode());
+        Assert.Equal(IconCodes.HostNotAllowed, (await Source(handler).FetchAsync("https://cdn.example.com/netflix.png", TestContext.Current.CancellationToken)).FailureCode());
         Assert.Empty(handler.Requested);
     }
 
@@ -92,7 +92,7 @@ public class CatalogIconSourceTests
     {
         var handler = new StubHandler(RedirectTo("https://cdn.example.com/netflix.png"), Answer(HttpStatusCode.OK, IconSamples.Png(64, 64)));
 
-        Assert.Equal(IconCodes.HostNotAllowed, (await Source(handler).FetchAsync(Logo, default)).FailureCode());
+        Assert.Equal(IconCodes.HostNotAllowed, (await Source(handler).FetchAsync(Logo, TestContext.Current.CancellationToken)).FailureCode());
         Assert.Equal([new Uri(Logo)], handler.Requested); // nothing fetched from the CDN
     }
 
@@ -101,7 +101,7 @@ public class CatalogIconSourceTests
     {
         var handler = new StubHandler(RedirectTo("https://upload.wikimedia.org/netflix.png"), Answer(HttpStatusCode.OK, IconSamples.Png(64, 64)));
 
-        (await Source(handler).FetchAsync(Logo, default)).Ok();
+        (await Source(handler).FetchAsync(Logo, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal([new Uri(Logo), new Uri("https://upload.wikimedia.org/netflix.png")], handler.Requested);
     }
@@ -110,7 +110,7 @@ public class CatalogIconSourceTests
     public async Task An_http_url_is_refused()
     {
         var handler = new StubHandler(Answer(HttpStatusCode.OK, IconSamples.Png(64, 64)));
-        Assert.Equal(IconCodes.NotHttps, (await Source(handler).FetchAsync("http://1000logos.net/netflix.png", default)).FailureCode());
+        Assert.Equal(IconCodes.NotHttps, (await Source(handler).FetchAsync("http://1000logos.net/netflix.png", TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class CatalogIconSourceTests
         var http = new SafeHttpClient(
             new HttpMessageInvoker(OutboundHandler.Create(new FixedResolver("10.0.0.1"))), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance);
 
-        Assert.Equal(IconCodes.AddressRefused, (await new CatalogIconSource(http).FetchAsync(Logo, default)).FailureCode());
+        Assert.Equal(IconCodes.AddressRefused, (await new CatalogIconSource(http).FetchAsync(Logo, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Theory]
@@ -129,21 +129,21 @@ public class CatalogIconSourceTests
     public async Task An_error_answer_is_an_http_status(HttpStatusCode status)
     {
         var handler = new StubHandler(Answer(status, "<html>no</html>"u8.ToArray(), "text/html"));
-        Assert.Equal(IconCodes.HttpStatus, (await Source(handler).FetchAsync(Logo, default)).FailureCode());
+        Assert.Equal(IconCodes.HttpStatus, (await Source(handler).FetchAsync(Logo, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]
     public async Task More_than_512_KB_is_too_large()
     {
         var handler = new StubHandler(Answer(HttpStatusCode.OK, new byte[IconLimits.MaxBytes + 1], "image/png"));
-        Assert.Equal(IconCodes.TooLarge, (await Source(handler).FetchAsync(Logo, default)).FailureCode());
+        Assert.Equal(IconCodes.TooLarge, (await Source(handler).FetchAsync(Logo, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]
     public async Task A_host_that_cannot_be_reached_is_unreachable()
     {
         var handler = new StubHandler((_, _) => throw new HttpRequestException("connection refused"));
-        Assert.Equal(IconCodes.Unreachable, (await Source(handler).FetchAsync(Logo, default)).FailureCode());
+        Assert.Equal(IconCodes.Unreachable, (await Source(handler).FetchAsync(Logo, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class CatalogIconSourceTests
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        Assert.Equal(IconCodes.Unreachable, (await Source(handler, TimeSpan.FromMilliseconds(200)).FetchAsync(Logo, default)).FailureCode());
+        Assert.Equal(IconCodes.Unreachable, (await Source(handler, TimeSpan.FromMilliseconds(200)).FetchAsync(Logo, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]

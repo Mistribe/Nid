@@ -12,7 +12,7 @@ public class AssetStoreConfigurationTests(PostgresFixture fixture) : IClassFixtu
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        var hash = await app.Services.GetRequiredService<IAssetStore>().PutAsync(new byte[] { 1, 2, 3 }, "image/webp", default);
+        var hash = await app.Services.GetRequiredService<IAssetStore>().PutAsync(new byte[] { 1, 2, 3 }, "image/webp", TestContext.Current.CancellationToken);
 
         Assert.True(File.Exists(Path.Combine(app.AssetsRoot, hash[..2], hash + ".webp")));
         Assert.StartsWith(Path.GetTempPath(), app.AssetsRoot, StringComparison.Ordinal);
@@ -25,7 +25,7 @@ public class AssetStoreConfigurationTests(PostgresFixture fixture) : IClassFixtu
         await using (var app = await NidApp.StartAsync(fixture))
         {
             root = app.AssetsRoot;
-            await app.Services.GetRequiredService<IAssetStore>().PutAsync(new byte[] { 4 }, "image/webp", default);
+            await app.Services.GetRequiredService<IAssetStore>().PutAsync(new byte[] { 4 }, "image/webp", TestContext.Current.CancellationToken);
         }
 
         Assert.False(Directory.Exists(root));

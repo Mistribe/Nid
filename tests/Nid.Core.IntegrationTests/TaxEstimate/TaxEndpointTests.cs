@@ -107,7 +107,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         {
             pinel = Array.Empty<object>(), contributionRates = new Dictionary<string, string> { [app.AdultA.Value.ToString()] = "6.4" },
         });
-        var notice = Assert.Single(JsonDocument.Parse(await saved.Content.ReadAsStringAsync()).RootElement.GetProperty("notices").EnumerateArray(),
+        var notice = Assert.Single(JsonDocument.Parse(await saved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("notices").EnumerateArray(),
             n => n.GetProperty("code").GetString() == "contribution_rate_differs");
         Assert.Equal("Salaire A", notice.GetProperty("name").GetString());
         Assert.Equal("22.85", notice.GetProperty("amount").GetString());
@@ -133,7 +133,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         declarant["salaryTaxable"] = JsonSerializer.SerializeToElement("50000.00");
         body["declarants"] = JsonSerializer.SerializeToElement(new[] { declarant });
         var simulated = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", body);
-        var row = JsonDocument.Parse(await simulated.Content.ReadAsStringAsync()).RootElement.GetProperty("declarants")[0];
+        var row = JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("declarants")[0];
         Assert.Equal("entered", row.GetProperty("method").GetString());
         Assert.Equal("45000.00", row.GetProperty("taxable").GetString());
 
@@ -202,7 +202,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
             dependents = 2, childrenUnder6 = 2, childcareOutsideHome = "6000", pinel = Array.Empty<object>(),
         });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
-        var result = JsonDocument.Parse(await saved.Content.ReadAsStringAsync()).RootElement.GetProperty("result");
+        var result = JsonDocument.Parse(await saved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("result");
         Assert.Equal("3000.00", result.GetProperty("childcareCredit").GetString());
         Assert.Equal("3.0", result.GetProperty("parts").GetString());
 
@@ -241,14 +241,14 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var computed = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", Body("executive"));
         Assert.Equal(HttpStatusCode.OK, computed.StatusCode);
-        var result = JsonDocument.Parse(await computed.Content.ReadAsStringAsync()).RootElement;
+        var result = JsonDocument.Parse(await computed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal("247.00", result.GetProperty("incomeTax").GetString()); // TaxCalculatorTests' first example
         Assert.Equal("64407.00", result.GetProperty("netTaxableIncome").GetString());
         Assert.Equal("4.5", result.GetProperty("withholding").GetProperty("rate").GetString());
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", Body("boss"));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        Assert.Contains("declarants[1].status", await refused.Content.ReadAsStringAsync());
+        Assert.Contains("declarants[1].status", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -276,7 +276,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
             year = 2025,
             declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "50000", perContributions = "0", exemptIncome = "1000" } },
         });
-        Assert.Equal("45900.00", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync()).RootElement.GetProperty("referenceIncome").GetString());
+        Assert.Equal("45900.00", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("referenceIncome").GetString());
 
         var negative = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new
         {
@@ -343,7 +343,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         {
             year = 2025, declarants = new[] { new { name = "A", salaryGross = "100000", status = "non_executive", otherTaxable = "0", perContributions = "0" } },
         });
-        var taxable2024 = DecimalOf(JsonDocument.Parse(await simulated.Content.ReadAsStringAsync()).RootElement.GetProperty("declarants")[0], "taxable");
+        var taxable2024 = DecimalOf(JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("declarants")[0], "taxable");
         var estimate = await EstimateAsync(app, app.AdultA, 2025);
 
         var result = PerResultOf(estimate, app.AdultA);
@@ -389,7 +389,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?year=2025&scope=me", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var estimate = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        var estimate = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         // No 2024 income: the floor, 10 % of the 2024 PASS (4 637 €, brochure IR 2026).
         Assert.Equal(4637m, DecimalOf(PerResultOf(estimate, app.AdultA), "ceiling"));
     }
@@ -446,11 +446,11 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, negative.StatusCode);
-        Assert.Contains("perCeilings", await negative.Content.ReadAsStringAsync());
+        Assert.Contains("perCeilings", await negative.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, above.StatusCode);
-        Assert.Contains("tax.invalid_profile", await above.Content.ReadAsStringAsync());
+        Assert.Contains("tax.invalid_profile", await above.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, orphan.StatusCode);
-        Assert.Contains("tax.invalid_profile", await orphan.Content.ReadAsStringAsync());
+        Assert.Contains("tax.invalid_profile", await orphan.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -509,7 +509,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
             displayName = "PER enfant", kind = "per", currency = "EUR", visibility = "shared", openedOn = "2020-03-01",
             owners = new[] { new { personId = app.Dependent.Value, shareBp = 10_000 } },
             opening = new { occurredOn = "2024-01-10", amount = new { amount = "1000.00", currency = "EUR" } },
-        })).EnsureSuccessStatusCode().Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString()!;
+        })).EnsureSuccessStatusCode().Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetString()!;
         await ValueAsync(app, app.AdultA, child, "2025-03-01", "5000.00");
 
         var estimate = await EstimateAsync(app, app.AdultA, 2025, "household");

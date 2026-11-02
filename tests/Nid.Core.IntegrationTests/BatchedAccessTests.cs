@@ -40,15 +40,15 @@ public class BatchedAccessTests(PostgresFixture postgres)
         var joint = await CreateAsync(w, Visibility.Shared, new OwnerShare(w.Alice, 5_000), new OwnerShare(w.Bob, 5_000));
         var kids = await CreateAsync(w, Visibility.Shared, new OwnerShare(w.Kid, 10_000));
         var closed = await CreateAsync(w, Visibility.Shared, new OwnerShare(w.Bob, 10_000));
-        Assert.True((await w.Items.ArchiveAsync(closed, At, default)).IsSuccess);
+        Assert.True((await w.Items.ArchiveAsync(closed, At, TestContext.Current.CancellationToken)).IsSuccess);
         var unknown = ItemId.New();
 
-        var found = await w.Items.FindManyAsync([mine, joint, kids, closed, unknown], default);
+        var found = await w.Items.FindManyAsync([mine, joint, kids, closed, unknown], TestContext.Current.CancellationToken);
 
         Assert.Equal(4, found.Count);
         Assert.False(found.ContainsKey(unknown));
         foreach (var id in new[] { mine, joint, kids, closed })
-            Assert.Equivalent(await w.Items.FindAsync(id, default), found[id], strict: true);
+            Assert.Equivalent(await w.Items.FindAsync(id, TestContext.Current.CancellationToken), found[id], strict: true);
         Assert.Equal(At, found[closed].ArchivedAt);
         Assert.Equal("EUR", found[mine].Currency);
     }
@@ -59,7 +59,7 @@ public class BatchedAccessTests(PostgresFixture postgres)
         await using var w = await NewWorldAsync();
         var bobsPrivate = await CreateAsync(w, Visibility.Private, new OwnerShare(w.Bob, 10_000));
         var closed = await CreateAsync(w, Visibility.Shared, new OwnerShare(w.Bob, 10_000));
-        Assert.True((await w.Items.ArchiveAsync(closed, At, default)).IsSuccess);
+        Assert.True((await w.Items.ArchiveAsync(closed, At, TestContext.Current.CancellationToken)).IsSuccess);
         List<ItemId> ids =
         [
             await CreateAsync(w, Visibility.Private, new OwnerShare(w.Alice, 10_000)),
@@ -76,15 +76,15 @@ public class BatchedAccessTests(PostgresFixture postgres)
             {
                 var expected = new List<ItemId>();
                 foreach (var id in ids)
-                    if ((await w.Policy.CheckAsync(actor, id, kind, default)).IsSuccess)
+                    if ((await w.Policy.CheckAsync(actor, id, kind, TestContext.Current.CancellationToken)).IsSuccess)
                         expected.Add(id);
 
-                var actual = await w.Policy.CheckManyAsync(actor, ids, kind, default);
+                var actual = await w.Policy.CheckManyAsync(actor, ids, kind, TestContext.Current.CancellationToken);
 
                 Assert.Equal(expected.OrderBy(i => i.Value), actual.OrderBy(i => i.Value));
             }
 
-        var aliceReads = await w.Policy.CheckManyAsync(w.Alice, ids, AccessKind.Read, default);
+        var aliceReads = await w.Policy.CheckManyAsync(w.Alice, ids, AccessKind.Read, TestContext.Current.CancellationToken);
         Assert.Contains(closed, aliceReads); // archived: still read, as CheckAsync says
         Assert.DoesNotContain(bobsPrivate, aliceReads);
     }
@@ -95,9 +95,9 @@ public class BatchedAccessTests(PostgresFixture postgres)
         await using var w = await NewWorldAsync();
         var shared = await CreateAsync(w, Visibility.Shared, new OwnerShare(w.Alice, 10_000));
 
-        Assert.Empty(await w.Items.FindManyAsync([], default));
-        Assert.Empty(await w.Policy.CheckManyAsync(w.Alice, [], AccessKind.Read, default));
-        Assert.Equal([shared], (await w.Items.FindManyAsync([shared, shared], default)).Keys);
-        Assert.Equal([shared], await w.Policy.CheckManyAsync(w.Bob, [shared, shared], AccessKind.Read, default));
+        Assert.Empty(await w.Items.FindManyAsync([], TestContext.Current.CancellationToken));
+        Assert.Empty(await w.Policy.CheckManyAsync(w.Alice, [], AccessKind.Read, TestContext.Current.CancellationToken));
+        Assert.Equal([shared], (await w.Items.FindManyAsync([shared, shared], TestContext.Current.CancellationToken)).Keys);
+        Assert.Equal([shared], await w.Policy.CheckManyAsync(w.Bob, [shared, shared], AccessKind.Read, TestContext.Current.CancellationToken));
     }
 }

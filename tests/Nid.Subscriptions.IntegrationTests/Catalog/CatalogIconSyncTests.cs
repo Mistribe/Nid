@@ -60,11 +60,11 @@ public class CatalogIconSyncTests(PostgresFixture fixture) : IClassFixture<Postg
         var netflix = await RowAsync(app, "netflix");
         var expected = IconProcessor.Process(png).Ok();
         Assert.Equal((expected.Hash, NetflixIcon), (netflix.IconAsset, netflix.IconSource));
-        Assert.Equal(expected.Webp, await File.ReadAllBytesAsync(FileOf(app, expected.Hash)));
+        Assert.Equal(expected.Webp, await File.ReadAllBytesAsync(FileOf(app, expected.Hash), TestContext.Current.CancellationToken));
         Assert.Null((await RowAsync(app, "spotify")).IconAsset); // the monogram
 
         await using var scope = app.Services.CreateAsyncScope();
-        var journaled = Assert.Single(await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().RecentAsync(10, default));
+        var journaled = Assert.Single(await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().RecentAsync(10, TestContext.Current.CancellationToken));
         Assert.Equal(["netflix"], journaled.Report!.Icons.Fetched);
         Assert.Equal([new IconRefusal("spotify", IconCodes.Unreachable)], journaled.Report.Icons.Refused);
     }
@@ -149,7 +149,7 @@ public class CatalogIconSyncTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         ServeCatalog(app, netflixIcon: "http://1000logos.net/netflix.png", spotifyIcon: null);
 
-        var run = (await RunAsync(app)).Ok();
+        var run = (await RunAsync(app, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(["netflix", "spotify"], run.Report!.ProvidersAdded); // the provider is kept
         Assert.Equal([new IconRefusal("netflix", IconCodes.NotHttps)], run.Report.Icons.Refused);
@@ -209,9 +209,9 @@ public class CatalogIconSyncTests(PostgresFixture fixture) : IClassFixture<Postg
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => RunAsync(app, shutdown.Token));
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var run = await subs.CatalogSyncRuns.AsNoTracking().SingleAsync();
+        var run = await subs.CatalogSyncRuns.AsNoTracking().SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("failed", CatalogCodes.RunInterrupted), (run.Status, run.FailureCode));
-        Assert.Equal(2, await subs.Providers.CountAsync(p => p.Origin == "catalog")); // the merge had committed
+        Assert.Equal(2, await subs.Providers.CountAsync(p => p.Origin == "catalog", cancellationToken: TestContext.Current.CancellationToken)); // the merge had committed
         Assert.Equal([NetflixIcon], app.Icons.Requested); // the pass stopped at once
     }
 
@@ -269,7 +269,7 @@ public class CatalogIconSyncTests(PostgresFixture fixture) : IClassFixture<Postg
         await app.SeedProviderAsync("netflix", "My Netflix", ProviderOrigin.Custom, app.AdultA);
         ServeCatalog(app, netflixIcon: "http://1000logos.net/netflix.png", spotifyIcon: null); // not https: the reader refuses it
 
-        var run = (await RunAsync(app)).Ok();
+        var run = (await RunAsync(app, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(CatalogRunStatus.Succeeded, run.Status);
         Assert.Equal(["netflix"], run.Report!.Conflicts);

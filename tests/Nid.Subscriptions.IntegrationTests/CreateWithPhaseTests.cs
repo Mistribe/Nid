@@ -40,7 +40,7 @@ public class CreateWithPhaseTests(PostgresFixture fixture) : IClassFixture<Postg
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions", Body(app, Phase()));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var id = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var id = (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
         var detail = await app.GetAsync<JsonElement>(app.AdultA, $"/api/v1/subscriptions/{id}");
         Assert.Equal("13.49", detail.GetProperty("nextChargeAmount").GetProperty("amount").GetString());
     }
@@ -67,7 +67,7 @@ public class CreateWithPhaseTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         int items;
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            items = await core.Items.CountAsync();
+            items = await core.Items.CountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions",
             Body(app, Phase(startsOn: "2025-03-01", endsOn: "2025-02-01")));
@@ -75,9 +75,9 @@ public class CreateWithPhaseTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Equal([("phases[0].endsOn", "subscriptions.phase_range")], ErrorsOf(await ProblemOf(response)));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.Equal(items, await core.Items.CountAsync());
+            Assert.Equal(items, await core.Items.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.False(await subs.Subscriptions.AnyAsync());
+        Assert.False(await subs.Subscriptions.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

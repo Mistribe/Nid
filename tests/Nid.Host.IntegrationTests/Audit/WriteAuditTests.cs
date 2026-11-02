@@ -73,9 +73,9 @@ public class WriteAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await using var transaction = await unitOfWork.BeginAsync(default);
+            await using var transaction = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
             (await scope.ServiceProvider.GetRequiredService<ISubscriptionStore>()
-                .AddPurchaseAsync(OneMonthFor(id), RowOrigin.None, default)).Ok();
+                .AddPurchaseAsync(OneMonthFor(id), RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
             // disposed without CommitAsync: rolled back
         }
 
@@ -93,10 +93,10 @@ public class WriteAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await using var transaction = await unitOfWork.BeginAsync(default);
+            await using var transaction = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
             (await scope.ServiceProvider.GetRequiredService<ISubscriptionStore>()
-                .AddPurchaseAsync(OneMonthFor(id), RowOrigin.None, default)).Ok();
-            await transaction.CommitAsync(default);
+                .AddPurchaseAsync(OneMonthFor(id), RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.Single(await WritesAsync(app, "subscriptions.purchase"));
@@ -112,11 +112,11 @@ public class WriteAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using (var scope = app.Services.CreateAsyncScope())
         {
             var store = scope.ServiceProvider.GetRequiredService<ISubscriptionStore>();
-            await Assert.ThrowsAsync<AuditActorMissingException>(() => store.AddPurchaseAsync(OneMonthFor(id), RowOrigin.None, default));
+            await Assert.ThrowsAsync<AuditActorMissingException>(() => store.AddPurchaseAsync(OneMonthFor(id), RowOrigin.None, TestContext.Current.CancellationToken));
         }
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Empty(await subs.Purchases.ToListAsync());
+        Assert.Empty(await subs.Purchases.ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -128,12 +128,12 @@ public class WriteAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             // The run journal is excluded (spec §11.2): startup work like CatalogStartupSync's touches it with no
             // actor. TryStartAsync saves through the change tracker, so the interceptor sees a save of excluded rows
             // only, and must let it through rather than ask for an actor.
-            var run = await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync("journal-probe", default);
+            var run = await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync("journal-probe", TestContext.Current.CancellationToken);
             Assert.NotNull(run);
         }
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal("journal-probe", (await subs.CatalogSyncRuns.SingleAsync()).Commit);
+        Assert.Equal("journal-probe", (await subs.CatalogSyncRuns.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).Commit);
         Assert.Empty(await WritesAsync(app, "subscriptions.catalog_sync_run"));
     }
 
@@ -168,8 +168,8 @@ public class WriteAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             var providers = scope.ServiceProvider.GetRequiredService<IProviderStore>();
             // The key race CreateProviderHandler retries on: the store catches the conflict, then saves again.
-            Assert.True((await providers.CreateAsync(Custom("taken", app.AdultA), default)).TryGetFailure(out _));
-            Assert.False((await providers.CreateAsync(Custom("free", app.AdultA), default)).TryGetFailure(out _));
+            Assert.True((await providers.CreateAsync(Custom("taken", app.AdultA), TestContext.Current.CancellationToken)).TryGetFailure(out _));
+            Assert.False((await providers.CreateAsync(Custom("free", app.AdultA), TestContext.Current.CancellationToken)).TryGetFailure(out _));
         }
 
         var inserted = Assert.Single(await WritesAsync(app, "subscriptions.provider"));

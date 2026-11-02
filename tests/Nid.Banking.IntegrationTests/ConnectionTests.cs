@@ -40,7 +40,7 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(BankingApi.Now + Duration.FromDays(90), call.ValidUntil); // the bank's maximum consent
         Assert.Equal(43, state.Length); // 32 random bytes, base64url without padding
         await using var db = Db(app);
-        var row = await db.Connections.SingleAsync(c => c.Id == id);
+        var row = await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(SHA256.HashData(Encoding.UTF8.GetBytes(state)), row.StateHash);
         Assert.Equal(("pending", app.AdultA.Value, "Banque Alpha", "FR"), (row.Status, row.PersonId, row.AspspName, row.AspspCountry));
         // Pending until the callback: not listed.
@@ -63,7 +63,7 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var (fresh, _) = await BankingApi.StartConnectionAsync(app, app.AdultA);
 
         await using var db = Db(app);
-        var left = await db.Connections.Select(c => c.Id).ToListAsync();
+        var left = await db.Connections.Select(c => c.Id).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.DoesNotContain(abandoned, left);
         Assert.Contains(others, left); // another person's are theirs to purge
         Assert.Contains(fresh, left);
@@ -142,7 +142,7 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         // The session id is kept encrypted, and nowhere in what the person reads.
         await using var db = Db(app);
-        Assert.DoesNotContain("session-code-1", Encoding.UTF8.GetString((await db.Connections.SingleAsync(c => c.Id == id)).SessionId!));
+        Assert.DoesNotContain("session-code-1", Encoding.UTF8.GetString((await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken)).SessionId!));
         Assert.DoesNotContain("session-code-1", await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/connections"));
         // B never sees A's connections.
         Assert.Equal(0, (await BankingApi.ConnectionsAsync(app, app.AdultB)).GetArrayLength());
@@ -195,7 +195,7 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts[1]}",
             new { envelopeId = envelope.Value, autoApplyBalance = true })).StatusCode);
         await using (var db = Db(app))
-            await db.Connections.Where(c => c.Id == id).ExecuteUpdateAsync(s => s.SetProperty(c => c.Status, "expired"));
+            await db.Connections.Where(c => c.Id == id).ExecuteUpdateAsync(s => s.SetProperty(c => c.Status, "expired"), cancellationToken: TestContext.Current.CancellationToken);
 
         var renew = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/connections/{id}/renew");
         Assert.Equal(HttpStatusCode.OK, renew.StatusCode);
@@ -215,7 +215,7 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(accounts, after.Select(a => a.GetProperty("id").GetGuid()));
         Assert.Equal((envelope.Value, true), (after[1].GetProperty("envelopeId").GetGuid(), after[1].GetProperty("autoApplyBalance").GetBoolean()));
         await using (var db = Db(app))
-            Assert.Equal(["uid-1b", "uid-2b"], await db.Sources.Where(s => s.ConnectionId == id).OrderBy(s => s.IdentificationHash).Select(s => s.ProviderUid).ToListAsync());
+            Assert.Equal(["uid-1b", "uid-2b"], await db.Sources.Where(s => s.ConnectionId == id).OrderBy(s => s.IdentificationHash).Select(s => s.ProviderUid).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         // The superseded consent is revoked at the bank.
         Assert.Equal(["session-code-1"], app.Banks.DeletedSessions);
     }
@@ -232,8 +232,8 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var ofB = Assert.Single((await BankingApi.ConnectionsAsync(app, app.AdultB))[0].GetProperty("accounts").EnumerateArray()).GetProperty("id").GetGuid();
         Assert.Equal(ofA, ofB);
         await using var db = Db(app);
-        Assert.Equal(1, await db.Accounts.CountAsync());
-        Assert.Equal([first, second], (await db.Sources.Where(s => s.AccountId == ofA).Select(s => s.ConnectionId).ToListAsync()).Order());
+        Assert.Equal(1, await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal([first, second], (await db.Sources.Where(s => s.AccountId == ofA).Select(s => s.ConnectionId).ToListAsync(cancellationToken: TestContext.Current.CancellationToken)).Order());
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(["session-code-1"], app.Banks.DeletedSessions);
         Assert.Equal(0, (await BankingApi.ConnectionsAsync(app, app.AdultA)).GetArrayLength());
         await using var db = Db(app);
-        Assert.False(await db.Sources.AnyAsync(s => s.ConnectionId == id));
+        Assert.False(await db.Sources.AnyAsync(s => s.ConnectionId == id, cancellationToken: TestContext.Current.CancellationToken));
         // Kept, no longer synchronised.
         var kept = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA, envelope)).EnumerateArray());
         Assert.Equal((account, false), (kept.GetProperty("id").GetGuid(), kept.GetProperty("synced").GetBoolean()));

@@ -274,7 +274,7 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             Assert.True((await scope.ServiceProvider.GetRequiredService<IItemRegistry>()
-                .ArchiveAsync(archived, Instant.FromUtc(2024, 7, 1, 0, 0), default)).IsSuccess);
+                .ArchiveAsync(archived, Instant.FromUtc(2024, 7, 1, 0, 0), TestContext.Current.CancellationToken)).IsSuccess);
         }
         var later = await RentalAsync(app, "Futur");
         await PostAsync(app, later, "tenancies", new { label = "Bientôt", startsOn = "2026-01-01", rentMonthly = "900" });

@@ -33,7 +33,7 @@ public class ProviderIconEndpointTests(PostgresFixture fixture) : IClassFixture<
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("image/webp", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(content, await response.Content.ReadAsByteArrayAsync());
+        Assert.Equal(content, await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
         Assert.Equal($"\"{hash}\"", response.Headers.ETag?.Tag);
         var cache = response.Headers.CacheControl!;
         Assert.True(cache.Private);
@@ -57,7 +57,7 @@ public class ProviderIconEndpointTests(PostgresFixture fixture) : IClassFixture<
             new Dictionary<string, string> { ["If-None-Match"] = string.Format(System.Globalization.CultureInfo.InvariantCulture, ifNoneMatch, hash) });
 
         Assert.Equal(HttpStatusCode.NotModified, response.StatusCode);
-        Assert.Empty(await response.Content.ReadAsByteArrayAsync());
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
         Assert.Equal($"\"{hash}\"", response.Headers.ETag?.Tag);
         // Same three headers as the 200 (brief §6): a 304 still carries the ETag, the full Cache-Control and nosniff.
         var cache = response.Headers.CacheControl!;
@@ -113,7 +113,7 @@ public class ProviderIconEndpointTests(PostgresFixture fixture) : IClassFixture<
     {
         await using var app = await NidApp.StartAsync(fixture);
         await SeedNetflixIconAsync(app);
-        var loose = await app.Services.GetRequiredService<IAssetStore>().PutAsync(Webp("#F06292"), "image/webp", default);
+        var loose = await app.Services.GetRequiredService<IAssetStore>().PutAsync(Webp("#F06292"), "image/webp", TestContext.Current.CancellationToken);
         await app.SeedProviderAsync("tinder-k3f9qa", "Tinder", ProviderOrigin.Custom);
         var custom = await app.SeedProviderIconAsync("tinder-k3f9qa", Webp("#FFD54F")); // a state no write produces
 
@@ -150,7 +150,7 @@ public class ProviderIconEndpointTests(PostgresFixture fixture) : IClassFixture<
         var (hash, _) = await SeedNetflixIconAsync(app);
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
             await subs.Providers.Where(p => p.Key == "netflix")
-                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()));
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, Icons + hash)).StatusCode);
     }

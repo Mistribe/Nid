@@ -60,7 +60,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/subscriptions?scope=household");
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
-        Assert.Equal("core.access_violation", JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("code").GetString());
+        Assert.Equal("core.access_violation", JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("code").GetString());
         var rows = await RowsAsync(app, "access_violation");
         Assert.Equal(new[] { app.AdultA.Value, app.AdultB.Value }.Order(), rows.Select(r => r.PersonId).Order());
         Assert.All(rows, r =>
@@ -70,7 +70,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             Assert.Equal("ListSubscriptionsQuery", JsonDocument.Parse(r.Params).RootElement.GetProperty("request").GetString());
         });
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Single(await platform.AuditLog.Where(a => a.Category == "security" && a.Action == "access_violation").ToListAsync());
+        Assert.Single(await platform.AuditLog.Where(a => a.Category == "security" && a.Action == "access_violation").ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         // One notice per request and household day (the audit keeps each occurrence).
         Assert.All(rows, r => Assert.Matches(@"^access_violation:ListSubscriptionsQuery:\d{4}-\d{2}-\d{2}$", r.Key));
     }
@@ -129,7 +129,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         });
 
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], default);
+            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], TestContext.Current.CancellationToken);
 
         var rows = await RowsAsync(app, "access_violation");
         Assert.Equal(2, rows.Count);
@@ -178,7 +178,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await Assert.ThrowsAsync<InvalidOperationException>(() => app.RawAsync(app.AdultA, HttpMethod.Post, Proposals,
             new { kind = EchoProposalHandler.KindName, targetItemId = joint.Value, payload = new { subject = "s1" } }));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.Empty(await core.Proposals.AsNoTracking().ToListAsync());
+            Assert.Empty(await core.Proposals.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Empty(await RowsAsync(app, "proposal_pending"));
 
         failing.Person = null;
@@ -302,13 +302,13 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { irlEnabled = true })).EnsureSuccessStatusCode();
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            (await core.Persons.SingleAsync(p => p.Id == app.AdultA.Value)).Email = "a@example.test";
-            await core.SaveChangesAsync();
+            (await core.Persons.SingleAsync(p => p.Id == app.AdultA.Value, cancellationToken: TestContext.Current.CancellationToken)).Email = "a@example.test";
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
         var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/platform/notifications/preferences",
             new { emailEnabled = true, action = "immediate", info = "digest", frequency = "weekly", weekday = 1, leadDays = new Dictionary<string, int>(), version = 0 });
-        Assert.True(saved.IsSuccessStatusCode, await saved.Content.ReadAsStringAsync());
-        var scheduler = await app.Services.GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler();
+        Assert.True(saved.IsSuccessStatusCode, await saved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var scheduler = await app.Services.GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler(TestContext.Current.CancellationToken);
 
         await RunIrlAsync(app, scheduler, gate, crash: true);
         await RunIrlAsync(app, scheduler, gate, crash: true);
@@ -339,7 +339,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             },
             new Dictionary<string, string> { ["Jobs:Enabled"] = "true", ["Jobs:SchedulerName"] = name });
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { irlEnabled = true })).EnsureSuccessStatusCode();
-        var scheduler = await app.Services.GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler();
+        var scheduler = await app.Services.GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler(TestContext.Current.CancellationToken);
 
         await RunIrlAsync(app, scheduler, gate, crash: false); // the job's own token is not cancelled
 

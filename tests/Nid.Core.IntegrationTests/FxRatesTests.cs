@@ -25,10 +25,10 @@ public class FxRatesTests(PostgresFixture postgres)
             new FxRate(new LocalDate(2025, 8, 25), Currency.Eur, 0.9m, FxRateSource.Ecb),  // 7 days before `from`
             new FxRate(new LocalDate(2025, 8, 24), Currency.Eur, 0.1m, FxRateSource.Ecb),  // 8 days: not loaded
             new FxRate(Today.PlusDays(-1), Currency.Eur, 0.8m, FxRateSource.Ecb),
-        ], default);
+        ], TestContext.Current.CancellationToken);
         var rates = new FxRates(store, new FxOptions(), new FixedClock(Today.AtMidnight().InUtc().ToInstant()));
 
-        var table = await rates.LoadAsync([Currency.Eur, Currency.Usd], new LocalDate(2025, 9, 1), new LocalDate(2025, 9, 2), default);
+        var table = await rates.LoadAsync([Currency.Eur, Currency.Usd], new LocalDate(2025, 9, 1), new LocalDate(2025, 9, 2), TestContext.Current.CancellationToken);
 
         Assert.True(table.TryConvert(1m, Currency.Usd, Currency.Eur, new LocalDate(2025, 9, 1), false, out var early, out _));
         Assert.Equal(0.9m, early);
@@ -42,11 +42,11 @@ public class FxRatesTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         var settings = new HouseholdSettings(db);
-        Assert.Equal(Currency.Eur, await settings.ReferenceCurrencyAsync(default));
+        Assert.Equal(Currency.Eur, await settings.ReferenceCurrencyAsync(TestContext.Current.CancellationToken));
 
         db.HouseholdSettings.Add(new HouseholdSettingsRow { ReferenceCurrency = "CHF" });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal("CHF", (await settings.ReferenceCurrencyAsync(default)).Code);
+        Assert.Equal("CHF", (await settings.ReferenceCurrencyAsync(TestContext.Current.CancellationToken)).Code);
     }
 }

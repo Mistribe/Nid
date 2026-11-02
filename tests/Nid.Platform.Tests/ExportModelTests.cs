@@ -51,7 +51,7 @@ public class ExportModelTests
             return new Dictionary<string, IReadOnlyList<JsonElement>> { ["valuations"] = [] };
         }, calls);
 
-        var model = await ExportModel.BuildAsync(Reader, [], [facts, core, envelopes, subs], default);
+        var model = await ExportModel.BuildAsync(Reader, [], [facts, core, envelopes, subs], TestContext.Current.CancellationToken);
 
         Assert.Equal(["subscriptions", "investments", "facts", "core", "subscriptions", "investments", "facts", "core"], calls);
         Assert.Equal(["persons", "providers", "subscriptions", "envelopes", "valuations"], model.Sections.Select(s => s.Name));
@@ -72,7 +72,7 @@ public class ExportModelTests
             return new Dictionary<string, IReadOnlyList<JsonElement>> { ["things"] = [] };
         });
 
-        await ExportModel.BuildAsync(Reader, [kid, zoe, anna], [section], default);
+        await ExportModel.BuildAsync(Reader, [kid, zoe, anna], [section], TestContext.Current.CancellationToken);
 
         // Anna is not referenced, so she does not take a number before Zoé (§5.4). The probe pass marks too: last two.
         Assert.Equal(["adult-1", "dependent-1"], marked.TakeLast(2));
@@ -84,9 +84,9 @@ public class ExportModelTests
         IImportSection With(string text) => new FakeSection("m", 5, ["things"],
             _ => new Dictionary<string, IReadOnlyList<JsonElement>> { ["things"] = [Json(text)] });
 
-        var a = await ExportModel.BuildAsync(Reader, [], [With("""{"id":"a","n":"1"}""")], default);
-        var same = await ExportModel.BuildAsync(Reader, [], [With("""{"n":"1","id":"a"}""")], default);
-        var other = await ExportModel.BuildAsync(Reader, [], [With("""{"id":"a","n":"2"}""")], default);
+        var a = await ExportModel.BuildAsync(Reader, [], [With("""{"id":"a","n":"1"}""")], TestContext.Current.CancellationToken);
+        var same = await ExportModel.BuildAsync(Reader, [], [With("""{"n":"1","id":"a"}""")], TestContext.Current.CancellationToken);
+        var other = await ExportModel.BuildAsync(Reader, [], [With("""{"id":"a","n":"2"}""")], TestContext.Current.CancellationToken);
 
         Assert.Equal(a.Revision, same.Revision);
         Assert.NotEqual(a.Revision, other.Revision);
@@ -100,7 +100,7 @@ public class ExportModelTests
     {
         var rogue = new FakeSection("m", 5, ["things"], _ => new Dictionary<string, IReadOnlyList<JsonElement>> { ["other"] = [] });
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => ExportModel.BuildAsync(Reader, [], [rogue], default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ExportModel.BuildAsync(Reader, [], [rogue], TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class ExportModelTests
             return new Dictionary<string, IReadOnlyList<JsonElement>> { ["things"] = [] };
         });
 
-        var model = await ExportModel.BuildAsync(Reader, [], [section], default);
+        var model = await ExportModel.BuildAsync(Reader, [], [section], TestContext.Current.CancellationToken);
 
         Assert.Equal([item], model.Items);
     }

@@ -98,7 +98,7 @@ public class DocumentSourceTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         // The assistant reads through the same invoker.
         await using var client = await McpHarness.ClientAsync(app, (await TokenApi.CreateAsync(app, app.AdultB, TokenPresets.Read)).Secret);
-        var read = await client.CallToolAsync("get_envelope", new Dictionary<string, object?> { ["id"] = shared });
+        var read = await client.CallToolAsync("get_envelope", new Dictionary<string, object?> { ["id"] = shared }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(read.IsError != true, McpHarness.TextOf(read));
         Assert.All(SourcesOf(JsonDocument.Parse(McpHarness.TextOf(read)).RootElement), Assert.Null);
     }
@@ -121,9 +121,9 @@ public class DocumentSourceTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var app = await NidApp.StartAsync(fixture);
         var property = await McpSeed.PropertyAsync(app, app.AdultA);
         var (_, valueRefused) = await app.InvokeAsync(app.AdultA, new Nid.RealEstate.Application.RecordPropertyValuationCommand(
-            new ItemId(property), new LocalDate(2025, 3, 31), 250_000m, null));
+            new ItemId(property), new LocalDate(2025, 3, 31), 250_000m, null), TestContext.Current.CancellationToken);
         var (_, flowRefused) = await app.InvokeAsync(app.AdultA, new Nid.RealEstate.Application.RecordPropertyFlowCommand(
-            new ItemId(property), new Nid.RealEstate.Application.PropertyFlowDraft(new LocalDate(2025, 3, 1), "expense", 900m, "other", null)));
+            new ItemId(property), new Nid.RealEstate.Application.PropertyFlowDraft(new LocalDate(2025, 3, 1), "expense", 900m, "other", null)), TestContext.Current.CancellationToken);
         Assert.Null(valueRefused ?? flowRefused);
         var document = await UploadedAsync(app, app.AdultA, Pdf, "fileName=estimation.pdf");
         await StampAsync(app, property, document);

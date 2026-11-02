@@ -27,18 +27,18 @@ public class QuartzTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         Assert.Equal(("backfill", "succeeded"), (run.Kind, run.Status));
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.True(await core.FxRates.AnyAsync(r => r.Quote == "EUR"));
+        Assert.True(await core.FxRates.AnyAsync(r => r.Quote == "EUR", cancellationToken: TestContext.Current.CancellationToken));
 
         var jobs = await core.Database
             .SqlQueryRaw<string>("select job_name as \"Value\" from platform.qrtz_job_details order by job_name")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(["bank-sync-nightly", "catalog-sync", "fx-backfill", "fx-daily", "irl-weekly", "notifications-digest", "notifications-dispatch", "notifications-evaluate", "prices-daily"], jobs);
         Assert.Equal(1, await core.Database
             .SqlQueryRaw<int>("select count(*)::int as \"Value\" from platform.qrtz_cron_triggers where cron_expression = '0 0 7 * * ?'")
-            .SingleAsync());
+            .SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(1, await core.Database
             .SqlQueryRaw<int>("select count(*)::int as \"Value\" from platform.qrtz_cron_triggers where trigger_name = 'bank-sync-nightly' and cron_expression = '0 30 4 * * ?'")
-            .SingleAsync());
+            .SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class QuartzTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         Assert.Equal("succeeded", await WaitForCatalogRunAsync(app, TimeSpan.FromSeconds(60)));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.True(await subs.Providers.AnyAsync(p => p.Key == "netflix" && p.Origin == "catalog"));
+        Assert.True(await subs.Providers.AnyAsync(p => p.Key == "netflix" && p.Origin == "catalog", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     private static async Task<string> WaitForCatalogRunAsync(NidApp app, TimeSpan timeout)

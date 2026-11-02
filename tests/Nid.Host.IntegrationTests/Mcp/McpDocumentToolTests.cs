@@ -160,7 +160,7 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         var id = await UploadedAsync(app, app.AdultA, Pdf);
         var stored = Assert.Single(Directory.GetFiles(app.DocumentsRoot, "*", SearchOption.AllDirectories));
-        await File.WriteAllBytesAsync(stored, Pdf[..5]);
+        await File.WriteAllBytesAsync(stored, Pdf[..5], TestContext.Current.CancellationToken);
         await using var client = await ClientAsync(app);
 
         var result = await CallAsync(client, "read_document", new { id });
@@ -176,7 +176,7 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         var id = await UploadedAsync(app, app.AdultA, Pdf);
         var stored = Assert.Single(Directory.GetFiles(app.DocumentsRoot, "*", SearchOption.AllDirectories));
-        await File.WriteAllBytesAsync(stored, [.. Pdf, .. "trailing"u8.ToArray()]);
+        await File.WriteAllBytesAsync(stored, [.. Pdf, .. "trailing"u8.ToArray()], TestContext.Current.CancellationToken);
         await using var client = await ClientAsync(app);
 
         var result = await CallAsync(client, "read_document", new { id });
@@ -320,7 +320,7 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var client = await ClientAsync(app);
         int thisYear; // the app's clock, not the machine's
         await using (var scope = app.Services.CreateAsyncScope())
-            thisYear = (await scope.ServiceProvider.GetRequiredService<IHouseholdCalendar>().TodayAsync(default)).Year;
+            thisYear = (await scope.ServiceProvider.GetRequiredService<IHouseholdCalendar>().TodayAsync(TestContext.Current.CancellationToken)).Year;
 
         async Task<Guid[]> YearAsync(int year)
             => Ids(JsonDocument.Parse(McpHarness.TextOf(await CallAsync(client, "list_documents", new { scope = "me", year }))).RootElement);
@@ -359,9 +359,9 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         var services = scope.ServiceProvider;
         services.GetRequiredService<IActorAccessor>().Current = Actor.Token(app.AdultA, Guid.NewGuid(), new HashSet<string>(), ActorOrigin.Mcp);
 
-        var goals = await GoalTools.GetGoals(services);
-        var read = await DocumentTools.ReadDocument(services, id);
-        var list = await DocumentTools.ListDocuments(services);
+        var goals = await GoalTools.GetGoals(services, ct: TestContext.Current.CancellationToken);
+        var read = await DocumentTools.ReadDocument(services, id, TestContext.Current.CancellationToken);
+        var list = await DocumentTools.ListDocuments(services, ct: TestContext.Current.CancellationToken);
 
         Assert.True(goals.IsError);
         foreach (var refused in new[] { read, list })

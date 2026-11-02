@@ -164,7 +164,7 @@ public class EnvelopesImportTests(PostgresFixture fixture) : IClassFixture<Postg
         var pea = await IdOf(app, "PEA");
         var entered = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{pea}/valuations",
             new { asOf = "2025-09-30", amount = new { amount = "1500.00", currency = "EUR" } });
-        Assert.True(entered.IsSuccessStatusCode, await entered.Content.ReadAsStringAsync());
+        Assert.True(entered.IsSuccessStatusCode, await entered.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         static Dictionary<string, string> ClosedOn(string date)
             => File(Envelopes.Replace("\"opened_on\":\"2019-03-01\",", $"\"opened_on\":\"2019-03-01\",\"closed_on\":\"{date}\","));
 
@@ -307,7 +307,7 @@ public class EnvelopesImportTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(new CountsResponse(1, 0, 0), taken.Report.Sections["envelopes"]);
         Assert.Equal(JsonSerializer.Serialize(fresh.Report), JsonSerializer.Serialize(taken.Report));
         var committed = await client.CommitRawAsync(app.AdultA, taken.Id);
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(["Mine"], (await ListAsync(app, app.AdultA, archived: true)).Select(e => e.GetProperty("displayName").GetString()));
     }
 

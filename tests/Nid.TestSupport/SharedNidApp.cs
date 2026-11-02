@@ -11,11 +11,11 @@ public sealed class SharedNidApp : IAsyncLifetime
 
     public NidApp App { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await postgres.InitializeAsync();
         App = await NidApp.StartAsync(postgres);
     }
 
-    public async Task DisposeAsync() => await App.DisposeAsync();
+    public async ValueTask DisposeAsync() => await App.DisposeAsync();
 }

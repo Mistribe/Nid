@@ -19,7 +19,7 @@ public class AdminSchemaTests(PostgresFixture postgres)
         var connectionString = await postgres.NewEmptyConnectionStringAsync();
         await using var db = PostgresFixture.NewCoreContext(connectionString);
         var migrator = db.GetService<IMigrator>();
-        await migrator.MigrateAsync(BeforeAdminArea);
+        await migrator.MigrateAsync(BeforeAdminArea, TestContext.Current.CancellationToken);
 
         // ExecuteSqlRawAsync runs the text through string.Format even with no parameters, so a literal '{}' must
         // be escaped as '{{}}'.
@@ -28,11 +28,11 @@ public class AdminSchemaTests(PostgresFixture postgres)
               ('01920000-0000-7000-8000-000000000002', 'adult', 'sub-b', 'Bob', null, 0, '{{}}', '2026-01-02T00:00:00Z'),
               ('01920000-0000-7000-8000-000000000001', 'adult', 'sub-a', 'Alice', null, 0, '{{}}', '2026-01-01T00:00:00Z'),
               ('01920000-0000-7000-8000-000000000003', 'dependent', null, 'Kid', null, 0, '{{}}', '2025-12-01T00:00:00Z');
-            """);
+            """, cancellationToken: TestContext.Current.CancellationToken);
 
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(["Alice"], await db.Persons.Where(p => p.IsAdmin).Select(p => p.DisplayName).ToListAsync());
+        Assert.Equal(["Alice"], await db.Persons.Where(p => p.IsAdmin).Select(p => p.DisplayName).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -44,13 +44,13 @@ public class AdminSchemaTests(PostgresFixture postgres)
         var noSubjectNoEmail = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync("""
             insert into core.person (id, kind, display_name, session_epoch, preferences, created_at) values
               ('01920000-0000-7000-8000-000000000010', 'adult', 'Nobody', 0, '{{}}', now());
-            """));
+            """, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal("ck_person_subject", noSubjectNoEmail.ConstraintName);
 
         var adminKid = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync("""
             insert into core.person (id, kind, display_name, is_admin, session_epoch, preferences, created_at) values
               ('01920000-0000-7000-8000-000000000011', 'dependent', 'Kid', true, 0, '{{}}', now());
-            """));
+            """, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal("ck_person_admin", adminKid.ConstraintName);
     }
 
@@ -62,12 +62,12 @@ public class AdminSchemaTests(PostgresFixture postgres)
         await db.Database.ExecuteSqlRawAsync("""
             insert into core.person (id, kind, display_name, email, session_epoch, preferences, created_at) values
               ('01920000-0000-7000-8000-000000000020', 'adult', 'Carol', 'carol@example.test', 0, '{{}}', now());
-            """);
+            """, cancellationToken: TestContext.Current.CancellationToken);
 
         var duplicate = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync("""
             insert into core.person (id, kind, display_name, email, session_epoch, preferences, created_at) values
               ('01920000-0000-7000-8000-000000000021', 'adult', 'Carol again', 'CAROL@Example.test', 0, '{{}}', now());
-            """));
+            """, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal("ix_person_adult_email", duplicate.ConstraintName);
     }
 
@@ -76,11 +76,11 @@ public class AdminSchemaTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         db.HouseholdSettings.Add(new HouseholdSettingsRow());
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, await db.HouseholdSettings.Select(s => s.MaxAdults).SingleAsync());
+        Assert.Equal(2, await db.HouseholdSettings.Select(s => s.MaxAdults).SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
         var zero = await Assert.ThrowsAsync<PostgresException>(
-            () => db.Database.ExecuteSqlRawAsync("update core.household_settings set max_adults = 0"));
+            () => db.Database.ExecuteSqlRawAsync("update core.household_settings set max_adults = 0", cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal("ck_household_settings_max_adults", zero.ConstraintName);
     }
 }

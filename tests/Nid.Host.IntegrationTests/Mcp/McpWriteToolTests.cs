@@ -81,7 +81,7 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
         var url = $"/api/v1/investments/envelopes/{envelope}";
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/holdings", new { name = "Fonds A", kind = "fund", isin = "FR0000120271" });
-        var fund = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        var fund = JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
         object Snapshot(bool apply) => new
         {
             envelopeId = envelope, asOf = "2025-09-30", sourceLabel = "Information trimestrielle", apply,
@@ -172,7 +172,7 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
             Assert.Equal("applied", (await AnswerAsync(client, "propose_statement", Statement(envelope, apply: true))).GetProperty("outcome").GetString());
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var lines = await platform.AuditLog.Where(r => r.Category == "write" && r.Action == "insert" && r.TokenId == token.Token.Id).ToListAsync();
+        var lines = await platform.AuditLog.Where(r => r.Category == "write" && r.Action == "insert" && r.TokenId == token.Token.Id).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(lines, l => l.Entity!.Contains("flow", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(lines, l => l.Entity!.Contains("valuation", StringComparison.OrdinalIgnoreCase));
         Assert.All(lines, l => Assert.Equal(("mcp", app.AdultA.Value), (l.Via, l.PersonId!.Value)));

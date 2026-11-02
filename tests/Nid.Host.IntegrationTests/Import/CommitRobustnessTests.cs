@@ -45,20 +45,20 @@ public class CommitRobustnessTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(ImportCodes.NotCommitted, await ImportClient.CodeOf(response));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            Assert.False(await core.Items.AnyAsync());
-            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa"));
+            Assert.False(await core.Items.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
+            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa", cancellationToken: TestContext.Current.CancellationToken));
         }
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            Assert.False(await subs.Subscriptions.AnyAsync());
-            Assert.False(await subs.Purchases.AnyAsync());
+            Assert.False(await subs.Subscriptions.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
+            Assert.False(await subs.Purchases.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
         }
 
         var after = await client.GetAsync(app.AdultA, validated.Id);
         Assert.Equal("validated", after.State);
         Assert.Contains(after.Report!.Issues, i => i.Code == ImportCodes.ApplyFailed && i.Message.Contains("test.refused"));
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.True(await platform.Batches.AnyAsync(b => b.SessionId == validated.Id)); // the staging is kept
+        Assert.True(await platform.Batches.AnyAsync(b => b.SessionId == validated.Id, cancellationToken: TestContext.Current.CancellationToken)); // the staging is kept
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class CommitRobustnessTests(PostgresFixture fixture) : IClassFixture<Post
 
         Assert.Equal(new[] { HttpStatusCode.OK, HttpStatusCode.Conflict }, responses.Select(r => r.StatusCode).Order().ToArray());
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(3, await subs.Subscriptions.CountAsync());
+        Assert.Equal(3, await subs.Subscriptions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -99,7 +99,7 @@ public class CommitRobustnessTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal("invalid", after.State);
         Assert.Contains(after.Report!.Issues, i => i.Code == ImportCodes.Conflict && i.Path == "subscriptions[0]");
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(3, await subs.Subscriptions.CountAsync()); // B's three, none of A's
+        Assert.Equal(3, await subs.Subscriptions.CountAsync(cancellationToken: TestContext.Current.CancellationToken)); // B's three, none of A's
     }
 
     /// <summary>Validates, then refuses to write: the injected failure of the first test.</summary>

@@ -121,7 +121,7 @@ public class McpDocumentUploadTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var app = await NidApp.StartAsync(fixture);
         await using var client = await ClientAsync(app);
 
-        var annotations = (await client.ListToolsAsync()).Single(t => t.Name == "upload_document").ProtocolTool.Annotations!;
+        var annotations = (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).Single(t => t.Name == "upload_document").ProtocolTool.Annotations!;
 
         Assert.False(annotations.ReadOnlyHint);
         Assert.False(annotations.DestructiveHint);

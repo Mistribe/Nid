@@ -24,7 +24,7 @@ public class ImportAuditEntryTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.True((await client.CommitRawAsync(app.AdultA, validated.Id)).IsSuccessStatusCode);
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var entry = Assert.Single(await platform.AuditLog.Where(r => r.Category == "import").ToListAsync());
+        var entry = Assert.Single(await platform.AuditLog.Where(r => r.Category == "import").ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(("commit", "import_session", validated.Id.ToString(), "person", app.AdultA.Value, "import"),
             (entry.Action, entry.Entity, entry.EntityKey, entry.ActorKind, entry.PersonId!.Value, entry.Via));
         Assert.Empty(entry.ItemIds);
@@ -54,7 +54,7 @@ public class ImportAuditEntryTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultA, second.Id)).StatusCode);
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(1, await platform.AuditLog.CountAsync(r => r.Category == "import"));
+        Assert.Equal(1, await platform.AuditLog.CountAsync(r => r.Category == "import", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -84,6 +84,6 @@ public class ImportAuditEntryTests(PostgresFixture fixture) : IClassFixture<Post
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/admin/security-journal"); // AdultA is admin
         Assert.Equal(HttpStatusCode.OK, response.StatusCode); // an error body would not contain it either
-        Assert.DoesNotContain("import_session", await response.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("import_session", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 }

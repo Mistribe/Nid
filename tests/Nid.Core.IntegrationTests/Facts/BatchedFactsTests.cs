@@ -35,40 +35,40 @@ public class BatchedFactsTests(PostgresFixture postgres)
         var closed = await w.ItemAsync(w.Alice);
         var empty = await w.ItemAsync(w.Alice);
         // Interleaved across items by date and by creation; three flows on 3 June, two of them on the same item.
-        (await w.Valuations.RecordAsync(Value(mine, 10, 100m), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Contribution, 3, 10m), default)).Ok();
-        (await w.Valuations.RecordAsync(Value(closed, 4, 50m), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(closed, FlowKind.Opening, 1, 50m), default)).Ok();
-        (await w.Valuations.RecordAsync(Value(mine, 1, 90m), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Withdrawal, 2, 5m), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Expense, 3, 1m), default)).Ok();
+        (await w.Valuations.RecordAsync(Value(mine, 10, 100m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Contribution, 3, 10m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Valuations.RecordAsync(Value(closed, 4, 50m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(closed, FlowKind.Opening, 1, 50m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Valuations.RecordAsync(Value(mine, 1, 90m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Withdrawal, 2, 5m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Expense, 3, 1m), TestContext.Current.CancellationToken)).Ok();
         w.Act(w.Bob);
-        (await w.Valuations.RecordAsync(Value(bobs, 5, 70m), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(bobs, FlowKind.Contribution, 3, 7m), default)).Ok();
-        (await w.Valuations.RecordAsync(Value(bobs, 2, 60m), default)).Ok();
+        (await w.Valuations.RecordAsync(Value(bobs, 5, 70m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(bobs, FlowKind.Contribution, 3, 7m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Valuations.RecordAsync(Value(bobs, 2, 60m), TestContext.Current.CancellationToken)).Ok();
         w.Act(w.Alice);
-        Assert.True((await w.Items.ArchiveAsync(closed, FactWorld.Now, default)).IsSuccess);
+        Assert.True((await w.Items.ArchiveAsync(closed, FactWorld.Now, TestContext.Current.CancellationToken)).IsSuccess);
         ItemId[] items = [mine, bobs, closed, empty];
         var kinds = new HashSet<FlowKind> { FlowKind.Contribution, FlowKind.Expense };
 
         foreach (var range in new[] { Everything, Window })
         {
-            var series = (await w.Valuations.SeriesManyAsync(items, range, default)).Ok();
-            var all = (await w.Flows.ListManyAsync(items, range, null, default)).Ok();
-            var some = (await w.Flows.ListManyAsync(items, range, kinds, default)).Ok();
+            var series = (await w.Valuations.SeriesManyAsync(items, range, TestContext.Current.CancellationToken)).Ok();
+            var all = (await w.Flows.ListManyAsync(items, range, null, TestContext.Current.CancellationToken)).Ok();
+            var some = (await w.Flows.ListManyAsync(items, range, kinds, TestContext.Current.CancellationToken)).Ok();
 
             Assert.Equal(items.OrderBy(i => i.Value), series.Keys.OrderBy(i => i.Value));
             foreach (var item in items)
             {
-                Assert.Equal((await w.Valuations.SeriesAsync(item, range, default)).Ok(), series[item]);
-                Assert.Equal((await w.Flows.ListAsync(item, range, null, default)).Ok(), all[item]);
-                Assert.Equal((await w.Flows.ListAsync(item, range, kinds, default)).Ok(), some[item]);
+                Assert.Equal((await w.Valuations.SeriesAsync(item, range, TestContext.Current.CancellationToken)).Ok(), series[item]);
+                Assert.Equal((await w.Flows.ListAsync(item, range, null, TestContext.Current.CancellationToken)).Ok(), all[item]);
+                Assert.Equal((await w.Flows.ListAsync(item, range, kinds, TestContext.Current.CancellationToken)).Ok(), some[item]);
             }
             Assert.Empty(series[empty]);
             Assert.Empty(all[empty]);
         }
 
-        var everything = (await w.Valuations.SeriesManyAsync(items, Everything, default)).Ok();
+        var everything = (await w.Valuations.SeriesManyAsync(items, Everything, TestContext.Current.CancellationToken)).Ok();
         Assert.Equal([90m, 100m], everything[mine].Select(v => v.Value.Amount));
         Assert.Single(everything[closed]); // archived: its facts are read
     }
@@ -80,21 +80,21 @@ public class BatchedFactsTests(PostgresFixture postgres)
         var mine = await w.ItemAsync(w.Alice);
         var hidden = await w.ItemAsync(w.Bob); // private to Bob
         var bare = await w.ItemAsync(w.Alice, currency: null);
-        (await w.Valuations.RecordAsync(Value(mine, 1, 100m), default)).Ok();
+        (await w.Valuations.RecordAsync(Value(mine, 1, 100m), TestContext.Current.CancellationToken)).Ok();
 
         foreach (var refused in new[] { hidden, ItemId.New(), bare })
         {
-            var alone = FailureOf(await w.Valuations.SeriesAsync(refused, Everything, default));
-            var series = FailureOf(await w.Valuations.SeriesManyAsync([mine, refused], Everything, default));
-            var flows = FailureOf(await w.Flows.ListManyAsync([mine, refused], Everything, null, default));
+            var alone = FailureOf(await w.Valuations.SeriesAsync(refused, Everything, TestContext.Current.CancellationToken));
+            var series = FailureOf(await w.Valuations.SeriesManyAsync([mine, refused], Everything, TestContext.Current.CancellationToken));
+            var flows = FailureOf(await w.Flows.ListManyAsync([mine, refused], Everything, null, TestContext.Current.CancellationToken));
             Assert.Equal((alone.GetType(), alone.Code), (series.GetType(), series.Code));
             Assert.Equal((alone.GetType(), alone.Code), (flows.GetType(), flows.Code));
         }
-        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.SeriesManyAsync([mine, hidden], Everything, default)));
+        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.SeriesManyAsync([mine, hidden], Everything, TestContext.Current.CancellationToken)));
 
         w.ActAs(Actor.System);
-        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Valuations.SeriesManyAsync([mine], Everything, default)));
-        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Flows.ListManyAsync([mine], Everything, null, default)));
+        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Valuations.SeriesManyAsync([mine], Everything, TestContext.Current.CancellationToken)));
+        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Flows.ListManyAsync([mine], Everything, null, TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -102,14 +102,14 @@ public class BatchedFactsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var mine = await w.ItemAsync(w.Alice);
-        (await w.Valuations.RecordAsync(Value(mine, 1, 100m), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Contribution, 1, 10m), default)).Ok();
+        (await w.Valuations.RecordAsync(Value(mine, 1, 100m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(mine, FlowKind.Contribution, 1, 10m), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Empty((await w.Valuations.SeriesManyAsync([], Everything, default)).Ok());
-        Assert.Empty((await w.Flows.ListManyAsync([], Everything, null, default)).Ok());
-        var series = (await w.Valuations.SeriesManyAsync([mine, mine], Everything, default)).Ok();
-        var flows = (await w.Flows.ListManyAsync([mine, mine], Everything, null, default)).Ok();
-        Assert.Equal((await w.Valuations.SeriesAsync(mine, Everything, default)).Ok(), Assert.Single(series).Value);
-        Assert.Equal((await w.Flows.ListAsync(mine, Everything, null, default)).Ok(), Assert.Single(flows).Value);
+        Assert.Empty((await w.Valuations.SeriesManyAsync([], Everything, TestContext.Current.CancellationToken)).Ok());
+        Assert.Empty((await w.Flows.ListManyAsync([], Everything, null, TestContext.Current.CancellationToken)).Ok());
+        var series = (await w.Valuations.SeriesManyAsync([mine, mine], Everything, TestContext.Current.CancellationToken)).Ok();
+        var flows = (await w.Flows.ListManyAsync([mine, mine], Everything, null, TestContext.Current.CancellationToken)).Ok();
+        Assert.Equal((await w.Valuations.SeriesAsync(mine, Everything, TestContext.Current.CancellationToken)).Ok(), Assert.Single(series).Value);
+        Assert.Equal((await w.Flows.ListAsync(mine, Everything, null, TestContext.Current.CancellationToken)).Ok(), Assert.Single(flows).Value);
     }
 }

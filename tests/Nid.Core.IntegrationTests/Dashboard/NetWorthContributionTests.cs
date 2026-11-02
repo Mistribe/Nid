@@ -141,7 +141,7 @@ public class NetWorthContributionTests(PostgresFixture fixture) : IClassFixture<
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
         });
         response.EnsureSuccessStatusCode();
-        var id = new ItemId(JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid());
+        var id = new ItemId(JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid());
         await ValueAsync(app, app.AdultA, id, "2023-06-30", "1000.00");
         await ValueAsync(app, app.AdultA, id, "2025-10-01", "1200.00");
 

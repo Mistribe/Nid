@@ -64,12 +64,12 @@ public class ImportProvenanceTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal("validated", baseline.State);
         Assert.Equal(Shape(baseline.Report!), Shape(validated.Report!));
         var committed = await client.CommitRawAsync(app.AdultB, validated.Id);
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(2, await subs.Subscriptions.CountAsync(s => s.ImportRef == "sub-p"));
-        Assert.Equal(2, await subs.Phases.CountAsync(p => p.ImportRef == "ph-p"));
-        Assert.Equal(2, await subs.Purchases.CountAsync(p => p.ImportRef == "pu-p"));
-        Assert.Equal(1, await subs.Subscriptions.CountAsync(s => s.ImportRef == "sub-p" && s.ImportedBy == app.AdultB.Value));
+        Assert.Equal(2, await subs.Subscriptions.CountAsync(s => s.ImportRef == "sub-p", cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(2, await subs.Phases.CountAsync(p => p.ImportRef == "ph-p", cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(2, await subs.Purchases.CountAsync(p => p.ImportRef == "pu-p", cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(1, await subs.Subscriptions.CountAsync(s => s.ImportRef == "sub-p" && s.ImportedBy == app.AdultB.Value, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -104,9 +104,9 @@ public class ImportProvenanceTests(PostgresFixture fixture) : IClassFixture<Post
 
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            var item = await core.Items.SingleAsync(i => i.DisplayName == "A's");
+            var item = await core.Items.SingleAsync(i => i.DisplayName == "A's", cancellationToken: TestContext.Current.CancellationToken);
             item.Visibility = "shared";
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
         AssertAllUnchanged((await CommitAsync(client, app, app.AdultA, FileOfA())).Report!);
         AssertAllUnchanged((await CommitAsync(client, app, app.AdultB, FileOfB("shared"))).Report!);
@@ -120,10 +120,10 @@ public class ImportProvenanceTests(PostgresFixture fixture) : IClassFixture<Post
         await CommitAsync(client, app, app.AdultA, FileOfA());
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.DisplayName == "A's");
+            var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.DisplayName == "A's", cancellationToken: TestContext.Current.CancellationToken);
             item.Owners.Clear();
             item.Owners.Add(new OwnershipRow { ItemId = item.Id, PersonId = app.AdultB.Value, ShareBp = 10000 });
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var validated = await client.RunAsync(app.AdultA, Adults(app), FileOfA());
@@ -142,9 +142,9 @@ public class ImportProvenanceTests(PostgresFixture fixture) : IClassFixture<Post
         await CommitAsync(client, app, app.AdultA, FileOfA());
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            await subs.Database.ExecuteSqlRawAsync("update subscriptions.subscription set imported_by = null");
-            await subs.Database.ExecuteSqlRawAsync("update subscriptions.billing_phase set imported_by = null");
-            await subs.Database.ExecuteSqlRawAsync("update subscriptions.purchase set imported_by = null");
+            await subs.Database.ExecuteSqlRawAsync("update subscriptions.subscription set imported_by = null", cancellationToken: TestContext.Current.CancellationToken);
+            await subs.Database.ExecuteSqlRawAsync("update subscriptions.billing_phase set imported_by = null", cancellationToken: TestContext.Current.CancellationToken);
+            await subs.Database.ExecuteSqlRawAsync("update subscriptions.purchase set imported_by = null", cancellationToken: TestContext.Current.CancellationToken);
         }
 
         AssertAllUnchanged((await CommitAsync(client, app, app.AdultA, FileOfA())).Report!);
@@ -165,9 +165,9 @@ public class ImportProvenanceTests(PostgresFixture fixture) : IClassFixture<Post
         await CommitAsync(client, app, app.AdultB, new Dictionary<string, string> { ["persons"] = ofB["persons"], ["subscriptions"] = ofB["subscriptions"] });
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            var item = await core.Items.SingleAsync(i => i.DisplayName == "A's");
+            var item = await core.Items.SingleAsync(i => i.DisplayName == "A's", cancellationToken: TestContext.Current.CancellationToken);
             item.Visibility = "shared";
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var ofA = FileOfA();
@@ -181,8 +181,8 @@ public class ImportProvenanceTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(new CountsResponse(1, 0, 0), committed.Report.Sections["billing_phases"]);
         Assert.Equal(new CountsResponse(1, 0, 0), committed.Report.Sections["purchases"]);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var ofBItem = await subs.Subscriptions.Where(s => s.ImportRef == "sub-p" && s.ImportedBy == app.AdultB.Value).Select(s => s.ItemId).SingleAsync();
-        Assert.True(await subs.Phases.AnyAsync(p => p.ItemId == ofBItem && p.ImportRef == "ph-p"));
-        Assert.True(await subs.Grants.AnyAsync(g => g.SubscriptionItemId == ofBItem));
+        var ofBItem = await subs.Subscriptions.Where(s => s.ImportRef == "sub-p" && s.ImportedBy == app.AdultB.Value).Select(s => s.ItemId).SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(await subs.Phases.AnyAsync(p => p.ItemId == ofBItem && p.ImportRef == "ph-p", cancellationToken: TestContext.Current.CancellationToken));
+        Assert.True(await subs.Grants.AnyAsync(g => g.SubscriptionItemId == ofBItem, cancellationToken: TestContext.Current.CancellationToken));
     }
 }

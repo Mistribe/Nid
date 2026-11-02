@@ -45,7 +45,7 @@ public class DocumentTargetTests(PostgresFixture fixture) : IClassFixture<Postgr
                 Id = Guid.CreateVersion7(), Kind = "adult", DisplayName = "EnAttente", Email = "pending@test.localhost",
                 CreatedAt = SystemClock.Instance.GetCurrentInstant(),
             });
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var raw = await app.GetRawAsync(app.AdultA, $"{Root}/targets");
@@ -135,7 +135,7 @@ public class DocumentTargetTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(HttpStatusCode.OK, (await PreviewAsync(app, app.AdultA, readOnly, TargetKinds.CoreItem, secret.Value)).StatusCode);
 
         await using var scope = app.Services.CreateAsyncScope();
-        var links = await scope.ServiceProvider.GetRequiredService<IDocumentStore>().LinksOfAsync([hidden, readOnly], default);
+        var links = await scope.ServiceProvider.GetRequiredService<IDocumentStore>().LinksOfAsync([hidden, readOnly], TestContext.Current.CancellationToken);
         Assert.Equal([shared.Value], links.Select(l => l.TargetId));
     }
 

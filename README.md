@@ -7,8 +7,8 @@ Prérequis : SDK .NET 10 (voir `global.json`), CLI Aspire, Docker, Node.
 ```bash
 aspire run                           # PostgreSQL, Pocket ID, API, frontend Vite, proxy TLS + tableau de bord
 pnpm --dir web e2e                   # parcours Playwright, connectés par l'API de Pocket ID
-dotnet test Nid.slnx -m:1            # tests unitaires et d'intégration (Docker requis), un projet à la fois
-dotnet test tests/Nid.RealEstate.IntegrationTests   # l'intégration d'un seul module
+dotnet test --solution Nid.slnx --max-parallel-test-modules 1   # tests unitaires et d'intégration (Docker requis), un projet à la fois
+dotnet test --project tests/Nid.RealEstate.IntegrationTests   # l'intégration d'un seul module
 ```
 
 L'application se joint sur `https://nid.localtest.me` (Pocket ID sur `https://auth.localtest.me`). Au premier démarrage,

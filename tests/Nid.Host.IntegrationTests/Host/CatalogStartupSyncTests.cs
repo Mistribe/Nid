@@ -77,13 +77,13 @@ public class CatalogStartupSyncTests(PostgresFixture fixture) : IClassFixture<Po
             {
                 Id = stale, StartedAt = now - Duration.FromHours(2), Status = "running", Commit = CatalogFixtures.PinnedCommit,
             });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.Equal(0, await StartupTriggersAsync(app));
 
         await using var check = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var row = await check.CatalogSyncRuns.AsNoTracking().SingleAsync(r => r.Id == stale);
+        var row = await check.CatalogSyncRuns.AsNoTracking().SingleAsync(r => r.Id == stale, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("failed", CatalogCodes.RunAbandoned), (row.Status, row.FailureCode));
     }
 }

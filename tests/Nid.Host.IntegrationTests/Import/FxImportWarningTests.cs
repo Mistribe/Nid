@@ -36,7 +36,7 @@ public class FxImportWarningTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
-                .WriteAsync([new FxRate(new LocalDate(2014, 3, 3), Currency.Eur, 0.72m, FxRateSource.Ecb)], default);
+                .WriteAsync([new FxRate(new LocalDate(2014, 3, 3), Currency.Eur, 0.72m, FxRateSource.Ecb)], TestContext.Current.CancellationToken);
 
         var validated = await new ImportClient(app).RunAsync(app.AdultA, Adults(app), File("USD"));
 

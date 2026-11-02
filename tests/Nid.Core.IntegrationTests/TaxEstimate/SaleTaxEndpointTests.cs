@@ -74,7 +74,7 @@ public class SaleTaxEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
         await PostAsync(app, $"{Envelopes}/{secret.Value}/valuations", new { asOf = "2025-10-01", amount = Eur("234567") }, app.AdultB);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}?item={secret.Value}");
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain("AV secrete", body);
@@ -89,7 +89,7 @@ public class SaleTaxEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
         var secret = await HouseAsync(app, "Pied-a-terre secret", "private", app.AdultB);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}?item={secret}");
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain("Pied-a-terre", body);

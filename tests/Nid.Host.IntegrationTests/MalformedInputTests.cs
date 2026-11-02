@@ -114,7 +114,7 @@ public class MalformedInputTests(PostgresFixture fixture, SharedNidApp shared) :
         await app.NewMonthlyAsync(app.AdultA, 10m);
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/subscriptions?from=oops&to=oops");
-        var body = await refused.Content.ReadAsStringAsync();
+        var body = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
         Assert.DoesNotContain("householdCashCost", body, StringComparison.OrdinalIgnoreCase);
@@ -144,7 +144,7 @@ public class MalformedInputTests(PostgresFixture fixture, SharedNidApp shared) :
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors");
         Assert.Equal("grants[0].startsOn", Assert.Single(errors.EnumerateArray()).GetProperty("path").GetString());
     }
 }

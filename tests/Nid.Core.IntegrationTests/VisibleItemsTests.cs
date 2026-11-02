@@ -54,7 +54,7 @@ public class VisibleItemsTests(PostgresFixture fixture)
         await using var db = await fixture.NewDatabaseAsync();
         var (a, _, shared, privateA, privateB, joint) = await SeedAsync(db);
 
-        var visible = await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, default);
+        var visible = await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, TestContext.Current.CancellationToken);
 
         Assert.Contains(new ItemId(shared), visible);
         Assert.Contains(new ItemId(joint), visible);
@@ -68,7 +68,7 @@ public class VisibleItemsTests(PostgresFixture fixture)
         await using var db = await fixture.NewDatabaseAsync();
         var (a, _, shared, privateA, privateB, joint) = await SeedAsync(db);
 
-        var visible = await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, default);
+        var visible = await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, TestContext.Current.CancellationToken);
 
         Assert.Contains(new ItemId(shared), visible);
         Assert.Contains(new ItemId(joint), visible);
@@ -84,8 +84,8 @@ public class VisibleItemsTests(PostgresFixture fixture)
 
         foreach (var scope in new[] { VisibilityScope.Household, VisibilityScope.Me })
         {
-            Assert.DoesNotContain(new ItemId(privateB), await new VisibleItems(db).ForAsync(new PersonId(a), scope, default));
-            Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), scope, default));
+            Assert.DoesNotContain(new ItemId(privateB), await new VisibleItems(db).ForAsync(new PersonId(a), scope, TestContext.Current.CancellationToken));
+            Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), scope, TestContext.Current.CancellationToken));
         }
     }
 
@@ -94,11 +94,11 @@ public class VisibleItemsTests(PostgresFixture fixture)
     {
         await using var db = await fixture.NewDatabaseAsync();
         var (a, _, shared, _, _, _) = await SeedAsync(db);
-        var item = await db.Items.SingleAsync(i => i.Id == shared);
+        var item = await db.Items.SingleAsync(i => i.Id == shared, cancellationToken: TestContext.Current.CancellationToken);
         item.ArchivedAt = SystemClock.Instance.GetCurrentInstant();
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, default));
+        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -106,17 +106,17 @@ public class VisibleItemsTests(PostgresFixture fixture)
     {
         await using var db = await fixture.NewDatabaseAsync();
         var (a, _, shared, _, _, _) = await SeedAsync(db);
-        var item = await db.Items.SingleAsync(i => i.Id == shared);
+        var item = await db.Items.SingleAsync(i => i.Id == shared, cancellationToken: TestContext.Current.CancellationToken);
         item.ArchivedAt = SystemClock.Instance.GetCurrentInstant();
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Absent from active sets
-        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, default));
-        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, default));
+        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, TestContext.Current.CancellationToken));
 
         // Present with includeArchived: true
-        Assert.Contains(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, includeArchived: true, default));
-        Assert.Contains(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, includeArchived: true, default));
+        Assert.Contains(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, includeArchived: true, TestContext.Current.CancellationToken));
+        Assert.Contains(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, includeArchived: true, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -124,21 +124,21 @@ public class VisibleItemsTests(PostgresFixture fixture)
     {
         await using var db = await fixture.NewDatabaseAsync();
         var (a, b, _, privateA, _, _) = await SeedAsync(db);
-        var item = await db.Items.SingleAsync(i => i.Id == privateA);
+        var item = await db.Items.SingleAsync(i => i.Id == privateA, cancellationToken: TestContext.Current.CancellationToken);
         item.ArchivedAt = SystemClock.Instance.GetCurrentInstant();
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Owner A: not visible without includeArchived, visible with it in Me scope (never in Household)
-        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, default));
-        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, default));
-        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, includeArchived: true, default));
-        Assert.Contains(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, includeArchived: true, default));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, includeArchived: true, TestContext.Current.CancellationToken));
+        Assert.Contains(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, includeArchived: true, TestContext.Current.CancellationToken));
 
         // Other adult B: never visible in any combination
-        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Household, default));
-        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, default));
-        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Household, includeArchived: true, default));
-        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, includeArchived: true, default));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Household, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Household, includeArchived: true, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, includeArchived: true, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class VisibleItemsTests(PostgresFixture fixture)
         var (a, _, _, privateA, privateB, _) = await SeedAsync(db);
         var d = Guid.CreateVersion7();
         db.Persons.Add(Person(d, "adult", "sub-d"));
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         async Task<bool> OwnsAsync(Guid person) => (await new GetMyPrivateItemsHandler(new VisibleItems(db),
             new ActorAccessor { Current = Actor.Browser(new PersonId(person)) }, new TaxAssessmentStore(db)).HandleAsync(new GetMyPrivateItemsQuery())).Ok().Owns;
@@ -157,9 +157,9 @@ public class VisibleItemsTests(PostgresFixture fixture)
         Assert.False(await OwnsAsync(d));
 
         // An archived private item does not count: « Moi » would show nothing more.
-        foreach (var item in await db.Items.Where(i => i.Id == privateA || i.Id == privateB).ToListAsync())
+        foreach (var item in await db.Items.Where(i => i.Id == privateA || i.Id == privateB).ToListAsync(cancellationToken: TestContext.Current.CancellationToken))
             item.ArchivedAt = SystemClock.Instance.GetCurrentInstant();
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         Assert.False(await OwnsAsync(a));
     }
 }

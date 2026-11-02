@@ -58,7 +58,7 @@ public class ProviderLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.All(answers, answer => Assert.Equal((HttpStatusCode.UnprocessableEntity, CatalogCodes.UnknownProvider, answers[0].Item3), answer));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.False(await core.Items.AnyAsync()); // refused before the Core item is created
+        Assert.False(await core.Items.AnyAsync(cancellationToken: TestContext.Current.CancellationToken)); // refused before the Core item is created
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class ProviderLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         await app.SeedProviderAsync("hulu", "Hulu", ProviderOrigin.Catalog);
         var item = await CreatedAsync(app, app.AdultA, "hulu");
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
-            await subs.Providers.Where(p => p.Key == "hulu").ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()));
+            await subs.Providers.Where(p => p.Key == "hulu").ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()), cancellationToken: TestContext.Current.CancellationToken);
 
         (await EditAsync(app, app.AdultA, item, new { note = "still here" })).EnsureSuccessStatusCode();
         (await EditAsync(app, app.AdultA, item, new { providerKey = "hulu" })).EnsureSuccessStatusCode(); // not a new link

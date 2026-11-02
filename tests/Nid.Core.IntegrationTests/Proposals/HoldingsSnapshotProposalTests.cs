@@ -154,7 +154,7 @@ public class HoldingsSnapshotProposalTests(PostgresFixture fixture) : IClassFixt
                  })
         {
             var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, body);
-            Assert.True(response.StatusCode == HttpStatusCode.UnprocessableEntity, $"{path}: {response.StatusCode} {await response.Content.ReadAsStringAsync()}");
+            Assert.True(response.StatusCode == HttpStatusCode.UnprocessableEntity, $"{path}: {response.StatusCode} {await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
             Assert.Equal(path, (await JsonOf(response)).GetProperty("errors")[0].GetProperty("path").GetString());
         }
     }

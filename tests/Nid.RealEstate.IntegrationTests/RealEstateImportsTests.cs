@@ -37,19 +37,19 @@ public class RealEstateImportsTests(PostgresFixture fixture) : IClassFixture<Pos
         var (properties, _, imports) = await NewAsync(fixture);
         var home = ItemId.New();
         var cost = Guid.CreateVersion7();
-        await properties.CreateAsync(home, Home(), default);
-        await properties.AddCostAsync(home, cost, Tax(), default);
-        await imports.MarkAsync(EstateTable.Property, home.Value, new ImportMark("prop-home", Hash('a'), Alice), default);
-        await imports.MarkAsync(EstateTable.RecurringCost, cost, new ImportMark("cost-tax", Hash('b'), Alice), default);
+        await properties.CreateAsync(home, Home(), TestContext.Current.CancellationToken);
+        await properties.AddCostAsync(home, cost, Tax(), TestContext.Current.CancellationToken);
+        await imports.MarkAsync(EstateTable.Property, home.Value, new ImportMark("prop-home", Hash('a'), Alice), TestContext.Current.CancellationToken);
+        await imports.MarkAsync(EstateTable.RecurringCost, cost, new ImportMark("cost-tax", Hash('b'), Alice), TestContext.Current.CancellationToken);
 
-        var found = await imports.FindAsync(EstateTable.RecurringCost, ["cost-tax", "cost-none"], default);
+        var found = await imports.FindAsync(EstateTable.RecurringCost, ["cost-tax", "cost-none"], TestContext.Current.CancellationToken);
 
         var row = Assert.Single(Assert.Single(found).Value);
         Assert.Equal((cost, home, Hash('b'), Alice), (row.Id, row.Item, row.Hash, row.ImportedBy));
-        Assert.Equal(new ImportMark("prop-home", Hash('a'), Alice), (await imports.MarksAsync(EstateTable.Property, [home], default))[home.Value]);
+        Assert.Equal(new ImportMark("prop-home", Hash('a'), Alice), (await imports.MarksAsync(EstateTable.Property, [home], TestContext.Current.CancellationToken))[home.Value]);
 
-        await properties.UpdateCostAsync(home, cost, Tax(1_300m), default);
-        Assert.Equal(new ImportMark("cost-tax", Hash('b'), Alice), (await imports.MarksAsync(EstateTable.RecurringCost, [home], default))[cost]);
+        await properties.UpdateCostAsync(home, cost, Tax(1_300m), TestContext.Current.CancellationToken);
+        Assert.Equal(new ImportMark("cost-tax", Hash('b'), Alice), (await imports.MarksAsync(EstateTable.RecurringCost, [home], TestContext.Current.CancellationToken))[cost]);
     }
 
     [Fact]
@@ -62,16 +62,16 @@ public class RealEstateImportsTests(PostgresFixture fixture) : IClassFixture<Pos
             200_000m, new LocalDate(2020, 10, 15), First, 240, InterestRounding.HalfUp, FirstPeriod.Full,
             [new LoanPhaseEntry(new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed), null) { Import = phase }],
             [new LoanInsuranceEntry(new LoanInsurance(InsuranceMode.RateOnInitial, null, 0.003m, First), null) { Import = new ImportMark("li-1", Hash('d'), Alice) }]),
-            default);
+            TestContext.Current.CancellationToken);
 
-        var stored = (await loans.FindAsync(loan, default))!;
-        var row = Assert.Single((await imports.FindAsync(EstateTable.Phase, ["lp-1"], default))["lp-1"]);
+        var stored = (await loans.FindAsync(loan, TestContext.Current.CancellationToken))!;
+        var row = Assert.Single((await imports.FindAsync(EstateTable.Phase, ["lp-1"], TestContext.Current.CancellationToken))["lp-1"]);
         Assert.Equal(phase, stored.Contract.Phases[0].Import);
         Assert.Equal((stored.Contract.Phases[0].Id, loan), (row.Id, row.Item));
 
-        await loans.ReplaceContractAsync(loan, stored.Contract, default);
+        await loans.ReplaceContractAsync(loan, stored.Contract, TestContext.Current.CancellationToken);
 
-        var rewritten = (await loans.FindAsync(loan, default))!;
+        var rewritten = (await loans.FindAsync(loan, TestContext.Current.CancellationToken))!;
         Assert.Equal(phase, rewritten.Contract.Phases[0].Import);
         Assert.Equal("li-1", rewritten.Contract.Insurances[0].Import?.Ref);
         Assert.NotEqual(stored.Contract.Phases[0].Id, rewritten.Contract.Phases[0].Id);
@@ -83,15 +83,15 @@ public class RealEstateImportsTests(PostgresFixture fixture) : IClassFixture<Pos
         var (properties, _, imports) = await NewAsync(fixture);
         var home = ItemId.New();
         var (mine, theirs, again) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
-        await properties.CreateAsync(home, Home(), default);
+        await properties.CreateAsync(home, Home(), TestContext.Current.CancellationToken);
         foreach (var cost in new[] { mine, theirs, again })
-            await properties.AddCostAsync(home, cost, Tax(), default);
-        await imports.MarkAsync(EstateTable.RecurringCost, mine, new ImportMark("cost-tax", Hash('a'), Alice), default);
-        await imports.MarkAsync(EstateTable.RecurringCost, theirs, new ImportMark("cost-tax", Hash('a'), Bob), default);
+            await properties.AddCostAsync(home, cost, Tax(), TestContext.Current.CancellationToken);
+        await imports.MarkAsync(EstateTable.RecurringCost, mine, new ImportMark("cost-tax", Hash('a'), Alice), TestContext.Current.CancellationToken);
+        await imports.MarkAsync(EstateTable.RecurringCost, theirs, new ImportMark("cost-tax", Hash('a'), Bob), TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, (await imports.FindAsync(EstateTable.RecurringCost, ["cost-tax"], default))["cost-tax"].Count);
+        Assert.Equal(2, (await imports.FindAsync(EstateTable.RecurringCost, ["cost-tax"], TestContext.Current.CancellationToken))["cost-tax"].Count);
         await Assert.ThrowsAsync<DbUpdateException>(
-            () => imports.MarkAsync(EstateTable.RecurringCost, again, new ImportMark("cost-tax", Hash('b'), Alice), default));
+            () => imports.MarkAsync(EstateTable.RecurringCost, again, new ImportMark("cost-tax", Hash('b'), Alice), TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -109,10 +109,10 @@ public class RealEstateImportsTests(PostgresFixture fixture) : IClassFixture<Pos
 
         var index = await db.Database
             .SqlQuery<string>($"select indexdef as \"Value\" from pg_indexes where schemaname = 'realestate' and indexname = {$"ix_{table}_imported_by_import_ref"}")
-            .SingleAsync();
+            .SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         var check = await db.Database
             .SqlQuery<string>($"select conname::text as \"Value\" from pg_constraint where conname = {$"ck_{table}_import"}")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.StartsWith("CREATE UNIQUE INDEX", index);
         Assert.EndsWith("(imported_by, import_ref) WHERE (import_ref IS NOT NULL)", index);

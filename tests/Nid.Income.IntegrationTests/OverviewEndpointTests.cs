@@ -176,7 +176,7 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         var days = Enumerable.Range(0, 2000).Select(i => new LocalDate(2022, 1, 1).PlusDays(i)).TakeWhile(d => d <= NidApp.GoldenCaseToday);
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
-                .WriteAsync(days.Select(d => new FxRate(d, Currency.Eur, 0.9m, FxRateSource.Ecb)).ToList(), default); // 1 USD = 0.90 EUR
+                .WriteAsync(days.Select(d => new FxRate(d, Currency.Eur, 0.9m, FxRateSource.Ecb)).ToList(), TestContext.Current.CancellationToken); // 1 USD = 0.90 EUR
 
         var overview = await OverviewAsync(app, "?period=year");
 

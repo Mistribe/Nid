@@ -34,10 +34,10 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var __ = scope;
         var doc = Doc();
 
-        await store.CreateAsync(doc, default);
+        await store.CreateAsync(doc, TestContext.Current.CancellationToken);
 
-        Assert.Equal(doc, await store.FindAsync(doc.Id, default));
-        Assert.Null(await store.FindAsync(Guid.NewGuid(), default));
+        Assert.Equal(doc, await store.FindAsync(doc.Id, TestContext.Current.CancellationToken));
+        Assert.Null(await store.FindAsync(Guid.NewGuid(), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -47,12 +47,12 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var _ = app;
         await using var __ = scope;
         var doc = Doc();
-        await store.CreateAsync(doc, default);
+        await store.CreateAsync(doc, TestContext.Current.CancellationToken);
         var target = new DocumentTarget(TargetKinds.CoreItem, Guid.NewGuid());
 
-        Assert.True(await store.AddLinkAsync(Link(doc.Id, target), default));
-        Assert.False(await store.AddLinkAsync(Link(doc.Id, target), default));
-        Assert.Single(await store.LinksOfAsync([doc.Id], default));
+        Assert.True(await store.AddLinkAsync(Link(doc.Id, target), TestContext.Current.CancellationToken));
+        Assert.False(await store.AddLinkAsync(Link(doc.Id, target), TestContext.Current.CancellationToken));
+        Assert.Single(await store.LinksOfAsync([doc.Id], TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -62,13 +62,13 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var _ = app;
         await using var __ = scope;
         var doc = Doc();
-        await store.CreateAsync(doc, default);
+        await store.CreateAsync(doc, TestContext.Current.CancellationToken);
         var target = new DocumentTarget(TargetKinds.CoreItem, Guid.NewGuid());
-        await store.AddLinkAsync(Link(doc.Id, target), default);
+        await store.AddLinkAsync(Link(doc.Id, target), TestContext.Current.CancellationToken);
 
-        await store.MoveLinksAsync(target, target, default);
+        await store.MoveLinksAsync(target, target, TestContext.Current.CancellationToken);
 
-        Assert.Single(await store.LinksOfAsync([doc.Id], default));
+        Assert.Single(await store.LinksOfAsync([doc.Id], TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -78,16 +78,16 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var _ = app;
         await using var __ = scope;
         var doc = Doc();
-        await store.CreateAsync(doc, default);
+        await store.CreateAsync(doc, TestContext.Current.CancellationToken);
         var target = new DocumentTarget(TargetKinds.CorePerson, Guid.NewGuid());
 
-        Assert.False(await store.SetRoleAsync(doc.Id, target, "deed", default));
-        Assert.False(await store.RemoveLinkAsync(doc.Id, target, default));
+        Assert.False(await store.SetRoleAsync(doc.Id, target, "deed", TestContext.Current.CancellationToken));
+        Assert.False(await store.RemoveLinkAsync(doc.Id, target, TestContext.Current.CancellationToken));
 
-        await store.AddLinkAsync(Link(doc.Id, target), default);
-        Assert.True(await store.SetRoleAsync(doc.Id, target, "deed", default));
-        Assert.Equal("deed", Assert.Single(await store.LinksOfAsync([doc.Id], default)).Role);
-        Assert.True(await store.RemoveLinkAsync(doc.Id, target, default));
+        await store.AddLinkAsync(Link(doc.Id, target), TestContext.Current.CancellationToken);
+        Assert.True(await store.SetRoleAsync(doc.Id, target, "deed", TestContext.Current.CancellationToken));
+        Assert.Equal("deed", Assert.Single(await store.LinksOfAsync([doc.Id], TestContext.Current.CancellationToken)).Role);
+        Assert.True(await store.RemoveLinkAsync(doc.Id, target, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -98,19 +98,19 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var __ = scope;
         var one = Doc();
         var two = Doc();
-        await store.CreateAsync(one, default);
-        await store.CreateAsync(two, default);
+        await store.CreateAsync(one, TestContext.Current.CancellationToken);
+        await store.CreateAsync(two, TestContext.Current.CancellationToken);
         var target = new DocumentTarget(TargetKinds.CoreItem, Guid.NewGuid());
         var other = new DocumentTarget(TargetKinds.CoreHousehold, TargetKinds.Household);
-        await store.AddLinkAsync(Link(one.Id, target), default);
-        await store.AddLinkAsync(Link(two.Id, target), default);
-        await store.AddLinkAsync(Link(one.Id, other), default);
+        await store.AddLinkAsync(Link(one.Id, target), TestContext.Current.CancellationToken);
+        await store.AddLinkAsync(Link(two.Id, target), TestContext.Current.CancellationToken);
+        await store.AddLinkAsync(Link(one.Id, other), TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, await store.RemoveLinksToAsync(target, default));
+        Assert.Equal(2, await store.RemoveLinksToAsync(target, TestContext.Current.CancellationToken));
 
-        Assert.Equal(other.Kind, Assert.Single(await store.LinksOfAsync([one.Id, two.Id], default)).TargetKind);
-        Assert.NotNull(await store.FindAsync(one.Id, default));
-        Assert.NotNull(await store.FindAsync(two.Id, default));
+        Assert.Equal(other.Kind, Assert.Single(await store.LinksOfAsync([one.Id, two.Id], TestContext.Current.CancellationToken)).TargetKind);
+        Assert.NotNull(await store.FindAsync(one.Id, TestContext.Current.CancellationToken));
+        Assert.NotNull(await store.FindAsync(two.Id, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -121,19 +121,19 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var __ = scope;
         var (one, two, three) = (Doc(), Doc(), Doc());
         foreach (var d in new[] { one, two, three })
-            await store.CreateAsync(d, default);
+            await store.CreateAsync(d, TestContext.Current.CancellationToken);
         var from = new DocumentTarget("income.one_off", Guid.NewGuid());
         var to = new DocumentTarget("income.one_off", Guid.NewGuid());
         var unrelated = new DocumentTarget("income.one_off", Guid.NewGuid());
         var anchor = Guid.NewGuid();
-        await store.AddLinkAsync(Link(one.Id, from) with { AnchorItemId = anchor, Role = "deed" }, default);
-        await store.AddLinkAsync(Link(two.Id, from), default);
-        await store.AddLinkAsync(Link(two.Id, to, "invoice"), default); // already linked to the destination
-        await store.AddLinkAsync(Link(three.Id, unrelated), default);
+        await store.AddLinkAsync(Link(one.Id, from) with { AnchorItemId = anchor, Role = "deed" }, TestContext.Current.CancellationToken);
+        await store.AddLinkAsync(Link(two.Id, from), TestContext.Current.CancellationToken);
+        await store.AddLinkAsync(Link(two.Id, to, "invoice"), TestContext.Current.CancellationToken); // already linked to the destination
+        await store.AddLinkAsync(Link(three.Id, unrelated), TestContext.Current.CancellationToken);
 
-        await scope.ServiceProvider.GetRequiredService<IDocumentLinks>().MoveTargetAsync(from, to, default);
+        await scope.ServiceProvider.GetRequiredService<IDocumentLinks>().MoveTargetAsync(from, to, TestContext.Current.CancellationToken);
 
-        var links = await store.LinksOfAsync([one.Id, two.Id, three.Id], default);
+        var links = await store.LinksOfAsync([one.Id, two.Id, three.Id], TestContext.Current.CancellationToken);
         var moved = Assert.Single(links, l => l.DocumentId == one.Id);
         Assert.Equal((to.Kind, to.Id, anchor, "deed"), (moved.TargetKind, moved.TargetId, moved.AnchorItemId, moved.Role));
         var kept = Assert.Single(links, l => l.DocumentId == two.Id);
@@ -150,12 +150,12 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var __ = scope;
         var live = Doc();
         var archived = Doc(archived: At);
-        await store.CreateAsync(live, default);
-        await store.CreateAsync(archived, default);
+        await store.CreateAsync(live, TestContext.Current.CancellationToken);
+        await store.CreateAsync(archived, TestContext.Current.CancellationToken);
 
-        var visible = await store.ListAsync(false, default);
+        var visible = await store.ListAsync(false, TestContext.Current.CancellationToken);
         Assert.Contains(visible, d => d.Id == live.Id);
         Assert.DoesNotContain(visible, d => d.Id == archived.Id);
-        Assert.Contains(await store.ListAsync(true, default), d => d.Id == archived.Id);
+        Assert.Contains(await store.ListAsync(true, TestContext.Current.CancellationToken), d => d.Id == archived.Id);
     }
 }

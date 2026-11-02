@@ -482,7 +482,7 @@ public class SaleTaxTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
         foreach (var item in new[] { new ItemId(Guid.CreateVersion7()), closed })
         {
-            var (_, failure) = await app.InvokeAsync(app.AdultA, new GetSaleTaxQuery(VisibilityScope.Me, item));
+            var (_, failure) = await app.InvokeAsync(app.AdultA, new GetSaleTaxQuery(VisibilityScope.Me, item), TestContext.Current.CancellationToken);
             Assert.IsType<NotFoundFailure>(failure);
         }
     }

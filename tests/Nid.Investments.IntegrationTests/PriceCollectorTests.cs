@@ -112,11 +112,11 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
         Serve(app, ($"boursorama-search:{Fund}", "boursorama-search-fund.html"));
         await HoldAsync(app, Fund);
 
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new CollectPricesCommand());
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new CollectPricesCommand(), TestContext.Current.CancellationToken);
 
         Assert.Equal(PriceCodes.Disabled, failure?.Code);
         await using var scope = Scope(app);
-        Assert.Empty(await scope.ServiceProvider.GetRequiredService<IPriceRunLog>().RecentAsync(5, default));
+        Assert.Empty(await scope.ServiceProvider.GetRequiredService<IPriceRunLog>().RecentAsync(5, TestContext.Current.CancellationToken));
         Assert.Empty(app.Prices.Requested);
     }
 
@@ -239,7 +239,7 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
         await HoldAsync(app, Fund);
         await using (var scope = Scope(app))
             await scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>().WriteAsync(new SecurityPrice(
-                Fund, new LocalDate(2026, 10, 20), 2000m, Currency.Eur, PriceSources.Boursorama, PriceStatus.Accepted, null, Now, null), default);
+                Fund, new LocalDate(2026, 10, 20), 2000m, Currency.Eur, PriceSources.Boursorama, PriceStatus.Accepted, null, Now, null), TestContext.Current.CancellationToken);
         await EnableAsync(app);
 
         Assert.Equal((1, 0, 1, 0, 0), Counts(await CollectAsync(app)));
@@ -269,7 +269,7 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
         await SnapshotAsync(app, envelope, holding, 2000m);
         await using (var scope = Scope(app))
             await scope.ServiceProvider.GetRequiredService<IFxRateStore>().WriteAsync(
-                [new FxRate(new LocalDate(2026, 9, 30), Currency.Eur, 1.5m, FxRateSource.Manual)], default);
+                [new FxRate(new LocalDate(2026, 9, 30), Currency.Eur, 1.5m, FxRateSource.Manual)], TestContext.Current.CancellationToken);
         await EnableAsync(app);
 
         // 2000 USD is 3000 EUR: 3088.54 EUR is within 20 %; unconverted, it would have been refused.
@@ -284,7 +284,7 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
         await HoldAsync(app, Etf);
         await using (var scope = Scope(app))
             await scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>().SaveListingAsync(
-                new SecurityListing(Etf, "/bourse/trackers/cours/GONE/", null, Now - NodaTime.Duration.FromDays(30), null), default);
+                new SecurityListing(Etf, "/bourse/trackers/cours/GONE/", null, Now - NodaTime.Duration.FromDays(30), null), TestContext.Current.CancellationToken);
         await EnableAsync(app);
 
         Assert.Equal((1, 1, 0, 0, 0), Counts(await CollectAsync(app)));
@@ -304,7 +304,7 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
         await EnableAsync(app);
         await CollectAsync(app);
 
-        var (runs, failure) = await app.InvokeAsync(app.AdultA, new GetPriceRunsQuery());
+        var (runs, failure) = await app.InvokeAsync(app.AdultA, new GetPriceRunsQuery(), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         var json = JsonSerializer.Serialize(runs);
@@ -319,23 +319,23 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
         var trigger = new RecordingTrigger();
         await using var app = await StartAsync(fixture, services => services.AddSingleton<IPriceJobTrigger>(trigger));
 
-        var (_, notAdmin) = await app.InvokeAsync(app.AdultB, new RequestPriceSyncCommand());
+        var (_, notAdmin) = await app.InvokeAsync(app.AdultB, new RequestPriceSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Equal(AdminCodes.Required, notAdmin?.Code);
-        var (_, disabled) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand());
+        var (_, disabled) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Equal(PriceCodes.Disabled, disabled?.Code);
         Assert.Equal(0, trigger.Calls);
 
         await EnableAsync(app);
-        var (requested, failure) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand());
+        var (requested, failure) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Null(failure);
         Assert.Equal(new PriceSyncRequested(true), requested);
         Assert.Equal(1, trigger.Calls);
 
         await using (var scope = Scope(app))
-            await scope.ServiceProvider.GetRequiredService<IPriceRunLog>().TryStartAsync(default);
-        var (_, running) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand());
+            await scope.ServiceProvider.GetRequiredService<IPriceRunLog>().TryStartAsync(TestContext.Current.CancellationToken);
+        var (_, running) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Equal(PriceCodes.SyncRunning, running?.Code);
-        var (_, collecting) = await app.InvokeAsync(app.AdultA, new CollectPricesCommand());
+        var (_, collecting) = await app.InvokeAsync(app.AdultA, new CollectPricesCommand(), TestContext.Current.CancellationToken);
         Assert.Equal(PriceCodes.SyncRunning, collecting?.Code);
         Assert.Equal(1, trigger.Calls);
     }
@@ -345,7 +345,7 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var app = await StartAsync(fixture);
         await EnableAsync(app);
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand());
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new RequestPriceSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Equal(PriceCodes.JobsDisabled, failure?.Code);
     }
 

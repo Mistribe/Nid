@@ -299,7 +299,7 @@ public class DigestTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         Assert.Equal(1, await DigestAsync(h)); // period 1, not dispatched yet
         var id = (await RowsAsync(h)).Single(r => r.Key == "a:1").Id;
         await using (var scope = h.App.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<INotificationStore>().SnoozeAsync(id, new LocalDate(2025, 10, 16), default);
+            await scope.ServiceProvider.GetRequiredService<INotificationStore>().SnoozeAsync(id, new LocalDate(2025, 10, 16), TestContext.Current.CancellationToken);
 
         h.Clock.Now += NodaTime.Duration.FromDays(1);
         await EvaluateAsync(h); // wakes: round 2
@@ -382,7 +382,7 @@ public class DigestTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
                 Id = Guid.CreateVersion7(), DigestId = digest.Id, PersonId = h.App.AdultA.Value, Channel = "discord_person",
                 State = DeliveryStates.Sent, Attempts = 1, CreatedAt = h.Clock.Now, SentAt = h.Clock.Now,
             });
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
         h.Channel.Failing = NotificationChannelCodes.Rejected;
 

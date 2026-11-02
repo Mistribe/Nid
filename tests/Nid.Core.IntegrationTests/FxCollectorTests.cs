@@ -52,7 +52,7 @@ public class FxCollectorTests(PostgresFixture postgres)
         sources.Days[Start] = FxFixtures.SubTrackerDay(("EUR", 0.81m), ("GBP", 0.61m));
         var (collector, store, _) = Build(db, sources);
 
-        var run = (await collector.BackfillAsync(default)).Ok();
+        var run = (await collector.BackfillAsync(TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal((FxRunStatus.Succeeded, 2), (run.Status, run.FilesRead));
         Assert.Equal(0.81m, await RateAsync(store, "EUR", Start));   // SubTracker replaced the ECB's 0.8
@@ -66,10 +66,10 @@ public class FxCollectorTests(PostgresFixture postgres)
         var sources = new FakeFxSources { Ecb = FxFixtures.EcbZip((Start, 1.25m, 0.75m)) };
         sources.Days[Start] = FxFixtures.SubTrackerDay(("EUR", 0.81m));
         var (collector, store, _) = Build(db, sources);
-        await collector.BackfillAsync(default);
+        await collector.BackfillAsync(TestContext.Current.CancellationToken);
         sources.Requested.Clear();
 
-        (await collector.BackfillAsync(default)).Ok();
+        (await collector.BackfillAsync(TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(["ecb", "2025-07-31", "2025-08-01"], sources.Requested); // Start already holds SubTracker rates
         Assert.Equal(0.81m, await RateAsync(store, "EUR", Start));
@@ -83,9 +83,9 @@ public class FxCollectorTests(PostgresFixture postgres)
         sources.Days[Start] = FxFixtures.SubTrackerDay(("EUR", 0.8m));
         sources.Days[Today] = FxFixtures.SubTrackerDay(("EUR", 0.82m));
         var (collector, store, _) = Build(db, sources);
-        await new FxRateStore(db).WriteAsync([new FxRate(Start, Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], default);
+        await new FxRateStore(db).WriteAsync([new FxRate(Start, Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken);
 
-        var run = (await collector.CollectDailyAsync(default)).Ok();
+        var run = (await collector.CollectDailyAsync(TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(["2025-07-31", "2025-08-01"], sources.Requested);
         Assert.Equal((FxRunKind.Daily, FxRunStatus.Succeeded, 1), (run.Kind, run.Status, run.FilesRead));
@@ -99,9 +99,9 @@ public class FxCollectorTests(PostgresFixture postgres)
         var sources = new FakeFxSources();
         sources.Days[Today] = FxFixtures.SubTrackerDay(("EUR", 0.8m), ("GBP", 2m));
         var (collector, store, _) = Build(db, sources);
-        await store.WriteAsync([new FxRate(Today.PlusDays(-1), Currency.TryCreate("GBP", out var gbp) ? gbp : default, 0.7m, FxRateSource.Ecb)], default);
+        await store.WriteAsync([new FxRate(Today.PlusDays(-1), Currency.TryCreate("GBP", out var gbp) ? gbp : default, 0.7m, FxRateSource.Ecb)], TestContext.Current.CancellationToken);
 
-        var run = (await collector.CollectDailyAsync(default)).Ok();
+        var run = (await collector.CollectDailyAsync(TestContext.Current.CancellationToken)).Ok();
 
         var rejected = Assert.Single(run.Rejected);
         Assert.Equal(("GBP", 0.7m, FxCodes.ImplausibleChange), (rejected.Quote, rejected.Previous, rejected.Reason));
@@ -114,11 +114,11 @@ public class FxCollectorTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var (collector, _, log) = Build(db, FakeFxSources.Offline());
 
-        var run = (await collector.BackfillAsync(default)).Ok();
+        var run = (await collector.BackfillAsync(TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal((FxRunStatus.Failed, FxCodes.SourceUnavailable), (run.Status, run.FailureCode));
-        Assert.Equal(run, Assert.Single(await log.RecentAsync(5, default)));
-        Assert.False(await log.IsRunningAsync(default));
+        Assert.Equal(run, Assert.Single(await log.RecentAsync(5, TestContext.Current.CancellationToken)));
+        Assert.False(await log.IsRunningAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -127,10 +127,10 @@ public class FxCollectorTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var (collector, store, _) = Build(db, new FakeFxSources { Ecb = "not a zip"u8.ToArray() });
 
-        var run = (await collector.BackfillAsync(default)).Ok();
+        var run = (await collector.BackfillAsync(TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(FxCodes.SourceMalformed, run.FailureCode);
-        Assert.Empty(await store.DatesFromAsync(FxRateSource.Ecb, LocalDate.MinIsoValue, default));
+        Assert.Empty(await store.DatesFromAsync(FxRateSource.Ecb, LocalDate.MinIsoValue, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -142,10 +142,10 @@ public class FxCollectorTests(PostgresFixture postgres)
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => collector.CollectDailyAsync(cts.Token));
 
-        var run = Assert.Single(await log.RecentAsync(5, default));
+        var run = Assert.Single(await log.RecentAsync(5, TestContext.Current.CancellationToken));
         Assert.Equal((FxRunStatus.Failed, FxCodes.RunInterrupted), (run.Status, run.FailureCode));
         Assert.NotNull(run.FinishedAt);
-        Assert.False(await log.IsRunningAsync(default));
+        Assert.False(await log.IsRunningAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -153,9 +153,9 @@ public class FxCollectorTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         var (collector, _, log) = Build(db, new FakeFxSources());
-        await log.TryStartAsync(FxRunKind.Backfill, default);
+        await log.TryStartAsync(FxRunKind.Backfill, TestContext.Current.CancellationToken);
 
-        var refused = await collector.CollectDailyAsync(default);
+        var refused = await collector.CollectDailyAsync(TestContext.Current.CancellationToken);
 
         Assert.True(refused.TryGetFailure(out var failure));
         Assert.Equal(FxCodes.SyncRunning, failure!.Code);

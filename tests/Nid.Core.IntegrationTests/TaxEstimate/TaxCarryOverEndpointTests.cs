@@ -124,7 +124,7 @@ public class TaxCarryOverEndpointTests(PostgresFixture fixture) : IClassFixture<
         await using var app = await NidApp.StartAsync(fixture);
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
             await core.Persons.Where(p => p.Id == app.AdultB.Value).ExecuteUpdateAsync(s => s
-                .SetProperty(p => p.OidcSubject, (string?)null).SetProperty(p => p.Email, "b@example.test"));
+                .SetProperty(p => p.OidcSubject, (string?)null).SetProperty(p => p.Email, "b@example.test"), cancellationToken: TestContext.Current.CancellationToken);
         await AddAsync(app, app.AdultA, 2024, [Declarant(app.AdultA, 1, new { PerCeilingNext = Eur("3000.00") })]);
 
         var list = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{Route}?scope=household")).RootElement;

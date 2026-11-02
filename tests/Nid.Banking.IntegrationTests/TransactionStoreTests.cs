@@ -41,10 +41,10 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
         NewBankTransaction[] lines = [Line("a", Day, -13.49m), Line(null, Day, -2m, "CB  Café"), Line(null, Day, -2m, "CB  Café")];
 
-        Assert.Equal(new TransactionWrite(3, 0), await store.AddAsync(account, lines, default));
-        Assert.Equal(new TransactionWrite(0, 3), await store.AddAsync(account, lines, default));
+        Assert.Equal(new TransactionWrite(3, 0), await store.AddAsync(account, lines, TestContext.Current.CancellationToken));
+        Assert.Equal(new TransactionWrite(0, 3), await store.AddAsync(account, lines, TestContext.Current.CancellationToken));
 
-        var stored = await store.ListAsync([account], null, null, 0, 10, default);
+        var stored = await store.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken);
         Assert.Equal(3, stored.Count);
         Assert.Equal(["CAFE", "CAFE", "NETFLIX"], stored.Select(t => t.NormalizedLabel).Order());
         Assert.All(stored.Where(t => t.ProviderRef != "a"), t => Assert.Equal(t.Fingerprint, t.ProviderRef)); // no provider ref: the fingerprint
@@ -58,10 +58,10 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         var (scope, account) = await SetUpAsync(app);
         await using var _ = scope;
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        await store.AddAsync(account, [Line("a", Day, -10m, "LOYER")], default);
+        await store.AddAsync(account, [Line("a", Day, -10m, "LOYER")], TestContext.Current.CancellationToken);
 
-        Assert.Equal(new TransactionWrite(0, 1), await store.AddAsync(account, [Line("a", Day.PlusDays(1), -11m, "LOYER BIS")], default));
-        var only = Assert.Single(await store.ListAsync([account], null, null, 0, 10, default));
+        Assert.Equal(new TransactionWrite(0, 1), await store.AddAsync(account, [Line("a", Day.PlusDays(1), -11m, "LOYER BIS")], TestContext.Current.CancellationToken));
+        var only = Assert.Single(await store.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken));
         Assert.Equal((Day, -10m, "LOYER"), (only.BookedOn, only.Amount, only.Label));
     }
 
@@ -72,14 +72,14 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         var (scope, account) = await SetUpAsync(app);
         await using var _ = scope;
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        Assert.Null(await store.LatestBookedOnAsync(account, null, default));
-        Assert.False(await store.HasFetchedViaAsync(account, "api", default));
+        Assert.Null(await store.LatestBookedOnAsync(account, null, TestContext.Current.CancellationToken));
+        Assert.False(await store.HasFetchedViaAsync(account, "api", TestContext.Current.CancellationToken));
 
-        await store.AddAsync(account, [Line("a", Day, -1m), Line("b", Day.PlusDays(3), -2m)], default);
+        await store.AddAsync(account, [Line("a", Day, -1m), Line("b", Day.PlusDays(3), -2m)], TestContext.Current.CancellationToken);
 
-        Assert.Equal(Day.PlusDays(3), await store.LatestBookedOnAsync(account, null, default));
-        Assert.True(await store.HasFetchedViaAsync(account, "api", default));
-        Assert.False(await store.HasFetchedViaAsync(account, "file", default));
+        Assert.Equal(Day.PlusDays(3), await store.LatestBookedOnAsync(account, null, TestContext.Current.CancellationToken));
+        Assert.True(await store.HasFetchedViaAsync(account, "api", TestContext.Current.CancellationToken));
+        Assert.False(await store.HasFetchedViaAsync(account, "file", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -93,9 +93,9 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         [
             Line("same", Day, -5m), Line("before", Day.PlusDays(-1), -5m), Line("after", Day.PlusDays(1), -5m),
             Line("far", Day.PlusDays(2), -5m), Line("other", Day, -6m),
-        ], default);
+        ], TestContext.Current.CancellationToken);
 
-        var near = await store.NearAsync(account, [(Day, -5.00m)], default);
+        var near = await store.NearAsync(account, [(Day, -5.00m)], TestContext.Current.CancellationToken);
 
         Assert.Equal(["after", "before", "same"], near.Select(t => t.ProviderRef).Order());
     }
@@ -109,14 +109,14 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
         var db = scope.ServiceProvider.GetRequiredService<BankingDbContext>();
         var old = Day.PlusYears(-3);
-        await store.AddAsync(account, [Line("u", old, -1m), Line("i", old, -2m), Line("l", old, -3m), Line("n", Day, -4m)], default);
-        foreach (var t in await db.Transactions.ToListAsync())
+        await store.AddAsync(account, [Line("u", old, -1m), Line("i", old, -2m), Line("l", old, -3m), Line("n", Day, -4m)], TestContext.Current.CancellationToken);
+        foreach (var t in await db.Transactions.ToListAsync(cancellationToken: TestContext.Current.CancellationToken))
             t.LinkState = t.ProviderRef switch { "i" => "ignored", "l" => "linked", _ => t.LinkState };
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, await store.PurgeBookedBeforeAsync(Day.PlusYears(-1), default));
+        Assert.Equal(2, await store.PurgeBookedBeforeAsync(Day.PlusYears(-1), TestContext.Current.CancellationToken));
 
-        Assert.Equal(["l", "n"], (await store.ListAsync([account], null, null, 0, 10, default)).Select(t => t.ProviderRef).Order());
+        Assert.Equal(["l", "n"], (await store.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.ProviderRef).Order());
     }
 
     [Fact]
@@ -128,12 +128,12 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
         var a = Line("a", Day, -2.10m, "RATP");
         var b = Line("b", Day, -2.10m, "RATP");
-        await store.AddAsync(account, [a], default);
+        await store.AddAsync(account, [a], TestContext.Current.CancellationToken);
 
         // Newest first: b takes rank 1 in this read, where a had it.
-        Assert.Equal(new TransactionWrite(1, 1), await store.AddAsync(account, [b, a], default));
-        Assert.Equal(new TransactionWrite(0, 2), await store.AddAsync(account, [b, a], default));
-        Assert.Equal(["a", "b"], (await store.ListAsync([account], null, null, 0, 10, default)).Select(t => t.ProviderRef).Order());
+        Assert.Equal(new TransactionWrite(1, 1), await store.AddAsync(account, [b, a], TestContext.Current.CancellationToken));
+        Assert.Equal(new TransactionWrite(0, 2), await store.AddAsync(account, [b, a], TestContext.Current.CancellationToken));
+        Assert.Equal(["a", "b"], (await store.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.ProviderRef).Order());
     }
 
     [Fact]
@@ -143,9 +143,9 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         var (scope, account) = await SetUpAsync(app);
         await using var _ = scope;
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        await store.AddAsync(account, [Line("a", Day, -2.10m, "RATP")], default);
+        await store.AddAsync(account, [Line("a", Day, -2.10m, "RATP")], TestContext.Current.CancellationToken);
 
-        Assert.Equal(new TransactionWrite(0, 1), await store.AddAsync(account, [Line("fitid-9", Day, -2.10m, "RATP") with { FetchedVia = "file" }], default));
+        Assert.Equal(new TransactionWrite(0, 1), await store.AddAsync(account, [Line("fitid-9", Day, -2.10m, "RATP") with { FetchedVia = "file" }], TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -159,10 +159,10 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         NewBankTransaction[] lines = [.. Enumerable.Range(0, 50).Select(i => Line($"r{i}", Day, -i - 1m, $"LABEL {i}"))];
 
         var results = await Task.WhenAll(
-            scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(account, lines, default),
-            other.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(account, lines, default));
+            scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(account, lines, TestContext.Current.CancellationToken),
+            other.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(account, lines, TestContext.Current.CancellationToken));
 
         Assert.Equal(50, results.Sum(r => r.Added));
-        Assert.Equal(50, (await scope.ServiceProvider.GetRequiredService<ITransactionStore>().ListAsync([account], null, null, 0, 100, default)).Count);
+        Assert.Equal(50, (await scope.ServiceProvider.GetRequiredService<ITransactionStore>().ListAsync([account], null, null, 0, 100, TestContext.Current.CancellationToken)).Count);
     }
 }

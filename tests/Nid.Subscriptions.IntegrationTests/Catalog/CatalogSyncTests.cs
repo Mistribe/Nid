@@ -27,14 +27,14 @@ public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
         ServeRealFiles(app);
 
-        var run = (await SyncAsync(app)).Ok();
+        var run = (await SyncAsync(app, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal((CatalogRunStatus.Succeeded, CatalogFixtures.PinnedCommit), (run.Status, run.Commit));
         Assert.Equal(17, run.Report!.ProvidersAdded.Count);
         Assert.Equal([CatalogFixtures.PinnedCommit], app.Catalog.Requested);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(17, await subs.Providers.CountAsync(p => p.Origin == "catalog"));
-        var journaled = await subs.CatalogSyncRuns.AsNoTracking().SingleAsync();
+        Assert.Equal(17, await subs.Providers.CountAsync(p => p.Origin == "catalog", cancellationToken: TestContext.Current.CancellationToken));
+        var journaled = await subs.CatalogSyncRuns.AsNoTracking().SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("succeeded", CatalogFixtures.PinnedCommit), (journaled.Status, journaled.Commit));
         Assert.NotNull(journaled.Report);
     }
@@ -44,9 +44,9 @@ public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         ServeRealFiles(app);
-        (await SyncAsync(app)).Ok();
+        (await SyncAsync(app, TestContext.Current.CancellationToken)).Ok();
 
-        var second = (await SyncAsync(app)).Ok();
+        var second = (await SyncAsync(app, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(17, second.Report!.ProvidersUnchanged.Count);
         Assert.Empty(second.Report.ProvidersAdded);
@@ -58,12 +58,12 @@ public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture); // offline, like every test host
 
-        var run = (await SyncAsync(app)).Ok();
+        var run = (await SyncAsync(app, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal((CatalogRunStatus.Failed, CatalogCodes.SourceUnavailable), (run.Status, run.FailureCode));
         Assert.Null(run.Report);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.False(await subs.Providers.AnyAsync());
+        Assert.False(await subs.Providers.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -72,11 +72,11 @@ public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
         app.Catalog.Serve(CatalogFixtures.RealLabels(), "{\"not\":\"an array\"}"u8.ToArray());
 
-        var run = (await SyncAsync(app)).Ok();
+        var run = (await SyncAsync(app, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal((CatalogRunStatus.Failed, CatalogCodes.SourceMalformed), (run.Status, run.FailureCode));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal([CatalogLimits.OtherLabel], await subs.Labels.Select(l => l.Key).ToListAsync()); // not even the labels
+        Assert.Equal([CatalogLimits.OtherLabel], await subs.Labels.Select(l => l.Key).ToListAsync(cancellationToken: TestContext.Current.CancellationToken)); // not even the labels
     }
 
     [Fact]
@@ -84,9 +84,9 @@ public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync("another", default);
+            await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync("another", TestContext.Current.CancellationToken);
 
-        Assert.Equal(CatalogCodes.SyncRunning, (await SyncAsync(app)).FailureCode());
+        Assert.Equal(CatalogCodes.SyncRunning, (await SyncAsync(app, TestContext.Current.CancellationToken)).FailureCode());
         Assert.Empty(app.Catalog.Requested);
     }
 
@@ -105,9 +105,9 @@ public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => SyncAsync(app, shutdown.Token));
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var run = await subs.CatalogSyncRuns.AsNoTracking().SingleAsync();
+        var run = await subs.CatalogSyncRuns.AsNoTracking().SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("failed", CatalogCodes.RunInterrupted), (run.Status, run.FailureCode));
-        Assert.False(await subs.Providers.AnyAsync());
+        Assert.False(await subs.Providers.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -127,13 +127,13 @@ public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresF
                     Id = Guid.CreateVersion7(), StartedAt = Instant.FromUtc(2024, 2, 1, 7, 0), FinishedAt = Instant.FromUtc(2024, 2, 1, 7, 1),
                     Status = "succeeded", Commit = "old",
                 });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        (await SyncAsync(app)).Ok(); // fails offline, then purges
+        (await SyncAsync(app, TestContext.Current.CancellationToken)).Ok(); // fails offline, then purges
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var left = await subs.CatalogSyncRuns.AsNoTracking().OrderBy(r => r.StartedAt).Select(r => r.Status).ToListAsync();
+        var left = await subs.CatalogSyncRuns.AsNoTracking().OrderBy(r => r.StartedAt).Select(r => r.Status).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(["succeeded", "failed"], left);
     }
 }

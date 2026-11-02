@@ -166,7 +166,7 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.NotNull(run.Message);
         Assert.Empty(await StoredAsync(app));
         await using var scope = Scope(app);
-        Assert.Equal(["failed", "failed"], (await scope.ServiceProvider.GetRequiredService<IIrlRunLog>().RecentAsync(5, default)).Select(r => r.Status));
+        Assert.Equal(["failed", "failed"], (await scope.ServiceProvider.GetRequiredService<IIrlRunLog>().RecentAsync(5, TestContext.Current.CancellationToken)).Select(r => r.Status));
     }
 
     [Fact]
@@ -175,13 +175,13 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         var trigger = new RecordingTrigger();
         await using var app = await StartAsync(fixture, services => services.AddSingleton<IIrlJobTrigger>(trigger));
 
-        var (_, collecting) = await app.InvokeAsync(app.AdultA, new CollectIrlCommand());
-        var (_, requesting) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand());
+        var (_, collecting) = await app.InvokeAsync(app.AdultA, new CollectIrlCommand(), TestContext.Current.CancellationToken);
+        var (_, requesting) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand(), TestContext.Current.CancellationToken);
 
         Assert.Equal((IrlCodes.Disabled, IrlCodes.Disabled), (collecting?.Code, requesting?.Code));
         Assert.Equal(0, trigger.Calls);
         Assert.Equal(0, app.Irl.Requests);
-        var (view, _) = await app.InvokeAsync(app.AdultA, new GetIrlQuery());
+        var (view, _) = await app.InvokeAsync(app.AdultA, new GetIrlQuery(), TestContext.Current.CancellationToken);
         Assert.Empty(((IrlAdminView)view!).Runs);
     }
 
@@ -192,15 +192,15 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(fixture, services => services.AddSingleton<IIrlJobTrigger>(trigger));
         await EnableAsync(app);
 
-        var (requested, failure) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand());
+        var (requested, failure) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Null(failure);
         Assert.Equal(new IrlSyncRequested(true), requested);
         Assert.Equal(1, trigger.Calls);
 
         await using (var scope = Scope(app))
-            await scope.ServiceProvider.GetRequiredService<IIrlRunLog>().TryStartAsync(default);
-        var (_, running) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand());
-        var (_, collecting) = await app.InvokeAsync(app.AdultA, new CollectIrlCommand());
+            await scope.ServiceProvider.GetRequiredService<IIrlRunLog>().TryStartAsync(TestContext.Current.CancellationToken);
+        var (_, running) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand(), TestContext.Current.CancellationToken);
+        var (_, collecting) = await app.InvokeAsync(app.AdultA, new CollectIrlCommand(), TestContext.Current.CancellationToken);
         Assert.Equal((IrlCodes.SyncRunning, IrlCodes.SyncRunning), (running?.Code, collecting?.Code));
         Assert.Equal(1, trigger.Calls);
     }
@@ -211,7 +211,7 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(fixture);
         await EnableAsync(app);
 
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand());
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new RequestIrlSyncCommand(), TestContext.Current.CancellationToken);
 
         Assert.Equal(IrlCodes.JobsDisabled, failure?.Code);
     }
@@ -223,16 +223,16 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         await using var app = await StartAsync(fixture);
 
-        var (view, failure) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 148.1m, Jo));
+        var (view, failure) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 148.1m, Jo), TestContext.Current.CancellationToken);
         Assert.Null(failure);
         Assert.Equal(new IrlValueView("2026-Q3", "148.10", Jo, Today, "manual"), view);
-        var (_, again) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 148.2m, Jo));
+        var (_, again) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 148.2m, Jo), TestContext.Current.CancellationToken);
         Assert.Null(again);
         Assert.Equal(148.2m, Assert.Single(await StoredAsync(app)).Value);
 
         await EnableAsync(app);
         await CollectAsync(app);
-        var (_, fromInsee) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 150m, Jo));
+        var (_, fromInsee) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 150m, Jo), TestContext.Current.CancellationToken);
         Assert.Equal(IrlCodes.IrlFromInsee, fromInsee?.Code);
         Assert.Equal(148.06m, (await StoredAsync(app)).Single(v => v.Quarter == new IrlQuarter(2026, 3)).Value);
     }
@@ -253,7 +253,7 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(fixture);
 
         var (_, failure) = await app.InvokeAsync(app.AdultA,
-            new SetIrlValueCommand(year, quarter, (decimal)value, NodaTime.Text.LocalDatePattern.Iso.Parse(publishedOn).Value));
+            new SetIrlValueCommand(year, quarter, (decimal)value, NodaTime.Text.LocalDatePattern.Iso.Parse(publishedOn).Value), TestContext.Current.CancellationToken);
 
         Assert.Equal((IrlCodes.InvalidIrlValue, field), (failure?.Code, failure?.Metadata?["field"]));
         Assert.Empty(await StoredAsync(app));
@@ -265,10 +265,10 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(fixture);
         await Put(app, new IrlValue(new IrlQuarter(2025, 3), 146.00m, new LocalDate(2025, 10, 15), new LocalDate(2025, 10, 15), "insee"));
 
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 170m, Jo));
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 170m, Jo), TestContext.Current.CancellationToken);
 
         Assert.Equal((IrlCodes.InvalidIrlValue, "value"), (failure?.Code, failure?.Metadata?["field"]));
-        Assert.Null((await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 148.06m, Jo))).Item2);
+        Assert.Null((await app.InvokeAsync(app.AdultA, new SetIrlValueCommand(2026, 3, 148.06m, Jo), TestContext.Current.CancellationToken)).Item2);
     }
 
     [Fact]
@@ -278,7 +278,7 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EnableAsync(app);
         await CollectAsync(app);
 
-        var (view, failure) = await app.InvokeAsync(app.AdultA, new GetIrlQuery());
+        var (view, failure) = await app.InvokeAsync(app.AdultA, new GetIrlQuery(), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         var admin = (IrlAdminView)view!;

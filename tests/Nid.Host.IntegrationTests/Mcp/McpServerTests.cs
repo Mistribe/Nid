@@ -21,13 +21,13 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var read = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read);
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
 
-        var tools = await client.ListToolsAsync();
+        var tools = await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
         var reads = tools.Where(t => IsRead(t.Name)).ToList();
         Assert.Contains(reads, t => t.Name == "list_persons");
         Assert.All(reads, t => Assert.True(t.ProtocolTool.Annotations?.ReadOnlyHint));
         Assert.All(reads, t => Assert.EndsWith(McpServerSentence, t.Description));
 
-        var result = await client.CallToolAsync("list_persons", new Dictionary<string, object?>());
+        var result = await client.CallToolAsync("list_persons", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotEqual(true, result.IsError);
         Assert.Equal(
             JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/core/persons")).RootElement.ToString(),
@@ -49,7 +49,7 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var read = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read);
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
 
-        var writes = (await client.ListToolsAsync()).Where(t => IsWrite(t.Name)).ToList();
+        var writes = (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).Where(t => IsWrite(t.Name)).ToList();
 
         Assert.NotEmpty(writes);
         Assert.All(writes, t =>
@@ -81,7 +81,7 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using var app = await NidApp.StartAsync(fixture);
         var read = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read);
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
-        Assert.NotEqual(true, (await client.CallToolAsync("list_persons", new Dictionary<string, object?>())).IsError);
+        Assert.NotEqual(true, (await client.CallToolAsync("list_persons", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken)).IsError);
 
         await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{TokenApi.Tokens}/{read.Token.Id}");
 
@@ -101,14 +101,14 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"legacy","version":"1"}}}""",
             null);
         Assert.Equal(HttpStatusCode.OK, init.StatusCode);
-        Assert.Contains("2025-11-25", await init.Content.ReadAsStringAsync());
+        Assert.Contains("2025-11-25", await init.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var list = await McpHarness.RawAsync(app, read.Secret, """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""", "2025-11-25");
-        Assert.Contains("list_persons", await list.Content.ReadAsStringAsync());
+        Assert.Contains("list_persons", await list.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var call = await McpHarness.RawAsync(app, read.Secret,
             """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_persons","arguments":{}}}""", "2025-11-25");
-        var body = await call.Content.ReadAsStringAsync();
+        var body = await call.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, call.StatusCode);
         Assert.DoesNotContain("\"isError\":true", body);
         Assert.Contains(app.AdultA.Value.ToString(), body);
@@ -121,7 +121,7 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var read = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read);
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
 
-        await client.CallToolAsync("list_persons", new Dictionary<string, object?>());
+        await client.CallToolAsync("list_persons", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
 
         var called = Assert.Single(await AuditApi.EventsAsync(app, SecurityEventNames.McpToolCalled));
         Assert.Equal(("mcp", read.Token.Id, app.AdultA.Value), (called.Via, called.TokenId!.Value, called.SubjectPersonId!.Value));
@@ -152,7 +152,7 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var read = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read);
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
 
-        var result = await client.CallToolAsync("list_persons", new Dictionary<string, object?>());
+        var result = await client.CallToolAsync("list_persons", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.IsError);
         Assert.Equal("Result too large: narrow the request.", McpHarness.TextOf(result));

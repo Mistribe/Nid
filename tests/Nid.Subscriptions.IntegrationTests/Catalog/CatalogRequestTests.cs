@@ -33,7 +33,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        var (run, failure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
+        var (run, failure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand(), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         var view = (CatalogSyncRunView)run!;
@@ -47,7 +47,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var app = await NidApp.StartAsync(fixture);
         app.Catalog.Serve(CatalogFixtures.RealLabels(), CatalogFixtures.RealProviders());
 
-        var (run, _) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
+        var (run, _) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand(), TestContext.Current.CancellationToken);
 
         var view = (CatalogSyncRunView)run!;
         Assert.Equal("succeeded", view.Status);
@@ -59,7 +59,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
     public async Task Without_jobs_a_sync_request_says_so()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new RequestCatalogSyncCommand());
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new RequestCatalogSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Equal(CatalogCodes.JobsDisabled, failure?.Code);
     }
 
@@ -69,15 +69,15 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         var trigger = new RecordingTrigger();
         await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<ICatalogJobTrigger>(trigger));
 
-        var (requested, failure) = await app.InvokeAsync(app.AdultA, new RequestCatalogSyncCommand());
+        var (requested, failure) = await app.InvokeAsync(app.AdultA, new RequestCatalogSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Null(failure);
         Assert.Equal(new CatalogSyncRequested(true), requested);
         Assert.Equal(1, trigger.Calls);
 
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync(CatalogFixtures.PinnedCommit, default);
+            await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync(CatalogFixtures.PinnedCommit, TestContext.Current.CancellationToken);
 
-        var (_, running) = await app.InvokeAsync(app.AdultA, new RequestCatalogSyncCommand());
+        var (_, running) = await app.InvokeAsync(app.AdultA, new RequestCatalogSyncCommand(), TestContext.Current.CancellationToken);
         Assert.Equal(CatalogCodes.SyncRunning, running?.Code);
         Assert.Equal(1, trigger.Calls);
     }
@@ -90,12 +90,12 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         foreach (var request in new object[] { new SyncCatalogCommand(), new RequestCatalogSyncCommand(), new GetCatalogRunsQuery() })
         {
-            var (_, failure) = await app.InvokeAsync(app.AdultB, request);
+            var (_, failure) = await app.InvokeAsync(app.AdultB, request, TestContext.Current.CancellationToken);
             Assert.Equal(AdminCodes.Required, failure?.Code);
         }
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.False(await subs.CatalogSyncRuns.AnyAsync()); // refused before the handler: no run journaled
+        Assert.False(await subs.CatalogSyncRuns.AnyAsync(cancellationToken: TestContext.Current.CancellationToken)); // refused before the handler: no run journaled
     }
 
     private static readonly byte[] StreamingLabel = Encoding.UTF8.GetBytes("""[{"key":"streaming","name":"Streaming","color":"#FF6400F6"}]""");
@@ -181,7 +181,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
             """));
         var synced = await SyncAsync(app);
 
-        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery());
+        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         foreach (var report in new[] { Assert.Single(((CatalogRunsView)answer!).Runs).Report!, synced.Report! })
@@ -200,7 +200,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         }
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var stored = (await subs.CatalogSyncRuns.AsNoTracking().SingleAsync()).Report!;
+        var stored = (await subs.CatalogSyncRuns.AsNoTracking().SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).Report!;
         foreach (var key in new[] { "b-secret", "b-replaced", "tinder-k3f9qa" })
             Assert.Contains(key, stored, StringComparison.Ordinal); // the host's copy stays complete
     }
@@ -272,7 +272,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
                 Status = "succeeded", Commit = CatalogFixtures.PinnedCommit,
                 Report = JsonSerializer.Serialize(bare, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
             });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var report = await ReportForAsync(app, app.AdultA);
@@ -291,7 +291,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-        var runs = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync<CatalogRunsView>(new GetCatalogRunsQuery());
+        var runs = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync<CatalogRunsView>(new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
         runs.TryGetValue(out var view);
 
         var whole = Assert.Single(view!.Runs).Report!;
@@ -313,10 +313,10 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
                     Id = Guid.CreateVersion7(), StartedAt = start + Duration.FromMinutes(i), FinishedAt = start + Duration.FromMinutes(i),
                     Status = "succeeded", Commit = $"c{i}",
                 });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery());
+        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         var runs = (CatalogRunsView)answer!;

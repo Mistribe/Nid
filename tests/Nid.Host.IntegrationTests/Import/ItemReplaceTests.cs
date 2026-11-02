@@ -23,14 +23,14 @@ public class ItemReplaceTests(PostgresFixture fixture) : IClassFixture<PostgresF
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.Id == id.Value);
+        var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.Id == id.Value, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("Nouveau nom", "shared"), (item.DisplayName, item.Visibility));
         Assert.Equal(2, item.Owners.Count);
         Assert.Equal(5000, item.Owners.Single(o => o.PersonId == app.AdultA.Value).ShareBp);
         Assert.Equal(5000, item.Owners.Single(o => o.PersonId == app.AdultB.Value).ShareBp);
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var update = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Action == "update" && r.Entity == "core.item");
+        var update = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Action == "update" && r.Entity == "core.item", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains("Ancien nom", update.Data);
         Assert.Contains("Nouveau nom", update.Data);
         Assert.Equal("import", update.Via);
@@ -52,12 +52,12 @@ public class ItemReplaceTests(PostgresFixture fixture) : IClassFixture<PostgresF
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.Id == id.Value);
+        var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.Id == id.Value, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([(app.AdultA.Value, 10000)], item.Owners.Select(o => (o.PersonId, o.ShareBp)).ToArray());
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         var removed = await platform.AuditLog.SingleAsync(
-            r => r.Category == "write" && r.Action == "delete" && r.Entity == "core.ownership" && r.ItemIds.Contains(id.Value));
+            r => r.Category == "write" && r.Action == "delete" && r.Entity == "core.ownership" && r.ItemIds.Contains(id.Value), cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("import", removed.Via);
     }
 
@@ -74,6 +74,6 @@ public class ItemReplaceTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.False(refused.IsSuccess); // shares must sum to 10 000
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(10000, (await core.Items.Include(i => i.Owners).SingleAsync(i => i.Id == id.Value)).Owners.Sum(o => o.ShareBp));
+        Assert.Equal(10000, (await core.Items.Include(i => i.Owners).SingleAsync(i => i.Id == id.Value, cancellationToken: TestContext.Current.CancellationToken)).Owners.Sum(o => o.ShareBp));
     }
 }

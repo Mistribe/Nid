@@ -67,7 +67,7 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
         var withLogs = await SeedAsync(app, "irl-weekly", T0, JobOutcomes.Failed, "InvalidOperationException: boom", hasLogs: true);
         var withoutLogs = await SeedAsync(app, "irl-weekly", T0.AddDays(1), JobOutcomes.Succeeded);
         Directory.CreateDirectory(Path.Combine(_logs, "jobs", "irl-weekly"));
-        await File.WriteAllLinesAsync(Path.Combine(_logs, "jobs", "irl-weekly", $"{withLogs}.log"), ["line one", "line two"]);
+        await File.WriteAllLinesAsync(Path.Combine(_logs, "jobs", "irl-weekly", $"{withLogs}.log"), ["line one", "line two"], TestContext.Current.CancellationToken);
 
         var run = await app.GetAsync<RunDetail>(app.AdultA, $"/api/v1/admin/jobs/irl-weekly/runs/{withLogs}");
         var bare = await app.GetAsync<RunDetail>(app.AdultA, $"/api/v1/admin/jobs/irl-weekly/runs/{withoutLogs}");
@@ -83,14 +83,14 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync();
         var id = Guid.NewGuid();
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().StartAsync(id, "irl-weekly", JobTriggers.Scheduled, T0, default);
+            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().StartAsync(id, "irl-weekly", JobTriggers.Scheduled, T0, TestContext.Current.CancellationToken);
         var folder = app.Services.GetRequiredService<Nid.Host.Jobs.RunLogFolder>();
         using var writer = folder.Open("irl-weekly", id)!;
         writer.Write("still going");
 
         var running = await app.GetAsync<RunDetail>(app.AdultA, $"/api/v1/admin/jobs/irl-weekly/runs/{id}");
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().CloseStaleAsync(default);
+            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().CloseStaleAsync(TestContext.Current.CancellationToken);
         var interrupted = await app.GetAsync<RunDetail>(app.AdultA, $"/api/v1/admin/jobs/irl-weekly/runs/{id}");
 
         Assert.Equal((JobOutcomes.Running, "still going"), (running.Outcome, Assert.Single(running.Logs!)));

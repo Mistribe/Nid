@@ -115,7 +115,7 @@ public class ValidateCommitTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Equal(ImportCodes.NotCommitted, await ImportClient.CodeOf(response));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa"));
+            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa", cancellationToken: TestContext.Current.CancellationToken));
         var after = await client.GetAsync(app.AdultA, session.Id);
         Assert.Equal("validated", after.State);
         Assert.Contains(after.Report!.Issues, i => i.Code == ImportCodes.ApplyFailed);
@@ -138,7 +138,7 @@ public class ValidateCommitTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         Assert.Equal(ImportCodes.TooLarge, await ImportClient.CodeOf(response));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa"));
+            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa", cancellationToken: TestContext.Current.CancellationToken));
         var after = await client.GetAsync(app.AdultA, session.Id);
         Assert.Equal("validated", after.State);
         Assert.Contains(after.Report!.Issues, i => i.Code == ImportCodes.TooLarge);

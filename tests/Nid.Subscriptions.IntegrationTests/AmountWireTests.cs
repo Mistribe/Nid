@@ -70,7 +70,7 @@ public class AmountWireTests(PostgresFixture fixture, SharedNidApp shared) : ICl
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("request.malformed", problem.GetProperty("code").GetString());
     }
 }

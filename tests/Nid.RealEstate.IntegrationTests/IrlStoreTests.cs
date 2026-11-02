@@ -26,14 +26,14 @@ public class IrlStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var scope = Scope(app);
         var store = scope.ServiceProvider.GetRequiredService<IIrlStore>();
 
-        await store.UpsertAsync(new IrlValue(new IrlQuarter(2026, 2), 148.37m, new LocalDate(2026, 7, 12), Day, "insee"), default);
-        await store.UpsertAsync(new IrlValue(new IrlQuarter(2025, 4), 145.77m, null, Day, "manual"), default);
-        await store.UpsertAsync(new IrlValue(new IrlQuarter(2026, 1), 146.68m, new LocalDate(2026, 4, 10), Day, "insee"), default);
-        Assert.Equal(["2025-Q4", "2026-Q1", "2026-Q2"], (await store.ListAsync(default)).Select(v => v.Quarter.ToString()));
+        await store.UpsertAsync(new IrlValue(new IrlQuarter(2026, 2), 148.37m, new LocalDate(2026, 7, 12), Day, "insee"), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new IrlValue(new IrlQuarter(2025, 4), 145.77m, null, Day, "manual"), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new IrlValue(new IrlQuarter(2026, 1), 146.68m, new LocalDate(2026, 4, 10), Day, "insee"), TestContext.Current.CancellationToken);
+        Assert.Equal(["2025-Q4", "2026-Q1", "2026-Q2"], (await store.ListAsync(TestContext.Current.CancellationToken)).Select(v => v.Quarter.ToString()));
 
         var insee = new IrlValue(new IrlQuarter(2025, 4), 145.78m, new LocalDate(2026, 1, 15), Day, "insee");
-        await store.UpsertAsync(insee, default);
-        var all = await store.ListAsync(default);
+        await store.UpsertAsync(insee, TestContext.Current.CancellationToken);
+        var all = await store.ListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, all.Count);
         Assert.Equal(insee, all[0]);
     }
@@ -46,12 +46,12 @@ public class IrlStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var store = scope.ServiceProvider.GetRequiredService<IIrlStore>();
         var q = new IrlQuarter(2026, 2);
 
-        Assert.True(await store.UpsertManualAsync(new IrlValue(q, 148m, null, Day, "manual"), default));
-        Assert.True(await store.UpsertManualAsync(new IrlValue(q, 148.1m, null, Day, "manual"), default));
-        await store.UpsertAsync(new IrlValue(q, 148.37m, new LocalDate(2026, 7, 12), Day, "insee"), default);
-        Assert.False(await store.UpsertManualAsync(new IrlValue(q, 150m, null, Day, "manual"), default));
+        Assert.True(await store.UpsertManualAsync(new IrlValue(q, 148m, null, Day, "manual"), TestContext.Current.CancellationToken));
+        Assert.True(await store.UpsertManualAsync(new IrlValue(q, 148.1m, null, Day, "manual"), TestContext.Current.CancellationToken));
+        await store.UpsertAsync(new IrlValue(q, 148.37m, new LocalDate(2026, 7, 12), Day, "insee"), TestContext.Current.CancellationToken);
+        Assert.False(await store.UpsertManualAsync(new IrlValue(q, 150m, null, Day, "manual"), TestContext.Current.CancellationToken));
 
-        Assert.Equal(("insee", 148.37m), (await store.ListAsync(default)).Select(v => (v.Source, v.Value)).Single());
+        Assert.Equal(("insee", 148.37m), (await store.ListAsync(TestContext.Current.CancellationToken)).Select(v => (v.Source, v.Value)).Single());
     }
 
     [Fact]
@@ -61,19 +61,19 @@ public class IrlStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var scope = Scope(app);
         var log = scope.ServiceProvider.GetRequiredService<IIrlRunLog>();
 
-        var first = await log.TryStartAsync(default);
+        var first = await log.TryStartAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(first);
-        Assert.Null(await log.TryStartAsync(default));
-        Assert.True(await log.IsRunningAsync(default));
+        Assert.Null(await log.TryStartAsync(TestContext.Current.CancellationToken));
+        Assert.True(await log.IsRunningAsync(TestContext.Current.CancellationToken));
 
-        await log.FinishAsync(first with { Status = "succeeded", FinishedAt = first.StartedAt, Added = 2, Replaced = 1, Rejected = 3 }, default);
-        Assert.False(await log.IsRunningAsync(default));
-        var second = await log.TryStartAsync(default);
+        await log.FinishAsync(first with { Status = "succeeded", FinishedAt = first.StartedAt, Added = 2, Replaced = 1, Rejected = 3 }, TestContext.Current.CancellationToken);
+        Assert.False(await log.IsRunningAsync(TestContext.Current.CancellationToken));
+        var second = await log.TryStartAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(second);
 
-        var recent = await log.RecentAsync(5, default);
+        var recent = await log.RecentAsync(5, TestContext.Current.CancellationToken);
         Assert.Equal([second.Id, first.Id], recent.Select(r => r.Id));
         Assert.Equal(("succeeded", 2, 1, 3), (recent[1].Status, recent[1].Added, recent[1].Replaced, recent[1].Rejected));
-        Assert.Equal(0, await log.PurgeBeforeAsync(Instant.FromUtc(2000, 1, 1, 0, 0), default));
+        Assert.Equal(0, await log.PurgeBeforeAsync(Instant.FromUtc(2000, 1, 1, 0, 0), TestContext.Current.CancellationToken));
     }
 }

@@ -63,7 +63,7 @@ public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
             new { name = "Tinder", website = "https://tinder.com", labelKeys = new[] { CatalogLimits.OtherLabel } });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var created = (await response.Content.ReadFromJsonAsync<ProviderResponse>(Json))!;
+        var created = (await response.Content.ReadFromJsonAsync<ProviderResponse>(Json, cancellationToken: TestContext.Current.CancellationToken))!;
         Assert.Matches("^tinder-[a-z0-9]{6}$", created.Key);
         Assert.Contains(created.Key, (await app.GetAsync<List<ProviderResponse>>(app.AdultA, $"{Root}/providers")).Select(p => p.Key));
     }
@@ -146,10 +146,10 @@ public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
 
         var accepted = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/catalog/sync");
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
-        Assert.True((await accepted.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("requested").GetBoolean());
+        Assert.True((await accepted.Content.ReadFromJsonAsync<JsonElement>(Json, cancellationToken: TestContext.Current.CancellationToken)).GetProperty("requested").GetBoolean());
 
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync(CatalogFixtures.PinnedCommit, default);
+            await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync(CatalogFixtures.PinnedCommit, TestContext.Current.CancellationToken);
         var busy = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/catalog/sync");
         Assert.Equal((HttpStatusCode.Conflict, CatalogCodes.SyncRunning), (busy.StatusCode, await CodeOf(busy)));
     }
@@ -173,14 +173,14 @@ public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
             {
                 Id = stale, StartedAt = now - Duration.FromMinutes(startedMinutesAgo), Status = "running", Commit = CatalogFixtures.PinnedCommit,
             });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/catalog/sync");
 
         Assert.Equal(expected, response.StatusCode);
         await using var check = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var row = await check.CatalogSyncRuns.AsNoTracking().SingleAsync(r => r.Id == stale);
+        var row = await check.CatalogSyncRuns.AsNoTracking().SingleAsync(r => r.Id == stale, cancellationToken: TestContext.Current.CancellationToken);
         if (expected == HttpStatusCode.Accepted)
             Assert.Equal(("failed", CatalogCodes.RunAbandoned, (Instant?)now), (row.Status, row.FailureCode, row.FinishedAt));
         else

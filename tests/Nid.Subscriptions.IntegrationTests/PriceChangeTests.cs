@@ -22,7 +22,7 @@ public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var phases = await subs.Phases.Where(p => p.ItemId == id.Value).OrderBy(p => p.StartsOn).ToListAsync();
+        var phases = await subs.Phases.Where(p => p.ItemId == id.Value).OrderBy(p => p.StartsOn).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(2, phases.Count);
         Assert.Equal((new NodaTime.LocalDate(2025, 6, 1), (NodaTime.LocalDate?)null, 15.99m, "month", "household"),
             (phases[1].StartsOn, phases[1].EndsOn, phases[1].PriceAmount, phases[1].EveryUnit, phases[1].PayerType));
@@ -40,7 +40,7 @@ public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/price-changes", Change(startsOn));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var error = Assert.Single((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray());
+        var error = Assert.Single((await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
         Assert.Equal(("startsOn", code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
     }
 
@@ -55,7 +55,7 @@ public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var phase = Assert.Single(await subs.Phases.Where(p => p.ItemId == id.Value).ToListAsync());
+        var phase = Assert.Single(await subs.Phases.Where(p => p.ItemId == id.Value).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Null(phase.EndsOn);
     }
 
@@ -114,7 +114,7 @@ public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id}/price-changes", Change("2025-06-01"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var error = Assert.Single((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray());
+        var error = Assert.Single((await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
         Assert.Equal("subscriptions.no_open_phase", error.GetProperty("code").GetString());
     }
 }

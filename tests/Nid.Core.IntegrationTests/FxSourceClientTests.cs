@@ -23,7 +23,7 @@ public class FxSourceClientTests
     [Fact]
     public async Task A_missing_SubTracker_day_is_one_more_day_without_a_file()
     {
-        var fetched = await Client(HttpStatusCode.NotFound).SubTrackerDayAsync(new LocalDate(2025, 8, 2), default);
+        var fetched = await Client(HttpStatusCode.NotFound).SubTrackerDayAsync(new LocalDate(2025, 8, 2), TestContext.Current.CancellationToken);
 
         Assert.True(fetched.TryGetValue(out var file));
         Assert.Null(file!.Bytes);
@@ -32,7 +32,7 @@ public class FxSourceClientTests
     [Fact]
     public async Task A_missing_ECB_history_is_a_source_failure()
     {
-        var fetched = await Client(HttpStatusCode.NotFound).EcbHistoryAsync(default);
+        var fetched = await Client(HttpStatusCode.NotFound).EcbHistoryAsync(TestContext.Current.CancellationToken);
 
         Assert.True(fetched.TryGetFailure(out var failure));
         Assert.Equal(FxCodes.SourceUnavailable, failure!.Code);

@@ -59,7 +59,7 @@ public class ReplaceProvidersTests(PostgresFixture fixture) : IClassFixture<Post
         string? hashBefore;
         await using (var before = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            var row = await before.Providers.AsNoTracking().SingleAsync(p => p.ImportRef == "spotify");
+            var row = await before.Providers.AsNoTracking().SingleAsync(p => p.ImportRef == "spotify", cancellationToken: TestContext.Current.CancellationToken);
             (keyBefore, hashBefore) = (row.Key, row.ImportHash);
         }
 
@@ -68,7 +68,7 @@ public class ReplaceProvidersTests(PostgresFixture fixture) : IClassFixture<Post
 
         Assert.Equal(new CountsResponse(0, 0, 0, 1), committed.Report!.Sections["providers"]);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var after = await subs.Providers.AsNoTracking().SingleAsync(p => p.ImportRef == "spotify");
+        var after = await subs.Providers.AsNoTracking().SingleAsync(p => p.ImportRef == "spotify", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(keyBefore, after.Key); // same row, same key
         Assert.Equal("Music Central", after.Name);
         Assert.Equal(new[] { "other", "streaming" }, after.LabelKeys);
@@ -76,7 +76,7 @@ public class ReplaceProvidersTests(PostgresFixture fixture) : IClassFixture<Post
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         var update = await platform.AuditLog.SingleAsync(
-            r => r.Category == "write" && r.Action == "update" && r.Entity == "subscriptions.provider");
+            r => r.Category == "write" && r.Action == "update" && r.Entity == "subscriptions.provider", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains("Spotify", update.Data); // the old name, not "Music Central"
         Assert.Equal("import", update.Via);
     }

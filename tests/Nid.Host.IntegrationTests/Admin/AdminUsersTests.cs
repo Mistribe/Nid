@@ -79,7 +79,7 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { maxAdults = 3 })).EnsureSuccessStatusCode();
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, Users, carol);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var pending = (await created.Content.ReadFromJsonAsync<Adult>(Json))!;
+        var pending = (await created.Content.ReadFromJsonAsync<Adult>(Json, cancellationToken: TestContext.Current.CancellationToken))!;
         Assert.Equal(("pending", false), (pending.Status, pending.IsAdmin));
 
         Assert.False(await SignInAsync(app, "sub-x", "Mallory", "mallory@example.test"));
@@ -95,7 +95,7 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { maxAdults = 3 })).EnsureSuccessStatusCode();
         var pending = (await (await app.RawAsync(app.AdultA, HttpMethod.Post, Users,
-            new { displayName = "Carol", email = "carol@example.test" })).Content.ReadFromJsonAsync<Adult>(Json))!;
+            new { displayName = "Carol", email = "carol@example.test" })).Content.ReadFromJsonAsync<Adult>(Json, cancellationToken: TestContext.Current.CancellationToken))!;
 
         Assert.True(await SignInAsync(app, "sub-c", "Carol C.", "carol@example.test", isAdmin: true));
 
@@ -114,7 +114,7 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(HttpStatusCode.OK, revoked.StatusCode);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(1, await core.Persons.Where(p => p.Id == app.AdultA.Value).Select(p => p.SessionEpoch).SingleAsync());
+        Assert.Equal(1, await core.Persons.Where(p => p.Id == app.AdultA.Value).Select(p => p.SessionEpoch).SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -123,14 +123,14 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { maxAdults = 3 })).EnsureSuccessStatusCode();
         var pending = (await (await app.RawAsync(app.AdultA, HttpMethod.Post, Users,
-            new { displayName = "Carol", email = "carol@example.test" })).Content.ReadFromJsonAsync<Adult>(Json))!;
+            new { displayName = "Carol", email = "carol@example.test" })).Content.ReadFromJsonAsync<Adult>(Json, cancellationToken: TestContext.Current.CancellationToken))!;
 
         var active = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Users}/{app.AdultB.Value}");
         Assert.Equal((HttpStatusCode.UnprocessableEntity, PersonCodes.PersonActive), (active.StatusCode, await CodeOf(active)));
 
         var removed = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Users}/{pending.Id}");
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
-        Assert.Equal(pending.Id, (await removed.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("id").GetGuid());
+        Assert.Equal(pending.Id, (await removed.Content.ReadFromJsonAsync<JsonElement>(Json, cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid());
 
         var unknown = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Users}/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
@@ -158,7 +158,7 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(HttpStatusCode.OK, revoked.StatusCode);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(1, await core.Persons.Where(p => p.Id == app.AdultB.Value).Select(p => p.SessionEpoch).SingleAsync());
+        Assert.Equal(1, await core.Persons.Where(p => p.Id == app.AdultB.Value).Select(p => p.SessionEpoch).SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -179,11 +179,11 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(new Settings(2, "USD", 2, false, false), await app.GetAsync<Settings>(app.AdultA, Household));
 
         var enabled = await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { pricesEnabled = true });
-        Assert.True((await enabled.Content.ReadFromJsonAsync<Settings>(Json))!.PricesEnabled);
+        Assert.True((await enabled.Content.ReadFromJsonAsync<Settings>(Json, cancellationToken: TestContext.Current.CancellationToken))!.PricesEnabled);
         Assert.Equal(new Settings(2, "USD", 2, true, false), await app.GetAsync<Settings>(app.AdultA, Household));
 
         var irl = await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { irlEnabled = true });
-        Assert.True((await irl.Content.ReadFromJsonAsync<Settings>(Json))!.IrlEnabled);
+        Assert.True((await irl.Content.ReadFromJsonAsync<Settings>(Json, cancellationToken: TestContext.Current.CancellationToken))!.IrlEnabled);
         Assert.Equal(new Settings(2, "USD", 2, true, true), await app.GetAsync<Settings>(app.AdultA, Household));
     }
 }

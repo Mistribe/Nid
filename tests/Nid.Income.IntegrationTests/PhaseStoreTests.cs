@@ -19,13 +19,13 @@ public class PhaseStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     {
         await using var income = PostgresFixture.NewIncomeContext(await fixture.NewConnectionStringAsync());
         var store = new PhaseStore(income);
-        var a = await store.AddAsync(Phase(new ItemId(Guid.CreateVersion7()), "A"), null, default);
-        var b = await store.AddAsync(Phase(new ItemId(Guid.CreateVersion7()), "B"), null, default);
-        await store.AddAsync(Phase(new ItemId(Guid.CreateVersion7()), "C"), null, default);
+        var a = await store.AddAsync(Phase(new ItemId(Guid.CreateVersion7()), "A"), null, TestContext.Current.CancellationToken);
+        var b = await store.AddAsync(Phase(new ItemId(Guid.CreateVersion7()), "B"), null, TestContext.Current.CancellationToken);
+        await store.AddAsync(Phase(new ItemId(Guid.CreateVersion7()), "C"), null, TestContext.Current.CancellationToken);
 
-        var found = await store.FindManyAsync([a.Id, b.Id, Guid.NewGuid()], default);
+        var found = await store.FindManyAsync([a.Id, b.Id, Guid.NewGuid()], TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { a.Id, b.Id }.Order(), found.Select(p => p.Id).Order());
-        Assert.Empty(await store.FindManyAsync([], default));
+        Assert.Empty(await store.FindManyAsync([], TestContext.Current.CancellationToken));
     }
 }

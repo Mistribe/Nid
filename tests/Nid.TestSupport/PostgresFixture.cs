@@ -28,10 +28,10 @@ public sealed class PostgresFixture : IAsyncLifetime
     private static readonly Lazy<Task> Started = new(() => Container.StartAsync());
     private static int databaseCounter;
 
-    public Task InitializeAsync() => Started.Value;
+    public ValueTask InitializeAsync() => new(Started.Value);
 
     // Testcontainers' reaper removes the container when the test process ends.
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     public async Task<CoreDbContext> NewDatabaseAsync() => NewCoreContext(await NewConnectionStringAsync());
 

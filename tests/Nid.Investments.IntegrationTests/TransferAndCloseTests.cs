@@ -55,7 +55,7 @@ public class TransferAndCloseTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal(HttpStatusCode.Created, transfer.StatusCode);
         var id = (await JsonAsync(transfer)).GetProperty("id").GetGuid();
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var legs = await core.Flows.Where(f => f.ExternalRef == $"transfer:{id}").OrderBy(f => f.Kind).ToListAsync();
+        var legs = await core.Flows.Where(f => f.ExternalRef == $"transfer:{id}").OrderBy(f => f.Kind).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(
             [("contribution", pea.Value, "transfer"), ("withdrawal", livret.Value, "transfer")],
             legs.Select(f => (f.Kind, f.ItemId, f.Category!)));

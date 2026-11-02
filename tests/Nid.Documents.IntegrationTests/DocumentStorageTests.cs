@@ -15,9 +15,9 @@ public sealed class MinioFixture : IAsyncLifetime
     private static readonly MinioContainer Container = new MinioBuilder("cgr.dev/chainguard/minio:latest").Build();
     private static readonly Lazy<Task> Started = new(() => Container.StartAsync());
 
-    public Task InitializeAsync() => Started.Value;
+    public ValueTask InitializeAsync() => new(Started.Value);
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     public static AmazonS3Client NewClient(DocumentStorageOptions options) => new(
         new BasicAWSCredentials(options.AccessKey, options.SecretKey),

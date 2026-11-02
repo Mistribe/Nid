@@ -32,7 +32,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             payer = new { type = "household" },
         });
         opened.EnsureSuccessStatusCode();
-        var phaseId = (await opened.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("id").GetGuid();
+        var phaseId = (await opened.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
 
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}/phases/{phaseId}",
             new { endsOn = "2025-06-28" })).EnsureSuccessStatusCode();
@@ -67,7 +67,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         // The engine refuses the input when it is read, and the failure carries its stable code.
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{id.Value}");
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnprocessableContent, response.StatusCode);
         Assert.Contains("subscriptions.phase_overlap", body);
@@ -127,7 +127,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             grants = new[] { new { subscriptionId = id.Value, duration = new { count = 3, unit = "month" }, source = "gift" } },
         });
         created.EnsureSuccessStatusCode();
-        var purchaseId = (await created.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("id").GetGuid();
+        var purchaseId = (await created.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
 
         (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/subscriptions/{id.Value}/purchases/{purchaseId}"))
             .EnsureSuccessStatusCode();
@@ -151,7 +151,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             grants = new[] { new { subscriptionId = first.Value, duration = new { count = 3, unit = "month" }, source = "gift" } },
         });
         created.EnsureSuccessStatusCode();
-        var purchaseId = (await created.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("id").GetGuid();
+        var purchaseId = (await created.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
 
         // The actor has write access to `second` (they own it), but the purchase grants only to `first`:
         // deleting it through `second`'s route must fail as if the purchase did not exist there.

@@ -328,7 +328,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         foreach (var (name, item) in data.Items)
         foreach (var actor in new[] { app.AdultA, app.AdultB })
         {
-            var (_, failure) = await app.InvokeAsync(actor, entry.Build(data, item));
+            var (_, failure) = await app.InvokeAsync(actor, entry.Build(data, item), TestContext.Current.CancellationToken);
             var uploader = data.UploaderOf(item) == actor;
             var where = $"{entry.RequestType.Name} on {name}'s document by {data.NameOf(actor)}";
 
@@ -372,13 +372,13 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             foreach (var target in own)
             {
                 var (_, failure) = await app.InvokeAsync(reader, new Nid.Documents.Application.LinkDocumentCommand(document,
-                    new Nid.Documents.Contracts.DocumentTarget(Nid.Documents.Contracts.TargetKinds.CoreItem, data[target].Value), "statement"));
+                    new Nid.Documents.Contracts.DocumentTarget(Nid.Documents.Contracts.TargetKinds.CoreItem, data[target].Value), "statement"), TestContext.Current.CancellationToken);
                 Assert.True(failure is UnauthorizedFailure, $"{data.NameOf(reader)} linking {shared}'s document to {target}: got {Describe(failure)}");
             }
 
             // Nothing linked: read from the store, as no adult sees every link.
             await using var scope = app.Services.CreateAsyncScope();
-            var links = await scope.ServiceProvider.GetRequiredService<Nid.Documents.Application.IDocumentStore>().LinksOfAsync([document], default);
+            var links = await scope.ServiceProvider.GetRequiredService<Nid.Documents.Application.IDocumentStore>().LinksOfAsync([document], TestContext.Current.CancellationToken);
             Assert.Equal(new[] { data[shared].Value, data[hidden].Value }.Order(), links.Select(l => l.TargetId).Order());
         }
     }
@@ -426,7 +426,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 $"{name} recorded by {data.NameOf(actor)}: expected writable={writable}, got {response.StatusCode}");
             if (!writable)
                 continue;
-            var valuation = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0].GetProperty("valuationId").GetGuid();
+            var valuation = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("lines")[0].GetProperty("valuationId").GetGuid();
             Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(actor, HttpMethod.Post, "/api/v1/realestate/routine/undo",
                 new { facts = new[] { new { property = property.Value, valuationId = valuation } } })).StatusCode);
         }
@@ -498,7 +498,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var privateOfA = await app.NewSubscriptionAsync(MixedDataset.PrivateLabelA, app.AdultA, Visibility.Private);
 
         var response = await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/subscriptions?scope=household");
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.DoesNotContain(MixedDataset.PrivateLabelA, body, StringComparison.Ordinal);
@@ -520,14 +520,14 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         foreach (var entry in adminOnly)
         {
-            var (_, refused) = await app.InvokeAsync(app.AdultB, entry.Build(data, data["S-A"]));
+            var (_, refused) = await app.InvokeAsync(app.AdultB, entry.Build(data, data["S-A"]), TestContext.Current.CancellationToken);
             Assert.True(refused?.Code == AdminCodes.Required,
                 $"{entry.RequestType.Name} as B (not admin): expected {AdminCodes.Required}, got {refused?.Code ?? "success"}");
         }
 
         foreach (var entry in adminOnly.Where(e => !RequestCatalogue.IsCommand(e.RequestType)))
         {
-            var (response, failure) = await app.InvokeAsync(app.AdultA, entry.Build(data, data["S-A"]));
+            var (response, failure) = await app.InvokeAsync(app.AdultA, entry.Build(data, data["S-A"]), TestContext.Current.CancellationToken);
             // The bench runs without a scheduler: a job's detail is not found by design (admin jobs design §3.4); B is still refused above.
             if (JobsOffNotFound.Contains(entry.RequestType) && failure?.Code == "NOT_FOUND")
                 continue;
@@ -681,11 +681,11 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         foreach (var providers in new[] { "[]", catalog })
         {
             app.Catalog.Serve(labels, Encoding.UTF8.GetBytes(providers));
-            var (_, syncFailure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
+            var (_, syncFailure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand(), TestContext.Current.CancellationToken);
             Assert.Null(syncFailure);
         }
 
-        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery());
+        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         var runs = ((CatalogRunsView)answer!).Runs;
@@ -977,7 +977,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 foreach (var actor in new[] { app.AdultA, app.AdultB })
                 foreach (var target in targets)
                 {
-                    var (response, failure) = await app.InvokeAsync(actor, entry.Build(data, target));
+                    var (response, failure) = await app.InvokeAsync(actor, entry.Build(data, target), TestContext.Current.CancellationToken);
 
                     // A row's document is read by its uploader and by whoever reads the row; anyone else meets « not found ».
                     if (entry.OnEveryRow)
@@ -1013,7 +1013,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                         await using (content.Content)
                         {
                             using var bytes = new MemoryStream();
-                            await content.Content.CopyToAsync(bytes);
+                            await content.Content.CopyToAsync(bytes, TestContext.Current.CancellationToken);
                             Assert.Equal("application/pdf", content.MediaType);
                             Assert.Equal(DocumentApi.Pdf.Length, bytes.Length);
                             response = new { content.MediaType, content.FileName, bytes.Length };
@@ -1086,7 +1086,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 };
                 var where = $"{entry.RequestType.Name} on {name} by {data.NameOf(actor)}";
 
-                var (_, failure) = await app.InvokeAsync(actor, request);
+                var (_, failure) = await app.InvokeAsync(actor, request, TestContext.Current.CancellationToken);
 
                 if (!data.ExpectedReadable(actor).Contains(item))
                 {
@@ -1158,7 +1158,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                     var key = await app.SeedCustomProviderUsedByAsync(other); // fresh each time: nothing else makes it visible
                     var where = $"{entry.RequestType.Name} on {targetName} linking {otherName}'s provider by {data.NameOf(actor)}";
 
-                    var (_, failure) = await app.InvokeAsync(actor, entry.BuildLinkingProvider!(data, actor, target, key));
+                    var (_, failure) = await app.InvokeAsync(actor, entry.BuildLinkingProvider!(data, actor, target, key), TestContext.Current.CancellationToken);
 
                     if (entry.IsItemScoped && !data.ExpectedReadable(actor).Contains(target))
                     {
@@ -1204,7 +1204,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                     var request = await entry.BuildNamingAnother!(data, target, other);
                     var where = $"{entry.RequestType.Name} on {targetName} naming {otherName} by {data.NameOf(actor)}";
 
-                    var (_, failure) = await app.InvokeAsync(actor, request);
+                    var (_, failure) = await app.InvokeAsync(actor, request, TestContext.Current.CancellationToken);
 
                     if (!data.ExpectedReadable(actor).Contains(target))
                     {
@@ -1231,7 +1231,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                         // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
                         // exist at all, so the ruling here is indistinguishability, checked against that case.
                         var missing = await entry.BuildNamingAnother!(data, target, new ItemId(Guid.NewGuid()));
-                        var (_, missingFailure) = await app.InvokeAsync(actor, missing);
+                        var (_, missingFailure) = await app.InvokeAsync(actor, missing, TestContext.Current.CancellationToken);
                         Assert.Equal(Signature(missingFailure), Signature(failure));
                         continue;
                     }

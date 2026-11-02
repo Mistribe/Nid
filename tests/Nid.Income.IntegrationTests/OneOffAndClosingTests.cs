@@ -91,7 +91,7 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(fid, Assert.Single(OneOffIds(detail)));
         Assert.Equal("Prime", detail.GetProperty("oneOffs")[0].GetProperty("note").GetString());
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var row = await core.Flows.SingleAsync(f => f.Id == fid);
+        var row = await core.Flows.SingleAsync(f => f.Id == fid, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("income", "one_off"), (row.Kind, row.Category));
     }
 
@@ -188,7 +188,7 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{id}/one-offs/{other}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{id}/one-offs/{fid}")).StatusCode); // the retired one
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.Null((await core.Flows.SingleAsync(f => f.Id == other)).RetiredAt);
+            Assert.Null((await core.Flows.SingleAsync(f => f.Id == other, cancellationToken: TestContext.Current.CancellationToken)).RetiredAt);
 
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{id}/one-offs/{next}")).StatusCode);
         Assert.Empty(OneOffIds(await DetailAsync(app, id)));
@@ -324,7 +324,7 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         var before = await StoredAsync(app, id);
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/close", new { endedOn = "2025-09-30" });
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new CloseIncomeSourceCommand(new ItemId(id), new LocalDate(2025, 9, 30)));
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new CloseIncomeSourceCommand(new ItemId(id), new LocalDate(2025, 9, 30)), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         Assert.Equal("income.invalid_source", await CodeAsync(refused));
@@ -337,7 +337,7 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Single(list.GetProperty("items").EnumerateArray());
 
         var future = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/close", new { endedOn = "2025-10-16" });
-        var (_, futureFailure) = await app.InvokeAsync(app.AdultA, new CloseIncomeSourceCommand(new ItemId(id), new LocalDate(2025, 10, 16)));
+        var (_, futureFailure) = await app.InvokeAsync(app.AdultA, new CloseIncomeSourceCommand(new ItemId(id), new LocalDate(2025, 10, 16)), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, future.StatusCode);
         Assert.Equal("core.date_in_future", await CodeAsync(future));
         Assert.Equal(("core.date_in_future", "endedOn"), (futureFailure?.Code, futureFailure!.Metadata!["field"]));
@@ -483,7 +483,7 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", Phase(maxCycles: maxCycles));
         var (_, failure) = await app.InvokeAsync(app.AdultA, new AddIncomePhaseCommand(new ItemId(id),
             new PhaseDraft("Salaire", new LocalDate(2025, 1, 1), null, Money.Create(1m, Currency.Eur).Ok(),
-                Nid.Core.Contracts.Duration.Create(1, DurationUnit.Month).Ok(), null, maxCycles, null)));
+                Nid.Core.Contracts.Duration.Create(1, DurationUnit.Month).Ok(), null, maxCycles, null)), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         Assert.Equal("income.invalid_phase", await CodeAsync(refused));

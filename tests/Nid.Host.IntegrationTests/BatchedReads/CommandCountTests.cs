@@ -43,7 +43,7 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await NidApp.StartAsync(fixture, services => Count(services, counter));
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
-                .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], default); // 1 USD = 0.90 EUR
+                .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], TestContext.Current.CancellationToken); // 1 USD = 0.90 EUR
         for (var i = 0; i < N; i++)
             await RoundAsync(app, i);
         var once = await CommandsAsync(app, counter, route);

@@ -55,7 +55,7 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
     private WebApplicationFactory<Program> factory = null!;
     private string connectionString = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         connectionString = await postgres.NewConnectionStringAsync();
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -70,7 +70,7 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
         });
     }
 
-    public async Task DisposeAsync() => await factory.DisposeAsync();
+    public async ValueTask DisposeAsync() => await factory.DisposeAsync();
 
     private HttpClient Client() => factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
@@ -100,10 +100,10 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
     [Fact]
     public async Task Session_endpoint_reports_not_authenticated_without_redirecting()
     {
-        var response = await Client().GetAsync("/auth/session");
+        var response = await Client().GetAsync("/auth/session", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(body.GetProperty("authenticated").GetBoolean());
         // Signing out of Nid leaves the identity provider's session open: the signed-out page links to it.
         Assert.Equal("https://auth.example.test", body.GetProperty("identityProvider").GetString());
@@ -112,7 +112,7 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
     [Fact]
     public async Task Api_answers_401_without_a_html_redirect()
     {
-        var response = await Client().GetAsync("/api/v1/core/persons");
+        var response = await Client().GetAsync("/api/v1/core/persons", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Null(response.Headers.Location);
     }
@@ -120,14 +120,14 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
     [Fact]
     public async Task Login_refuses_an_absolute_return_url()
     {
-        var response = await Client().GetAsync("/auth/login?returnUrl=https://evil.example/");
+        var response = await Client().GetAsync("/auth/login?returnUrl=https://evil.example/", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
     public async Task Unsafe_requests_without_the_csrf_header_are_refused()
     {
-        var response = await Client().PostAsync("/auth/logout", content: null);
+        var response = await Client().PostAsync("/auth/logout", content: null, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -137,7 +137,7 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/core/persons/dependents");
         request.Headers.Add("Sec-Fetch-Site", "cross-site");
         request.Headers.Add(CsrfMiddleware.HeaderName, "anything");
-        var response = await Client().SendAsync(request);
+        var response = await Client().SendAsync(request, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -155,7 +155,7 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/core/persons");
         request.Headers.Add(IntegrationTestGate.ActorHeader, personId.ToString());
 
-        var response = await Client().SendAsync(request);
+        var response = await Client().SendAsync(request, TestContext.Current.CancellationToken);
 
         // Were the gate open, this real identity would authenticate with every scope and the list would
         // succeed (200). It must not — spelled out, not just the specific status code, so the intent reads.
@@ -174,14 +174,14 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
         // with no token is refused whether the gate is open or closed and would prove nothing.
         var sessionRequest = new HttpRequestMessage(HttpMethod.Get, "/auth/session");
         sessionRequest.Headers.Add(IntegrationTestGate.ActorHeader, personId.ToString());
-        var session = await (await Client().SendAsync(sessionRequest)).Content.ReadFromJsonAsync<JsonElement>();
+        var session = await (await Client().SendAsync(sessionRequest, TestContext.Current.CancellationToken)).Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         var csrf = session.TryGetProperty("csrf", out var token) ? token.GetString() : "not-a-real-token";
 
         var writeRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/core/persons/dependents");
         writeRequest.Headers.Add(IntegrationTestGate.ActorHeader, personId.ToString());
         writeRequest.Headers.Add(CsrfMiddleware.HeaderName, csrf!);
 
-        var response = await Client().SendAsync(writeRequest);
+        var response = await Client().SendAsync(writeRequest, TestContext.Current.CancellationToken);
 
         // Were the gate open, /auth/session above would have handed back a real, usable token and this
         // write would succeed (201 Created). It must not.

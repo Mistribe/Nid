@@ -91,7 +91,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Empty(uncovered);
 
         await using var client = await ClientAsync(app, TokenPresets.Propose);
-        var tools = (await client.ListToolsAsync()).ToDictionary(t => t.Name);
+        var tools = (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).ToDictionary(t => t.Name);
         Assert.All(RouteActions.All, a => Assert.Contains(a.Tool, tools.Keys));
         Assert.Equal(RouteActions.All.Count, RouteActions.All.Select(a => a.Tool).Distinct().Count());
     }
@@ -180,7 +180,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var ev = RetirementIncome();
 
         var rest = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/scenarios/projection/simulate",
-            new { scope = "household", document = ProjectionDocument(ev) })).Content.ReadAsStringAsync()).RootElement;
+            new { scope = "household", document = ProjectionDocument(ev) })).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         var mcp = await AnswerAsync(client, "simulate_projection", new { horizon = "5y", events = new[] { ev } });
 
         Assert.Equal(YearEndPoints(rest.GetProperty("base")), YearEndPoints(mcp.GetProperty("base")));
@@ -247,7 +247,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var approved = await ApproveAsync(app, app.AdultA, proposalId);
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
-        var property = JsonDocument.Parse(await approved.Content.ReadAsStringAsync()).RootElement.GetProperty("appliedRefs")[0].GetGuid();
+        var property = JsonDocument.Parse(await approved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("appliedRefs")[0].GetGuid();
         Assert.Equal("Maison", (await PropertyApi.PropertyAsync(app, property)).GetProperty("name").GetString());
 
         var loanBody = LoanApi.Golden(app);
@@ -266,7 +266,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var envelope = await app.NewEnvelopeAsync("Assurance-vie", app.AdultA, Visibility.Shared);
         var envelopes = $"/api/v1/investments/envelopes/{envelope.Value}";
         var holding = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{envelopes}/holdings", new { name = "Fonds A", kind = "fund" }))
-            .Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+            .Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
         var body = new { grossReturnPct = 8.0m, totalFeesPct = 2.5m, netReturnPct = 5.5m };
 
         var (error, text) = await CallAsync(propose, "propose_save_holding_cost_report", new { id = envelope.Value, holdingId = holding, year = "2024", body });
@@ -379,7 +379,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var applied = await AnswerAsync(direct, "propose_record_goal_progress", new { id = goal.Value, on = "2025-10-15", body = new { amount = "100" }, apply = true });
         Assert.Equal("applied", applied.GetProperty("outcome").GetString());
         await using var scope = app.Services.CreateAsyncScope();
-        var entry = Assert.Single(await scope.ServiceProvider.GetRequiredService<Nid.Goals.Application.IGoalStore>().EntriesOfAsync([goal], default));
+        var entry = Assert.Single(await scope.ServiceProvider.GetRequiredService<Nid.Goals.Application.IGoalStore>().EntriesOfAsync([goal], TestContext.Current.CancellationToken));
         Assert.Equal((new NodaTime.LocalDate(2025, 10, 15), 100m), (entry.On, entry.Amount));
     }
 

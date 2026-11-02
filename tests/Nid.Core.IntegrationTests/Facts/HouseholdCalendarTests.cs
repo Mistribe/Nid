@@ -20,7 +20,7 @@ public class HouseholdCalendarTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
 
-        Assert.Equal(new LocalDate(2026, 3, 11), await new HouseholdCalendar(db, new FixedClock(EveningUtc)).TodayAsync(default));
+        Assert.Equal(new LocalDate(2026, 3, 11), await new HouseholdCalendar(db, new FixedClock(EveningUtc)).TodayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -28,9 +28,9 @@ public class HouseholdCalendarTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         db.HouseholdSettings.Add(new HouseholdSettingsRow { Timezone = "America/New_York" });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(new LocalDate(2026, 3, 10), await new HouseholdCalendar(db, new FixedClock(EveningUtc)).TodayAsync(default));
+        Assert.Equal(new LocalDate(2026, 3, 10), await new HouseholdCalendar(db, new FixedClock(EveningUtc)).TodayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -38,8 +38,8 @@ public class HouseholdCalendarTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         db.HouseholdSettings.Add(new HouseholdSettingsRow { Timezone = "Mars/Olympus" });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(new LocalDate(2026, 3, 11), await new HouseholdCalendar(db, new FixedClock(EveningUtc)).TodayAsync(default));
+        Assert.Equal(new LocalDate(2026, 3, 11), await new HouseholdCalendar(db, new FixedClock(EveningUtc)).TodayAsync(TestContext.Current.CancellationToken));
     }
 }

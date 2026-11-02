@@ -49,7 +49,7 @@ public class DocumentSourceRefTests(PostgresFixture fixture) : IClassFixture<Pos
         var mine = await app.NewSubscriptionAsync("Copro", app.AdultA, Visibility.Shared);
         var theirs = await UploadedAsync(app, app.AdultB, Upload(hidden, "powimo:7028:1"));
 
-        var (response, failure) = await app.InvokeAsync(app.AdultA, Upload(mine, "powimo:7028:1"));
+        var (response, failure) = await app.InvokeAsync(app.AdultA, Upload(mine, "powimo:7028:1"), TestContext.Current.CancellationToken);
 
         Assert.Null(response);
         Assert.Equal(DocumentsCodes.SourceRefTaken, failure!.Code);
@@ -91,7 +91,7 @@ public class DocumentSourceRefTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var app = await NidApp.StartAsync(fixture);
         var home = await app.NewSubscriptionAsync("Copro", app.AdultA, Visibility.Shared);
 
-        var (_, failure) = await app.InvokeAsync(app.AdultA, Upload(home, new string('x', 201)));
+        var (_, failure) = await app.InvokeAsync(app.AdultA, Upload(home, new string('x', 201)), TestContext.Current.CancellationToken);
 
         Assert.Equal(DocumentsCodes.InvalidField, failure!.Code);
         Assert.Equal("sourceRef", failure.Metadata!["field"]);
@@ -103,7 +103,7 @@ public class DocumentSourceRefTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var app = await NidApp.StartAsync(fixture);
         var home = await app.NewSubscriptionAsync("Copro", app.AdultA, Visibility.Shared);
         var first = await UploadedAsync(app, app.AdultA, Upload(home, "powimo:7028:1"));
-        var (_, unlinked) = await app.InvokeAsync(app.AdultA, new UnlinkDocumentCommand(first.Id, new DocumentTarget(TargetKinds.CoreItem, home.Value)));
+        var (_, unlinked) = await app.InvokeAsync(app.AdultA, new UnlinkDocumentCommand(first.Id, new DocumentTarget(TargetKinds.CoreItem, home.Value)), TestContext.Current.CancellationToken);
         Assert.Null(unlinked);
 
         Assert.Equal(new UploadedDocument(first.Id, true), await UploadedAsync(app, app.AdultA, Upload(home, "powimo:7028:1")));

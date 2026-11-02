@@ -258,7 +258,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(TransactionLinkState.Internal, (await LineAsync(app, debit)).LinkState);
         Assert.Equal(TransactionLinkState.Unlinked, (await LineAsync(app, settlement)).LinkState);
         await using var db = Db(app);
-        Assert.Equal([settlement], await db.Transactions.Where(t => t.ReconciledAt == null).Select(t => t.Id).ToListAsync());
+        Assert.Equal([settlement], await db.Transactions.Where(t => t.ReconciledAt == null).Select(t => t.Id).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(1, counts.Proposed);
         Assert.Equal(netflix, Assert.Single(await PendingAsync(app, app.AdultA)).GetProperty("payload").GetProperty("transactionId").GetGuid());
         await using var db = Db(app);
-        Assert.Equal([settlement], await db.Transactions.Where(t => t.ReconciledAt == null).Select(t => t.Id).ToListAsync());
+        Assert.Equal([settlement], await db.Transactions.Where(t => t.ReconciledAt == null).Select(t => t.Id).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -303,7 +303,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         // A stale rule does not stand in the way: A, who writes the subscription, is asked.
         Assert.Equal(line, Assert.Single(await PendingAsync(app, app.AdultA)).GetProperty("payload").GetProperty("transactionId").GetGuid());
         await using var scope = app.Services.CreateAsyncScope();
-        Assert.Null(Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultB, default)).LastUsedAt);
+        Assert.Null(Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultB, TestContext.Current.CancellationToken)).LastUsedAt);
     }
 
     [Fact]
@@ -355,11 +355,11 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            Assert.True((await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand())).IsSuccess);
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand(), TestContext.Current.CancellationToken)).IsSuccess);
         }
 
         await using var db = Db(app);
-        var line = (await db.Transactions.SingleAsync()).Id;
+        var line = (await db.Transactions.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).Id;
         Assert.Equal((LinkOutcome.Income, "rent:2026-10"), ((await LinkOfAsync(app, line))!.Outcome, (await LinkOfAsync(app, line))!.TargetKey));
         var cashIn = Assert.Single(await PendingAsync(app, app.AdultA, "realestate.add_property_flow"));
         Assert.Equal(app.AdultA.Value, cashIn.GetProperty("createdByPersonId").GetGuid());
@@ -400,7 +400,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         var imported = await app.RawContentAsync(app.AdultA, HttpMethod.Post, BankingApi.Root + "/statements",
             DocumentApi.Multipart(ofx, "fileName=releve.ofx&confirm=true&keepProbablyKnown=false"));
 
-        Assert.True(imported.IsSuccessStatusCode, await imported.Content.ReadAsStringAsync());
+        Assert.True(imported.IsSuccessStatusCode, await imported.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Single(await PendingAsync(app, app.AdultA));
         Assert.Equal(0, await UnreconciledAsync(app));
     }

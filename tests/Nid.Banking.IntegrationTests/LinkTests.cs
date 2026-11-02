@@ -100,7 +100,7 @@ public class LinkTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         await LinkAsync(app, line, "subscriptions", netflix.Value);
 
         await using var scope = app.Services.CreateAsyncScope();
-        var rule = Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultA, default));
+        var rule = Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultA, TestContext.Current.CancellationToken));
         Assert.Equal(("NETFLIX", account, netflix), (rule.LabelStem, rule.Account, rule.TargetItem));
         var linked = (await LinkOfAsync(app, line))!;
         Assert.Equal((LinkOutcome.AsExpected, "2026-04-05", $"person:{app.AdultA.Value:D}"), (linked.Outcome, linked.TargetKey, linked.DecidedBy));
@@ -229,7 +229,7 @@ public class LinkTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            var current = Assert.Single(await scope.ServiceProvider.GetRequiredService<IFlows>().FindManyAsync([(await JsonOf(corrected)).GetProperty("id").GetGuid()], default));
+            var current = Assert.Single(await scope.ServiceProvider.GetRequiredService<IFlows>().FindManyAsync([(await JsonOf(corrected)).GetProperty("id").GetGuid()], TestContext.Current.CancellationToken));
             Assert.Equal($"bank:{line:D}", current.ExternalRef);
         }
         var again = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{PropertyApi.Properties}/{property}/flows", JsonNode.Parse(body));

@@ -25,7 +25,7 @@ public class BatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
         Assert.Equal(2, first.Count);
         Assert.True(replay.Accepted);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(1, await platform.Batches.CountAsync(b => b.SessionId == session.Id));
+        Assert.Equal(1, await platform.Batches.CountAsync(b => b.SessionId == session.Id, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class BatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
 
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(1, await platform.Batches.CountAsync(b => b.SessionId == session.Id));
+        Assert.Equal(1, await platform.Batches.CountAsync(b => b.SessionId == session.Id, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

@@ -57,7 +57,7 @@ public class ProviderIconViewTests(PostgresFixture fixture) : IClassFixture<Post
         await app.SeedProviderAsync("netflix", "Netflix", ProviderOrigin.Catalog);
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
             await subs.Providers.Where(p => p.Key == "netflix")
-                .ExecuteUpdateAsync(s => s.SetProperty(p => p.IconUrl, "https://1000logos.net/netflix.png"));
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.IconUrl, "https://1000logos.net/netflix.png"), cancellationToken: TestContext.Current.CancellationToken);
 
         var providers = await app.GetAsync<List<ProviderResponse>>(app.AdultA, "/api/v1/subscriptions/providers");
 
@@ -71,7 +71,7 @@ public class ProviderIconViewTests(PostgresFixture fixture) : IClassFixture<Post
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions/providers",
             new { name = "Tinder", labelKeys = new[] { CatalogLimits.OtherLabel } });
 
-        var created = (await response.Content.ReadFromJsonAsync<ProviderResponse>(Json))!;
+        var created = (await response.Content.ReadFromJsonAsync<ProviderResponse>(Json, cancellationToken: TestContext.Current.CancellationToken))!;
 
         Assert.Null(created.IconUrl);
         Assert.Contains("\"iconUrl\":null", await app.GetRawAsync(app.AdultA, "/api/v1/subscriptions/providers"), StringComparison.Ordinal);

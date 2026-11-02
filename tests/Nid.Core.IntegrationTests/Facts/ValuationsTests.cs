@@ -39,10 +39,10 @@ public class ValuationsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
 
-        var recorded = (await w.Valuations.RecordAsync(new NewValuation(item, June, FactWorld.Eur(-12.5m), "relevé"), default)).Ok();
+        var recorded = (await w.Valuations.RecordAsync(new NewValuation(item, June, FactWorld.Eur(-12.5m), "relevé"), TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal((item, June, FactWorld.Eur(-12.5m), "relevé"), (recorded.Item, recorded.AsOf, recorded.Value, recorded.Note));
-        var row = await w.Db.Valuations.AsNoTracking().SingleAsync();
+        var row = await w.Db.Valuations.AsNoTracking().SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("manual", "ui", w.Alice.Value, "EUR", (Guid?)null, (Instant?)null),
             (row.Source, row.CreatedVia, row.CreatedByPersonId, row.Currency, row.SupersedesId, row.RetiredAt));
     }
@@ -52,15 +52,15 @@ public class ValuationsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        var first = (await w.Valuations.RecordAsync(Value(item, June, 100m), default)).Ok();
+        var first = (await w.Valuations.RecordAsync(Value(item, June, 100m), TestContext.Current.CancellationToken)).Ok();
 
-        var second = (await w.Valuations.RecordAsync(Value(item, June, 110m), default)).Ok();
+        var second = (await w.Valuations.RecordAsync(Value(item, June, 110m), TestContext.Current.CancellationToken)).Ok();
 
-        var rows = await w.Db.Valuations.AsNoTracking().OrderBy(r => r.CreatedAt).ThenBy(r => r.Id).ToListAsync();
+        var rows = await w.Db.Valuations.AsNoTracking().OrderBy(r => r.CreatedAt).ThenBy(r => r.Id).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(2, rows.Count);
         Assert.NotNull(rows.Single(r => r.Id == first.Id).RetiredAt);
         Assert.Equal(first.Id, rows.Single(r => r.Id == second.Id).SupersedesId);
-        Assert.Equal(FactWorld.Eur(110m), (await w.Valuations.LatestAsync(item, June, default)).Ok().Value!.Value);
+        Assert.Equal(FactWorld.Eur(110m), (await w.Valuations.LatestAsync(item, June, TestContext.Current.CancellationToken)).Ok().Value!.Value);
     }
 
     [Fact]
@@ -68,15 +68,15 @@ public class ValuationsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        (await w.Valuations.RecordAsync(Value(item, new LocalDate(2025, 5, 31), 90m), default)).Ok();
-        var june = (await w.Valuations.RecordAsync(Value(item, new LocalDate(2025, 6, 30), 100m), default)).Ok();
+        (await w.Valuations.RecordAsync(Value(item, new LocalDate(2025, 5, 31), 90m), TestContext.Current.CancellationToken)).Ok();
+        var june = (await w.Valuations.RecordAsync(Value(item, new LocalDate(2025, 6, 30), 100m), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Null((await w.Valuations.LatestAsync(item, new LocalDate(2025, 5, 30), default)).Ok().Value);
-        Assert.Equal(june.Id, (await w.Valuations.LatestAsync(item, new LocalDate(2025, 6, 30), default)).Ok().Value!.Id);
+        Assert.Null((await w.Valuations.LatestAsync(item, new LocalDate(2025, 5, 30), TestContext.Current.CancellationToken)).Ok().Value);
+        Assert.Equal(june.Id, (await w.Valuations.LatestAsync(item, new LocalDate(2025, 6, 30), TestContext.Current.CancellationToken)).Ok().Value!.Id);
 
-        Assert.True((await w.Valuations.VoidAsync(item, june.Id, default)).IsSuccess);
+        Assert.True((await w.Valuations.VoidAsync(item, june.Id, TestContext.Current.CancellationToken)).IsSuccess);
 
-        Assert.Equal(FactWorld.Eur(90m), (await w.Valuations.LatestAsync(item, new LocalDate(2025, 6, 30), default)).Ok().Value!.Value);
+        Assert.Equal(FactWorld.Eur(90m), (await w.Valuations.LatestAsync(item, new LocalDate(2025, 6, 30), TestContext.Current.CancellationToken)).Ok().Value!.Value);
     }
 
     [Fact]
@@ -85,12 +85,12 @@ public class ValuationsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
         foreach (var (day, amount) in new[] { (new LocalDate(2025, 3, 31), 3m), (new LocalDate(2025, 1, 31), 1m), (new LocalDate(2025, 2, 28), 2m) })
-            (await w.Valuations.RecordAsync(Value(item, day, amount), default)).Ok();
-        var february = (await w.Valuations.LatestAsync(item, new LocalDate(2025, 2, 28), default)).Ok().Value!;
-        Assert.True((await w.Valuations.VoidAsync(item, february.Id, default)).IsSuccess);
+            (await w.Valuations.RecordAsync(Value(item, day, amount), TestContext.Current.CancellationToken)).Ok();
+        var february = (await w.Valuations.LatestAsync(item, new LocalDate(2025, 2, 28), TestContext.Current.CancellationToken)).Ok().Value!;
+        Assert.True((await w.Valuations.VoidAsync(item, february.Id, TestContext.Current.CancellationToken)).IsSuccess);
 
         var range = DateRange.Create(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31)).Ok();
-        var series = (await w.Valuations.SeriesAsync(item, range, default)).Ok();
+        var series = (await w.Valuations.SeriesAsync(item, range, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal([new LocalDate(2025, 1, 31)], series.Select(v => v.AsOf));
     }
@@ -100,13 +100,13 @@ public class ValuationsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice, Visibility.Private);
-        var recorded = (await w.Valuations.RecordAsync(Value(item, June, 1m), default)).Ok();
+        var recorded = (await w.Valuations.RecordAsync(Value(item, June, 1m), TestContext.Current.CancellationToken)).Ok();
 
         w.Act(w.Bob);
 
-        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.RecordAsync(Value(item, June, 2m), default)));
-        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.VoidAsync(item, recorded.Id, default)));
-        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.LatestAsync(item, June, default)));
+        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.RecordAsync(Value(item, June, 2m), TestContext.Current.CancellationToken)));
+        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.VoidAsync(item, recorded.Id, TestContext.Current.CancellationToken)));
+        Assert.IsType<NotFoundFailure>(FailureOf(await w.Valuations.LatestAsync(item, June, TestContext.Current.CancellationToken)));
         Assert.Equal(1, await RowsAsync(w));
     }
 
@@ -118,8 +118,8 @@ public class ValuationsTests(PostgresFixture postgres)
 
         w.Act(w.Bob);
 
-        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Valuations.RecordAsync(Value(item, June, 2m), default)));
-        Assert.Null((await w.Valuations.LatestAsync(item, June, default)).Ok().Value);
+        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Valuations.RecordAsync(Value(item, June, 2m), TestContext.Current.CancellationToken)));
+        Assert.Null((await w.Valuations.LatestAsync(item, June, TestContext.Current.CancellationToken)).Ok().Value);
         Assert.Equal(0, await RowsAsync(w));
     }
 
@@ -131,7 +131,7 @@ public class ValuationsTests(PostgresFixture postgres)
 
         w.ActAs(Actor.System);
 
-        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Valuations.RecordAsync(Value(item, June, 2m), default)));
+        Assert.IsType<UnauthorizedFailure>(FailureOf(await w.Valuations.RecordAsync(Value(item, June, 2m), TestContext.Current.CancellationToken)));
         Assert.Equal(0, await RowsAsync(w));
     }
 
@@ -142,9 +142,9 @@ public class ValuationsTests(PostgresFixture postgres)
         var bare = await w.ItemAsync(w.Alice, currency: null);
         var euros = await w.ItemAsync(w.Alice);
 
-        Assert.Equal(CoreFactCodes.ItemWithoutCurrency, Code(await w.Valuations.RecordAsync(Value(bare, June, 1m), default)));
+        Assert.Equal(CoreFactCodes.ItemWithoutCurrency, Code(await w.Valuations.RecordAsync(Value(bare, June, 1m), TestContext.Current.CancellationToken)));
         Assert.Equal(CoreFactCodes.CurrencyMismatch,
-            Code(await w.Valuations.RecordAsync(new NewValuation(euros, June, FactWorld.Usd(1m), null), default)));
+            Code(await w.Valuations.RecordAsync(new NewValuation(euros, June, FactWorld.Usd(1m), null), TestContext.Current.CancellationToken)));
         Assert.Equal(0, await RowsAsync(w));
     }
 
@@ -154,8 +154,8 @@ public class ValuationsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
 
-        Assert.True((await w.Valuations.RecordAsync(Value(item, FactWorld.Today, 1m), default)).IsSuccess);
-        Assert.Equal(CoreFactCodes.DateInFuture, Code(await w.Valuations.RecordAsync(Value(item, FactWorld.Today.PlusDays(1), 1m), default)));
+        Assert.True((await w.Valuations.RecordAsync(Value(item, FactWorld.Today, 1m), TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.Equal(CoreFactCodes.DateInFuture, Code(await w.Valuations.RecordAsync(Value(item, FactWorld.Today.PlusDays(1), 1m), TestContext.Current.CancellationToken)));
         Assert.Equal(1, await RowsAsync(w));
     }
 
@@ -167,10 +167,10 @@ public class ValuationsTests(PostgresFixture postgres)
         var item = await w.ItemAsync(w.Alice);
         var utcDay = new LocalDate(2025, 6, 30);
 
-        Assert.True((await w.Valuations.RecordAsync(Value(item, utcDay.PlusDays(1), 1m), default)).IsSuccess);
-        Assert.Equal(CoreFactCodes.DateInFuture, Code(await w.Valuations.RecordAsync(Value(item, utcDay.PlusDays(2), 1m), default)));
+        Assert.True((await w.Valuations.RecordAsync(Value(item, utcDay.PlusDays(1), 1m), TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.Equal(CoreFactCodes.DateInFuture, Code(await w.Valuations.RecordAsync(Value(item, utcDay.PlusDays(2), 1m), TestContext.Current.CancellationToken)));
         Assert.True((await w.Flows.RecordAsync(
-            new NewFlow(item, utcDay.PlusDays(1), FlowKind.Contribution, FactWorld.Eur(1m), null, null, null), default)).IsSuccess);
+            new NewFlow(item, utcDay.PlusDays(1), FlowKind.Contribution, FactWorld.Eur(1m), null, null, null), TestContext.Current.CancellationToken)).IsSuccess);
         Assert.Equal(1, await RowsAsync(w));
     }
 
@@ -180,7 +180,7 @@ public class ValuationsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
 
-        Assert.Equal(CoreFactCodes.InvalidFact, Code(await w.Valuations.RecordAsync(Value(item, June, 1e16m), default)));
+        Assert.Equal(CoreFactCodes.InvalidFact, Code(await w.Valuations.RecordAsync(Value(item, June, 1e16m), TestContext.Current.CancellationToken)));
         Assert.Equal(0, await RowsAsync(w));
     }
 
@@ -190,15 +190,15 @@ public class ValuationsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var mine = await w.ItemAsync(w.Alice);
         var other = await w.ItemAsync(w.Alice);
-        var onOther = (await w.Valuations.RecordAsync(Value(other, June, 5m), default)).Ok();
-        var onMine = (await w.Valuations.RecordAsync(Value(mine, June, 5m), default)).Ok();
+        var onOther = (await w.Valuations.RecordAsync(Value(other, June, 5m), TestContext.Current.CancellationToken)).Ok();
+        var onMine = (await w.Valuations.RecordAsync(Value(mine, June, 5m), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Valuations.VoidAsync(mine, Guid.NewGuid(), default)));
-        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Valuations.VoidAsync(mine, onOther.Id, default)));
-        Assert.Null(await w.Db.Valuations.AsNoTracking().Where(r => r.Id == onOther.Id).Select(r => r.RetiredAt).SingleAsync());
+        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Valuations.VoidAsync(mine, Guid.NewGuid(), TestContext.Current.CancellationToken)));
+        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Valuations.VoidAsync(mine, onOther.Id, TestContext.Current.CancellationToken)));
+        Assert.Null(await w.Db.Valuations.AsNoTracking().Where(r => r.Id == onOther.Id).Select(r => r.RetiredAt).SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
 
-        Assert.True((await w.Valuations.VoidAsync(mine, onMine.Id, default)).IsSuccess);
-        Assert.Equal(CoreFactCodes.FactRetired, Code(await w.Valuations.VoidAsync(mine, onMine.Id, default)));
+        Assert.True((await w.Valuations.VoidAsync(mine, onMine.Id, TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.Equal(CoreFactCodes.FactRetired, Code(await w.Valuations.VoidAsync(mine, onMine.Id, TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -213,6 +213,6 @@ public class ValuationsTests(PostgresFixture postgres)
         foreach (var x in worlds)
             await x.DisposeAsync();
         Assert.All(results.Where(r => !r.IsSuccess), r => Assert.Equal(CoreFactCodes.FactConflict, Code(r)));
-        Assert.Equal(1, await w.Db.Valuations.AsNoTracking().CountAsync(r => r.RetiredAt == null));
+        Assert.Equal(1, await w.Db.Valuations.AsNoTracking().CountAsync(r => r.RetiredAt == null, cancellationToken: TestContext.Current.CancellationToken));
     }
 }

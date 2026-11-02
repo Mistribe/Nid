@@ -158,7 +158,7 @@ public class PropertyIdentityTests(PostgresFixture fixture) : IClassFixture<Post
 
         var read = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read);
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
-        var result = await client.CallToolAsync("get_property", new Dictionary<string, object?> { ["id"] = id });
+        var result = await client.CallToolAsync("get_property", new Dictionary<string, object?> { ["id"] = id }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.IsError != true, McpHarness.TextOf(result));
         var text = McpHarness.TextOf(result);
         foreach (var secret in new[] { "Lilas", "Martin", "Alice et Bob", "1 rue A" })

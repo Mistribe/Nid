@@ -85,9 +85,9 @@ public class ExportContentTests(PostgresFixture fixture) : IClassFixture<Postgre
         await CommitAsync(app, app.AdultB, new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = mine });
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            var item = await core.Items.SingleAsync(i => i.DisplayName == "A's");
+            var item = await core.Items.SingleAsync(i => i.DisplayName == "A's", cancellationToken: TestContext.Current.CancellationToken);
             item.Visibility = "shared";
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var export = await new ExportClient(app).ExportAllAsync(app.AdultB);

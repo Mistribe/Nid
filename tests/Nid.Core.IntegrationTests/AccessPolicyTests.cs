@@ -35,9 +35,9 @@ public class AccessPolicyTests(PostgresFixture postgres)
         var w = await NewWorldAsync();
         var item = await CreateAsync(w, Visibility.Private, new OwnerShare(w.Alice, 10_000));
 
-        Assert.True((await w.Policy.CheckAsync(w.Alice, item, AccessKind.Write, default)).IsSuccess);
+        Assert.True((await w.Policy.CheckAsync(w.Alice, item, AccessKind.Write, TestContext.Current.CancellationToken)).IsSuccess);
 
-        var bobRead = await w.Policy.CheckAsync(w.Bob, item, AccessKind.Read, default);
+        var bobRead = await w.Policy.CheckAsync(w.Bob, item, AccessKind.Read, TestContext.Current.CancellationToken);
         Assert.True(bobRead.TryGetFailure(out var failure));
         Assert.IsType<NotFoundFailure>(failure);
         await w.Db.DisposeAsync();
@@ -48,15 +48,15 @@ public class AccessPolicyTests(PostgresFixture postgres)
     {
         var w = await NewWorldAsync();
 
-        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Bob, 10_000)], default))
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Bob, 10_000)], TestContext.Current.CancellationToken))
             .TryGetFailure(out var failure));
         Assert.IsType<UnauthorizedFailure>(failure);
 
         // Her own, shared with him, and the dependent's are all hers to create.
-        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Alice, 10_000)], default)).IsSuccess);
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Alice, 10_000)], TestContext.Current.CancellationToken)).IsSuccess);
         Assert.True((await w.Policy.CheckCreationAsync(
-            w.Alice, [new OwnerShare(w.Alice, 5_000), new OwnerShare(w.Bob, 5_000)], default)).IsSuccess);
-        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Kid, 10_000)], default)).IsSuccess);
+            w.Alice, [new OwnerShare(w.Alice, 5_000), new OwnerShare(w.Bob, 5_000)], TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Kid, 10_000)], TestContext.Current.CancellationToken)).IsSuccess);
         await w.Db.DisposeAsync();
     }
 
@@ -65,7 +65,7 @@ public class AccessPolicyTests(PostgresFixture postgres)
     {
         var w = await NewWorldAsync();
 
-        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(PersonId.New(), 10_000)], default))
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(PersonId.New(), 10_000)], TestContext.Current.CancellationToken))
             .TryGetFailure(out var failure));
         Assert.IsType<UnauthorizedFailure>(failure);
         await w.Db.DisposeAsync();
@@ -77,8 +77,8 @@ public class AccessPolicyTests(PostgresFixture postgres)
         var w = await NewWorldAsync();
         var item = await CreateAsync(w, Visibility.Shared, new OwnerShare(w.Alice, 10_000));
 
-        Assert.True((await w.Policy.CheckAsync(w.Bob, item, AccessKind.Read, default)).IsSuccess);
-        Assert.True((await w.Policy.CheckAsync(w.Bob, item, AccessKind.Write, default)).TryGetFailure(out var failure));
+        Assert.True((await w.Policy.CheckAsync(w.Bob, item, AccessKind.Read, TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await w.Policy.CheckAsync(w.Bob, item, AccessKind.Write, TestContext.Current.CancellationToken)).TryGetFailure(out var failure));
         Assert.IsType<UnauthorizedFailure>(failure);
         await w.Db.DisposeAsync();
     }
@@ -89,8 +89,8 @@ public class AccessPolicyTests(PostgresFixture postgres)
         var w = await NewWorldAsync();
         var item = await CreateAsync(w, Visibility.Shared, new OwnerShare(w.Kid, 10_000));
 
-        Assert.True((await w.Policy.CheckAsync(w.Alice, item, AccessKind.Write, default)).IsSuccess);
-        Assert.True((await w.Policy.CheckAsync(w.Bob, item, AccessKind.Write, default)).IsSuccess);
+        Assert.True((await w.Policy.CheckAsync(w.Alice, item, AccessKind.Write, TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await w.Policy.CheckAsync(w.Bob, item, AccessKind.Write, TestContext.Current.CancellationToken)).IsSuccess);
         await w.Db.DisposeAsync();
     }
 
@@ -98,7 +98,7 @@ public class AccessPolicyTests(PostgresFixture postgres)
     public async Task Unknown_item_is_not_found()
     {
         var w = await NewWorldAsync();
-        var result = await w.Policy.CheckAsync(w.Alice, ItemId.New(), AccessKind.Read, default);
+        var result = await w.Policy.CheckAsync(w.Alice, ItemId.New(), AccessKind.Read, TestContext.Current.CancellationToken);
         Assert.True(result.TryGetFailure(out var failure));
         Assert.IsType<NotFoundFailure>(failure);
         await w.Db.DisposeAsync();
@@ -109,7 +109,7 @@ public class AccessPolicyTests(PostgresFixture postgres)
     {
         var w = await NewWorldAsync();
         var result = await w.Items.CreateAsync(
-            new NewItem("test", "thing", "Thing", Visibility.Private, null, [new(w.Alice, 5_000), new(w.Bob, 5_000)]), default);
+            new NewItem("test", "thing", "Thing", Visibility.Private, null, [new(w.Alice, 5_000), new(w.Bob, 5_000)]), TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal("core.private_single_owner", failure!.Code);

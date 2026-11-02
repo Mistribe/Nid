@@ -43,14 +43,14 @@ public class ProposalStoreTests(PostgresFixture postgres)
     {
         var (connection, adult, item) = await SeedAsync();
 
-        var first = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), default);
-        var second = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), default);
+        var first = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), TestContext.Current.CancellationToken);
+        var second = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), TestContext.Current.CancellationToken);
 
         Assert.True(first.Created);
         Assert.False(second.Created);
         Assert.Equal(first.Proposal.Id, second.Proposal.Id);
         await using var db = PostgresFixture.NewCoreContext(connection);
-        Assert.Equal(1, await db.Proposals.CountAsync());
+        Assert.Equal(1, await db.Proposals.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -60,8 +60,8 @@ public class ProposalStoreTests(PostgresFixture postgres)
         var a = Valuation(adult, item, "2025-09-30", "1000.00");
         var b = a with { Payload = Json("""{ "amount" : { "currency":"EUR", "amount":"1000.00" }, "asOf":"2025-09-30" }""") };
 
-        var first = await Store(connection).SubmitAsync(a, default);
-        var second = await Store(connection).SubmitAsync(b, default);
+        var first = await Store(connection).SubmitAsync(a, TestContext.Current.CancellationToken);
+        var second = await Store(connection).SubmitAsync(b, TestContext.Current.CancellationToken);
 
         Assert.Equal(first.Proposal.Id, second.Proposal.Id);
     }
@@ -71,40 +71,40 @@ public class ProposalStoreTests(PostgresFixture postgres)
     {
         var (connection, adult, item) = await SeedAsync();
 
-        var first = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), default);
-        var second = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1100.00"), default);
+        var first = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), TestContext.Current.CancellationToken);
+        var second = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1100.00"), TestContext.Current.CancellationToken);
 
         Assert.True(second.Created);
-        var old = await Store(connection).FindAsync(first.Proposal.Id, default);
+        var old = await Store(connection).FindAsync(first.Proposal.Id, TestContext.Current.CancellationToken);
         Assert.Equal((ProposalStatus.Superseded, second.Proposal.Id), (old!.Status, old.SupersededById!.Value));
-        var other = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-10-31", "1200.00"), default);
-        Assert.Equal(ProposalStatus.Pending, (await Store(connection).FindAsync(other.Proposal.Id, default))!.Status);
+        var other = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-10-31", "1200.00"), TestContext.Current.CancellationToken);
+        Assert.Equal(ProposalStatus.Pending, (await Store(connection).FindAsync(other.Proposal.Id, TestContext.Current.CancellationToken))!.Status);
     }
 
     [Fact]
     public async Task Deciding_checks_the_version_and_the_status()
     {
         var (connection, adult, item) = await SeedAsync();
-        var p = (await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), default)).Proposal;
+        var p = (await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), TestContext.Current.CancellationToken)).Proposal;
 
-        Assert.Equal(ProposalCodes.Conflict, (await Store(connection).DecideAsync(p.Id, p.Version + 1, ProposalStatus.Approved, adult, null, null, [], default)).Fails().Code);
+        Assert.Equal(ProposalCodes.Conflict, (await Store(connection).DecideAsync(p.Id, p.Version + 1, ProposalStatus.Approved, adult, null, null, [], TestContext.Current.CancellationToken)).Fails().Code);
 
         var applied = Guid.CreateVersion7();
-        var decided = (await Store(connection).DecideAsync(p.Id, p.Version, ProposalStatus.Approved, adult, null, null, [applied], default)).Ok();
+        var decided = (await Store(connection).DecideAsync(p.Id, p.Version, ProposalStatus.Approved, adult, null, null, [applied], TestContext.Current.CancellationToken)).Ok();
         Assert.Equal((ProposalStatus.Approved, adult, applied), (decided.Status, decided.DecidedBy!.Value, decided.AppliedRefs.Single()));
 
-        Assert.Equal(ProposalCodes.Decided, (await Store(connection).DecideAsync(p.Id, decided.Version, ProposalStatus.Rejected, adult, null, null, [], default)).Fails().Code);
+        Assert.Equal(ProposalCodes.Decided, (await Store(connection).DecideAsync(p.Id, decided.Version, ProposalStatus.Rejected, adult, null, null, [], TestContext.Current.CancellationToken)).Fails().Code);
     }
 
     [Fact]
     public async Task A_warning_is_appended_without_touching_the_rest()
     {
         var (connection, adult, item) = await SeedAsync();
-        var p = (await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), default)).Proposal;
+        var p = (await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), TestContext.Current.CancellationToken)).Proposal;
 
-        await Store(connection).AddWarningAsync(p.Id, new ProposalWarning(ProposalCodes.ApplyFailed, "error", "boom"), default);
+        await Store(connection).AddWarningAsync(p.Id, new ProposalWarning(ProposalCodes.ApplyFailed, "error", "boom"), TestContext.Current.CancellationToken);
 
-        var after = await Store(connection).FindAsync(p.Id, default);
+        var after = await Store(connection).FindAsync(p.Id, TestContext.Current.CancellationToken);
         Assert.Equal((ProposalStatus.Pending, ProposalCodes.ApplyFailed), (after!.Status, Assert.Single(after.Warnings).Code));
     }
 
@@ -112,13 +112,13 @@ public class ProposalStoreTests(PostgresFixture postgres)
     public async Task The_list_holds_only_the_given_targets_and_status_newest_first()
     {
         var (connection, adult, item) = await SeedAsync();
-        await Store(connection).SubmitAsync(Valuation(adult, item, "2025-08-31", "900.00"), default);
-        var newer = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), default);
+        await Store(connection).SubmitAsync(Valuation(adult, item, "2025-08-31", "900.00"), TestContext.Current.CancellationToken);
+        var newer = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), TestContext.Current.CancellationToken);
 
-        var listed = await Store(connection).ListAsync(new HashSet<ItemId> { item }, adult, ProposalStatus.Pending, default);
+        var listed = await Store(connection).ListAsync(new HashSet<ItemId> { item }, adult, ProposalStatus.Pending, TestContext.Current.CancellationToken);
         Assert.Equal(newer.Proposal.Id, listed[0].Id);
         Assert.Equal(2, listed.Count);
-        Assert.Empty(await Store(connection).ListAsync(new HashSet<ItemId>(), adult, ProposalStatus.Pending, default));
+        Assert.Empty(await Store(connection).ListAsync(new HashSet<ItemId>(), adult, ProposalStatus.Pending, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -127,11 +127,11 @@ public class ProposalStoreTests(PostgresFixture postgres)
         var (connection, adult, _) = await SeedAsync();
         var creation = Valuation(adult, default, "2025-09-30", "1000.00") with { Kind = "realestate.create_property", Target = null, SubjectKey = null };
 
-        var first = await Store(connection).SubmitAsync(creation, default);
-        Assert.False((await Store(connection).SubmitAsync(creation, default)).Created);
+        var first = await Store(connection).SubmitAsync(creation, TestContext.Current.CancellationToken);
+        Assert.False((await Store(connection).SubmitAsync(creation, TestContext.Current.CancellationToken)).Created);
 
         Assert.Null(first.Proposal.Target);
-        Assert.Equal(first.Proposal.Id, Assert.Single(await Store(connection).ListAsync(new HashSet<ItemId>(), adult, ProposalStatus.Pending, default)).Id);
-        Assert.Empty(await Store(connection).ListAsync(new HashSet<ItemId>(), new PersonId(Guid.CreateVersion7()), ProposalStatus.Pending, default));
+        Assert.Equal(first.Proposal.Id, Assert.Single(await Store(connection).ListAsync(new HashSet<ItemId>(), adult, ProposalStatus.Pending, TestContext.Current.CancellationToken)).Id);
+        Assert.Empty(await Store(connection).ListAsync(new HashSet<ItemId>(), new PersonId(Guid.CreateVersion7()), ProposalStatus.Pending, TestContext.Current.CancellationToken));
     }
 }

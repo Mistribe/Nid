@@ -112,7 +112,7 @@ public class EnvelopeEstimateEndpointTests(PostgresFixture fixture) : IClassFixt
         var (id, _) = await EnvelopeAsync(app);
         await PriceAsync(app, EtfIsin, 110m, Day, Currency.Usd);
         await using (var scope = Scope(app))
-            await scope.ServiceProvider.GetRequiredService<IFxRateStore>().WriteAsync([new FxRate(Day, Currency.Eur, 0.9m, FxRateSource.Manual)], default);
+            await scope.ServiceProvider.GetRequiredService<IFxRateStore>().WriteAsync([new FxRate(Day, Currency.Eur, 0.9m, FxRateSource.Manual)], TestContext.Current.CancellationToken);
 
         var estimate = (await HoldingsAsync(app, id)).GetProperty("estimate");
 
@@ -129,7 +129,7 @@ public class EnvelopeEstimateEndpointTests(PostgresFixture fixture) : IClassFixt
         await PriceAsync(app, OtherIsin, 50m, Day, status: PriceStatus.Rejected, previous: 20m);
         await using (var scope = Scope(app))
             await scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>().SaveListingAsync(
-                new SecurityListing(UnknownIsin, null, null, Instant.FromUtc(2025, 10, 14, 20, 0), Instant.FromUtc(2025, 10, 14, 20, 0)), default);
+                new SecurityListing(UnknownIsin, null, null, Instant.FromUtc(2025, 10, 14, 20, 0), Instant.FromUtc(2025, 10, 14, 20, 0)), TestContext.Current.CancellationToken);
 
         var read = await HoldingsAsync(app, id);
         var estimate = read.GetProperty("estimate");

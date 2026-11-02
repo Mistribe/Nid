@@ -39,7 +39,7 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(21, again.ProvidersUnchanged.Count);
         Assert.Empty(again.ProvidersUpdated);
         await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
-        var stored = await check.Providers.AsNoTracking().ToListAsync();
+        var stored = await check.Providers.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(["apple-music", "apple-tv", "apple-arcade", "icloud-plus"], stored.Single(p => p.Key == "apple-one").IncludedKeys);
         Assert.All(stored.Where(p => p.Key != "apple-one"), p => Assert.Empty(p.IncludedKeys));
     }
@@ -52,7 +52,7 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         var connectionString = await fixture.NewConnectionStringAsync();
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
 
-        var refused = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync(insert));
+        var refused = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync(insert, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("ck_provider_included", refused.ConstraintName);
     }
@@ -69,10 +69,10 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(19, first.LabelsAdded.Count);
         Assert.Equal(["home"], first.LabelsCreated);
         await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
-        var netflix = await check.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix");
+        var netflix = await check.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("catalog", "Netflix", CatalogFixtures.PinnedCommit), (netflix.Origin, netflix.Name, netflix.CatalogCommit));
         Assert.Equal(["streaming", "vod"], netflix.LabelKeys);
-        var home = await check.Labels.AsNoTracking().SingleAsync(l => l.Key == "home");
+        var home = await check.Labels.AsNoTracking().SingleAsync(l => l.Key == "home", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("Home", CatalogLimits.NeutralColor, "catalog"), (home.Name, home.Color, home.Origin));
 
         var second = await SyncAsync(db, RealReading());
@@ -83,7 +83,7 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Empty(second.LabelsAdded);
         Assert.Empty(second.LabelsUpdated);
         await using var after = PostgresFixture.NewSubscriptionsContext(connectionString);
-        Assert.Equal(netflix.Version, (await after.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix")).Version); // not even rewritten
+        Assert.Equal(netflix.Version, (await after.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix", cancellationToken: TestContext.Current.CancellationToken)).Version); // not even rewritten
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
         await SyncAsync(db, RealReading());
         var item = new ItemId(Guid.CreateVersion7());
-        (await new SubscriptionStore(db).CreateAsync(item, new NewSubscription("netflix", true, [], null), default)).Ok();
+        (await new SubscriptionStore(db).CreateAsync(item, new NewSubscription("netflix", true, [], null), TestContext.Current.CancellationToken)).Ok();
 
         var without = RealReading() with { Providers = RealReading().Providers.Where(p => p.Key != "netflix").ToList() };
         var archived = await SyncAsync(db, without);
@@ -101,22 +101,22 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(["netflix"], archived.ProvidersArchived);
         await using (var check = PostgresFixture.NewSubscriptionsContext(connectionString))
         {
-            Assert.Equal(Now, (await check.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix")).ArchivedAt);
-            Assert.Equal("netflix", (await check.Subscriptions.AsNoTracking().SingleAsync(s => s.ItemId == item.Value)).ProviderKey);
+            Assert.Equal(Now, (await check.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix", cancellationToken: TestContext.Current.CancellationToken)).ArchivedAt);
+            Assert.Equal("netflix", (await check.Subscriptions.AsNoTracking().SingleAsync(s => s.ItemId == item.Value, cancellationToken: TestContext.Current.CancellationToken)).ProviderKey);
         }
 
         var restored = await SyncAsync(db, RealReading());
 
         Assert.Equal(["netflix"], restored.ProvidersUpdated);
         await using var after = PostgresFixture.NewSubscriptionsContext(connectionString);
-        Assert.Null((await after.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix")).ArchivedAt);
+        Assert.Null((await after.Providers.AsNoTracking().SingleAsync(p => p.Key == "netflix", cancellationToken: TestContext.Current.CancellationToken)).ArchivedAt);
     }
 
     [Fact]
     public async Task Locking_outside_a_transaction_is_refused()
     {
         await using var db = PostgresFixture.NewSubscriptionsContext(await fixture.NewConnectionStringAsync());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => new ProviderStore(db).LockForSyncAsync(default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new ProviderStore(db).LockForSyncAsync(TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -130,12 +130,12 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         var connectionString = await fixture.NewConnectionStringAsync();
         await using var import = new NpgsqlConnection(connectionString);
-        await import.OpenAsync();
-        await using var importTransaction = await import.BeginTransactionAsync();
+        await import.OpenAsync(TestContext.Current.CancellationToken);
+        await using var importTransaction = await import.BeginTransactionAsync(TestContext.Current.CancellationToken);
         await using (var insert = new NpgsqlCommand(
             "insert into subscriptions.provider (key, origin, name, label_keys, created_by) values ('tinder-k3f9qa', 'custom', 'Tinder', array['other'], gen_random_uuid())",
             import, importTransaction))
-            await insert.ExecuteNonQueryAsync();
+            await insert.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
         var reading = RealReading() with
@@ -151,15 +151,15 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         }
         finally
         {
-            await importTransaction.CommitAsync(); // on failure too: releases the sync, so nothing is left waiting
+            await importTransaction.CommitAsync(TestContext.Current.CancellationToken); // on failure too: releases the sync, so nothing is left waiting
         }
 
-        var report = await sync.WaitAsync(TimeSpan.FromSeconds(30));
+        var report = await sync.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         Assert.Equal(["tinder-k3f9qa"], report.Conflicts);
         Assert.DoesNotContain("tinder-k3f9qa", report.ProvidersAdded);
         await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
-        var tinder = await check.Providers.AsNoTracking().SingleAsync(p => p.Key == "tinder-k3f9qa");
+        var tinder = await check.Providers.AsNoTracking().SingleAsync(p => p.Key == "tinder-k3f9qa", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("custom", "Tinder", (Instant?)null), (tinder.Origin, tinder.Name, tinder.ArchivedAt));
     }
 
@@ -176,23 +176,23 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
             await SyncAsync(first, RealReading());
 
         await using var sync = PostgresFixture.NewSubscriptionsContext(connectionString);
-        await using var syncTransaction = await sync.Database.BeginTransactionAsync();
-        await new ProviderStore(sync).LockForSyncAsync(default);
+        await using var syncTransaction = await sync.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await new ProviderStore(sync).LockForSyncAsync(TestContext.Current.CancellationToken);
 
         try
         {
             await using var write = PostgresFixture.NewSubscriptionsContext(connectionString);
             var item = new ItemId(Guid.CreateVersion7());
-            var created = await new SubscriptionStore(write).CreateAsync(item, new NewSubscription("netflix", true, [], null), default)
-                .WaitAsync(TimeSpan.FromSeconds(10)); // bounded: a write blocked by the sync's lock times out here
+            var created = await new SubscriptionStore(write).CreateAsync(item, new NewSubscription("netflix", true, [], null), TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); // bounded: a write blocked by the sync's lock times out here
             created.Ok();
 
             await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
-            Assert.Equal("netflix", (await check.Subscriptions.AsNoTracking().SingleAsync(s => s.ItemId == item.Value)).ProviderKey);
+            Assert.Equal("netflix", (await check.Subscriptions.AsNoTracking().SingleAsync(s => s.ItemId == item.Value, cancellationToken: TestContext.Current.CancellationToken)).ProviderKey);
         }
         finally
         {
-            await syncTransaction.RollbackAsync(); // on failure too: releases the lock, so nothing is left waiting
+            await syncTransaction.RollbackAsync(TestContext.Current.CancellationToken); // on failure too: releases the lock, so nothing is left waiting
         }
     }
 
@@ -244,8 +244,8 @@ public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(["cloud", "home", "hosting", "kid", "work"], moved.LabelsUpdated); // case of #A855B4, and home's own colour
         Assert.Empty(moved.LabelsCreated);
         await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
-        Assert.All(await check.Providers.AsNoTracking().ToListAsync(), p => Assert.Equal(CatalogFixtures.PinnedCommit, p.CatalogCommit));
-        var home = await check.Labels.AsNoTracking().SingleAsync(l => l.Key == "home");
+        Assert.All(await check.Providers.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken), p => Assert.Equal(CatalogFixtures.PinnedCommit, p.CatalogCommit));
+        var home = await check.Labels.AsNoTracking().SingleAsync(l => l.Key == "home", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("Home", "#A1887F", "catalog"), (home.Name, home.Color, home.Origin));
     }
 

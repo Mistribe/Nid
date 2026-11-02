@@ -61,7 +61,7 @@ public class PriceAcceptTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var response = await AcceptAsync(app, app.AdultA, envelope, holding);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetBoolean());
+        Assert.True(JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetBoolean());
         Assert.Equal(("accepted", app.AdultA.Value), await RowAsync(app));
     }
 
@@ -99,6 +99,6 @@ public class PriceAcceptTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var response = await AcceptAsync(app, app.AdultA, envelope, holding);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("investments.price_not_rejected", JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("code").GetString());
+        Assert.Equal("investments.price_not_rejected", JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("code").GetString());
     }
 }

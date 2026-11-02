@@ -104,7 +104,7 @@ public class PipelineTests(PostgresFixture postgres)
         await using var provider = await ProviderAsync();
         await using var scope = provider.CreateAsyncScope();
 
-        var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new ListPersonsQuery());
+        var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new ListPersonsQuery(), TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.IsType<UnauthenticatedFailure>(failure);
@@ -118,7 +118,7 @@ public class PipelineTests(PostgresFixture postgres)
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current =
             Actor.Token(PersonId.New(), Guid.NewGuid(), new HashSet<string> { ScopeNames.Read, ScopeNames.Write }, ActorOrigin.Api);
 
-        var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CreateDependentCommand("Kid"));
+        var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CreateDependentCommand("Kid"), TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.IsType<UnauthorizedFailure>(failure);
@@ -133,7 +133,7 @@ public class PipelineTests(PostgresFixture postgres)
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current =
             new Actor(ActorKind.Person, PersonId.New(), ActorOrigin.Mcp, new HashSet<string> { ScopeNames.Read });
 
-        var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CreateDependentCommand("Kid"));
+        var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CreateDependentCommand("Kid"), TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.IsType<UnauthorizedFailure>(failure);
@@ -148,15 +148,15 @@ public class PipelineTests(PostgresFixture postgres)
         var accessor = scope.ServiceProvider.GetRequiredService<IActorAccessor>();
 
         accessor.Current = Actor.System;
-        var adult = await invoker.InvokeAsync(new ProvisionAdultCommand("sub-a", "Alice", null));
+        var adult = await invoker.InvokeAsync(new ProvisionAdultCommand("sub-a", "Alice", null), TestContext.Current.CancellationToken);
         Assert.True(adult.TryGetValue(out var alice));
 
         accessor.Current = Actor.Browser(alice.Id);
-        var kid = await invoker.InvokeAsync(new CreateDependentCommand("Kid"));
+        var kid = await invoker.InvokeAsync(new CreateDependentCommand("Kid"), TestContext.Current.CancellationToken);
         Assert.True(kid.TryGetValue(out var child));
         Assert.Equal(PersonKind.Dependent, child.Kind);
 
-        var list = await invoker.InvokeAsync(new ListPersonsQuery());
+        var list = await invoker.InvokeAsync(new ListPersonsQuery(), TestContext.Current.CancellationToken);
         Assert.True(list.TryGetValue(out var persons));
         Assert.Equal(2, persons.Count);
     }
@@ -171,7 +171,7 @@ public class PipelineTests(PostgresFixture postgres)
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current =
                 Actor.Token(person, Guid.NewGuid(), new HashSet<string> { ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect }, ActorOrigin.Api);
-            var refused = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new RevokeMySessionsCommand());
+            var refused = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new RevokeMySessionsCommand(), TestContext.Current.CancellationToken);
             Assert.True(refused.TryGetFailure(out var failure));
             Assert.Equal(BrowserOnlyCodes.Required, failure!.Code);
         }
@@ -179,7 +179,7 @@ public class PipelineTests(PostgresFixture postgres)
         await using (var scope = provider.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(person);
-            var ran = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new RevokeMySessionsCommand());
+            var ran = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new RevokeMySessionsCommand(), TestContext.Current.CancellationToken);
             // The person does not exist in this database: the handler ran and answered not found, past the scope stage.
             Assert.True(ran.TryGetFailure(out var notFound));
             Assert.NotEqual(BrowserOnlyCodes.Required, notFound!.Code);

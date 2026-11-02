@@ -60,7 +60,7 @@ public class PropertyListBatchTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var app = await NidApp.StartAsync(fixture);
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
-                .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], default); // 1 USD = 0.90 EUR
+                .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], TestContext.Current.CancellationToken); // 1 USD = 0.90 EUR
         var withDollars = await EstimatedAsync(app, Home(app, "Avec dollars"), "290000");
         var withPounds = await EstimatedAsync(app, Home(app, "Avec livres"), "290000");
         var inDollars = Home(app, "En dollars");

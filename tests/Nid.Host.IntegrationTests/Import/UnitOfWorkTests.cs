@@ -30,7 +30,7 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(System.Net.HttpStatusCode.UnprocessableEntity, response.StatusCode);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.False(await core.Items.AnyAsync(i => i.DisplayName == "orphan-candidate"));
+        Assert.False(await core.Items.AnyAsync(i => i.DisplayName == "orphan-candidate", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -42,8 +42,8 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.True(await core.Items.AnyAsync(i => i.Id == id.Value));
-        Assert.True(await subs.Subscriptions.AnyAsync(s => s.ItemId == id.Value));
+        Assert.True(await core.Items.AnyAsync(i => i.Id == id.Value, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.True(await subs.Subscriptions.AnyAsync(s => s.ItemId == id.Value, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>Spec 4D1 §5: an inner scope joins the outer one; only the outer commit makes its writes durable.</summary>
@@ -58,17 +58,17 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             await using var scope = app.Services.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
             var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
-            await using (var outer = await unitOfWork.BeginAsync(default))
+            await using (var outer = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
             {
-                await using (var inner = await unitOfWork.BeginAsync(default))
+                await using (var inner = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
                 {
                     await core.Database.ExecuteSqlRawAsync(outerCommits
                         ? "insert into nest_probe (id) values (2)"
-                        : "insert into nest_probe (id) values (1)");
-                    await inner.CommitAsync(default);
+                        : "insert into nest_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
+                    await inner.CommitAsync(TestContext.Current.CancellationToken);
                 }
                 if (outerCommits)
-                    await outer.CommitAsync(default);
+                    await outer.CommitAsync(TestContext.Current.CancellationToken);
             }
         }
 
@@ -86,17 +86,17 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         {
             var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
             var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
-            await using var outer = await unitOfWork.BeginAsync(default);
-            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)");
-            await using (var abandoned = await unitOfWork.BeginAsync(default))
-                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (2)");
+            await using var outer = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
+            await using (var abandoned = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
+                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (2)", cancellationToken: TestContext.Current.CancellationToken);
             // The next inner scope opens cleanly after one rolled back.
-            await using (var again = await unitOfWork.BeginAsync(default))
+            await using (var again = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
             {
-                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (3)");
-                await again.CommitAsync(default);
+                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (3)", cancellationToken: TestContext.Current.CancellationToken);
+                await again.CommitAsync(TestContext.Current.CancellationToken);
             }
-            await outer.CommitAsync(default);
+            await outer.CommitAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.Equal([1, 3], await ProbedAsync(app));
@@ -113,14 +113,14 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         {
             var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
             var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
-            await using var outer = await unitOfWork.BeginAsync(default);
-            var inner = await unitOfWork.BeginAsync(default);
-            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)");
+            await using var outer = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
+            var inner = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
             await inner.DisposeAsync();
-            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (2)");
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (2)", cancellationToken: TestContext.Current.CancellationToken);
             await inner.DisposeAsync();
             Assert.Equal(0, (int)unitOfWork.GetType().GetField("depth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(unitOfWork)!);
-            await outer.CommitAsync(default);
+            await outer.CommitAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.Equal([2], await ProbedAsync(app));
@@ -137,18 +137,18 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         {
             var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
             var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
-            await using (var outer = await unitOfWork.BeginAsync(default))
+            await using (var outer = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
             {
-                var inner = await unitOfWork.BeginAsync(default);
-                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)");
-                await core.Database.ExecuteSqlRawAsync("release savepoint uow_1"); // the rollback to it now fails
+                var inner = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
+                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
+                await core.Database.ExecuteSqlRawAsync("release savepoint uow_1", cancellationToken: TestContext.Current.CancellationToken); // the rollback to it now fails
                 await inner.DisposeAsync();
-                await Assert.ThrowsAsync<InvalidOperationException>(() => outer.CommitAsync(default));
+                await Assert.ThrowsAsync<InvalidOperationException>(() => outer.CommitAsync(TestContext.Current.CancellationToken));
             }
 
-            await using var next = await unitOfWork.BeginAsync(default);
-            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (3)");
-            await next.CommitAsync(default);
+            await using var next = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (3)", cancellationToken: TestContext.Current.CancellationToken);
+            await next.CommitAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.Equal([3], await ProbedAsync(app));
@@ -186,18 +186,18 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using (var setup = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
             await setup.Database.ExecuteSqlRawAsync(
-                "create table commit_fail_probe (id int, constraint uq_commit_fail_probe unique (id) deferrable initially deferred)");
+                "create table commit_fail_probe (id int, constraint uq_commit_fail_probe unique (id) deferrable initially deferred)", cancellationToken: TestContext.Current.CancellationToken);
         }
 
         await using var scope = app.Services.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
         var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
 
-        var transaction = await unitOfWork.BeginAsync(default);
-        await core.Database.ExecuteSqlRawAsync("insert into commit_fail_probe (id) values (1)");
-        await core.Database.ExecuteSqlRawAsync("insert into commit_fail_probe (id) values (1)");
+        var transaction = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
+        await core.Database.ExecuteSqlRawAsync("insert into commit_fail_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
+        await core.Database.ExecuteSqlRawAsync("insert into commit_fail_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
 
-        var failure = await Record.ExceptionAsync(() => transaction.CommitAsync(default));
+        var failure = await Record.ExceptionAsync(() => transaction.CommitAsync(TestContext.Current.CancellationToken));
         Assert.IsType<PostgresException>(failure);
 
         // Disposing after the failed commit must not replace that failure with a rollback failure of its
@@ -219,10 +219,10 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
         var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.BeginAsync(default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.BeginAsync(TestContext.Current.CancellationToken));
 
         Assert.Null(core.Database.CurrentTransaction);
-        await using var again = await unitOfWork.BeginAsync(default);
+        await using var again = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(core.Database.CurrentTransaction);
     }
 

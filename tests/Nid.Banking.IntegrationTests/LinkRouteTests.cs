@@ -130,7 +130,7 @@ public class LinkRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var refused = await PostAsync(app, app.AdultB, line, "unlink");
 
         Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
-        Assert.DoesNotContain(secret.Value.ToString(), await refused.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.DoesNotContain(secret.Value.ToString(), await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), StringComparison.Ordinal);
         Assert.Equal("linked", State(await LineAsync(app, app.AdultA, line)));
     }
 
@@ -304,7 +304,7 @@ public class LinkRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         var unlinked = await PostAsync(app, app.AdultB, line, "unlink");
 
-        Assert.True(unlinked.StatusCode == HttpStatusCode.OK, await unlinked.Content.ReadAsStringAsync());
+        Assert.True(unlinked.StatusCode == HttpStatusCode.OK, await unlinked.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal("unlinked", State(await BankingApi.JsonAsync(unlinked)));
     }
 }

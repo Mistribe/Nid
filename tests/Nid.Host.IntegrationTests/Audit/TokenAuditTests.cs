@@ -22,14 +22,14 @@ public class TokenAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = actor;
-            Assert.True((await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CreateDependentCommand("Kid"))).IsSuccess);
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CreateDependentCommand("Kid"), TestContext.Current.CancellationToken)).IsSuccess);
             await scope.ServiceProvider.GetRequiredService<ISecurityEvents>().RecordAsync(
-                SecurityEvent.Of(SecurityEventNames.TokenCreated, app.AdultA), default);
+                SecurityEvent.Of(SecurityEventNames.TokenCreated, app.AdultA), TestContext.Current.CancellationToken);
         }
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var write = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Entity == "core.person");
-        var created = await platform.AuditLog.SingleAsync(r => r.Action == SecurityEventNames.TokenCreated);
+        var write = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Entity == "core.person", cancellationToken: TestContext.Current.CancellationToken);
+        var created = await platform.AuditLog.SingleAsync(r => r.Action == SecurityEventNames.TokenCreated, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((tokenId, "api"), (write.TokenId!.Value, write.Via));
         Assert.Equal(tokenId, created.TokenId);
     }

@@ -36,17 +36,17 @@ public class FlowsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        var active = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 10m), default)).Ok();
-        var voided = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 20m), default)).Ok();
-        var typo = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 30m), default)).Ok();
-        Assert.True((await w.Flows.VoidAsync(item, voided.Id, default)).IsSuccess);
-        var fixedFlow = (await w.Flows.SupersedeAsync(item, typo.Id, Flow(item, FlowKind.Income, 31m), default)).Ok();
+        var active = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 10m), TestContext.Current.CancellationToken)).Ok();
+        var voided = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 20m), TestContext.Current.CancellationToken)).Ok();
+        var typo = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 30m), TestContext.Current.CancellationToken)).Ok();
+        Assert.True((await w.Flows.VoidAsync(item, voided.Id, TestContext.Current.CancellationToken)).IsSuccess);
+        var fixedFlow = (await w.Flows.SupersedeAsync(item, typo.Id, Flow(item, FlowKind.Income, 31m), TestContext.Current.CancellationToken)).Ok();
 
-        var found = await w.Flows.FindManyAsync([active.Id, voided.Id, typo.Id, fixedFlow.Id, Guid.NewGuid()], default);
+        var found = await w.Flows.FindManyAsync([active.Id, voided.Id, typo.Id, fixedFlow.Id, Guid.NewGuid()], TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { active.Id, fixedFlow.Id }.Order(), found.Select(f => f.Id).Order());
         Assert.All(found, f => { Assert.Equal(item, f.Item); Assert.Equal(FlowKind.Income, f.Kind); });
-        Assert.Empty(await w.Flows.FindManyAsync([], default));
+        Assert.Empty(await w.Flows.FindManyAsync([], TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -54,11 +54,11 @@ public class FlowsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        (await w.Flows.RecordAsync(Flow(item, FlowKind.Opening, 20_000m, new LocalDate(2024, 12, 31)), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 2_000m, V), default)).Ok();
+        (await w.Flows.RecordAsync(Flow(item, FlowKind.Opening, 20_000m, new LocalDate(2024, 12, 31)), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 2_000m, V), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(FactWorld.Eur(22_000m), (await w.Flows.SumAsync(item, Net, UpTo(V), default)).Ok());
-        Assert.Equal(FactWorld.Eur(20_000m), (await w.Flows.SumAsync(item, Net, UpTo(V.PlusDays(-1)), default)).Ok());
+        Assert.Equal(FactWorld.Eur(22_000m), (await w.Flows.SumAsync(item, Net, UpTo(V), TestContext.Current.CancellationToken)).Ok());
+        Assert.Equal(FactWorld.Eur(20_000m), (await w.Flows.SumAsync(item, Net, UpTo(V.PlusDays(-1)), TestContext.Current.CancellationToken)).Ok());
     }
 
     [Fact]
@@ -66,10 +66,10 @@ public class FlowsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        var contribution = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 500m), default)).Ok();
-        Assert.True((await w.Flows.VoidAsync(item, contribution.Id, default)).IsSuccess);
+        var contribution = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 500m), TestContext.Current.CancellationToken)).Ok();
+        Assert.True((await w.Flows.VoidAsync(item, contribution.Id, TestContext.Current.CancellationToken)).IsSuccess);
 
-        Assert.Equal(FactWorld.Eur(0m), (await w.Flows.SumAsync(item, Net, UpTo(V), default)).Ok());
+        Assert.Equal(FactWorld.Eur(0m), (await w.Flows.SumAsync(item, Net, UpTo(V), TestContext.Current.CancellationToken)).Ok());
     }
 
     [Fact]
@@ -77,14 +77,14 @@ public class FlowsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        var typo = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 200m), default)).Ok();
+        var typo = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 200m), TestContext.Current.CancellationToken)).Ok();
 
-        var fixedFlow = (await w.Flows.SupersedeAsync(item, typo.Id, Flow(item, FlowKind.Contribution, 2_000m), default)).Ok();
+        var fixedFlow = (await w.Flows.SupersedeAsync(item, typo.Id, Flow(item, FlowKind.Contribution, 2_000m), TestContext.Current.CancellationToken)).Ok();
 
-        var rows = await w.Db.Flows.AsNoTracking().ToListAsync();
+        var rows = await w.Db.Flows.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(rows.Single(r => r.Id == typo.Id).RetiredAt);
         Assert.Equal(typo.Id, rows.Single(r => r.Id == fixedFlow.Id).SupersedesId);
-        Assert.Equal(CoreFactCodes.FactRetired, Code(await w.Flows.SupersedeAsync(item, typo.Id, Flow(item, FlowKind.Contribution, 1m), default)));
+        Assert.Equal(CoreFactCodes.FactRetired, Code(await w.Flows.SupersedeAsync(item, typo.Id, Flow(item, FlowKind.Contribution, 1m), TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -93,10 +93,10 @@ public class FlowsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
         var other = await w.ItemAsync(w.Alice);
-        var flow = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 200m), default)).Ok();
+        var flow = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 200m), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(CoreFactCodes.InvalidFact, Code(await w.Flows.SupersedeAsync(item, flow.Id, Flow(other, FlowKind.Contribution, 1m), default)));
-        Assert.Null(await w.Db.Flows.AsNoTracking().Where(r => r.Id == flow.Id).Select(r => r.RetiredAt).SingleAsync());
+        Assert.Equal(CoreFactCodes.InvalidFact, Code(await w.Flows.SupersedeAsync(item, flow.Id, Flow(other, FlowKind.Contribution, 1m), TestContext.Current.CancellationToken)));
+        Assert.Null(await w.Db.Flows.AsNoTracking().Where(r => r.Id == flow.Id).Select(r => r.RetiredAt).SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -104,12 +104,12 @@ public class FlowsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        var first = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 1m), default)).Ok();
-        var second = (await w.Flows.RecordAsync(Flow(item, FlowKind.Expense, 2m), default)).Ok();
-        var earlier = (await w.Flows.RecordAsync(Flow(item, FlowKind.Withdrawal, 3m, V.PlusDays(-1)), default)).Ok();
+        var first = (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 1m), TestContext.Current.CancellationToken)).Ok();
+        var second = (await w.Flows.RecordAsync(Flow(item, FlowKind.Expense, 2m), TestContext.Current.CancellationToken)).Ok();
+        var earlier = (await w.Flows.RecordAsync(Flow(item, FlowKind.Withdrawal, 3m, V.PlusDays(-1)), TestContext.Current.CancellationToken)).Ok();
 
-        var all = (await w.Flows.ListAsync(item, UpTo(V), null, default)).Ok();
-        var expenses = (await w.Flows.ListAsync(item, UpTo(V), new HashSet<FlowKind> { FlowKind.Expense }, default)).Ok();
+        var all = (await w.Flows.ListAsync(item, UpTo(V), null, TestContext.Current.CancellationToken)).Ok();
+        var expenses = (await w.Flows.ListAsync(item, UpTo(V), new HashSet<FlowKind> { FlowKind.Expense }, TestContext.Current.CancellationToken)).Ok();
 
         // The clock is fixed, so first and second share created_at and their order falls to the id: only the date
         // order is asserted, the tie is not.
@@ -123,18 +123,18 @@ public class FlowsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        var opening = (await w.Flows.RecordAsync(Flow(item, FlowKind.Opening, 1_000m), default)).Ok();
-        (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 10m, externalRef: "transfer:1"), default)).Ok();
+        var opening = (await w.Flows.RecordAsync(Flow(item, FlowKind.Opening, 1_000m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 10m, externalRef: "transfer:1"), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(CoreFactCodes.OpeningExists, Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Opening, 2_000m), default)));
+        Assert.Equal(CoreFactCodes.OpeningExists, Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Opening, 2_000m), TestContext.Current.CancellationToken)));
         Assert.Equal(CoreFactCodes.ExternalRefTaken,
-            Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 20m, externalRef: "transfer:1"), default)));
+            Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 20m, externalRef: "transfer:1"), TestContext.Current.CancellationToken)));
 
         // Superseding the opening itself is a correction, not a second opening.
-        (await w.Flows.SupersedeAsync(item, opening.Id, Flow(item, FlowKind.Opening, 1_200m), default)).Ok();
+        (await w.Flows.SupersedeAsync(item, opening.Id, Flow(item, FlowKind.Opening, 1_200m), TestContext.Current.CancellationToken)).Ok();
         // The same reference on another item is another transfer's leg.
         var other = await w.ItemAsync(w.Alice);
-        (await w.Flows.RecordAsync(Flow(other, FlowKind.Withdrawal, 10m, externalRef: "transfer:1"), default)).Ok();
+        (await w.Flows.RecordAsync(Flow(other, FlowKind.Withdrawal, 10m, externalRef: "transfer:1"), TestContext.Current.CancellationToken)).Ok();
     }
 
     [Fact]
@@ -143,10 +143,10 @@ public class FlowsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
 
-        Assert.Equal(CoreFactCodes.AmountNotPositive, Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 0m), default)));
+        Assert.Equal(CoreFactCodes.AmountNotPositive, Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 0m), TestContext.Current.CancellationToken)));
         Assert.Equal(CoreFactCodes.DateInFuture,
-            Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 1m, FactWorld.Today.PlusDays(1)), default)));
-        Assert.Equal(0, await w.Db.Flows.AsNoTracking().CountAsync());
+            Code(await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 1m, FactWorld.Today.PlusDays(1)), TestContext.Current.CancellationToken)));
+        Assert.Equal(0, await w.Db.Flows.AsNoTracking().CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -155,11 +155,11 @@ public class FlowsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
         var other = await w.ItemAsync(w.Alice);
-        var onOther = (await w.Flows.RecordAsync(Flow(other, FlowKind.Contribution, 1m), default)).Ok();
+        var onOther = (await w.Flows.RecordAsync(Flow(other, FlowKind.Contribution, 1m), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Flows.VoidAsync(item, onOther.Id, default)));
-        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Flows.SupersedeAsync(item, onOther.Id, Flow(item, FlowKind.Contribution, 1m), default)));
-        Assert.Null(await w.Db.Flows.AsNoTracking().Where(r => r.Id == onOther.Id).Select(r => r.RetiredAt).SingleAsync());
+        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Flows.VoidAsync(item, onOther.Id, TestContext.Current.CancellationToken)));
+        Assert.Equal(CoreFactCodes.FactNotFound, Code(await w.Flows.SupersedeAsync(item, onOther.Id, Flow(item, FlowKind.Contribution, 1m), TestContext.Current.CancellationToken)));
+        Assert.Null(await w.Db.Flows.AsNoTracking().Where(r => r.Id == onOther.Id).Select(r => r.RetiredAt).SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -167,13 +167,13 @@ public class FlowsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice, Visibility.Private);
-        (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 1m), default)).Ok();
+        (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 1m), TestContext.Current.CancellationToken)).Ok();
 
         w.Act(w.Bob);
 
-        Assert.True((await w.Flows.SumAsync(item, Net, UpTo(V), default)).TryGetFailure(out var failure));
+        Assert.True((await w.Flows.SumAsync(item, Net, UpTo(V), TestContext.Current.CancellationToken)).TryGetFailure(out var failure));
         Assert.IsType<NotFoundFailure>(failure);
-        Assert.True((await w.Flows.ListAsync(item, UpTo(V), null, default)).TryGetFailure(out failure));
+        Assert.True((await w.Flows.ListAsync(item, UpTo(V), null, TestContext.Current.CancellationToken)).TryGetFailure(out failure));
         Assert.IsType<NotFoundFailure>(failure);
     }
 
@@ -189,6 +189,6 @@ public class FlowsTests(PostgresFixture postgres)
         foreach (var x in worlds)
             await x.DisposeAsync();
         Assert.All(results.Where(r => !r.IsSuccess), r => Assert.Contains(Code(r), new[] { CoreFactCodes.OpeningExists, CoreFactCodes.FactConflict }));
-        Assert.Equal(1, await w.Db.Flows.AsNoTracking().CountAsync(r => r.Kind == "opening" && r.RetiredAt == null));
+        Assert.Equal(1, await w.Db.Flows.AsNoTracking().CountAsync(r => r.Kind == "opening" && r.RetiredAt == null, cancellationToken: TestContext.Current.CancellationToken));
     }
 }

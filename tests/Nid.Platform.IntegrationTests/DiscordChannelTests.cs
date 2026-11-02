@@ -168,7 +168,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
         var handler = new Recorder();
 
         var result = await new DiscordChannel("discord_person", Http(handler)).SendAsync(
-            new RenderedMessage("Nid : @everyone", "ping <@123>", "<p>x</p>"), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), default);
+            new RenderedMessage("Nid : @everyone", "ping <@123>", "<p>x</p>"), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         var (url, body) = Assert.Single(handler.Requests);
@@ -186,7 +186,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
         var handler = new Recorder();
 
         await new DiscordChannel("discord_person", Http(handler)).SendAsync(
-            new RenderedMessage(new string('t', 300), new string('x', 5000), ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), default);
+            new RenderedMessage(new string('t', 300), new string('x', 5000), ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), TestContext.Current.CancellationToken);
 
         var embed = JsonDocument.Parse(handler.Requests.Single().Body).RootElement.GetProperty("embeds")[0];
         var description = embed.GetProperty("description").GetString()!;
@@ -201,7 +201,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
         var handler = new Recorder();
 
         Assert.True((await new DiscordChannel("discord_person", Http(handler)).SendAsync(
-            new RenderedMessage("t", "d", ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), default)).IsSuccess);
+            new RenderedMessage("t", "d", ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), TestContext.Current.CancellationToken)).IsSuccess);
         foreach (var (status, code) in new[]
                  {
                      (404, NotificationChannelCodes.Broken), (401, NotificationChannelCodes.Broken), (403, NotificationChannelCodes.Broken),
@@ -215,7 +215,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         handler.Answer = _ => throw new HttpRequestException("down");
         var down = await new DiscordChannel("discord_person", Http(handler)).SendAsync(
-            new RenderedMessage("t", "d", ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), default);
+            new RenderedMessage("t", "d", ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), TestContext.Current.CancellationToken);
         Assert.True(down.TryGetFailure(out var failure));
         Assert.Equal(NotificationChannelCodes.Unreachable, failure!.Code);
     }
@@ -227,7 +227,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
             "discord_person",
             new SafeHttpClient(new HttpMessageInvoker(new Recorder()), new OutboundOptions { AllowedHosts = [] }, NullLogger<SafeHttpClient>.Instance));
 
-        var result = await channel.SendAsync(new RenderedMessage("t", "d", ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), default);
+        var result = await channel.SendAsync(new RenderedMessage("t", "d", ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(NotificationChannelCodes.Rejected, failure!.Code);
@@ -286,7 +286,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(["discord_person", "email"], now.Select(d => d.Channel).Order(StringComparer.Ordinal).ToArray());
         Assert.All(now, d => Assert.NotNull(d.NotificationId));
 
-        var (_, failure) = await h.App.InvokeAsync(h.App.AdultA, new SendDigestsCommand(true));
+        var (_, failure) = await h.App.InvokeAsync(h.App.AdultA, new SendDigestsCommand(true), TestContext.Current.CancellationToken);
         Assert.Null(failure);
 
         var digests = (await DeliveriesAsync(h)).Where(d => d.DigestId is not null).ToList();
@@ -301,17 +301,17 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
         var sent = await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, TestRoute, new { channel = "discord_person" });
 
         Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
-        Assert.True((await sent.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("sent").GetBoolean());
+        Assert.True((await sent.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("sent").GetBoolean());
         Assert.Equal(Hook, Assert.Single(h.Discord.Requests).Url.ToString());
 
         var none = await h.App.RawAsync(h.App.AdultB, HttpMethod.Post, TestRoute, new { channel = "discord_person" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, none.StatusCode);
-        var error = Assert.Single((await none.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray());
+        var error = Assert.Single((await none.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
         Assert.Equal(("channel", "notifications.discord_unavailable"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
 
         h.Discord.Answer = _ => new HttpResponseMessage(HttpStatusCode.NotFound);
         clock.Now += NodaTime.Duration.FromSeconds(30); // one test per person and channel every 30 s
-        var gone = await (await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, TestRoute, new { channel = "discord_person" })).Content.ReadFromJsonAsync<JsonElement>();
+        var gone = await (await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, TestRoute, new { channel = "discord_person" })).Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(gone.GetProperty("sent").GetBoolean());
         Assert.Equal(NotificationChannelCodes.Broken, gone.GetProperty("error").GetString());
         Assert.Equal("broken", await WebhookStatusAsync(h));

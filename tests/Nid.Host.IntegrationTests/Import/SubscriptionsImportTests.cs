@@ -65,7 +65,7 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
         await CommitAsync(client, app, GoldenFile.Sections());
         int items;
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            items = await core.Items.CountAsync();
+            items = await core.Items.CountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var again = await CommitAsync(client, app, GoldenFile.Sections());
 
@@ -73,7 +73,7 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(new CountsResponse(0, 2, 0), again.Report.Sections["billing_phases"]);
         Assert.Equal(new CountsResponse(0, 3, 0), again.Report.Sections["purchases"]);
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.Equal(items, await core.Items.CountAsync());
+            Assert.Equal(items, await core.Items.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
 
         Assert.Equal(new CountsResponse(1, 3, 0), again.Report!.Sections["purchases"]);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.True(await subs.Purchases.AnyAsync(p => p.ImportRef == "pu-extra"));
+        Assert.True(await subs.Purchases.AnyAsync(p => p.ImportRef == "pu-extra", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -138,7 +138,7 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(("subscriptions.phase_overlap", path), (issue.Code, issue.Path));
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultA, validated.Id)).StatusCode);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(2, await subs.Phases.CountAsync());
+        Assert.Equal(2, await subs.Phases.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -173,8 +173,8 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
             validated.Report.Issues.Where(i => i.Severity == "error").Select(i => (i.Code, i.Path)).OrderBy(x => x.Path).ToList());
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, validated.Id)).StatusCode);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(1, await subs.Phases.CountAsync());
-        Assert.False(await subs.Purchases.AnyAsync());
+        Assert.Equal(1, await subs.Phases.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.False(await subs.Purchases.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
             (issue.Code, issue.Path, issue.Message));
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, validated.Id)).StatusCode);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(1, await subs.Subscriptions.CountAsync());
+        Assert.Equal(1, await subs.Subscriptions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -225,8 +225,8 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
         await CommitAsync(new ImportClient(app), app, new Dictionary<string, string> { ["persons"] = persons, ["subscriptions"] = theirs });
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var lea = await core.Persons.SingleAsync(p => p.DisplayName == "Léa");
-        var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Kid's");
+        var lea = await core.Persons.SingleAsync(p => p.DisplayName == "Léa", cancellationToken: TestContext.Current.CancellationToken);
+        var item = await core.Items.Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Kid's", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(lea.Id, Assert.Single(item.Owners).PersonId);
     }
 

@@ -133,7 +133,7 @@ public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<Po
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth?scope=household");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var points = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("points").EnumerateArray()
+        var points = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("points").EnumerateArray()
             .ToDictionary(p => p.GetProperty("on").GetString()!);
 
         // Before the first estimate, the price paid; the studio only from its purchase.
@@ -151,7 +151,7 @@ public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<Po
         await NewAsync(app, Short(app, "Prêt travaux")); // disbursed 2025-01-01, 1 000 repaid on each 15th
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth?scope=household");
-        var points = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("points").EnumerateArray()
+        var points = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("points").EnumerateArray()
             .ToDictionary(p => p.GetProperty("on").GetString()!);
 
         Assert.Null(Amount(points["2024-12-31"].GetProperty("value")));

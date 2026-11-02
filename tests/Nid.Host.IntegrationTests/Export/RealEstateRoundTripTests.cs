@@ -54,7 +54,7 @@ public class RealEstateRoundTripTests(PostgresFixture fixture) : IClassFixture<P
                 tenantNames = "Mme Martin", landlordName = "Adulte 1", landlordAddress = "1 rue A\n75001 Paris", rentsTrackedFrom = "2023-02" });
         var version = (await JsonAsync(source, source.AdultA, $"/api/v1/realestate/properties/{home}")).GetProperty("version").GetUInt32();
         var patched = await source.RawAsync(source.AdultA, HttpMethod.Patch, $"/api/v1/realestate/properties/{home}", new { version, postalAddress = "2 rue B, 75002 Paris" });
-        Assert.True(patched.IsSuccessStatusCode, await patched.Content.ReadAsStringAsync());
+        Assert.True(patched.IsSuccessStatusCode, await patched.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         await PostAsync(source, $"/api/v1/realestate/properties/{home}/flows",
             new { occurredOn = "2025-02-01", kind = "expense", amount = "800", category = "insurance" });
         await PostAsync(source, $"/api/v1/realestate/loans/{main}/repayments",

@@ -44,7 +44,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var (app, client) = await StartAsync(fixture);
         await using (app) await using (client)
         {
-            var tools = await client.ListToolsAsync();
+            var tools = await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(Expected.Concat(Nid.Host.Mcp.RouteActions.All.Select(a => a.Tool)).Order(StringComparer.Ordinal),
                 tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
             Assert.All(tools.Where(t => McpServerTests.IsRead(t.Name)), t => Assert.True(t.ProtocolTool.Annotations?.ReadOnlyHint));
@@ -107,8 +107,8 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/performance?from=2025-01-01&to=2025-10-01"),
                 await CallAsync(client, "get_envelope_performance", new { id = envelope, from = "2025-01-01", to = "2025-10-01" }));
             var created = await app.RawAsync(a, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/holdings", new { name = "Fonds euros", kind = "euro_fund" });
-            Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync());
-            var holding = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+            Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            var holding = JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
             SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/holdings?on=2025-10-01"),
                 await CallAsync(client, "get_envelope_holdings", new { id = envelope, on = "2025-10-01" }));
             SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/holding-snapshots"), await CallAsync(client, "list_holding_snapshots", new { id = envelope }));
@@ -122,13 +122,13 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             SameJson(await app.GetRawAsync(a, $"/api/v1/realestate/properties/{property}"), await CallAsync(client, "get_property", new { id = property }));
 
             var rest = await app.RawAsync(a, HttpMethod.Post, $"/api/v1/realestate/loans/{loan}/simulations", new { on = "2026-01-15", amount = "10000.00" });
-            SameJson(await rest.Content.ReadAsStringAsync(), await CallAsync(client, "simulate_early_repayment", new { id = loan, on = "2026-01-15", amount = "10000.00" }));
+            SameJson(await rest.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), await CallAsync(client, "simulate_early_repayment", new { id = loan, on = "2026-01-15", amount = "10000.00" }));
 
             SameJson(await app.GetRawAsync(a, "/api/v1/realestate/loans/overview"), await CallAsync(client, "get_loans_overview"));
             var household = new { on = "2026-01-15", amount = "10000.00", split = "chosen", loanId = loan, effect = "reduce_term", penalties = new[] { new { loanId = loan, amount = "300.00" } } };
             var restHousehold = await app.RawAsync(a, HttpMethod.Post, "/api/v1/realestate/loans/overview/simulations", household);
-            Assert.True(restHousehold.IsSuccessStatusCode, await restHousehold.Content.ReadAsStringAsync());
-            SameJson(await restHousehold.Content.ReadAsStringAsync(), await CallAsync(client, "simulate_household_early_repayment", household));
+            Assert.True(restHousehold.IsSuccessStatusCode, await restHousehold.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            SameJson(await restHousehold.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), await CallAsync(client, "simulate_household_early_repayment", household));
         }
     }
 
@@ -139,7 +139,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var (app, client) = await StartAsync(fixture);
         await using (app) await using (client)
         {
-            var result = await client.CallToolAsync("get_loan", new Dictionary<string, object?> { ["id"] = "abc" });
+            var result = await client.CallToolAsync("get_loan", new Dictionary<string, object?> { ["id"] = "abc" }, cancellationToken: TestContext.Current.CancellationToken);
             Assert.True(result.IsError);
             // The SDK hides the binding detail: it names the tool, not the argument.
             Assert.Equal("An error occurred invoking 'get_loan'.", McpHarness.TextOf(result));
@@ -156,7 +156,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
             foreach (var id in new[] { hidden.Value, Guid.NewGuid() })
             {
-                var result = await client.CallToolAsync("get_subscription", new Dictionary<string, object?> { ["id"] = id });
+                var result = await client.CallToolAsync("get_subscription", new Dictionary<string, object?> { ["id"] = id }, cancellationToken: TestContext.Current.CancellationToken);
                 Assert.True(result.IsError);
                 Assert.Equal(McpCallsNotFound, McpHarness.TextOf(result));
             }
@@ -177,7 +177,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var (app, client) = await StartAsync(fixture);
         await using (app) await using (client)
         {
-            var result = await client.CallToolAsync(tool, new Dictionary<string, object?> { [name] = value });
+            var result = await client.CallToolAsync(tool, new Dictionary<string, object?> { [name] = value }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
             Assert.Contains(named, McpHarness.TextOf(result));
@@ -193,7 +193,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             var loan = await McpSeed.LoanAsync(app, app.AdultA);
 
             var result = await client.CallToolAsync("simulate_early_repayment",
-                new Dictionary<string, object?> { ["id"] = loan, ["on"] = "15/01/2026", ["amount"] = "1 000,50" });
+                new Dictionary<string, object?> { ["id"] = loan, ["on"] = "15/01/2026", ["amount"] = "1 000,50" }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
             Assert.Contains("on:", McpHarness.TextOf(result));
@@ -210,7 +210,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             var result = await client.CallToolAsync("simulate_household_early_repayment", new Dictionary<string, object?>
             {
                 ["on"] = "15/01/2026", ["amount"] = "1 000,50", ["split"] = "chosen", ["effect"] = "shorter",
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
             foreach (var field in new[] { "on:", "amount:", "loanId:", "effect:" })

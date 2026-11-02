@@ -128,15 +128,15 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Equal((3, 0, 0, true), Counts(view));
         await using var db = Db(app);
-        var connection = await db.Connections.SingleAsync();
+        var connection = await db.Connections.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("file", app.AdultA.Value, "active", true), (connection.Source, connection.PersonId, connection.Status, connection.SessionId is null));
-        var account = await db.Accounts.SingleAsync();
+        var account = await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((view.GetProperty("accountId").GetGuid(), app.AdultA.Value, "checking", "EUR", "Relevé ·0189", "0189"),
             (account.Id, account.CreatedByPersonId, account.Kind, account.Currency, account.Name, account.IbanMasked));
-        Assert.Equal(connection.Id, (await db.Sources.SingleAsync(s => s.AccountId == account.Id)).ConnectionId);
-        var stored = await db.Transactions.OrderBy(t => t.BookedOn).ToListAsync();
+        Assert.Equal(connection.Id, (await db.Sources.SingleAsync(s => s.AccountId == account.Id, cancellationToken: TestContext.Current.CancellationToken)).ConnectionId);
+        var stored = await db.Transactions.OrderBy(t => t.BookedOn).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([("F1", -13.49m, "file"), ("F2", -84.20m, "file"), ("F3", 2450m, "file")], stored.Select(t => (t.ProviderRef, t.Amount, t.FetchedVia)));
-        var balance = await db.Balances.SingleAsync();
+        var balance = await db.Balances.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((D(10, 28), 1234.56m), (balance.AsOf, balance.Amount));
         // A's account, read like any other; the night leaves the file connection alone (it has no session to read).
         Assert.Equal("Relevé ·0189", Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()).GetProperty("name").GetString());
@@ -145,10 +145,10 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            Assert.True((await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand())).IsSuccess);
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand(), TestContext.Current.CancellationToken)).IsSuccess);
         }
         await using var after = Db(app);
-        Assert.Equal("active", (await after.Connections.SingleAsync()).Status);
+        Assert.Equal("active", (await after.Connections.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).Status);
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal((0, 3, 0, false), Counts(again));
         Assert.Equal((0, 3, 0, true), Counts(await ImportedAsync(app, app.AdultA, October_(), confirm: true)));
         await using var db = Db(app);
-        Assert.Equal((1, 3, 1), (await db.Accounts.CountAsync(), await db.Transactions.CountAsync(), await db.Connections.CountAsync()));
+        Assert.Equal((1, 3, 1), (await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken), await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken), await db.Connections.CountAsync(cancellationToken: TestContext.Current.CancellationToken)));
     }
 
     [Theory]
@@ -189,7 +189,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         if (auto)
         {
             Assert.Empty(proposals);
-            var value = await core.Valuations.SingleAsync(v => v.ItemId == envelope.Value);
+            var value = await core.Valuations.SingleAsync(v => v.ItemId == envelope.Value, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal((D(8, 31), 1000m, "Solde bancaire du 31/08/2026", "bank_api"), (value.AsOf, value.Amount, value.Note, value.Source));
         }
         else
@@ -197,10 +197,10 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
             var proposal = Assert.Single(proposals);
             Assert.Equal(("2026-08-31", "Solde bancaire du 31/08/2026"),
                 (proposal.GetProperty("subjectKey").GetString(), proposal.GetProperty("payload").GetProperty("note").GetString()));
-            Assert.False(await core.Valuations.AnyAsync(v => v.ItemId == envelope.Value));
+            Assert.False(await core.Valuations.AnyAsync(v => v.ItemId == envelope.Value, cancellationToken: TestContext.Current.CancellationToken));
         }
         await using var db = Db(app);
-        Assert.Equal(D(8, 31), (await db.Accounts.SingleAsync()).LastValuedOn);
+        Assert.Equal(D(8, 31), (await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).LastValuedOn);
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand());
+            await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand(), TestContext.Current.CancellationToken);
         }
         // The same booking with the label cut (F2), and a day apart (F3): probably known; F1 is the same line; F4 is new.
         var file = Ofx(Iban, [.. October, new("F4", D(10, 28), -84.20m, "PRLV SEPA EDF CLIENTS PARTICULIE")], 1234.56m, D(10, 28));
@@ -230,11 +230,11 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Equal((1, 1, 2, true), Counts(await ImportedAsync(app, app.AdultA, file, confirm: true)));
         await using (var db = Db(app))
-            Assert.Equal(["F4"], await db.Transactions.Where(t => t.FetchedVia == "file").Select(t => t.ProviderRef).ToListAsync());
+            Assert.Equal(["F4"], await db.Transactions.Where(t => t.FetchedVia == "file").Select(t => t.ProviderRef).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal((2, 2, 2, true), Counts(await ImportedAsync(app, app.AdultA, file, confirm: true, keepProbablyKnown: true)));
         await using (var db = Db(app))
-            Assert.Equal(["F2", "F3", "F4"], await db.Transactions.Where(t => t.FetchedVia == "file").OrderBy(t => t.ProviderRef).Select(t => t.ProviderRef).ToListAsync());
+            Assert.Equal(["F2", "F3", "F4"], await db.Transactions.Where(t => t.FetchedVia == "file").OrderBy(t => t.ProviderRef).Select(t => t.ProviderRef).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -272,7 +272,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         var account = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA, envelope)).EnumerateArray());
         Assert.Equal((view.GetProperty("accountId").GetGuid(), envelope.Value), (account.GetProperty("id").GetGuid(), account.GetProperty("envelopeId").GetGuid()));
         await using var db = Db(app);
-        Assert.Equal(app.AdultA.Value, (await db.Accounts.SingleAsync()).AssociatedByPersonId);
+        Assert.Equal(app.AdultA.Value, (await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).AssociatedByPersonId);
     }
 
     [Fact]
@@ -282,20 +282,20 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var _app = app;
         await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", Iban, "Compte secret de B"));
         await using var before = Db(app);
-        var ofB = await before.Accounts.SingleAsync();
+        var ofB = await before.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         foreach (var confirm in new[] { false, true })
         {
             var response = await ImportAsync(app, app.AdultA, October_(), confirm);
-            var body = await response.Content.ReadAsStringAsync();
+            var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             await BankingApi.AssertRefusedAsync(response, HttpStatusCode.UnprocessableEntity, BankingCodes.FileAccountMismatch);
             foreach (var secret in new[] { "Compte secret", ofB.Id.ToString(), "0189" })
                 Assert.DoesNotContain(secret, body, StringComparison.Ordinal);
         }
 
         await using var db = Db(app);
-        Assert.Equal((1, 0, 0, 1), (await db.Accounts.CountAsync(), await db.Transactions.CountAsync(), await db.Connections.CountAsync(c => c.Source == "file"),
-            await db.Sources.CountAsync()));
+        Assert.Equal((1, 0, 0, 1), (await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken), await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken), await db.Connections.CountAsync(c => c.Source == "file", cancellationToken: TestContext.Current.CancellationToken),
+            await db.Sources.CountAsync(cancellationToken: TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -357,7 +357,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", Iban, "Courant A"));
 
         await using var db = Db(app);
-        var row = await db.Accounts.SingleAsync();
+        var row = await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((account, app.AdultA.Value), (row.Id, row.CreatedByPersonId));
         var ofA = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray());
         // Written by whoever writes its envelope (5A), else by its owner.
@@ -390,7 +390,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", Iban, "Courant A"));
 
         await using var db = Db(app);
-        Assert.Equal((app.AdultA.Value, null), ((await db.Accounts.SingleAsync(a => a.Id == account)).CreatedByPersonId, (await db.Accounts.SingleAsync(a => a.Id == card)).CardOfAccountId));
+        Assert.Equal((app.AdultA.Value, null), ((await db.Accounts.SingleAsync(a => a.Id == account, cancellationToken: TestContext.Current.CancellationToken)).CreatedByPersonId, (await db.Accounts.SingleAsync(a => a.Id == card, cancellationToken: TestContext.Current.CancellationToken)).CardOfAccountId));
         var ofB = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultB)).EnumerateArray());
         Assert.Equal(card, ofB.GetProperty("id").GetGuid());
     }
@@ -405,7 +405,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
         await using var db = Db(app);
-        Assert.Equal((1, 1, 3), (await db.Connections.CountAsync(), await db.Accounts.CountAsync(), await db.Transactions.CountAsync()));
+        Assert.Equal((1, 1, 3), (await db.Connections.CountAsync(cancellationToken: TestContext.Current.CancellationToken), await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken), await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -435,7 +435,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand());
+            await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand(), TestContext.Current.CancellationToken);
         }
         // Two coffees: the API's one is the file's on the same day; the next day's is another.
         var file = Ofx(Iban, [new("F1", D(10, 20), -3.50m, "CAFE DU COIN"), new("F2", D(10, 21), -3.50m, "CAFE DU COIN")], 10m, D(10, 28));
@@ -443,7 +443,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal((1, 0, 1, true), Counts(await ImportedAsync(app, app.AdultA, file, confirm: true)));
 
         await using var db = Db(app);
-        Assert.Equal(["F2"], await db.Transactions.Where(t => t.FetchedVia == "file").Select(t => t.ProviderRef).ToListAsync());
+        Assert.Equal(["F2"], await db.Transactions.Where(t => t.FetchedVia == "file").Select(t => t.ProviderRef).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -460,7 +460,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Equal((3, 0, 0, true), Counts(await ImportedAsync(app, app.AdultA, card, confirm: true)));
         await using var db = Db(app);
-        Assert.Equal(("card", null), ((await db.Accounts.SingleAsync()).Kind, (await db.Accounts.SingleAsync()).EnvelopeItemId));
+        Assert.Equal(("card", null), ((await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).Kind, (await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).EnvelopeItemId));
     }
 
     [Fact]
@@ -472,11 +472,11 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
 
         await ImportedAsync(app, app.AdultA, October_(), confirm: false, envelope);
-        Assert.False(await platform.AuditLog.AnyAsync(r => r.Action == SecurityEventNames.BankStatementImported));
+        Assert.False(await platform.AuditLog.AnyAsync(r => r.Action == SecurityEventNames.BankStatementImported, cancellationToken: TestContext.Current.CancellationToken));
 
         var account = (await ImportedAsync(app, app.AdultA, October_(), confirm: true, envelope)).GetProperty("accountId").GetGuid();
 
-        var entry = await platform.AuditLog.SingleAsync(r => r.Action == SecurityEventNames.BankStatementImported);
+        var entry = await platform.AuditLog.SingleAsync(r => r.Action == SecurityEventNames.BankStatementImported, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("security", app.AdultA.Value, app.AdultA.Value, envelope.Value), (entry.Category, entry.PersonId, entry.SubjectPersonId, Assert.Single(entry.ItemIds)));
         var data = JsonSerializer.Deserialize<Dictionary<string, string>>(entry.Data)!;
         Assert.Equal(new Dictionary<string, string>
@@ -504,7 +504,7 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", Iban, "Courant A"));
 
         await using var db = Db(app);
-        var row = await db.Accounts.SingleAsync();
+        var row = await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((app.AdultA.Value, false, false), (row.CreatedByPersonId, row.AutoApplyBalance, row.Ignored));
     }
 
@@ -550,6 +550,6 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
             HttpStatusCode.UnprocessableEntity, BankingCodes.FileAccountMismatch);
 
         await using var db = Db(app);
-        Assert.Equal((1, app.AdultB.Value, 3), (await db.Accounts.CountAsync(), (await db.Accounts.SingleAsync()).CreatedByPersonId, await db.Transactions.CountAsync()));
+        Assert.Equal((1, app.AdultB.Value, 3), (await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken), (await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).CreatedByPersonId, await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken)));
     }
 }

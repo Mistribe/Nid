@@ -14,17 +14,17 @@ public class ItemArchiveTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         var persons = new PersonRegistry(db, PostgresFixture.Clock);
-        var alice = (await persons.ProvisionAdultAsync("sub-a", "Alice", null, default)).Ok();
+        var alice = (await persons.ProvisionAdultAsync("sub-a", "Alice", null, default, TestContext.Current.CancellationToken)).Ok();
         var items = new ItemRegistry(db, PostgresFixture.Clock);
         var item = (await items.CreateAsync(new NewItem("investments", "envelope", "PEA", Visibility.Shared, "EUR",
-            [new OwnerShare(alice.Id, 10_000)]), default)).Ok();
+            [new OwnerShare(alice.Id, 10_000)]), TestContext.Current.CancellationToken)).Ok();
         var at = Instant.FromUtc(2025, 12, 31, 12, 0);
 
-        Assert.Null((await items.FindAsync(item, default))!.ArchivedAt);
-        Assert.True((await items.ArchiveAsync(item, at, default)).IsSuccess);
-        Assert.Equal(at, (await items.FindAsync(item, default))!.ArchivedAt);
-        Assert.True((await items.UnarchiveAsync(item, default)).IsSuccess);
-        Assert.Null((await items.FindAsync(item, default))!.ArchivedAt);
+        Assert.Null((await items.FindAsync(item, TestContext.Current.CancellationToken))!.ArchivedAt);
+        Assert.True((await items.ArchiveAsync(item, at, TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.Equal(at, (await items.FindAsync(item, TestContext.Current.CancellationToken))!.ArchivedAt);
+        Assert.True((await items.UnarchiveAsync(item, TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.Null((await items.FindAsync(item, TestContext.Current.CancellationToken))!.ArchivedAt);
     }
 
     [Fact]
@@ -33,9 +33,9 @@ public class ItemArchiveTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var items = new ItemRegistry(db, PostgresFixture.Clock);
 
-        Assert.True((await items.ArchiveAsync(ItemId.New(), Instant.FromUtc(2025, 1, 1, 0, 0), default)).TryGetFailure(out var failure));
+        Assert.True((await items.ArchiveAsync(ItemId.New(), Instant.FromUtc(2025, 1, 1, 0, 0), TestContext.Current.CancellationToken)).TryGetFailure(out var failure));
         Assert.IsType<NotFoundFailure>(failure);
-        Assert.True((await items.UnarchiveAsync(ItemId.New(), default)).TryGetFailure(out failure));
+        Assert.True((await items.UnarchiveAsync(ItemId.New(), TestContext.Current.CancellationToken)).TryGetFailure(out failure));
         Assert.IsType<NotFoundFailure>(failure);
     }
 }

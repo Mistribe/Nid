@@ -115,7 +115,7 @@ public class SessionTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         {
             Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
             Assert.Equal(ImportCodes.State, await ImportClient.CodeOf(response));
-            Assert.Contains("expired", await response.Content.ReadAsStringAsync());
+            Assert.Contains("expired", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
 
         Assert.Equal("expired", (await client.GetAsync(app.AdultA, stale.Id)).State);
@@ -132,7 +132,7 @@ public class SessionTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
         await using (var anonymous = app.Services.CreateAsyncScope())
         {
-            var result = await anonymous.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new ListImportsQuery());
+            var result = await anonymous.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new ListImportsQuery(), TestContext.Current.CancellationToken);
             Assert.True(result.TryGetFailure(out var failure));
             Assert.IsType<UnauthenticatedFailure>(failure);
         }
@@ -141,7 +141,7 @@ public class SessionTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         {
             writeOnly.ServiceProvider.GetRequiredService<IActorAccessor>().Current =
                 new Actor(ActorKind.Person, app.AdultA, ActorOrigin.Api, new HashSet<string> { ScopeNames.Write });
-            var result = await writeOnly.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new ListImportsQuery());
+            var result = await writeOnly.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new ListImportsQuery(), TestContext.Current.CancellationToken);
             Assert.True(result.TryGetFailure(out var failure));
             Assert.IsType<UnauthorizedFailure>(failure);
         }

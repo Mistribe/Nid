@@ -52,8 +52,8 @@ public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<Post
         // Both are shared: the co-owner reads the home, and the studio, adult-1's alone.
         Assert.Equal(["Maison", "Studio"], (await PropertiesAsync(app, app.AdultB)).Select(p => S(p, "name")).Order());
         await using var estate = PostgresFixture.NewRealEstateContext(app.ConnectionString);
-        Assert.Equal(["prop-flat", "prop-home"], (await estate.Properties.Select(p => p.ImportRef!).ToListAsync()).Order());
-        Assert.All(await estate.Tenancies.ToListAsync(), t => Assert.Equal(app.AdultA.Value, t.ImportedBy));
+        Assert.Equal(["prop-flat", "prop-home"], (await estate.Properties.Select(p => p.ImportRef!).ToListAsync(cancellationToken: TestContext.Current.CancellationToken)).Order());
+        Assert.All(await estate.Tenancies.ToListAsync(cancellationToken: TestContext.Current.CancellationToken), t => Assert.Equal(app.AdultA.Value, t.ImportedBy));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<Post
         {
             label = "T1 meublé", startsOn = "2024-04-01", rentMonthly = "710", chargesMonthly = "50", version = lease.GetProperty("version").GetUInt32(),
         });
-        Assert.True(edited.IsSuccessStatusCode, await edited.Content.ReadAsStringAsync());
+        Assert.True(edited.IsSuccessStatusCode, await edited.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var same = await CommitAsync(client, app, app.AdultA, Properties());
 
@@ -278,7 +278,7 @@ public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(new CountsResponse(1, 0, 0), taken.Report.Sections["tenancies"]);
         Assert.Equal(JsonSerializer.Serialize(fresh.Report), JsonSerializer.Serialize(taken.Report));
         var committed = await client.CommitRawAsync(app.AdultA, taken.Id);
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(["Studio"], (await PropertiesAsync(app, app.AdultA)).Select(p => S(p, "name")));
         // Adult-2's property and tenancy are as they were.
         Assert.Single((await PropertyAsync(app, "Secret B", app.AdultB)).GetProperty("tenancies").EnumerateArray());

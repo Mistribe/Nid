@@ -92,7 +92,7 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
             Assert.True(replaced.IsSuccess);
         }
 
-        var (response, failure) = await app.InvokeAsync(app.AdultA, new GetScenarioQuery(id));
+        var (response, failure) = await app.InvokeAsync(app.AdultA, new GetScenarioQuery(id), TestContext.Current.CancellationToken);
 
         Assert.Null(failure); // the 200, not the output guard's refusal
         var view = (ScenarioView)response!;
@@ -121,7 +121,7 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         var per = await ValuedEnvelopeAsync(app, app.AdultA, "PER", 30_000m, kind: "per");
 
-        var (_, failure) = await app.InvokeAsync(app.AdultA, Create(app, app.AdultA, Doc([new FundingLine(per, 10_000m)])));
+        var (_, failure) = await app.InvokeAsync(app.AdultA, Create(app, app.AdultA, Doc([new FundingLine(per, 10_000m)])), TestContext.Current.CancellationToken);
 
         Assert.Equal("scenario.funding_locked", failure?.Code);
         Assert.Equal("funding[0].item", Assert.Single(FieldErrors.Of(failure!)!).Path);
@@ -140,8 +140,8 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
                 hidden, "Livret B", Visibility.Private, [new OwnerShare(app.AdultB, 10_000)], CancellationToken.None);
         }
 
-        var (_, above) = await app.InvokeAsync(app.AdultA, Create(app, app.AdultA, Doc([new FundingLine(livret, 10_000.01m)])));
-        var (_, unseen) = await app.InvokeAsync(app.AdultA, Create(app, app.AdultA, Doc([new FundingLine(hidden, 1_000m)])));
+        var (_, above) = await app.InvokeAsync(app.AdultA, Create(app, app.AdultA, Doc([new FundingLine(livret, 10_000.01m)])), TestContext.Current.CancellationToken);
+        var (_, unseen) = await app.InvokeAsync(app.AdultA, Create(app, app.AdultA, Doc([new FundingLine(hidden, 1_000m)])), TestContext.Current.CancellationToken);
 
         Assert.Equal(("scenario.invalid_field", "funding[0].amount"), (above?.Code, FieldErrors.Of(above!)![0].Path));
         Assert.Equal(("scenario.funding_not_found", "funding[0].item"), (unseen?.Code, FieldErrors.Of(unseen!)![0].Path));
@@ -225,11 +225,11 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         await ValuedEnvelopeAsync(app, app.AdultA, "Livret", 40_000m);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var before = await core.Items.CountAsync();
+        var before = await core.Items.CountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         await OkAsync<ScenarioResultView>(app, app.AdultA, new SimulateScenarioQuery(VisibilityScope.Household, Doc()));
 
-        Assert.Equal(before, await core.Items.CountAsync());
+        Assert.Equal(before, await core.Items.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -244,8 +244,8 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Empty((await OkAsync<ScenarioList>(app, app.AdultA, new ListScenariosQuery(VisibilityScope.Household))).Items);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.NotNull((await core.Items.SingleAsync(i => i.Id == id.Value)).ArchivedAt);
-        var (_, gone) = await app.InvokeAsync(app.AdultA, new GetScenarioQuery(id));
+        Assert.NotNull((await core.Items.SingleAsync(i => i.Id == id.Value, cancellationToken: TestContext.Current.CancellationToken)).ArchivedAt);
+        var (_, gone) = await app.InvokeAsync(app.AdultA, new GetScenarioQuery(id), TestContext.Current.CancellationToken);
         Assert.IsType<NotFoundFailure>(gone);
     }
 

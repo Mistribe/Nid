@@ -100,7 +100,7 @@ public class ProviderViewTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await NidApp.StartAsync(fixture);
         await SyncBundleAsync(app);
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
-            await subs.Providers.Where(p => p.Key == "video").ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, SystemClock.Instance.GetCurrentInstant()));
+            await subs.Providers.Where(p => p.Key == "video").ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, SystemClock.Instance.GetCurrentInstant()), cancellationToken: TestContext.Current.CancellationToken);
 
         var bundle = Assert.Single(await app.GetAsync<List<ProviderResponse>>(app.AdultA, "/api/v1/subscriptions/providers?q=bundle"));
 
@@ -187,7 +187,7 @@ public class ProviderViewTests(PostgresFixture fixture) : IClassFixture<Postgres
         var id = await CreateAsync(app, "Netflix Standard", "netflix");
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
             await subs.Providers.Where(p => p.Key == "netflix")
-                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()));
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()), cancellationToken: TestContext.Current.CancellationToken);
 
         AssertNetflix((await app.GetAsync<DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id}")).Provider);
     }

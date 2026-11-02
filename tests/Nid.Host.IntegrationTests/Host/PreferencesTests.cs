@@ -61,7 +61,7 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
             new { guidesSeen = new Dictionary<string, int> { ["Loans"] = 1 } });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Equal("core.preference_invalid", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal("core.preference_invalid", (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -112,20 +112,20 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
         await using (var connection = new NpgsqlConnection(app.ConnectionString))
         {
-            await connection.OpenAsync();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
             await using var command = new NpgsqlCommand(
                 "update core.person set preferences = '{\"ai_cloud_default\":\"never\"}' where id = @id", connection);
             command.Parameters.AddWithValue("id", app.AdultA.Value);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
         }
 
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { theme = "ardoise", guidesSeen = new { loans = 2 } })).EnsureSuccessStatusCode();
 
         await using var read = new NpgsqlConnection(app.ConnectionString);
-        await read.OpenAsync();
+        await read.OpenAsync(TestContext.Current.CancellationToken);
         await using var select = new NpgsqlCommand("select preferences::text from core.person where id = @id", read);
         select.Parameters.AddWithValue("id", app.AdultA.Value);
-        using var stored = JsonDocument.Parse((string)(await select.ExecuteScalarAsync())!);
+        using var stored = JsonDocument.Parse((string)(await select.ExecuteScalarAsync(TestContext.Current.CancellationToken))!);
         Assert.Equal("never", stored.RootElement.GetProperty("ai_cloud_default").GetString());
         Assert.Equal("ardoise", stored.RootElement.GetProperty("theme").GetString());
         Assert.Equal(2, stored.RootElement.GetProperty("guides_seen").GetProperty("loans").GetInt32());
@@ -139,7 +139,7 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var response = await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { mode = "sepia" });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Equal("core.preference_invalid", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal("core.preference_invalid", (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -152,6 +152,6 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         // The body fails to bind before any endpoint filter runs, so MalformedInputFilter never sees it: the
         // answer is a bare 400 with no Problem body (the SPA's client gives it one carrying the status).
-        Assert.Equal("", await response.Content.ReadAsStringAsync());
+        Assert.Equal("", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 }

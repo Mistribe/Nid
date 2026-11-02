@@ -80,7 +80,7 @@ public class ProvidersImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await CommitAsync(client, app, app.AdultA, GoldenFile.Sections());
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
             await subs.Providers.Where(p => p.ImportRef == "wow")
-                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()));
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()), cancellationToken: TestContext.Current.CancellationToken);
 
         var mine = await client.RunAsync(app.AdultA, Adults(app), GoldenFile.Sections());
 

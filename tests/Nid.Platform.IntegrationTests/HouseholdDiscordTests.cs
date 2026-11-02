@@ -145,16 +145,16 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
         await EvaluateAllAsync(h);
         Guid bobRow;
         await using (var db = PostgresFixture.NewPlatformContext(h.App.ConnectionString))
-            bobRow = (await db.Notifications.AsNoTracking().SingleAsync(n => n.PersonId == h.App.AdultB.Value && n.Key == "a:1")).Id;
+            bobRow = (await db.Notifications.AsNoTracking().SingleAsync(n => n.PersonId == h.App.AdultB.Value && n.Key == "a:1", cancellationToken: TestContext.Current.CancellationToken)).Id;
         await using (var scope = h.App.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<INotificationStore>().SnoozeAsync(bobRow, new LocalDate(2025, 10, 20), default);
+            await scope.ServiceProvider.GetRequiredService<INotificationStore>().SnoozeAsync(bobRow, new LocalDate(2025, 10, 20), TestContext.Current.CancellationToken);
 
         h.Clock.Now = Instant.FromUtc(2025, 10, 21, 8, 0);
         await EvaluateAllAsync(h);
 
         await using (var db = PostgresFixture.NewPlatformContext(h.App.ConnectionString))
         {
-            var woke = await db.Notifications.AsNoTracking().SingleAsync(n => n.Id == bobRow);
+            var woke = await db.Notifications.AsNoTracking().SingleAsync(n => n.Id == bobRow, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal((NotificationStates.Open, 2), (woke.State, woke.Round));
         }
 
@@ -170,13 +170,13 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
         await DispatchAsync(h);
         Guid aliceRow;
         await using (var db = PostgresFixture.NewPlatformContext(h.App.ConnectionString))
-            aliceRow = (await db.Notifications.AsNoTracking().SingleAsync(n => n.PersonId == h.App.AdultA.Value && n.Key == "a:1")).Id;
+            aliceRow = (await db.Notifications.AsNoTracking().SingleAsync(n => n.PersonId == h.App.AdultA.Value && n.Key == "a:1", cancellationToken: TestContext.Current.CancellationToken)).Id;
         await using (var scope = h.App.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<INotificationStore>().ApplyAsync(h.App.AdultA, [new LifecycleChange.Resolve(aliceRow)], default);
+            await scope.ServiceProvider.GetRequiredService<INotificationStore>().ApplyAsync(h.App.AdultA, [new LifecycleChange.Resolve(aliceRow)], TestContext.Current.CancellationToken);
 
         h.Clock.Now = Instant.FromUtc(2026, 2, 1, 8, 0);
         await using (var scope = h.App.Services.CreateAsyncScope())
-            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(h.Clock.Now - NodaTime.Duration.FromDays(90), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), default) > 0);
+            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(h.Clock.Now - NodaTime.Duration.FromDays(90), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), TestContext.Current.CancellationToken) > 0);
         await EvaluateAllAsync(h);
         await DispatchAsync(h);
 
@@ -258,13 +258,13 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
         var sent = await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "discord_household" });
 
         Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
-        Assert.True((await sent.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("sent").GetBoolean());
+        Assert.True((await sent.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("sent").GetBoolean());
         Assert.Equal(Hook, Assert.Single(h.Discord.Requests).Url.ToString());
 
         await using var bare = await StartAsync(webhook: false);
         var none = await bare.App.RawAsync(bare.App.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "discord_household" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, none.StatusCode);
-        var error = Assert.Single((await none.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray());
+        var error = Assert.Single((await none.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
         Assert.Equal(("channel", "notifications.discord_unavailable"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
 
         var personal = await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "discord_person" });

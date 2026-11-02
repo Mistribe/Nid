@@ -71,7 +71,7 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            await scope.ServiceProvider.GetRequiredService<IConnectionStore>().SetStatusAsync(id, ConnectionStatus.Expired, null, default);
+            await scope.ServiceProvider.GetRequiredService<IConnectionStore>().SetStatusAsync(id, ConnectionStatus.Expired, null, TestContext.Current.CancellationToken);
         }
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
@@ -87,7 +87,7 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            await scope.ServiceProvider.GetRequiredService<IConnectionStore>().SetStatusAsync(id, ConnectionStatus.Revoked, null, default);
+            await scope.ServiceProvider.GetRequiredService<IConnectionStore>().SetStatusAsync(id, ConnectionStatus.Revoked, null, TestContext.Current.CancellationToken);
         }
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
@@ -105,9 +105,9 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var store = scope.ServiceProvider.GetRequiredService<IConnectionStore>();
 
-        await store.RecordSyncAsync(id, Now, failed: true, default);
+        await store.RecordSyncAsync(id, Now, failed: true, TestContext.Current.CancellationToken);
         Assert.Empty(await SignalsAsync(app, app.AdultA));
-        await store.RecordSyncAsync(id, Now, failed: true, default);
+        await store.RecordSyncAsync(id, Now, failed: true, TestContext.Current.CancellationToken);
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
         Assert.Equal("banking.sync_failing", signal.Kind);

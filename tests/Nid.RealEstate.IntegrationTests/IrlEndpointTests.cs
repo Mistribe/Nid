@@ -34,7 +34,7 @@ public class IrlEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await EnableAsync(app);
         var accepted = await app.RawAsync(app.AdultA, HttpMethod.Post, Sync);
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
-        Assert.True(JsonDocument.Parse(await accepted.Content.ReadAsStringAsync()).RootElement.GetProperty("requested").GetBoolean());
+        Assert.True(JsonDocument.Parse(await accepted.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("requested").GetBoolean());
 
         await using (var scope = app.Services.CreateAsyncScope())
             Assert.NotNull(await scope.ServiceProvider.GetRequiredService<IIrlRunLog>().TryStartAsync(CancellationToken.None));
@@ -70,7 +70,7 @@ public class IrlEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var notANumber = await app.RawAsync(app.AdultA, HttpMethod.Put, List + "/2025/2", new { value = "abc", publishedOn = "2025-07-13" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, notANumber.StatusCode);
         var noDate = await app.RawAsync(app.AdultA, HttpMethod.Put, List + "/2025/2", new { value = "146.68" });
-        Assert.Equal("publishedOn", JsonDocument.Parse(await noDate.Content.ReadAsStringAsync()).RootElement.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("publishedOn", JsonDocument.Parse(await noDate.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("errors")[0].GetProperty("path").GetString());
     }
 
     [Fact]

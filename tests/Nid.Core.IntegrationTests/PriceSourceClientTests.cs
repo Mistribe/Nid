@@ -30,10 +30,10 @@ public class PriceSourceClientTests
         var handler = new StubHandler(HttpStatusCode.OK);
         var client = Client(handler);
 
-        await client.BoursoramaSearchAsync("FR0010148981", default);
-        await client.BoursoramaPageAsync("/bourse/trackers/cours/1rTCW8/", default);
-        await client.YahooSearchAsync("FR 0&1", default);
-        await client.YahooChartAsync("CW8.PA", default);
+        await client.BoursoramaSearchAsync("FR0010148981", TestContext.Current.CancellationToken);
+        await client.BoursoramaPageAsync("/bourse/trackers/cours/1rTCW8/", TestContext.Current.CancellationToken);
+        await client.YahooSearchAsync("FR 0&1", TestContext.Current.CancellationToken);
+        await client.YahooChartAsync("CW8.PA", TestContext.Current.CancellationToken);
 
         Assert.Equal(
             [
@@ -48,11 +48,11 @@ public class PriceSourceClientTests
     [Fact]
     public async Task A_404_is_an_empty_fetch_and_a_500_is_unavailable()
     {
-        var missing = await Client(new StubHandler(HttpStatusCode.NotFound)).YahooChartAsync("X", default);
+        var missing = await Client(new StubHandler(HttpStatusCode.NotFound)).YahooChartAsync("X", TestContext.Current.CancellationToken);
         Assert.True(missing.TryGetValue(out var fetch));
         Assert.Null(fetch!.Body);
 
-        var broken = await Client(new StubHandler(HttpStatusCode.InternalServerError)).BoursoramaPageAsync("/p/", default);
+        var broken = await Client(new StubHandler(HttpStatusCode.InternalServerError)).BoursoramaPageAsync("/p/", TestContext.Current.CancellationToken);
         Assert.True(broken.TryGetFailure(out var failure));
         Assert.Equal(PriceCodes.SourceUnavailable, failure!.Code);
     }
@@ -60,7 +60,7 @@ public class PriceSourceClientTests
     [Fact]
     public async Task An_oversized_body_is_malformed()
     {
-        var result = await Client(new StubHandler(HttpStatusCode.OK, bodySize: 3 * 1024 * 1024 + 1)).YahooChartAsync("X", default);
+        var result = await Client(new StubHandler(HttpStatusCode.OK, bodySize: 3 * 1024 * 1024 + 1)).YahooChartAsync("X", TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(PriceCodes.SourceMalformed, failure!.Code);
@@ -70,7 +70,7 @@ public class PriceSourceClientTests
     public async Task A_host_outside_the_list_is_refused_without_a_request()
     {
         var handler = new StubHandler(HttpStatusCode.OK);
-        var result = await Client(handler, outbound: new OutboundOptions { AllowedHosts = ["www.ecb.europa.eu"] }).BoursoramaSearchAsync("FR0010148981", default);
+        var result = await Client(handler, outbound: new OutboundOptions { AllowedHosts = ["www.ecb.europa.eu"] }).BoursoramaSearchAsync("FR0010148981", TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(PriceCodes.SourceRefused, failure!.Code);
@@ -87,7 +87,7 @@ public class PriceSourceClientTests
     public async Task A_page_path_that_leaves_the_host_is_malformed_without_a_request(string path)
     {
         var handler = new StubHandler(HttpStatusCode.OK);
-        var result = await Client(handler).BoursoramaPageAsync(path, default);
+        var result = await Client(handler).BoursoramaPageAsync(path, TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(PriceCodes.SourceMalformed, failure!.Code);
@@ -101,7 +101,7 @@ public class PriceSourceClientTests
     public async Task A_symbol_of_only_dots_is_malformed_without_a_request(string symbol)
     {
         var handler = new StubHandler(HttpStatusCode.OK);
-        var result = await Client(handler).YahooChartAsync(symbol, default);
+        var result = await Client(handler).YahooChartAsync(symbol, TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(PriceCodes.SourceMalformed, failure!.Code);
@@ -111,7 +111,7 @@ public class PriceSourceClientTests
     [Fact]
     public async Task A_network_failure_is_unavailable_never_a_throw()
     {
-        var result = await Client(new ThrowingHandler()).YahooSearchAsync("FR0010148981", default);
+        var result = await Client(new ThrowingHandler()).YahooSearchAsync("FR0010148981", TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(PriceCodes.SourceUnavailable, failure!.Code);

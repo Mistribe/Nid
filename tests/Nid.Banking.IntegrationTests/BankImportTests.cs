@@ -168,12 +168,12 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(envelope, (await PageAsync(target, target.AdultA, "bank_accounts")).Single(a => a.GetProperty("name").GetString() == "Courant A").GetProperty("envelope_ref").GetString());
         await using (var db = Db(target))
         {
-            var fileConnection = await db.Connections.SingleAsync(c => c.Source == "file");
+            var fileConnection = await db.Connections.SingleAsync(c => c.Source == "file", cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(target.AdultA.Value, fileConnection.PersonId);
-            Assert.Equal(2, await db.Sources.CountAsync(s => s.ConnectionId == fileConnection.Id));
-            Assert.Equal(1, await db.Connections.CountAsync()); // no bank connection, no session
-            Assert.Equal(3, await db.Transactions.CountAsync());
-            Assert.Equal(0, await db.Balances.CountAsync());
+            Assert.Equal(2, await db.Sources.CountAsync(s => s.ConnectionId == fileConnection.Id, cancellationToken: TestContext.Current.CancellationToken));
+            Assert.Equal(1, await db.Connections.CountAsync(cancellationToken: TestContext.Current.CancellationToken)); // no bank connection, no session
+            Assert.Equal(3, await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+            Assert.Equal(0, await db.Balances.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         }
 
         var (again, _) = await ImportAsync(target, target.AdultA, file);
@@ -183,8 +183,8 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal((0, 3), Counts(again, "bank_transactions"));
         await using (var db = Db(target))
         {
-            Assert.Equal(2, await db.Accounts.CountAsync());
-            Assert.Equal(3, await db.Transactions.CountAsync());
+            Assert.Equal(2, await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+            Assert.Equal(3, await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         }
     }
 
@@ -205,8 +205,8 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal((0, 2), Counts(report, "bank_accounts"));
         Assert.Equal((0, 3), Counts(report, "bank_transactions"));
         await using var db = Db(app);
-        Assert.Equal(3, await db.Accounts.CountAsync());
-        Assert.False(await db.Connections.AnyAsync(c => c.Source == "file"));
+        Assert.Equal(3, await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.False(await db.Connections.AnyAsync(c => c.Source == "file", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -253,9 +253,9 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         // Their lines are not reported again, and none reached A's accounts.
         Assert.DoesNotContain(report.GetProperty("issues").EnumerateArray(), i => i.GetProperty("path").GetString()!.StartsWith("bank_transactions", StringComparison.Ordinal));
         await using var db = Db(app);
-        Assert.Equal(1, await db.Transactions.CountAsync(t => t.AccountId == ofA["Courant A"]));
-        Assert.Equal(1, await db.Transactions.CountAsync(t => t.AccountId == ofA["Livret A"]));
-        Assert.False(await db.Connections.AnyAsync(c => c.Source == "file"));
+        Assert.Equal(1, await db.Transactions.CountAsync(t => t.AccountId == ofA["Courant A"], cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(1, await db.Transactions.CountAsync(t => t.AccountId == ofA["Livret A"], cancellationToken: TestContext.Current.CancellationToken));
+        Assert.False(await db.Connections.AnyAsync(c => c.Source == "file", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -328,7 +328,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal("invalid", report.GetProperty("state").GetString());
         Assert.Equal([(ImportCodes.NotPermitted, "bank_accounts[0].envelope_ref")], Errors(report.GetProperty("issues").EnumerateArray()));
         await using var db = Db(app);
-        Assert.Equal((0, 0), (await db.Accounts.CountAsync(), await db.Transactions.CountAsync()));
+        Assert.Equal((0, 0), (await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken), await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken)));
     }
 
     [Theory]
@@ -349,7 +349,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         // Before 1900 the batch is refused on receipt; past next week, at validation (it needs today).
         Assert.Contains((ImportCodes.InvalidValue, "bank_transactions[0].booked_on"), Errors([.. batchIssues, .. report.GetProperty("issues").EnumerateArray()]));
         await using var db = Db(app);
-        Assert.Equal(0, await db.Transactions.CountAsync());
+        Assert.Equal(0, await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>A's « Courant » on a shared envelope A owns, B too when <paramref name="sharedWithB"/>, two lines, and A's subscription « Netflix » of the visibility given.</summary>
@@ -399,7 +399,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(["CB CAFE"], JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/transactions")).RootElement.GetProperty("items")
             .EnumerateArray().Select(l => l.GetProperty("label").GetString()));
         await using (var db = Db(target))
-            Assert.Equal($"person:{target.AdultA.Value:D}", (await db.Links.SingleAsync()).DecidedBy);
+            Assert.Equal($"person:{target.AdultA.Value:D}", (await db.Links.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).DecidedBy);
         Assert.Single(JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/rules")).RootElement.EnumerateArray());
 
         var (again, _) = await ImportAsync(target, target.AdultA, file);
@@ -459,7 +459,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal("committed", report.GetProperty("state").GetString());
         await using var db = Db(app);
-        var stored = await db.Links.SingleAsync();
+        var stored = await db.Links.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("income", null), (stored.Outcome, stored.TargetKey));
     }
 }

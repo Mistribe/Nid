@@ -343,8 +343,8 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using (var subs = PostgresFixture.NewSubscriptionsContext(source.ConnectionString))
         {
             subs.Providers.Add(new Nid.Subscriptions.Infrastructure.Persistence.ProviderRow { Key = "Old Key!", Origin = "adopted", Name = "Old", LabelKeys = ["other"] });
-            await subs.SaveChangesAsync();
-            await subs.Database.ExecuteSqlRawAsync("update subscriptions.subscription set provider_key = 'Old Key!' where import_ref = 'sub-duo'");
+            await subs.SaveChangesAsync(TestContext.Current.CancellationToken);
+            await subs.Database.ExecuteSqlRawAsync("update subscriptions.subscription set provider_key = 'Old Key!' where import_ref = 'sub-duo'", cancellationToken: TestContext.Current.CancellationToken);
         }
 
         var first = await new ExportClient(source).ExportAllAsync(source.AdultA);

@@ -19,28 +19,28 @@ public class CatalogSchemaTests(PostgresFixture fixture) : IClassFixture<Postgre
         var connectionString = await fixture.NewEmptyConnectionStringAsync();
         await using (var subs = PostgresFixture.NewSubscriptionsContext(connectionString))
         {
-            await subs.GetService<IMigrator>().MigrateAsync("ImportRefs");
+            await subs.GetService<IMigrator>().MigrateAsync("ImportRefs", TestContext.Current.CancellationToken);
             await subs.Database.ExecuteSqlRawAsync("""
                 insert into subscriptions.subscription (item_id, provider_key, auto_renew) values
                   (gen_random_uuid(), 'wow', true), (gen_random_uuid(), 'wow', true),
                   (gen_random_uuid(), 'amazon-prime', true), (gen_random_uuid(), 'Spotify Premium', true),
                   (gen_random_uuid(), '  ', true), (gen_random_uuid(), null, true)
-                """);
-            await subs.Database.MigrateAsync();
+                """, cancellationToken: TestContext.Current.CancellationToken);
+            await subs.Database.MigrateAsync(cancellationToken: TestContext.Current.CancellationToken);
         }
 
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
-        var adopted = (await db.Providers.AsNoTracking().ToListAsync()).OrderBy(p => p.Key, StringComparer.Ordinal).ToList();
+        var adopted = (await db.Providers.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken)).OrderBy(p => p.Key, StringComparer.Ordinal).ToList();
         Assert.Equal(["Spotify Premium", "amazon-prime", "wow"], adopted.Select(p => p.Key));
         Assert.Equal(["Spotify Premium", "Amazon prime", "Wow"], adopted.Select(p => p.Name));
         Assert.All(adopted, p => Assert.Equal(("adopted", CatalogLimits.OtherLabel), (p.Origin, Assert.Single(p.LabelKeys))));
 
-        var other = await db.Labels.AsNoTracking().SingleAsync();
+        var other = await db.Labels.AsNoTracking().SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((CatalogLimits.OtherLabel, "Other", CatalogLimits.NeutralColor, "local"), (other.Key, other.Name, other.Color, other.Origin));
-        Assert.Equal(2, await db.Subscriptions.CountAsync(s => s.ProviderKey == null)); // the blank key and the null one
+        Assert.Equal(2, await db.Subscriptions.CountAsync(s => s.ProviderKey == null, cancellationToken: TestContext.Current.CancellationToken)); // the blank key and the null one
 
         var refused = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync(
-            "insert into subscriptions.subscription (item_id, provider_key, auto_renew) values (gen_random_uuid(), 'nope', true)"));
+            "insert into subscriptions.subscription (item_id, provider_key, auto_renew) values (gen_random_uuid(), 'nope', true)", cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, refused.SqlState);
     }
 
@@ -49,9 +49,9 @@ public class CatalogSchemaTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         await using var db = PostgresFixture.NewSubscriptionsContext(await fixture.NewConnectionStringAsync());
 
-        Assert.False(await db.Providers.AnyAsync());
-        Assert.False(await db.CatalogSyncRuns.AnyAsync());
-        Assert.Equal([CatalogLimits.OtherLabel], await db.Labels.Select(l => l.Key).ToListAsync());
+        Assert.False(await db.Providers.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.False(await db.CatalogSyncRuns.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal([CatalogLimits.OtherLabel], await db.Labels.Select(l => l.Key).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -65,7 +65,7 @@ public class CatalogSchemaTests(PostgresFixture fixture) : IClassFixture<Postgre
     public async Task The_database_refuses_what_the_rules_refuse(string sql)
     {
         await using var db = PostgresFixture.NewSubscriptionsContext(await fixture.NewConnectionStringAsync());
-        var refused = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync(sql));
+        var refused = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync(sql, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(PostgresErrorCodes.CheckViolation, refused.SqlState);
     }
 }

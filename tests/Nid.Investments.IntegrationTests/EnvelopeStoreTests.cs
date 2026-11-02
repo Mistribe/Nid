@@ -24,13 +24,13 @@ public class EnvelopeStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         var envelope = new Envelope(item, EnvelopeKind.Pea, "Banque", "4521", new LocalDate(2020, 3, 1),
             ValuationCadence.Monthly, null, "note");
 
-        await store.CreateAsync(envelope, default);
-        Assert.Equal(envelope, await store.FindAsync(item, default));
+        await store.CreateAsync(envelope, TestContext.Current.CancellationToken);
+        Assert.Equal(envelope, await store.FindAsync(item, TestContext.Current.CancellationToken));
 
-        await store.UpdateAsync(item, new EnvelopeChange(Cadence: ValuationCadence.Quarterly, ClearAccountHint: true), default);
-        Assert.Equal(envelope with { Cadence = ValuationCadence.Quarterly, AccountHint = null }, await store.FindAsync(item, default));
-        Assert.Null(await store.FindAsync(ItemId.New(), default));
-        Assert.Single(await store.FindManyAsync([item, ItemId.New()], default));
+        await store.UpdateAsync(item, new EnvelopeChange(Cadence: ValuationCadence.Quarterly, ClearAccountHint: true), TestContext.Current.CancellationToken);
+        Assert.Equal(envelope with { Cadence = ValuationCadence.Quarterly, AccountHint = null }, await store.FindAsync(item, TestContext.Current.CancellationToken));
+        Assert.Null(await store.FindAsync(ItemId.New(), TestContext.Current.CancellationToken));
+        Assert.Single(await store.FindManyAsync([item, ItemId.New()], TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -43,14 +43,14 @@ public class EnvelopeStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         var item = ItemId.New();
         var adult = app.AdultA;
         var mark = new ImportMark("env-pea", new string('a', 64), adult);
-        await store.CreateAsync(new Envelope(item, EnvelopeKind.Pea, "Banque", "1234", null, ValuationCadence.Monthly, null, null), mark, default);
+        await store.CreateAsync(new Envelope(item, EnvelopeKind.Pea, "Banque", "1234", null, ValuationCadence.Monthly, null, null), mark, TestContext.Current.CancellationToken);
 
-        var found = Assert.Single((await store.FindImportedAsync(["env-pea"], default))["env-pea"]);
+        var found = Assert.Single((await store.FindImportedAsync(["env-pea"], TestContext.Current.CancellationToken))["env-pea"]);
         Assert.Equal((item, mark.Hash, adult), (found.Item, found.Hash, found.ImportedBy));
 
         await store.ReplaceAsync(new Envelope(item, EnvelopeKind.Pea, null, null, null, ValuationCadence.Quarterly, 90, "n", new LocalDate(2025, 7, 31)),
-            mark with { Hash = new string('b', 64) }, default);
-        var stored = Assert.Single(await store.ReadAllAsync([item], default));
+            mark with { Hash = new string('b', 64) }, TestContext.Current.CancellationToken);
+        var stored = Assert.Single(await store.ReadAllAsync([item], TestContext.Current.CancellationToken));
         Assert.Equal((null, ValuationCadence.Quarterly, 90, new LocalDate(2025, 7, 31), new string('b', 64)),
             (stored.Envelope.Institution, stored.Envelope.Cadence, stored.Envelope.StaleAfterDays, stored.Envelope.ClosedOn, stored.Import!.Hash));
     }
@@ -63,12 +63,12 @@ public class EnvelopeStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         var url = $"/api/v1/investments/envelopes/{id.Value}";
         (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/close", new { closedOn = "2025-07-31" })).EnsureSuccessStatusCode();
         await using var db = PostgresFixture.NewInvestmentsContext(app.ConnectionString);
-        await db.Database.ExecuteSqlRawAsync("update investments.envelope set closed_on = null");
+        await db.Database.ExecuteSqlRawAsync("update investments.envelope set closed_on = null", cancellationToken: TestContext.Current.CancellationToken);
 
-        await db.Database.ExecuteSqlRawAsync(EnvelopeClosingAndImport.Backfill);
+        await db.Database.ExecuteSqlRawAsync(EnvelopeClosingAndImport.Backfill, cancellationToken: TestContext.Current.CancellationToken);
 
         await using var scope = app.Services.CreateAsyncScope();
-        var stored = await scope.ServiceProvider.GetRequiredService<IEnvelopeStore>().FindAsync(id, default);
+        var stored = await scope.ServiceProvider.GetRequiredService<IEnvelopeStore>().FindAsync(id, TestContext.Current.CancellationToken);
         Assert.Equal(new LocalDate(2025, 7, 31), stored!.ClosedOn);
     }
 }

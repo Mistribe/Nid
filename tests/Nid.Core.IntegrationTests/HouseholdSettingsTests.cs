@@ -22,11 +22,11 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
-        await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
-        await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default);
-        await registry.CreateDependentAsync("Kid", default);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", null, default, TestContext.Current.CancellationToken);
+        await registry.PreRegisterAdultAsync("Bob", "bob@example.test", TestContext.Current.CancellationToken);
+        await registry.CreateDependentAsync("Kid", TestContext.Current.CancellationToken);
 
-        var settings = await new HouseholdSettings(db).ReadAsync(default);
+        var settings = await new HouseholdSettings(db).ReadAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new HouseholdSettingsInfo(2, Currency.Eur, 2, false, false), settings);
     }
@@ -36,20 +36,20 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
-        await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
-        await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", null, default, TestContext.Current.CancellationToken);
+        await registry.PreRegisterAdultAsync("Bob", "bob@example.test", TestContext.Current.CancellationToken);
         var settings = new HouseholdSettings(db);
 
-        Assert.Equal(PersonCodes.CapBelowCount, Code(await settings.UpdateAsync(new HouseholdSettingsChange(1, null), default)));
-        Assert.Equal(PersonCodes.CapBelowCount, Code(await settings.UpdateAsync(new HouseholdSettingsChange(0, null), default)));
-        Assert.Equal(PersonCodes.UnknownCurrency, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, "usd"), default)));
+        Assert.Equal(PersonCodes.CapBelowCount, Code(await settings.UpdateAsync(new HouseholdSettingsChange(1, null), TestContext.Current.CancellationToken)));
+        Assert.Equal(PersonCodes.CapBelowCount, Code(await settings.UpdateAsync(new HouseholdSettingsChange(0, null), TestContext.Current.CancellationToken)));
+        Assert.Equal(PersonCodes.UnknownCurrency, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, "usd"), TestContext.Current.CancellationToken)));
 
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(4, "USD"), default)).TryGetValue(out var changed));
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(4, "USD"), TestContext.Current.CancellationToken)).TryGetValue(out var changed));
         Assert.Equal(new HouseholdSettingsInfo(4, Currency.Usd, 2, false, false), changed);
 
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, IrlEnabled: true), default)).TryGetValue(out var irl));
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, IrlEnabled: true), TestContext.Current.CancellationToken)).TryGetValue(out var irl));
         Assert.True(irl.IrlEnabled);
-        Assert.Equal(Currency.Usd, await settings.ReferenceCurrencyAsync(default));
+        Assert.Equal(Currency.Usd, await settings.ReferenceCurrencyAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -58,17 +58,17 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var settings = new HouseholdSettings(db);
 
-        var initial = await settings.ReadAsync(default);
+        var initial = await settings.ReadAsync(TestContext.Current.CancellationToken);
         Assert.Equal((false, null), (initial.BankingEnabled, initial.EnableBankingAppId));
 
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true, EnableBankingAppId: " 0a1b-app "), default))
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true, EnableBankingAppId: " 0a1b-app "), TestContext.Current.CancellationToken))
             .TryGetValue(out var on));
         Assert.Equal((true, "0a1b-app"), (on.BankingEnabled, on.EnableBankingAppId));
 
         // A field left out is left unchanged; an empty id clears it.
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: false), default)).TryGetValue(out var off));
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: false), TestContext.Current.CancellationToken)).TryGetValue(out var off));
         Assert.Equal((false, "0a1b-app"), (off.BankingEnabled, off.EnableBankingAppId));
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: ""), default)).TryGetValue(out var cleared));
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: ""), TestContext.Current.CancellationToken)).TryGetValue(out var cleared));
         Assert.Null(cleared.EnableBankingAppId);
     }
 
@@ -77,15 +77,15 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         var settings = new HouseholdSettings(db);
-        Assert.Null((await settings.ReadAsync(default)).BankRetentionMonths);
+        Assert.Null((await settings.ReadAsync(TestContext.Current.CancellationToken)).BankRetentionMonths);
 
-        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 12), default)));
+        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 12), TestContext.Current.CancellationToken)));
         // A field left out is left unchanged.
-        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true), default)));
-        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 0), default)));
-        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 601), default)));
-        Assert.Equal(600, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 600), default)));
-        Assert.Null(Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, ClearBankRetention: true), default)));
+        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true), TestContext.Current.CancellationToken)));
+        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 0), TestContext.Current.CancellationToken)));
+        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 601), TestContext.Current.CancellationToken)));
+        Assert.Equal(600, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 600), TestContext.Current.CancellationToken)));
+        Assert.Null(Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, ClearBankRetention: true), TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -94,16 +94,16 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var settings = new HouseholdSettings(db);
 
-        Assert.Equal(ProjectionDefaults.Assumptions, await settings.ProjectionAssumptionsAsync(default));
+        Assert.Equal(ProjectionDefaults.Assumptions, await settings.ProjectionAssumptionsAsync(TestContext.Current.CancellationToken));
 
         var saved = ProjectionDefaults.Assumptions with
         {
             ClassRates = new Dictionary<string, decimal>(ProjectionDefaults.ClassRates) { [AllocationClasses.Equity] = 0.07m },
             MonthlySavings = 500m,
         };
-        await settings.SaveProjectionAssumptionsAsync(saved, default);
+        await settings.SaveProjectionAssumptionsAsync(saved, TestContext.Current.CancellationToken);
 
-        var read = await settings.ProjectionAssumptionsAsync(default);
+        var read = await settings.ProjectionAssumptionsAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0.07m, read.ClassRates[AllocationClasses.Equity]);
         Assert.Equal(500m, read.MonthlySavings);
         Assert.Equal(saved.Inflation, read.Inflation);
@@ -119,9 +119,9 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         await settings.SaveProjectionAssumptionsAsync(ProjectionDefaults.Assumptions with
         {
             ClassRates = new Dictionary<string, decimal> { [AllocationClasses.Equity] = 0.07m, [AllocationClasses.Cash] = 0m },
-        }, default);
+        }, TestContext.Current.CancellationToken);
 
-        var read = await settings.ProjectionAssumptionsAsync(default);
+        var read = await settings.ProjectionAssumptionsAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(ProjectionDefaults.ClassRates.Keys.Order(StringComparer.Ordinal), read.ClassRates.Keys.Order(StringComparer.Ordinal));
         Assert.Equal((0.07m, 0m), (read.ClassRates[AllocationClasses.Equity], read.ClassRates[AllocationClasses.Cash]));
@@ -139,9 +139,9 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         db.HouseholdSettings.Add(new HouseholdSettingsRow { Timezone = "America/New_York" });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var now = await new HouseholdCalendar(db, new FixedClock(Instant.FromUtc(2025, 10, 15, 3, 0))).NowAsync(default);
+        var now = await new HouseholdCalendar(db, new FixedClock(Instant.FromUtc(2025, 10, 15, 3, 0))).NowAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new LocalDateTime(2025, 10, 14, 23, 0), now);
     }

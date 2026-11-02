@@ -28,7 +28,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
                 DisplayName = "Kid",
                 CreatedAt = PostgresFixture.Clock.GetCurrentInstant(),
             });
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var subs = PostgresFixture.NewSubscriptionsContext(connectionString))
@@ -40,19 +40,19 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
                 ProviderKey = "spotify",
                 AutoRenew = true,
             });
-            await subs.SaveChangesAsync();
+            await subs.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using (var core = PostgresFixture.NewCoreContext(connectionString))
         {
-            var person = await core.Persons.SingleAsync(p => p.Id == personId);
+            var person = await core.Persons.SingleAsync(p => p.Id == personId, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal("Kid", person.DisplayName);
             Assert.Equal("dependent", person.Kind);
         }
 
         await using (var subs = PostgresFixture.NewSubscriptionsContext(connectionString))
         {
-            var subscription = await subs.Subscriptions.SingleAsync(s => s.ItemId == itemId);
+            var subscription = await subs.Subscriptions.SingleAsync(s => s.ItemId == itemId, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal("spotify", subscription.ProviderKey);
             Assert.True(subscription.AutoRenew);
         }
@@ -66,7 +66,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(connectionString);
         subs.Subscriptions.Add(new SubscriptionRow { ItemId = itemId });
-        await subs.SaveChangesAsync();
+        await subs.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         subs.Phases.Add(new BillingPhaseRow
         {
@@ -78,7 +78,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             PayerType = "household",
         });
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => subs.SaveChangesAsync());
+        await Assert.ThrowsAsync<DbUpdateException>(() => subs.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(connectionString);
         subs.Subscriptions.Add(new SubscriptionRow { ItemId = itemId });
-        await subs.SaveChangesAsync();
+        await subs.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         subs.Phases.Add(new BillingPhaseRow
         {
@@ -101,7 +101,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             PayerType = "external", // valid on purchase, not on billing_phase
         });
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => subs.SaveChangesAsync());
+        await Assert.ThrowsAsync<DbUpdateException>(() => subs.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var schemas = await core.Database
             .SqlQueryRaw<string>("select table_schema from information_schema.tables where table_name = '__ef_migrations_history'")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("core", schemas);
         Assert.Contains("subscriptions", schemas);
@@ -134,7 +134,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var tables = await core.Database
             .SqlQueryRaw<string>("select table_name from information_schema.tables where table_schema = 'subscriptions' order by table_name")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(
             ["__ef_migrations_history", "billing_phase", "catalog_sync_run", "coverage_grant", "insurance_guarantee", "label", "provider", "purchase", "subscription", "subscription_insurance", "subscription_user"],
@@ -147,8 +147,8 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         var connectionString = await fixture.NewConnectionStringAsync();
 
         await using var platform = PostgresFixture.NewPlatformContext(connectionString);
-        Assert.Empty(await platform.Database.GetPendingMigrationsAsync());
-        Assert.Equal(0, await platform.Sessions.CountAsync());
+        Assert.Empty(await platform.Database.GetPendingMigrationsAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(0, await platform.Sessions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var quartz = await core.Database
             .SqlQueryRaw<string>("select table_name as \"Value\" from information_schema.tables where table_schema = 'platform' and table_name like 'qrtz%' order by table_name")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(
             ["qrtz_blob_triggers", "qrtz_calendars", "qrtz_cron_triggers", "qrtz_fired_triggers", "qrtz_job_details", "qrtz_locks",
              "qrtz_paused_job_grps", "qrtz_paused_trigger_grps", "qrtz_scheduler_state", "qrtz_simple_triggers", "qrtz_simprop_triggers", "qrtz_triggers"],
@@ -167,13 +167,13 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var fx = await core.Database
             .SqlQueryRaw<string>("select table_name as \"Value\" from information_schema.tables where table_schema = 'core' and table_name like 'fx%' order by table_name")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(["fx_rate", "fx_sync_run"], fx);
 
         // The rate reads go by quote (FxRateStore.ReadAsync, PreviousAsync): an index leads with it.
         var quoteIndex = await core.Database
             .SqlQueryRaw<string>("select indexdef as \"Value\" from pg_indexes where schemaname = 'core' and indexname = 'ix_fx_rate_quote_on_date'")
-            .SingleAsync();
+            .SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.EndsWith("(quote, on_date)", quoteIndex);
     }
 
@@ -188,13 +188,13 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var index = await subs.Database
             .SqlQuery<string>($"select indexdef as \"Value\" from pg_indexes where schemaname = 'subscriptions' and indexname = {$"ix_{table}_imported_by_import_ref"}")
-            .SingleAsync();
+            .SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         var old = await subs.Database
             .SqlQuery<string>($"select indexname::text as \"Value\" from pg_indexes where schemaname = 'subscriptions' and indexname = {$"ix_{table}_import_ref"}")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var check = await subs.Database
             .SqlQuery<string>($"select conname::text as \"Value\" from pg_constraint where conname = {$"ck_{table}_imported_by"}")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.StartsWith("CREATE UNIQUE INDEX", index);
         Assert.EndsWith("(imported_by, import_ref) WHERE (import_ref IS NOT NULL)", index);

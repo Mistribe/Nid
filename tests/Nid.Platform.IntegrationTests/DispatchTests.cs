@@ -235,9 +235,9 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         await using (var core = PostgresFixture.NewCoreContext(h.App.ConnectionString))
         {
-            var row = await core.Persons.SingleAsync(p => p.Id == h.App.AdultA.Value);
+            var row = await core.Persons.SingleAsync(p => p.Id == h.App.AdultA.Value, cancellationToken: TestContext.Current.CancellationToken);
             row.Email = null;
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         h.Channel.IsAvailable = true;
@@ -269,13 +269,13 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             switch (change)
             {
                 case "resolved":
-                    await store.ApplyAsync(h.App.AdultA, [new LifecycleChange.Resolve(id)], default);
+                    await store.ApplyAsync(h.App.AdultA, [new LifecycleChange.Resolve(id)], TestContext.Current.CancellationToken);
                     break;
                 case "dismissed":
-                    await store.DismissAsync(id, Start, default);
+                    await store.DismissAsync(id, Start, TestContext.Current.CancellationToken);
                     break;
                 case "snoozed":
-                    await store.SnoozeAsync(id, new LocalDate(2025, 11, 15), default);
+                    await store.SnoozeAsync(id, new LocalDate(2025, 11, 15), TestContext.Current.CancellationToken);
                     break;
             }
         }
@@ -380,7 +380,7 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await DispatchAsync(h);
         var id = (await RowAsync(h, "a:1")).Id;
         await using (var scope = h.App.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<INotificationStore>().SnoozeAsync(id, new LocalDate(2025, 10, 20), default);
+            await scope.ServiceProvider.GetRequiredService<INotificationStore>().SnoozeAsync(id, new LocalDate(2025, 10, 20), TestContext.Current.CancellationToken);
 
         h.Clock.Now = Instant.FromUtc(2025, 10, 21, 8, 0);
         await EvaluateAsync(h);
@@ -554,7 +554,7 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         h.Source.Signals.Add(SignalOf(Action, "a:1", item));
         h.Source.Signals.Add(SignalOf(Action, "a:2", item));
         await EvaluateAsync(h);
-        var (_, failure) = await h.App.InvokeAsync(h.App.AdultA, new EvaluateNotificationsCommand(h.App.AdultB, true));
+        var (_, failure) = await h.App.InvokeAsync(h.App.AdultA, new EvaluateNotificationsCommand(h.App.AdultB, true), TestContext.Current.CancellationToken);
         Assert.Null(failure);
 
         await DispatchAsync(h);
@@ -622,7 +622,7 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Empty(await RowsOfAsync(h));
         Assert.Empty(await DeliveriesAsync(h));
         await using (var db = PostgresFixture.NewPlatformContext(h.App.ConnectionString))
-            Assert.False((await db.NotificationRuns.AsNoTracking().SingleAsync(r => r.PersonId == h.App.AdultA.Value)).Ok);
+            Assert.False((await db.NotificationRuns.AsNoTracking().SingleAsync(r => r.PersonId == h.App.AdultA.Value, cancellationToken: TestContext.Current.CancellationToken)).Ok);
 
         await EvaluateAsync(h);
 

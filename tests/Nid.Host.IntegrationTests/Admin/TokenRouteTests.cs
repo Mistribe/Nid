@@ -56,21 +56,21 @@ public class TokenRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         var invalid = await app.RawAsync(app.AdultA, HttpMethod.Post, Tokens, new { name = "", preset = "propose" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, invalid.StatusCode);
-        var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>(Json);
+        var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>(Json, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("name", problem.GetProperty("errors")[0].GetProperty("path").GetString());
 
         foreach (var (body, path) in new (object, string)[] { (new { }, "name"), (new { name = "x" }, "preset") })
         {
             var missing = await app.RawAsync(app.AdultA, HttpMethod.Post, Tokens, body);
             Assert.Equal(HttpStatusCode.UnprocessableEntity, missing.StatusCode);
-            Assert.Equal(path, (await missing.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal(path, (await missing.Content.ReadFromJsonAsync<JsonElement>(Json, cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors")[0].GetProperty("path").GetString());
         }
 
         for (var i = 0; i < 10; i++)
             await CreateAsync(app, app.AdultA);
         var eleventh = await app.RawAsync(app.AdultA, HttpMethod.Post, Tokens, new { name = "x", preset = "read" });
         Assert.Equal(HttpStatusCode.Conflict, eleventh.StatusCode);
-        Assert.Equal(TokenCodes.LimitReached, (await eleventh.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("code").GetString());
+        Assert.Equal(TokenCodes.LimitReached, (await eleventh.Content.ReadFromJsonAsync<JsonElement>(Json, cancellationToken: TestContext.Current.CancellationToken)).GetProperty("code").GetString());
     }
 
     [Fact]

@@ -67,8 +67,8 @@ public class RunLogsTests
         var logger = loggers.CreateLogger("Nid.Host.Jobs.Test");
 
         await Task.WhenAll(
-            Task.Run(async () => { Current.Value = a.Writer; for (var i = 0; i < 50; i++) { logger.LogInformation("marker-a"); await Task.Yield(); } }),
-            Task.Run(async () => { Current.Value = b.Writer; for (var i = 0; i < 50; i++) { logger.LogInformation("marker-b"); await Task.Yield(); } }));
+            Task.Run(async () => { Current.Value = a.Writer; for (var i = 0; i < 50; i++) { logger.LogInformation("marker-a"); await Task.Yield(); } }, TestContext.Current.CancellationToken),
+            Task.Run(async () => { Current.Value = b.Writer; for (var i = 0; i < 50; i++) { logger.LogInformation("marker-b"); await Task.Yield(); } }, TestContext.Current.CancellationToken));
         a.Writer.Dispose();
         b.Writer.Dispose();
 

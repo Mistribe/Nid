@@ -101,7 +101,7 @@ public class PropertyIndexedTenancyTests(PostgresFixture fixture) : IClassFixtur
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             await scope.ServiceProvider.GetRequiredService<IPropertyStore>().AddTenancyAsync(new ItemId(id), Guid.CreateVersion7(),
-                new Tenancy("T2", new LocalDate(2022, 1, 1), null, 910m, 0m, null, null, true, 2), default, revisedFrom: old);
+                new Tenancy("T2", new LocalDate(2022, 1, 1), null, 910m, 0m, null, null, true, 2), TestContext.Current.CancellationToken, revisedFrom: old);
         }
 
         var views = (await PropertyAsync(app, id)).GetProperty("tenancies").EnumerateArray().ToList();

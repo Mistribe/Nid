@@ -43,18 +43,18 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var open1 = await EnvelopeAsync(scope.ServiceProvider);
         var open2 = await EnvelopeAsync(scope.ServiceProvider);
         var closed = await EnvelopeAsync(scope.ServiceProvider, new LocalDate(2026, 1, 1));
-        await holdings.AddAsync(Holding(open1, X), default);
-        await holdings.AddAsync(Holding(open2, X), default);
-        await holdings.AddAsync(Holding(closed, Y), default);
-        await holdings.AddAsync(Holding(open1, Z, closedOn: new LocalDate(2026, 2, 1)), default);
-        await holdings.AddAsync(Holding(open1, F, "euro_fund"), default);
-        await holdings.AddAsync(Holding(open1, null), default);
+        await holdings.AddAsync(Holding(open1, X), TestContext.Current.CancellationToken);
+        await holdings.AddAsync(Holding(open2, X), TestContext.Current.CancellationToken);
+        await holdings.AddAsync(Holding(closed, Y), TestContext.Current.CancellationToken);
+        await holdings.AddAsync(Holding(open1, Z, closedOn: new LocalDate(2026, 2, 1)), TestContext.Current.CancellationToken);
+        await holdings.AddAsync(Holding(open1, F, "euro_fund"), TestContext.Current.CancellationToken);
+        await holdings.AddAsync(Holding(open1, null), TestContext.Current.CancellationToken);
         var manual = Holding(open1, M);
-        await holdings.AddAsync(manual, default);
+        await holdings.AddAsync(manual, TestContext.Current.CancellationToken);
         await using (var db = PostgresFixture.NewInvestmentsContext(app.ConnectionString))
-            await db.Database.ExecuteSqlAsync($"update investments.holding set auto_price = false where id = {manual.Id}");
+            await db.Database.ExecuteSqlAsync($"update investments.holding set auto_price = false where id = {manual.Id}", cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal([X], await holdings.PricedIsinsAsync(default));
+        Assert.Equal([X], await holdings.PricedIsinsAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -66,13 +66,13 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var day = new LocalDate(2026, 10, 23);
 
         var person = new PersonId(Guid.NewGuid());
-        Assert.True(await store.WriteAsync(Price(X, day, 100m, PriceStatus.Accepted, person), default));
-        Assert.False(await store.WriteAsync(Price(X, day, 50m), default));
-        Assert.Equal(100m, (await store.LatestAcceptedAsync([X], default))[X].Price);
+        Assert.True(await store.WriteAsync(Price(X, day, 100m, PriceStatus.Accepted, person), TestContext.Current.CancellationToken));
+        Assert.False(await store.WriteAsync(Price(X, day, 50m), TestContext.Current.CancellationToken));
+        Assert.Equal(100m, (await store.LatestAcceptedAsync([X], TestContext.Current.CancellationToken))[X].Price);
 
-        Assert.True(await store.WriteAsync(Price(Y, day, 10m), default));
-        Assert.True(await store.WriteAsync(Price(Y, day, 11m), default));
-        Assert.Equal(11m, (await store.LatestAcceptedAsync([Y], default))[Y].Price);
+        Assert.True(await store.WriteAsync(Price(Y, day, 10m), TestContext.Current.CancellationToken));
+        Assert.True(await store.WriteAsync(Price(Y, day, 11m), TestContext.Current.CancellationToken));
+        Assert.Equal(11m, (await store.LatestAcceptedAsync([Y], TestContext.Current.CancellationToken))[Y].Price);
     }
 
     [Fact]
@@ -81,13 +81,13 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = Scope(app);
         var store = scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>();
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 100m), default);
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 23), 1m, PriceStatus.Rejected), default);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 100m), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 23), 1m, PriceStatus.Rejected), TestContext.Current.CancellationToken);
 
-        Assert.Equal(new LocalDate(2026, 10, 22), (await store.LatestAcceptedAsync([X, Y], default)).Single().Value.OnDate);
+        Assert.Equal(new LocalDate(2026, 10, 22), (await store.LatestAcceptedAsync([X, Y], TestContext.Current.CancellationToken)).Single().Value.OnDate);
 
-        Assert.Equal(1, await store.PurgeBeforeAsync(new LocalDate(2026, 10, 23), default));
-        Assert.Empty(await store.LatestAcceptedAsync([X], default));
+        Assert.Equal(1, await store.PurgeBeforeAsync(new LocalDate(2026, 10, 23), TestContext.Current.CancellationToken));
+        Assert.Empty(await store.LatestAcceptedAsync([X], TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -96,13 +96,13 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = Scope(app);
         var store = scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>();
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 21), 100m), default);
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 101m), default);
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 23), 1m, PriceStatus.Rejected), default);
-        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 20), 1m, PriceStatus.Rejected), default);
-        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 22), 10m), default);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 21), 100m), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 101m), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 23), 1m, PriceStatus.Rejected), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 20), 1m, PriceStatus.Rejected), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 22), 10m), TestContext.Current.CancellationToken);
 
-        var latest = await store.LatestAsync([X, Y, Z], default);
+        var latest = await store.LatestAsync([X, Y, Z], TestContext.Current.CancellationToken);
 
         Assert.Equal([X, Y], latest.Keys.Order());
         Assert.Equal((101m, 1m), (latest[X].Accepted!.Price, latest[X].Rejected!.Price));
@@ -116,12 +116,12 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = Scope(app);
         var store = scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>();
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 19), 99m), default);
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 21), 100m), default);
-        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 1m, PriceStatus.Rejected), default);
-        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 21), 10m), default);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 19), 99m), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 21), 100m), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 1m, PriceStatus.Rejected), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 21), 10m), TestContext.Current.CancellationToken);
 
-        var found = await store.AcceptedOnOrBeforeAsync([X], new LocalDate(2026, 10, 20), new LocalDate(2026, 10, 23), default);
+        var found = await store.AcceptedOnOrBeforeAsync([X], new LocalDate(2026, 10, 20), new LocalDate(2026, 10, 23), TestContext.Current.CancellationToken);
 
         Assert.Equal([100m], found.Select(p => p.Price));
     }
@@ -135,18 +135,18 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var day = new LocalDate(2026, 10, 23);
         var person = new PersonId(Guid.NewGuid());
         var at = Instant.FromUtc(2026, 10, 24, 8, 0);
-        await store.WriteAsync(Price(X, day, 1m, PriceStatus.Rejected), default);
-        await store.WriteAsync(Price(Y, day, 1m), default);
+        await store.WriteAsync(Price(X, day, 1m, PriceStatus.Rejected), TestContext.Current.CancellationToken);
+        await store.WriteAsync(Price(Y, day, 1m), TestContext.Current.CancellationToken);
 
-        Assert.True(await store.AcceptAsync(X, day, person, at, default));
-        Assert.False(await store.AcceptAsync(X, day, person, at, default));
-        Assert.False(await store.AcceptAsync(Y, day, person, at, default));
-        Assert.False(await store.AcceptAsync(Z, day, person, at, default));
+        Assert.True(await store.AcceptAsync(X, day, person, at, TestContext.Current.CancellationToken));
+        Assert.False(await store.AcceptAsync(X, day, person, at, TestContext.Current.CancellationToken));
+        Assert.False(await store.AcceptAsync(Y, day, person, at, TestContext.Current.CancellationToken));
+        Assert.False(await store.AcceptAsync(Z, day, person, at, TestContext.Current.CancellationToken));
 
         await using var db = PostgresFixture.NewInvestmentsContext(app.ConnectionString);
-        var row = await db.SecurityPrices.SingleAsync(p => p.Isin == X);
+        var row = await db.SecurityPrices.SingleAsync(p => p.Isin == X, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("accepted", person.Value, at), (row.Status, row.AcceptedBy, row.AcceptedAt));
-        Assert.False(await store.WriteAsync(Price(X, day, 5m), default));
+        Assert.False(await store.WriteAsync(Price(X, day, 5m), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -157,10 +157,10 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var store = scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>();
         var listing = new SecurityListing(X, "/bourse/opcvm/cours/MP-800128/", null, Instant.FromUtc(2026, 10, 23, 20, 0), null);
 
-        await store.SaveListingAsync(listing, default);
-        await store.SaveListingAsync(listing with { YahooSymbol = "CW8.PA" }, default);
+        await store.SaveListingAsync(listing, TestContext.Current.CancellationToken);
+        await store.SaveListingAsync(listing with { YahooSymbol = "CW8.PA" }, TestContext.Current.CancellationToken);
 
-        Assert.Equal(listing with { YahooSymbol = "CW8.PA" }, (await store.ListingsAsync([X, Y], default)).Single().Value);
+        Assert.Equal(listing with { YahooSymbol = "CW8.PA" }, (await store.ListingsAsync([X, Y], TestContext.Current.CancellationToken)).Single().Value);
     }
 
     [Fact]
@@ -170,17 +170,17 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var scope = Scope(app);
         var log = scope.ServiceProvider.GetRequiredService<IPriceRunLog>();
 
-        var first = await log.TryStartAsync(default);
+        var first = await log.TryStartAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(first);
-        Assert.Null(await log.TryStartAsync(default));
-        Assert.True(await log.IsRunningAsync(default));
+        Assert.Null(await log.TryStartAsync(TestContext.Current.CancellationToken));
+        Assert.True(await log.IsRunningAsync(TestContext.Current.CancellationToken));
 
-        await log.FinishAsync(first with { Status = PriceRunStatus.Succeeded, FinishedAt = first.StartedAt, Queried = 3, Accepted = 2, NotFound = 1 }, default);
-        Assert.False(await log.IsRunningAsync(default));
-        var second = await log.TryStartAsync(default);
+        await log.FinishAsync(first with { Status = PriceRunStatus.Succeeded, FinishedAt = first.StartedAt, Queried = 3, Accepted = 2, NotFound = 1 }, TestContext.Current.CancellationToken);
+        Assert.False(await log.IsRunningAsync(TestContext.Current.CancellationToken));
+        var second = await log.TryStartAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(second);
 
-        var recent = await log.RecentAsync(5, default);
+        var recent = await log.RecentAsync(5, TestContext.Current.CancellationToken);
         Assert.Equal([second.Id, first.Id], recent.Select(r => r.Id));
         Assert.Equal((PriceRunStatus.Succeeded, 3, 2, 1), (recent[1].Status, recent[1].Queried, recent[1].Accepted, recent[1].NotFound));
     }
@@ -195,11 +195,11 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using (var db = PostgresFixture.NewInvestmentsContext(app.ConnectionString))
         {
             db.Holdings.Add(new HoldingRow { Id = id, EnvelopeItemId = envelope.Value, Name = "Manuel", Kind = "fund", AutoPrice = false });
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var read = PostgresFixture.NewInvestmentsContext(app.ConnectionString);
-        Assert.False((await read.Holdings.SingleAsync(h => h.Id == id)).AutoPrice);
+        Assert.False((await read.Holdings.SingleAsync(h => h.Id == id, cancellationToken: TestContext.Current.CancellationToken)).AutoPrice);
     }
 
     [Fact]
@@ -210,14 +210,14 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var holdings = scope.ServiceProvider.GetRequiredService<IHoldingStore>();
         var envelope = await EnvelopeAsync(scope.ServiceProvider);
         var holding = Holding(envelope, X);
-        await holdings.AddAsync(holding, default);
+        await holdings.AddAsync(holding, TestContext.Current.CancellationToken);
         Task Save(LocalDate day, decimal? unitPrice) => holdings.SaveSnapshotAsync(new HoldingSnapshot(Guid.NewGuid(), envelope, day, null, true,
             [new SnapshotLine(holding.Id, 2m, unitPrice, 10m, null)]), default);
         await Save(new LocalDate(2026, 3, 31), 5m);
         await Save(new LocalDate(2026, 6, 30), 7m);
         await Save(new LocalDate(2026, 9, 30), null);
 
-        var price = Assert.Single(await holdings.SnapshotUnitPricesAsync([X, Y], default));
+        var price = Assert.Single(await holdings.SnapshotUnitPricesAsync([X, Y], TestContext.Current.CancellationToken));
         Assert.Equal(new SnapshotPrice(X, 7m, envelope, new LocalDate(2026, 6, 30)), price);
     }
 }

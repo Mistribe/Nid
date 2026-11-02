@@ -84,7 +84,7 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         // Only what differs from the default is stored; another person is unaffected.
         await using var scope = app.Services.CreateAsyncScope();
-        var stored = await scope.ServiceProvider.GetRequiredService<INotificationStore>().PreferencesAsync(app.AdultA, default);
+        var stored = await scope.ServiceProvider.GetRequiredService<INotificationStore>().PreferencesAsync(app.AdultA, TestContext.Current.CancellationToken);
         Assert.Equal(new Dictionary<string, int> { ["tenancy_end"] = 30 }, stored.LeadDays);
         Assert.Equal(0, (await app.GetAsync<JsonElement>(app.AdultB, Route)).GetProperty("version").GetInt32());
     }

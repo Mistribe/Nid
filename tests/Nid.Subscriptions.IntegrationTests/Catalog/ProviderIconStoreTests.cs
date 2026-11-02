@@ -43,7 +43,7 @@ public class ProviderIconStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         await SyncAsync(db, Reading(("netflix", "Netflix", First)));
         Assert.Equal((First, (string?)null, (string?)null), await IconOf(connectionString));
 
-        Assert.Equal(1, await new ProviderStore(db).SetIconAsync("netflix", First, HashA, default)); // review follow-up, Minor 1
+        Assert.Equal(1, await new ProviderStore(db).SetIconAsync("netflix", First, HashA, TestContext.Current.CancellationToken)); // review follow-up, Minor 1
         Assert.Equal((First, HashA, First), await IconOf(connectionString));
 
         var renamed = await SyncAsync(db, Reading(("netflix", "Netflix HD", First)));
@@ -58,7 +58,7 @@ public class ProviderIconStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var connectionString = await fixture.NewConnectionStringAsync();
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
         await SyncAsync(db, Reading(("netflix", "Netflix", First)));
-        await new ProviderStore(db).SetIconAsync("netflix", First, HashA, default);
+        await new ProviderStore(db).SetIconAsync("netflix", First, HashA, TestContext.Current.CancellationToken);
 
         await SyncAsync(db, Reading(("netflix", "Netflix", Second)));
 
@@ -71,7 +71,7 @@ public class ProviderIconStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var connectionString = await fixture.NewConnectionStringAsync();
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
         await SyncAsync(db, Reading(("netflix", "Netflix", First)));
-        await new ProviderStore(db).SetIconAsync("netflix", First, HashA, default);
+        await new ProviderStore(db).SetIconAsync("netflix", First, HashA, TestContext.Current.CancellationToken);
 
         await SyncAsync(db, Reading(("netflix", "Netflix", null)));
 
@@ -87,7 +87,7 @@ public class ProviderIconStoreTests(PostgresFixture fixture) : IClassFixture<Pos
 
         // review follow-up, Minor 1: the URL the pass fetched from is no longer the one the catalog declares —
         // nothing is linked, and CatalogIconPass reads that from the row count, not a coded refusal.
-        Assert.Equal(0, await new ProviderStore(db).SetIconAsync("netflix", First, HashA, default));
+        Assert.Equal(0, await new ProviderStore(db).SetIconAsync("netflix", First, HashA, TestContext.Current.CancellationToken));
 
         Assert.Equal((Second, (string?)null, (string?)null), await IconOf(connectionString));
     }
@@ -100,7 +100,7 @@ public class ProviderIconStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         await SyncAsync(db, Reading(("b-one", "B", First), ("a-two", "A", Second), ("a2", "A2", First), ("c-none", "C", null), ("d-gone", "D", First)));
         await SyncAsync(db, Reading(("b-one", "B", First), ("a-two", "A", Second), ("a2", "A2", First), ("c-none", "C", null))); // d-gone archived
 
-        var keys = (await new ProviderStore(db).CatalogIconsAsync(default)).Select(p => p.Key).ToList();
+        var keys = (await new ProviderStore(db).CatalogIconsAsync(TestContext.Current.CancellationToken)).Select(p => p.Key).ToList();
 
         Assert.Equal(["a-two", "a2", "b-one"], keys); // ordinal: '-' sorts before '2', whatever the database collation says
     }

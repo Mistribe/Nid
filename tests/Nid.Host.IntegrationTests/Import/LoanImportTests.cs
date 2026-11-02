@@ -112,7 +112,7 @@ public class LoanImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         body["insurances"] = new[] { new { mode = "rate_on_initial", annualRate = "0.003", startsOn = "2020-11-15" } };
         body["version"] = await LoanApi.ContractVersionAsync(app, main);
         var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{LoanApi.Loans}/{main}/contract", body);
-        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var again = await CommitAsync(client, app, app.AdultA, Loans());
 
@@ -138,7 +138,7 @@ public class LoanImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         body["insurances"] = new[] { new { mode = "rate_on_initial", annualRate = "0.001", startsOn = "2021-11-15" } };
         body["version"] = await LoanApi.ContractVersionAsync(app, main);
         var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{LoanApi.Loans}/{main}/contract", body);
-        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var again = await CommitAsync(client, app, app.AdultA, file);
 
@@ -234,7 +234,7 @@ public class LoanImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
-                .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], default); // 1 USD = 0.90 EUR
+                .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], TestContext.Current.CancellationToken); // 1 USD = 0.90 EUR
         var client = new ImportClient(app);
         var condo = Flat.Replace("prop-flat", "prop-condo").Replace("\"name\":\"Studio\"", "\"name\":\"Condo\"").Replace("EUR", "USD");
         static string Expense(string id, string currency)
@@ -388,7 +388,7 @@ public class LoanImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var version = (await LoanAsync(app, "Prêt principal")).GetProperty("contract").GetProperty("version").GetUInt32();
         var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/realestate/loans/{id}/bank-schedule",
             new { text = LoanApi.BankTable.Replace("198 265,18", "197 265,18"), version });
-        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var again = await CommitAsync(client, app, app.AdultA, file);
 
@@ -406,7 +406,7 @@ public class LoanImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var id = await LoanIdAsync(app, "Prêt principal");
         var version = (await LoanAsync(app, "Prêt principal")).GetProperty("contract").GetProperty("version").GetUInt32();
         var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/realestate/loans/{id}/bank-schedule", new { text = LoanApi.BankTable, version });
-        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var clash = await ValidateAsync(client, app, app.AdultA, Loans(loans: List(BankLoan, ZeroLoan), bank: List(Bank1, Bank2, Bank3)), replace: true);
 

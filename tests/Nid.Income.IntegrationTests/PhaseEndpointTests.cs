@@ -193,7 +193,7 @@ public class PhaseEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         var overlapping = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", Phase("Salaire", "2025-06-01", "2400"));
         var (_, failure) = await app.InvokeAsync(app.AdultA, new AddIncomePhaseCommand(new ItemId(id),
             new PhaseDraft("Salaire", Date("2025-06-01"), null, Money.Create(2400m, Currency.Eur).Ok(),
-                Duration.Create(1, DurationUnit.Month).Ok(), null, null, null)));
+                Duration.Create(1, DurationUnit.Month).Ok(), null, null, null)), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, overlapping.StatusCode);
         Assert.Equal("income.phase_overlap", await CodeAsync(overlapping));
@@ -247,7 +247,7 @@ public class PhaseEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
                 new { label, effectiveOn, netAmount = new { amount = "2300", currency = "EUR" } });
 
         var onStart = await PostAsync("Salaire", "2024-09-01");
-        var (_, onStartFailure) = await app.InvokeAsync(app.AdultA, Change("Salaire", "2024-09-01"));
+        var (_, onStartFailure) = await app.InvokeAsync(app.AdultA, Change("Salaire", "2024-09-01"), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, onStart.StatusCode);
         Assert.Equal("income.invalid_phase", await CodeAsync(onStart));
         Assert.Equal("income.invalid_phase", onStartFailure?.Code);
@@ -266,7 +266,7 @@ public class PhaseEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             Assert.Equal(HttpStatusCode.UnprocessableEntity, ended.StatusCode);
             Assert.Equal("income.no_running_phase", await CodeAsync(ended));
         }
-        var (_, endedFailure) = await app.InvokeAsync(app.AdultA, Change("CDD", "2025-07-01"));
+        var (_, endedFailure) = await app.InvokeAsync(app.AdultA, Change("CDD", "2025-07-01"), TestContext.Current.CancellationToken);
         Assert.Equal("income.no_running_phase", endedFailure?.Code);
         Assert.Equal(before, await StoredAsync(app, id));
     }
@@ -295,7 +295,7 @@ public class PhaseEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         var body = await JsonAsync(refused);
         Assert.Equal("income.invalid_phase", body.GetProperty("code").GetString());
         var (_, failure) = await app.InvokeAsync(app.AdultA, new ChangeIncomePhaseCommand(new ItemId(id), "Salaire", Date("2025-09-30"),
-            Money.Create(2300m, Currency.Eur).Ok(), null, null, null));
+            Money.Create(2300m, Currency.Eur).Ok(), null, null, null), TestContext.Current.CancellationToken);
         Assert.Equal("income.invalid_phase", failure?.Code);
         Assert.Equal("effectiveOn", failure!.Metadata!["field"]);
         Assert.Contains("2025-09-28", body.ToString());

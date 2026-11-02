@@ -26,8 +26,8 @@ public class FxRateStoreTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var store = new FxRateStore(db);
 
-        await store.WriteAsync([Rate(Currency.Eur, 0.9m, FxRateSource.Manual)], default);
-        var written = await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData), Rate(Gbp, 0.7m, FxRateSource.SubTrackerData)], default);
+        await store.WriteAsync([Rate(Currency.Eur, 0.9m, FxRateSource.Manual)], TestContext.Current.CancellationToken);
+        var written = await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData), Rate(Gbp, 0.7m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken);
 
         Assert.Equal(1, written); // GBP only
         var eur = await StoredAsync(store, Currency.Eur);
@@ -40,12 +40,12 @@ public class FxRateStoreTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var store = new FxRateStore(db);
 
-        await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], default);
-        Assert.Equal(0, await store.WriteAsync([Rate(Currency.Eur, 0.85m, FxRateSource.Ecb)], default));
+        await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken);
+        Assert.Equal(0, await store.WriteAsync([Rate(Currency.Eur, 0.85m, FxRateSource.Ecb)], TestContext.Current.CancellationToken));
         Assert.Equal(0.8m, (await StoredAsync(store, Currency.Eur)).Rate);
 
-        await store.WriteAsync([Rate(Gbp, 0.75m, FxRateSource.Ecb)], default);
-        await store.WriteAsync([Rate(Gbp, 0.74m, FxRateSource.SubTrackerData)], default);
+        await store.WriteAsync([Rate(Gbp, 0.75m, FxRateSource.Ecb)], TestContext.Current.CancellationToken);
+        await store.WriteAsync([Rate(Gbp, 0.74m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken);
         var gbp = await StoredAsync(store, Gbp);
         Assert.Equal((0.74m, FxRateSource.SubTrackerData), (gbp.Rate, gbp.Source));
     }
@@ -56,8 +56,8 @@ public class FxRateStoreTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var store = new FxRateStore(db);
 
-        await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], default);
-        Assert.Equal(1, await store.WriteAsync([Rate(Currency.Eur, 0.81m, FxRateSource.SubTrackerData)], default));
+        await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken);
+        Assert.Equal(1, await store.WriteAsync([Rate(Currency.Eur, 0.81m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken));
         Assert.Equal(0.81m, (await StoredAsync(store, Currency.Eur)).Rate);
     }
 
@@ -71,9 +71,9 @@ public class FxRateStoreTests(PostgresFixture postgres)
             Rate(Currency.Eur, 0.80m, FxRateSource.Ecb, Day.PlusDays(-10)),
             Rate(Currency.Eur, 0.82m, FxRateSource.Ecb, Day.PlusDays(-3)),
             Rate(Currency.Eur, 0.99m, FxRateSource.Ecb, Day),
-        ], default);
+        ], TestContext.Current.CancellationToken);
 
-        var previous = await store.PreviousAsync([Currency.Eur, Gbp], Day, default);
+        var previous = await store.PreviousAsync([Currency.Eur, Gbp], Day, TestContext.Current.CancellationToken);
 
         Assert.Equal(0.82m, previous[Currency.Eur]);
         Assert.False(previous.ContainsKey(Gbp));
@@ -85,9 +85,9 @@ public class FxRateStoreTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var store = new FxRateStore(db);
 
-        await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.Ecb, Day.PlusDays(-1)), Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], default);
+        await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.Ecb, Day.PlusDays(-1)), Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken);
 
-        Assert.Equal([Day], (await store.DatesFromAsync(FxRateSource.SubTrackerData, Day.PlusDays(-5), default)).ToList());
+        Assert.Equal([Day], (await store.DatesFromAsync(FxRateSource.SubTrackerData, Day.PlusDays(-5), TestContext.Current.CancellationToken)).ToList());
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class FxRateStoreTests(PostgresFixture postgres)
         var rates = Enumerable.Range(0, FxRateStore.ChunkSize + 7)
             .Select(i => Rate(Currency.Eur, 0.8m, FxRateSource.Ecb, Day.PlusDays(-i))).ToList();
 
-        Assert.Equal(rates.Count, await store.WriteAsync(rates, default));
+        Assert.Equal(rates.Count, await store.WriteAsync(rates, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -106,10 +106,10 @@ public class FxRateStoreTests(PostgresFixture postgres)
     {
         await using var db = await postgres.NewDatabaseAsync();
         db.FxRates.Add(new FxRateRow { OnDate = Day, Quote = "USD", Rate = 1m, Source = "ecb" });
-        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
 
         db.ChangeTracker.Clear();
         db.FxRates.Add(new FxRateRow { OnDate = Day, Quote = "EUR", Rate = 0m, Source = "ecb" });
-        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
 }

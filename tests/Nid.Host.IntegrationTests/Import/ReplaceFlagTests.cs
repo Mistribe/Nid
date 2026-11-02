@@ -29,7 +29,7 @@ public class ReplaceFlagTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.True((await client.CommitRawAsync(app.AdultA, validated.Id)).IsSuccessStatusCode);
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var writes = await platform.AuditLog.Where(r => r.Category == "write" && r.Request == "CommitImportCommand").ToListAsync();
+        var writes = await platform.AuditLog.Where(r => r.Category == "write" && r.Request == "CommitImportCommand").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotEmpty(writes);
         Assert.All(writes, w => Assert.Equal(("person", app.AdultA.Value, "import"), (w.ActorKind, w.PersonId!.Value, w.Via)));
     }

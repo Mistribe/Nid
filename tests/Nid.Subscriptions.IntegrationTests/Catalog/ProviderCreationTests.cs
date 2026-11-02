@@ -36,7 +36,7 @@ public class ProviderCreationTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal(("Tinder", "custom", "https://tinder.com", false), (view.Name, view.Origin, view.Website, view.Archived));
         Assert.Equal([new LabelView(CatalogLimits.OtherLabel, "Other", CatalogLimits.NeutralColor)], view.Labels);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(app.AdultA.Value, (await subs.Providers.AsNoTracking().SingleAsync(p => p.Key == view.Key)).CreatedBy);
+        Assert.Equal(app.AdultA.Value, (await subs.Providers.AsNoTracking().SingleAsync(p => p.Key == view.Key, cancellationToken: TestContext.Current.CancellationToken)).CreatedBy);
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public class ProviderCreationTests(PostgresFixture fixture, SharedNidApp shared)
 
         Assert.Equal((null, CatalogCodes.InvalidProvider), (view, code));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.False(await subs.Providers.AnyAsync(p => p.Origin == "custom"));
+        Assert.False(await subs.Providers.AnyAsync(p => p.Origin == "custom", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>Final review F2: the providers are listed for a person; another caller gets CreateProviderHandler's refusal.</summary>
@@ -74,7 +74,7 @@ public class ProviderCreationTests(PostgresFixture fixture, SharedNidApp shared)
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
 
-        var listed = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync<IReadOnlyList<ProviderView>>(new ListProvidersQuery(null));
+        var listed = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync<IReadOnlyList<ProviderView>>(new ListProvidersQuery(null), TestContext.Current.CancellationToken);
 
         Assert.True(listed.TryGetFailure(out var failure));
         Assert.Equal(CatalogCodes.InvalidProvider, failure!.Code);
@@ -142,6 +142,6 @@ public class ProviderCreationTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal(CatalogCodes.InvalidProvider, (await CreateAsync(app, new CreateProviderCommand(name, website, pricingPage, labels))).Code);
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.False(await subs.Providers.AnyAsync());
+        Assert.False(await subs.Providers.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 }

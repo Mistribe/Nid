@@ -73,7 +73,7 @@ public class BearerTokenTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
             await core.PersonalAccessTokens.Where(t => t.Id == expired.Token.Id).ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.CreatedAt, NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant().Minus(NodaTime.Duration.FromDays(2)))
-                .SetProperty(t => t.ExpiresAt, NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant().Minus(NodaTime.Duration.FromSeconds(1))));
+                .SetProperty(t => t.ExpiresAt, NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant().Minus(NodaTime.Duration.FromSeconds(1))), cancellationToken: TestContext.Current.CancellationToken);
         var valid = await TokenApi.CreateAsync(app, app.AdultA);
         var wrongSecret = valid.Secret[..^1] + (valid.Secret[^1] == 'A' ? 'B' : 'A');
 
@@ -100,7 +100,7 @@ public class BearerTokenTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var bobs = await TokenApi.CreateAsync(app, app.AdultB);
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
             await core.Persons.Where(p => p.Id == app.AdultB.Value).ExecuteUpdateAsync(s => s
-                .SetProperty(p => p.OidcSubject, (string?)null).SetProperty(p => p.Email, "bob@example.test"));
+                .SetProperty(p => p.OidcSubject, (string?)null).SetProperty(p => p.Email, "bob@example.test"), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await app.BearerAsync(bobs.Secret, HttpMethod.Get, Capabilities)).StatusCode);
     }
@@ -116,7 +116,7 @@ public class BearerTokenTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var write = await app.BearerAsync(read.Secret, HttpMethod.Post, "/api/v1/core/persons/dependents", new { displayName = "Kid" }, withSessionOf: app.AdultA);
         Assert.Equal(HttpStatusCode.Forbidden, write.StatusCode);
 
-        var session = await (await app.BearerAsync(read.Secret, HttpMethod.Get, "/auth/session")).Content.ReadFromJsonAsync<JsonElement>(Json);
+        var session = await (await app.BearerAsync(read.Secret, HttpMethod.Get, "/auth/session")).Content.ReadFromJsonAsync<JsonElement>(Json, cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(session.GetProperty("authenticated").GetBoolean());
     }
 
@@ -129,7 +129,7 @@ public class BearerTokenTests(PostgresFixture fixture) : IClassFixture<PostgresF
         (await app.BearerAsync(propose.Secret, HttpMethod.Post, "/api/v1/core/persons/dependents", new { displayName = "Kid" })).EnsureSuccessStatusCode();
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var line = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Entity == "core.person" && r.Action == "insert");
+        var line = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Entity == "core.person" && r.Action == "insert", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((propose.Token.Id, "api"), (line.TokenId!.Value, line.Via));
     }
 

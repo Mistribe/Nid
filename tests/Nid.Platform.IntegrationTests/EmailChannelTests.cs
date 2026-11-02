@@ -313,7 +313,7 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
                 Delivery(notification.Id, "failed", now - NodaTime.Duration.FromDays(40), "notifications.channel_rejected 550", 2),
                 Delivery(notification.Id, "sent", now - NodaTime.Duration.FromDays(1), null, 3),
                 Delivery(notification.Id, "pending", now - NodaTime.Duration.FromDays(1), "notifications.channel_unreachable 421", 4));
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Get, AdminRoute)).StatusCode);

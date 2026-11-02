@@ -32,7 +32,7 @@ public class PriceEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Sync);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        Assert.True(JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("requested").GetBoolean());
+        Assert.True(JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("requested").GetBoolean());
     }
 
     [Fact]

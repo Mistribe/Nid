@@ -228,7 +228,7 @@ public class InsuranceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var response = await app.RawAsync(app.AdultB, HttpMethod.Get, Url(id));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var text = await response.Content.ReadAsStringAsync();
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.DoesNotContain(property.Value.ToString(), text);
         Assert.DoesNotContain("Private house", text);
         var insurance = JsonDocument.Parse(text).RootElement.GetProperty("insurance");
@@ -246,7 +246,7 @@ public class InsuranceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var property = await app.NewPropertyAsync("Maison", Visibility.Shared, (app.AdultA, 10_000));
         (await app.RawAsync(app.AdultA, HttpMethod.Put, InsuranceUrl(id), Home(property.Value, "Fire"))).EnsureSuccessStatusCode();
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            await core.Items.Where(i => i.Id == property.Value).ExecuteDeleteAsync();
+            await core.Items.Where(i => i.Id == property.Value).ExecuteDeleteAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var insurance = await InsuranceOf(app, app.AdultA, id);
 

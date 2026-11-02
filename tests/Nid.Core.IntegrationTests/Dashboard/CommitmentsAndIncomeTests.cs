@@ -140,7 +140,7 @@ public class CommitmentsAndIncomeTests(PostgresFixture fixture) : IClassFixture<
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             Assert.True((await scope.ServiceProvider.GetRequiredService<IItemRegistry>()
-                .ArchiveAsync(new ItemId(id), Instant.FromUtc(2025, 10, 2, 0, 0), default)).IsSuccess);
+                .ArchiveAsync(new ItemId(id), Instant.FromUtc(2025, 10, 2, 0, 0), TestContext.Current.CancellationToken)).IsSuccess);
         }
 
         var view = await DashboardAsync(app, app.AdultA, "household");

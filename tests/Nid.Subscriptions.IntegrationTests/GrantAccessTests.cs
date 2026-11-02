@@ -28,7 +28,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         // 1E2b1 design §3.2: refused like a missing subscription, at the grant that names it.
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors");
         Assert.Equal("subscriptions.not_found", errors[0].GetProperty("code").GetString());
 
         // And nothing was written on the way out: B's subscription still renews.
@@ -48,7 +48,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         // 1E2b1 design §3.2: refused like a missing subscription, at the grant that names it.
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors");
         Assert.Equal("subscriptions.not_found", errors[0].GetProperty("code").GetString());
 
         var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{theirs.Value}");
@@ -83,7 +83,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var created = await app.RawAsync(app.AdultB, HttpMethod.Post, $"/api/v1/subscriptions/{joint.Value}/purchases",
             BundlePurchase(joint, secret));
         created.EnsureSuccessStatusCode();
-        var purchaseId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var purchaseId = (await created.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
 
         // A is a legitimate writer of `joint` and reads the purchase id from its detail. Deleting it would
         // cascade into `secret`, which A may not write, so the delete is refused — and undisclosed.
@@ -113,7 +113,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var created = await app.RawAsync(app.AdultB, HttpMethod.Post, $"/api/v1/subscriptions/{joint.Value}/purchases",
             BundlePurchase(joint, secret));
         created.EnsureSuccessStatusCode();
-        var purchaseId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var purchaseId = (await created.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
 
         (await app.RawAsync(app.AdultB, HttpMethod.Delete, $"/api/v1/subscriptions/{joint.Value}/purchases/{purchaseId}"))
             .EnsureSuccessStatusCode();

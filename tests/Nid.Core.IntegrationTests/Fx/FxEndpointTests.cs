@@ -65,7 +65,7 @@ public class FxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(HttpStatusCode.Accepted, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/sync")).StatusCode);
 
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<IFxRunLog>().TryStartAsync(FxRunKind.Daily, default);
+            await scope.ServiceProvider.GetRequiredService<IFxRunLog>().TryStartAsync(FxRunKind.Daily, TestContext.Current.CancellationToken);
         var busy = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/sync");
         Assert.Equal((HttpStatusCode.Conflict, FxCodes.SyncRunning), (busy.StatusCode, await CodeOf(busy)));
     }
@@ -74,7 +74,7 @@ public class FxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     public async Task Runs_are_listed_newest_first()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await app.InvokeAsync(app.AdultA, new Nid.Core.Application.Fx.BackfillFxRatesCommand());
+        await app.InvokeAsync(app.AdultA, new Nid.Core.Application.Fx.BackfillFxRatesCommand(), TestContext.Current.CancellationToken);
 
         var runs = await app.GetAsync<List<RunResponse>>(app.AdultA, $"{Root}/runs");
 

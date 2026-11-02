@@ -324,7 +324,7 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
             scope = "household",
             document = Document(events: new { id = Guid.NewGuid(), kind = "property_purchase", start = new { on = "2026-01-10" }, scenario = purchase }),
         });
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var view = JsonDocument.Parse(body).RootElement;
 
@@ -352,7 +352,7 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
                 effect = "reduce_term", penalty = "0",
             }),
         });
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.DoesNotContain(secret.ToString(), body, StringComparison.OrdinalIgnoreCase);
@@ -397,7 +397,7 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal("projection.invalid_field", Str(problem, "code"));
         Assert.Contains(List(problem, "errors"), e => Str(e, "path") == "events[0].amount" && Str(e, "code") == "projection.invalid_field");
     }

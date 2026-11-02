@@ -55,7 +55,7 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         var stored = first.Proposal!;
         Assert.True(first.Created);
         Assert.Equal(DocA, stored.DocumentId);
-        var detail = await OkAsync<ProposalDetail>(app.InvokeAsync(app.AdultA, new GetProposalQuery(stored.Id)));
+        var detail = await OkAsync<ProposalDetail>(app.InvokeAsync(app.AdultA, new GetProposalQuery(stored.Id), TestContext.Current.CancellationToken));
         Assert.Equal(DocA, detail.Proposal.DocumentId);
 
         var same = await SubmitAsync(app, "investments.record_statement", envelope, Statement(), DocA);
@@ -87,14 +87,14 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.All(stamps.Values, d => Assert.Equal(DocA, d));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         var refs = approved.AppliedRefs.ToList();
-        var others = await core.Valuations.Where(r => r.ItemId == envelope && !refs.Contains(r.Id)).Select(r => r.DocumentId).ToListAsync();
-        others.AddRange(await core.Flows.Where(r => r.ItemId == envelope && !refs.Contains(r.Id)).Select(r => r.DocumentId).ToListAsync());
+        var others = await core.Valuations.Where(r => r.ItemId == envelope && !refs.Contains(r.Id)).Select(r => r.DocumentId).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
+        others.AddRange(await core.Flows.Where(r => r.ItemId == envelope && !refs.Contains(r.Id)).Select(r => r.DocumentId).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(2, others.Count); // the seeded opening and first value
         Assert.All(others, Assert.Null);
 
         // The stamp is a write like any other: audited under the envelope.
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var updates = await platform.AuditLog.Where(r => r.Category == "write" && r.Action == "update" && r.Entity == "core.valuation").ToListAsync();
+        var updates = await platform.AuditLog.Where(r => r.Category == "write" && r.Action == "update" && r.Entity == "core.valuation").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(updates, e => e.ItemIds.SequenceEqual([envelope]) && e.Data.Contains("document_id") && e.Data.Contains(DocA.ToString()));
     }
 
@@ -108,12 +108,12 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         var asOf = new LocalDate(2025, 9, 30);
 
         var corrected = await OkAsync<Guid>(app.InvokeAsync(app.AdultA,
-            new RecordValuationCommand(new ItemId(envelope), asOf, Money.Create(23600m, Currency.Eur).Ok(), null)));
+            new RecordValuationCommand(new ItemId(envelope), asOf, Money.Create(23600m, Currency.Eur).Ok(), null), TestContext.Current.CancellationToken));
         Assert.Equal(DocA, (await StampsAsync(app, [corrected]))[corrected]);
 
         var replaced = await ApproveAsync(app, (await SubmitAsync(app, "investments.record_statement", envelope, Statement("24000.00"), DocB)).Proposal!);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var current = await core.Valuations.SingleAsync(r => r.ItemId == envelope && r.AsOf == asOf && r.RetiredAt == null);
+        var current = await core.Valuations.SingleAsync(r => r.ItemId == envelope && r.AsOf == asOf && r.RetiredAt == null, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(current.Id, replaced.AppliedRefs);
         Assert.Equal(DocB, current.DocumentId);
     }
@@ -200,8 +200,8 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         Guid valuation, flow;
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            valuation = await core.Valuations.Where(r => approved.AppliedRefs.Contains(r.Id)).Select(r => r.Id).SingleAsync();
-            flow = await core.Flows.Where(r => approved.AppliedRefs.Contains(r.Id)).Select(r => r.Id).SingleAsync();
+            valuation = await core.Valuations.Where(r => approved.AppliedRefs.Contains(r.Id)).Select(r => r.Id).SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
+            flow = await core.Flows.Where(r => approved.AppliedRefs.Contains(r.Id)).Select(r => r.Id).SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         }
 
         var item = new ItemId(envelope);
@@ -212,9 +212,9 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             newValue = (await scope.ServiceProvider.GetRequiredService<IValuations>()
-                .SupersedeAsync(item, valuation, new NewValuation(item, new LocalDate(2025, 9, 30), eur(23600m), null), default)).Ok();
+                .SupersedeAsync(item, valuation, new NewValuation(item, new LocalDate(2025, 9, 30), eur(23600m), null), TestContext.Current.CancellationToken)).Ok();
             newFlow = (await scope.ServiceProvider.GetRequiredService<IFlows>()
-                .SupersedeAsync(item, flow, new NewFlow(item, new LocalDate(2025, 9, 5), FlowKind.Contribution, eur(151m), null, null, null), default)).Ok();
+                .SupersedeAsync(item, flow, new NewFlow(item, new LocalDate(2025, 9, 5), FlowKind.Contribution, eur(151m), null, null, null), TestContext.Current.CancellationToken)).Ok();
         }
 
         var stamps = await StampsAsync(app, [newValue.Id, newFlow.Id]);

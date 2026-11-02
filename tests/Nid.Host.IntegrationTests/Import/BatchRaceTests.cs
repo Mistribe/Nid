@@ -37,7 +37,7 @@ public class BatchRaceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         // 1. The PUT moves the session to open, then stops before inserting its batch.
         gates.Armed = true;
         var put = client.PutRawAsync(app.AdultA, session.Id, StubSection.Name, 0, """[{"id":"late"}]""");
-        await gates.Transitioned.Task.WaitAsync(Bound);
+        await gates.Transitioned.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
         // 2. A validation starts meanwhile. Either it runs to the end (nothing holds the session), or it waits
         //    on the PUT's hold of the session row — whichever happens first is observed, not assumed.
@@ -46,18 +46,18 @@ public class BatchRaceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         // 3. A commit runs while the PUT is still held (it cannot wait on the PUT: it moves only a validated
         //    session, and a session the PUT holds is not validated in any committed state it can see).
-        var commit = await client.CommitRawAsync(app.AdultA, session.Id).WaitAsync(Bound);
+        var commit = await client.CommitRawAsync(app.AdultA, session.Id).WaitAsync(Bound, TestContext.Current.CancellationToken);
 
         // 4. The PUT goes on and inserts its batch.
         gates.Release.SetResult();
-        var putResponse = await put.WaitAsync(Bound);
-        var validateResponse = await validate.WaitAsync(Bound);
+        var putResponse = await put.WaitAsync(Bound, TestContext.Current.CancellationToken);
+        var validateResponse = await validate.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
-        Assert.True(putResponse.IsSuccessStatusCode, await putResponse.Content.ReadAsStringAsync());
-        var batch = (await putResponse.Content.ReadFromJsonAsync<BatchResponse>(ImportClient.Json))!;
+        Assert.True(putResponse.IsSuccessStatusCode, await putResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var batch = (await putResponse.Content.ReadFromJsonAsync<BatchResponse>(ImportClient.Json, cancellationToken: TestContext.Current.CancellationToken))!;
         var after = await client.GetAsync(app.AdultA, session.Id);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var staged = await platform.Batches.AnyAsync(b => b.SessionId == session.Id);
+        var staged = await platform.Batches.AnyAsync(b => b.SessionId == session.Id, cancellationToken: TestContext.Current.CancellationToken);
 
         if (batch.Accepted)
         {

@@ -200,7 +200,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
             Scoped(app, "me", Document("10y", visible, Repayment(secret, "2025-11-20", "4321")), "Commun", "shared", app.AdultA, app.AdultB), app.AdultB));
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{id}");
-        var text = await response.Content.ReadAsStringAsync();
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.DoesNotContain(secret.ToString(), text, StringComparison.OrdinalIgnoreCase);
@@ -224,7 +224,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         // A replace A gets refused names nothing of B's.
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id}", Scoped(app, "me",
             Document("10y", visible, Repayment(Guid.NewGuid(), "2025-11-20", "100")), "Commun renommé", "shared"));
-        var refusal = await refused.Content.ReadAsStringAsync();
+        var refusal = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         Assert.DoesNotContain(secret.ToString(), refusal, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("4321", refusal);
@@ -248,7 +248,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            (await scope.ServiceProvider.GetRequiredService<IItemRegistry>().ArchiveAsync(new ItemId(loan), NodaTime.SystemClock.Instance.GetCurrentInstant(), default))
+            (await scope.ServiceProvider.GetRequiredService<IItemRegistry>().ArchiveAsync(new ItemId(loan), NodaTime.SystemClock.Instance.GetCurrentInstant(), TestContext.Current.CancellationToken))
                 .Ok();
         }
 
@@ -278,7 +278,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         var response = await CreateAsync(app, Body(app, Document("10y", ev)));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal("projection.invalid_field", Str(problem, "code"));
         Assert.Contains(List(problem, "errors"), e => Str(e, "path") == path);
     }

@@ -57,7 +57,7 @@ public class OutputGuardTests
             new Accessor(new PersonId(Guid.CreateVersion7())), new FixedVisibleItems(visible), NullViolations.Instance);
 
         var result = await guard.HandleAsync(new AnyQuery(),
-            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([visible, leaked]))));
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([visible, leaked]))), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsFailure);
         Assert.Equal("core.access_violation", result.FailureCode());
@@ -72,7 +72,7 @@ public class OutputGuardTests
             new Accessor(new PersonId(Guid.CreateVersion7())), new FixedVisibleItems(visible), NullViolations.Instance);
 
         var result = await guard.HandleAsync(new AnyQuery(),
-            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([visible]))));
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([visible]))), TestContext.Current.CancellationToken);
 
         Assert.Equal([visible], result.Ok().Items);
     }
@@ -84,7 +84,7 @@ public class OutputGuardTests
             new Accessor(new PersonId(Guid.CreateVersion7())), new ThrowingVisibleItems(), NullViolations.Instance);
 
         var result = await guard.HandleAsync(new HarmlessQuery(),
-            (_, _) => ValueTask.FromResult(Result.Success(new HarmlessResponse("nothing item-scoped"))));
+            (_, _) => ValueTask.FromResult(Result.Success(new HarmlessResponse("nothing item-scoped"))), TestContext.Current.CancellationToken);
 
         Assert.Equal("nothing item-scoped", result.Ok().Text);
     }
@@ -96,7 +96,7 @@ public class OutputGuardTests
             new Accessor(new PersonId(Guid.CreateVersion7())), new ThrowingVisibleItems(), NullViolations.Instance);
 
         var result = await guard.HandleAsync(new AnyQuery(),
-            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))));
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))), TestContext.Current.CancellationToken);
 
         // An exception inside the guard is a refusal, never a pass.
         Assert.Equal("core.access_violation", result.FailureCode());
@@ -110,7 +110,7 @@ public class OutputGuardTests
             new Accessor(new PersonId(Guid.CreateVersion7())), new FixedVisibleItems(), recorder);
 
         await guard.HandleAsync(new AnyQuery(),
-            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))));
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))), TestContext.Current.CancellationToken);
 
         Assert.Single(recorder.Recorded);
     }
@@ -122,7 +122,7 @@ public class OutputGuardTests
             new SystemAccessor(), new ThrowingVisibleItems(), NullViolations.Instance);
 
         var result = await guard.HandleAsync(new AnyQuery(),
-            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))));
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))), TestContext.Current.CancellationToken);
 
         // A system actor has no PersonId and so no visible-item set to prove the response legitimate:
         // uncertainty is a refusal here too, never a silent pass.
@@ -137,7 +137,7 @@ public class OutputGuardTests
             new SystemAccessor(), new ThrowingVisibleItems(), NullViolations.Instance);
 
         var result = await guard.HandleAsync(new HarmlessQuery(),
-            (_, _) => ValueTask.FromResult(Result.Success(new HarmlessResponse("nothing item-scoped"))));
+            (_, _) => ValueTask.FromResult(Result.Success(new HarmlessResponse("nothing item-scoped"))), TestContext.Current.CancellationToken);
 
         Assert.Equal("nothing item-scoped", result.Ok().Text);
     }

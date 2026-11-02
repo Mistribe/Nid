@@ -38,7 +38,7 @@ public class CatalogSourceClientTests
     {
         var (client, handler) = Client(uri => Ok(uri.AbsolutePath.EndsWith("/labels.json", StringComparison.Ordinal) ? "[\"l\"]" : "[\"p\"]"));
 
-        var files = (await client.FetchAsync(Commit, default)).Ok();
+        var files = (await client.FetchAsync(Commit, TestContext.Current.CancellationToken)).Ok();
 
         Assert.Equal(
             [
@@ -55,14 +55,14 @@ public class CatalogSourceClientTests
     public async Task A_file_the_source_does_not_serve_is_an_unavailable_source(HttpStatusCode status)
     {
         var (client, _) = Client(_ => new HttpResponseMessage(status));
-        Assert.Equal(CatalogCodes.SourceUnavailable, (await client.FetchAsync(Commit, default)).FailureCode());
+        Assert.Equal(CatalogCodes.SourceUnavailable, (await client.FetchAsync(Commit, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]
     public async Task A_file_over_one_megabyte_is_malformed()
     {
         var (client, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[CatalogLimits.MaxFileBytes + 1]) });
-        Assert.Equal(CatalogCodes.SourceMalformed, (await client.FetchAsync(Commit, default)).FailureCode());
+        Assert.Equal(CatalogCodes.SourceMalformed, (await client.FetchAsync(Commit, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class CatalogSourceClientTests
     {
         var (client, handler) = Client(_ => Ok("[]"), new CatalogOptions { BaseUrl = "https://example.com/catalog" });
 
-        Assert.Equal(CatalogCodes.SourceRefused, (await client.FetchAsync(Commit, default)).FailureCode());
+        Assert.Equal(CatalogCodes.SourceRefused, (await client.FetchAsync(Commit, TestContext.Current.CancellationToken)).FailureCode());
         Assert.Empty(handler.Requested);
     }
 
@@ -78,7 +78,7 @@ public class CatalogSourceClientTests
     public async Task An_unreachable_host_is_an_unavailable_source()
     {
         var (client, _) = Client(_ => throw new HttpRequestException("down"));
-        Assert.Equal(CatalogCodes.SourceUnavailable, (await client.FetchAsync(Commit, default)).FailureCode());
+        Assert.Equal(CatalogCodes.SourceUnavailable, (await client.FetchAsync(Commit, TestContext.Current.CancellationToken)).FailureCode());
     }
 
     [Fact]

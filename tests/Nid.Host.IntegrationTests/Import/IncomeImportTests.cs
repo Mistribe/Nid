@@ -162,7 +162,7 @@ public class IncomeImportTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(Export.RoundTripTests.Canonical(first), Export.RoundTripTests.Canonical(second));
         Assert.Equal(5150.00m, Amount(Assert.Single((await DetailAsync(target, "Salaire")).GetProperty("oneOffs").EnumerateArray()).GetProperty("taxableAmount")));
         await using var income = PostgresFixture.NewIncomeContext(target.ConnectionString);
-        Assert.Equal(1, await income.Database.SqlQuery<int>($"select count(*)::int as \"Value\" from income.one_off_taxable").SingleAsync());
+        Assert.Equal(1, await income.Database.SqlQuery<int>($"select count(*)::int as \"Value\" from income.one_off_taxable").SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     private static Dictionary<string, string> TaxedFile(string source, string phase, string item, string amount, string? taxable)
@@ -554,7 +554,7 @@ public class IncomeImportTests(PostgresFixture fixture) : IClassFixture<Postgres
         // A raise entered by hand: ip-2 now ends on 2026-01-01, a phase of the API's starts there.
         var raise = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{salary}/phase-changes",
             new { label = "Salaire de base", effectiveOn = "2026-01-01", netAmount = new { amount = "2500", currency = "EUR" } });
-        Assert.True(raise.IsSuccessStatusCode, await raise.Content.ReadAsStringAsync());
+        Assert.True(raise.IsSuccessStatusCode, await raise.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         static string Ip4(string startsOn) => $$$"""
             {"id":"ip-4","source":"inc-salary-1","label":"Salaire de base","starts_on":"{{{startsOn}}}",
              "net_amount":{"amount":"2600.00","currency":"EUR"},"every":{"count":1,"unit":"month"}}
@@ -596,7 +596,7 @@ public class IncomeImportTests(PostgresFixture fixture) : IClassFixture<Postgres
             ],
             validated.Report!.Issues.Select(i => (i.Severity, i.Code, i.Path)));
         var committed = await client.CommitRawAsync(app.AdultA, validated.Id);
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         // A source whose phases are stored has phases, though this file sends none.
         var sourcesOnly = await ValidateAsync(client, app, app.AdultA, new Dictionary<string, string>
@@ -643,7 +643,7 @@ public class IncomeImportTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(new CountsResponse(1, 0, 0), taken.Report.Sections["income_phases"]);
         Assert.Equal(JsonSerializer.Serialize(fresh.Report), JsonSerializer.Serialize(taken.Report));
         var committed = await client.CommitRawAsync(app.AdultA, taken.Id);
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(["Mine"], (await SourcesAsync(app, app.AdultA, archived: true)).Select(s => s.GetProperty("displayName").GetString()));
         var mine = await SourceIdAsync(app, "Mine");
         Assert.Equal([3000m], (await StoredPhasesAsync(app, mine)).Select(p => p.Net));

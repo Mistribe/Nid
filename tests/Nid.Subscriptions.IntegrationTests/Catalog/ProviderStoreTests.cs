@@ -17,7 +17,7 @@ public class ProviderStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
     public async Task The_local_label_is_read_back()
     {
         var store = await NewStoreAsync();
-        Assert.Equal(new Label(CatalogLimits.OtherLabel, "Other", CatalogLimits.NeutralColor, LabelOrigin.Local), Assert.Single(await store.LabelsAsync(default)));
+        Assert.Equal(new Label(CatalogLimits.OtherLabel, "Other", CatalogLimits.NeutralColor, LabelOrigin.Local), Assert.Single(await store.LabelsAsync(TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -26,19 +26,19 @@ public class ProviderStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         var store = await NewStoreAsync();
         var provider = Custom("tinder-k3f9qa", PersonId.New());
 
-        (await store.CreateAsync(provider, default)).Ok();
+        (await store.CreateAsync(provider, TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(provider, (await store.FindAsync(["tinder-k3f9qa", "absent"], default))["tinder-k3f9qa"]);
-        Assert.True(await store.ExistsAsync("tinder-k3f9qa", default));
-        Assert.False(await store.ExistsAsync("absent", default));
+        Assert.Equal(provider, (await store.FindAsync(["tinder-k3f9qa", "absent"], TestContext.Current.CancellationToken))["tinder-k3f9qa"]);
+        Assert.True(await store.ExistsAsync("tinder-k3f9qa", TestContext.Current.CancellationToken));
+        Assert.False(await store.ExistsAsync("absent", TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task A_key_already_held_is_refused_as_taken()
     {
         var store = await NewStoreAsync();
-        (await store.CreateAsync(Custom("tinder-k3f9qa", PersonId.New()), default)).Ok();
+        (await store.CreateAsync(Custom("tinder-k3f9qa", PersonId.New()), TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(CatalogCodes.KeyTaken, (await store.CreateAsync(Custom("tinder-k3f9qa", PersonId.New()), default)).FailureCode());
+        Assert.Equal(CatalogCodes.KeyTaken, (await store.CreateAsync(Custom("tinder-k3f9qa", PersonId.New()), TestContext.Current.CancellationToken)).FailureCode());
     }
 }

@@ -115,7 +115,7 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     {
         await using var app = await StartAsync();
 
-        await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:1", "request", "GetX"), default);
+        await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:1", "request", "GetX"), TestContext.Current.CancellationToken);
 
         var rows = await RowsAsync(app, "access_violation:1");
         Assert.Equal(new[] { app.AdultA.Value, app.AdultB.Value }.Order(), rows.Select(r => r.PersonId).Order());
@@ -132,8 +132,8 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var app = await StartAsync();
         var notifier = NotifierOf(app);
 
-        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:a"), default);
-        await notifier.PublishAsync(NoticeOf("proposal_pending", new Recipients.People([app.AdultB, app.Dependent]), "proposal_pending:1"), default);
+        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:a"), TestContext.Current.CancellationToken);
+        await notifier.PublishAsync(NoticeOf("proposal_pending", new Recipients.People([app.AdultB, app.Dependent]), "proposal_pending:1"), TestContext.Current.CancellationToken);
 
         Assert.Equal(app.AdultA.Value, Assert.Single(await RowsAsync(app, "job_failed:a")).PersonId);
         Assert.Equal(app.AdultB.Value, Assert.Single(await RowsAsync(app, "proposal_pending:1")).PersonId);
@@ -145,8 +145,8 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var app = await StartAsync(email: true);
         var notice = NoticeOf("job_failed", new Recipients.Admins(), "job_failed:a");
 
-        await NotifierOf(app).PublishAsync(notice, default);
-        await NotifierOf(app).PublishAsync(notice, default);
+        await NotifierOf(app).PublishAsync(notice, TestContext.Current.CancellationToken);
+        await NotifierOf(app).PublishAsync(notice, TestContext.Current.CancellationToken);
 
         var row = Assert.Single(await RowsAsync(app, "job_failed:a"));
         Assert.Equal(1, row.Round);
@@ -160,10 +160,10 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var notice = NoticeOf("job_failed", new Recipients.Admins(), "job_failed:a");
         var notifier = NotifierOf(app);
 
-        await notifier.PublishAsync(notice, default);
-        await notifier.ResolveAsync("job_failed:a", default);
+        await notifier.PublishAsync(notice, TestContext.Current.CancellationToken);
+        await notifier.ResolveAsync("job_failed:a", TestContext.Current.CancellationToken);
         Assert.Equal(NotificationStates.Resolved, Assert.Single(await RowsAsync(app, "job_failed:a")).State);
-        await notifier.PublishAsync(notice, default);
+        await notifier.PublishAsync(notice, TestContext.Current.CancellationToken);
 
         var row = Assert.Single(await RowsAsync(app, "job_failed:a"));
         Assert.Equal((NotificationStates.Open, 2), (row.State, row.Round));
@@ -175,17 +175,17 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     {
         await using var app = await StartAsync();
         var notifier = NotifierOf(app);
-        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:2"), default);
+        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:2"), TestContext.Current.CancellationToken);
         var bob = (await RowsAsync(app, "access_violation:2")).Single(r => r.PersonId == app.AdultB.Value);
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<INotificationStore>().DismissAsync(bob.Id, NodaTime.SystemClock.Instance.GetCurrentInstant(), default);
+            await scope.ServiceProvider.GetRequiredService<INotificationStore>().DismissAsync(bob.Id, NodaTime.SystemClock.Instance.GetCurrentInstant(), TestContext.Current.CancellationToken);
 
-        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:2"), default);
+        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:2"), TestContext.Current.CancellationToken);
         Assert.Equal(NotificationStates.Dismissed, (await RowsAsync(app, "access_violation:2")).Single(r => r.Id == bob.Id).State);
 
-        await notifier.ResolveAsync("access_violation:2", default);
+        await notifier.ResolveAsync("access_violation:2", TestContext.Current.CancellationToken);
         Assert.All(await RowsAsync(app, "access_violation:2"), r => Assert.Equal(NotificationStates.Resolved, r.State));
-        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:2"), default);
+        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:2"), TestContext.Current.CancellationToken);
         Assert.All(await RowsAsync(app, "access_violation:2"), r => Assert.Equal((NotificationStates.Open, 2), (r.State, r.Round)));
     }
 
@@ -195,8 +195,8 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var app = await StartAsync();
         await using (var scope = app.Services.CreateAsyncScope())
         {
-            await using var unit = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(default);
-            await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:3"), default);
+            await using var unit = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(TestContext.Current.CancellationToken);
+            await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:3"), TestContext.Current.CancellationToken);
         }
 
         Assert.Equal(2, (await RowsAsync(app, "access_violation:3")).Count);
@@ -212,9 +212,9 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             services.AddScoped<INotificationStore>(_ => throw new InvalidOperationException("The store is down."));
         });
 
-        await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:4"), default);
-        await NotifierOf(app).ResolveAsync("access_violation:4", default);
-        await NotifierOf(app).PublishAsync(NoticeOf("unknown_kind", new Recipients.AllAdults(), "x:1"), default);
+        await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:4"), TestContext.Current.CancellationToken);
+        await NotifierOf(app).ResolveAsync("access_violation:4", TestContext.Current.CancellationToken);
+        await NotifierOf(app).PublishAsync(NoticeOf("unknown_kind", new Recipients.AllAdults(), "x:1"), TestContext.Current.CancellationToken);
 
         Assert.Equal([LogLevel.Error, LogLevel.Error, LogLevel.Error], logs.Levels);
     }
@@ -226,30 +226,30 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var app = await StartAsync(services => services.AddSingleton<IClock>(clock));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            (await core.Persons.SingleAsync(p => p.Id == app.AdultB.Value)).IsAdmin = true; // two admins: still one post per publication
-            await core.SaveChangesAsync();
+            (await core.Persons.SingleAsync(p => p.Id == app.AdultB.Value, cancellationToken: TestContext.Current.CancellationToken)).IsAdmin = true; // two admins: still one post per publication
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.True((await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/admin/notifications/discord", new { url = Hook })).IsSuccessStatusCode);
         var notifier = NotifierOf(app);
 
-        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:5"), default);
-        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:x"), default);
-        await notifier.ResolveAsync("job_failed:x", default);
+        await notifier.PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:5"), TestContext.Current.CancellationToken);
+        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:x"), TestContext.Current.CancellationToken);
+        await notifier.ResolveAsync("job_failed:x", TestContext.Current.CancellationToken);
         clock.Now = Instant.FromUtc(2025, 10, 16, 8, 0);
-        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:x"), default);
+        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:x"), TestContext.Current.CancellationToken);
 
         Assert.Equal(
             ["access_violation:5", $"job_failed:x@{Instant.FromUtc(2025, 10, 15, 8, 0).ToUnixTimeTicks()}", $"job_failed:x@{clock.Now.ToUnixTimeTicks()}"],
             (await DeliveriesAsync(app, "discord_household")).Select(d => d.HouseholdKey!).Order());
 
         // After the 90-day purge the household keys stay spent, yet a new crash of the same job posts again.
-        await notifier.ResolveAsync("job_failed:x", default);
+        await notifier.ResolveAsync("job_failed:x", TestContext.Current.CancellationToken);
         await using (var scope = app.Services.CreateAsyncScope())
-            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(200), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), default) > 0);
+            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(200), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), TestContext.Current.CancellationToken) > 0);
         Assert.Empty(await RowsAsync(app, "job_failed:x"));
         clock.Now = Instant.FromUtc(2026, 5, 1, 8, 0);
-        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:x"), default);
+        await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:x"), TestContext.Current.CancellationToken);
 
         Assert.Equal(2, (await RowsAsync(app, "job_failed:x")).Count);
         Assert.Equal(4, (await DeliveriesAsync(app, "discord_household")).Count);
@@ -292,19 +292,19 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         // A critical published row ends when it is read, by one (/read) or all (/read-all): nothing else would ever resolve it.
         var alice = first.Single(r => r.PersonId == app.AdultA.Value);
-        Assert.Null((await app.InvokeAsync(app.AdultA, new ReadNotificationCommand(alice.Id))).Failure);
-        Assert.Null((await app.InvokeAsync(app.AdultB, new ReadAllNotificationsCommand())).Failure);
+        Assert.Null((await app.InvokeAsync(app.AdultA, new ReadNotificationCommand(alice.Id), TestContext.Current.CancellationToken)).Failure);
+        Assert.Null((await app.InvokeAsync(app.AdultB, new ReadAllNotificationsCommand(), TestContext.Current.CancellationToken)).Failure);
 
         await using (var db = PostgresFixture.NewPlatformContext(app.ConnectionString))
         {
-            var rows = await db.Notifications.AsNoTracking().Where(n => n.Kind == "access_violation").ToListAsync();
+            var rows = await db.Notifications.AsNoTracking().Where(n => n.Kind == "access_violation").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
             var open = Assert.Single(rows, r => r.State == NotificationStates.Open);
             Assert.Equal((app.AdultA.Value, "access_violation:GetX:2025-10-16"), (open.PersonId, open.Key));
             Assert.All(rows.Where(r => r.Id != open.Id), r => Assert.Equal((NotificationStates.Resolved, (Instant?)clock.Now, (Instant?)clock.Now), (r.State, r.ResolvedAt, r.ReadAt)));
         }
 
         await using (var scope = app.Services.CreateAsyncScope())
-            Assert.Equal(3, await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(91), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), default));
+            Assert.Equal(3, await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(91), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), TestContext.Current.CancellationToken));
         Assert.Empty(await RowsAsync(app, "access_violation:GetX:2025-10-15"));
     }
 
@@ -315,9 +315,9 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.True((await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/admin/notifications/discord", new { url = Hook })).IsSuccessStatusCode);
         var shared = await app.NewSubscriptionAsync("joint", app.AdultA, Visibility.Shared);
 
-        await NotifierOf(app).PublishAsync(new Notice("proposal_pending", new Recipients.AllAdults(), "proposal_pending:9", [shared], new Dictionary<string, string>()), default);
-        await NotifierOf(app).PublishAsync(new Notice("proposal_pending", new Recipients.AllAdults(), "proposal_pending:10", [], new Dictionary<string, string>()), default);
-        await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:9"), default);
+        await NotifierOf(app).PublishAsync(new Notice("proposal_pending", new Recipients.AllAdults(), "proposal_pending:9", [shared], new Dictionary<string, string>()), TestContext.Current.CancellationToken);
+        await NotifierOf(app).PublishAsync(new Notice("proposal_pending", new Recipients.AllAdults(), "proposal_pending:10", [], new Dictionary<string, string>()), TestContext.Current.CancellationToken);
+        await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:9"), TestContext.Current.CancellationToken);
 
         Assert.Equal(4, (await RowsAsync(app, "proposal_pending:9")).Count + (await RowsAsync(app, "proposal_pending:10")).Count);
         Assert.Equal(["access_violation:9"], (await DeliveriesAsync(app, "discord_household")).Select(d => d.HouseholdKey!));
@@ -328,16 +328,16 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     {
         var clock = new SettableClock(Instant.FromUtc(2025, 10, 15, 8, 0));
         await using var app = await StartAsync(services => services.AddSingleton<IClock>(clock), email: true);
-        await NotifierOf(app).PublishAsync(NoticeOf("proposal_pending", new Recipients.People([app.AdultA]), "proposal_pending:11"), default);
+        await NotifierOf(app).PublishAsync(NoticeOf("proposal_pending", new Recipients.People([app.AdultA]), "proposal_pending:11"), TestContext.Current.CancellationToken);
         var row = Assert.Single(await RowsAsync(app, "proposal_pending:11"));
         Assert.Single(await DeliveriesOfAsync(app, row.Id));
 
-        Assert.Null((await app.InvokeAsync(app.AdultA, new SnoozeNotificationCommand(row.Id, new LocalDate(2025, 10, 16), null))).Failure);
-        Assert.Null((await app.InvokeAsync(app.AdultA, new EvaluateNotificationsCommand(app.AdultA, true))).Failure);
+        Assert.Null((await app.InvokeAsync(app.AdultA, new SnoozeNotificationCommand(row.Id, new LocalDate(2025, 10, 16), null), TestContext.Current.CancellationToken)).Failure);
+        Assert.Null((await app.InvokeAsync(app.AdultA, new EvaluateNotificationsCommand(app.AdultA, true), TestContext.Current.CancellationToken)).Failure);
         Assert.Equal(NotificationStates.Snoozed, Assert.Single(await RowsAsync(app, "proposal_pending:11")).State);
 
         clock.Now = Instant.FromUtc(2025, 10, 16, 8, 0);
-        Assert.Null((await app.InvokeAsync(app.AdultA, new EvaluateNotificationsCommand(app.AdultA, true))).Failure);
+        Assert.Null((await app.InvokeAsync(app.AdultA, new EvaluateNotificationsCommand(app.AdultA, true), TestContext.Current.CancellationToken)).Failure);
 
         var woken = Assert.Single(await RowsAsync(app, "proposal_pending:11"));
         Assert.Equal((NotificationStates.Open, 2, (LocalDate?)null, (Instant?)null), (woken.State, woken.Round, woken.SnoozedUntil, woken.ReadAt));

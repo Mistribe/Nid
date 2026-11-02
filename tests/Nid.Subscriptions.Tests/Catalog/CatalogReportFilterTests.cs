@@ -37,7 +37,7 @@ public class CatalogReportFilterTests
         var visible = new CountingVisibleItems();
         var report = CatalogReport.Empty with { ProvidersAdded = ["netflix"], AdoptedRemaining = household ? ["wow"] : [] };
 
-        await CatalogReportFilter.ForAsync(Actor.Browser(PersonId.New()), [Run(report), Run(null)], visible, default);
+        await CatalogReportFilter.ForAsync(Actor.Browser(PersonId.New()), [Run(report), Run(null)], visible, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, visible.Calls);
     }
@@ -46,7 +46,7 @@ public class CatalogReportFilterTests
     public async Task The_system_actor_computes_no_visible_set()
     {
         var visible = new CountingVisibleItems();
-        await CatalogReportFilter.ForAsync(Actor.System, [Run(CatalogReport.Empty with { AdoptedRemaining = ["wow"] })], visible, default);
+        await CatalogReportFilter.ForAsync(Actor.System, [Run(CatalogReport.Empty with { AdoptedRemaining = ["wow"] })], visible, TestContext.Current.CancellationToken);
         Assert.Equal(0, visible.Calls);
     }
 }

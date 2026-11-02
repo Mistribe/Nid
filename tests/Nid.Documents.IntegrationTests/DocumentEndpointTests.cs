@@ -58,7 +58,7 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         var response = await GetAsync(app, app.AdultA, id, "/content");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(Pdf, await response.Content.ReadAsByteArrayAsync());
+        Assert.Equal(Pdf, await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
         Assert.Equal("application/pdf", response.Content.Headers.ContentType!.MediaType);
         var disposition = response.Content.Headers.ContentDisposition!;
         Assert.Equal("attachment", disposition.DispositionType);
@@ -134,7 +134,7 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     {
         await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Documents:MaxSizeBytes"] = "1024" });
         using var form = Multipart(Encoding.ASCII.GetBytes(Pad(1025)), "fileName=a.pdf");
-        var chunked = new ChunkedContent(await form.ReadAsByteArrayAsync());
+        var chunked = new ChunkedContent(await form.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
         chunked.Headers.ContentType = form.Headers.ContentType;
 
         await AssertRefusedAsync(await app.RawContentAsync(app.AdultA, HttpMethod.Post, Documents, chunked),

@@ -129,7 +129,7 @@ public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<Postgre
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { maxAdults = 3 })).EnsureSuccessStatusCode();
         var added = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/admin/users", new { displayName = "Carol", email = "carol@example.test" });
         added.EnsureSuccessStatusCode();
-        var carol = JsonDocument.Parse(await added.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        var carol = JsonDocument.Parse(await added.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
         (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/admin/users/{carol}")).EnsureSuccessStatusCode();
         // Refused (the adult is active): no event.
         Assert.False((await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/admin/users/{app.AdultB.Value}")).IsSuccessStatusCode);

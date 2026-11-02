@@ -21,9 +21,9 @@ public class ImportStagingTests(PostgresFixture fixture) : IClassFixture<Postgre
         var store = await NewStoreAsync();
         var a = PersonId.New();
 
-        Assert.NotNull(await store.CreateAsync(a, NoAdults, Now, Tomorrow, default));
-        Assert.Null(await store.CreateAsync(a, NoAdults, Now, Tomorrow, default));
-        Assert.NotNull(await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, default));
+        Assert.NotNull(await store.CreateAsync(a, NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken));
+        Assert.Null(await store.CreateAsync(a, NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken));
+        Assert.NotNull(await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -31,24 +31,24 @@ public class ImportStagingTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         var store = await NewStoreAsync();
         var a = PersonId.New();
-        var session = (await store.CreateAsync(a, new Dictionary<string, PersonId> { ["adult-1"] = a }, Now, Tomorrow, default))!;
+        var session = (await store.CreateAsync(a, new Dictionary<string, PersonId> { ["adult-1"] = a }, Now, Tomorrow, TestContext.Current.CancellationToken))!;
 
-        var found = await store.FindOwnedAsync(session.Id, a, default);
+        var found = await store.FindOwnedAsync(session.Id, a, TestContext.Current.CancellationToken);
         Assert.Equal(a, found!.Adults["adult-1"]);
-        Assert.Null(await store.FindOwnedAsync(session.Id, PersonId.New(), default));
-        Assert.Empty(await store.ListOwnedAsync(PersonId.New(), 20, default));
+        Assert.Null(await store.FindOwnedAsync(session.Id, PersonId.New(), TestContext.Current.CancellationToken));
+        Assert.Empty(await store.ListOwnedAsync(PersonId.New(), 20, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task A_transition_happens_only_from_an_expected_state()
     {
         var store = await NewStoreAsync();
-        var session = (await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, default))!;
+        var session = (await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken))!;
 
-        Assert.False(await store.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, Now, Tomorrow, null, default));
-        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", default));
-        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, Now, Tomorrow, null, default));
-        Assert.False(await store.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, Now, Tomorrow, null, default));
+        Assert.False(await store.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, Now, Tomorrow, null, TestContext.Current.CancellationToken));
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", TestContext.Current.CancellationToken));
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, Now, Tomorrow, null, TestContext.Current.CancellationToken));
+        Assert.False(await store.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, Now, Tomorrow, null, TestContext.Current.CancellationToken));
     }
 
     /// <summary>updated_at is the row's version: it moves on every transition, even two at the same instant.</summary>
@@ -57,15 +57,15 @@ public class ImportStagingTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         var store = await NewStoreAsync();
         var a = PersonId.New();
-        var session = (await store.CreateAsync(a, NoAdults, Now, Tomorrow, default))!;
+        var session = (await store.CreateAsync(a, NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken))!;
 
-        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Open, Now, Tomorrow, null, default));
-        var moved = (await store.FindOwnedAsync(session.Id, a, default))!;
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Open, Now, Tomorrow, null, TestContext.Current.CancellationToken));
+        var moved = (await store.FindOwnedAsync(session.Id, a, TestContext.Current.CancellationToken))!;
 
         Assert.True(moved.UpdatedAt > session.UpdatedAt);
-        Assert.False(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", default,
+        Assert.False(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", TestContext.Current.CancellationToken,
             expectedUpdatedAt: session.UpdatedAt));
-        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", default,
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", TestContext.Current.CancellationToken,
             expectedUpdatedAt: moved.UpdatedAt));
     }
 
@@ -73,14 +73,14 @@ public class ImportStagingTests(PostgresFixture fixture) : IClassFixture<Postgre
     public async Task A_batch_slot_is_taken_once()
     {
         var store = await NewStoreAsync();
-        var session = (await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, default))!;
+        var session = (await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken))!;
 
-        Assert.True(await store.AddBatchAsync(session.Id, new StoredBatch("persons", 0, new string('a', 64), 1, "[{}]"), Now, default));
-        Assert.False(await store.AddBatchAsync(session.Id, new StoredBatch("persons", 0, new string('b', 64), 1, "[{}]"), Now, default));
+        Assert.True(await store.AddBatchAsync(session.Id, new StoredBatch("persons", 0, new string('a', 64), 1, "[{}]"), Now, TestContext.Current.CancellationToken));
+        Assert.False(await store.AddBatchAsync(session.Id, new StoredBatch("persons", 0, new string('b', 64), 1, "[{}]"), Now, TestContext.Current.CancellationToken));
 
-        var batch = await store.FindBatchAsync(session.Id, "persons", 0, default);
+        var batch = await store.FindBatchAsync(session.Id, "persons", 0, TestContext.Current.CancellationToken);
         Assert.Equal(new string('a', 64), batch!.Hash);
-        Assert.Equal(1, await store.EntityCountAsync(session.Id, default));
+        Assert.Equal(1, await store.EntityCountAsync(session.Id, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -88,14 +88,14 @@ public class ImportStagingTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         var store = await NewStoreAsync();
         var a = PersonId.New();
-        var stale = (await store.CreateAsync(a, NoAdults, Now, Now.Plus(NodaTime.Duration.FromMinutes(1)), default))!;
-        await store.AddBatchAsync(stale.Id, new StoredBatch("persons", 0, new string('a', 64), 1, "[{}]"), Now, default);
+        var stale = (await store.CreateAsync(a, NoAdults, Now, Now.Plus(NodaTime.Duration.FromMinutes(1)), TestContext.Current.CancellationToken))!;
+        await store.AddBatchAsync(stale.Id, new StoredBatch("persons", 0, new string('a', 64), 1, "[{}]"), Now, TestContext.Current.CancellationToken);
 
-        await store.ExpireAsync(Now.Plus(NodaTime.Duration.FromMinutes(2)), default);
+        await store.ExpireAsync(Now.Plus(NodaTime.Duration.FromMinutes(2)), TestContext.Current.CancellationToken);
 
-        Assert.Equal(ImportState.Expired, (await store.FindOwnedAsync(stale.Id, a, default))!.State);
-        Assert.Empty(await store.BatchesAsync(stale.Id, default));
-        Assert.NotNull(await store.CreateAsync(a, NoAdults, Now, Tomorrow, default));
+        Assert.Equal(ImportState.Expired, (await store.FindOwnedAsync(stale.Id, a, TestContext.Current.CancellationToken))!.State);
+        Assert.Empty(await store.BatchesAsync(stale.Id, TestContext.Current.CancellationToken));
+        Assert.NotNull(await store.CreateAsync(a, NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -107,12 +107,12 @@ public class ImportStagingTests(PostgresFixture fixture) : IClassFixture<Postgre
     public async Task Expiry_also_clears_batches_left_on_an_already_cancelled_session()
     {
         var store = await NewStoreAsync();
-        var session = (await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, default))!;
-        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Cancelled, Now, Tomorrow, null, default));
-        await store.AddBatchAsync(session.Id, new StoredBatch("persons", 0, new string('a', 64), 1, "[{}]"), Now, default);
+        var session = (await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, TestContext.Current.CancellationToken))!;
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Cancelled, Now, Tomorrow, null, TestContext.Current.CancellationToken));
+        await store.AddBatchAsync(session.Id, new StoredBatch("persons", 0, new string('a', 64), 1, "[{}]"), Now, TestContext.Current.CancellationToken);
 
-        await store.ExpireAsync(Now, default);
+        await store.ExpireAsync(Now, TestContext.Current.CancellationToken);
 
-        Assert.Empty(await store.BatchesAsync(session.Id, default));
+        Assert.Empty(await store.BatchesAsync(session.Id, TestContext.Current.CancellationToken));
     }
 }

@@ -126,7 +126,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
 
         var refused = await app.RawAsync(app.AdultB, HttpMethod.Get, $"{BankingApi.Root}/envelopes/{privateEnvelope.Value}/transactions");
         Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
-        Assert.DoesNotContain("SECRET", await refused.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("SECRET", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(["SECRET"], Labels(await ReadAsync(app, app.AdultA, privateEnvelope)));
 
         // On a shared envelope, B reads what A's account holds.
@@ -145,7 +145,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
 
         var refused = await app.RawAsync(app.AdultB, HttpMethod.Get, $"{BankingApi.Root}/envelopes/{privateEnvelope.Value}/transactions");
         Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
-        Assert.DoesNotContain("CARTE SECRETE", await refused.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("CARTE SECRETE", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var shared = await app.NewEnvelopeAsync("Commun", app.AdultA, Visibility.Shared);
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", new { envelopeId = shared.Value })).StatusCode);
@@ -217,7 +217,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var _app = app;
 
         await using var db = Db(app);
-        Assert.Equal(["EDGE", "LINKED", "NEW"], (await db.Transactions.Select(t => t.Label).ToListAsync()).Order());
+        Assert.Equal(["EDGE", "LINKED", "NEW"], (await db.Transactions.Select(t => t.Label).ToListAsync(cancellationToken: TestContext.Current.CancellationToken)).Order());
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var _app = app;
 
         await using var db = Db(app);
-        Assert.Equal(3, await db.Transactions.CountAsync());
+        Assert.Equal(3, await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var _app = app;
 
         await using var db = Db(app);
-        Assert.Equal(4, await db.Transactions.CountAsync());
+        Assert.Equal(4, await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

@@ -255,7 +255,7 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal(("applied", 3, "conforme"), (first!.Outcome, first.AppliedRefs.Count, second!.Outcome));
         Assert.Empty(second.AppliedRefs);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(1, await core.Valuations.CountAsync(v => v.ItemId == envelope && v.AsOf == new NodaTime.LocalDate(2025, 9, 30)));
+        Assert.Equal(1, await core.Valuations.CountAsync(v => v.ItemId == envelope && v.AsOf == new NodaTime.LocalDate(2025, 9, 30), cancellationToken: TestContext.Current.CancellationToken));
     }
 
     // Final fix 8: a flow a reference matched is that line's; it cannot also be an identical line's without one.

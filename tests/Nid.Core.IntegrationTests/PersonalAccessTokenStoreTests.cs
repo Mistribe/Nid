@@ -36,7 +36,7 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
     {
         var (connection, adult) = await SeedAsync();
 
-        var created = (await Store(connection).CreateAsync(adult, "  Claude sur mon laptop ", TokenPresets.Propose, null, default)).Ok();
+        var created = (await Store(connection).CreateAsync(adult, "  Claude sur mon laptop ", TokenPresets.Propose, null, TestContext.Current.CancellationToken)).Ok();
 
         Assert.True(TokenFormat.TryReadPrefix(created.Secret, out var prefix));
         Assert.Equal(prefix, created.Token.Prefix);
@@ -44,10 +44,10 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
         Assert.Equal(Now.Plus(NodaTime.Duration.FromDays(90)), created.Token.ExpiresAt);
         Assert.Equal(["read", "write"], created.Token.Scopes.Order(StringComparer.Ordinal));
         await using var db = PostgresFixture.NewCoreContext(connection);
-        var row = await db.PersonalAccessTokens.SingleAsync();
+        var row = await db.PersonalAccessTokens.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(TokenFormat.Hash(created.Secret), row.TokenHash);
         Assert.DoesNotContain(created.Secret[17..], row.TokenHash);
-        var listed = Assert.Single(await Store(connection).ListAsync(adult, default));
+        var listed = Assert.Single(await Store(connection).ListAsync(adult, TestContext.Current.CancellationToken));
         Assert.Equal(created.Token.Id, listed.Id);
     }
 
@@ -60,7 +60,7 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
     {
         var (connection, adult) = await SeedAsync();
 
-        var result = await Store(connection).CreateAsync(adult, name, preset, days, default);
+        var result = await Store(connection).CreateAsync(adult, name, preset, days, TestContext.Current.CancellationToken);
 
         Assert.Equal(code, result.Fails().Code);
     }
@@ -69,21 +69,21 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
     public async Task A_name_longer_than_80_characters_is_refused()
     {
         var (connection, adult) = await SeedAsync();
-        Assert.Equal(TokenCodes.NameInvalid, (await Store(connection).CreateAsync(adult, new string('n', 81), TokenPresets.Read, 30, default)).Fails().Code);
+        Assert.Equal(TokenCodes.NameInvalid, (await Store(connection).CreateAsync(adult, new string('n', 81), TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Fails().Code);
     }
 
     [Fact]
     public async Task An_eleventh_active_token_is_refused_but_a_revoked_one_frees_its_slot()
     {
         var (connection, adult) = await SeedAsync();
-        var first = (await Store(connection).CreateAsync(adult, "t0", TokenPresets.Read, 30, default)).Ok();
+        var first = (await Store(connection).CreateAsync(adult, "t0", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
         for (var i = 1; i < 10; i++)
-            (await Store(connection).CreateAsync(adult, $"t{i}", TokenPresets.Read, 30, default)).Ok();
+            (await Store(connection).CreateAsync(adult, $"t{i}", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(TokenCodes.LimitReached, (await Store(connection).CreateAsync(adult, "t10", TokenPresets.Read, 30, default)).Fails().Code);
+        Assert.Equal(TokenCodes.LimitReached, (await Store(connection).CreateAsync(adult, "t10", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Fails().Code);
 
-        Assert.True((await Store(connection).RevokeAsync(adult, first.Token.Id, default)).Ok());
-        (await Store(connection).CreateAsync(adult, "t10", TokenPresets.Read, 30, default)).Ok();
+        Assert.True((await Store(connection).RevokeAsync(adult, first.Token.Id, TestContext.Current.CancellationToken)).Ok());
+        (await Store(connection).CreateAsync(adult, "t10", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
     }
 
     // Review Focus 3.
@@ -92,11 +92,11 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
     {
         var (connection, adult) = await SeedAsync();
         for (var i = 0; i < 9; i++)
-            (await Store(connection).CreateAsync(adult, $"t{i}", TokenPresets.Read, 30, default)).Ok();
+            (await Store(connection).CreateAsync(adult, $"t{i}", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
 
         var results = await Task.WhenAll(
-            Store(connection).CreateAsync(adult, "a", TokenPresets.Read, 30, default),
-            Store(connection).CreateAsync(adult, "b", TokenPresets.Read, 30, default));
+            Store(connection).CreateAsync(adult, "a", TokenPresets.Read, 30, TestContext.Current.CancellationToken),
+            Store(connection).CreateAsync(adult, "b", TokenPresets.Read, 30, TestContext.Current.CancellationToken));
 
         Assert.Single(results, r => r.IsSuccess);
         Assert.Equal(TokenCodes.LimitReached, Assert.Single(results, r => !r.IsSuccess).Fails().Code);
@@ -106,24 +106,24 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
     public async Task Revoking_is_idempotent_and_another_persons_token_is_not_found()
     {
         var (connection, adult) = await SeedAsync();
-        var created = (await Store(connection).CreateAsync(adult, "t", TokenPresets.Read, 30, default)).Ok();
+        var created = (await Store(connection).CreateAsync(adult, "t", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
 
-        Assert.True((await Store(connection).RevokeAsync(adult, created.Token.Id, default)).Ok());
-        Assert.False((await Store(connection).RevokeAsync(adult, created.Token.Id, default)).Ok());
-        Assert.IsType<UnambitiousFx.Functional.Failures.NotFoundFailure>((await Store(connection).RevokeAsync(PersonId.New(), created.Token.Id, default)).Fails());
+        Assert.True((await Store(connection).RevokeAsync(adult, created.Token.Id, TestContext.Current.CancellationToken)).Ok());
+        Assert.False((await Store(connection).RevokeAsync(adult, created.Token.Id, TestContext.Current.CancellationToken)).Ok());
+        Assert.IsType<UnambitiousFx.Functional.Failures.NotFoundFailure>((await Store(connection).RevokeAsync(PersonId.New(), created.Token.Id, TestContext.Current.CancellationToken)).Fails());
     }
 
     [Fact]
     public async Task Revoke_all_revokes_the_active_ones_only()
     {
         var (connection, adult) = await SeedAsync();
-        var revoked = (await Store(connection).CreateAsync(adult, "r", TokenPresets.Read, 30, default)).Ok();
-        await Store(connection).RevokeAsync(adult, revoked.Token.Id, default);
-        (await Store(connection).CreateAsync(adult, "a", TokenPresets.Read, 30, default)).Ok();
-        (await Store(connection).CreateAsync(adult, "b", TokenPresets.Read, 30, default)).Ok();
+        var revoked = (await Store(connection).CreateAsync(adult, "r", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
+        await Store(connection).RevokeAsync(adult, revoked.Token.Id, TestContext.Current.CancellationToken);
+        (await Store(connection).CreateAsync(adult, "a", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
+        (await Store(connection).CreateAsync(adult, "b", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(2, await Store(connection).RevokeAllAsync(adult, default));
-        Assert.All(await Store(connection).ListAsync(adult, default), t => Assert.NotNull(t.RevokedAt));
+        Assert.Equal(2, await Store(connection).RevokeAllAsync(adult, TestContext.Current.CancellationToken));
+        Assert.All(await Store(connection).ListAsync(adult, TestContext.Current.CancellationToken), t => Assert.NotNull(t.RevokedAt));
     }
 
     [Fact]
@@ -131,27 +131,27 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
     {
         var (connection, adult) = await SeedAsync();
         var clock = new StepClock(Now);
-        var created = (await Store(connection, clock).CreateAsync(adult, "t", TokenPresets.Read, 30, default)).Ok();
+        var created = (await Store(connection, clock).CreateAsync(adult, "t", TokenPresets.Read, 30, TestContext.Current.CancellationToken)).Ok();
 
-        await Store(connection, clock).TouchAsync(created.Token.Id, default);
+        await Store(connection, clock).TouchAsync(created.Token.Id, TestContext.Current.CancellationToken);
         clock.Advance(NodaTime.Duration.FromSeconds(30));
-        await Store(connection, clock).TouchAsync(created.Token.Id, default);
-        Assert.Equal(Now, (await Store(connection).ListAsync(adult, default))[0].LastUsedAt);
+        await Store(connection, clock).TouchAsync(created.Token.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(Now, (await Store(connection).ListAsync(adult, TestContext.Current.CancellationToken))[0].LastUsedAt);
 
         clock.Advance(NodaTime.Duration.FromSeconds(31));
-        await Store(connection, clock).TouchAsync(created.Token.Id, default);
-        Assert.Equal(clock.GetCurrentInstant(), (await Store(connection).ListAsync(adult, default))[0].LastUsedAt);
+        await Store(connection, clock).TouchAsync(created.Token.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(clock.GetCurrentInstant(), (await Store(connection).ListAsync(adult, TestContext.Current.CancellationToken))[0].LastUsedAt);
     }
 
     [Fact]
     public async Task The_credential_is_found_by_prefix()
     {
         var (connection, adult) = await SeedAsync();
-        var created = (await Store(connection).CreateAsync(adult, "t", TokenPresets.Direct, 30, default)).Ok();
+        var created = (await Store(connection).CreateAsync(adult, "t", TokenPresets.Direct, 30, TestContext.Current.CancellationToken)).Ok();
 
-        var credential = await Store(connection).FindByPrefixAsync(created.Token.Prefix, default);
+        var credential = await Store(connection).FindByPrefixAsync(created.Token.Prefix, TestContext.Current.CancellationToken);
 
         Assert.Equal((created.Token.Id, adult), (credential!.Id, credential.Person));
-        Assert.Null(await Store(connection).FindByPrefixAsync("zzzzzzzz", default));
+        Assert.Null(await Store(connection).FindByPrefixAsync("zzzzzzzz", TestContext.Current.CancellationToken));
     }
 }

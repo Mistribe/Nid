@@ -107,9 +107,9 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         // The envelope is shared: B reads its proposals.
         Assert.Equal(2, (await BankProposalsAsync(app, app.AdultB)).Count);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.False(await core.Valuations.AnyAsync(v => v.ItemId == envelope.Value));
+        Assert.False(await core.Valuations.AnyAsync(v => v.ItemId == envelope.Value, cancellationToken: TestContext.Current.CancellationToken));
         await using var db = Db(app);
-        Assert.Equal(D(9, 30), (await db.Accounts.SingleAsync()).LastValuedOn);
+        Assert.Equal(D(9, 30), (await db.Accounts.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).LastValuedOn);
     }
 
     [Fact]
@@ -120,12 +120,12 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Empty(await BankProposalsAsync(app, app.AdultA));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var values = await core.Valuations.Where(v => v.ItemId == envelope.Value).OrderBy(v => v.AsOf).ToListAsync();
+        var values = await core.Valuations.Where(v => v.ItemId == envelope.Value).OrderBy(v => v.AsOf).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([(D(8, 31), 1000m, "Solde bancaire du 31/08/2026"), (D(9, 30), 1100m, "Solde bancaire du 15/09/2026")],
             values.Select(v => (v.AsOf, v.Amount, v.Note)));
         Assert.All(values, v => Assert.Equal(("bank_api", "job", app.AdultA.Value), (v.Source, v.CreatedVia, v.CreatedByPersonId)));
         await using var db = Db(app);
-        var run = await db.SyncRuns.OrderByDescending(r => r.StartedAt).FirstAsync();
+        var run = await db.SyncRuns.OrderByDescending(r => r.StartedAt).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("schedule", "succeeded", 1, 1, 1, 0, 1), (run.Trigger, run.Outcome, run.Connections, run.Accounts, run.Balances, run.Proposals, run.Written));
     }
 
@@ -142,13 +142,13 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         await NightAsync(app, clock, D(8, 31));
         clock.Now = At(D(9, 1));
         Assert.Null((await app.InvokeAsync(app.AdultA, new Nid.Investments.Application.RecordValuationCommand(
-            envelope, D(8, 31), Money.Create(777m, Currency.Eur).Ok(), "à la main"))).Failure);
+            envelope, D(8, 31), Money.Create(777m, Currency.Eur).Ok(), "à la main"), TestContext.Current.CancellationToken)).Failure);
 
         var run = await NightAsync(app, clock, D(9, 2));
 
         Assert.Equal((0, 1), (run.Written, run.Skipped));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var value = await core.Valuations.SingleAsync(v => v.ItemId == envelope.Value && v.RetiredAt == null);
+        var value = await core.Valuations.SingleAsync(v => v.ItemId == envelope.Value && v.RetiredAt == null, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal((777m, "manual"), (value.Amount, value.Source));
         var read = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA, envelope)).EnumerateArray());
         Assert.Equal("2026-08-31", read.GetProperty("balanceConflictOn").GetString());
@@ -181,7 +181,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         var read = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA, envelope)).EnumerateArray());
         Assert.Equal(JsonValueKind.Null, read.GetProperty("balanceConflictOn").ValueKind);
         await using var db = Db(app);
-        Assert.Equal(0, (await db.SyncRuns.OrderByDescending(r => r.StartedAt).FirstAsync()).Skipped);
+        Assert.Equal(0, (await db.SyncRuns.OrderByDescending(r => r.StartedAt).FirstAsync(cancellationToken: TestContext.Current.CancellationToken)).Skipped);
     }
 
     [Fact]
@@ -238,7 +238,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.Single(app.Banks.BalanceCalls);
         Assert.Equal((1, 0, "succeeded"), (run.Connections, run.Accounts, run.Outcome));
         await using var db = Db(app);
-        Assert.Equal("expired", (await db.Connections.SingleAsync(c => c.Id == id)).Status);
+        Assert.Equal("expired", (await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken)).Status);
         // An expired connection is not read again.
         await NightAsync(app, clock, D(8, 14));
         Assert.Single(app.Banks.BalanceCalls);
@@ -258,7 +258,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal((1, 1, 1, null), (run.Accounts, run.Balances, run.Skipped, run.FailureCode));
         await using var db = Db(app);
-        var connection = await db.Connections.SingleAsync(c => c.Id == id);
+        var connection = await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("active", null, 0), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
     }
 
@@ -275,14 +275,14 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal("enablebanking.ASPSP_ERROR", run.FailureCode);
         await using var db = Db(app);
-        var connection = await db.Connections.SingleAsync(c => c.Id == id);
+        var connection = await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("error", "enablebanking.ASPSP_ERROR", 2), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
         // Still read the night after, and back to active once the bank answers.
         Serve(app, "session-code-a", "uid-1", D(8, 15), 10m);
         app.Banks.BalanceFailures.Clear();
         await NightAsync(app, clock, D(8, 15));
         await using var after = Db(app);
-        var back = await after.Connections.SingleAsync(c => c.Id == id);
+        var back = await after.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("active", 0), (back.Status, back.ConsecutiveFailures));
     }
 
@@ -330,15 +330,15 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         await NightAsync(app, clock, D(8, 31));
         // Nobody left who writes the envelope: skipped, and nothing recorded as done.
         await using (var db = Db(app))
-            await db.Accounts.Where(a => a.Id == account).ExecuteUpdateAsync(u => u.SetProperty(a => a.AssociatedByPersonId, (Guid?)null));
+            await db.Accounts.Where(a => a.Id == account).ExecuteUpdateAsync(u => u.SetProperty(a => a.AssociatedByPersonId, (Guid?)null), cancellationToken: TestContext.Current.CancellationToken);
 
         var skipped = await NightAsync(app, clock, D(9, 1));
 
         Assert.Equal((1, 0), (skipped.Skipped, skipped.Proposals));
         await using (var db = Db(app))
         {
-            Assert.Null((await db.Accounts.SingleAsync(a => a.Id == account)).LastValuedOn);
-            await db.Accounts.Where(a => a.Id == account).ExecuteUpdateAsync(u => u.SetProperty(a => a.AssociatedByPersonId, (Guid?)app.AdultB.Value));
+            Assert.Null((await db.Accounts.SingleAsync(a => a.Id == account, cancellationToken: TestContext.Current.CancellationToken)).LastValuedOn);
+            await db.Accounts.Where(a => a.Id == account).ExecuteUpdateAsync(u => u.SetProperty(a => a.AssociatedByPersonId, (Guid?)app.AdultB.Value), cancellationToken: TestContext.Current.CancellationToken);
         }
 
         var valued = await NightAsync(app, clock, D(9, 2));
@@ -366,7 +366,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal([("session-code-2", "uid-1b")], app.Banks.BalanceCalls.Select(c => (c.SessionId, c.AccountUid)));
         await using var db = Db(app);
-        Assert.Equal("uid-1b", (await db.Sources.SingleAsync()).ProviderUid);
+        Assert.Equal("uid-1b", (await db.Sources.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).ProviderUid);
     }
 
     [Fact]
@@ -412,7 +412,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.DoesNotContain(app.Banks.BalanceCalls, c => c.AccountUid == "uid-2");
         Assert.Equal((1, 0, 0), (run.Balances, run.Proposals, run.Written));
         await using var db = Db(app);
-        Assert.Equal(1, await db.Balances.CountAsync()); // one day's balance, of the unassociated account
+        Assert.Equal(1, await db.Balances.CountAsync(cancellationToken: TestContext.Current.CancellationToken)); // one day's balance, of the unassociated account
         Assert.Empty(await BankProposalsAsync(app, app.AdultA));
     }
 
@@ -427,7 +427,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         await AssociateAsync(app, app.AdultA, account, envelope, auto: true);
         // A pair left over from before the rule: the envelope's currency changed under it.
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            await core.Items.Where(i => i.Id == envelope.Value).ExecuteUpdateAsync(s => s.SetProperty(i => i.Currency, "USD"));
+            await core.Items.Where(i => i.Id == envelope.Value).ExecuteUpdateAsync(s => s.SetProperty(i => i.Currency, "USD"), cancellationToken: TestContext.Current.CancellationToken);
         Serve(app, "session-code-a", "uid-1", D(8, 31), 10m);
         await NightAsync(app, clock, D(8, 31));
 
@@ -459,7 +459,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.Equal(new PsuHeaders("203.0.113.7", "Navigateur/1.0"), Assert.Single(app.Banks.TransactionCalls).Psu);
         Assert.Equal("2026-08-20", Assert.Single(await BankProposalsAsync(app, app.AdultA)).GetProperty("subjectKey").GetString());
         await using (var db = Db(app))
-            Assert.Equal("manual", (await db.SyncRuns.SingleAsync()).Trigger);
+            Assert.Equal("manual", (await db.SyncRuns.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).Trigger);
         // The nightly asks without a browser.
         await NightAsync(app, clock, D(8, 21));
         Assert.All(app.Banks.BalanceCalls.Skip(1), c => Assert.Null(c.Psu));
@@ -467,7 +467,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         await using (var db = Db(app))
         {
             db.SyncRuns.Add(new SyncRunRow { Id = Guid.NewGuid(), StartedAt = clock.Now, Trigger = "schedule", Outcome = "running" });
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
         await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/sync", new { }),
             HttpStatusCode.Conflict, BankingCodes.SyncRunning);
@@ -490,7 +490,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.Equal(BankingCodes.Disabled, failure!.Code);
         Assert.Empty(app.Banks.BalanceCalls);
         await using var db = Db(app);
-        Assert.False(await db.SyncRuns.AnyAsync());
+        Assert.False(await db.SyncRuns.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
         await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/sync", new { }),
             HttpStatusCode.Conflict, BankingCodes.Disabled);
     }
@@ -503,7 +503,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         await using (var db = Db(app))
         {
-            var row = JsonSerializer.Serialize(await db.SyncRuns.ToListAsync());
+            var row = JsonSerializer.Serialize(await db.SyncRuns.ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
             foreach (var secret in new[] { "Banque Alpha", "Livret", "uid-1", "session-code-a", app.AdultA.Value.ToString() })
                 Assert.DoesNotContain(secret, row, StringComparison.Ordinal);
         }
@@ -532,9 +532,9 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal(2, run.Transactions);
         await using var db = Db(app);
-        var stored = await db.Transactions.OrderBy(t => t.BookedOn).ToListAsync();
+        var stored = await db.Transactions.OrderBy(t => t.BookedOn).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([("r1", -13.49m, "api", "unlinked"), ("r2", 1500m, "api", "unlinked")], stored.Select(t => (t.ProviderRef, t.Amount, t.FetchedVia, t.LinkState)));
-        Assert.Equal(2, (await db.SyncRuns.SingleAsync()).Transactions);
+        Assert.Equal(2, (await db.SyncRuns.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).Transactions);
     }
 
     [Fact]
@@ -551,7 +551,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal((0, "succeeded"), (second.Transactions, second.Outcome));
         await using var db = Db(app);
-        Assert.Equal(2, await db.Transactions.CountAsync());
+        Assert.Equal(2, await db.Transactions.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -583,7 +583,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             await scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(await AccountAsync(app, app.AdultA, "Courant A"),
-                [new NewBankTransaction("f1", D(8, 19), null, -9m, Currency.Eur, "CB A VENIR", null, null, "file")], default);
+                [new NewBankTransaction("f1", D(8, 19), null, -9m, Currency.Eur, "CB A VENIR", null, null, "file")], TestContext.Current.CancellationToken);
         }
 
         await NightAsync(app, clock, D(8, 13));
@@ -619,7 +619,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.Equal(3, (await NightAsync(app, clock, D(8, 12))).Transactions);
 
         await using var db = Db(app);
-        Assert.DoesNotContain(await db.Transactions.Select(t => t.ProviderRef).ToListAsync(), r => string.IsNullOrWhiteSpace(r));
+        Assert.DoesNotContain(await db.Transactions.Select(t => t.ProviderRef).ToListAsync(cancellationToken: TestContext.Current.CancellationToken), r => string.IsNullOrWhiteSpace(r));
     }
 
     [Fact]
@@ -655,7 +655,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal(1, run.Transactions);
         await using var db = Db(app);
-        Assert.Equal(card, (await db.Transactions.SingleAsync()).AccountId);
+        Assert.Equal(card, (await db.Transactions.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).AccountId);
     }
 
     [Fact]
@@ -671,7 +671,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal((1, 1, 0, null), (run.Balances, run.Skipped, run.Transactions, run.FailureCode));
         await using var db = Db(app);
-        var connection = await db.Connections.SingleAsync(c => c.Id == id);
+        var connection = await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("active", null, 0), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
     }
 
@@ -706,7 +706,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         Assert.Equal((2, "failed", "banking.transactions_truncated"), (run.Transactions, run.Outcome, run.FailureCode));
         await using var db = Db(app);
-        var connection = await db.Connections.SingleAsync(c => c.Id == id);
+        var connection = await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("active", null, 0), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
     }
 }

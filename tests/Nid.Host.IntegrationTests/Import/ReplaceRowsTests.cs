@@ -57,7 +57,7 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         string? hashBefore;
         await using (var before = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            var row = await before.Phases.AsNoTracking().SingleAsync(p => p.ImportRef == "ph-spotify-1");
+            var row = await before.Phases.AsNoTracking().SingleAsync(p => p.ImportRef == "ph-spotify-1", cancellationToken: TestContext.Current.CancellationToken);
             (phaseId, hashBefore) = (row.Id, row.ImportHash);
         }
 
@@ -66,13 +66,13 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(new CountsResponse(0, 1, 0, 1), committed.Report!.Sections["billing_phases"]);
         await using var after = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(2, await after.Phases.CountAsync());
-        var phase = await after.Phases.AsNoTracking().SingleAsync(p => p.Id == phaseId); // same row
+        Assert.Equal(2, await after.Phases.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+        var phase = await after.Phases.AsNoTracking().SingleAsync(p => p.Id == phaseId, cancellationToken: TestContext.Current.CancellationToken); // same row
         Assert.Equal(decimal.Parse(NewAmount, CultureInfo.InvariantCulture), phase.PriceAmount);
         Assert.Equal("ph-spotify-1", phase.ImportRef);
         Assert.NotEqual(hashBefore, phase.ImportHash);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var update = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Action == "update" && r.Entity == "subscriptions.billing_phase");
+        var update = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Action == "update" && r.Entity == "subscriptions.billing_phase", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(OldAmount, update.Data);
         Assert.Equal("import", update.Via);
     }
@@ -87,11 +87,11 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Guid spotify;
         await using (var before = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            purchaseId = (await before.Purchases.AsNoTracking().SingleAsync(p => p.ImportRef == "pu-gift")).Id;
-            spotify = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
+            purchaseId = (await before.Purchases.AsNoTracking().SingleAsync(p => p.ImportRef == "pu-gift", cancellationToken: TestContext.Current.CancellationToken)).Id;
+            spotify = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
         }
         await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq, cancellationToken: TestContext.Current.CancellationToken);
 
         // pu-gift's label and its only grant's duration: "count":3 is unique to that grant.
         var changed = GoldenFile.With("purchases", GoldenFile.Purchases
@@ -101,14 +101,14 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(new CountsResponse(0, 2, 0, 1), committed.Report!.Sections["purchases"]);
         await using var after = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        Assert.Equal(3, await after.Purchases.CountAsync());
-        var purchase = await after.Purchases.AsNoTracking().Include(p => p.Grants).SingleAsync(p => p.Id == purchaseId); // same row
+        Assert.Equal(3, await after.Purchases.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+        var purchase = await after.Purchases.AsNoTracking().Include(p => p.Grants).SingleAsync(p => p.Id == purchaseId, cancellationToken: TestContext.Current.CancellationToken); // same row
         Assert.Equal(NewLabel, purchase.Label);
         var grant = Assert.Single(purchase.Grants);
         Assert.Equal((0, spotify, 4, "month", "gift"), (grant.Index, grant.SubscriptionItemId, grant.DurationCount, grant.DurationUnit, grant.Source));
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var writes = await platform.AuditLog.Where(r => r.Category == "write" && r.Seq > lastSeq).ToListAsync();
+        var writes = await platform.AuditLog.Where(r => r.Category == "write" && r.Seq > lastSeq).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var update = Assert.Single(writes, r => r.Action == "update" && r.Entity == "subscriptions.purchase");
         Assert.Contains(OldLabel, update.Data);
         Assert.Equal([spotify], update.ItemIds);
@@ -132,11 +132,11 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Guid wow;
         await using (var before = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            spotify = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
-            wow = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-wow")).ItemId;
+            spotify = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
+            wow = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-wow", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
         }
         await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq, cancellationToken: TestContext.Current.CancellationToken);
 
         // pu-gift's only grant ("count":3 is unique to it) moves from sub-spotify to sub-wow, and its label changes.
         var moved = GoldenFile.With("purchases", GoldenFile.Purchases
@@ -146,7 +146,7 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(1, committed.Report!.Sections["purchases"].Replaced);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var update = await platform.AuditLog.SingleAsync(r => r.Seq > lastSeq && r.Action == "update" && r.Entity == "subscriptions.purchase");
+        var update = await platform.AuditLog.SingleAsync(r => r.Seq > lastSeq && r.Action == "update" && r.Entity == "subscriptions.purchase", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(new[] { spotify, wow }.Order(), update.ItemIds.Order());
         foreach (var item in new[] { spotify, wow })
         {
@@ -177,7 +177,7 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await CommitAsync(client, app, GoldenFile.Sections());
         Guid purchaseId;
         await using (var before = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
-            purchaseId = (await before.Purchases.AsNoTracking().SingleAsync(p => p.ImportRef == "pu-gift")).Id;
+            purchaseId = (await before.Purchases.AsNoTracking().SingleAsync(p => p.ImportRef == "pu-gift", cancellationToken: TestContext.Current.CancellationToken)).Id;
 
         var file = GoldenFile.With("subscriptions", Append(GoldenFile.Subscriptions,
             """[{"id":"sub-deezer","name":"Deezer","ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]"""));
@@ -190,9 +190,9 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(new CountsResponse(1, 3, 0, 0), committed.Report!.Sections["subscriptions"]);
         Assert.Equal(new CountsResponse(0, 2, 0, 1), committed.Report.Sections["purchases"]);
         await using var after = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var deezer = (await after.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-deezer")).ItemId;
-        var spotify = (await after.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
-        var purchase = await after.Purchases.AsNoTracking().Include(p => p.Grants).SingleAsync(p => p.Id == purchaseId);
+        var deezer = (await after.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-deezer", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
+        var spotify = (await after.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
+        var purchase = await after.Purchases.AsNoTracking().Include(p => p.Grants).SingleAsync(p => p.Id == purchaseId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([(0, spotify), (1, deezer)], purchase.Grants.OrderBy(g => g.Index).Select(g => (g.Index, g.SubscriptionItemId)).ToList());
     }
 
@@ -225,7 +225,7 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
             ["persons"] = GoldenFile.Persons, ["subscriptions"] = Subscriptions, ["purchases"] = Gift(before),
         });
         await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var writesBefore = await platformBefore.AuditLog.CountAsync(r => r.Category == "write");
+        var writesBefore = await platformBefore.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken);
 
         var session = await StageAsync(client, app, app.AdultB, new Dictionary<string, string>
         {
@@ -241,10 +241,10 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, session.Id, replace: true)).StatusCode);
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var purchase = await subs.Purchases.AsNoTracking().Include(p => p.Grants).SingleAsync();
+        var purchase = await subs.Purchases.AsNoTracking().Include(p => p.Grants).SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(before.Length, purchase.Grants.Count);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(writesBefore, await platform.AuditLog.CountAsync(r => r.Category == "write"));
+        Assert.Equal(writesBefore, await platform.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -282,8 +282,8 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(new CountsResponse(0, 2, 0, 1), committed.Report!.Sections["subscriptions"]);
         Assert.Equal(new CountsResponse(1, 2, 0, 0), committed.Report.Sections["billing_phases"]);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var spotify = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
-        Assert.Equal(3, await subs.Phases.CountAsync(p => p.ItemId == spotify));
+        var spotify = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
+        Assert.Equal(3, await subs.Phases.CountAsync(p => p.ItemId == spotify, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>A phase is replaced under its subscription (spec §3.3 lists no subscription among what is replaced): it does not move.</summary>
@@ -305,8 +305,8 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal((ImportCodes.InvalidValue, "billing_phases[0].subscription_id"), (issue.Code, issue.Path));
         Assert.Equal((0, 0), (validated.Report.Sections["billing_phases"].Replaced, validated.Report.Sections["billing_phases"].Conflict));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var spotify = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
-        Assert.Equal(spotify, (await subs.Phases.AsNoTracking().SingleAsync(p => p.ImportRef == "ph-spotify-1")).ItemId);
+        var spotify = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
+        Assert.Equal(spotify, (await subs.Phases.AsNoTracking().SingleAsync(p => p.ImportRef == "ph-spotify-1", cancellationToken: TestContext.Current.CancellationToken)).ItemId);
     }
 
     [Fact]
@@ -316,7 +316,7 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var client = new ImportClient(app);
         await CommitAsync(client, app, GoldenFile.Sections());
         await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var writesBefore = await platformBefore.AuditLog.CountAsync(r => r.Category == "write");
+        var writesBefore = await platformBefore.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken);
 
         // ph-spotify-1 now runs a month into the stored ph-spotify-2: a phase alone passes the receipt's check, only
         // the dry run against the subscription's other phases sees the overlap (the engine's one cross-row rule).
@@ -332,9 +332,9 @@ public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultA, session.Id, replace: true)).StatusCode);
 
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var phase = await subs.Phases.AsNoTracking().SingleAsync(p => p.ImportRef == "ph-spotify-1");
+        var phase = await subs.Phases.AsNoTracking().SingleAsync(p => p.ImportRef == "ph-spotify-1", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(new LocalDate(2025, 6, 28), phase.EndsOn);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(writesBefore, await platform.AuditLog.CountAsync(r => r.Category == "write"));
+        Assert.Equal(writesBefore, await platform.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken));
     }
 }

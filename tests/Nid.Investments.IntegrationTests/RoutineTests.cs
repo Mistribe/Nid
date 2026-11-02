@@ -70,7 +70,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         Assert.False((await ListAsync(app, app.AdultA, "?on=2025-09-30")).GetProperty("lines")[0].GetProperty("due").GetBoolean());
         var future = await app.RawAsync(app.AdultA, HttpMethod.Get, Url + "?on=2025-10-31");
         Assert.Equal(HttpStatusCode.UnprocessableEntity, future.StatusCode);
-        Assert.Contains("core.date_in_future", await future.Content.ReadAsStringAsync());
+        Assert.Contains("core.date_in_future", await future.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var line = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0];
+        var line = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("lines")[0];
         Assert.Equal(1000m, Dec(line.GetProperty("previousValue")));
         Assert.Equal("2025-08-31", line.GetProperty("previousAsOf").GetString());
         Assert.Equal(1100m, Dec(line.GetProperty("value")));
@@ -142,7 +142,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var lines = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("lines");
+        var lines = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("lines");
         Assert.Equal(JsonValueKind.Null, lines[0].GetProperty("gain").ValueKind);
         Assert.Equal(JsonValueKind.Null, lines[0].GetProperty("previousValue").ValueKind);
         Assert.Equal(JsonValueKind.Null, lines[1].GetProperty("valuationId").ValueKind);
@@ -196,7 +196,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal(code, problem.GetProperty("code").GetString());
         Assert.Equal(path, problem.GetProperty("errors")[0].GetProperty("path").GetString());
         Assert.Equal(JsonValueKind.Null, (await LatestAsync(app, first)).GetProperty("lastValue").ValueKind);
@@ -209,7 +209,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         var pea = await EnvelopeAsync(app, "PEA", "monthly");
         var response = await RecordAsync(app, app.AdultA, new { on = "2025-10-31", lines = new[] { new { envelopeId = pea.Value, value = Eur("1.00") } } });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Contains("\"path\":\"on\"", await response.Content.ReadAsStringAsync());
+        Assert.Contains("\"path\":\"on\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -222,7 +222,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         {
             on = "2025-09-30",
             lines = new[] { new { envelopeId = pea.Value, value = Eur("1100.00"), contribution = Eur("50.00") } },
-        })).Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0];
+        })).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("lines")[0];
 
         var undo = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new
         {
@@ -230,7 +230,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         });
 
         Assert.Equal(HttpStatusCode.OK, undo.StatusCode);
-        Assert.Equal(2, JsonDocument.Parse(await undo.Content.ReadAsStringAsync()).RootElement.GetProperty("voided").GetInt32());
+        Assert.Equal(2, JsonDocument.Parse(await undo.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("voided").GetInt32());
         var line = await LatestAsync(app, pea);
         Assert.Equal(1000m, Dec(line.GetProperty("lastValue")));
         Assert.Equal("2025-08-31", line.GetProperty("lastAsOf").GetString());
@@ -251,7 +251,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         var response = await RecordAsync(app, app.AdultA, new { on = "2025-09-30", lines = new[] { new { envelopeId = pea.Value, value = Eur("1100.00") } } });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal("investments.routine_value_exists", problem.GetProperty("code").GetString());
         Assert.Equal("lines[0].value", problem.GetProperty("errors")[0].GetProperty("path").GetString());
         Assert.Equal(1000m, Dec((await LatestAsync(app, pea)).GetProperty("lastValue")));
@@ -268,17 +268,17 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
             ["phases"] = new[] { new { label = "Salaire", startsOn = "2025-01-01", endsOn = (string?)null, netAmount = Eur("2000"), every = new { count = 1, unit = "month" }, maxCycles = (int?)null } },
         });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var source = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        var source = JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
         var oneOff = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{source}/one-offs", new { occurredOn = "2025-06-10", amount = Eur("500"), note = "Prime" });
-        var flow = JsonDocument.Parse(await oneOff.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        var flow = JsonDocument.Parse(await oneOff.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
 
         var undo = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts = new[] { new { envelopeId = source, valuationId = (Guid?)null, flowId = (Guid?)flow } } });
         Assert.Equal(HttpStatusCode.NotFound, undo.StatusCode);
         var detail = await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/income/sources/{source}");
-        Assert.Contains(flow.ToString(), await detail.Content.ReadAsStringAsync());
+        Assert.Contains(flow.ToString(), await detail.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var pea = await EnvelopeAsync(app, "PEA", "monthly");
-        var recorded = JsonDocument.Parse(await (await RecordAsync(app, app.AdultA, new { on = "2025-09-30", lines = new[] { new { envelopeId = pea.Value, value = Eur("10.00") } } })).Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0];
+        var recorded = JsonDocument.Parse(await (await RecordAsync(app, app.AdultA, new { on = "2025-09-30", lines = new[] { new { envelopeId = pea.Value, value = Eur("10.00") } } })).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("lines")[0];
         var close = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{pea.Value}/close", new { closedOn = "2025-09-30", finalWithdrawal = (object?)null });
         Assert.True(close.IsSuccessStatusCode);
         var closedUndo = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts = new[] { new { envelopeId = pea.Value, valuationId = recorded.GetProperty("valuationId").GetGuid(), flowId = (Guid?)null } } });
@@ -293,7 +293,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         var recorded = JsonDocument.Parse(await (await RecordAsync(app, app.AdultA, new
         {
             on = "2025-09-30", lines = new[] { new { envelopeId = pea.Value, value = Eur("1100.00"), contribution = Eur("50.00") } },
-        })).Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0];
+        })).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("lines")[0];
         var valuation = recorded.GetProperty("valuationId").GetGuid();
         var flow = recorded.GetProperty("flowId").GetGuid();
         var delete = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/investments/envelopes/{pea.Value}/flows/{flow}");

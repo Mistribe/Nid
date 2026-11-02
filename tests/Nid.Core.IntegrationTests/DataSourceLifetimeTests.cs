@@ -19,6 +19,6 @@ public class DataSourceLifetimeTests
 
         await provider.DisposeAsync();
 
-        await Assert.ThrowsAsync<ObjectDisposedException>(async () => await dataSource.OpenConnectionAsync());
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () => await dataSource.OpenConnectionAsync(TestContext.Current.CancellationToken));
     }
 }

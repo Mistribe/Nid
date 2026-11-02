@@ -91,7 +91,7 @@ public class RecurringDebitTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand());
+            await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand(), TestContext.Current.CancellationToken);
         }
 
         var proposal = Assert.Single(await PendingAsync(app, app.AdultA));
@@ -141,7 +141,7 @@ public class RecurringDebitTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         var approved = await ApproveAsync(app, Assert.Single(await PendingAsync(app, app.AdultA)));
 
-        Assert.True(approved.StatusCode == HttpStatusCode.OK, await approved.Content.ReadAsStringAsync());
+        Assert.True(approved.StatusCode == HttpStatusCode.OK, await approved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var subscription = Assert.Single((await JsonOf(approved)).GetProperty("appliedRefs").EnumerateArray()).GetGuid();
         var detail = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{subscription}")).RootElement;
         Assert.Equal("SPOTIFY", detail.GetProperty("displayName").GetString());
@@ -153,7 +153,7 @@ public class RecurringDebitTests(PostgresFixture fixture) : IClassFixture<Postgr
                 (link.TargetModule, link.TargetItem!.Value.Value, link.TargetKey, link.Outcome, link.DecidedBy));
         }
         await using var scope = app.Services.CreateAsyncScope();
-        var rule = Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultA, default));
+        var rule = Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultA, TestContext.Current.CancellationToken));
         Assert.Equal((courant, "SPOTIFY", "subscriptions", subscription), (rule.Account, rule.LabelStem, rule.TargetModule, rule.TargetItem.Value));
     }
 
@@ -177,7 +177,7 @@ public class RecurringDebitTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Empty(await PendingAsync(app, app.AdultA));
         await using var scope = app.Services.CreateAsyncScope();
         // Not remembered either: the group is free to be proposed once the charge is gone.
-        Assert.True(await scope.ServiceProvider.GetRequiredService<IRuleStore>().TryRememberGroupAsync(courant, "NETFLIX", Instant.FromUnixTimeSeconds(0), default));
+        Assert.True(await scope.ServiceProvider.GetRequiredService<IRuleStore>().TryRememberGroupAsync(courant, "NETFLIX", Instant.FromUnixTimeSeconds(0), TestContext.Current.CancellationToken));
     }
 
     [Fact]

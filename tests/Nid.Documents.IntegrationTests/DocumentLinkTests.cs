@@ -65,8 +65,8 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         var id = await UploadedAsync(app, app.AdultB, Pdf, $"fileName=a.pdf&targetKind=core.item&targetId={shared.Value}&role=invoice");
         await GainedAsync(app, app.AdultB, id, TargetKinds.CoreItem, secret.Value);
 
-        var detail = await (await GetAsync(app, app.AdultA, id)).Content.ReadAsStringAsync();
-        var list = await (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Root}?scope=me")).Content.ReadAsStringAsync();
+        var detail = await (await GetAsync(app, app.AdultA, id)).Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var list = await (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Root}?scope=me")).Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         foreach (var body in new[] { detail, list })
         {
             Assert.Contains(shared.Value.ToString(), body);
@@ -129,7 +129,7 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             await scope.ServiceProvider.GetRequiredService<IDocumentStore>().AddLinkAsync(
-                new LinkRecord(id, "income.phase", Guid.NewGuid(), shared.Value, "other", app.AdultA.Value, SystemClock.Instance.GetCurrentInstant()), default);
+                new LinkRecord(id, "income.phase", Guid.NewGuid(), shared.Value, "other", app.AdultA.Value, SystemClock.Instance.GetCurrentInstant()), TestContext.Current.CancellationToken);
         }
 
         var link = Assert.Single(await LinksAsync(app, app.AdultA, id));

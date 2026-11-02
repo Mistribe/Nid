@@ -62,7 +62,7 @@ public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) :
         Assert.Equal("2450.00", detail.GetProperty("monthlyEquivalent").GetProperty("amount").GetString());
 
         await using var income = PostgresFixture.NewIncomeContext(app.ConnectionString);
-        Assert.Equal(2, await income.Phases.CountAsync(p => p.SourceItemId == id));
+        Assert.Equal(2, await income.Phases.CountAsync(p => p.SourceItemId == id, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) :
         var problem = await JsonAsync(refused);
         Assert.Contains(problem.GetProperty("errors").EnumerateArray(), e => e.GetProperty("path").GetString() == "visibility");
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "income"));
+        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "income", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     public static TheoryData<string, string, string> Rules => new()
@@ -139,7 +139,7 @@ public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) :
         var app = shared.App;
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, Sources, Breaking(app, rule));
-        var (_, failure) = await app.InvokeAsync(app.AdultA, BreakingCommand(app, rule));
+        var (_, failure) = await app.InvokeAsync(app.AdultA, BreakingCommand(app, rule), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         var problem = await JsonAsync(refused);
@@ -151,9 +151,9 @@ public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) :
         Assert.Equal(code, failure?.Code);
         Assert.Equal(field, failure!.Metadata!["field"]);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "income"));
+        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "income", cancellationToken: TestContext.Current.CancellationToken));
         await using var income = PostgresFixture.NewIncomeContext(app.ConnectionString);
-        Assert.Equal(0, await income.Phases.CountAsync());
+        Assert.Equal(0, await income.Phases.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

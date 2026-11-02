@@ -34,7 +34,7 @@ public class DocumentMaskBehaviorTests
         var behavior = new DocumentMaskBehavior<GetEnvelopeQuery, EnvelopeDetail>(
             new ThrowingInvoker(), NullLogger<DocumentMaskBehavior<GetEnvelopeQuery, EnvelopeDetail>>.Instance);
 
-        var result = await behavior.HandleAsync(new GetEnvelopeQuery(detail.Id), (_, _) => ValueTask.FromResult(Result.Success(detail)));
+        var result = await behavior.HandleAsync(new GetEnvelopeQuery(detail.Id), (_, _) => ValueTask.FromResult(Result.Success(detail)), TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetValue(out var masked));
         Assert.Null(Assert.Single(masked!.Valuations).DocumentId);

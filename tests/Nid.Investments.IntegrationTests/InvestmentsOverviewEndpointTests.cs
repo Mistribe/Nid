@@ -240,7 +240,7 @@ public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : ICla
         var household = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?from=2024-12-31&to=2025-10-15"));
 
         Assert.Equal((HttpStatusCode.BadRequest, HttpStatusCode.BadRequest), (reversed.StatusCode, future.StatusCode));
-        Assert.Contains("investments.invalid_period", await reversed.Content.ReadAsStringAsync());
+        Assert.Contains("investments.invalid_period", await reversed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Single(household.GetProperty("envelopes").EnumerateArray());
         Assert.DoesNotContain(hidden.Value.ToString(), household.ToString());
     }

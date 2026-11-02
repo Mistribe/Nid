@@ -23,13 +23,13 @@ public class FactImportsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
         var mark = new ImportMark("val-1", new string('a', 64), w.Alice);
-        (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null, FactSource.Import, mark), default)).Ok();
+        (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null, FactSource.Import, mark), TestContext.Current.CancellationToken)).Ok();
 
-        var found = await w.FactImports.FindImportedAsync(FactTable.Valuation, ["val-1", "val-2"], default);
+        var found = await w.FactImports.FindImportedAsync(FactTable.Valuation, ["val-1", "val-2"], TestContext.Current.CancellationToken);
         var row = Assert.Single(found["val-1"]);
         Assert.Equal((item, mark.Hash, w.Alice), (row.Item, row.Hash, row.ImportedBy));
         Assert.False(found.ContainsKey("val-2"));
-        Assert.Equal(mark, Assert.Single(await w.FactImports.ValuationsOfAsync([item], default)).Import);
+        Assert.Equal(mark, Assert.Single(await w.FactImports.ValuationsOfAsync([item], TestContext.Current.CancellationToken)).Import);
     }
 
     [Fact]
@@ -38,14 +38,14 @@ public class FactImportsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
         var mark = new ImportMark("val-1", new string('a', 64), w.Alice);
-        var first = (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null, FactSource.Import, mark), default)).Ok();
+        var first = (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null, FactSource.Import, mark), TestContext.Current.CancellationToken)).Ok();
 
         var next = (await w.Valuations.SupersedeAsync(item, first.Id,
-            new NewValuation(item, new LocalDate(2025, 2, 28), FactWorld.Eur(120m), null, FactSource.Import, mark with { Hash = new string('b', 64) }), default)).Ok();
+            new NewValuation(item, new LocalDate(2025, 2, 28), FactWorld.Eur(120m), null, FactSource.Import, mark with { Hash = new string('b', 64) }), TestContext.Current.CancellationToken)).Ok();
 
-        var stored = Assert.Single(await w.FactImports.ValuationsOfAsync([item], default));
+        var stored = Assert.Single(await w.FactImports.ValuationsOfAsync([item], TestContext.Current.CancellationToken));
         Assert.Equal((next.Id, new LocalDate(2025, 2, 28), new string('b', 64)), (stored.Valuation.Id, stored.Valuation.AsOf, stored.Import!.Hash));
-        Assert.Equal(first.Id, (await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == next.Id)).SupersedesId);
+        Assert.Equal(first.Id, (await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == next.Id, cancellationToken: TestContext.Current.CancellationToken)).SupersedesId);
     }
 
     [Fact]
@@ -53,13 +53,13 @@ public class FactImportsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        var a = (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null), default)).Ok();
-        (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 2, 28), FactWorld.Eur(110m), null), default)).Ok();
+        var a = (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null), TestContext.Current.CancellationToken)).Ok();
+        (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 2, 28), FactWorld.Eur(110m), null), TestContext.Current.CancellationToken)).Ok();
 
-        var moved = await w.Valuations.SupersedeAsync(item, a.Id, new NewValuation(item, new LocalDate(2025, 2, 28), FactWorld.Eur(1m), null), default);
+        var moved = await w.Valuations.SupersedeAsync(item, a.Id, new NewValuation(item, new LocalDate(2025, 2, 28), FactWorld.Eur(1m), null), TestContext.Current.CancellationToken);
 
         Assert.Equal(CoreFactCodes.FactConflict, Code(moved));
-        Assert.Equal(2, (await w.FactImports.ValuationsOfAsync([item], default)).Count);
+        Assert.Equal(2, (await w.FactImports.ValuationsOfAsync([item], TestContext.Current.CancellationToken)).Count);
     }
 
     [Fact]
@@ -68,15 +68,15 @@ public class FactImportsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
         var date = new LocalDate(2025, 1, 31);
-        var hand = (await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(100m), null), default)).Ok();
+        var hand = (await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(100m), null), TestContext.Current.CancellationToken)).Ok();
 
-        var imported = await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(120m), null, FactSource.Import, new ImportMark("val-1", new string('a', 64), w.Alice)), default);
+        var imported = await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(120m), null, FactSource.Import, new ImportMark("val-1", new string('a', 64), w.Alice)), TestContext.Current.CancellationToken);
 
         Assert.Equal(CoreFactCodes.FactConflict, Code(imported));
-        Assert.Null((await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == hand.Id)).RetiredAt);
+        Assert.Null((await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == hand.Id, cancellationToken: TestContext.Current.CancellationToken)).RetiredAt);
 
-        var manual = (await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(130m), null), default)).Ok();
-        Assert.Equal(hand.Id, (await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == manual.Id)).SupersedesId);
+        var manual = (await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(130m), null), TestContext.Current.CancellationToken)).Ok();
+        Assert.Equal(hand.Id, (await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == manual.Id, cancellationToken: TestContext.Current.CancellationToken)).SupersedesId);
     }
 
     [Fact]
@@ -85,13 +85,13 @@ public class FactImportsTests(PostgresFixture postgres)
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
         var mark = new ImportMark("fl-1", new string('a', 64), w.Alice);
-        var flow = (await w.Flows.RecordAsync(new NewFlow(item, new LocalDate(2025, 1, 15), FlowKind.Contribution, FactWorld.Eur(50m), null, null, null, FactSource.Import, mark), default)).Ok();
+        var flow = (await w.Flows.RecordAsync(new NewFlow(item, new LocalDate(2025, 1, 15), FlowKind.Contribution, FactWorld.Eur(50m), null, null, null, FactSource.Import, mark), TestContext.Current.CancellationToken)).Ok();
         (await w.Flows.SupersedeAsync(item, flow.Id,
-            new NewFlow(item, new LocalDate(2025, 1, 15), FlowKind.Contribution, FactWorld.Eur(60m), null, null, null, FactSource.Import, mark), default)).Ok();
+            new NewFlow(item, new LocalDate(2025, 1, 15), FlowKind.Contribution, FactWorld.Eur(60m), null, null, null, FactSource.Import, mark), TestContext.Current.CancellationToken)).Ok();
 
-        var stored = Assert.Single(await w.FactImports.FlowsOfAsync([item], default));
+        var stored = Assert.Single(await w.FactImports.FlowsOfAsync([item], TestContext.Current.CancellationToken));
         Assert.Equal((60m, "fl-1"), (stored.Flow.Amount.Amount, stored.Import!.Ref));
-        Assert.Single((await w.FactImports.FindImportedAsync(FactTable.Flow, ["fl-1"], default))["fl-1"]);
+        Assert.Single((await w.FactImports.FindImportedAsync(FactTable.Flow, ["fl-1"], TestContext.Current.CancellationToken))["fl-1"]);
     }
 
     [Fact]
@@ -99,10 +99,10 @@ public class FactImportsTests(PostgresFixture postgres)
     {
         await using var w = await FactWorld.NewAsync(postgres);
         var item = await w.ItemAsync(w.Alice);
-        (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null), default)).Ok();
-        Assert.Null(Assert.Single(await w.FactImports.ValuationsOfAsync([item], default)).Import);
+        (await w.Valuations.RecordAsync(new NewValuation(item, new LocalDate(2025, 1, 31), FactWorld.Eur(100m), null), TestContext.Current.CancellationToken)).Ok();
+        Assert.Null(Assert.Single(await w.FactImports.ValuationsOfAsync([item], TestContext.Current.CancellationToken)).Import);
 
-        var broken = w.Db.Database.ExecuteSqlRawAsync("update core.valuation set import_ref = 'x'");
+        var broken = w.Db.Database.ExecuteSqlRawAsync("update core.valuation set import_ref = 'x'", cancellationToken: TestContext.Current.CancellationToken);
         await Assert.ThrowsAsync<Npgsql.PostgresException>(() => broken);
     }
 }

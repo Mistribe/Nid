@@ -144,10 +144,10 @@ public class ContractTermsImportTests(PostgresFixture fixture) : IClassFixture<P
 
         Guid id;
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
-            id = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-insurance")).ItemId;
+            id = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-insurance", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
         var patched = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id}",
             new { anniversaryOn = "2026-03-15", notice = new { count = 2, unit = "month" }, commitmentEndsOn = "2027-03-15", cancellableFrom = "2026-09-15" });
-        Assert.True(patched.IsSuccessStatusCode, await patched.Content.ReadAsStringAsync());
+        Assert.True(patched.IsSuccessStatusCode, await patched.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var expected = ("2026-03-15", 2, "month", "2027-03-15", "2026-09-15");
         Assert.Equal(expected, await StoredTermsAsync(app));
 

@@ -152,10 +152,10 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EvaluateAsync(h.App);
 
         await using var db = PostgresFixture.NewPlatformContext(h.App.ConnectionString);
-        var household = await db.Deliveries.AsNoTracking().Where(d => d.Channel == "discord_household").ToListAsync();
+        var household = await db.Deliveries.AsNoTracking().Where(d => d.Channel == "discord_household").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Single(await RowsAsync(h.App, "sync_failed"));
         Assert.Single(household);
-        var kind = await db.Notifications.AsNoTracking().Where(n => n.Id == household[0].NotificationId).Select(n => n.Kind).SingleAsync();
+        var kind = await db.Notifications.AsNoTracking().Where(n => n.Id == household[0].NotificationId).Select(n => n.Kind).SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("backup_failed", kind);
     }
 }

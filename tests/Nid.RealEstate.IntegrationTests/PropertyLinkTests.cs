@@ -58,7 +58,7 @@ public class PropertyLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.Equal(JsonValueKind.Null, (await DetailAsync(app, loan)).GetProperty("propertyId").ValueKind);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(2, await core.Items.CountAsync(i => i.Kind == "loan")); // no refused creation left a loan
+        Assert.Equal(2, await core.Items.CountAsync(i => i.Kind == "loan", cancellationToken: TestContext.Current.CancellationToken)); // no refused creation left a loan
     }
 
     [Fact]

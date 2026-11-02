@@ -157,7 +157,7 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             services.AddScoped<INotificationSource>(sp => new ActorProbe(sp.GetRequiredService<IActorAccessor>(), seen));
         });
 
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new EvaluateNotificationsCommand(null, true));
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new EvaluateNotificationsCommand(null, true), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         Assert.NotEmpty(seen);
@@ -263,7 +263,7 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             emailEnabled = false, action = "immediate", info = "digest", frequency = "weekly", weekday = 1,
             leadDays = new Dictionary<string, int> { [Dated.Kind] = 30 }, version = 0,
         });
-        Assert.True(saved.IsSuccessStatusCode, await saved.Content.ReadAsStringAsync());
+        Assert.True(saved.IsSuccessStatusCode, await saved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         h.Clock.Now = Later;
         await RunAsync(h, force: true);
 
@@ -344,7 +344,7 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using (var scope = h.App.Services.CreateAsyncScope())
         {
             var store = scope.ServiceProvider.GetRequiredService<INotificationStore>();
-            await store.MarkReadAsync(h.App.AdultA, [Assert.Single(await RowsAsync(h.App, h.App.AdultA)).Id], After0600, default);
+            await store.MarkReadAsync(h.App.AdultA, [Assert.Single(await RowsAsync(h.App, h.App.AdultA)).Id], After0600, TestContext.Current.CancellationToken);
         }
 
         h.Clock.Now = After0600 + NodaTime.Duration.FromDays(1);
@@ -379,7 +379,7 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
                 NotifyOn = new LocalDate(2025, 6, 1), State = NotificationStates.Dismissed,
                 CreatedAt = After0600 - NodaTime.Duration.FromDays(120), DismissedAt = After0600 - NodaTime.Duration.FromDays(100),
             });
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         h.Source.Signals.Add(SignalOf(Undated.Kind, "d:1"));
@@ -414,7 +414,7 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
                 NotifyOn = new LocalDate(2025, 6, 1), State = NotificationStates.Resolved,
                 CreatedAt = After0600 - NodaTime.Duration.FromDays(120), ResolvedAt = After0600 - NodaTime.Duration.FromDays(100),
             });
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await RunAsync(h, force: true);

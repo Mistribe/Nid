@@ -54,7 +54,7 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             var response = await app.RawAnonymousAsync(HttpMethod.Get, path);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(Spa, await response.Content.ReadAsStringAsync());
+            Assert.Equal(Spa, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
             Assert.Equal("no-cache", Header(response, "Cache-Control"));
             Assert.Equal("1", Header(response, "X-Test-Header"));
             Assert.Equal("default-src 'none'", Header(response, "Content-Security-Policy"));
@@ -62,7 +62,7 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var head = await app.RawAnonymousAsync(HttpMethod.Head, "/investments/abc");
         Assert.Equal(HttpStatusCode.OK, head.StatusCode);
-        Assert.Empty(await head.Content.ReadAsStringAsync());
+        Assert.Empty(await head.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         var response = await app.RawAnonymousAsync(HttpMethod.Get, "/assets/app.js");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("console.log(1)", await response.Content.ReadAsStringAsync());
+        Assert.Equal("console.log(1)", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal("public, max-age=31536000, immutable", Header(response, "Cache-Control"));
         Assert.Equal("1", Header(response, "X-Test-Header"));
     }
@@ -88,7 +88,7 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         var response = await app.RawAnonymousAsync(HttpMethod.Get, path);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.DoesNotContain("spa", await response.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("spa", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -102,7 +102,7 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var response = await app.RawAnonymousAsync(HttpMethod.Get, path);
 
-        Assert.DoesNotContain("spa", await response.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("spa", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Null(Header(response, "X-Test-Header"));
     }
 
@@ -114,7 +114,7 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         var response = await app.RawAnonymousAsync(HttpMethod.Get, "/apiary");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(Spa, await response.Content.ReadAsStringAsync());
+        Assert.Equal(Spa, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         var response = await app.RawAnonymousAsync(HttpMethod.Post, "/investments/abc");
 
         Assert.True(response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed, response.StatusCode.ToString());
-        Assert.DoesNotContain("spa", await response.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("spa", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -155,10 +155,10 @@ public class WebAppTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         var response = await app.RawAnonymousAsync(HttpMethod.Get, path);
 
-        Assert.DoesNotContain("secret", await response.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("secret", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.True(response.StatusCode is HttpStatusCode.OK or HttpStatusCode.NotFound or HttpStatusCode.BadRequest, response.StatusCode.ToString());
         if (response.StatusCode == HttpStatusCode.OK)
-            Assert.Equal(Spa, await response.Content.ReadAsStringAsync());
+            Assert.Equal(Spa, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

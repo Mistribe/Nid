@@ -39,17 +39,17 @@ public class LinkStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using var _ = scope;
         var transactions = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
         var links = scope.ServiceProvider.GetRequiredService<ILinkStore>();
-        await transactions.AddAsync(account, [Line("a")], default);
-        var line = Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, default));
+        await transactions.AddAsync(account, [Line("a")], TestContext.Current.CancellationToken);
+        var line = Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken));
         var at = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
         var unknown = Guid.NewGuid();
         await Assert.ThrowsAnyAsync<Exception>(() => links.SetAsync(
-            new BankLink(unknown, null, null, null, account, LinkOutcome.InternalTransfer, null, "job", at), TransactionLinkState.Internal, default));
+            new BankLink(unknown, null, null, null, account, LinkOutcome.InternalTransfer, null, "job", at), TransactionLinkState.Internal, TestContext.Current.CancellationToken));
 
         // The same scope's next write carries nothing of the failed one.
-        await links.SetAsync(new BankLink(line.Id, null, null, null, account, LinkOutcome.InternalTransfer, null, "job", at), TransactionLinkState.Internal, default);
+        await links.SetAsync(new BankLink(line.Id, null, null, null, account, LinkOutcome.InternalTransfer, null, "job", at), TransactionLinkState.Internal, TestContext.Current.CancellationToken);
 
-        Assert.Equal([line.Id], (await links.ForTransactionsAsync([line.Id, unknown], default)).Keys);
+        Assert.Equal([line.Id], (await links.ForTransactionsAsync([line.Id, unknown], TestContext.Current.CancellationToken)).Keys);
     }
 
     [Fact]
@@ -60,29 +60,29 @@ public class LinkStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using var _ = scope;
         var transactions = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
         var links = scope.ServiceProvider.GetRequiredService<ILinkStore>();
-        await transactions.AddAsync(account, [Line("a")], default);
-        var line = Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, default));
+        await transactions.AddAsync(account, [Line("a")], TestContext.Current.CancellationToken);
+        var line = Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken));
         var item = ItemId.New();
         var at = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
         var expected = Money.Create(13.99m, Currency.Eur).TryGetValue(out var money) ? money : throw new InvalidOperationException();
 
-        await links.SetAsync(new BankLink(line.Id, "subscriptions", item, "2026-10-12", null, LinkOutcome.PriceDiffers, expected, "job", at), TransactionLinkState.Linked, default);
+        await links.SetAsync(new BankLink(line.Id, "subscriptions", item, "2026-10-12", null, LinkOutcome.PriceDiffers, expected, "job", at), TransactionLinkState.Linked, TestContext.Current.CancellationToken);
 
-        Assert.Equal(TransactionLinkState.Linked, (await transactions.FindAsync(line.Id, default))!.LinkState);
-        var link = (await links.ForTransactionsAsync([line.Id], default))[line.Id];
+        Assert.Equal(TransactionLinkState.Linked, (await transactions.FindAsync(line.Id, TestContext.Current.CancellationToken))!.LinkState);
+        var link = (await links.ForTransactionsAsync([line.Id], TestContext.Current.CancellationToken))[line.Id];
         Assert.Equal(LinkOutcome.PriceDiffers, link.Outcome);
         Assert.Equal(expected, link.Expected);
         Assert.Equal(item, link.TargetItem);
-        Assert.Equal(line.Id, Assert.Single(await links.ForItemsAsync([item], default)).Line.Id);
-        Assert.Single(await links.OutcomeSinceAsync(LinkOutcome.PriceDiffers, Day, default));
-        Assert.Empty(await links.OutcomeSinceAsync(LinkOutcome.PriceDiffers, Day.PlusDays(1), default));
+        Assert.Equal(line.Id, Assert.Single(await links.ForItemsAsync([item], TestContext.Current.CancellationToken)).Line.Id);
+        Assert.Single(await links.OutcomeSinceAsync(LinkOutcome.PriceDiffers, Day, TestContext.Current.CancellationToken));
+        Assert.Empty(await links.OutcomeSinceAsync(LinkOutcome.PriceDiffers, Day.PlusDays(1), TestContext.Current.CancellationToken));
 
-        await links.ClearAsync(line.Id, TransactionLinkState.Ignored, default);
+        await links.ClearAsync(line.Id, TransactionLinkState.Ignored, TestContext.Current.CancellationToken);
 
-        Assert.Equal(TransactionLinkState.Ignored, (await transactions.FindAsync(line.Id, default))!.LinkState);
-        Assert.Empty(await links.ForTransactionsAsync([line.Id], default));
-        Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, default, "ignored"));
-        Assert.Empty(await transactions.ListAsync([account], null, null, 0, 10, default, "linked"));
+        Assert.Equal(TransactionLinkState.Ignored, (await transactions.FindAsync(line.Id, TestContext.Current.CancellationToken))!.LinkState);
+        Assert.Empty(await links.ForTransactionsAsync([line.Id], TestContext.Current.CancellationToken));
+        Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken, "ignored"));
+        Assert.Empty(await transactions.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken, "linked"));
     }
 
     [Fact]
@@ -93,15 +93,15 @@ public class LinkStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using var _ = scope;
         var transactions = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
         var links = scope.ServiceProvider.GetRequiredService<ILinkStore>();
-        await transactions.AddAsync(account, [Line("a", 900m)], default);
-        var line = Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, default));
+        await transactions.AddAsync(account, [Line("a", 900m)], TestContext.Current.CancellationToken);
+        var line = Assert.Single(await transactions.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken));
         var flow = Guid.NewGuid();
 
-        Assert.False(await links.FlowTakenAsync(flow, default));
+        Assert.False(await links.FlowTakenAsync(flow, TestContext.Current.CancellationToken));
         await links.SetAsync(
             new BankLink(line.Id, "realestate", ItemId.New(), $"flow:{flow:N}", null, LinkOutcome.Income, null, "job", Instant.FromUtc(2026, 10, 12, 0, 0)),
-            TransactionLinkState.Linked, default);
-        Assert.True(await links.FlowTakenAsync(flow, default));
+            TransactionLinkState.Linked, TestContext.Current.CancellationToken);
+        Assert.True(await links.FlowTakenAsync(flow, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -113,21 +113,21 @@ public class LinkStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var rules = scope.ServiceProvider.GetRequiredService<IRuleStore>();
         var (first, second) = (ItemId.New(), ItemId.New());
 
-        var created = await rules.UpsertAsync(account, "NETFLIX", "subscriptions", first, app.AdultA, default);
-        var replaced = await rules.UpsertAsync(account, "NETFLIX", "subscriptions", second, app.AdultA, default);
+        var created = await rules.UpsertAsync(account, "NETFLIX", "subscriptions", first, app.AdultA, TestContext.Current.CancellationToken);
+        var replaced = await rules.UpsertAsync(account, "NETFLIX", "subscriptions", second, app.AdultA, TestContext.Current.CancellationToken);
 
         Assert.Equal(created.Id, replaced.Id);
-        Assert.Equal(second, Assert.Single(await rules.ForAccountAsync(account, default)).TargetItem);
-        Assert.Single(await rules.ByAsync(app.AdultA, default));
-        Assert.Empty(await rules.ByAsync(app.AdultB, default));
+        Assert.Equal(second, Assert.Single(await rules.ForAccountAsync(account, TestContext.Current.CancellationToken)).TargetItem);
+        Assert.Single(await rules.ByAsync(app.AdultA, TestContext.Current.CancellationToken));
+        Assert.Empty(await rules.ByAsync(app.AdultB, TestContext.Current.CancellationToken));
 
         var at = Instant.FromUtc(2026, 10, 30, 8, 0);
-        await rules.TouchAsync(created.Id, at, default);
-        Assert.Equal(at, (await rules.ForAccountAsync(account, default)).Single().LastUsedAt);
+        await rules.TouchAsync(created.Id, at, TestContext.Current.CancellationToken);
+        Assert.Equal(at, (await rules.ForAccountAsync(account, TestContext.Current.CancellationToken)).Single().LastUsedAt);
 
-        Assert.False(await rules.DeleteAsync(created.Id, app.AdultB, default));
-        Assert.True(await rules.DeleteAsync(created.Id, app.AdultA, default));
-        Assert.Empty(await rules.ForAccountAsync(account, default));
+        Assert.False(await rules.DeleteAsync(created.Id, app.AdultB, TestContext.Current.CancellationToken));
+        Assert.True(await rules.DeleteAsync(created.Id, app.AdultA, TestContext.Current.CancellationToken));
+        Assert.Empty(await rules.ForAccountAsync(account, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -139,9 +139,9 @@ public class LinkStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var rules = scope.ServiceProvider.GetRequiredService<IRuleStore>();
         var at = Instant.FromUtc(2026, 10, 30, 8, 0);
 
-        Assert.True(await rules.TryRememberGroupAsync(account, "NETFLIX", at, default));
-        Assert.False(await rules.TryRememberGroupAsync(account, "NETFLIX", at, default));
-        Assert.True(await rules.TryRememberGroupAsync(account, "SPOTIFY", at, default));
+        Assert.True(await rules.TryRememberGroupAsync(account, "NETFLIX", at, TestContext.Current.CancellationToken));
+        Assert.False(await rules.TryRememberGroupAsync(account, "NETFLIX", at, TestContext.Current.CancellationToken));
+        Assert.True(await rules.TryRememberGroupAsync(account, "SPOTIFY", at, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -151,15 +151,15 @@ public class LinkStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var (scope, account) = await SetUpAsync(app);
         await using var _ = scope;
         var transactions = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        await transactions.AddAsync(account, [Line("old")], default, reconciled: true);
-        await transactions.AddAsync(account, [Line("new", -5m)], default);
+        await transactions.AddAsync(account, [Line("old")], TestContext.Current.CancellationToken, reconciled: true);
+        await transactions.AddAsync(account, [Line("new", -5m)], TestContext.Current.CancellationToken);
 
-        var pending = Assert.Single(await transactions.UnreconciledAsync([account], default));
+        var pending = Assert.Single(await transactions.UnreconciledAsync([account], TestContext.Current.CancellationToken));
         Assert.Equal("new", pending.ProviderRef);
-        Assert.Single(await transactions.UnreconciledAsync(null, default));
+        Assert.Single(await transactions.UnreconciledAsync(null, TestContext.Current.CancellationToken));
 
-        await transactions.MarkReconciledAsync([pending.Id], Instant.FromUtc(2026, 10, 30, 8, 0), default);
-        Assert.Empty(await transactions.UnreconciledAsync([account], default));
-        Assert.Equal(2, (await transactions.UnlinkedBetweenAsync(Day, Day, default)).Count);
+        await transactions.MarkReconciledAsync([pending.Id], Instant.FromUtc(2026, 10, 30, 8, 0), TestContext.Current.CancellationToken);
+        Assert.Empty(await transactions.UnreconciledAsync([account], TestContext.Current.CancellationToken));
+        Assert.Equal(2, (await transactions.UnlinkedBetweenAsync(Day, Day, TestContext.Current.CancellationToken)).Count);
     }
 }

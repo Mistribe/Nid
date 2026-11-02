@@ -94,11 +94,11 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
         var approved = await app.RawAsync(app.AdultB, HttpMethod.Post, $"{ProposalKindHelpers.Proposals}/{seen.GetProperty("id").GetGuid()}/approve",
             new { version = seen.GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
-        var refs = JsonDocument.Parse(await approved.Content.ReadAsStringAsync()).RootElement.GetProperty("appliedRefs")
+        var refs = JsonDocument.Parse(await approved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("appliedRefs")
             .EnumerateArray().Select(r => r.GetGuid()).ToList();
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(document, Assert.Single(await core.Valuations.Where(v => refs.Contains(v.Id)).Select(v => v.DocumentId).ToListAsync()));
-        Assert.Equal(document, Assert.Single(await core.Flows.Where(f => refs.Contains(f.Id)).Select(f => f.DocumentId).ToListAsync()));
+        Assert.Equal(document, Assert.Single(await core.Valuations.Where(v => refs.Contains(v.Id)).Select(v => v.DocumentId).ToListAsync(cancellationToken: TestContext.Current.CancellationToken)));
+        Assert.Equal(document, Assert.Single(await core.Flows.Where(f => refs.Contains(f.Id)).Select(f => f.DocumentId).ToListAsync(cancellationToken: TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
 
         var rejected = await app.RawAsync(app.AdultB, HttpMethod.Post, $"{ProposalKindHelpers.Proposals}/{id}/reject", new { version = theirs.GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
-        Assert.Null(DocumentOf(JsonDocument.Parse(await rejected.Content.ReadAsStringAsync()).RootElement));
+        Assert.Null(DocumentOf(JsonDocument.Parse(await rejected.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement));
         Assert.DoesNotContain(document.ToString(), await app.GetRawAsync(app.AdultB, ProposalKindHelpers.Proposals + "?status=rejected"));
     }
 
@@ -224,7 +224,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
             new { version = theirs.GetProperty("version").GetUInt32() });
 
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
-        Assert.Null(DocumentOf(JsonDocument.Parse(await approved.Content.ReadAsStringAsync()).RootElement));
+        Assert.Null(DocumentOf(JsonDocument.Parse(await approved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement));
     }
 
     // ProposalSource alone lowers the link's scope: the REST route keeps `write:direct`.
@@ -268,7 +268,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
         await using var app = await NidApp.StartAsync(fixture);
         await using var client = await ClientAsync(app);
 
-        var offering = (await client.ListToolsAsync())
+        var offering = (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken))
             .Where(t => t.JsonSchema.TryGetProperty("properties", out var properties) && properties.TryGetProperty("documentId", out _))
             .Select(t => t.Name).Order().ToArray();
 

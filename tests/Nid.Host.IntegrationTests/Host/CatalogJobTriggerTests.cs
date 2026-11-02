@@ -22,7 +22,7 @@ public class CatalogJobTriggerTests
     [Fact]
     public async Task A_scheduler_failure_is_a_coded_failure()
     {
-        var triggered = await new QuartzCatalogJobTrigger(new FailingSchedulerFactory()).TriggerSyncAsync(default);
+        var triggered = await new QuartzCatalogJobTrigger(new FailingSchedulerFactory()).TriggerSyncAsync(TestContext.Current.CancellationToken);
 
         Assert.True(triggered.TryGetFailure(out var failure));
         Assert.Equal(CatalogCodes.JobsDisabled, failure!.Code);

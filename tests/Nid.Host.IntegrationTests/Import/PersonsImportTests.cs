@@ -28,7 +28,7 @@ public class PersonsImportTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            await core.Persons.Where(p => p.Id == app.AdultA.Value).ExecuteUpdateAsync(u => u.SetProperty(p => p.Email, "a@example.org"));
+            await core.Persons.Where(p => p.Id == app.AdultA.Value).ExecuteUpdateAsync(u => u.SetProperty(p => p.Email, "a@example.org"), cancellationToken: TestContext.Current.CancellationToken);
         var client = new ImportClient(app);
         var session = await client.StartAsync(app.AdultA);
         await client.PutAsync(app.AdultA, session.Id, "persons", 0, """
@@ -77,7 +77,7 @@ public class PersonsImportTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var app = await NidApp.StartAsync(fixture);
         string known;
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            known = (await core.Persons.SingleAsync(p => p.Id == app.Dependent.Value)).DisplayName;
+            known = (await core.Persons.SingleAsync(p => p.Id == app.Dependent.Value, cancellationToken: TestContext.Current.CancellationToken)).DisplayName;
         var client = new ImportClient(app);
         var session = await client.StartAsync(app.AdultA);
         await client.PutAsync(app.AdultA, session.Id, "persons", 0, $$"""
@@ -87,13 +87,13 @@ public class PersonsImportTests(PostgresFixture fixture) : IClassFixture<Postgre
         var validated = await client.ValidateAsync(app.AdultA, session.Id);
         Assert.Equal(new CountsResponse(1, 1, 0), validated.Report!.Sections["persons"]);
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa")); // validate writes nothing
+            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa", cancellationToken: TestContext.Current.CancellationToken)); // validate writes nothing
 
         var committed = await client.CommitRawAsync(app.AdultA, session.Id);
 
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            Assert.Equal("dependent", (await core.Persons.SingleAsync(p => p.DisplayName == "Léa")).Kind);
+            Assert.Equal("dependent", (await core.Persons.SingleAsync(p => p.DisplayName == "Léa", cancellationToken: TestContext.Current.CancellationToken)).Kind);
         Assert.Equal("committed", (await client.GetAsync(app.AdultA, session.Id)).State);
     }
 

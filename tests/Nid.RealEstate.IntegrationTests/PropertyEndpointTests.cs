@@ -58,7 +58,7 @@ public class PropertyEndpointTests(PostgresFixture fixture) : IClassFixture<Post
             new { version = detail.GetProperty("version").GetUInt32(), note = "x" })).StatusCode);
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var item = await core.Items.SingleAsync(i => i.Id == id);
+        var item = await core.Items.SingleAsync(i => i.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("realestate", "property", "EUR"), (item.Module, item.Kind, item.Currency!.Trim()));
     }
 
@@ -107,7 +107,7 @@ public class PropertyEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(0, await core.Items.CountAsync(i => i.Kind == "property"));
+        Assert.Equal(0, await core.Items.CountAsync(i => i.Kind == "property", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

@@ -30,8 +30,8 @@ public class ExportPrivacyTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            (await core.Items.SingleAsync(i => i.DisplayName == "Private")).DisplayName = "Private, renamed";
-            await core.SaveChangesAsync();
+            (await core.Items.SingleAsync(i => i.DisplayName == "Private", cancellationToken: TestContext.Current.CancellationToken)).DisplayName = "Private, renamed";
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         Assert.Equal(before.Revision, (await export.ManifestAsync(app.AdultB)).Revision);
@@ -56,8 +56,8 @@ public class ExportPrivacyTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            (await core.Items.SingleAsync(i => i.DisplayName == "S1")).DisplayName = "S1, renamed";
-            await core.SaveChangesAsync();
+            (await core.Items.SingleAsync(i => i.DisplayName == "S1", cancellationToken: TestContext.Current.CancellationToken)).DisplayName = "S1, renamed";
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var stale = await export.PageRawAsync(app.AdultA, "persons", first.NextCursor, 1);
@@ -86,8 +86,8 @@ public class ExportPrivacyTests(PostgresFixture fixture) : IClassFixture<Postgre
         var s1 = await CreateEnvelopeAsync(app, app.AdultA, "S1-shared", "shared", (app.AdultA, 5_000), (app.AdultB, 5_000));
         var transfer = await app.RawAsync(app.AdultB, HttpMethod.Post, "/api/v1/investments/transfers",
             new { from = p2, to = s1, occurredOn = "2025-07-01", amount = Eur("100.00") });
-        Assert.True(transfer.IsSuccessStatusCode, await transfer.Content.ReadAsStringAsync());
-        var transferId = JsonDocument.Parse(await transfer.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        Assert.True(transfer.IsSuccessStatusCode, await transfer.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var transferId = JsonDocument.Parse(await transfer.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
         var export = new ExportClient(app);
 
         var forA = await export.ExportAllAsync(app.AdultA);
@@ -124,11 +124,11 @@ public class ExportPrivacyTests(PostgresFixture fixture) : IClassFixture<Postgre
             ["owners"] = new[] { new { personId = app.AdultB.Value, shareBp = 10_000 } },
             ["phases"] = new[] { new { label = "Phase-secrete", startsOn = "2025-01-01", endsOn = (string?)null, netAmount = Money("2000"), every = new { count = 1, unit = "month" }, maxCycles = (int?)null } },
         });
-        Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync());
-        var id = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var id = JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
         var oneOff = await app.RawAsync(app.AdultB, HttpMethod.Post, $"/api/v1/income/sources/{id}/one-offs",
             new { occurredOn = "2025-06-10", amount = Money("500"), note = "Prime-secrete" });
-        Assert.True(oneOff.IsSuccessStatusCode, await oneOff.Content.ReadAsStringAsync());
+        Assert.True(oneOff.IsSuccessStatusCode, await oneOff.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var export = new ExportClient(app);
 
         var forA = await export.ExportAllAsync(app.AdultA);

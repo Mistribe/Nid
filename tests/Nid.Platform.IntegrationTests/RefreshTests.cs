@@ -69,7 +69,7 @@ public class RefreshTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             // 1000 s later: inside 3600 s (and past the 900 s default, so a wrong config key shows).
             clock.Now = Start + NodaTime.Duration.FromSeconds(1000);
             queue.Request(app.AdultA);
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
             Assert.Equal(Start, await RanAtAsync(app, app.AdultA));
 
             // Past the throttle: evaluated again.

@@ -48,7 +48,7 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         Assert.Equal((JobTriggers.OnDemand, JobOutcomes.Succeeded, (string?)null), (run.Trigger, run.Outcome, run.Summary));
         Assert.NotNull(run.FinishedAt);
         await using var scope = app.Services.CreateAsyncScope();
-        Assert.Equal(run.Id, (await scope.ServiceProvider.GetRequiredService<IJobRunStore>().LastRunsAsync(default))["fx-backfill"].Id);
+        Assert.Equal(run.Id, (await scope.ServiceProvider.GetRequiredService<IJobRunStore>().LastRunsAsync(TestContext.Current.CancellationToken))["fx-backfill"].Id);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
     {
         await using var app = await NidApp.StartAsync(fixture, settings: JobsOn());
 
-        await (await SchedulerAsync(app)).TriggerJob(new JobKey("prices-daily"));
+        await (await SchedulerAsync(app)).TriggerJob(new JobKey("prices-daily"), cancellationToken: TestContext.Current.CancellationToken);
 
         var run = await WaitForRunAsync(app, "prices-daily");
         Assert.Equal((JobOutcomes.Skipped, PriceCodes.Disabled), (run.Outcome, run.Summary));
@@ -68,7 +68,7 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         await using var app = await NidApp.StartAsync(fixture,
             overrides: services => services.AddScoped<IActorAccessor, ThrowingActorAccessor>(), settings: JobsOn());
 
-        await (await SchedulerAsync(app)).TriggerJob(new JobKey("irl-weekly"));
+        await (await SchedulerAsync(app)).TriggerJob(new JobKey("irl-weekly"), cancellationToken: TestContext.Current.CancellationToken);
 
         var run = await WaitForRunAsync(app, "irl-weekly");
         Assert.Equal((JobOutcomes.Failed, "InvalidOperationException: boom"), (run.Outcome, run.Summary));
@@ -81,7 +81,7 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
         await (await SchedulerAsync(app)).ScheduleJob(
             JobBuilder.Create<ThrowingJob>().WithIdentity("test-throwing").Build(),
-            TriggerBuilder.Create().StartNow().Build());
+            TriggerBuilder.Create().StartNow().Build(), cancellationToken: TestContext.Current.CancellationToken);
 
         var run = await WaitForRunAsync(app, "test-throwing");
         Assert.Equal((JobOutcomes.Failed, "kaput"), (run.Outcome, run.Summary));
@@ -99,17 +99,17 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             for (var i = 0; i < 100; i++)
             {
                 var id = Guid.NewGuid();
-                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, old.AddDays(i), default);
-                await store.FinishAsync(id, JobOutcomes.Succeeded, null, false, old.AddDays(i).AddSeconds(1), default);
+                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, old.AddDays(i), TestContext.Current.CancellationToken);
+                await store.FinishAsync(id, JobOutcomes.Succeeded, null, false, old.AddDays(i).AddSeconds(1), TestContext.Current.CancellationToken);
                 seeded.Add(id);
             }
         }
 
-        await (await SchedulerAsync(app)).TriggerJob(new JobKey("irl-weekly"));
+        await (await SchedulerAsync(app)).TriggerJob(new JobKey("irl-weekly"), cancellationToken: TestContext.Current.CancellationToken);
         var fresh = await WaitForRunAsync(app, "irl-weekly", r => !seeded.Contains(r.Id));
 
         await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var ids = await db.JobRuns.Where(r => r.JobKey == "irl-weekly").Select(r => r.Id).ToListAsync();
+        var ids = await db.JobRuns.Where(r => r.JobKey == "irl-weekly").Select(r => r.Id).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(100, ids.Count);
         Assert.Contains(fresh.Id, ids);
         Assert.DoesNotContain(seeded[0], ids);
@@ -130,22 +130,22 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             for (var i = 0; i < 100; i++)
             {
                 var id = i == 0 ? oldest : Guid.NewGuid();
-                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, old.AddDays(i), default);
-                await store.FinishAsync(id, JobOutcomes.Succeeded, null, true, old.AddDays(i), default);
+                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, old.AddDays(i), TestContext.Current.CancellationToken);
+                await store.FinishAsync(id, JobOutcomes.Succeeded, null, true, old.AddDays(i), TestContext.Current.CancellationToken);
             }
         }
         var oldestFile = Path.Combine(logs, "jobs", "irl-weekly", $"{oldest}.log");
         Directory.CreateDirectory(Path.GetDirectoryName(oldestFile)!);
-        await File.WriteAllTextAsync(oldestFile, "old");
+        await File.WriteAllTextAsync(oldestFile, "old", TestContext.Current.CancellationToken);
 
         var scheduler = await SchedulerAsync(app);
-        await Task.WhenAll(scheduler.TriggerJob(new JobKey("irl-weekly")).AsTask(), scheduler.TriggerJob(new JobKey("prices-daily")).AsTask());
+        await Task.WhenAll(scheduler.TriggerJob(new JobKey("irl-weekly"), cancellationToken: TestContext.Current.CancellationToken).AsTask(), scheduler.TriggerJob(new JobKey("prices-daily"), cancellationToken: TestContext.Current.CancellationToken).AsTask());
         var irl = await WaitForRunAsync(app, "irl-weekly", r => r.StartedAt.ToDateTimeOffset().Year > 2020);
         var prices = await WaitForRunAsync(app, "prices-daily");
 
         Assert.True(irl.HasLogs && prices.HasLogs);
-        var irlLog = await File.ReadAllTextAsync(Path.Combine(logs, "jobs", "irl-weekly", $"{irl.Id}.log"));
-        var pricesLog = await File.ReadAllTextAsync(Path.Combine(logs, "jobs", "prices-daily", $"{prices.Id}.log"));
+        var irlLog = await File.ReadAllTextAsync(Path.Combine(logs, "jobs", "irl-weekly", $"{irl.Id}.log"), TestContext.Current.CancellationToken);
+        var pricesLog = await File.ReadAllTextAsync(Path.Combine(logs, "jobs", "prices-daily", $"{prices.Id}.log"), TestContext.Current.CancellationToken);
         Assert.Contains("irl-weekly crashed InvalidOperationException: boom", irlLog);
         Assert.DoesNotContain("prices-daily", irlLog);
         Assert.Contains("prices-daily crashed", pricesLog);

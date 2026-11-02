@@ -42,7 +42,7 @@ public class LoanEndpointTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(("1159.92", "162253.12"), (S(rows[0], "payment"), S(rows[59], "balance")));
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var item = await core.Items.SingleAsync(i => i.Id == id);
+        var item = await core.Items.SingleAsync(i => i.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("realestate", "loan", "EUR"), (item.Module, item.Kind, item.Currency!.Trim()));
     }
 
@@ -113,7 +113,7 @@ public class LoanEndpointTests(PostgresFixture fixture) : IClassFixture<Postgres
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "realestate"));
+        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "realestate", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

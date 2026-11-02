@@ -34,11 +34,11 @@ public class ScenarioStoreTests(PostgresFixture postgres)
         var item = await AddItemAsync(db);
         var saved = new StoredScenario(item, ScenarioKinds.PropertyPurchase, VisibilityScope.Me, Document(item));
 
-        await new ScenarioStore(db).SaveAsync(saved, default);
-        await new ScenarioStore(db).SaveAsync(saved with { Scope = VisibilityScope.Household }, default); // replaces
+        await new ScenarioStore(db).SaveAsync(saved, TestContext.Current.CancellationToken);
+        await new ScenarioStore(db).SaveAsync(saved with { Scope = VisibilityScope.Household }, TestContext.Current.CancellationToken); // replaces
 
         await using var other = PostgresFixture.NewCoreContext(connection);
-        var found = await new ScenarioStore(other).FindAsync(item, default);
+        var found = await new ScenarioStore(other).FindAsync(item, TestContext.Current.CancellationToken);
 
         Assert.NotNull(found);
         Assert.Equal(VisibilityScope.Household, found.Scope);
@@ -61,9 +61,9 @@ public class ScenarioStoreTests(PostgresFixture postgres)
         await using var db = await postgres.NewDatabaseAsync();
         var item = await AddItemAsync(db);
         var store = new ScenarioStore(db);
-        await store.SaveAsync(new StoredScenario(item, ScenarioKinds.PropertyPurchase, VisibilityScope.Me, Document(item)), default);
+        await store.SaveAsync(new StoredScenario(item, ScenarioKinds.PropertyPurchase, VisibilityScope.Me, Document(item)), TestContext.Current.CancellationToken);
 
-        var found = await store.FindManyAsync([item, ItemId.New()], default);
+        var found = await store.FindManyAsync([item, ItemId.New()], TestContext.Current.CancellationToken);
 
         Assert.Equal([item], found.Select(s => s.Item));
     }
@@ -105,10 +105,10 @@ public class ScenarioStoreTests(PostgresFixture postgres)
             ]);
 
         await new ScenarioStore(db).SaveAsync(
-            new StoredScenario(item, ScenarioKinds.Projection, VisibilityScope.Household, null, projection), default);
+            new StoredScenario(item, ScenarioKinds.Projection, VisibilityScope.Household, null, projection), TestContext.Current.CancellationToken);
 
         await using var other = PostgresFixture.NewCoreContext(connection);
-        var found = await new ScenarioStore(other).FindAsync(item, default);
+        var found = await new ScenarioStore(other).FindAsync(item, TestContext.Current.CancellationToken);
 
         Assert.NotNull(found);
         Assert.Equal(ScenarioKinds.Projection, found.Kind);
@@ -128,7 +128,7 @@ public class ScenarioStoreTests(PostgresFixture postgres)
         var item = await AddItemAsync(db);
 
         var inserted = await db.Database.ExecuteSqlAsync(
-            $"insert into core.scenario (item_id, kind, scope, data) values ({item.Value}, 'projection', 'me', '{{}}')");
+            $"insert into core.scenario (item_id, kind, scope, data) values ({item.Value}, 'projection', 'me', '{{}}')", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, inserted);
     }

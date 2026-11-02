@@ -174,10 +174,10 @@ public class GoalWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var unknown = await PostAsync(app, app.AdultA, Goals, Body(app, funding: (new ItemId(Guid.NewGuid()), 5000)));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        var problem = await refused.Content.ReadAsStringAsync();
+        var problem = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(GoalsCodes.EnvelopeNotVisible, JsonDocument.Parse(problem).RootElement.GetProperty("code").GetString());
         // As an envelope that does not exist: nothing tells B's envelope apart.
-        Assert.Equal(problem, await unknown.Content.ReadAsStringAsync());
+        Assert.Equal(problem, await unknown.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -222,7 +222,7 @@ public class GoalWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var hidden = await app.NewGoalAsync("ZZSECRETGOAL", app.AdultB, Visibility.Private, [(envelope, 6000)]);
 
         var response = await PostAsync(app, app.AdultA, Goals, Body(app, funding: (envelope, 6000)));
-        var text = await response.Content.ReadAsStringAsync();
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.DoesNotContain("ZZSECRETGOAL", text, StringComparison.Ordinal);
@@ -256,7 +256,7 @@ public class GoalWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var edited = await EditAsync(app, app.AdultA, goal, Edit("Maison", funding: (shared, 7000)));
 
         Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
-        Assert.DoesNotContain(hidden.Value.ToString(), await edited.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(hidden.Value.ToString(), await edited.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), StringComparison.OrdinalIgnoreCase);
         Assert.Equal(new[] { new Funding(goal, hidden, 3000), new Funding(goal, shared, 7000) }.OrderBy(f => f.Envelope.Value),
             (await FundingAsync(app, goal)).OrderBy(f => f.Envelope.Value));
     }

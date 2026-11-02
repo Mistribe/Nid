@@ -20,7 +20,7 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var response = await app.RawAnonymousAsync(HttpMethod.Get, path);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
+        Assert.Equal("Healthy", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var response = await app.RawAnonymousAsync(HttpMethod.Get, "/health/ready");
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal("Unhealthy", await response.Content.ReadAsStringAsync());
+        Assert.Equal("Unhealthy", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     public async Task A_setting_is_read_from_a_secret_file()
     {
         var secrets = Directory.CreateTempSubdirectory("nid-secrets-").FullName;
-        await File.WriteAllTextAsync(Path.Combine(secrets, "Catalog__Commit"), "from-a-secret-file");
+        await File.WriteAllTextAsync(Path.Combine(secrets, "Catalog__Commit"), "from-a-secret-file", TestContext.Current.CancellationToken);
         await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Secrets:Path"] = secrets });
 
         var catalog = app.Services.GetRequiredService<Nid.Subscriptions.Contracts.CatalogOptions>();
@@ -116,7 +116,7 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             ctx.Request.Path = "/health/live";
             ctx.Request.Headers["X-Forwarded-Proto"] = "https";
             ctx.Connection.RemoteIpAddress = IPAddress.Parse(remoteAddress);
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(expectedScheme, context.Request.Scheme);
     }

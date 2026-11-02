@@ -47,7 +47,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
             classRates = Rates("7"), inflation = "2.5", monthlySavings = "500", savingsClass = "equity", freedPaymentsToSavings = false,
         });
 
-        Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync());
+        Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var view = await app.GetAsync<JsonElement>(app.AdultA, Url);
         Assert.Equal("7", view.GetProperty("classRates").GetProperty("equity").GetString());
         Assert.Equal("2.5", view.GetProperty("inflation").GetString());
@@ -65,7 +65,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, Body("51"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("projection.invalid_field", problem.GetProperty("code").GetString());
         Assert.Equal("classRates.equity", problem.GetProperty("errors")[0].GetProperty("path").GetString());
         Assert.Equal("6", (await app.GetAsync<JsonElement>(app.AdultA, Url)).GetProperty("classRates").GetProperty("equity").GetString());

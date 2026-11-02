@@ -33,7 +33,7 @@ public class WebhookTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         Assert.Equal(("wxyz", "ok"), (view.GetProperty("hint").GetString(), view.GetProperty("status").GetString()));
         Assert.Equal("wxyz", (await app.GetAsync<JsonElement>(app.AdultA, Prefs)).GetProperty("discord").GetProperty("hint").GetString());
         await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var bytes = (await db.Webhooks.SingleAsync(w => w.PersonId == app.AdultA.Value)).Url;
+        var bytes = (await db.Webhooks.SingleAsync(w => w.PersonId == app.AdultA.Value, cancellationToken: TestContext.Current.CancellationToken)).Url;
         Assert.DoesNotContain("secretToken", Encoding.Latin1.GetString(bytes));
     }
 
@@ -46,7 +46,7 @@ public class WebhookTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
         foreach (var route in new[] { Prefs, Admin })
         {
-            var text = await (await app.RawAsync(app.AdultA, HttpMethod.Get, route, null)).Content.ReadAsStringAsync();
+            var text = await (await app.RawAsync(app.AdultA, HttpMethod.Get, route, null)).Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.DoesNotContain("secretToken", text);
         }
     }
@@ -113,7 +113,7 @@ public class WebhookTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         {
             // The Replace path has no request actor here; a write is audited as the notifier (the job itself runs as Actor.System, see DiscordChannelTests).
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(app.AdultA);
-            await scope.ServiceProvider.GetRequiredService<IWebhookStore>().MarkBrokenAsync(app.AdultA, Url, default);
+            await scope.ServiceProvider.GetRequiredService<IWebhookStore>().MarkBrokenAsync(app.AdultA, Url, TestContext.Current.CancellationToken);
         }
         Assert.Equal("broken", (await app.GetAsync<JsonElement>(app.AdultA, Prefs)).GetProperty("discord").GetProperty("status").GetString());
 
@@ -130,10 +130,10 @@ public class WebhookTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(app.AdultA);
         var store = scope.ServiceProvider.GetRequiredService<IWebhookStore>();
-        var used = (await store.FindAsync(app.AdultA, default))!.Url; // a send reads it...
+        var used = (await store.FindAsync(app.AdultA, TestContext.Current.CancellationToken))!.Url; // a send reads it...
 
         await app.RawAsync(app.AdultA, HttpMethod.Put, Personal, new { url = "https://discord.com/api/webhooks/654321/otherTokenabcd" });
-        await store.MarkBrokenAsync(app.AdultA, used, default); // ...and its 404 comes back after the replacement
+        await store.MarkBrokenAsync(app.AdultA, used, TestContext.Current.CancellationToken); // ...and its 404 comes back after the replacement
 
         Assert.Equal("ok", (await app.GetAsync<JsonElement>(app.AdultA, Prefs)).GetProperty("discord").GetProperty("status").GetString());
     }
@@ -144,7 +144,7 @@ public class WebhookTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         await using var app = await NidApp.StartAsync(fixture);
         await app.RawAsync(app.AdultA, HttpMethod.Put, Personal, new { url = Url });
         await using (var db = PostgresFixture.NewPlatformContext(app.ConnectionString))
-            await db.Webhooks.Where(w => w.PersonId == app.AdultA.Value).ExecuteUpdateAsync(s => s.SetProperty(w => w.Url, new byte[] { 1, 2, 3 }));
+            await db.Webhooks.Where(w => w.PersonId == app.AdultA.Value).ExecuteUpdateAsync(s => s.SetProperty(w => w.Url, new byte[] { 1, 2, 3 }), cancellationToken: TestContext.Current.CancellationToken);
 
         var prefs = await app.RawAsync(app.AdultA, HttpMethod.Get, Prefs, null);
 

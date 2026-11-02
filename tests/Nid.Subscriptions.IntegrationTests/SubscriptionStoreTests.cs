@@ -31,7 +31,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     {
         var (store, id) = await NewStoreAsync(fixture);
 
-        var input = await store.LoadAsync(id, default);
+        var input = await store.LoadAsync(id, TestContext.Current.CancellationToken);
 
         Assert.NotNull(input);
         Assert.Equal(id, input!.Subscription.Id);
@@ -42,7 +42,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
 
     [Fact]
     public async Task An_unknown_subscription_loads_as_null()
-        => Assert.Null(await (await NewStoreAsync(fixture)).store.LoadAsync(new ItemId(Guid.CreateVersion7()), default));
+        => Assert.Null(await (await NewStoreAsync(fixture)).store.LoadAsync(new ItemId(Guid.CreateVersion7()), TestContext.Current.CancellationToken));
 
     [Fact]
     public async Task A_phase_round_trips_with_every_field()
@@ -52,8 +52,8 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
             BillingPhaseId.New(), new LocalDate(2024, 6, 28), new LocalDate(2025, 6, 28),
             Eur(15.17m), Months(1), Months(3), MaxCycles: 4, new Payer(PayerType.Household, null));
 
-        (await store.AddPhaseAsync(id, phase, RowOrigin.None, default)).Ok();
-        var loaded = (await store.LoadAsync(id, default))!.Phases.Single();
+        (await store.AddPhaseAsync(id, phase, RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
+        var loaded = (await store.LoadAsync(id, TestContext.Current.CancellationToken))!.Phases.Single();
 
         Assert.Equal(phase.StartsOn, loaded.StartsOn);
         Assert.Equal(phase.EndsOn, loaded.EndsOn);
@@ -75,8 +75,8 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
              new Grant(id, Months(6), CoverageSource.Bonus, null)],
             AllocatedAmount: null);
 
-        (await store.AddPurchaseAsync(purchase, RowOrigin.None, default)).Ok();
-        var loaded = (await store.LoadAsync(id, default))!.Purchases.Single();
+        (await store.AddPurchaseAsync(purchase, RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
+        var loaded = (await store.LoadAsync(id, TestContext.Current.CancellationToken))!.Purchases.Single();
 
         Assert.Equal(179.86m, loaded.Price.Amount);
         Assert.Equal(PurchaseKind.PrepaidTerm, loaded.Kind);
@@ -99,8 +99,8 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
              new Grant(id, Months(1), CoverageSource.Included, null)],
             AllocatedAmount: 0m);
 
-        (await store.AddPurchaseAsync(purchase, RowOrigin.None, default)).Ok();
-        var loaded = (await store.LoadAsync(id, default))!.Purchases.Single();
+        (await store.AddPurchaseAsync(purchase, RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
+        var loaded = (await store.LoadAsync(id, TestContext.Current.CancellationToken))!.Purchases.Single();
 
         // Both grants are loaded, in their stored order. Filtering is the engine's job, not the store's.
         Assert.Equal(2, loaded.Grants.Count);
@@ -113,17 +113,17 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var (store, id) = await NewStoreAsync(fixture);
         (await store.AddPhaseAsync(id, new BillingPhase(
             BillingPhaseId.New(), new LocalDate(2024, 6, 28), new LocalDate(2025, 6, 28),
-            Eur(15.17m), Months(1), null, null, new Payer(PayerType.Household, null)), RowOrigin.None, default)).Ok();
+            Eur(15.17m), Months(1), null, null, new Payer(PayerType.Household, null)), RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
         (await store.AddPhaseAsync(id, new BillingPhase(
             BillingPhaseId.New(), new LocalDate(2025, 6, 28), null,
-            Eur(17.20m), Months(1), null, null, new Payer(PayerType.Household, null)), RowOrigin.None, default)).Ok();
+            Eur(17.20m), Months(1), null, null, new Payer(PayerType.Household, null)), RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
         (await store.AddPurchaseAsync(new Purchase(
             PurchaseId.New(), new LocalDate(2025, 10, 10), "gift", Eur(0m),
             new Payer(PayerType.External, null), PurchaseKind.Gift,
-            [new Grant(id, Months(3), CoverageSource.Gift, null)], null), RowOrigin.None, default)).Ok();
+            [new Grant(id, Months(3), CoverageSource.Gift, null)], null), RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
 
         var timeline = SubscriptionTimeline
-            .Build((await store.LoadAsync(id, default))!, new LocalDate(2025, 10, 15), new LocalDate(2026, 6, 1)).Ok();
+            .Build((await store.LoadAsync(id, TestContext.Current.CancellationToken))!, new LocalDate(2025, 10, 15), new LocalDate(2026, 6, 1)).Ok();
 
         // The documented result of docs/subscription-data-model.md, reproduced from stored rows.
         var gift = Assert.Single(timeline.Coverage, p => p.Source == CoverageSource.Gift);
@@ -139,11 +139,11 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var (store, id) = await NewStoreAsync(fixture);
         var phase = new BillingPhase(BillingPhaseId.New(), new LocalDate(2025, 1, 1), null,
                                      Eur(10m), Months(1), null, null, new Payer(PayerType.Household, null));
-        (await store.AddPhaseAsync(id, phase, RowOrigin.None, default)).Ok();
+        (await store.AddPhaseAsync(id, phase, RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
 
-        (await store.ClosePhaseAsync(id, phase.Id, new LocalDate(2025, 6, 1), null, default)).Ok();
+        (await store.ClosePhaseAsync(id, phase.Id, new LocalDate(2025, 6, 1), null, TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Equal(new LocalDate(2025, 6, 1), (await store.LoadAsync(id, default))!.Phases.Single().EndsOn);
+        Assert.Equal(new LocalDate(2025, 6, 1), (await store.LoadAsync(id, TestContext.Current.CancellationToken))!.Phases.Single().EndsOn);
     }
 
     [Fact]
@@ -153,11 +153,11 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var purchase = new Purchase(PurchaseId.New(), new LocalDate(2025, 1, 1), "gift", Eur(0m),
                                     new Payer(PayerType.External, null), PurchaseKind.Gift,
                                     [new Grant(id, Months(1), CoverageSource.Gift, null)], null);
-        (await store.AddPurchaseAsync(purchase, RowOrigin.None, default)).Ok();
+        (await store.AddPurchaseAsync(purchase, RowOrigin.None, TestContext.Current.CancellationToken)).Ok();
 
-        (await store.DeletePurchaseAsync(id, purchase.Id, default)).Ok();
+        (await store.DeletePurchaseAsync(id, purchase.Id, TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Empty((await store.LoadAsync(id, default))!.Purchases);
+        Assert.Empty((await store.LoadAsync(id, TestContext.Current.CancellationToken))!.Purchases);
     }
 
     [Fact]
@@ -167,10 +167,10 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var a = new PersonId(Guid.CreateVersion7());
         var b = new PersonId(Guid.CreateVersion7());
         var other = new ItemId(Guid.CreateVersion7());
-        (await store.CreateAsync(other, new NewSubscription(null, true, [], null, Import: new ImportRef("sub-x", new string('b', 64), b)), default)).Ok();
+        (await store.CreateAsync(other, new NewSubscription(null, true, [], null, Import: new ImportRef("sub-x", new string('b', 64), b)), TestContext.Current.CancellationToken)).Ok();
         var phase = new BillingPhase(
             BillingPhaseId.New(), new LocalDate(2025, 1, 1), null, Eur(5), Months(1), null, MaxCycles: null, new Payer(PayerType.Household, null));
-        (await store.AddPhaseAsync(id, phase, new RowOrigin(null, new ImportRef("ph-x", new string('a', 64), a)), default)).Ok();
+        (await store.AddPhaseAsync(id, phase, new RowOrigin(null, new ImportRef("ph-x", new string('a', 64), a)), TestContext.Current.CancellationToken)).Ok();
         var purchase = new Purchase(
             PurchaseId.New(), new LocalDate(2025, 2, 1), "Gift", Eur(0),
             new Payer(PayerType.External, null), PurchaseKind.Gift,
@@ -178,13 +178,13 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
              new Grant(other, Months(1), CoverageSource.Gift, null),
              new Grant(id, Months(1), CoverageSource.Gift, null)],
             AllocatedAmount: null);
-        (await store.AddPurchaseAsync(purchase, new RowOrigin(null, new ImportRef("pu-x", new string('a', 64), a)), default)).Ok();
+        (await store.AddPurchaseAsync(purchase, new RowOrigin(null, new ImportRef("pu-x", new string('a', 64), a)), TestContext.Current.CancellationToken)).Ok();
         var second = new ItemId(Guid.CreateVersion7());
-        (await store.CreateAsync(second, new NewSubscription(null, true, [], null, Import: new ImportRef("sub-x", new string('c', 64), a)), default)).Ok();
+        (await store.CreateAsync(second, new NewSubscription(null, true, [], null, Import: new ImportRef("sub-x", new string('c', 64), a)), TestContext.Current.CancellationToken)).Ok();
 
-        var subscriptions = await store.FindImportedAsync(ImportedTable.Subscription, ["sub-x", "sub-none"], default);
-        var phases = await store.FindImportedAsync(ImportedTable.BillingPhase, ["ph-x"], default);
-        var purchases = await store.FindImportedAsync(ImportedTable.Purchase, ["pu-x"], default);
+        var subscriptions = await store.FindImportedAsync(ImportedTable.Subscription, ["sub-x", "sub-none"], TestContext.Current.CancellationToken);
+        var phases = await store.FindImportedAsync(ImportedTable.BillingPhase, ["ph-x"], TestContext.Current.CancellationToken);
+        var purchases = await store.FindImportedAsync(ImportedTable.Purchase, ["pu-x"], TestContext.Current.CancellationToken);
 
         Assert.False(subscriptions.ContainsKey("sub-none"));
         Assert.Equal(
@@ -203,9 +203,9 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var connectionString = await fixture.NewConnectionStringAsync();
         var store = new SubscriptionStore(PostgresFixture.NewSubscriptionsContext(connectionString));
         var id = new ItemId(Guid.CreateVersion7());
-        (await store.CreateAsync(id, new NewSubscription(null, true, [], null, Import: new ImportRef("sub-old", new string('a', 64))), default)).Ok();
+        (await store.CreateAsync(id, new NewSubscription(null, true, [], null, Import: new ImportRef("sub-old", new string('a', 64))), TestContext.Current.CancellationToken)).Ok();
 
-        var found = Assert.Single((await store.FindImportedAsync(ImportedTable.Subscription, ["sub-old"], default))["sub-old"]);
+        var found = Assert.Single((await store.FindImportedAsync(ImportedTable.Subscription, ["sub-old"], TestContext.Current.CancellationToken))["sub-old"]);
 
         Assert.Null(found.ImportedBy);
     }
@@ -221,8 +221,8 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var (store, id) = await NewStoreAsync(fixture);
         var details = Home(new("Water damage", "10 000 EUR", "150 EUR"), new("Theft", null, null), new("Fire", "100 000 EUR", null));
 
-        (await store.SetInsuranceAsync(id, details, null, default)).Ok();
-        var found = await store.FindInsuranceAsync(id, default);
+        (await store.SetInsuranceAsync(id, details, null, TestContext.Current.CancellationToken)).Ok();
+        var found = await store.FindInsuranceAsync(id, TestContext.Current.CancellationToken);
 
         Assert.NotNull(found);
         Assert.Equal(details.Kind, found!.Kind);
@@ -231,7 +231,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal("POL-1", found.PolicyNumber);
         Assert.Equal("01 23 45 67 89", found.InsurerContact);
         Assert.Equal(details.Guarantees, found.Guarantees);
-        var read = await store.ReadInsurancesAsync([id, new ItemId(Guid.CreateVersion7())], default);
+        var read = await store.ReadInsurancesAsync([id, new ItemId(Guid.CreateVersion7())], TestContext.Current.CancellationToken);
         Assert.Equal(id, Assert.Single(read).Value.SubscriptionId);
     }
 
@@ -239,11 +239,11 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     public async Task Set_twice_replaces_guarantees()
     {
         var (store, id) = await NewStoreAsync(fixture);
-        (await store.SetInsuranceAsync(id, Home(new("A", null, null), new("B", null, null), new("C", null, null)), null, default)).Ok();
+        (await store.SetInsuranceAsync(id, Home(new("A", null, null), new("B", null, null), new("C", null, null)), null, TestContext.Current.CancellationToken)).Ok();
 
         (await store.SetInsuranceAsync(
-            id, new InsuranceDetails(InsuranceKind.Car, null, null, null, null, [new("Z", "1", "2"), new("A", null, null)]), null, default)).Ok();
-        var found = await store.FindInsuranceAsync(id, default);
+            id, new InsuranceDetails(InsuranceKind.Car, null, null, null, null, [new("Z", "1", "2"), new("A", null, null)]), null, TestContext.Current.CancellationToken)).Ok();
+        var found = await store.FindInsuranceAsync(id, TestContext.Current.CancellationToken);
 
         Assert.Equal(InsuranceKind.Car, found!.Kind);
         Assert.Null(found.PropertyId);
@@ -255,13 +255,13 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     public async Task Delete_removes_guarantees()
     {
         var (store, id) = await NewStoreAsync(fixture);
-        (await store.SetInsuranceAsync(id, Home(G("A", null, null)), null, default)).Ok();
+        (await store.SetInsuranceAsync(id, Home(G("A", null, null)), null, TestContext.Current.CancellationToken)).Ok();
 
-        (await store.DeleteInsuranceAsync(id, default)).Ok();
+        (await store.DeleteInsuranceAsync(id, TestContext.Current.CancellationToken)).Ok();
 
-        Assert.Null(await store.FindInsuranceAsync(id, default));
-        Assert.Empty(await store.ReadInsurancesAsync([id], default));
-        Assert.True((await store.DeleteInsuranceAsync(id, default)).IsFailure);
+        Assert.Null(await store.FindInsuranceAsync(id, TestContext.Current.CancellationToken));
+        Assert.Empty(await store.ReadInsurancesAsync([id], TestContext.Current.CancellationToken));
+        Assert.True((await store.DeleteInsuranceAsync(id, TestContext.Current.CancellationToken)).IsFailure);
     }
 
     [Fact]
@@ -269,7 +269,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     {
         var (store, _) = await NewStoreAsync(fixture);
 
-        Assert.True((await store.SetInsuranceAsync(new ItemId(Guid.CreateVersion7()), Home(), null, default)).IsFailure);
+        Assert.True((await store.SetInsuranceAsync(new ItemId(Guid.CreateVersion7()), Home(), null, TestContext.Current.CancellationToken)).IsFailure);
     }
 
     [Fact]
@@ -279,14 +279,14 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
         var store = new SubscriptionStore(db);
         var id = new ItemId(Guid.CreateVersion7());
-        (await store.CreateAsync(id, new NewSubscription(null, true, [], null), default)).Ok();
-        (await store.SetInsuranceAsync(id, Home(G("A", null, null)), null, default)).Ok();
+        (await store.CreateAsync(id, new NewSubscription(null, true, [], null), TestContext.Current.CancellationToken)).Ok();
+        (await store.SetInsuranceAsync(id, Home(G("A", null, null)), null, TestContext.Current.CancellationToken)).Ok();
 
         await using var other = PostgresFixture.NewSubscriptionsContext(connectionString);
-        await other.Subscriptions.Where(s => s.ItemId == id.Value).ExecuteDeleteAsync();
+        await other.Subscriptions.Where(s => s.ItemId == id.Value).ExecuteDeleteAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, await other.Database.SqlQueryRaw<int>("select count(*)::int as \"Value\" from subscriptions.subscription_insurance").SingleAsync());
-        Assert.Equal(0, await other.Database.SqlQueryRaw<int>("select count(*)::int as \"Value\" from subscriptions.insurance_guarantee").SingleAsync());
+        Assert.Equal(0, await other.Database.SqlQueryRaw<int>("select count(*)::int as \"Value\" from subscriptions.subscription_insurance").SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(0, await other.Database.SqlQueryRaw<int>("select count(*)::int as \"Value\" from subscriptions.insurance_guarantee").SingleAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var app = await NidApp.StartAsync(fixture);
         var id = await app.NewMonthlyAsync(app.AdultA, 10m);
         await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq, cancellationToken: TestContext.Current.CancellationToken);
 
         Guid property;
         await using (var scope = app.Services.CreateAsyncScope())
@@ -303,12 +303,12 @@ public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<Pos
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             var store = scope.ServiceProvider.GetRequiredService<ISubscriptionStore>();
             var details = Home(G("Theft", null, null));
-            (await store.SetInsuranceAsync(id, details, null, default)).Ok();
+            (await store.SetInsuranceAsync(id, details, null, TestContext.Current.CancellationToken)).Ok();
             property = details.PropertyId!.Value.Value;
         }
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var rows = await platform.AuditLog.Where(r => r.Seq > lastSeq && r.Category == "write").ToListAsync();
+        var rows = await platform.AuditLog.Where(r => r.Seq > lastSeq && r.Category == "write").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var insurance = Assert.Single(rows, r => r.Entity == "subscriptions.subscription_insurance");
         var guarantee = Assert.Single(rows, r => r.Entity == "subscriptions.insurance_guarantee");
         // Under the linked property too, so a co-owner who cannot read it never sees the row in the history.

@@ -97,7 +97,7 @@ public class SignInEventTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
         await RaiseCapAsync(app, 3);
         await using (var db = PostgresFixture.NewCoreContext(app.ConnectionString))
-            await db.Persons.Where(p => p.Id == app.AdultB.Value).ExecuteUpdateAsync(s => s.SetProperty(p => p.Email, "bob@example.test"));
+            await db.Persons.Where(p => p.Id == app.AdultB.Value).ExecuteUpdateAsync(s => s.SetProperty(p => p.Email, "bob@example.test"), cancellationToken: TestContext.Current.CancellationToken);
 
         var result = await SignInAsync(app, "sub-bob-again", "Bob", "BOB@example.test", Member);
 
@@ -120,7 +120,7 @@ public class SignInEventTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(app.AdultB.Value, granted.SubjectPersonId!.Value);
         Assert.Equal("identity_provider", JsonDocument.Parse(granted.Data).RootElement.GetProperty("source").GetString());
         await using var db = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.True((await db.Persons.SingleAsync(p => p.Id == app.AdultB.Value)).IsAdmin);
+        Assert.True((await db.Persons.SingleAsync(p => p.Id == app.AdultB.Value, cancellationToken: TestContext.Current.CancellationToken)).IsAdmin);
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public class SignInEventTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var revoked = Assert.Single(await AuditApi.EventsAsync(app, "admin_revoked"));
         Assert.Equal(app.AdultA.Value, revoked.SubjectPersonId!.Value);
         await using var db = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.False((await db.Persons.SingleAsync(p => p.Id == app.AdultA.Value)).IsAdmin);
+        Assert.False((await db.Persons.SingleAsync(p => p.Id == app.AdultA.Value, cancellationToken: TestContext.Current.CancellationToken)).IsAdmin);
     }
 
     [Fact]

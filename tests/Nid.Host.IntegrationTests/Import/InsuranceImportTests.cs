@@ -200,7 +200,7 @@ public class InsuranceImportTests(PostgresFixture fixture) : IClassFixture<Postg
         var id = new ItemId((await StoredAsync(app)).ItemId);
         var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/subscriptions/{id.Value}/insurance",
             new { kind = "home", insuredLabel = "Maison", policyNumber = "UI-9", guarantees = new[] { new { label = "Fire" } } });
-        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         // A UI edit keeps the provenance: the hash is the file's, so the same file is unchanged and the edit stays.
         var again = await CommitAsync(client, app, File(), replace: true);
@@ -217,10 +217,10 @@ public class InsuranceImportTests(PostgresFixture fixture) : IClassFixture<Postg
         await CommitAsync(client, app, File("[]"));
         await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            var id = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-insurance")).ItemId;
+            var id = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-insurance", cancellationToken: TestContext.Current.CancellationToken)).ItemId;
             var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/subscriptions/{id}/insurance",
                 new { kind = "car", policyNumber = "UI-1", guarantees = Array.Empty<object>() });
-            Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+            Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
 
         var refused = await ValidateAsync(client, app, File());
@@ -239,7 +239,7 @@ public class InsuranceImportTests(PostgresFixture fixture) : IClassFixture<Postg
         var hidden = await app.NewPropertyAsync("Maison secrete", Visibility.Private, (app.AdultB, 10_000));
         var put = await app.RawAsync(app.AdultB, HttpMethod.Put, $"/api/v1/subscriptions/{subscription.Value}/insurance",
             new { kind = "home", propertyId = hidden.Value, guarantees = new[] { new { label = "Fire" } } });
-        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var forA = await new ExportClient(app).ExportAllAsync(app.AdultA);
 

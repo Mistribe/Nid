@@ -62,8 +62,8 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(0.1m, Amount(figures, "fees"));
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var values = await core.Valuations.ToListAsync();
-        var flows = await core.Flows.ToListAsync();
+        var values = await core.Valuations.ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var flows = await core.Flows.ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(3, values.Count);
         Assert.Equal(6, flows.Count);
         Assert.All(values, v => Assert.Equal(("import", "import", app.AdultA.Value), (v.Source, v.CreatedVia, v.ImportedBy!.Value)));
@@ -82,7 +82,7 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.DoesNotContain(committed.Report!.Issues, i => i.Code == ImportCodes.DuplicateFact);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var legs = await core.Flows.Where(f => f.ExternalRef == "transfer:t1" && f.RetiredAt == null).ToListAsync();
+        var legs = await core.Flows.Where(f => f.ExternalRef == "transfer:t1" && f.RetiredAt == null).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(2, legs.Count);
         Assert.Equal(
             [(await IdOf(app, "Livret A"), "contribution"), (await IdOf(app, "PEA"), "withdrawal")],
@@ -131,9 +131,9 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(new CountsResponse(0, 6, 0), again.Report.Sections["flows"]);
         Assert.Equal(26000m, Amount(await FiguresAsync(app, pea), "value"));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var hand = await core.Valuations.SingleAsync(v => v.ItemId == pea && v.AsOf == new LocalDate(2025, 10, 10));
+        var hand = await core.Valuations.SingleAsync(v => v.ItemId == pea && v.AsOf == new LocalDate(2025, 10, 10), cancellationToken: TestContext.Current.CancellationToken);
         Assert.Null(hand.RetiredAt);
-        Assert.Equal(3, await core.Valuations.CountAsync(v => v.RetiredAt == null && v.ImportRef != null));
+        Assert.Equal(3, await core.Valuations.CountAsync(v => v.RetiredAt == null && v.ImportRef != null, cancellationToken: TestContext.Current.CancellationToken));
 
         var export = await new ExportClient(app).ExportAllAsync(app.AdultA);
         var exported = Assert.Single(export["valuations"], v => v.GetProperty("as_of").GetString() == "2025-10-10");
@@ -150,7 +150,7 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var pea = await IdOf(app, "PEA");
         Guid old;
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            old = (await core.Valuations.SingleAsync(v => v.ImportRef == "v-pea-2")).Id;
+            old = (await core.Valuations.SingleAsync(v => v.ImportRef == "v-pea-2", cancellationToken: TestContext.Current.CancellationToken)).Id;
         var changed = Facts(valuations: Valuations.Replace("25000.00", "26000"));
 
         var conflict = await ValidateAsync(client, app, app.AdultA, changed);
@@ -167,9 +167,9 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(26000m, Amount(await FiguresAsync(app, pea), "value"));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            var current = await core.Valuations.SingleAsync(v => v.ImportRef == "v-pea-2" && v.RetiredAt == null);
+            var current = await core.Valuations.SingleAsync(v => v.ImportRef == "v-pea-2" && v.RetiredAt == null, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal((26000m, old), (current.Amount, current.SupersedesId!.Value));
-            Assert.NotNull((await core.Valuations.SingleAsync(v => v.Id == old)).RetiredAt);
+            Assert.NotNull((await core.Valuations.SingleAsync(v => v.Id == old, cancellationToken: TestContext.Current.CancellationToken)).RetiredAt);
         }
     }
 
@@ -192,7 +192,7 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(new CountsResponse(1, 2, 0, 1), replaced.Report!.Sections["valuations"]);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         var pea = await IdOf(app, "PEA");
-        var values = await core.Valuations.Where(v => v.RetiredAt == null && v.ItemId == pea).OrderBy(v => v.AsOf).ToListAsync();
+        var values = await core.Valuations.Where(v => v.RetiredAt == null && v.ItemId == pea).OrderBy(v => v.AsOf).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([("v-pea-1", 21000m), ("v-pea-2", 25000m), ("v-pea-3", 25500m)], values.Select(v => (v.ImportRef!, v.Amount)));
         Assert.Equal(new LocalDate(2025, 9, 29), values[1].AsOf);
     }
@@ -217,9 +217,9 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         {
             hand = new Dictionary<string, Guid>
             {
-                ["value"] = (await core.Valuations.SingleAsync(v => v.ImportRef == null)).Id,
-                ["opening"] = (await core.Flows.SingleAsync(f => f.ImportRef == null && f.Kind == "opening")).Id,
-                ["ref"] = (await core.Flows.SingleAsync(f => f.ImportRef == null && f.ExternalRef == "transfer:t1")).Id,
+                ["value"] = (await core.Valuations.SingleAsync(v => v.ImportRef == null, cancellationToken: TestContext.Current.CancellationToken)).Id,
+                ["opening"] = (await core.Flows.SingleAsync(f => f.ImportRef == null && f.Kind == "opening", cancellationToken: TestContext.Current.CancellationToken)).Id,
+                ["ref"] = (await core.Flows.SingleAsync(f => f.ImportRef == null && f.ExternalRef == "transfer:t1", cancellationToken: TestContext.Current.CancellationToken)).Id,
             };
         }
 
@@ -237,13 +237,13 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(new CountsResponse(0, 4, 0, 2), replaced.Report.Sections["flows"]);
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
-            Assert.All(await core.Valuations.Where(v => v.Id == hand["value"]).ToListAsync(), v => Assert.NotNull(v.RetiredAt));
-            Assert.All(await core.Flows.Where(f => f.Id == hand["opening"] || f.Id == hand["ref"]).ToListAsync(), f => Assert.NotNull(f.RetiredAt));
-            var value = await core.Valuations.SingleAsync(v => v.ImportRef == "v-pea-2");
+            Assert.All(await core.Valuations.Where(v => v.Id == hand["value"]).ToListAsync(cancellationToken: TestContext.Current.CancellationToken), v => Assert.NotNull(v.RetiredAt));
+            Assert.All(await core.Flows.Where(f => f.Id == hand["opening"] || f.Id == hand["ref"]).ToListAsync(cancellationToken: TestContext.Current.CancellationToken), f => Assert.NotNull(f.RetiredAt));
+            var value = await core.Valuations.SingleAsync(v => v.ImportRef == "v-pea-2", cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal((hand["value"], 25000m, "import"), (value.SupersedesId!.Value, value.Amount, value.Source));
-            var opening = await core.Flows.SingleAsync(f => f.ImportRef == "f-pea-open");
+            var opening = await core.Flows.SingleAsync(f => f.ImportRef == "f-pea-open", cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal((hand["opening"], 20000m), (opening.SupersedesId!.Value, opening.Amount));
-            var leg = await core.Flows.SingleAsync(f => f.ImportRef == "f-tr-out");
+            var leg = await core.Flows.SingleAsync(f => f.ImportRef == "f-tr-out", cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal((hand["ref"], new LocalDate(2025, 7, 1)), (leg.SupersedesId!.Value, leg.OccurredOn));
         }
         Assert.Equal(25000m, Amount(await FiguresAsync(app, pea), "value"));
@@ -367,8 +367,8 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await CommitAsync(client, app, app.AdultA, file);
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(-150.25m, (await core.Valuations.SingleAsync(v => v.ImportRef == "v-4")).Amount);
-        Assert.Equal(21000m, (await core.Valuations.SingleAsync(v => v.ImportRef == "v-5")).Amount);
+        Assert.Equal(-150.25m, (await core.Valuations.SingleAsync(v => v.ImportRef == "v-4", cancellationToken: TestContext.Current.CancellationToken)).Amount);
+        Assert.Equal(21000m, (await core.Valuations.SingleAsync(v => v.ImportRef == "v-5", cancellationToken: TestContext.Current.CancellationToken)).Amount);
         var export = await new ExportClient(app).ExportAllAsync(app.AdultA);
         var negative = export["valuations"].Single(v => v.GetProperty("id").GetString() == "v-4").GetProperty("amount");
         Assert.Equal(-150.25m, decimal.Parse(negative.GetProperty("amount").GetString()!, CultureInfo.InvariantCulture));
@@ -457,10 +457,10 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(new CountsResponse(1, 0, 0), taken.Report.Sections["valuations"]);
         Assert.Equal(JsonSerializer.Serialize(fresh.Report), JsonSerializer.Serialize(taken.Report));
         var committed = await client.CommitRawAsync(app.AdultA, taken.Id);
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(2, await core.Valuations.CountAsync(v => v.ImportRef == "v-secret" && v.RetiredAt == null));
-        Assert.Equal(999m, (await core.Valuations.SingleAsync(v => v.ImportRef == "v-secret" && v.ImportedBy == app.AdultB.Value)).Amount);
+        Assert.Equal(2, await core.Valuations.CountAsync(v => v.ImportRef == "v-secret" && v.RetiredAt == null, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(999m, (await core.Valuations.SingleAsync(v => v.ImportRef == "v-secret" && v.ImportedBy == app.AdultB.Value, cancellationToken: TestContext.Current.CancellationToken)).Amount);
     }
 
     [Fact]
@@ -488,7 +488,7 @@ public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await CommitAsync(client, app, app.AdultA, Facts());
         var livret = await IdOf(app, "Livret A");
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            await core.Valuations.Where(v => v.ImportRef == "v-pea-2").ExecuteUpdateAsync(u => u.SetProperty(v => v.ItemId, livret));
+            await core.Valuations.Where(v => v.ImportRef == "v-pea-2").ExecuteUpdateAsync(u => u.SetProperty(v => v.ItemId, livret), cancellationToken: TestContext.Current.CancellationToken);
 
         var again = await ValidateAsync(client, app, app.AdultA, Facts(), replace: replace);
 

@@ -54,7 +54,7 @@ public class ProviderVisibilityTests(PostgresFixture fixture) : IClassFixture<Po
 
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
             await core.Items.Where(i => i.Id == shared.Value)
-                .ExecuteUpdateAsync(s => s.SetProperty(i => i.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()));
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains(tinder, await VisibleAsync(app, app.AdultA));
         Assert.DoesNotContain(tinder, await VisibleAsync(app, app.AdultB));
@@ -131,7 +131,7 @@ public class ProviderVisibilityTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task Every_label_is_listed()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var (labels, failure) = await app.InvokeAsync(app.AdultB, new ListLabelsQuery());
+        var (labels, failure) = await app.InvokeAsync(app.AdultB, new ListLabelsQuery(), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         Assert.Equal([new LabelView(CatalogLimits.OtherLabel, "Other", CatalogLimits.NeutralColor)], (IReadOnlyList<LabelView>)labels!);

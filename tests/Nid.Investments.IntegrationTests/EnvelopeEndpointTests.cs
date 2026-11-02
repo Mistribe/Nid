@@ -70,9 +70,9 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         Assert.Equal("core.date_in_future", (await JsonAsync(refused)).GetProperty("code").GetString());
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "investments"));
+        Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "investments", cancellationToken: TestContext.Current.CancellationToken));
         await using var investments = PostgresFixture.NewInvestmentsContext(app.ConnectionString);
-        Assert.Equal(0, await investments.Envelopes.CountAsync());
+        Assert.Equal(0, await investments.Envelopes.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -140,7 +140,7 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         Assert.Equal(code, (await JsonAsync(refused)).GetProperty("code").GetString());
         await using var investments = PostgresFixture.NewInvestmentsContext(app.ConnectionString);
-        Assert.Equal(0, await investments.Envelopes.CountAsync());
+        Assert.Equal(0, await investments.Envelopes.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
 
         var changed = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { kind = "brokerage" });
 
-        Assert.True(changed.IsSuccessStatusCode, await changed.Content.ReadAsStringAsync());
+        Assert.True(changed.IsSuccessStatusCode, await changed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var envelope = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"));
         Assert.Equal(("brokerage", JsonValueKind.Null), (envelope.GetProperty("kind").GetString(), envelope.GetProperty("premiumsBefore2017").ValueKind));
     }

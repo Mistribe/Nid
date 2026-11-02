@@ -26,16 +26,16 @@ public class AuditSchemaTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using (var core = PostgresFixture.NewCoreContext(connection))
         {
             core.Set<AuditEntryRow>().Add(Entry(fromCore));
-            await core.SaveChangesAsync();
+            await core.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
         await using (var subs = PostgresFixture.NewSubscriptionsContext(connection))
         {
             subs.Set<AuditEntryRow>().Add(Entry(fromSubscriptions));
-            await subs.SaveChangesAsync();
+            await subs.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var platform = PostgresFixture.NewPlatformContext(connection);
-        var rows = await platform.AuditLog.OrderBy(r => r.Seq).ToListAsync();
+        var rows = await platform.AuditLog.OrderBy(r => r.Seq).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([fromCore, fromSubscriptions], rows.Select(r => r.ItemIds.Single()));
         Assert.True(rows[0].Seq < rows[1].Seq);
     }
@@ -49,9 +49,9 @@ public class AuditSchemaTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var connection = await fixture.NewConnectionStringAsync();
         await using var core = PostgresFixture.NewCoreContext(connection);
         core.Set<AuditEntryRow>().Add(Entry(Guid.CreateVersion7()));
-        await core.SaveChangesAsync();
+        await core.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var refused = await Assert.ThrowsAsync<PostgresException>(() => core.Database.ExecuteSqlRawAsync(statement));
+        var refused = await Assert.ThrowsAsync<PostgresException>(() => core.Database.ExecuteSqlRawAsync(statement, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("append-only", refused.MessageText);
     }
 

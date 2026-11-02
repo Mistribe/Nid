@@ -135,7 +135,7 @@ public class IncomeDocumentTargetTests(PostgresFixture fixture) : IClassFixture<
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             uncategorised = (await scope.ServiceProvider.GetRequiredService<IFlows>().RecordAsync(
                 new NewFlow(source, new LocalDate(2025, 6, 20), FlowKind.Income, Money.Create(70m, Currency.Eur).Ok(), null, null, "autre"),
-                default)).Ok().Id;
+                TestContext.Current.CancellationToken)).Ok().Id;
         }
         var id = await UploadedAsync(app, app.AdultA, Pdf);
 

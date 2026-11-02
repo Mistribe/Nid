@@ -1,13 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <!-- A shared library, not a runnable test suite: the xunit package sets IsTestProject unconditionally,
-         which would otherwise make `dotnet test` try to launch this assembly as a test host. -->
-    <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="Xunit" />
-    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
+    <PackageReference Include="xunit.v3.assert" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <!-- NidApp: the real host over a test database, shared by every module's integration tests. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />

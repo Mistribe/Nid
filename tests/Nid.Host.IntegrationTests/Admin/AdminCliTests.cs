@@ -248,7 +248,7 @@ public class AdminCliTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal(1, await CommandsLogged(app));
         Assert.Equal("RebindSubjectCommand", Assert.Single(await AuditApi.EventsAsync(app, SecurityEventNames.SubjectRebound)).Request);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var write = await platform.AuditLog.Where(r => r.Category == "write" && r.Via == "admin-cli").ToListAsync();
+        var write = await platform.AuditLog.Where(r => r.Category == "write" && r.Via == "admin-cli").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotEmpty(write);
         Assert.All(write, r => Assert.Equal("RebindSubjectCommand", r.Request));
     }
@@ -301,7 +301,7 @@ public class AdminCliTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var app = await NidApp.StartAsync(fixture);
         _ = app.Services;
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
-            await core.Database.ExecuteSqlRawAsync("alter table core.person rename to person_gone");
+            await core.Database.ExecuteSqlRawAsync("alter table core.person rename to person_gone", cancellationToken: TestContext.Current.CancellationToken);
 
         var run = await CliAsync(app, args: ["list-persons"]);
 
@@ -347,7 +347,7 @@ public class AdminCliTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         _ = app.Services;
         await using (var platform = PostgresFixture.NewPlatformContext(app.ConnectionString))
             await platform.Database.ExecuteSqlRawAsync(
-                "delete from platform.__ef_migrations_history where \"MigrationId\" = (select max(\"MigrationId\") from platform.__ef_migrations_history)");
+                "delete from platform.__ef_migrations_history where \"MigrationId\" = (select max(\"MigrationId\") from platform.__ef_migrations_history)", cancellationToken: TestContext.Current.CancellationToken);
 
         var before = await PersonAsync(app, app.AdultB);
 

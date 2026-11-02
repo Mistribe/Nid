@@ -160,13 +160,13 @@ public class ContractTermsTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var app = await NidApp.StartAsync(fixture);
         var id = await app.NewMonthlyAsync(app.AdultA, 10m);
         await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq, cancellationToken: TestContext.Current.CancellationToken);
 
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, Url(id), Home)).EnsureSuccessStatusCode();
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         var update = await platform.AuditLog.SingleAsync(r => r.Seq > lastSeq && r.Category == "write" && r.Action == "update"
-                                                              && r.Entity == "subscriptions.subscription");
+                                                              && r.Entity == "subscriptions.subscription", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([id.Value], update.ItemIds);
         Assert.Contains("anniversary_on", update.Data);
         Assert.Contains("2026-03-01", update.Data);

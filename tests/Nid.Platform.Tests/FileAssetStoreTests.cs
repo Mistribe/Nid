@@ -28,11 +28,11 @@ public sealed class FileAssetStoreTests : IDisposable
     {
         byte[] content = [1, 2, 3, 4];
 
-        var hash = await Store().PutAsync(content, Webp, default);
+        var hash = await Store().PutAsync(content, Webp, TestContext.Current.CancellationToken);
 
         Assert.Equal(HashOf(content), hash);
         var file = Path.Combine(root, hash[..2], hash + ".webp");
-        Assert.Equal(content, await File.ReadAllBytesAsync(file));
+        Assert.Equal(content, await File.ReadAllBytesAsync(file, TestContext.Current.CancellationToken));
         Assert.Equal([file], FilesUnderRoot()); // no temporary file left behind
     }
 
@@ -41,12 +41,12 @@ public sealed class FileAssetStoreTests : IDisposable
     {
         byte[] content = [5, 6, 7];
         var store = Store();
-        var hash = await store.PutAsync(content, Webp, default);
+        var hash = await store.PutAsync(content, Webp, TestContext.Current.CancellationToken);
         var file = Path.Combine(root, hash[..2], hash + ".webp");
         var marked = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         File.SetLastWriteTimeUtc(file, marked);
 
-        Assert.Equal(hash, await store.PutAsync(content, Webp, default));
+        Assert.Equal(hash, await store.PutAsync(content, Webp, TestContext.Current.CancellationToken));
 
         Assert.Equal(marked, File.GetLastWriteTimeUtc(file)); // not rewritten
     }
@@ -62,7 +62,7 @@ public sealed class FileAssetStoreTests : IDisposable
         var hash = Assert.Single(hashes.Distinct());
         var file = Assert.Single(FilesUnderRoot());
         Assert.Equal(Path.Combine(root, hash[..2], hash + ".webp"), file);
-        Assert.Equal(content, await File.ReadAllBytesAsync(file));
+        Assert.Equal(content, await File.ReadAllBytesAsync(file, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -81,19 +81,19 @@ public sealed class FileAssetStoreTests : IDisposable
     {
         byte[] content = [9, 8, 7];
         var store = Store();
-        var hash = await store.PutAsync(content, Webp, default);
+        var hash = await store.PutAsync(content, Webp, TestContext.Current.CancellationToken);
 
-        await using var stream = await store.OpenAsync(hash, default);
+        await using var stream = await store.OpenAsync(hash, TestContext.Current.CancellationToken);
 
         Assert.NotNull(stream);
         using var copy = new MemoryStream();
-        await stream.CopyToAsync(copy);
+        await stream.CopyToAsync(copy, TestContext.Current.CancellationToken);
         Assert.Equal(content, copy.ToArray());
     }
 
     [Fact]
     public async Task A_well_formed_hash_of_nothing_answers_null()
-        => Assert.Null(await Store().OpenAsync(HashOf([42]), default));
+        => Assert.Null(await Store().OpenAsync(HashOf([42]), TestContext.Current.CancellationToken));
 
     public static TheoryData<string> Malformed => new()
     {
@@ -112,7 +112,7 @@ public sealed class FileAssetStoreTests : IDisposable
     [MemberData(nameof(Malformed))]
     public async Task A_malformed_hash_answers_null_without_touching_the_disk(string hash)
     {
-        Assert.Null(await Store().OpenAsync(hash, default));
+        Assert.Null(await Store().OpenAsync(hash, TestContext.Current.CancellationToken));
         Assert.False(Directory.Exists(root)); // not even the root was created or looked into
     }
 
@@ -122,12 +122,12 @@ public sealed class FileAssetStoreTests : IDisposable
     {
         Directory.CreateDirectory(root);
         var blocker = Path.Combine(root, "blocker");
-        await File.WriteAllTextAsync(blocker, "a file where a folder should be");
+        await File.WriteAllTextAsync(blocker, "a file where a folder should be", TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAnyAsync<IOException>(() => Store(Path.Combine(blocker, "assets")).PutAsync(new byte[] { 1 }, Webp, default));
+        await Assert.ThrowsAnyAsync<IOException>(() => Store(Path.Combine(blocker, "assets")).PutAsync(new byte[] { 1 }, Webp, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task Only_webp_is_stored()
-        => await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => Store().PutAsync(new byte[] { 1 }, "image/png", default));
+        => await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => Store().PutAsync(new byte[] { 1 }, "image/png", TestContext.Current.CancellationToken));
 }

@@ -56,10 +56,10 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         await InsertAsync(store, app.AdultA, SignalOf("k:1", item));
         await InsertAsync(store, app.AdultA, SignalOf("k:1", item));
 
-        var stored = await store.ForSourceAsync(app.AdultA, [Kind.Kind], default);
+        var stored = await store.ForSourceAsync(app.AdultA, [Kind.Kind], TestContext.Current.CancellationToken);
         var row = Assert.Single(stored);
         Assert.Equal(("k:1", NotificationStates.Open), (row.Key, row.State));
-        var record = await store.FindAsync(app.AdultA, row.Id, default);
+        var record = await store.FindAsync(app.AdultA, row.Id, TestContext.Current.CancellationToken);
         Assert.Equal(("Netflix", NotificationLevel.Action, (Instant?)Now), (record!.Params["name"], record.Level, record.OpenedAt));
         Assert.Equal([item], record.ItemIds);
     }
@@ -74,9 +74,9 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
             var store = scope.ServiceProvider.GetRequiredService<INotificationStore>();
             foreach (var key in new[] { "open", "snoozed", "resolved", "dismissed", "pending" })
                 await InsertAsync(store, app.AdultA, SignalOf(key, item), open: key != "pending");
-            await store.SnoozeAsync(await IdOfAsync(app, app.AdultA, "snoozed"), Today.PlusDays(7), default);
-            await store.ApplyAsync(app.AdultA, [new LifecycleChange.Resolve(await IdOfAsync(app, app.AdultA, "resolved"))], default);
-            await store.DismissAsync(await IdOfAsync(app, app.AdultA, "dismissed"), Now, default);
+            await store.SnoozeAsync(await IdOfAsync(app, app.AdultA, "snoozed"), Today.PlusDays(7), TestContext.Current.CancellationToken);
+            await store.ApplyAsync(app.AdultA, [new LifecycleChange.Resolve(await IdOfAsync(app, app.AdultA, "resolved"))], TestContext.Current.CancellationToken);
+            await store.DismissAsync(await IdOfAsync(app, app.AdultA, "dismissed"), Now, TestContext.Current.CancellationToken);
         }
 
         Assert.Equal([await IdOfAsync(app, app.AdultA, "open")], await ListAsync(app, app.AdultA, NotificationList.Todo, item));
@@ -108,10 +108,10 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal([recent], await ListAsync(app, app.AdultA, NotificationList.History, item));
 
         await using var purge = app.Services.CreateAsyncScope();
-        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], default);
+        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], TestContext.Current.CancellationToken);
         Assert.Equal(1, purged);
         var db = purge.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        Assert.Equal([recent], await db.Notifications.AsNoTracking().Select(n => n.Id).ToListAsync());
+        Assert.Equal([recent], await db.Notifications.AsNoTracking().Select(n => n.Id).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -129,15 +129,15 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
                 {
                     Id = Guid.NewGuid(), NotificationId = old, PersonId = app.AdultA.Value, Channel = channel, State = "sent", CreatedAt = Now, SentAt = Now,
                 });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var purge = app.Services.CreateAsyncScope();
-        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], default);
+        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], TestContext.Current.CancellationToken);
 
         Assert.Equal(1, purged);
         await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Empty(await db.Deliveries.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.Deliveries.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -165,16 +165,16 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
                 Id = Guid.NewGuid(), NotificationId = retiredOld, PersonId = app.AdultA.Value, Channel = "discord_household", State = "sent", CreatedAt = Now,
                 HouseholdKey = "retired_old",
             });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var purge = app.Services.CreateAsyncScope();
-        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], default);
+        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], TestContext.Current.CancellationToken);
 
         Assert.Equal(1, purged);
         await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(["declared_old", "retired_recent"], await db.Notifications.AsNoTracking().OrderBy(n => n.Key).Select(n => n.Key).ToListAsync());
-        Assert.Equal("discord_household", Assert.Single(await db.Deliveries.AsNoTracking().ToListAsync()).Channel); // the household's key stays spent
+        Assert.Equal(["declared_old", "retired_recent"], await db.Notifications.AsNoTracking().OrderBy(n => n.Key).Select(n => n.Key).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal("discord_household", Assert.Single(await db.Deliveries.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken)).Channel); // the household's key stays spent
     }
 
     [Fact]
@@ -194,8 +194,8 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal([one], await ListAsync(app, app.AdultA, NotificationList.Todo, seen));
         await using var counting = app.Services.CreateAsyncScope();
         var counter = counting.ServiceProvider.GetRequiredService<INotificationStore>();
-        Assert.Equal((1, 0), await counter.CountAsync(app.AdultA, new HashSet<ItemId> { seen }, default));
-        Assert.Equal((2, 0), await counter.CountAsync(app.AdultA, new HashSet<ItemId> { seen, hidden }, default));
+        Assert.Equal((1, 0), await counter.CountAsync(app.AdultA, new HashSet<ItemId> { seen }, TestContext.Current.CancellationToken));
+        Assert.Equal((2, 0), await counter.CountAsync(app.AdultA, new HashSet<ItemId> { seen, hidden }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -207,10 +207,10 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var store = scope.ServiceProvider.GetRequiredService<INotificationStore>();
         foreach (var key in new[] { "unread", "read", "snoozed" })
             await InsertAsync(store, app.AdultA, SignalOf(key, item));
-        await store.MarkReadAsync(app.AdultA, [await IdOfAsync(app, app.AdultA, "read")], Now, default);
-        await store.SnoozeAsync(await IdOfAsync(app, app.AdultA, "snoozed"), Today.PlusDays(3), default);
+        await store.MarkReadAsync(app.AdultA, [await IdOfAsync(app, app.AdultA, "read")], Now, TestContext.Current.CancellationToken);
+        await store.SnoozeAsync(await IdOfAsync(app, app.AdultA, "snoozed"), Today.PlusDays(3), TestContext.Current.CancellationToken);
 
-        Assert.Equal((1, 0), await store.CountAsync(app.AdultA, new HashSet<ItemId> { item }, default));
+        Assert.Equal((1, 0), await store.CountAsync(app.AdultA, new HashSet<ItemId> { item }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -224,20 +224,20 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var id = await IdOfAsync(app, app.AdultA, "a");
 
         var moved = SignalOf("a", item) with { DueOn = Today.PlusDays(20) };
-        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Retime(id, Today.PlusDays(10), false, moved)], default);
-        var row = (await store.FindAsync(app.AdultA, id, default))!;
+        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Retime(id, Today.PlusDays(10), false, moved)], TestContext.Current.CancellationToken);
+        var row = (await store.FindAsync(app.AdultA, id, TestContext.Current.CancellationToken))!;
         Assert.Equal((NotificationStates.Pending, Today.PlusDays(10), (LocalDate?)Today.PlusDays(20)), (row.State, row.NotifyOn, row.DueOn));
 
-        await store.ApplyAsync(app.AdultA, [new LifecycleChange.OpenNow(id)], default);
-        row = (await store.FindAsync(app.AdultA, id, default))!;
+        await store.ApplyAsync(app.AdultA, [new LifecycleChange.OpenNow(id)], TestContext.Current.CancellationToken);
+        row = (await store.FindAsync(app.AdultA, id, TestContext.Current.CancellationToken))!;
         Assert.Equal((NotificationStates.Open, (Instant?)Now), (row.State, row.OpenedAt));
 
-        await store.MarkReadAsync(app.AdultA, [id], Now, default);
-        await store.SnoozeAsync(id, Today.PlusDays(2), default);
-        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Wake(id, Today.PlusDays(1))], default);
-        Assert.Equal(NotificationStates.Snoozed, (await store.FindAsync(app.AdultA, id, default))!.State); // not yet
-        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Wake(id, Today.PlusDays(2))], default);
-        row = (await store.FindAsync(app.AdultA, id, default))!;
+        await store.MarkReadAsync(app.AdultA, [id], Now, TestContext.Current.CancellationToken);
+        await store.SnoozeAsync(id, Today.PlusDays(2), TestContext.Current.CancellationToken);
+        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Wake(id, Today.PlusDays(1))], TestContext.Current.CancellationToken);
+        Assert.Equal(NotificationStates.Snoozed, (await store.FindAsync(app.AdultA, id, TestContext.Current.CancellationToken))!.State); // not yet
+        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Wake(id, Today.PlusDays(2))], TestContext.Current.CancellationToken);
+        row = (await store.FindAsync(app.AdultA, id, TestContext.Current.CancellationToken))!;
         Assert.Equal((NotificationStates.Open, (LocalDate?)null, (Instant?)null, (Instant?)Now), (row.State, row.SnoozedUntil, row.ReadAt, row.OpenedAt));
     }
 
@@ -251,14 +251,14 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         foreach (var key in new[] { "a", "b", "c", "d", "e" }) // all opened at the same instant
             await InsertAsync(store, app.AdultA, SignalOf(key, item));
         await InsertAsync(store, app.AdultB, SignalOf("other", item));
-        var everything = (await store.ListAsync(app.AdultA, NotificationList.Todo, new HashSet<ItemId> { item }, Today, null, 50, default)).Select(n => n.Id).ToList();
+        var everything = (await store.ListAsync(app.AdultA, NotificationList.Todo, new HashSet<ItemId> { item }, Today, null, 50, TestContext.Current.CancellationToken)).Select(n => n.Id).ToList();
         Assert.Equal(5, everything.Count);
 
         var paged = new List<Guid>();
         Guid? before = null;
         while (true)
         {
-            var page = await store.ListAsync(app.AdultA, NotificationList.Todo, new HashSet<ItemId> { item }, Today, before, 2, default);
+            var page = await store.ListAsync(app.AdultA, NotificationList.Todo, new HashSet<ItemId> { item }, Today, before, 2, TestContext.Current.CancellationToken);
             if (page.Count == 0)
                 break;
             paged.AddRange(page.Select(n => n.Id));
@@ -269,9 +269,9 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
 
         // A stale id, or another person's row, is an empty page, not the first page again.
         var set = new HashSet<ItemId> { item };
-        Assert.Empty(await store.ListAsync(app.AdultA, NotificationList.Todo, set, Today, Guid.NewGuid(), 2, default));
+        Assert.Empty(await store.ListAsync(app.AdultA, NotificationList.Todo, set, Today, Guid.NewGuid(), 2, TestContext.Current.CancellationToken));
         var others = await IdOfAsync(app, app.AdultB, "other");
-        Assert.Empty(await store.ListAsync(app.AdultA, NotificationList.Todo, set, Today, others, 2, default));
+        Assert.Empty(await store.ListAsync(app.AdultA, NotificationList.Todo, set, Today, others, 2, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -286,11 +286,11 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         [
             new LifecycleChange.Insert(SignalOf("c1", item) with { Kind = critical.Kind }, critical, Today, true),
             new LifecycleChange.Insert(SignalOf("c2", item) with { Kind = critical.Kind }, critical, Today, true),
-        ], default);
+        ], TestContext.Current.CancellationToken);
         await InsertAsync(store, app.AdultA, SignalOf("info", item));
-        await store.MarkReadAsync(app.AdultA, [await IdOfAsync(app, app.AdultA, "c2")], Now, default);
+        await store.MarkReadAsync(app.AdultA, [await IdOfAsync(app, app.AdultA, "c2")], Now, TestContext.Current.CancellationToken);
 
-        Assert.Equal((2, 1), await store.CountAsync(app.AdultA, new HashSet<ItemId> { item }, default));
+        Assert.Equal((2, 1), await store.CountAsync(app.AdultA, new HashSet<ItemId> { item }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -305,9 +305,9 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var other = new ItemId(Guid.NewGuid());
         var moved = new Signal("a", Kind.Kind, [item, other], Today.PlusDays(1), new Dictionary<string, string> { ["name"] = "Disney" });
 
-        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Retime(id, Today, true, moved)], default);
+        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Retime(id, Today, true, moved)], TestContext.Current.CancellationToken);
 
-        var row = (await store.FindAsync(app.AdultA, id, default))!;
+        var row = (await store.FindAsync(app.AdultA, id, TestContext.Current.CancellationToken))!;
         Assert.Equal((NotificationStates.Open, (Instant?)Now, (LocalDate?)Today.PlusDays(1), "Disney"), (row.State, row.OpenedAt, row.DueOn, row.Params["name"]));
         Assert.Equal([item, other], row.ItemIds);
     }
@@ -324,11 +324,11 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var p = await IdOfAsync(app, app.AdultA, "p");
         var o = await IdOfAsync(app, app.AdultA, "o");
 
-        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Resolve(p), new LifecycleChange.Resolve(o)], default);
+        await store.ApplyAsync(app.AdultA, [new LifecycleChange.Resolve(p), new LifecycleChange.Resolve(o)], TestContext.Current.CancellationToken);
 
         foreach (var id in new[] { p, o })
         {
-            var row = (await store.FindAsync(app.AdultA, id, default))!;
+            var row = (await store.FindAsync(app.AdultA, id, TestContext.Current.CancellationToken))!;
             Assert.Equal((NotificationStates.Resolved, (Instant?)Now), (row.State, row.ResolvedAt));
         }
     }
@@ -339,14 +339,14 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = app.Services.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<INotificationStore>();
-        Assert.Null(await store.LastEvaluatedAsync(app.AdultA, default));
+        Assert.Null(await store.LastEvaluatedAsync(app.AdultA, TestContext.Current.CancellationToken));
 
-        await store.RecordRunAsync(app.AdultA, "subscriptions", Today, true, default);
-        await store.RecordRunAsync(app.AdultA, "income", Today.PlusDays(-1), true, default);
-        Assert.Equal(Today.PlusDays(-1), await store.LastEvaluatedAsync(app.AdultA, default));
+        await store.RecordRunAsync(app.AdultA, "subscriptions", Today, true, TestContext.Current.CancellationToken);
+        await store.RecordRunAsync(app.AdultA, "income", Today.PlusDays(-1), true, TestContext.Current.CancellationToken);
+        Assert.Equal(Today.PlusDays(-1), await store.LastEvaluatedAsync(app.AdultA, TestContext.Current.CancellationToken));
 
-        await store.RecordRunAsync(app.AdultA, "income", Today, false, default); // a failure does not advance the day
-        Assert.Equal(Today.PlusDays(-1), await store.LastEvaluatedAsync(app.AdultA, default));
-        Assert.Equal(Now, await store.LastRunAtAsync(app.AdultA, default));
+        await store.RecordRunAsync(app.AdultA, "income", Today, false, TestContext.Current.CancellationToken); // a failure does not advance the day
+        Assert.Equal(Today.PlusDays(-1), await store.LastEvaluatedAsync(app.AdultA, TestContext.Current.CancellationToken));
+        Assert.Equal(Now, await store.LastRunAtAsync(app.AdultA, TestContext.Current.CancellationToken));
     }
 }

@@ -101,7 +101,7 @@ public class McpTaxAssessmentToolTests(PostgresFixture fixture) : IClassFixture<
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using var propose = await ClientAsync(app, TokenPresets.Propose);
-        var created = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, Route, Notice(app, 2023))).Content.ReadAsStringAsync()).RootElement;
+        var created = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, Route, Notice(app, 2023))).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         var id = created.GetProperty("id").GetGuid();
 
         var correct = await AnswerAsync(propose, "propose_correct_tax_year", new { id, body = new
@@ -136,7 +136,7 @@ public class McpTaxAssessmentToolTests(PostgresFixture fixture) : IClassFixture<
         await using var app = await NidApp.StartAsync(fixture);
         await using var propose = await ClientAsync(app, TokenPresets.Propose);
         var created = JsonDocument.Parse(await (await app.RawAsync(app.AdultB, HttpMethod.Post, Route,
-            new { year = 2018, declarants = new[] { new { personId = app.AdultB.Value, rank = 1 } } })).Content.ReadAsStringAsync()).RootElement;
+            new { year = 2018, declarants = new[] { new { personId = app.AdultB.Value, rank = 1 } } })).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         var id = created.GetProperty("id").GetGuid();
 
         var correct = await CallAsync(propose, "propose_correct_tax_year", new { id, body = new

@@ -49,7 +49,7 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var forA = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/platform/audit/items/{shared.Value}"));
 
         Assert.Equal(HttpStatusCode.OK, forB.StatusCode);
-        var body = await forB.Content.ReadAsStringAsync();
+        var body = await forB.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.DoesNotContain("subscriptions.purchase", body);
         Assert.DoesNotContain(hidden.Value.ToString(), body);
         Assert.Contains(forA.GetProperty("entries").EnumerateArray(), e => e.GetProperty("entity").GetString() == "subscriptions.purchase");
@@ -68,7 +68,7 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var forA = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/platform/audit/items/{goal.Value}"));
 
         Assert.Equal(HttpStatusCode.OK, forB.StatusCode);
-        var body = await forB.Content.ReadAsStringAsync();
+        var body = await forB.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.DoesNotContain(hidden.Value.ToString(), body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(forA.GetProperty("entries").EnumerateArray(), e => e.GetProperty("entity").GetString() == "goals.funding");
         Assert.Contains(Json(await app.GetRawAsync(app.AdultA, $"/api/v1/platform/audit/items/{hidden.Value}")).GetProperty("entries").EnumerateArray(),
@@ -149,12 +149,12 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var hidden = await app.NewSubscriptionAsync("hidden", app.AdultB, Visibility.Private);
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>()
-                .RecordAsync("ProbeQuery", app.AdultB, [hidden], default);
+                .RecordAsync("ProbeQuery", app.AdultB, [hidden], TestContext.Current.CancellationToken);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/admin/security-journal?event=access_violation");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.DoesNotContain(hidden.Value.ToString(), body);
         var entry = Assert.Single(Json(body).GetProperty("entries").EnumerateArray());
         Assert.Equal("ProbeQuery", entry.GetProperty("details").GetProperty("request").GetString());

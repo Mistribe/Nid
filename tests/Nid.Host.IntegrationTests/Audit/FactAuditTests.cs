@@ -38,8 +38,8 @@ public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             item = await EnvelopeAsync(scope.ServiceProvider, app.AdultA);
             var valuations = scope.ServiceProvider.GetRequiredService<IValuations>();
-            (await valuations.RecordAsync(new NewValuation(item, Day, Eur(100m), null), default)).Ok();
-            (await valuations.RecordAsync(new NewValuation(item, Day, Eur(110m), null), default)).Ok();
+            (await valuations.RecordAsync(new NewValuation(item, Day, Eur(100m), null), TestContext.Current.CancellationToken)).Ok();
+            (await valuations.RecordAsync(new NewValuation(item, Day, Eur(110m), null), TestContext.Current.CancellationToken)).Ok();
         }
 
         var entries = await WritesAsync(app, "core.valuation");
@@ -61,14 +61,14 @@ public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             var item = await EnvelopeAsync(scope.ServiceProvider, app.AdultA);
-            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(default);
+            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(TestContext.Current.CancellationToken);
             (await scope.ServiceProvider.GetRequiredService<IFlows>()
-                .RecordAsync(new NewFlow(item, Day, FlowKind.Contribution, Eur(50m), null, null, null), default)).Ok();
+                .RecordAsync(new NewFlow(item, Day, FlowKind.Contribution, Eur(50m), null, null, null), TestContext.Current.CancellationToken)).Ok();
             // disposed without CommitAsync: rolled back
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(0, await core.Flows.CountAsync());
+        Assert.Equal(0, await core.Flows.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Empty(await WritesAsync(app, "core.flow"));
     }
 
@@ -82,22 +82,22 @@ public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             item = await EnvelopeAsync(scope.ServiceProvider, app.AdultA);
             (await scope.ServiceProvider.GetRequiredService<IFlows>()
-                .RecordAsync(new NewFlow(item, Day, FlowKind.Opening, Eur(1_000m), null, null, null), default)).Ok();
+                .RecordAsync(new NewFlow(item, Day, FlowKind.Opening, Eur(1_000m), null, null, null), TestContext.Current.CancellationToken)).Ok();
         }
 
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
-            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(default);
+            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(TestContext.Current.CancellationToken);
             var second = await scope.ServiceProvider.GetRequiredService<IFlows>()
-                .RecordAsync(new NewFlow(item, Day, FlowKind.Opening, Eur(2_000m), null, null, null), default);
+                .RecordAsync(new NewFlow(item, Day, FlowKind.Opening, Eur(2_000m), null, null, null), TestContext.Current.CancellationToken);
 
             Assert.True(second.TryGetFailure(out var failure));
             Assert.Equal(CoreFactCodes.OpeningExists, failure!.Code);
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.Equal(1, await core.Flows.CountAsync());
+        Assert.Equal(1, await core.Flows.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -133,7 +133,7 @@ public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             item = await EnvelopeAsync(scope.ServiceProvider, app.AdultA);
             opening = (await scope.ServiceProvider.GetRequiredService<IFlows>()
-                .RecordAsync(new NewFlow(item, Day, FlowKind.Opening, Eur(1_000m), null, null, null), default)).Ok().Id;
+                .RecordAsync(new NewFlow(item, Day, FlowKind.Opening, Eur(1_000m), null, null, null), TestContext.Current.CancellationToken)).Ok().Id;
         }
 
         await RefuseInsertsAsync(app, "flow", "23505"); // unique_violation: the path a lost race takes
@@ -141,24 +141,24 @@ public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
-            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(default);
+            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(TestContext.Current.CancellationToken);
             var valuations = scope.ServiceProvider.GetRequiredService<IValuations>();
-            Assert.True((await valuations.RecordAsync(new NewValuation(item, Day, Eur(900m), null), default)).IsSuccess);
+            Assert.True((await valuations.RecordAsync(new NewValuation(item, Day, Eur(900m), null), TestContext.Current.CancellationToken)).IsSuccess);
 
             var superseded = await scope.ServiceProvider.GetRequiredService<IFlows>()
-                .SupersedeAsync(item, opening, new NewFlow(item, Day, FlowKind.Opening, Eur(1_200m), null, null, null), default);
+                .SupersedeAsync(item, opening, new NewFlow(item, Day, FlowKind.Opening, Eur(1_200m), null, null, null), TestContext.Current.CancellationToken);
 
             Assert.True(superseded.TryGetFailure(out var failure));
             Assert.Equal(CoreFactCodes.FactConflict, failure!.Code);
             Assert.False(TracksFacts(scope.ServiceProvider));
-            await transaction.CommitAsync(default); // the caller keeps its own work: its choice
+            await transaction.CommitAsync(TestContext.Current.CancellationToken); // the caller keeps its own work: its choice
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var flow = Assert.Single(await core.Flows.ToListAsync());
+        var flow = Assert.Single(await core.Flows.ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal((opening, (Instant?)null), (flow.Id, flow.RetiredAt));
         Assert.Equal(["insert"], (await WritesAsync(app, "core.flow")).Select(e => e.Action));
-        Assert.Equal(1, await core.Valuations.CountAsync(v => v.RetiredAt == null));
+        Assert.Equal(1, await core.Valuations.CountAsync(v => v.RetiredAt == null, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(["insert"], (await WritesAsync(app, "core.valuation")).Select(e => e.Action));
     }
 
@@ -173,7 +173,7 @@ public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             item = await EnvelopeAsync(scope.ServiceProvider, app.AdultA);
             first = (await scope.ServiceProvider.GetRequiredService<IValuations>()
-                .RecordAsync(new NewValuation(item, Day, Eur(100m), null), default)).Ok().Id;
+                .RecordAsync(new NewValuation(item, Day, Eur(100m), null), TestContext.Current.CancellationToken)).Ok().Id;
         }
 
         await RefuseInsertsAsync(app, "valuation", "P0001"); // raise_exception: not a conflict, so the store throws
@@ -181,22 +181,22 @@ public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
-            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(default);
+            await using var transaction = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(TestContext.Current.CancellationToken);
             Assert.True((await scope.ServiceProvider.GetRequiredService<IFlows>()
-                .RecordAsync(new NewFlow(item, Day, FlowKind.Contribution, Eur(50m), null, null, null), default)).IsSuccess);
+                .RecordAsync(new NewFlow(item, Day, FlowKind.Contribution, Eur(50m), null, null, null), TestContext.Current.CancellationToken)).IsSuccess);
 
             await Assert.ThrowsAsync<DbUpdateException>(() => scope.ServiceProvider.GetRequiredService<IValuations>()
-                .RecordAsync(new NewValuation(item, Day, Eur(110m), null), default));
+                .RecordAsync(new NewValuation(item, Day, Eur(110m), null), TestContext.Current.CancellationToken));
 
             Assert.False(TracksFacts(scope.ServiceProvider));
-            await transaction.CommitAsync(default);
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
         }
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var value = Assert.Single(await core.Valuations.ToListAsync());
+        var value = Assert.Single(await core.Valuations.ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal((first, (Instant?)null), (value.Id, value.RetiredAt));
         Assert.Equal(["insert"], (await WritesAsync(app, "core.valuation")).Select(e => e.Action));
-        Assert.Equal(1, await core.Flows.CountAsync());
+        Assert.Equal(1, await core.Flows.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(["insert"], (await WritesAsync(app, "core.flow")).Select(e => e.Action));
     }
 

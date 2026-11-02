@@ -353,8 +353,8 @@ public class GoalReadTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
             var store = scope.ServiceProvider.GetRequiredService<IGoalStore>();
-            var stored = (await store.FindAsync(late, default))!;
-            Assert.True((await store.UpdateAsync(stored with { TargetDate = Today.PlusDays(-1) }, default)).IsSuccess); // past due: no route sets a past date
+            var stored = (await store.FindAsync(late, TestContext.Current.CancellationToken))!;
+            Assert.True((await store.UpdateAsync(stored with { TargetDate = Today.PlusDays(-1) }, TestContext.Current.CancellationToken)).IsSuccess); // past due: no route sets a past date
         }
 
         var items = (await GetAsync(app, app.AdultA, $"{Goals}?scope=me")).GetProperty("items").EnumerateArray().ToList();

@@ -35,7 +35,7 @@ public class IrlSourceClientTests
     {
         var handler = new StubHandler(HttpStatusCode.OK, 5);
 
-        var result = await Client(handler).FetchAsync(default);
+        var result = await Client(handler).FetchAsync(TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetValue(out var body));
         Assert.Equal(5, body!.Length);
@@ -47,7 +47,7 @@ public class IrlSourceClientTests
     {
         foreach (HttpMessageHandler handler in new HttpMessageHandler[] { new StubHandler(HttpStatusCode.InternalServerError), new ThrowingHandler() })
         {
-            var result = await Client(handler).FetchAsync(default);
+            var result = await Client(handler).FetchAsync(TestContext.Current.CancellationToken);
             Assert.True(result.TryGetFailure(out var failure));
             Assert.Equal(IrlCodes.SourceUnavailable, failure!.Code);
         }
@@ -56,7 +56,7 @@ public class IrlSourceClientTests
     [Fact]
     public async Task An_oversized_body_is_malformed()
     {
-        var result = await Client(new StubHandler(HttpStatusCode.OK, bodySize: IrlSourceClient.MaxBytes + 1)).FetchAsync(default);
+        var result = await Client(new StubHandler(HttpStatusCode.OK, bodySize: IrlSourceClient.MaxBytes + 1)).FetchAsync(TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(IrlCodes.SourceMalformed, failure!.Code);
@@ -66,7 +66,7 @@ public class IrlSourceClientTests
     public async Task A_host_outside_the_list_is_refused_without_a_request()
     {
         var handler = new StubHandler(HttpStatusCode.OK);
-        var result = await Client(handler, new OutboundOptions { AllowedHosts = ["www.ecb.europa.eu"] }).FetchAsync(default);
+        var result = await Client(handler, new OutboundOptions { AllowedHosts = ["www.ecb.europa.eu"] }).FetchAsync(TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(IrlCodes.SourceRefused, failure!.Code);

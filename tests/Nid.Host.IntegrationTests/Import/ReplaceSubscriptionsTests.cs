@@ -67,7 +67,7 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
         string? providerKeyBefore;
         await using (var subsBefore = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
         {
-            var before = await subsBefore.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify");
+            var before = await subsBefore.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken);
             idBefore = before.ItemId;
             providerKeyBefore = before.ProviderKey;
         }
@@ -77,24 +77,24 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(1, committed.Report!.Sections["subscriptions"].Replaced);
         Assert.Equal(0, committed.Report.Sections["subscriptions"].Conflict);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        Assert.True(await core.Items.AnyAsync(i => i.DisplayName == "Spotify Family"));
-        Assert.False(await core.Items.AnyAsync(i => i.DisplayName == "Spotify Premium Duo"));
+        Assert.True(await core.Items.AnyAsync(i => i.DisplayName == "Spotify Family", cancellationToken: TestContext.Current.CancellationToken));
+        Assert.False(await core.Items.AnyAsync(i => i.DisplayName == "Spotify Premium Duo", cancellationToken: TestContext.Current.CancellationToken));
 
         // The row is the same one, updated in place, taking the file's new auto_renew/note; its provider (a
         // generated key, not "spotify" itself — ProvidersImportTests) carries over unchanged.
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var after = await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify");
+        var after = await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(idBefore, after.ItemId);
         Assert.False(after.AutoRenew);
         Assert.Equal("Upgraded to family plan", after.Note);
         Assert.Equal(providerKeyBefore, after.ProviderKey);
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var rename = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Action == "update" && r.Entity == "core.item");
+        var rename = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Action == "update" && r.Entity == "core.item", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains("Spotify Premium Duo", rename.Data);
         Assert.Equal("import", rename.Via);
         var subscriptionWrite = await platform.AuditLog.SingleAsync(
-            r => r.Category == "write" && r.Action == "update" && r.Entity == "subscriptions.subscription");
+            r => r.Category == "write" && r.Action == "update" && r.Entity == "subscriptions.subscription", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("import", subscriptionWrite.Via);
     }
 
@@ -106,13 +106,13 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
         await CommitAsync(client, app, GoldenFile.Sections());
         await CommitAsync(client, app, Renamed(), replace: true);
         await using var before = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var writes = await before.AuditLog.CountAsync(r => r.Category == "write");
+        var writes = await before.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken);
 
         var again = await CommitAsync(client, app, Renamed(), replace: true);
 
         Assert.All(again.Report!.Sections.Values, c => Assert.Equal((0, 0, 0), (c.Created, c.Replaced, c.Conflict)));
         await using var after = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(writes, await after.AuditLog.CountAsync(r => r.Category == "write"));
+        Assert.Equal(writes, await after.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
         var client = new ImportClient(app);
         await CommitAsync(client, app, GoldenFile.Sections());
         await using var before = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var writesBefore = await before.AuditLog.CountAsync(r => r.Category == "write");
+        var writesBefore = await before.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken);
 
         // the golden subscriptions' ownership, with shares that no longer sum to 10 000
         var broken = GoldenFile.With("subscriptions", GoldenFile.Subscriptions.Replace("10000", "4000"));
@@ -149,11 +149,11 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultA, session.Id, replace: true)).StatusCode);
 
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var spotify = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Spotify Premium Duo");
+        var spotify = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Spotify Premium Duo", cancellationToken: TestContext.Current.CancellationToken);
         var owner = Assert.Single(spotify.Owners);
         Assert.Equal((app.AdultA.Value, 10000), (owner.PersonId, owner.ShareBp));
         await using var after = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(writesBefore, await after.AuditLog.CountAsync(r => r.Category == "write"));
+        Assert.Equal(writesBefore, await after.AuditLog.CountAsync(r => r.Category == "write", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(0, validated.Report.Sections["subscriptions"].Replaced);
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, session.Id, replace: true)).StatusCode);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var item = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Shared");
+        var item = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Shared", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(2, item.Owners.Count);
         Assert.Equal(writesBefore, await WritesAsync(app));
     }
@@ -230,7 +230,7 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
 
         Assert.Equal(1, (await client.GetAsync(app.AdultB, session.Id)).Report!.Sections["subscriptions"].Replaced);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
-        var item = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Shared");
+        var item = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Shared", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(3000, item.Owners.Single(o => o.PersonId == app.AdultA.Value).ShareBp);
     }
 
@@ -260,7 +260,7 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
         var client = new ImportClient(app);
         await CommitAsync(client, app, GoldenFile.Sections());
         await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq, cancellationToken: TestContext.Current.CancellationToken);
 
         // sub-spotify, the only subscription with service_users: adult-2 in, adult-1 out.
         var swapped = GoldenFile.With("subscriptions", GoldenFile.Subscriptions.Replace(
@@ -269,13 +269,13 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture) : IClassFixture<
 
         Assert.Equal(1, committed.Report!.Sections["subscriptions"].Replaced);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
-        var spotify = await subs.Subscriptions.AsNoTracking().Include(s => s.Users).SingleAsync(s => s.ImportRef == "sub-spotify");
+        var spotify = await subs.Subscriptions.AsNoTracking().Include(s => s.Users).SingleAsync(s => s.ImportRef == "sub-spotify", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([app.AdultB.Value], spotify.Users.Select(u => u.PersonId).ToList());
 
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         var users = await platform.AuditLog
             .Where(r => r.Seq > lastSeq && r.Category == "write" && r.Entity == "subscriptions.subscription_user")
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(["delete", "insert"], users.Select(r => r.Action).Order().ToList());
         Assert.Contains(app.AdultA.Value.ToString(), users.Single(r => r.Action == "delete").Data);
         Assert.Contains(app.AdultB.Value.ToString(), users.Single(r => r.Action == "insert").Data);

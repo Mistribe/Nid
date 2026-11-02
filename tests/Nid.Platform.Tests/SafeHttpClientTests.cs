@@ -41,14 +41,14 @@ public class SafeHttpClientTests
     [Fact]
     public async Task Returns_the_body_of_an_allowed_host()
     {
-        var response = await Client(new StubHandler(_ => Ok("hello"))).GetAsync(new Uri(Allowed), 1024, default);
+        var response = await Client(new StubHandler(_ => Ok("hello"))).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken);
         Assert.Equal((HttpStatusCode.OK, "hello"), (response.Status, System.Text.Encoding.UTF8.GetString(response.Body)));
     }
 
     [Fact]
     public async Task A_404_is_returned_not_thrown()
         => Assert.Equal(HttpStatusCode.NotFound,
-            (await Client(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound))).GetAsync(new Uri(Allowed), 1024, default)).Status);
+            (await Client(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound))).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken)).Status);
 
     [Theory]
     [InlineData("http://raw.githubusercontent.com/file.json", "not_https")]
@@ -57,7 +57,7 @@ public class SafeHttpClientTests
     public async Task Refuses_before_sending(string url, string reason)
     {
         var handler = new StubHandler(_ => Ok("never"));
-        Assert.Equal(reason, await RefusalOf(Client(handler).GetAsync(new Uri(url), 1024, default)));
+        Assert.Equal(reason, await RefusalOf(Client(handler).GetAsync(new Uri(url), 1024, TestContext.Current.CancellationToken)));
         Assert.Empty(handler.Requested);
     }
 
@@ -65,7 +65,7 @@ public class SafeHttpClientTests
     public async Task Follows_a_redirect_to_an_allowed_host_and_revalidates_each_hop()
     {
         var handler = new StubHandler(_ => Redirect("https://www.ecb.europa.eu/next"), _ => Ok("there"));
-        var response = await Client(handler).GetAsync(new Uri(Allowed), 1024, default);
+        var response = await Client(handler).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken);
 
         Assert.Equal("there", System.Text.Encoding.UTF8.GetString(response.Body));
         Assert.Equal(["https://raw.githubusercontent.com/file.json", "https://www.ecb.europa.eu/next"], handler.Requested.Select(u => u.ToString()).ToList());
@@ -76,24 +76,24 @@ public class SafeHttpClientTests
     [InlineData("http://raw.githubusercontent.com/downgraded", "not_https")]
     [InlineData("https://evil.example/", "host_not_allowed")]
     public async Task Refuses_a_redirect_that_would_not_be_allowed_directly(string location, string reason)
-        => Assert.Equal(reason, await RefusalOf(Client(new StubHandler(_ => Redirect(location))).GetAsync(new Uri(Allowed), 1024, default)));
+        => Assert.Equal(reason, await RefusalOf(Client(new StubHandler(_ => Redirect(location))).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken)));
 
     [Fact]
     public async Task Stops_a_redirect_loop()
         => Assert.Equal("too_many_redirects",
-            await RefusalOf(Client(new StubHandler(_ => Redirect(Allowed))).GetAsync(new Uri(Allowed), 1024, default)));
+            await RefusalOf(Client(new StubHandler(_ => Redirect(Allowed))).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken)));
 
     [Fact]
     public async Task Refuses_a_body_over_the_limit_declared_or_streamed()
     {
-        Assert.Equal("too_large", await RefusalOf(Client(new StubHandler(_ => Ok(new string('x', 2048)))).GetAsync(new Uri(Allowed), 1024, default)));
+        Assert.Equal("too_large", await RefusalOf(Client(new StubHandler(_ => Ok(new string('x', 2048)))).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken)));
 
         // No Content-Length: the limit is enforced while reading.
         var streamed = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StreamContent(new MemoryStream(new byte[2048])),
         });
-        Assert.Equal("too_large", await RefusalOf(Client(streamed).GetAsync(new Uri(Allowed), 1024, default)));
+        Assert.Equal("too_large", await RefusalOf(Client(streamed).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken)));
     }
 
     [Theory]
@@ -103,7 +103,7 @@ public class SafeHttpClientTests
     public async Task The_real_handler_refuses_a_name_resolving_to_a_refused_address(params string[] answers)
     {
         using var handler = OutboundHandler.Create(new FixedResolver(answers));
-        Assert.Equal("address_refused", await RefusalOf(Client(handler).GetAsync(new Uri(Allowed), 1024, default)));
+        Assert.Equal("address_refused", await RefusalOf(Client(handler).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -124,11 +124,11 @@ public class SafeHttpClientTests
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         });
 
-        var response = await Client(ok).PostJsonAsync(hook, [1, 2, 3], 1024, default);
+        var response = await Client(ok).PostJsonAsync(hook, [1, 2, 3], 1024, TestContext.Current.CancellationToken);
 
         Assert.Equal((HttpStatusCode.NoContent, "POST", "application/json"), (response.Status, method, contentType));
         Assert.Equal(new byte[] { 1, 2, 3 }, body);
-        Assert.Equal("redirect_on_post", await RefusalOf(Client(new StubHandler(_ => Redirect("https://discord.com/elsewhere"))).PostJsonAsync(hook, [1], 1024, default)));
+        Assert.Equal("redirect_on_post", await RefusalOf(Client(new StubHandler(_ => Redirect("https://discord.com/elsewhere"))).PostJsonAsync(hook, [1], 1024, TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -142,10 +142,10 @@ public class SafeHttpClientTests
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var response = await Client(ok).SendOnceAsync(HttpMethod.Delete, api, null, new Dictionary<string, string> { ["Authorization"] = "Bearer t" }, 1024, default);
+        var response = await Client(ok).SendOnceAsync(HttpMethod.Delete, api, null, new Dictionary<string, string> { ["Authorization"] = "Bearer t" }, 1024, TestContext.Current.CancellationToken);
 
         Assert.Equal((HttpStatusCode.OK, "DELETE", "Bearer t"), (response.Status, method, auth));
-        Assert.Equal("redirect_on_get", await RefusalOf(Client(new StubHandler(_ => Redirect("https://discord.com/e"))).SendOnceAsync(HttpMethod.Get, api, null, null, 1024, default)));
+        Assert.Equal("redirect_on_get", await RefusalOf(Client(new StubHandler(_ => Redirect("https://discord.com/e"))).SendOnceAsync(HttpMethod.Get, api, null, null, 1024, TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class SafeHttpClientTests
     {
         var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
 
-        Assert.Equal("host_not_allowed", await RefusalOf(Client(handler).PostJsonAsync(new Uri("https://evil.example/api/webhooks/1/abc"), [1], 1024, default)));
+        Assert.Equal("host_not_allowed", await RefusalOf(Client(handler).PostJsonAsync(new Uri("https://evil.example/api/webhooks/1/abc"), [1], 1024, TestContext.Current.CancellationToken)));
         Assert.Empty(handler.Requested);
     }
 
@@ -168,7 +168,7 @@ public class SafeHttpClientTests
             return Ok("x");
         });
 
-        await Client(handler).GetAsync(new Uri(Allowed), 1024, default);
+        await Client(handler).GetAsync(new Uri(Allowed), 1024, TestContext.Current.CancellationToken);
 
         Assert.Equal("Nid/1.0 (+https://github.com/Mistribe/Nid)", agent);
     }
