@@ -5,6 +5,8 @@
     <Project Path="src/Nid.Banking.Contracts/Nid.Banking.Contracts.csproj" />
     <Project Path="src/Nid.Banking.Domain/Nid.Banking.Domain.csproj" />
     <Project Path="src/Nid.Banking.Infrastructure/Nid.Banking.Infrastructure.csproj" />
+    <Project Path="src/Nid.Childcare.Contracts/Nid.Childcare.Contracts.csproj" />
+    <Project Path="src/Nid.Childcare.Domain/Nid.Childcare.Domain.csproj" />
     <Project Path="src/Nid.Core.Application/Nid.Core.Application.csproj" />
     <Project Path="src/Nid.Core.Contracts/Nid.Core.Contracts.csproj" />
     <Project Path="src/Nid.Core.Domain/Nid.Core.Domain.csproj" />
@@ -42,6 +44,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Banking.IntegrationTests/Nid.Banking.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Banking.Tests/Nid.Banking.Tests.csproj" />
+    <Project Path="tests/Nid.Childcare.Tests/Nid.Childcare.Tests.csproj" />
     <Project Path="tests/Nid.Core.IntegrationTests/Nid.Core.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Core.Tests/Nid.Core.Tests.csproj" />
     <Project Path="tests/Nid.Documents.IntegrationTests/Nid.Documents.IntegrationTests.csproj" />
