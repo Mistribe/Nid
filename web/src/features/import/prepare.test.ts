@@ -107,6 +107,12 @@ describe('prepareFile against the batches the server computes (tests/vectors/imp
     expect(prepared.batches.map((b) => b.section)).toEqual(['flows', 'income_one_off_taxable']);
   });
 
+  it('accepts the childcare sections, after the goals', async () => {
+    const prepared = ready(await prepareFile(bytesOf(
+      '{"format":"nid.data","version":1,"childcare_statements":[{"arrangement":"cc-1","month":"2025-09"}],"childcare_arrangements":[{"id":"cc-1"}],"goals":[{"id":"g"}]}')));
+    expect(prepared.batches.map((b) => b.section)).toEqual(['goals', 'childcare_arrangements', 'childcare_statements']);
+  });
+
   it('accepts the insurances of subscriptions, after the subscriptions and properties they name', async () => {
     const prepared = ready(await prepareFile(bytesOf(
       '{"format":"nid.data","version":1,"subscription_insurances":[{"id":"i","subscription":"s","kind":"home","guarantees":[]}],"properties":[{"id":"p"}],"subscriptions":[{"id":"s"}]}')));

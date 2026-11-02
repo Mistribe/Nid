@@ -13,7 +13,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 {
     private static readonly string[] Expected =
     [
-        "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
+        "get_childcare", "get_childcare_statement", "get_childcare_statements", "list_childcare", "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
         "get_net_worth_history", "get_passive_income", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "get_tax", "list_envelopes",
         "list_bank_transactions", "list_expected_charges", "propose_bank_link", "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_providers", "list_subscriptions", "list_tax_years", "get_projection", "delete_proposal", "get_proposal", "list_proposals", "simulate_projection", "propose_amortization", "propose_breakdown", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment", "upload_document",
     ];

@@ -99,7 +99,7 @@ public sealed class ImportClient(NidApp app)
     }
 
     /// <summary>Starts a session, sends each section as batch 0, and validates. Each batch must be accepted.</summary>
-    public async Task<SessionResponse> RunAsync(PersonId actor, object adults, IReadOnlyDictionary<string, string> sections)
+    public async Task<SessionResponse> RunAsync(PersonId actor, object adults, IReadOnlyDictionary<string, string> sections, bool replace = false)
     {
         var session = await StartAsync(actor, adults);
         foreach (var (section, entities) in sections)
@@ -107,7 +107,7 @@ public sealed class ImportClient(NidApp app)
             var batch = await PutAsync(actor, session.Id, section, 0, entities);
             Assert.True(batch.Accepted, string.Join("; ", batch.Issues.Select(i => $"{i.Code} at {i.Path}: {i.Message}")));
         }
-        return await ValidateAsync(actor, session.Id);
+        return await ValidateAsync(actor, session.Id, replace);
     }
 
     public static async Task<string?> CodeOf(HttpResponseMessage response)

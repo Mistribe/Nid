@@ -10,5 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nid.Childcare.Contracts\Nid.Childcare.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Nid.Childcare.Domain\Nid.Childcare.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Childcare.Application\Nid.Childcare.Application.csproj" />
   </ItemGroup>
 </Project>

@@ -22,6 +22,10 @@ public static class ChildcareCodes
     public const string EndBeforeValidated = "childcare.end_before_validated";
     public const string CmgRequired = "childcare.cmg_required";
     public const string StatementConflict = "childcare.statement_conflict";
+    public const string FiguresDiffer = "childcare.figures_differ";
+    public const string UnknownArrangement = "childcare.unknown_arrangement";
+    public const string StatementTwice = "childcare.statement_twice";
+    public const string MonthOutOfContract = "childcare.month_out_of_contract";
     public const string RevisionNotAfter = "childcare.revision_not_after";
     public const string EndBeforeTerms = "childcare.end_before_terms";
     public const string Closed = "childcare.closed";

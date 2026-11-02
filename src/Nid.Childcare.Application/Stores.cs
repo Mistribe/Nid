@@ -20,9 +20,12 @@ public sealed record Terms(
 public sealed record Statement(
     ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version, Instant? ValidatedAt = null);
 
+/// <summary>An arrangement an import created, by its file ref.</summary>
+public sealed record ImportedArrangement(ItemId Item, string Hash, PersonId ImportedBy);
+
 public interface IChildcareStore
 {
-    Task CreateAsync(Arrangement arrangement, Terms terms, CancellationToken ct);
+    Task CreateAsync(Arrangement arrangement, Terms terms, CancellationToken ct, ImportMark? import = null);
 
     Task<Arrangement?> FindAsync(ItemId id, CancellationToken ct);
 
@@ -66,4 +69,16 @@ public interface IChildcareStore
 
     /// <summary>Deletes a draft and its days; nothing when there is none.</summary>
     Task DiscardAsync(ItemId id, YearMonth month, CancellationToken ct);
+
+    /// <summary>The arrangements imported under these file refs, by ref (decision 24).</summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedArrangement>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    /// <summary>The import marks of these arrangements, for the export's file ids.</summary>
+    Task<IReadOnlyDictionary<ItemId, ImportMark>> ImportMarksAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
+    /// <summary>An import replacing an arrangement: its child and carer, every revision and its weeks without care, and its mark.</summary>
+    Task ReplaceImportedAsync(Arrangement arrangement, IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, ImportMark import, CancellationToken ct);
+
+    /// <summary>An imported validated month, its days and frozen figures, inserted or replacing the stored one.</summary>
+    Task PutValidatedAsync(Statement statement, CancellationToken ct);
 }

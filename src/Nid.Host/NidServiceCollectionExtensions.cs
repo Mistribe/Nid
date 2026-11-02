@@ -274,6 +274,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITaxContribution, Nid.Childcare.Application.ChildcareTax>();
         services.AddScoped<ICommitmentsContribution, Nid.Childcare.Application.ChildcareCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Childcare.Application.ChildcareCharges>();
+        services.AddScoped<IImportSection, Nid.Childcare.Application.Import.ChildcareImportSection>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Childcare.Application.ChildcareNotificationSource>();
 
         services.AddDbContext<DocumentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>

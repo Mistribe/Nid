@@ -373,6 +373,46 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         return (account, subscription, line);
     }
 
+    /// <summary>Childcare decision 26: a line linked to a childminder's statement round-trips with its arrangement.</summary>
+    [Fact]
+    public async Task A_link_to_a_childcare_arrangement_round_trips()
+    {
+        await using var source = await BankingApi.StartAsync(fixture);
+        var created = await source.RawAsync(source.AdultA, HttpMethod.Post, "/api/v1/childcare", new
+        {
+            name = "Garde de Léa", childId = source.Dependent.Value, carer = new { name = "Martine", pajemploi = (string?)null, approval = (string?)null },
+            terms = new
+            {
+                from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", mealPrice = (string?)null,
+                programmedWeeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", meal = false } },
+            },
+            gaps = Array.Empty<object>(), visibility = "shared", owners = new[] { new { personId = source.AdultA.Value, shareBp = 10_000 } },
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var arrangement = JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
+        await BankingApi.ConnectAsync(source, source.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        var account = (await BankingApi.AccountsAsync(source, source.AdultA)).EnumerateArray().Single().GetProperty("id").GetGuid();
+        var envelope = await source.NewEnvelopeAsync("Courant", source.AdultA, Visibility.Shared);
+        Assert.Equal(HttpStatusCode.OK, (await source.RawAsync(source.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", new { envelopeId = envelope.Value })).StatusCode);
+        await AddAsync(source, account, Line("p-1", new LocalDate(2025, 10, 6), -80m, "PRLV SEPA URSSAF PAJEMPLOI"));
+        Guid line;
+        await using (var scope = source.Services.CreateAsyncScope())
+            line = (await scope.ServiceProvider.GetRequiredService<ITransactionStore>().ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken)).Single().Id;
+        Assert.Equal(HttpStatusCode.OK, (await source.RawAsync(source.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{line}/link",
+            new { module = "childcare", itemId = arrangement })).StatusCode);
+        var file = await ExportAsync(source, source.AdultA);
+        var arrangementRef = JsonDocument.Parse(file["childcare_arrangements"]).RootElement.EnumerateArray().Single().GetProperty("id").GetString();
+        Assert.Equal(arrangementRef, JsonDocument.Parse(file["bank_links"]).RootElement.EnumerateArray().Single().GetProperty("target_ref").GetString());
+
+        await using var target = await BankingApi.StartAsync(fixture);
+        var (report, _) = await ImportAsync(target, target.AdultA, file);
+
+        Assert.True(report.GetProperty("state").GetString() == "committed", report.GetProperty("issues").ToString());
+        Assert.Equal((1, 0), Counts(report, "bank_links"));
+        var linked = JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/transactions?state=linked")).RootElement.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal(("childcare", "Garde de Léa"), (linked.GetProperty("link").GetProperty("module").GetString(), linked.GetProperty("link").GetProperty("itemName").GetString()));
+    }
+
     [Fact]
     public async Task Links_and_rules_round_trip()
     {

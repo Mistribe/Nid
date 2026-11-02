@@ -24,6 +24,7 @@ export const SECTIONS = [
   'loan_insurances', 'loan_fees', 'loan_events', 'loan_bank_schedule', 'subscription_insurances', 'income_phases', 'income_one_off_taxable',
   'holdings', 'holding_snapshots', 'holding_movements', 'security_breakdowns',
   'goals',
+  'childcare_arrangements', 'childcare_statements',
 ] as const;
 const RESERVED = new Set(['documents']);
 const ENVELOPE = new Set(['format', 'version', 'exported_at']);

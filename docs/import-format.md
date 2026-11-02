@@ -58,6 +58,7 @@ Un **seul format** sert à trois usages :
 | `income_one_off_taxable` | tableau | Module Revenus : le net imposable d'un revenu ponctuel, `{ flow_id, taxable_amount }`, où `flow_id` est l'`id` d'une entité de `flows` (catégorie `one_off`) ; appliqué après `flows` |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
 | `goals` | tableau | Module Objectifs (`superpowers/specs/2026-10-23-savings-goals-design.md` D16 et §2) : l'objectif, ses liens vers les enveloppes du fichier et ses relevés |
+| `childcare_arrangements`, `childcare_statements` | tableaux | Module Garde (`superpowers/specs/2026-10-30-childcare-design.md` décisions 24 à 26) : la garde d'assistante maternelle et ses relevés validés (§5.9) |
 | `bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules` | tableaux | Module Banque (`superpowers/specs/2026-10-29-bank-sync-design.md` D24) : les comptes bancaires, leurs opérations, ce que chaque opération paie et les règles de libellé de la personne (§5.7) |
 
 Section **réservée**, pas encore définie : `documents`. Un fichier qui la contient est refusé. Une section d'un module désactivé est refusée elle aussi.
@@ -110,7 +111,7 @@ Un fournisseur ainsi créé garde `import_ref`/`import_hash` comme toute autre e
 | `name` | string | |
 | `ownership` | `[{ person, share_bp }]` | Références vers `persons`. Somme des `share_bp` = 10 000 |
 | `visibility` | string | `shared` (défaut) ou `private` (un seul propriétaire adulte) |
-| `share_level` | string? | #294 : `view` (défaut, omis à l'export) ou `edit` ; jamais `edit` sur un élément `private`. Vaut pour toutes les sections d'éléments (enveloppes, sources de revenu, biens, prêts, objectifs, abonnements) |
+| `share_level` | string? | #294 : `view` (défaut, omis à l'export) ou `edit` ; jamais `edit` sur un élément `private`. Vaut pour toutes les sections d'éléments (enveloppes, sources de revenu, biens, prêts, objectifs, abonnements, gardes) |
 | `service_users` | `[person]` | Références vers `persons`, `dependent` possibles |
 | `auto_renew` | bool | |
 | `cancelled_at` | date? | |
@@ -289,6 +290,46 @@ Règles : chaque code une fois, `pct` > 0 avec une décimale au plus, et les par
 
 Une ligne de même ISIN et de même date qu'une répartition connue la **remplace** (sans `replace` nécessaire : ce n'est pas une saisie du foyer à protéger) ; identique, elle est comptée « inchangée ». Le justificatif (`document_id`) n'est pas exporté : une version remplacée par des valeurs différentes perd son justificatif (les chiffres viennent du fichier) ; une ligne identique ne touche à rien et le garde. L'auteur et la date de saisie sont ceux de l'import.
 
+### 5.9 `childcare_arrangements` et `childcare_statements` (Garde)
+
+Une garde d'assistante maternelle en année incomplète et ses mois validés (spec Garde, décisions 24 à 26). Les brouillons ne
+sont pas dans le fichier. Ordre 105 : après les objectifs, avant la banque, dont les liens et les règles peuvent nommer une garde
+du fichier (`target_ref`).
+
+**`childcare_arrangements`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id` | string | Clé du fichier (§4) ; l'export écrit `cc-<uuid>` sans `import_ref` |
+| `name` | string | 1 à 120 caractères |
+| `child` | string | `ref` d'une personne de `persons` de genre `dependent` (`childcare.child_not_dependent`) |
+| `carer` | objet | `{ name, pajemploi?, approval? }` |
+| `terms` | tableau | Les révisions, la plus ancienne d'abord : `{ from, to?, net_hourly_rate, gross_hourly_rate?, overtime_pct, upkeep_per_9h, meal_price?, programmed_weeks, schedule }` ; chacune finit la veille de la suivante, seule la dernière peut rester ouverte ; `overtime_pct` en pour cent (10 = 10 %) ; `programmed_weeks` de 1 à 46 |
+| `terms[].schedule` | tableau | `{ day, arrival, departure, meal }` : `day` de 1 (lundi) à 7, heures `HH:mm`, un jour au plus une fois |
+| `gaps` | tableau | Semaines sans accueil `{ monday, weeks }`, contrôlées par année de contrat comme dans l'interface |
+| `visibility`, `share_level`, `ownership`, `closed` | | Comme `goals` |
+
+**`childcare_statements`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `arrangement` | string | `id` d'une entité `childcare_arrangements` **du même fichier** (`childcare.unknown_arrangement`) |
+| `month` | string | `YYYY-MM`, dans les mois de la garde (`childcare.month_out_of_contract`), une fois par garde (`childcare.statement_twice`) |
+| `mileage`, `cmg` | chaînes décimales | Frais kilométriques et CMG du récapitulatif Pajemploi |
+| `days` | tableau | Chaque jour du mois : `{ date, planned, present, arrival?, departure?, meal, absence? }`, `absence` parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `holiday` ; `planned` est recalculé |
+| `figures` | objet | Les chiffres figés : `normal_hours`, `activity_days`, `paid_leave_days?`, `complementary_hours`, `overtime_hours`, `net_pay`, `upkeep`, `meals`, `base_pay`, `deduction`, `extra_pay`, `paid_leave_pay`, `cost`, `tax_base`, `child_sick_deducted` |
+
+**Règles** : les relevés d'une garde sont repris dans l'ordre des mois, chacun **recalculé** depuis le fichier (révision du mois,
+semaines sans accueil, relevés précédents pour le quota enfant malade, la première semaine et juin) ; un écart avec `figures`
+est refusé (`childcare.figures_differ`). Un mois dont le mois précédent de la garde manque est refusé
+(`childcare.previous_not_validated`), un juin sans ses mois de référence aussi (`childcare.statement_incomplete`). Un relevé
+déjà présent et identique est inchangé ; différent, il est en conflit, ou remplacé quand l'import remplace. Un mois importé est
+daté validé le 1er du mois suivant, à peu près quand sa déclaration Pajemploi a été faite.
+
+Remplacer une garde déjà importée (import qui remplace) est refusé si l'un de ses mois validés tombe hors des dates du
+fichier (`childcare.end_before_validated`, comme une fin de garde dans l'interface) ou changerait de chiffres sous les
+conditions du fichier sans y figurer (`childcare.figures_differ` sur `terms`) : il faut le rouvrir, ou l'ajouter au fichier.
+
 ## 6. Résolution des personnes
 
 - Chaque `adult` du fichier doit être **associé à un compte existant** lors de l'import (par `email`, ou par une correspondance fournie à l'import). Un import ne crée jamais d'adulte : un adulte naît à sa première connexion (`core-data-model.md` §4.4). Un `adult` non résolu est une erreur.
@@ -350,7 +391,7 @@ L'export est **assemblé par le navigateur** à partir d'appels paginés ; le se
 - **Identifiants** : l'`id` d'une entité est son `import_ref` s'il est unique dans la section exportée (en cas de doublon, la ligne importée par le lecteur le garde) ; sinon une clé dérivée de l'UUID interne (`sub-…`, `ph-…`, `pu-…`, `env-…`, `val-…`, `fl-…`, `hold-…`, `hsnap-…`, `hmov-…`). Un réimport écrit cet `id` en `import_ref`, si bien qu'un second export redonne les mêmes `id`.
 - **Fournisseurs** : seuls ceux qu'une instance au même catalogue ne saurait pas résoudre (`custom`, `adopted`, et ceux du catalogue qu'il a archivés). Leur clé de fichier est leur `import_ref`, sinon leur clé stockée, sinon une version slugifiée ; jamais une clé que le fichier utilise déjà, y compris une clé du catalogue nommée directement (suffixe `-2`, `-3`…).
 - **Personnes** : seules les personnes référencées sont écrites, `adult-N` puis `dependent-N`, numérotées parmi elles par nom affiché puis email (une instance neuve qui réimporte le fichier redonne les mêmes références) ; l'`email` pour un adulte.
-- **Comptes bancaires** (§5.7) : ceux que le lecteur lit (bank sync D7, D22 : les siens, ceux d'une enveloppe qu'il lit, les cartes d'un compte qu'il lit), par nom puis `ref`, puis leurs opérations par compte, date et arrivée. Une enveloppe ou un compte courant absent de l'export du lecteur n'est pas nommé (`null`). Les **liens** (`bank_links`) : ceux des opérations exportées dont le lecteur lit l'élément payé (ou le compte en face, pour un virement), par compte, date et arrivée ; un lien vers un élément privé de l'autre adulte n'est pas exporté. Les **règles** (`bank_rules`) : les siennes seulement, sur un compte et un élément exportés. Un compte réimporté reçoit un nouvel `acc-<uuid>` dans l'instance qui l'importe, si bien qu'un second export ne redonne pas les mêmes `ref` (choix assumé, §5.7) ; un réimport du fichier d'origine l'y retrouve par sa `ref`.
+- **Comptes bancaires** (§5.7) : ceux que le lecteur lit (bank sync D7, D22 : les siens, ceux d'une enveloppe qu'il lit, les cartes d'un compte qu'il lit), par nom puis `ref`, puis leurs opérations par compte, date et arrivée. Une enveloppe ou un compte courant absent de l'export du lecteur n'est pas nommé (`null`). Les **liens** (`bank_links`) : ceux des opérations exportées dont le lecteur lit l'élément payé (un abonnement, un bien, un crédit ou une garde) (ou le compte en face, pour un virement), par compte, date et arrivée ; un lien vers un élément privé de l'autre adulte n'est pas exporté. Les **règles** (`bank_rules`) : les siennes seulement, sur un compte et un élément exportés. Un compte réimporté reçoit un nouvel `acc-<uuid>` dans l'instance qui l'importe, si bien qu'un second export ne redonne pas les mêmes `ref` (choix assumé, §5.7) ; un réimport du fichier d'origine l'y retrouve par sa `ref`.
 - **Achats** : un achat ne garde que ses grants vers des abonnements exportés. Réimporté seul, il couvre donc moins d'abonnements et son coût se répartit sur les grants restants.
 - **Non garanti** : réimporter un export dans l'instance d'où il vient. Une ligne créée dans l'interface n'a pas d'`import_ref` et serait recréée ; une ligne modifiée depuis son import ressortirait en `conflict`.
 - `archived_at` n'est pas encore dans le format : rien n'archive un abonnement. Il arrivera avec l'archivage.
@@ -400,7 +441,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les gardes et leurs relevés validés (`childcare_arrangements`, `childcare_statements`) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

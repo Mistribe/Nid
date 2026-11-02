@@ -52,7 +52,8 @@ public sealed class BankImportSection(
     private sealed record RulePlan(BankRuleRecord Record, Plan Account);
 
     /// <summary>The sections that hold an item a line can pay, in the order a ref is looked up (an exported ref names one of them: <c>sub-…</c>, a property's, a loan's).</summary>
-    private static readonly (string Section, string Module)[] Targets = [("subscriptions", "subscriptions"), ("properties", "realestate"), ("loans", "realestate")];
+    private static readonly (string Section, string Module)[] Targets =
+        [("subscriptions", "subscriptions"), ("properties", "realestate"), ("loans", "realestate"), ("childcare_arrangements", "childcare")];
 
     private int unwritableLinks, unwritableRules; // those whose target the importer cannot change, counted as skipped
     private readonly List<LinkPlan> linkPlans = [];
@@ -423,7 +424,7 @@ public sealed class BankImportSection(
         if (matches.Count > 1)
             issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileRef}' names two entities of subscriptions, properties and loans.", path));
         else if (!Targets.Any(t => context.FailedItems.Contains((t.Section, fileRef))))
-            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileRef}' names no subscription, property or loan of this file.", path));
+            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileRef}' names no subscription, property, loan or childcare arrangement of this file.", path));
         return false;
     }
 

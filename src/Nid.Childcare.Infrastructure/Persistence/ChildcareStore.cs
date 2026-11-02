@@ -10,10 +10,11 @@ namespace Nid.Childcare.Infrastructure.Persistence;
 
 public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChildcareStore
 {
-    public async Task CreateAsync(Arrangement arrangement, Terms terms, CancellationToken ct)
+    public async Task CreateAsync(Arrangement arrangement, Terms terms, CancellationToken ct, ImportMark? import = null)
     {
         var row = new ArrangementRow { ItemId = arrangement.ItemId.Value };
         Apply(row, arrangement);
+        Mark(row, import);
         db.Arrangements.Add(row);
         AddTerms(terms);
         await db.SaveChangesAsync(ct);
@@ -237,6 +238,68 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
 
     private static StatementDay ToDay(StatementDayRow d)
         => new(d.Date, d.Planned, d.Present, d.Arrival, d.Departure, d.Meal, d.Absence is { } a ? AbsenceCodes.Parse(a) : null);
+
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedArrangement>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct)
+    {
+        var wanted = refs.Distinct(StringComparer.Ordinal).ToList();
+        var rows = await db.Arrangements.AsNoTracking().Where(r => r.ImportRef != null && wanted.Contains(r.ImportRef))
+            .Select(r => new { r.ItemId, r.ImportRef, r.ImportHash, r.ImportedBy }).ToListAsync(ct);
+        return rows.GroupBy(r => r.ImportRef!, StringComparer.Ordinal).ToDictionary(
+            g => g.Key,
+            g => (IReadOnlyList<ImportedArrangement>)g.Select(r => new ImportedArrangement(new ItemId(r.ItemId), r.ImportHash!.Trim(), new PersonId(r.ImportedBy!.Value))).ToList(),
+            StringComparer.Ordinal);
+    }
+
+    public async Task<IReadOnlyDictionary<ItemId, ImportMark>> ImportMarksAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var wanted = ids.Select(i => i.Value).ToList();
+        return (await db.Arrangements.AsNoTracking().Where(r => wanted.Contains(r.ItemId) && r.ImportRef != null).ToListAsync(ct))
+            .ToDictionary(r => new ItemId(r.ItemId), r => new ImportMark(r.ImportRef!, r.ImportHash!.Trim(), new PersonId(r.ImportedBy!.Value)));
+    }
+
+    public async Task ReplaceImportedAsync(Arrangement arrangement, IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, ImportMark import, CancellationToken ct)
+    {
+        var id = arrangement.ItemId.Value;
+        var row = await db.Arrangements.SingleAsync(a => a.ItemId == id, ct);
+        Apply(row, arrangement);
+        Mark(row, import);
+        db.Weekdays.RemoveRange(await db.Weekdays.Where(w => w.ItemId == id).ToListAsync(ct));
+        db.Terms.RemoveRange(await db.Terms.Where(t => t.ItemId == id).ToListAsync(ct));
+        db.Gaps.RemoveRange(await db.Gaps.Where(g => g.ItemId == id).ToListAsync(ct));
+        await db.SaveChangesAsync(ct);
+        foreach (var terms in revisions)
+            AddTerms(terms);
+        db.Gaps.AddRange(gaps.Select(g => new GapRow { ItemId = id, Monday = g.Monday, Weeks = g.Weeks }));
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task PutValidatedAsync(Statement statement, CancellationToken ct)
+    {
+        var first = statement.Month.OnDayOfMonth(1);
+        var row = await db.Statements.SingleOrDefaultAsync(st => st.ItemId == statement.ItemId.Value && st.Month == first, ct);
+        if (row is null)
+        {
+            row = new StatementRow { ItemId = statement.ItemId.Value, Month = first };
+            db.Statements.Add(row);
+        }
+        var figures = statement.Figures!;
+        var d = figures.Declaration;
+        (row.Validated, row.ValidatedAt, row.Mileage, row.Cmg) = (true, statement.ValidatedAt, d.Mileage, figures.Cmg);
+        (row.NormalHours, row.ActivityDays, row.PaidLeaveDays, row.ComplementaryHours, row.OvertimeHours) =
+            (d.NormalHours, d.ActivityDays, d.PaidLeaveDays, d.ComplementaryHours, d.OvertimeHours);
+        (row.NetPay, row.Upkeep, row.Meals, row.BasePay, row.Deduction, row.ExtraPay) =
+            (d.NetPay, d.Upkeep, d.Meals, figures.BasePay, figures.Deduction, figures.ExtraPay);
+        (row.PaidLeavePay, row.Cost, row.TaxBase, row.ChildSickDeducted) = (figures.PaidLeavePay, figures.Cost, figures.TaxBase, figures.ChildSickDeducted);
+        ReplaceDays(statement.ItemId, first, statement.Days, await db.StatementDays.Where(x => x.ItemId == statement.ItemId.Value && x.Month == first).ToListAsync(ct));
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static void Mark(ArrangementRow row, ImportMark? import)
+    {
+        if (import is null)
+            return;
+        (row.ImportRef, row.ImportHash, row.ImportedBy) = (import.Ref, import.Hash, import.ImportedBy.Value);
+    }
 
     /// <summary>A write to the terms or the gaps rewrites the arrangement row too, so its xmin moves and an edit read before it conflicts.</summary>
     private async Task TouchAsync(ItemId id, CancellationToken ct)

@@ -40,7 +40,9 @@
       "holding_snapshots": "Relevés par support",
       "holding_movements": "Mouvements par support",
       "security_breakdowns": "Répartitions des supports",
-      "goals": "Objectifs"
+      "goals": "Objectifs",
+      "childcare_arrangements": "Gardes",
+      "childcare_statements": "Relevés de garde"
     }
   }
 }
