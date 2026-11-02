@@ -31,8 +31,9 @@ const d1 = (over: Partial<DocumentSummary> = {}) => summary({
 const older = summary({ id: D6, title: 'Relevé août', documentDate: '2026-08-31', links: [link({ role: 'statement' })] });
 
 /** The anchored list (counting its requests), the candidates of `scope=me`, the preview and every write. */
-function serve({ anchored = [d1(), older], mine = [] as DocumentSummary[], preview = [] as { id: string; name: string }[], upload = () => HttpResponse.json({ id: D2 }, { status: 201 }) } = {}) {
+function serve({ anchored = [d1(), older], mine = [] as DocumentSummary[], preview = [] as { id: string; name: string }[], upload = (() => HttpResponse.json({ id: D2 }, { status: 201 })) as (name: string) => Response } = {}) {
   let gets = 0;
+  const sent: string[] = [];
   const writes: { method: string; path: string; body: unknown }[] = [];
   server.use(
     http.get('*/api/v1/documents', ({ request }) => {
@@ -40,8 +41,11 @@ function serve({ anchored = [d1(), older], mine = [] as DocumentSummary[], previ
       return HttpResponse.json(list(mine));
     }),
     http.post('*/api/v1/documents', async ({ request }) => {
-      writes.push({ method: 'POST', path: '/api/v1/documents', body: Object.fromEntries([...(await request.formData()).entries()].filter(([k]) => k !== 'file')) });
-      return upload();
+      const form = await request.formData();
+      const name = (form.get('file') as File).name;
+      sent.push(name);
+      writes.push({ method: 'POST', path: '/api/v1/documents', body: Object.fromEntries([...form.entries()].filter(([k]) => k !== 'file')) });
+      return upload(name);
     }),
     http.get('*/api/v1/documents/:id/links/preview', () => HttpResponse.json({ gainedReaders: preview })),
     http.post('*/api/v1/documents/:id/links', async ({ request }) => {
@@ -53,7 +57,7 @@ function serve({ anchored = [d1(), older], mine = [] as DocumentSummary[], previ
       return new HttpResponse(null, { status: 204 });
     }),
   );
-  return { writes, gets: () => gets };
+  return { writes, sent, gets: () => gets };
 }
 
 /** The component alone under the real providers; its title links need a router. */
@@ -143,7 +147,7 @@ describe('ItemDocuments', () => {
       const { user } = await renderItem();
       await user.click(await screen.findByRole('button', { name: 'Déposer' }));
       const dialog = await screen.findByRole('dialog', { name: 'Déposer un document' });
-      await user.upload(within(dialog).getByLabelText('Fichier'), pdf());
+      await user.upload(within(dialog).getByLabelText('Fichiers'), pdf());
       await pick(user, 'Type', 'Assurance');
       await user.type(within(dialog).getByRole('textbox', { name: 'Date du document' }), '01/09/2026');
       const before = api.gets();
@@ -161,7 +165,7 @@ describe('ItemDocuments', () => {
       const { user } = await renderItem();
       await user.click(await screen.findByRole('button', { name: 'Déposer' }));
       const dialog = await screen.findByRole('dialog', { name: 'Déposer un document' });
-      await user.upload(within(dialog).getByLabelText('Fichier'), pdf());
+      await user.upload(within(dialog).getByLabelText('Fichiers'), pdf());
       await user.type(within(dialog).getByRole('textbox', { name: 'Date du document' }), '01/01/2999');
       await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
       expect(await within(dialog).findByText('La date ne peut pas être dans le futur.')).toBeInTheDocument();
@@ -177,27 +181,105 @@ describe('ItemDocuments', () => {
       const { user } = await renderItem();
       await user.click(await screen.findByRole('button', { name: 'Déposer' }));
       const dialog = await screen.findByRole('dialog', { name: 'Déposer un document' });
-      await user.upload(within(dialog).getByLabelText('Fichier'), pdf('notes.pdf'));
+      await user.upload(within(dialog).getByLabelText('Fichiers'), pdf('notes.pdf'));
       await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
       expect(await within(dialog).findByText('notes.pdf : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).')).toBeInTheDocument();
     });
 
-    it('takes the first dropped file, and refuses one of another type without sending it', async () => {
+    const open = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(await screen.findByRole('button', { name: 'Déposer' }));
+      return screen.findByRole('dialog', { name: 'Déposer un document' });
+    };
+    const refused = (name: string) => `${name} : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).`;
+
+    it('links several picked files to the item with one type and no date', async () => {
       const api = serve();
       const { user } = await renderItem();
-      await user.click(await screen.findByRole('button', { name: 'Déposer' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Déposer un document' });
-      const zone = within(dialog).getByText('Glissez un fichier ici').closest('[data-drop-zone]')!;
+      const dialog = await open(user);
+      await user.upload(within(dialog).getByLabelText('Fichiers'), [pdf('janvier.pdf'), pdf('fevrier.pdf')]);
+      expect(within(dialog).queryByRole('textbox', { name: 'Date du document' })).not.toBeInTheDocument();
+      await pick(user, 'Type', 'Assurance');
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
 
-      fireEvent.drop(zone, { dataTransfer: { files: [new File(['hello'], 'notes.txt', { type: 'text/plain' })] } });
-      expect(await within(dialog).findByText('notes.txt : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).')).toBeInTheDocument();
-      expect(within(dialog).getByRole('button', { name: 'Déposer' })).toBeDisabled();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(api.sent).toEqual(['janvier.pdf', 'fevrier.pdf']);
+      const body = { targetKind: 'core.item', targetId: ITEM, role: 'insurance' };
+      expect(api.writes.map((w) => w.body)).toEqual([body, body]);
+      expect(screen.getByText('2 documents déposés.')).toBeInTheDocument();
+    });
 
+    it('adds dropped files to those already chosen, and one can be removed before sending', async () => {
+      const api = serve();
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      const zone = within(dialog).getByText('Glissez vos fichiers ici').closest('[data-drop-zone]')!;
       fireEvent.drop(zone, { dataTransfer: { files: [pdf('bail.pdf'), pdf('avis.pdf')] } });
-      expect(await within(dialog).findByText('bail.pdf')).toBeInTheDocument();
+      fireEvent.drop(zone, { dataTransfer: { files: [pdf('edl.pdf')] } });
+      expect(await within(dialog).findByText('edl.pdf')).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Retirer avis.pdf' }));
       expect(within(dialog).queryByText('avis.pdf')).not.toBeInTheDocument();
       await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
-      await waitFor(() => expect(api.writes).toHaveLength(1));
+      await waitFor(() => expect(api.sent).toEqual(['bail.pdf', 'edl.pdf']));
+    });
+
+    it('offers the date again once a single file is left', async () => {
+      serve();
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      await user.upload(within(dialog).getByLabelText('Fichiers'), [pdf('bail.pdf'), pdf('avis.pdf')]);
+      await user.click(within(dialog).getByRole('button', { name: 'Retirer avis.pdf' }));
+      expect(within(dialog).getByRole('textbox', { name: 'Date du document' })).toBeInTheDocument();
+    });
+
+    it('refuses a file of another type without sending it, and the others stay', async () => {
+      const api = serve();
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      const zone = within(dialog).getByText('Glissez vos fichiers ici').closest('[data-drop-zone]')!;
+
+      fireEvent.drop(zone, { dataTransfer: { files: [new File(['hello'], 'notes.txt', { type: 'text/plain' })] } });
+      expect(await within(dialog).findByText(refused('notes.txt'))).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Déposer' })).toBeDisabled();
+
+      fireEvent.drop(zone, { dataTransfer: { files: [pdf('bail.pdf'), new File(['x'], 'image.gif', { type: 'image/gif' }), pdf('avis.pdf')] } });
+      expect(await within(dialog).findByText(refused('image.gif'))).toBeInTheDocument();
+      // A refused file does not count: one good file left keeps its date.
+      await user.click(within(dialog).getByRole('button', { name: 'Retirer avis.pdf' }));
+      expect(within(dialog).getByRole('textbox', { name: 'Date du document' })).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+      await waitFor(() => expect(api.sent).toEqual(['bail.pdf']));
+    });
+
+    it('says which file failed, keeps the dialog open, and sends only that one again', async () => {
+      let broken = true;
+      const api = serve({ upload: (name) => (name === 'b.pdf' && broken
+        ? HttpResponse.json({ status: 413, code: 'documents.too_large', title: 'Too large.' }, { status: 413 })
+        : HttpResponse.json({ id: D2 }, { status: 201 })) });
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      await user.upload(within(dialog).getByLabelText('Fichiers'), [pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')]);
+      const before = api.gets();
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('b.pdf');
+      expect(api.sent).toEqual(['a.pdf', 'b.pdf', 'c.pdf']);
+      await waitFor(() => expect(api.gets()).toBeGreaterThan(before));
+      expect(within(dialog).queryByRole('button', { name: 'Retirer a.pdf' })).not.toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Fermer' })).toBeInTheDocument();
+
+      broken = false;
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(api.sent).toEqual(['a.pdf', 'b.pdf', 'c.pdf', 'b.pdf']);
+      expect(screen.getByText('3 documents déposés.')).toBeInTheDocument();
+    });
+
+    it('passes the axe check with files listed', async () => {
+      serve();
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      await user.upload(within(dialog).getByLabelText('Fichiers'), [pdf('bail.pdf'), pdf('avis.pdf')]);
+      await expectNoAxeViolations(dialog);
     });
   });
 
