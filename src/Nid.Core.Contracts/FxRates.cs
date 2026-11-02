@@ -149,8 +149,8 @@ public sealed class FxOptions
 
     public string EcbHistoryUrl { get; set; } = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.zip";
 
-    /// <summary>Quartz cron (seconds first), UTC: after the upstream commit, which lands around 05:30 UTC (design §3).</summary>
-    public string DailyCron { get; set; } = "0 0 7 * * ?";
+    /// <summary>Quartz cron (seconds first), UTC: after the upstream commit, scheduled at 01:00 UTC but landing up to 07:10 UTC.</summary>
+    public string DailyCron { get; set; } = "0 0 9 * * ?";
 
     /// <summary>The first SubTracker-Data file (checked 2026-09-23): nothing before it is ever fetched.</summary>
     public LocalDate SubTrackerStart { get; init; } = new(2025, 7, 30);

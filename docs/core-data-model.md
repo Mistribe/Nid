@@ -396,7 +396,7 @@ Source principale : dépôt public `Mistribe/SubTracker-Data` (licence MIT, attr
 | Fichiers | `exchange/{AAAA}/{MM}/{JJ}.json`, un fichier par jour |
 | Format | `{ "from": "USD", "to": { "EUR": 0.870604, "GBP": 0.746547, … } }` : base **USD**, valeurs numériques à 5-6 décimales, environ 168 à 173 devises selon la date, **aucune date dans le fichier** (la date vient du chemin). Format stable et confirmé sur cinq jours réels, aucun rejet |
 | `exchange/list.json` | Table `code → nom` de 155 devises, utilisable pour les listes de choix et pour écarter les codes inconnus |
-| Mise à jour amont | Vers **05:30 UTC** (constat de la conception, `superpowers/specs/2026-09-23-fx-rates-design.md` §3), pas 01:00 comme indiqué initialement dans ce document |
+| Mise à jour amont | Planifiée à 01:00 UTC, mais GitHub Actions la lance avec plusieurs heures de retard, et ce retard varie : vers 05:30 UTC en septembre 2026, jusqu'à **07:10 UTC** début novembre 2026 |
 | Fichiers du week-end | **Présents**, avec un contenu comparable aux jours ouvrés (vérifié les 2026-09-19 et 2026-09-20) : la règle « dernier cours connu » couvre malgré tout les jours sans fichier (jour férié amont, panne) |
 | Devise absente un jour donné | Non observée sur la fenêtre vérifiée (5 jours consécutifs, 173 codes identiques) ; seule une **croissance** de couverture a été vue (171 codes le 2025-07-30, 173 en 2026-09), jamais une régression |
 | Couverture | Dossiers présents depuis **le 2025-07-30** (premier fichier confirmé) |
@@ -404,7 +404,7 @@ Source principale : dépôt public `Mistribe/SubTracker-Data` (licence MIT, attr
 
 **Collecte côté application**
 
-- Job Quartz quotidien (`fx-daily`), planifié à **07:00 UTC** (configurable), après l'heure amont observée. Il lit chaque jour manquant depuis le dernier cours SubTracker jusqu'à aujourd'hui, un fichier à la fois, en séquence ; un jour manqué est rattrapé le lendemain matin. Il purge aussi les lignes de `fx_sync_run` de plus de 400 jours.
+- Job Quartz quotidien (`fx-daily`), planifié à **09:00 UTC** (configurable), avec une marge sur l'heure amont observée. Il lit chaque jour manquant depuis le dernier cours SubTracker jusqu'à aujourd'hui, un fichier à la fois, en séquence ; un jour manqué est rattrapé le lendemain matin. Il purge aussi les lignes de `fx_sync_run` de plus de 400 jours.
 - **Rattrapage** (`fx-backfill`) au démarrage tant qu'aucun rattrapage n'a réussi (`fx_sync_run`), et à la demande : la BCE d'abord (elle ne fait que combler les trous, §8.1), puis SubTracker depuis le 2025-07-30 jusqu'à aujourd'hui, les jours déjà couverts par SubTracker étant sautés. Dans cet ordre, chaque cours SubTracker a un cours BCE contre lequel être vérifié (§8.2).
 - URL de base **configurable** : le dépôt (fichiers bruts) par défaut, mais aussi un miroir ou un dossier local (ce dernier hors 1C2a, voir `superpowers/specs/2026-09-23-fx-rates-design.md` §2). Sans accès sortant, saisie manuelle possible (`source = manual`).
 - L'accès sortant ne révèle aucune donnée financière : les requêtes portent sur des dates, pas sur le contenu du foyer.

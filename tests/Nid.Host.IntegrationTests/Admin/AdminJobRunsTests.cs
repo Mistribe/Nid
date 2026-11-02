@@ -39,7 +39,7 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var jobs = await app.GetAsync<List<Job>>(app.AdultA, "/api/v1/admin/jobs");
 
-        Assert.Equal("0 0 7 * * ?", jobs.Single(j => j.Key == "fx-daily").Cron);
+        Assert.Equal("0 0 9 * * ?", jobs.Single(j => j.Key == "fx-daily").Cron);
         Assert.Null(jobs.Single(j => j.Key == "fx-backfill").Cron);
         var irl = jobs.Single(j => j.Key == "irl-weekly");
         Assert.Equal((failed, JobOutcomes.Failed, 1200L), (irl.LastRun!.Id, irl.LastRun.Outcome, irl.LastRun.DurationMs));
