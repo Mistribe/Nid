@@ -418,7 +418,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 /tests/…
 ```
 
-- CI : à chaque pull request, build, tests rapides (unitaires, propriétés, architecture, vitest), génération du client OpenAPI et contrôle qu'il est à jour ; chaque semaine (`e2e.yml`), tests d'intégration et parcours Playwright.
+- CI : à chaque pull request, build, typecheck, lint, budget web, génération du client OpenAPI et contrôle qu'il est à jour, sans aucun test (lancés en local avant d'ouvrir la pull request) ; chaque semaine (`e2e.yml`), tests d'intégration et parcours Playwright.
 - **ADR** dans `docs/adr/` : une décision structurante par fichier (stack, monolithe modulaire, OIDC, workers par table de jobs, registre `Item` central…), pour rendre les décisions de ce document traçables.
 
 ## 15. PWA et notifications

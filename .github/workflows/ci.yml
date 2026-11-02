@@ -1,9 +1,8 @@
 name: ci
 
 # The monthly Actions minutes are the budget (1000), so each commit is paid for once:
-#  - a pull request builds the solution, runs the fast tests and checks the web app (`build`, `web`), each only when its files
-#    change (`changes`): the .NET unit tests, the handler attributes and vitest (no Docker). The integration tests, about 25 minutes,
-#    are in e2e.yml;
+#  - a pull request builds the solution and checks the web app (`build`, `web`), each only when its files change (`changes`). It
+#    runs no test: the developer runs them before opening it (.claude/CLAUDE.md). The integration tests also run weekly in e2e.yml;
 #  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
 #    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
 #    acted on. The smoke test and the backup test (`deploy/smoke.sh`, `deploy/backup-smoke.sh`) run on the developer's machine;
@@ -29,8 +28,8 @@ permissions:
 
 jobs:
   # The jobs a pull request needs, from the files it changes: a job costs minutes (`web` about 12, `build` about 4), so a change to the
-  # C# tests does not lint the web app, nor a change to the web app build the solution. `web` follows `src/` for check:api and
-  # tests/vectors/ for the vectors its tests read. Without a pull request (workflow_dispatch), both run.
+  # C# tests does not lint the web app, nor a change to the web app build the solution. `build` also follows openapi.json, which it
+  # compares with the server's. Without a pull request (workflow_dispatch), both run.
   changes:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
@@ -52,8 +51,8 @@ jobs:
             exit 0
           fi
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | .filename, .previous_filename // empty')
-          if grep -qv '^web/' <<< "$files"; then dotnet=true; else dotnet=false; fi
-          if grep -qE '^(web/|src/|tests/vectors/|global\.json$|Directory\.|\.github/workflows/ci\.yml$)' <<< "$files"; then web=true; else web=false; fi
+          if grep -qv '^web/' <<< "$files" || grep -qx 'web/src/api/openapi\.json' <<< "$files"; then dotnet=true; else dotnet=false; fi
+          if grep -qE '^(web/|\.github/workflows/ci\.yml$)' <<< "$files"; then web=true; else web=false; fi
           echo "dotnet=$dotnet" >> "$GITHUB_OUTPUT"
           echo "web=$web" >> "$GITHUB_OUTPUT"
 
@@ -66,19 +65,9 @@ jobs:
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: global.json
-      # Every project, the integration test projects included: they are compiled here, run in e2e.yml.
+      # Every project, the test projects included: they are compiled here, not run. Nid.Host regenerates web/src/api/openapi.json.
       - run: dotnet build Nid.slnx --configuration Release
-      # The unit test projects (the module boundaries, architecture.md §5.1, are among them): no database, no Docker. Every project
-      # runs, so that one failure does not hide the next.
-      - name: Unit tests
-        run: |
-          status=0
-          for project in tests/*.Tests; do
-            dotnet test --project "$project" --configuration Release --no-build || status=1
-          done
-          exit $status
-      # Every Synapse handler carries the attribute the generator registers it from (architecture.md §13): reflection, no database.
-      - run: dotnet test --project tests/Nid.Host.IntegrationTests --configuration Release --no-build --filter-class Nid.Host.IntegrationTests.LeakBench.HandlerAttributeTests
+      - run: git diff --exit-code -- web/src/api/openapi.json
 
   web:
     needs: changes
@@ -86,11 +75,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          global-json-file: global.json
-      # Regenerates web/src/api/openapi.json; check:api below fails if the committed copy differs.
-      - run: dotnet build src/Nid.Host --configuration Release
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
         with:
           package_json_file: web/package.json
@@ -100,9 +84,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile
+      # schema.d.ts against the committed openapi.json; `build` compares that one with the server's.
       - run: pnpm --dir web check:api
-      # Typecheck, lint, vitest, build, budget.
-      - run: pnpm --dir web check
+      # `check` without vitest.
+      - run: pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web build && pnpm --dir web budget
         env:
           # Typed linting outgrows Node's default heap of about 2 GB.
           NODE_OPTIONS: --max-old-space-size=4096
