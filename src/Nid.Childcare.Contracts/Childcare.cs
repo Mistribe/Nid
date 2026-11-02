@@ -26,3 +26,19 @@ public sealed record PajemploiDeclaration(
 public sealed record MonthFigures(
     PajemploiDeclaration Declaration, decimal BasePay, decimal Deduction, decimal ExtraPay, decimal PaidLeavePay,
     decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted);
+
+/// <summary>The snake_case names of <see cref="AbsenceReason"/>, on the wire and in the database.</summary>
+public static class AbsenceCodes
+{
+    private static readonly Dictionary<AbsenceReason, string> Names = new()
+    {
+        [AbsenceReason.Family] = "family", [AbsenceReason.ParentRtt] = "parent_rtt", [AbsenceReason.ChildSick] = "child_sick",
+        [AbsenceReason.CarerAbsent] = "carer_absent", [AbsenceReason.Holiday] = "holiday",
+    };
+
+    public static string Of(AbsenceReason reason) => Names[reason];
+
+    public static AbsenceReason? TryParse(string? name) => Names.FirstOrDefault(n => n.Value == name) is { Value: not null } hit ? hit.Key : null;
+
+    public static AbsenceReason Parse(string name) => TryParse(name) ?? throw new ArgumentException($"Unknown absence reason {name}.", nameof(name));
+}

@@ -11,6 +11,17 @@ public static class ChildcareCodes
     public const string GapWeeksOutOfRange = "childcare.gap_weeks_out_of_range";
     public const string GapOverlap = "childcare.gap_overlap";
     public const string GapsTooMany = "childcare.gaps_too_many";
+    public const string DaysIncomplete = "childcare.days_incomplete";
+    public const string AbsenceRequired = "childcare.absence_required";
+    public const string AbsenceNotAllowed = "childcare.absence_not_allowed";
+    public const string DayReplanned = "childcare.day_replanned";
+    public const string StatementValidated = "childcare.statement_validated";
+    public const string StatementIncomplete = "childcare.statement_incomplete";
+    public const string NextValidated = "childcare.next_validated";
+    public const string PreviousNotValidated = "childcare.previous_not_validated";
+    public const string EndBeforeValidated = "childcare.end_before_validated";
+    public const string CmgRequired = "childcare.cmg_required";
+    public const string StatementConflict = "childcare.statement_conflict";
     public const string RevisionNotAfter = "childcare.revision_not_after";
     public const string EndBeforeTerms = "childcare.end_before_terms";
     public const string Closed = "childcare.closed";

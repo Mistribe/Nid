@@ -10,7 +10,7 @@ namespace Nid.Childcare.Application;
 /// <summary>Spec §5: the arrangements' views, their figures computed by the Domain.</summary>
 public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry persons, IHouseholdSettings household, IHouseholdCalendar calendar, IAccessPolicy policy)
 {
-    private static readonly LocalTimePattern Time = LocalTimePattern.CreateWithInvariantCulture("HH:mm");
+    internal static readonly LocalTimePattern Time = LocalTimePattern.CreateWithInvariantCulture("HH:mm");
 
     public async Task<IReadOnlyList<ChildcareDetail>> ReadAsync(PersonId reader, IReadOnlyList<(Arrangement Arrangement, ItemAccess Item)> found, CancellationToken ct)
     {
@@ -35,7 +35,8 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
             var placed = gaps[arrangement.ItemId].ToList();
             return new ChildcareDetail(summary, arrangement.CarerPajemploi, arrangement.CarerApproval, views,
                 placed.Select(g => new CareGapView(g.Monday, g.Weeks, g.Monday.PlusWeeks(g.Weeks).PlusDays(-1))).ToList(),
-                ContractCheck.GapWeeksToPlace(revisions[0].From, revisions[^1].ProgrammedWeeks, placed, today), arrangement.Version);
+                ContractCheck.GapWeeksToPlace(revisions[0].From, revisions[^1].ProgrammedWeeks, placed, today),
+                StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today), arrangement.Version);
         }).ToList();
     }
 
@@ -55,5 +56,5 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
     }
 
     /// <summary>An entered figure, exact, without trailing zeros.</summary>
-    private static string Text(decimal value) => (value / 1.000000000000000000000000000000000m).ToString(CultureInfo.InvariantCulture);
+    internal static string Text(decimal value) => (value / 1.000000000000000000000000000000000m).ToString(CultureInfo.InvariantCulture);
 }

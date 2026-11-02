@@ -13,6 +13,13 @@ public sealed record Terms(
     ItemId ItemId, LocalDate From, LocalDate? To, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h,
     decimal? MealPrice, int ProgrammedWeeks, IReadOnlyList<WeekdaySlot> Schedule);
 
+/// <summary>
+/// Spec §2, decisions 13–14: a month's statement. A draft has its corrected days and no figures; a validated one has every day and its figures, frozen.
+/// <c>Days</c> is empty when listed; <c>Version</c> 0 means not stored yet.
+/// </summary>
+public sealed record Statement(
+    ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version);
+
 public interface IChildcareStore
 {
     Task CreateAsync(Arrangement arrangement, Terms terms, CancellationToken ct);
@@ -39,4 +46,24 @@ public interface IChildcareStore
 
     /// <summary>Sets or clears the current revision's end.</summary>
     Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct);
+
+    /// <summary>Every stored month of the arrangement, with its figures, without its days.</summary>
+    Task<IReadOnlyList<Statement>> StatementsOfAsync(ItemId id, CancellationToken ct);
+
+    Task<Statement?> FindStatementAsync(ItemId id, YearMonth month, CancellationToken ct);
+
+    /// <summary>
+    /// Inserts the draft (version 0) or replaces its days; fails with <see cref="ChildcareCodes.StatementConflict"/> on a stale
+    /// version and <see cref="ChildcareCodes.StatementValidated"/> when the stored month is validated.
+    /// </summary>
+    Task<Result> SaveDraftAsync(Statement draft, CancellationToken ct);
+
+    /// <summary>Freezes the figures and every day of the month (a draft holds its corrections only); the same failures as <see cref="SaveDraftAsync"/>.</summary>
+    Task<Result> ValidateAsync(ItemId id, YearMonth month, MonthFigures figures, IReadOnlyList<StatementDay> days, uint version, CancellationToken ct);
+
+    /// <summary>Back to draft: the figures are cleared, the days kept.</summary>
+    Task ReopenAsync(ItemId id, YearMonth month, CancellationToken ct);
+
+    /// <summary>Deletes a draft and its days; nothing when there is none.</summary>
+    Task DiscardAsync(ItemId id, YearMonth month, CancellationToken ct);
 }

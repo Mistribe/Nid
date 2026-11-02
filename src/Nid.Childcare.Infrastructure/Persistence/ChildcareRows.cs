@@ -44,3 +44,43 @@ public sealed class GapRow
     public LocalDate Monday { get; set; }
     public int Weeks { get; set; }
 }
+
+public sealed class StatementRow
+{
+    public Guid ItemId { get; set; }
+    /// <summary>The month's first day.</summary>
+    public LocalDate Month { get; set; }
+    public bool Validated { get; set; }
+    public decimal Mileage { get; set; }
+    public decimal? Cmg { get; set; }
+    public Instant? ValidatedAt { get; set; }
+    public int? NormalHours { get; set; }
+    public int? ActivityDays { get; set; }
+    public int? PaidLeaveDays { get; set; }
+    public decimal? ComplementaryHours { get; set; }
+    public decimal? OvertimeHours { get; set; }
+    public decimal? NetPay { get; set; }
+    public decimal? Upkeep { get; set; }
+    public decimal? Meals { get; set; }
+    public decimal? BasePay { get; set; }
+    public decimal? Deduction { get; set; }
+    public decimal? ExtraPay { get; set; }
+    public decimal? PaidLeavePay { get; set; }
+    public decimal? Cost { get; set; }
+    public decimal? TaxBase { get; set; }
+    public int? ChildSickDeducted { get; set; }
+    public uint Version { get; set; }
+}
+
+public sealed class StatementDayRow
+{
+    public Guid ItemId { get; set; }
+    public LocalDate Month { get; set; }
+    public LocalDate Date { get; set; }
+    public bool Planned { get; set; }
+    public bool Present { get; set; }
+    public LocalTime? Arrival { get; set; }
+    public LocalTime? Departure { get; set; }
+    public bool Meal { get; set; }
+    public string? Absence { get; set; }
+}

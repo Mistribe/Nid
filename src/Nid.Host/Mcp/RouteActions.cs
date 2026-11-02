@@ -31,10 +31,13 @@ public sealed record RouteAction(
 
     public bool Targeted => OnItem && RouteParameters.Contains("id");
 
-    /// <summary>`{year:int}` is an integer; `{on}` an ISO date (a goal's progress entry); every other route parameter a UUID.</summary>
+    /// <summary>`{year:int}` is an integer; `{on}` an ISO date (a goal's progress entry); `{month}` a month; every other route parameter a UUID.</summary>
     public bool IsInteger(string parameter) => Route.Contains($"{{{parameter}:int}}", StringComparison.Ordinal);
 
     public bool IsDate(string parameter) => parameter == "on";
+
+    /// <summary>`{month}`: a statement's month, `yyyy-MM` (childcare spec decision 27).</summary>
+    public bool IsMonth(string parameter) => parameter == "month";
 }
 
 /// <summary>
@@ -218,6 +221,11 @@ public static class RouteActions
             "End an arrangement on its last day (on). " + Ids + Amounts),
         new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,
             "Reopen an ended arrangement. " + Ids),
+        new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
+            "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
+            + "changed (present with arrival and departure HH:mm and meal, or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
+            + "holiday), the mileage and the CMG of the Pajemploi summary. Validating it stays the person's gesture in the web app. "
+            + Ids + Versioned + Amounts),
 
         // Savings goals.
         new("create_goal", "POST", "/api/v1/goals/", typeof(CreateGoalBody),

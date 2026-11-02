@@ -8,7 +8,7 @@ using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Childcare.Infrastructure.Persistence;
 
-public sealed class ChildcareStore(ChildcareDbContext db) : IChildcareStore
+public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChildcareStore
 {
     public async Task CreateAsync(Arrangement arrangement, Terms terms, CancellationToken ct)
     {
@@ -100,6 +100,143 @@ public sealed class ChildcareStore(ChildcareDbContext db) : IChildcareStore
         await TouchAsync(id, ct);
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task<IReadOnlyList<Statement>> StatementsOfAsync(ItemId id, CancellationToken ct)
+        => (await db.Statements.AsNoTracking().Where(st => st.ItemId == id.Value).OrderBy(st => st.Month).ToListAsync(ct))
+            .Select(r => ToStatement(r, [])).ToList();
+
+    public async Task<Statement?> FindStatementAsync(ItemId id, YearMonth month, CancellationToken ct)
+    {
+        var first = month.OnDayOfMonth(1);
+        var row = await db.Statements.AsNoTracking().SingleOrDefaultAsync(st => st.ItemId == id.Value && st.Month == first, ct);
+        if (row is null)
+            return null;
+        var days = await db.StatementDays.AsNoTracking().Where(d => d.ItemId == id.Value && d.Month == first).OrderBy(d => d.Date).ToListAsync(ct);
+        return ToStatement(row, days.Select(ToDay).ToList());
+    }
+
+    public async Task<Result> SaveDraftAsync(Statement draft, CancellationToken ct)
+    {
+        var first = draft.Month.OnDayOfMonth(1);
+        var row = await db.Statements.SingleOrDefaultAsync(st => st.ItemId == draft.ItemId.Value && st.Month == first, ct);
+        if (row is null)
+        {
+            if (draft.Version != 0)
+                return StatementConflict();
+            row = new StatementRow { ItemId = draft.ItemId.Value, Month = first };
+            db.Statements.Add(row);
+        }
+        else
+        {
+            if (draft.Version == 0 || row.Version != draft.Version)
+                return StatementConflict();
+            if (row.Validated)
+                return Result.Failure(new Failure(ChildcareCodes.StatementValidated, "A validated statement is read only.", null));
+            db.Entry(row).Property(r => r.Version).OriginalValue = draft.Version;
+            db.Entry(row).Property(r => r.Mileage).IsModified = true;
+        }
+
+        row.Mileage = draft.Mileage;
+        row.Cmg = draft.Cmg;
+        ReplaceDays(draft.ItemId, first, draft.Days, await db.StatementDays.Where(d => d.ItemId == draft.ItemId.Value && d.Month == first).ToListAsync(ct));
+        return await SaveStatementAsync(ct);
+    }
+
+    public async Task<Result> ValidateAsync(ItemId id, YearMonth month, MonthFigures figures, IReadOnlyList<StatementDay> days, uint version, CancellationToken ct)
+    {
+        var first = month.OnDayOfMonth(1);
+        var row = await db.Statements.SingleOrDefaultAsync(st => st.ItemId == id.Value && st.Month == first, ct);
+        if (row is null || row.Version != version)
+            return StatementConflict();
+        if (row.Validated)
+            return Result.Failure(new Failure(ChildcareCodes.StatementValidated, "The statement is already validated.", null));
+        db.Entry(row).Property(r => r.Version).OriginalValue = version;
+        var d = figures.Declaration;
+        row.Validated = true;
+        row.ValidatedAt = clock.GetCurrentInstant();
+        row.NormalHours = d.NormalHours;
+        row.ActivityDays = d.ActivityDays;
+        row.PaidLeaveDays = d.PaidLeaveDays;
+        row.ComplementaryHours = d.ComplementaryHours;
+        row.OvertimeHours = d.OvertimeHours;
+        row.NetPay = d.NetPay;
+        row.Upkeep = d.Upkeep;
+        row.Meals = d.Meals;
+        row.Mileage = d.Mileage;
+        row.BasePay = figures.BasePay;
+        row.Deduction = figures.Deduction;
+        row.ExtraPay = figures.ExtraPay;
+        row.PaidLeavePay = figures.PaidLeavePay;
+        row.Cmg = figures.Cmg;
+        row.Cost = figures.Cost;
+        row.TaxBase = figures.TaxBase;
+        row.ChildSickDeducted = figures.ChildSickDeducted;
+        ReplaceDays(id, first, days, await db.StatementDays.Where(d => d.ItemId == id.Value && d.Month == first).ToListAsync(ct));
+        return await SaveStatementAsync(ct);
+    }
+
+    public async Task ReopenAsync(ItemId id, YearMonth month, CancellationToken ct)
+    {
+        var first = month.OnDayOfMonth(1);
+        var row = await db.Statements.SingleAsync(st => st.ItemId == id.Value && st.Month == first, ct);
+        row.Validated = false;
+        row.ValidatedAt = null;
+        row.NormalHours = row.ActivityDays = row.PaidLeaveDays = row.ChildSickDeducted = null;
+        row.ComplementaryHours = row.OvertimeHours = row.NetPay = row.Upkeep = row.Meals = null;
+        row.BasePay = row.Deduction = row.ExtraPay = row.PaidLeavePay = row.Cost = row.TaxBase = null;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DiscardAsync(ItemId id, YearMonth month, CancellationToken ct)
+    {
+        var first = month.OnDayOfMonth(1);
+        if (await db.Statements.SingleOrDefaultAsync(st => st.ItemId == id.Value && st.Month == first && !st.Validated, ct) is not { } row)
+            return;
+        db.StatementDays.RemoveRange(await db.StatementDays.Where(d => d.ItemId == id.Value && d.Month == first).ToListAsync(ct));
+        db.Statements.Remove(row);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private void ReplaceDays(ItemId id, LocalDate month, IReadOnlyList<StatementDay> days, List<StatementDayRow> stored)
+    {
+        db.StatementDays.RemoveRange(stored);
+        db.StatementDays.AddRange(days.Select(d => new StatementDayRow
+        {
+            ItemId = id.Value, Month = month, Date = d.Date, Planned = d.Planned, Present = d.Present, Arrival = d.Arrival,
+            Departure = d.Departure, Meal = d.Meal, Absence = d.Absence is { } a ? AbsenceCodes.Of(a) : null,
+        }));
+    }
+
+    private async Task<Result> SaveStatementAsync(CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (DbUpdateException)
+        {
+            // A stale xmin, or a concurrent first save of the same month (primary key).
+            db.ChangeTracker.Clear();
+            return StatementConflict();
+        }
+    }
+
+    private static Result StatementConflict() => Result.Failure(new Failure(ChildcareCodes.StatementConflict, "The statement changed since it was read.", null));
+
+    private static Statement ToStatement(StatementRow r, IReadOnlyList<StatementDay> days)
+        => new(new ItemId(r.ItemId), r.Month.ToYearMonth(), r.Validated, r.Mileage, r.Cmg, days,
+            r.Validated
+                ? new MonthFigures(
+                    new PajemploiDeclaration(r.NormalHours!.Value, r.ActivityDays!.Value, r.PaidLeaveDays, r.ComplementaryHours!.Value, r.OvertimeHours!.Value,
+                        r.NetPay!.Value, r.Upkeep!.Value, r.Meals!.Value, r.Mileage),
+                    r.BasePay!.Value, r.Deduction!.Value, r.ExtraPay!.Value, r.PaidLeavePay!.Value, r.Cmg!.Value, r.Cost!.Value, r.TaxBase!.Value,
+                    r.ChildSickDeducted!.Value)
+                : null,
+            r.Version);
+
+    private static StatementDay ToDay(StatementDayRow d)
+        => new(d.Date, d.Planned, d.Present, d.Arrival, d.Departure, d.Meal, d.Absence is { } a ? AbsenceCodes.Parse(a) : null);
 
     /// <summary>A write to the terms or the gaps rewrites the arrangement row too, so its xmin moves and an edit read before it conflicts.</summary>
     private async Task TouchAsync(ItemId id, CancellationToken ct)

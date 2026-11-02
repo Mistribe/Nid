@@ -75,8 +75,87 @@ public static class ChildcareEndpoints
             => (await invoker.InvokeAsync(new ReopenChildcareCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
+        api.MapGet("/{id:guid}/statements", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListStatementsQuery(new ItemId(id)), ct)).ToHttp(list => list))
+            .Returns<ChildcareStatementList>();
+
+        api.MapGet("/{id:guid}/statements/{month}", async (Guid id, string month, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                return ChildcareBodies.Month(reader, month) is { } m
+                    ? (await invoker.InvokeAsync(new GetStatementQuery(new ItemId(id), m), ct)).ToHttp(view => view)
+                    : reader.Problem();
+            })
+            .Returns<ChildcareStatementView>();
+
+        api.MapPut("/{id:guid}/statements/{month}", async (Guid id, string month, StatementBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), ChildcareBodies.Month(reader, month), reader);
+                return command is null ? reader.Problem() : (await invoker.InvokeAsync(command, ct)).ToHttp(view => view);
+            })
+            .Returns<ChildcareStatementView>();
+
+        api.MapPost("/{id:guid}/statements/{month}/validate", async (Guid id, string month, VersionBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var m = ChildcareBodies.Month(reader, month);
+                if (body.Version is null) reader.Add("version", "request.required", "The version read with the statement is required.");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new ValidateStatementCommand(new ItemId(id), m!.Value, body.Version!.Value), ct)).ToHttp(view => view);
+            })
+            .Returns<ChildcareStatementView>();
+
+        api.MapPost("/{id:guid}/statements/{month}/reopen", async (Guid id, string month, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                return ChildcareBodies.Month(reader, month) is { } m
+                    ? (await invoker.InvokeAsync(new ReopenStatementCommand(new ItemId(id), m), ct)).ToHttp(view => view)
+                    : reader.Problem();
+            })
+            .Returns<ChildcareStatementView>();
+
+        api.MapDelete("/{id:guid}/statements/{month}", async (Guid id, string month, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                return ChildcareBodies.Month(reader, month) is { } m
+                    ? (await invoker.InvokeAsync(new DiscardStatementCommand(new ItemId(id), m), ct)).ToHttp(view => view)
+                    : reader.Problem();
+            })
+            .Returns<ChildcareStatementView>();
+
         return routes;
     }
+
+    /// <summary>A day as entered; times <c>HH:mm</c> on a present day, <c>absence</c> snake_case (<c>child_sick</c>) on an absent planned one.</summary>
+    public sealed record StatementDayBody(string? Date, bool? Present, string? Arrival, string? Departure, bool? Meal, string? Absence);
+
+    /// <summary>Every day of the month, the month's mileage and CMG as decimal strings, and the <c>version</c> read (0 when nothing was stored).</summary>
+    public sealed record StatementBody(IReadOnlyList<StatementDayBody>? Days, string? Mileage, string? Cmg, uint? Version)
+    {
+        internal SaveStatementCommand? ToCommand(ItemId id, YearMonth? month, FieldReader reader)
+        {
+            var days = new List<DayInput>();
+            foreach (var (day, i) in (Days ?? []).Select((d, i) => (d, i)))
+            {
+                var date = reader.Date(day?.Date, $"days[{i}].date");
+                var present = day?.Present ?? false;
+                var arrival = present ? reader.Time(day!.Arrival, $"days[{i}].arrival") : null;
+                var departure = present ? reader.Time(day!.Departure, $"days[{i}].departure") : null;
+                AbsenceReason? absence = null;
+                if (day?.Absence is { } name && (absence = AbsenceCodes.TryParse(name)) is null)
+                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent or holiday.");
+                if (date is { } d) days.Add(new DayInput(d, present, arrival, departure, day?.Meal ?? false, absence));
+            }
+            var mileage = reader.Decimal(Mileage, "mileage") ?? 0m;
+            var cmg = reader.Decimal(Cmg, "cmg");
+            if (Version is null) reader.Add("version", "request.required", "The version read with the statement is required.");
+            return reader.Ok ? new SaveStatementCommand(id, month!.Value, days, mileage, cmg, Version!.Value) : null;
+        }
+    }
+
+    public sealed record VersionBody(uint? Version);
 
     public sealed record CarerBody(string? Name, string? Pajemploi, string? Approval);
 
@@ -127,6 +206,16 @@ public static class ChildcareEndpoints
 
     private static class ChildcareBodies
     {
+        private static readonly NodaTime.Text.YearMonthPattern MonthPattern = NodaTime.Text.YearMonthPattern.CreateWithInvariantCulture("uuuu-MM");
+
+        public static YearMonth? Month(FieldReader reader, string value)
+        {
+            var parsed = MonthPattern.Parse(value);
+            if (parsed.Success) return parsed.Value;
+            reader.Add("month", "request.invalid", "A month is yyyy-MM.");
+            return null;
+        }
+
         public static CarerInput? Carer(FieldReader reader, CarerBody? body)
             => body is null
                 ? Missing(reader, "carer")

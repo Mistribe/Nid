@@ -34,10 +34,47 @@ public sealed record ChildcareTermsView(
 
 public sealed record CareGapView(LocalDate Monday, int Weeks, LocalDate Sunday);
 
-/// <summary>An arrangement in full: every revision, oldest first, its weeks without care and those still to place this contract year.</summary>
+/// <summary>An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, and the paid-leave days accrued (decision 16).</summary>
 public sealed record ChildcareDetail(
     ChildcareSummary Summary, string? CarerPajemploi, string? CarerApproval, IReadOnlyList<ChildcareTermsView> Terms, IReadOnlyList<CareGapView> Gaps,
-    int GapWeeksToPlace, uint Version) : IExposesItems
+    int GapWeeksToPlace, int LeaveDaysAccrued, uint Version) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Summary.Id)];
+}
+
+/// <summary>Decision 13: a month of the arrangement. <c>State</c>: <c>none</c>, <c>draft</c> or <c>validated</c>; <c>Cost</c> once validated.</summary>
+public sealed record ChildcareStatementRow(string Month, string State, ChildcareMoneyView? Cost);
+
+/// <summary>Every month a statement exists for, newest first.</summary>
+public sealed record ChildcareStatementList(Guid Id, IReadOnlyList<ChildcareStatementRow> Months) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
+}
+
+/// <summary>A day of the statement; times <c>HH:mm</c>, the template's beside them; <c>Changed</c>: differs from the template's day.</summary>
+public sealed record StatementDayView(
+    LocalDate Date, bool Planned, bool Present, string? Arrival, string? Departure, bool Meal, string? Absence, string? TemplateArrival,
+    string? TemplateDeparture, bool Changed);
+
+/// <summary>Spec §3: the Pajemploi fields, hours as <c>"1.50"</c>, amounts as <c>"598.02"</c>.</summary>
+public sealed record DeclarationView(
+    int NormalHours, int ActivityDays, int? PaidLeaveDays, string ComplementaryHours, string OvertimeHours, string NetPay, string Upkeep, string Meals,
+    string Mileage);
+
+/// <summary>The declaration with the pay's parts and the month's cost; <c>CostBeforeCmg</c> while the CMG is not entered (decision 17).</summary>
+public sealed record StatementFiguresView(
+    DeclarationView Declaration, ChildcareMoneyView BasePay, ChildcareMoneyView Deduction, ChildcareMoneyView ExtraPay, ChildcareMoneyView PaidLeavePay,
+    ChildcareMoneyView Cost, bool CostBeforeCmg);
+
+public sealed record FieldProblemView(string Field, string Code);
+
+/// <summary>
+/// Spec §5 « Relevé du mois ». <c>Figures</c> null while a day is inconsistent (<c>Problems</c>) or, in June, a month of the
+/// reference period is not validated (<c>MissingReferenceMonths</c>). <c>Version</c> 0: nothing stored yet.
+/// </summary>
+public sealed record ChildcareStatementView(
+    Guid Id, string Name, string Month, string State, IReadOnlyList<StatementDayView> Days, string Mileage, string? Cmg, StatementFiguresView? Figures,
+    IReadOnlyList<FieldProblemView> Problems, IReadOnlyList<string> MissingReferenceMonths, bool CanWrite, bool CanReopen, uint Version) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }

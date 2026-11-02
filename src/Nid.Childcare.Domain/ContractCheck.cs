@@ -20,6 +20,9 @@ public static class ContractCheck
         public const string GapWeeksOutOfRange = "childcare.gap_weeks_out_of_range";
         public const string GapOverlap = "childcare.gap_overlap";
         public const string GapsTooMany = "childcare.gaps_too_many";
+        public const string DaysIncomplete = "childcare.days_incomplete";
+        public const string AbsenceRequired = "childcare.absence_required";
+        public const string AbsenceNotAllowed = "childcare.absence_not_allowed";
     }
 
     public static IReadOnlyList<(string Field, string Code)> Schedule(IReadOnlyList<WeekdaySlot> schedule)
@@ -70,7 +73,7 @@ public static class ContractCheck
     private static IEnumerable<LocalDate> Mondays(CareGap gap) => Enumerable.Range(0, gap.Weeks).Select(gap.Monday.PlusWeeks);
 
     /// <summary>The latest anniversary of <paramref name="start"/> on or before <paramref name="day"/>; 29 February falls on 28 February.</summary>
-    private static LocalDate YearStart(LocalDate start, LocalDate day)
+    public static LocalDate YearStart(LocalDate start, LocalDate day)
     {
         LocalDate On(int year) => new(year, start.Month, Math.Min(start.Day, CalendarSystem.Iso.GetDaysInMonth(year, start.Month)));
         return On(day.Year) <= day ? On(day.Year) : On(day.Year - 1);

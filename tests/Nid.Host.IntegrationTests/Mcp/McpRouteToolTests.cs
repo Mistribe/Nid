@@ -35,6 +35,9 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "POST /api/v1/banking/transactions/{id:guid}/link",
         // An insurance is set by propose_set_insurance (spec 2026-10-30 §10); removing it is a click in the web app.
         "DELETE /api/v1/subscriptions/{id:guid}/insurance",
+        // Childcare spec decision 27: validating, reopening or restarting a statement stays the person's gesture in the browser.
+        "/api/v1/childcare/{id:guid}/statements/{month}/validate", "/api/v1/childcare/{id:guid}/statements/{month}/reopen",
+        "DELETE /api/v1/childcare/{id:guid}/statements/{month}",
         // A holding's breakdown is proposed by propose_breakdown (from its factsheet, with its document), by ISIN; changing or deleting one is a click.
         "/holdings/{holdingId:guid}/breakdown",
         // #294: who may edit an item is its owners' click in the web app, never a proposal.

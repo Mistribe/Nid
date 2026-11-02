@@ -105,6 +105,163 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.StatementDayRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<LocalDate>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<string>("Absence")
+                        .HasColumnType("text")
+                        .HasColumnName("absence");
+
+                    b.Property<LocalTime?>("Arrival")
+                        .HasColumnType("time")
+                        .HasColumnName("arrival");
+
+                    b.Property<LocalTime?>("Departure")
+                        .HasColumnType("time")
+                        .HasColumnName("departure");
+
+                    b.Property<bool>("Meal")
+                        .HasColumnType("boolean")
+                        .HasColumnName("meal");
+
+                    b.Property<LocalDate>("Month")
+                        .HasColumnType("date")
+                        .HasColumnName("month");
+
+                    b.Property<bool>("Planned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("planned");
+
+                    b.Property<bool>("Present")
+                        .HasColumnType("boolean")
+                        .HasColumnName("present");
+
+                    b.HasKey("ItemId", "Date")
+                        .HasName("pk_statement_day");
+
+                    b.HasIndex("ItemId", "Month")
+                        .HasDatabaseName("ix_statement_day_item_id_month");
+
+                    b.ToTable("statement_day", "childcare", t =>
+                        {
+                            t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday')");
+
+                            t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.StatementRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<LocalDate>("Month")
+                        .HasColumnType("date")
+                        .HasColumnName("month");
+
+                    b.Property<int?>("ActivityDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("activity_days");
+
+                    b.Property<decimal?>("BasePay")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("base_pay");
+
+                    b.Property<int?>("ChildSickDeducted")
+                        .HasColumnType("integer")
+                        .HasColumnName("child_sick_deducted");
+
+                    b.Property<decimal?>("Cmg")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("cmg");
+
+                    b.Property<decimal?>("ComplementaryHours")
+                        .HasColumnType("numeric(9,2)")
+                        .HasColumnName("complementary_hours");
+
+                    b.Property<decimal?>("Cost")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("cost");
+
+                    b.Property<decimal?>("Deduction")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("deduction");
+
+                    b.Property<decimal?>("ExtraPay")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("extra_pay");
+
+                    b.Property<decimal?>("Meals")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("meals");
+
+                    b.Property<decimal>("Mileage")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("mileage");
+
+                    b.Property<decimal?>("NetPay")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("net_pay");
+
+                    b.Property<int?>("NormalHours")
+                        .HasColumnType("integer")
+                        .HasColumnName("normal_hours");
+
+                    b.Property<decimal?>("OvertimeHours")
+                        .HasColumnType("numeric(9,2)")
+                        .HasColumnName("overtime_hours");
+
+                    b.Property<int?>("PaidLeaveDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("paid_leave_days");
+
+                    b.Property<decimal?>("PaidLeavePay")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("paid_leave_pay");
+
+                    b.Property<decimal?>("TaxBase")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("tax_base");
+
+                    b.Property<decimal?>("Upkeep")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("upkeep");
+
+                    b.Property<bool>("Validated")
+                        .HasColumnType("boolean")
+                        .HasColumnName("validated");
+
+                    b.Property<Instant?>("ValidatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("validated_at");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("ItemId", "Month")
+                        .HasName("pk_statement");
+
+                    b.ToTable("statement", "childcare", t =>
+                        {
+                            t.HasCheckConstraint("ck_statement_amounts", "mileage >= 0 and (cmg is null or cmg >= 0)");
+
+                            t.HasCheckConstraint("ck_statement_figures", "validated = (validated_at is not null) and validated = (net_pay is not null) and validated = (cost is not null) and validated = (child_sick_deducted is not null)");
+
+                            t.HasCheckConstraint("ck_statement_month", "extract(day from month) = 1");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.TermsRow", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -306,6 +463,26 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_gap_arrangement_item_id");
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.StatementDayRow", b =>
+                {
+                    b.HasOne("Nid.Childcare.Infrastructure.Persistence.StatementRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId", "Month")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_statement_day_statement_item_id_month");
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.StatementRow", b =>
+                {
+                    b.HasOne("Nid.Childcare.Infrastructure.Persistence.ArrangementRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_statement_arrangement_item_id");
                 });
 
             modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.TermsRow", b =>

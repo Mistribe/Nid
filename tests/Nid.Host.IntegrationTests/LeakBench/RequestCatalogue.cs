@@ -510,6 +510,13 @@ public static class RequestCatalogue
         new(typeof(ReplaceGapsCommand), true, (_, item) => new ReplaceGapsCommand(item, [])),
         new(typeof(CloseChildcareCommand), true, (_, item) => new CloseChildcareCommand(item, new LocalDate(2030, 1, 1))),
         new(typeof(ReopenChildcareCommand), true, (_, item) => new ReopenChildcareCommand(item)),
+        new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),
+        new(typeof(GetStatementQuery), true, (_, item) => new GetStatementQuery(item, new YearMonth(2025, 9))),
+        // No days: an allowed writer meets the 422 on days, never an access refusal; version 1 is never stored.
+        new(typeof(SaveStatementCommand), true, (_, item) => new SaveStatementCommand(item, new YearMonth(2025, 9), [], 0m, null, 1)),
+        new(typeof(ValidateStatementCommand), true, (_, item) => new ValidateStatementCommand(item, new YearMonth(2025, 9), 1)),
+        new(typeof(ReopenStatementCommand), true, (_, item) => new ReopenStatementCommand(item, new YearMonth(2025, 9))),
+        new(typeof(DiscardStatementCommand), true, (_, item) => new DiscardStatementCommand(item, new YearMonth(2025, 9))),
 
         new(typeof(GetBankingStatusQuery), false, (_, _) => new GetBankingStatusQuery()),
         new(typeof(ListAspspsQuery), false, (_, _) => new ListAspspsQuery()),

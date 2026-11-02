@@ -183,6 +183,9 @@ public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore s
             return Result.Failure<ItemId>(failure!);
         if (command.On < revisions[^1].From)
             return Result.Failure<ItemId>(FieldErrors.Shape([new("on", ChildcareCodes.EndBeforeTerms, "The end comes on or after the current terms' start.")]));
+        // A validated month's declaration is made: the end cannot cut into it.
+        if ((await store.StatementsOfAsync(command.ItemId, ct)).Any(st => st.Validated && st.Month.OnDayOfMonth(st.Month.Calendar.GetDaysInMonth(st.Month.Year, st.Month.Month)) > command.On))
+            return Result.Failure<ItemId>(FieldErrors.Shape([new("on", ChildcareCodes.EndBeforeValidated, "A validated month ends after this day: reopen it first.")]));
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.SetEndAsync(command.ItemId, command.On, ct);

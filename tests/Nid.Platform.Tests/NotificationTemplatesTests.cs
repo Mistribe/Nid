@@ -21,6 +21,7 @@ public class NotificationTemplatesTests
         ("loan_phase_end", "loans"), ("loan_end", "loans"),
         ("holding_maturity", "investments"), ("stale_value", "investments"), ("uc_share_below_floor", "investments"),
         ("income_phase_end", "income"), ("income_gap_soon", "income"),
+        ("childcare_statement_due", "childcare"),
     ];
 
     private static NotificationRecord Record(string kind, LocalDate? dueOn = null, string key = "k")
@@ -63,6 +64,9 @@ public class NotificationTemplatesTests
         var loan = NotificationTemplates.Render(Record("loan_end", new LocalDate(2027, 12, 1)), KindOf("loan_end", "loans"), none);
 
         Assert.Equal("Studio — depuis février 2027", arrears.Body);
+        var statement = NotificationTemplates.Render(Record("childcare_statement_due", new LocalDate(2025, 9, 30), $"childcare_statement_due:{Item.Value:D}:2025-09"),
+            KindOf("childcare_statement_due", "childcare"), new Dictionary<ItemId, string> { [Item] = "Garde de Léa" });
+        Assert.Equal("Garde de Léa — relevé de septembre 2025", statement.Body);
         Assert.Equal("Élément — estimée le 15 juin 2025", stale.Body);
         Assert.Equal($"/properties/{Item.Value:D}?tab=valuations", stale.Link);
         Assert.Equal("Élément — le 1er décembre 2027", loan.Body);

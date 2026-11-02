@@ -1,0 +1,201 @@
+using System.Globalization;
+using Nid.Childcare.Contracts;
+using Nid.Childcare.Domain;
+using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
+using NodaTime;
+using NodaTime.Text;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
+
+namespace Nid.Childcare.Application;
+
+/// <summary>What a month's statement is read and written against (decisions 12–16).</summary>
+public sealed record MonthContext(
+    Arrangement Arrangement, ItemAccess Item, IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, IReadOnlyList<Statement> Stored,
+    LocalDate Today, YearMonth Month, Terms Chosen, ContractTerms Contract)
+{
+    public Statement? StoredMonth => Stored.FirstOrDefault(s => s.Month == Month);
+}
+
+/// <summary>A month's figures, or why there are none.</summary>
+public sealed record MonthEvaluation(MonthFigures? Figures, IReadOnlyList<(string Field, string Code)> Problems, IReadOnlyList<YearMonth> Missing);
+
+/// <summary>Spec §5 « Relevé du mois »: builds a month's days and figures from the store and the Domain, shared by queries and commands.</summary>
+public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items, IHouseholdSettings household, IHouseholdCalendar calendar, IAccessPolicy policy)
+{
+    private static readonly YearMonthPattern MonthPattern = YearMonthPattern.CreateWithInvariantCulture("uuuu-MM");
+
+    public static string Format(YearMonth month) => MonthPattern.Format(month);
+
+    public async Task<Result<(Arrangement Arrangement, ItemAccess Item, IReadOnlyList<Terms> Revisions, IReadOnlyList<Statement> Stored, LocalDate Today)>> ArrangementAsync(
+        ItemId id, CancellationToken ct)
+    {
+        var loaded = await ChildcareCheck.LoadAsync(store, items, id, ct);
+        if (loaded.TryGetFailure(out var failure))
+            return Result.Failure<(Arrangement, ItemAccess, IReadOnlyList<Terms>, IReadOnlyList<Statement>, LocalDate)>(failure!);
+        loaded.TryGetValue(out var found);
+        return Result.Success((found.Arrangement, found.Item, found.Terms, await store.StatementsOfAsync(id, ct), await calendar.TodayAsync(ct)));
+    }
+
+    /// <summary>The month's context; a month outside <see cref="StatementContext.Months"/> is not found.</summary>
+    public async Task<Result<MonthContext>> ContextAsync(ItemId id, YearMonth month, CancellationToken ct)
+    {
+        var loaded = await ArrangementAsync(id, ct);
+        if (loaded.TryGetFailure(out var failure))
+            return Result.Failure<MonthContext>(failure!);
+        loaded.TryGetValue(out var found);
+        var (arrangement, item, revisions, stored, today) = found;
+        if (!StatementContext.Months(revisions[0].From, revisions[^1].To, today).Contains(month))
+            return Result.Failure<MonthContext>(new NotFoundFailure("childcare.statement", Format(month)));
+        var chosen = revisions[StatementContext.TermsIndexFor(month, revisions[0].From, revisions.Select(r => (r.From, r.To)).ToList())];
+        var gaps = (await store.GapsOfAsync([id], ct)).Select(g => g.Gap).ToList();
+        var contract = new ContractTerms(revisions[0].From, revisions[^1].To, chosen.NetHourlyRate, chosen.OvertimeRate, chosen.UpkeepPer9h, chosen.MealPrice);
+        return Result.Success(new MonthContext(arrangement, item, revisions, gaps, stored, today, month, chosen, contract));
+    }
+
+    /// <summary>
+    /// Decision 14: a validated month's days as stored; a draft's corrections over the template as it now is, each correction
+    /// whose plan changed since it was saved in <c>Stale</c>; otherwise the template's.
+    /// </summary>
+    public async Task<(IReadOnlyList<StatementDay> Days, IReadOnlyList<(string Field, string Code)> Stale)> DaysAsync(MonthContext context, CancellationToken ct)
+    {
+        if (context.StoredMonth is null)
+            return (Prepared(context), []);
+        var stored = (await store.FindStatementAsync(context.Arrangement.ItemId, context.Month, ct))!;
+        return stored.Validated ? (stored.Days, []) : Overlay(context, context.Month, stored.Days);
+    }
+
+    /// <summary>A draft keeps only its corrections: every other day follows the template, so a corrected template moves it too.</summary>
+    public (IReadOnlyList<StatementDay> Days, IReadOnlyList<(string Field, string Code)> Stale) Overlay(MonthContext context, YearMonth month, IReadOnlyList<StatementDay> corrections)
+    {
+        var prepared = StatementPreparation.Prepare(month, context.Chosen.Schedule, context.Gaps, context.Contract);
+        var byDate = corrections.ToDictionary(d => d.Date);
+        var days = new List<StatementDay>();
+        var stale = new List<(string, string)>();
+        for (var i = 0; i < prepared.Count; i++)
+        {
+            if (!byDate.TryGetValue(prepared[i].Date, out var correction))
+            {
+                days.Add(prepared[i]);
+                continue;
+            }
+            days.Add(correction with { Planned = prepared[i].Planned });
+            if (correction.Planned != prepared[i].Planned) stale.Add(($"days[{i}].planned", ChildcareCodes.DayReplanned));
+        }
+        return (days, stale);
+    }
+
+    public IReadOnlyList<StatementDay> Prepared(MonthContext context)
+        => StatementPreparation.Prepare(context.Month, context.Chosen.Schedule, context.Gaps, context.Contract);
+
+    public IReadOnlyList<StatementDay> Replanned(MonthContext context, Terms terms, IReadOnlyList<StatementDay> days)
+        => days.Select(d => d with { Planned = StatementPreparation.IsPlanned(d.Date, terms.Schedule, context.Gaps, context.Contract) }).ToList();
+
+    /// <summary>The figures of these days, or the problems and missing June months that withhold them.</summary>
+    public async Task<MonthEvaluation> EvaluateAsync(
+        MonthContext context, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, decimal mileage, decimal? cmg, CancellationToken ct)
+    {
+        IReadOnlyList<(string Field, string Code)> problems = [.. StatementCheck.Days(context.Month, days), .. stale];
+        var validated = context.Stored.Where(s => s.Validated && s.Figures is not null).ToList();
+        PaidLeaveInput? june = null;
+        IReadOnlyList<YearMonth> missing = [];
+        if (context.Month.Month == 6)
+            (june, missing) = StatementContext.June(context.Month, context.Contract.Start, context.Contract.End,
+                validated.Select(s => (s.Month, s.Figures!.BasePay - s.Figures.Deduction + s.Figures.ExtraPay)).ToList());
+        if (problems.Count > 0 || missing.Count > 0)
+            return new MonthEvaluation(null, problems, missing);
+
+        var input = new MonthInput(context.Month, context.Contract, context.Chosen.Schedule, context.Gaps, context.Chosen.ProgrammedWeeks, days,
+            await NeighboursAsync(context, ct), StatementContext.ChildSickUsedBefore(context.Contract.Start, context.Month,
+                validated.Select(s => (s.Month, s.Figures!.ChildSickDeducted)).ToList()),
+            mileage, cmg ?? 0m, june);
+        return new MonthEvaluation(ChildcareMonth.Compute(input), problems, missing);
+    }
+
+    /// <summary>
+    /// The adjacent months' days, prepared from this month's terms; the previous month's stored days replace them when
+    /// that month used the same revision and still fits the template (they decide the first week's extra hours).
+    /// </summary>
+    private async Task<IReadOnlyList<StatementDay>> NeighboursAsync(MonthContext context, CancellationToken ct)
+    {
+        var schedule = context.Chosen.Schedule;
+        var previous = context.Month.PlusMonths(-1);
+        IReadOnlyList<StatementDay> before = StatementPreparation.Prepare(previous, schedule, context.Gaps, context.Contract);
+        var sameTerms = context.Revisions[StatementContext.TermsIndexFor(previous, context.Contract.Start, context.Revisions.Select(r => (r.From, r.To)).ToList())]
+            .From == context.Chosen.From;
+        if (sameTerms && context.Stored.Any(s => s.Month == previous)
+            && await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) is { } stored)
+        {
+            var days = stored.Validated ? Replanned(context, context.Chosen, stored.Days) : Overlay(context, previous, stored.Days).Days;
+            if (StatementCheck.Days(previous, days).Count == 0)
+                before = days;
+        }
+        return [.. before, .. StatementPreparation.Prepare(context.Month.PlusMonths(1), schedule, context.Gaps, context.Contract)];
+    }
+
+    public async Task<ChildcareStatementView> ViewAsync(PersonId reader, MonthContext context, CancellationToken ct)
+    {
+        var stored = context.StoredMonth;
+        var (days, stale) = await DaysAsync(context, ct);
+        var currency = await household.ReferenceCurrencyAsync(ct);
+        var canWrite = (await policy.CheckManyAsync(reader, [context.Arrangement.ItemId], AccessKind.Write, ct)).Contains(context.Arrangement.ItemId);
+        MonthEvaluation evaluation = stored is { Validated: true, Figures: { } frozen }
+            ? new(frozen, [], [])
+            : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, ct);
+        var next = context.Month.PlusMonths(1);
+        var prepared = Prepared(context);
+        return new ChildcareStatementView(
+            context.Arrangement.ItemId.Value, context.Item.DisplayName, Format(context.Month),
+            stored is null ? "none" : stored.Validated ? "validated" : "draft",
+            days.Select((d, i) => DayView(d, context.Chosen, i < prepared.Count ? prepared[i] : null)).ToList(),
+            Amount(stored?.Mileage ?? 0m), stored?.Cmg is { } c ? Amount(c) : null,
+            evaluation.Figures is { } f ? FiguresView(f, currency, stored?.Cmg is null) : null,
+            evaluation.Problems.Select(p => new FieldProblemView(p.Field, p.Code)).ToList(),
+            evaluation.Missing.Select(Format).ToList(),
+            canWrite, canWrite && stored is { Validated: true } && !context.Stored.Any(s => s.Month == next && s.Validated),
+            stored?.Version ?? 0);
+    }
+
+    public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)
+    {
+        var currency = await household.ReferenceCurrencyAsync(ct);
+        return new ChildcareStatementList(id.Value, StatementContext.Months(revisions[0].From, revisions[^1].To, today).Select(m =>
+        {
+            var s = stored.FirstOrDefault(x => x.Month == m);
+            return new ChildcareStatementRow(Format(m), s is null ? "none" : s.Validated ? "validated" : "draft",
+                s?.Figures is { } f ? ChildcareMoneyView.Of(f.Cost, currency) : null);
+        }).ToList());
+    }
+
+    public static string Message(string code) => code switch
+    {
+        ChildcareCodes.DaysIncomplete => "Each day of the month once.",
+        ChildcareCodes.DepartureBeforeArrival => "A present day needs an arrival before its departure.",
+        ChildcareCodes.AbsenceRequired => "An absent planned day needs a reason.",
+        ChildcareCodes.AbsenceNotAllowed => "A reason goes on an absent planned day only.",
+        ChildcareCodes.DayReplanned => "The template or the weeks without care changed this day since it was saved.",
+        _ => code,
+    };
+
+    private static StatementDayView DayView(StatementDay d, Terms terms, StatementDay? prepared)
+    {
+        var slot = d.Planned ? terms.Schedule.FirstOrDefault(s => s.Day == d.Date.DayOfWeek) : null;
+        return new StatementDayView(d.Date, d.Planned, d.Present, Time(d.Arrival), Time(d.Departure), d.Meal,
+            d.Absence is { } a ? AbsenceCodes.Of(a) : null, Time(slot?.Arrival), Time(slot?.Departure), prepared is not null && prepared != d);
+    }
+
+    private static string? Time(LocalTime? t) => t is { } v ? ChildcareReader.Time.Format(v) : null;
+
+    private static string Amount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    private static StatementFiguresView FiguresView(MonthFigures f, Currency currency, bool beforeCmg)
+    {
+        var d = f.Declaration;
+        return new StatementFiguresView(
+            new DeclarationView(d.NormalHours, d.ActivityDays, d.PaidLeaveDays, Amount(d.ComplementaryHours), Amount(d.OvertimeHours), Amount(d.NetPay),
+                Amount(d.Upkeep), Amount(d.Meals), Amount(d.Mileage)),
+            ChildcareMoneyView.Of(f.BasePay, currency), ChildcareMoneyView.Of(f.Deduction, currency), ChildcareMoneyView.Of(f.ExtraPay, currency),
+            ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg);
+    }
+}

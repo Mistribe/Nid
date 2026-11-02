@@ -270,6 +270,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<ChildcareDbContext>>();
         services.AddScoped<Nid.Childcare.Application.IChildcareStore, ChildcareStore>();
         services.AddScoped<Nid.Childcare.Application.ChildcareReader>();
+        services.AddScoped<Nid.Childcare.Application.StatementAssembly>();
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Childcare.Application.ChildcareNotificationSource>();
 
         services.AddDbContext<DocumentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

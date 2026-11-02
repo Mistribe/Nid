@@ -35,6 +35,7 @@ public static class NotificationTemplates
         ["uc_share_below_floor"] = "La part en unités de compte est sous le plancher",
         ["income_phase_end"] = "Une phase de revenu se termine",
         ["income_gap_soon"] = "Un trou de revenus approche",
+        ["childcare_statement_due"] = "Un relevé de garde est à valider",
         ["fx_rate_missing"] = "Un taux de change manque",
         ["routine_due"] = "La routine du mois est à faire",
         ["access_violation"] = "Une réponse a été bloquée par la garde d'accès",
@@ -142,6 +143,7 @@ public static class NotificationTemplates
     private static string Suffix(NotificationRecord n) => n.Kind switch
     {
         "rent_arrears" when KeyDate(n.Key, "yyyy-MM") is { } month => $" — depuis {month.ToString("MMMM yyyy", French)}",
+        "childcare_statement_due" when KeyDate(n.Key, "yyyy-MM") is { } month => $" — relevé de {month.ToString("MMMM yyyy", French)}",
         "valuation_stale" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — estimée le {Day(on)}",
         "stale_value" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — valeur du {Day(on)}",
         "uc_share_below_floor" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — relevé du {Day(on)}",
@@ -175,6 +177,7 @@ public static class NotificationTemplates
             "properties" => PropertyTabs.TryGetValue(n.Kind, out var tab) ? $"/properties/{id}?tab={tab}" : $"/properties/{id}",
             "investments" => InvestmentTabs.TryGetValue(n.Kind, out var tab) ? $"/investments/{id}?tab={tab}" : $"/investments/{id}",
             "income" => $"/income/{id}",
+            "childcare" => n.Params.TryGetValue("month", out var month) ? $"/childcare/{id}/statements/{month}" : $"/childcare/{id}",
             _ => "/",
         };
     }

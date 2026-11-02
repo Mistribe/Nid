@@ -16,6 +16,10 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
 
     public DbSet<GapRow> Gaps => Set<GapRow>();
 
+    public DbSet<StatementRow> Statements => Set<StatementRow>();
+
+    public DbSet<StatementDayRow> StatementDays => Set<StatementDayRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -68,6 +72,38 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.ToTable("gap", t => t.HasCheckConstraint("ck_gap_weeks", "weeks >= 1"));
             e.HasKey(x => new { x.ItemId, x.Monday });
             e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StatementRow>(e =>
+        {
+            e.ToTable("statement", t =>
+            {
+                t.HasCheckConstraint("ck_statement_month", "extract(day from month) = 1");
+                t.HasCheckConstraint("ck_statement_amounts", "mileage >= 0 and (cmg is null or cmg >= 0)");
+                // Decision 14: a validated month has its figures frozen, a draft has none.
+                t.HasCheckConstraint("ck_statement_figures",
+                    "validated = (validated_at is not null) and validated = (net_pay is not null) and validated = (cost is not null) and validated = (child_sick_deducted is not null)");
+            });
+            e.HasKey(x => new { x.ItemId, x.Month });
+            foreach (var amount in new[] { nameof(StatementRow.Mileage), nameof(StatementRow.Cmg), nameof(StatementRow.NetPay), nameof(StatementRow.Upkeep),
+                         nameof(StatementRow.Meals), nameof(StatementRow.BasePay), nameof(StatementRow.Deduction), nameof(StatementRow.ExtraPay),
+                         nameof(StatementRow.PaidLeavePay), nameof(StatementRow.Cost), nameof(StatementRow.TaxBase) })
+                e.Property(amount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.ComplementaryHours).HasColumnType("numeric(9,2)");
+            e.Property(x => x.OvertimeHours).HasColumnType("numeric(9,2)");
+            e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<StatementDayRow>(e =>
+        {
+            e.ToTable("statement_day", t =>
+            {
+                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday')");
+                t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
+            });
+            e.HasKey(x => new { x.ItemId, x.Date });
+            e.HasOne<StatementRow>().WithMany().HasForeignKey(x => new { x.ItemId, x.Month }).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);
