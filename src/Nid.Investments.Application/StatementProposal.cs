@@ -14,7 +14,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Investments.Application;
 
 /// <summary>
-/// Spec 4D1 §2: `{ asOf, value?, movements[{ on, kind, amount, label?, ref? }], note?, excluded? }` on an envelope; subject
+/// Spec 4D1 §2: `{ asOf, value?, movements[{ on, kind, amount, label?, ref?, category? }], note?, excluded? }` on an envelope; subject
 /// key: the date. A movement Nid already holds (same reference, or without one the same date, kind and amount) is warned
 /// and, unless an edit's `excluded` says otherwise, left out when applied. `excluded` is an approval's edit only (D5): a
 /// submitter's is dropped. Nothing left to write and the value already recorded on `asOf` (or none given): « conforme ».
@@ -34,9 +34,10 @@ public sealed partial class StatementProposal(
 
     private sealed record AmountBody(string? Amount, string? Currency);
 
-    private sealed record MovementBody(string? On, string? Kind, string? Amount, string? Label, string? Ref);
+    private sealed record MovementBody(string? On, string? Kind, string? Amount, string? Label, string? Ref, string? Category);
 
-    private sealed record Movement(LocalDate On, string Kind, decimal Amount, string? Label, string? Ref);
+    /// <summary><see cref="Category"/>: issue #278, a dividend, interest or distribution (<see cref="FlowCategories.Income"/>).</summary>
+    private sealed record Movement(LocalDate On, string Kind, decimal Amount, string? Label, string? Ref, string? Category);
 
     private sealed record Parsed(LocalDate AsOf, Money? Value, IReadOnlyList<Movement> Movements, string? Note, IReadOnlyList<int>? Excluded);
 
@@ -46,7 +47,7 @@ public sealed partial class StatementProposal(
 
     private sealed record Conforme(ExpectedSide Expected, GivenSide Given);
 
-    private sealed record MovementPreview(int Index, string On, string Kind, AmountView Amount, string? Label, bool Recorded);
+    private sealed record MovementPreview(int Index, string On, string Kind, AmountView Amount, string? Label, string? Category, bool Recorded);
 
     private sealed record Preview(ValuationComparison? Value, IReadOnlyList<MovementPreview> Movements);
 
@@ -75,8 +76,14 @@ public sealed partial class StatementProposal(
         if (p.AsOf > await calendar.TodayAsync(ct))
             return Field(CoreFactCodes.DateInFuture, "A statement is dated today or before.", "payload.asOf");
         for (var i = 0; i < p.Movements.Count; i++)
-            if (p.Movements[i].On > p.AsOf)
+        {
+            var m = p.Movements[i];
+            if (m.On > p.AsOf)
                 return Field(FieldErrors.ShapeCode, "A movement is dated on or before the statement.", $"payload.movements[{i}].on");
+            // Issue #278: the rule a recorded flow keeps (spec C2), told at submission rather than at approval.
+            if (EnvelopeWire.TryFlowKind(m.Kind, out var kind) && FlowCategories.Refusal(envelope.Envelope.Kind, kind, m.Category) is { } refused)
+                return Field(InvestmentsCodes.InvalidIncomeCategory, refused, $"payload.movements[{i}].category");
+        }
 
         var marked = await RecordedAsync(target, p.Movements, p.Excluded, ct);
         if (!marked.TryGetValue(out var marks))
@@ -120,7 +127,7 @@ public sealed partial class StatementProposal(
         var marks = (await RecordedAsync(target, p!.Movements, p.Excluded, ct)).TryGetValue(out var m) ? m! : new Mark[p.Movements.Count];
         return JsonSerializer.SerializeToElement(new Preview(
             p.Value is { } v ? await ValuationProposal.CompareAsync(valuations, target, p.AsOf, v, ct) : null,
-            [.. p.Movements.Select((x, i) => new MovementPreview(i, Iso(x.On), x.Kind, new AmountView(Text(x.Amount), currency), x.Label, marks[i] != Mark.None))]),
+            [.. p.Movements.Select((x, i) => new MovementPreview(i, Iso(x.On), x.Kind, new AmountView(Text(x.Amount), currency), x.Label, x.Category, marks[i] != Mark.None))]),
             StatementJson.Default.Preview);
     }
 
@@ -144,7 +151,7 @@ public sealed partial class StatementProposal(
                 return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(
                     new Failure(CoreFactCodes.CurrencyMismatch, "The envelope has no currency.", null), $"payload.movements[{i}].amount"));
             // The line's text is the flow's note; the bank's reference its external reference (deduplication).
-            var flow = await invoker.InvokeAsync(new RecordFlowCommand(target, new FlowDraft(m.On, m.Kind, amount, null, m.Ref, m.Label)), ct);
+            var flow = await invoker.InvokeAsync(new RecordFlowCommand(target, new FlowDraft(m.On, m.Kind, amount, m.Category, m.Ref, m.Label)), ct);
             if (!flow.TryGetValue(out var flowId))
                 return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(FailureOf(flow), CoreField(FailureOf(flow), $"payload.movements[{i}]")));
             applied.Add(flowId);
@@ -197,6 +204,7 @@ public sealed partial class StatementProposal(
             var line = new JsonObject { ["on"] = Iso(m.On), ["kind"] = m.Kind, ["amount"] = Text(m.Amount) };
             if (m.Label is not null) line["label"] = m.Label;
             if (m.Ref is not null) line["ref"] = m.Ref;
+            if (m.Category is not null) line["category"] = m.Category;
             return (JsonNode?)line;
         }).ToArray());
         if (p.Note is not null)
@@ -267,7 +275,10 @@ public sealed partial class StatementProposal(
                     Error($"{at}.ref", "No control character.");
                 else if (reference is not null && movements.Any(x => x.Ref == reference))
                     Error($"{at}.ref", "Each reference appears once in a statement.");
-                movements.Add(new Movement(on, m?.Kind ?? "", amount, label, reference));
+                var category = Clean(m?.Category);
+                if (category is not null && !FlowCategories.IsIncome(category))
+                    Error($"{at}.category", $"One of {string.Join(", ", FlowCategories.Income)}, or none.");
+                movements.Add(new Movement(on, m?.Kind ?? "", amount, label, reference, category));
             }
 
         if (value is null && body?.Value is null && raw.Count == 0)

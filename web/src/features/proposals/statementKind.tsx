@@ -16,9 +16,9 @@ import '@/locales/investments';
 import '@/locales/proposals';
 import '@/locales/forms';
 
-type Movement = { on: string; kind: string; amount: string; label?: string | null; ref?: string | null };
+type Movement = { on: string; kind: string; amount: string; label?: string | null; ref?: string | null; category?: string | null };
 type StatementPayload = { asOf: string; value?: Money | null; movements: Movement[]; note?: string | null; excluded?: number[] | null };
-type MovementPreview = { index: number; on: string; kind: string; amount: Money; label?: string | null; recorded: boolean };
+type MovementPreview = { index: number; on: string; kind: string; amount: Money; label?: string | null; category?: string | null; recorded: boolean };
 type StatementPreview = { value?: unknown; movements: MovementPreview[] };
 type StatementForm = { asOf: string; amount: string; keep: boolean[] };
 

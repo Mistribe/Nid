@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Investments.Application;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using static Nid.TestSupport.ProposalKindHelpers;
 
@@ -15,8 +16,9 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
     private const string Kind = "investments.record_statement";
 
     private static Dictionary<string, object?> Movement(
-        string on = "2025-09-05", string kind = "contribution", string amount = "150.00", string? label = "Versement", string? reference = null)
-        => new() { ["on"] = on, ["kind"] = kind, ["amount"] = amount, ["label"] = label, ["ref"] = reference };
+        string on = "2025-09-05", string kind = "contribution", string amount = "150.00", string? label = "Versement", string? reference = null,
+        string? category = null)
+        => new() { ["on"] = on, ["kind"] = kind, ["amount"] = amount, ["label"] = label, ["ref"] = reference, ["category"] = category };
 
     private static object Statement(Guid envelope, object[] movements, string asOf = "2025-09-30", string? value = "23500.00", string currency = "EUR")
         => new
@@ -51,6 +53,41 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Contains(flows, f => f.GetProperty("externalRef").GetString() == "R-1" && f.GetProperty("note").GetString() == "Versement");
         Assert.Contains(flows, f => f.GetProperty("kind").GetString() == "withdrawal" && f.GetProperty("occurredOn").GetString() == "2025-09-20");
         Assert.Contains(detail.GetProperty("valuations").EnumerateArray(), v => v.GetProperty("amount").GetProperty("amount").GetString() == "23500.0000");
+    }
+
+    [Fact]
+    public async Task A_movement_s_income_category_is_previewed_and_recorded_on_its_flow()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        var proposal = await SubmitAsync(app, Statement(envelope,
+            [Movement(on: "2025-09-15", kind: "withdrawal", amount: "120.00", label: "Dividende TotalEnergies", category: "dividend")], value: null));
+        Assert.Equal("dividend", (await ReadAsync(app, proposal)).GetProperty("preview").GetProperty("movements")[0].GetProperty("category").GetString());
+
+        await ApproveAsync(app, proposal);
+        var flows = (await EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray();
+        Assert.Contains(flows, f => f.GetProperty("kind").GetString() == "withdrawal" && f.GetProperty("category").GetString() == "dividend");
+    }
+
+    [Fact]
+    public async Task An_income_category_off_a_withdrawal_or_income_or_on_a_savings_account_is_refused_at_its_path()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pea = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var savings = (await app.NewEnvelopeAsync("Livret A", app.AdultA, Visibility.Shared)).Value;
+
+        foreach (var (body, code) in new (object Body, string Code)[]
+                 {
+                     (Statement(pea, [Movement(category: "dividend")]), "investments.invalid_income_category"),
+                     (Statement(savings, [Movement(kind: "withdrawal", category: "interest")], value: null), "investments.invalid_income_category"),
+                     (Statement(pea, [Movement(kind: "withdrawal", category: "bonus")]), FieldErrors.ShapeCode),
+                 })
+        {
+            var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, body);
+            var error = (await JsonOf(response)).GetProperty("errors")[0];
+            Assert.Equal(("payload.movements[0].category", code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        }
     }
 
     [Fact]

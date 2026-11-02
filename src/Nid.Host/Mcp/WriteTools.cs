@@ -17,7 +17,10 @@ public sealed record StatementMovement(
     [property: Description("'contribution', 'withdrawal', 'income' or 'expense'.")] string? Kind,
     [property: Description("A positive decimal string with a point, in the envelope's currency.")] string? Amount,
     [property: Description("The line's text as printed, 200 characters at most.")] string? Label,
-    [property: Description("The bank's reference for the line, if printed, 100 characters at most.")] string? Ref);
+    [property: Description("The bank's reference for the line, if printed, 100 characters at most.")] string? Ref,
+    [property: Description("'dividend', 'interest' or 'distribution' for money the envelope paid out directly (a brokerage account's "
+        + "dividend, a coupon), on a 'withdrawal' or an 'income' only, never on a savings account (livret). A plain withdrawal from a "
+        + "PEA stays a withdrawal: leave it empty.")] string? Category = null);
 
 /// <summary>One line of a holdings statement, as printed (issue #34 §6).</summary>
 public sealed record HoldingsLine(

@@ -53,6 +53,16 @@ describe('Un relevé proposé', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('names a classified movement by its nature', async () => {
+    const p = statement();
+    const movements = [{ ...statementPreview.movements[1], category: 'dividend' }];
+    serve([p], { preview: { ...statementPreview, movements } });
+    await renderApp(`/proposals/${p.id}`);
+
+    const table = await screen.findByRole('table', { name: 'Mouvements du relevé' });
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('Dividende');
+  });
+
   it('sends no edit when nothing changed', async () => {
     const p = statement();
     const sent = serve([p], { preview: statementPreview });
