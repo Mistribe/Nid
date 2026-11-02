@@ -115,6 +115,23 @@ public class McpTaxAssessmentToolTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(0, (await ItemsAsync(app, app.AdultA)).GetArrayLength());
     }
 
+    [Theory]
+    [InlineData("propose_add_tax_year")]
+    [InlineData("propose_correct_tax_year")]
+    public async Task A_figure_the_notice_does_not_print_can_be_left_out(string tool)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+
+        var listed = await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var body = listed.Single(t => t.Name == tool).JsonSchema.GetProperty("properties").GetProperty("body");
+
+        var required = body.GetProperty("required").EnumerateArray().Select(r => r.GetString()).ToArray();
+        Assert.DoesNotContain("balance", required);
+        Assert.Contains("year", required);
+        Assert.Contains("null", body.GetProperty("properties").GetProperty("balance").GetProperty("type").EnumerateArray().Select(t => t.GetString()));
+    }
+
     [Fact]
     public async Task List_tax_years_reads_as_rest_does()
     {

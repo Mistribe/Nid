@@ -53,6 +53,27 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
         return await McpCalls.ProposeAsync(services, action.Kind, target, McpCalls.Element(payload), sourceLabel, apply, null, cancellationToken);
     }
 
+    /// <summary>The exporter requires every constructor parameter, but a client can then neither omit a nullable object (an amount a document does not print) nor always send it null.</summary>
+    private static JsonNode OptionalObjects(JsonNode schema)
+    {
+        if (schema is not JsonObject node)
+            return schema;
+        if (node["properties"] is JsonObject properties)
+        {
+            foreach (var (_, property) in properties)
+                OptionalObjects(property!);
+            if (node["required"] is JsonArray required)
+                node["required"] = new JsonArray([.. required.Select(r => r!.GetValue<string>())
+                    .Where(name => !IsNullableObject(properties[name])).Select(name => (JsonNode)name)]);
+        }
+        if (node["items"] is { } items)
+            OptionalObjects(items);
+        return node;
+    }
+
+    private static bool IsNullableObject(JsonNode? property)
+        => property?["type"] is JsonArray types && types.Any(t => t!.GetValue<string>() == "object") && types.Any(t => t!.GetValue<string>() == "null");
+
     private static JsonElement Schema(RouteAction action)
     {
         var properties = new JsonObject();
@@ -68,7 +89,7 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
         foreach (var name in action.Query ?? [])
             properties[name] = new JsonObject { ["type"] = "integer", ["description"] = "The line's version, from the item's get_* tool." };
         if (action.Body is { } body)
-            properties["body"] = JsonSchemaExporter.GetJsonSchemaAsNode(Json, body, new JsonSchemaExporterOptions { TreatNullObliviousAsNonNullable = true });
+            properties["body"] = OptionalObjects(JsonSchemaExporter.GetJsonSchemaAsNode(Json, body, new JsonSchemaExporterOptions { TreatNullObliviousAsNonNullable = true }));
         properties["sourceLabel"] = new JsonObject
         {
             ["type"] = "string", ["description"] = "The document's name, if the proposal comes from one, 200 characters at most.",
