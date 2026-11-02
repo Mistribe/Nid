@@ -16,6 +16,31 @@ Pull requests use `.github/pull_request_template.md`.
   version list behind the version number. The French lives there only, never in a commit message or a PR. A PR the
   household would not notice (CI, refactor, tests) gets the `no-changelog` label; the `changelog` workflow checks one or the other.
 
+Branches are named `<type>/<short-slug>`, in kebab-case, with the issue number first when there is one: `feat/249-catalog-includes`,
+`fix/tax-negative-rental-income`. The app's `claude/…` worktree branches are renamed (`git branch -m`) before the first push.
+The prefix never changes the version: only the PR title does (see Versioning).
+
+Every PR is created with its labels (`gh pr create --label … --label …`), never left bare:
+
+| Branch prefix | Used for | Type label |
+|---|---|---|
+| `feat/` | a new capability | `enhancement` |
+| `fix/` | a defect | `bug` |
+| `docs/` | documentation only | `documentation` |
+| `refactor/` | no change in behaviour | `technical` |
+| `test/` | tests only | `technical` |
+| `ci/` | workflows, build, images | `technical` |
+| `deps/` | dependency updates | `technical` |
+| `chore/` | anything else that is not a feature or a fix | `technical` |
+
+On top of the type label:
+
+- One area label per area the PR changes: `web` (`web/`), `backend` (`src/`), `mcp` (the assistant's MCP tools), `infra` (`deploy/`, `.github/`).
+- One size label, the estimate of the work done: `Small` (one layer, up to a day), `Medium` (several layers, a few days, one PR),
+  `Large` (a whole feature in one area, about a week), `Extra Large` (several areas or stages, several PRs).
+- `no-changelog` when the household would not notice the PR (see above).
+- `pdf` when the PR touches PDF import or attachment.
+
 ## Web UI
 
 The web app uses shadcn/ui (`web/components.json`, components in `web/src/components/ui/`).
