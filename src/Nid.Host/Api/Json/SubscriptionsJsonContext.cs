@@ -10,6 +10,7 @@ namespace Nid.Host.Api.Json;
     Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
 [JsonSerializable(typeof(IReadOnlyList<LabelView>))]
 [JsonSerializable(typeof(IReadOnlyList<ProviderView>))]
+[JsonSerializable(typeof(List<Nid.Host.Mcp.ProviderKeyView>))]
 [JsonSerializable(typeof(CatalogEndpoints.CreateProviderBody))]
 [JsonSerializable(typeof(SubscriptionEndpoints.ClosePhaseBody))]
 [JsonSerializable(typeof(SubscriptionEndpoints.CreateSubscriptionBody))]

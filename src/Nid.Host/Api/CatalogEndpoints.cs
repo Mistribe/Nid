@@ -66,7 +66,7 @@ public static class CatalogEndpoints
     }
 
     /// <summary>Blank stays blank (no filter); nothing longer than a provider name could ever match one, so longer is refused, not searched.</summary>
-    private static string? RequireSearch(string? q)
+    internal static string? RequireSearch(string? q)
         => q is { Length: > CatalogLimits.MaxNameLength }
             ? throw new BadHttpRequestException($"'q' is at most {CatalogLimits.MaxNameLength} characters.")
             : q;

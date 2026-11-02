@@ -10,6 +10,15 @@ namespace Nid.Host.Mcp;
 [McpServerToolType]
 public sealed class TaxTools
 {
+    /// <summary>Issue #284: the same view as <c>GET /api/v1/tax</c>.</summary>
+    [McpServerTool(Name = "get_tax", ReadOnly = true)]
+    [Description("The tax page of a revenue year: the estimate and its detail, the tax profile the household declared (profile; profileFrom: " +
+                 "the earlier year whose profile stands in), the withholding figures and the suggested cut (result.withholding), and what the estimate left out (notices, gaps). " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetTax(IServiceProvider services,
+        [Description("The revenue year (default: this year).")] int? year = null,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetTaxEstimateQuery(year, SubscriptionEndpoints.ParseScope(scope)), ct);
+
     /// <summary>Rental 2044 spec §7: the same view as <c>GET /api/v1/tax/2044</c>.</summary>
     [McpServerTool(Name = "get_rental_2044", ReadOnly = true)]
     [Description("The 2044 rental income form of a revenue year: each rented property's lines (211 to 263, whole euros), the household's " +

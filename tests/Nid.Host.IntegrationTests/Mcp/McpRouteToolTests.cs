@@ -23,9 +23,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "PUT /api/v1/investments/fee-references", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
         // Documents: the assistant links one (propose_link_document), never uploads, edits, archives or unlinks it.
         "/api/v1/documents",
-        // The net worth projection's MCP surface is read-only (spec §7): the birth date and retirement age are set in the web app.
-        "PUT /api/v1/core/persons/{id:guid}/retirement",
-        // So are the household's projection assumptions (spec §7): read in the web app, which is where they are set.
+        // The household's projection assumptions (spec §7): read in the web app, which is where they are set.
         "/api/v1/core/projection-assumptions",
         // Bank sync §8: connecting a bank needs the person at their bank, in the browser; no tool touches a connection.
         "/api/v1/banking/connections",
@@ -255,6 +253,37 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var loan = await AnswerAsync(propose, "propose_create_loan", new { body = loanBody });
         Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, loan.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
         Assert.Single(JsonDocument.Parse(await app.GetRawAsync(app.AdultA, LoanApi.Loans)).RootElement.GetProperty("items").EnumerateArray());
+    }
+
+    /// <summary>Issue #284: a person is no item, so the proposal has no target; once approved, the projection to their retirement answers.</summary>
+    [Fact]
+    public async Task A_birth_date_is_proposed_and_the_projection_to_retirement_answers_once_approved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var id = app.AdultA.Value;
+        var horizon = $"retire:{id}";
+
+        var (refused, why) = await CallAsync(propose, "get_projection", new { horizon });
+        Assert.True(refused);
+        Assert.Contains("projection.no_birth_date", why);
+
+        var proposed = await AnswerAsync(propose, "propose_set_retirement", new { id, body = new { birthDate = "1984-05-20", retirementAge = 62 } });
+        Assert.Equal(JsonValueKind.Null, proposed.GetProperty("proposal").GetProperty("targetItemId").ValueKind);
+        var (stillRefused, _) = await CallAsync(propose, "get_projection", new { horizon }); // the dry run wrote nothing
+        Assert.True(stillRefused);
+
+        var pending = Assert.Single((await PendingAsync(app, app.AdultA)).EnumerateArray());
+        Assert.Equal("core.set_retirement", pending.GetProperty("kind").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, pending.GetProperty("id").GetGuid())).StatusCode);
+
+        var person = (await AnswerAsync(propose, "list_persons", new { })).EnumerateArray().Single(p => p.GetProperty("id").GetGuid() == id);
+        Assert.Equal(("1984-05-20", 62), (person.GetProperty("birthDate").GetString(), person.GetProperty("retirementAge").GetInt32()));
+        await AnswerAsync(propose, "get_projection", new { horizon });
+
+        var (invalid, reason) = await CallAsync(propose, "propose_set_retirement", new { id, body = new { birthDate = "1984-05-20", retirementAge = 40 } });
+        Assert.True(invalid);
+        Assert.Contains("payload.body.retirementAge", reason);
     }
 
     /// <summary>Issue #34 §2.5: a cost report's year is the first integer route parameter.</summary>

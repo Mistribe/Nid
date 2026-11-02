@@ -14,8 +14,8 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     private static readonly string[] Expected =
     [
         "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
-        "get_net_worth_history", "get_passive_income", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "list_envelopes",
-        "list_bank_transactions", "list_expected_charges", "propose_bank_link", "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_subscriptions", "list_tax_years", "get_projection", "simulate_projection", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment", "upload_document",
+        "get_net_worth_history", "get_passive_income", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "get_tax", "list_envelopes",
+        "list_bank_transactions", "list_expected_charges", "propose_bank_link", "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_providers", "list_subscriptions", "list_tax_years", "get_projection", "simulate_projection", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment", "upload_document",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
@@ -37,6 +37,27 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
     private static void SameJson(string rest, string mcp)
         => Assert.Equal(JsonDocument.Parse(rest).RootElement.ToString(), JsonDocument.Parse(mcp).RootElement.ToString());
+
+    /// <summary>Issue #284: the keys a subscription can name, catalog and custom; another person's custom provider and an archived one are not.</summary>
+    [Fact]
+    public async Task List_providers_returns_the_keys_a_subscription_can_name()
+    {
+        var (app, client) = await StartAsync(fixture);
+        await using (app) await using (client)
+        {
+            await app.SeedProviderAsync("apple-tv", "Apple TV", Nid.Subscriptions.Contracts.ProviderOrigin.Catalog);
+            await app.SeedProviderAsync("old-tv", "Old TV", Nid.Subscriptions.Contracts.ProviderOrigin.Catalog, archived: true);
+            var mine = await ProviderApi.CreateCustomAsync(app, app.AdultA, "Club de tennis");
+            await ProviderApi.CreateCustomAsync(app, app.AdultB, "Club de judo");
+
+            var rows = JsonDocument.Parse(await CallAsync(client, "list_providers")).RootElement.EnumerateArray()
+                .Select(p => (Key: p.GetProperty("key").GetString(), Origin: p.GetProperty("origin").GetString())).ToList();
+            Assert.Equal([("apple-tv", "catalog"), (mine, "custom")], rows);
+
+            var found = JsonDocument.Parse(await CallAsync(client, "list_providers", new { q = "apple" })).RootElement;
+            Assert.Equal("Apple TV", Assert.Single(found.EnumerateArray()).GetProperty("name").GetString());
+        }
+    }
 
     [Fact]
     public async Task The_tool_list_is_the_read_tools_the_document_tools_and_one_per_web_write()
@@ -70,6 +91,8 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/overview/income?scope=me"), await CallAsync(client, "get_passive_income", new { scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/routine?on=2025-10-01"), await CallAsync(client, "get_routine", new { on = "2025-10-01" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/realestate/routine"), await CallAsync(client, "get_property_routine"));
+            SameJson(await app.GetRawAsync(a, "/api/v1/tax?year=2025&scope=me"), await CallAsync(client, "get_tax", new { year = 2025, scope = "me" }));
+            SameJson(await app.GetRawAsync(a, "/api/v1/tax"), await CallAsync(client, "get_tax"));
             SameJson(await app.GetRawAsync(a, "/api/v1/tax/2044?year=2025&scope=me"), await CallAsync(client, "get_rental_2044", new { year = 2025, scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/tax/sale?scope=me"), await CallAsync(client, "get_sale_tax_estimate", new { scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/subscriptions?scope=me"), await CallAsync(client, "list_subscriptions", new { scope = "me" }));

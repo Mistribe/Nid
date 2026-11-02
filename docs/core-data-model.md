@@ -66,7 +66,7 @@ fx_rate (indépendante)
 | `display_name` | text | Repris des claims OIDC pour un `adult`, saisi pour un `dependent` |
 | `email` | text? | Saisi au pré-enregistrement, puis repris des claims OIDC ; clé de rattachement d'un adulte en attente, unique sans tenir compte de la casse parmi les `adult` ; vide pour un `dependent` |
 | `is_admin` | bool | Rôle technique (`identity-and-access/administration-and-audit.md` §2). Faux pour un `dependent` ; au moins un `adult` admin dès qu'un adulte existe |
-| `birth_date` | date? | Date de naissance, facultative ; sans elle, pas de retraite projetée (`projection.no_birth_date`). Modifiée avec l'âge de retraite par `PUT /api/v1/core/persons/{id}/retirement` |
+| `birth_date` | date? | Date de naissance, facultative ; sans elle, pas de retraite projetée (`projection.no_birth_date`). Modifiée avec l'âge de retraite par `PUT /api/v1/core/persons/{id}/retirement`, que l'assistant peut proposer (`propose_set_retirement`, #284) |
 | `retirement_age` | int | Âge de retraite, de 50 à 75 (64 par défaut) ; la retraite tombe le dernier jour du mois de l'anniversaire |
 | `session_epoch` | int | Incrémenté par « déconnecter partout » : les cookies d'un ancien epoch sont refusés (`identity-and-access/authentication.md` §3) |
 | `preferences` | jsonb | Préférences d'interface de l'adulte : `theme`, `mode`, `chart_patterns`, `guides_seen` (identifiant de guide → version vue, remplacé en entier par le PATCH) (`frontend/design-system.md` §7.6) et `ai_cloud_default` (`ask` ou `never`, `ingestion/llm-providers.md` §6). Lues par `GET /auth/session`, modifiées par `PATCH /api/v1/core/me/preferences` (fusion des clés fournies). Vide pour un `dependent` |

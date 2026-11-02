@@ -4,8 +4,12 @@ using ModelContextProtocol.Server;
 using Nid.Core.Contracts;
 using Nid.Host.Api;
 using Nid.Subscriptions.Application;
+using Nid.Subscriptions.Application.Catalog;
 
 namespace Nid.Host.Mcp;
+
+/// <summary>A provider a subscription can name; the route's labels and icons would push a whole catalog past the result limit.</summary>
+public sealed record ProviderKeyView(string Key, string Name, string Origin);
 
 [McpServerToolType]
 public sealed class SubscriptionTools
@@ -19,6 +23,15 @@ public sealed class SubscriptionTools
         [Description(Window)] string? to = null, [Description(Window)] string? horizon = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new ListSubscriptionsQuery(SubscriptionEndpoints.ParseScope(scope),
             SubscriptionEndpoints.OptionalDate(from), SubscriptionEndpoints.OptionalDate(to), SubscriptionEndpoints.OptionalDate(horizon)), ct);
+
+    /// <summary>Issue #284: the providers of <c>GET /api/v1/subscriptions/providers</c> that a subscription can name, so without the archived ones.</summary>
+    [McpServerTool(Name = "list_providers", ReadOnly = true)]
+    [Description("The provider keys a subscription can name (providerKey of propose_edit_subscription): the instance's catalog and your custom " +
+                 "providers, with name and origin ('catalog' or 'custom'). A provider missing here is not in this instance's catalog. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> ListProviders(IServiceProvider services,
+        [Description("Part of the provider's name.")] string? q = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new ListProvidersQuery(CatalogEndpoints.RequireSearch(q)),
+            list => list.Where(p => !p.Archived).Select(p => new ProviderKeyView(p.Key, p.Name, p.Origin)).ToList(), ct);
 
     [McpServerTool(Name = "get_subscription", ReadOnly = true)]
     [Description("One subscription: its phases, purchases, costs and next charge. It also returns contractTerms (anniversaryOn, "

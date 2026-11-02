@@ -174,6 +174,7 @@
       "correct_tax_year": "Correction d’un avis d’imposition",
       "delete_tax_year": "Suppression d’un avis d’imposition",
       "create_dependent": "Nouvel enfant à charge",
+      "set_retirement": "Date de naissance et âge de retraite",
       "bank_account_update": "Réglage d’un compte bancaire",
       "unlink_bank_transaction": "Ligne bancaire déliée",
       "ignore_bank_transaction": "Ligne bancaire ignorée",
