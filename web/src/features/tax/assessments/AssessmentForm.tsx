@@ -37,7 +37,7 @@ import '@/locales/taxAssessments';
 
 type Form = UseFormReturn<AssessmentValues>;
 type FieldKey = keyof typeof tax.tax.assessment.field;
-const errorOf = (form: Form, name: string) => (get(form.formState.errors, name) as { message?: string } | undefined)?.message;
+const errorOf = (form: Form, name: string) => get<typeof form.formState.errors, { message?: string } | undefined>(form.formState.errors, name)?.message;
 const STEP_IDS: StepId[] = ['household', 'declarants', 'income', 'tax', 'source'];
 
 /** One amount (or rate, or share count) as typed: the label is the notice's own. */
