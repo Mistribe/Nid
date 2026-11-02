@@ -9,7 +9,7 @@ import { percentText, ZERO } from './format';
 import { eur } from './ResultTable';
 import '@/locales/tax';
 
-type Row = { year: string; source: 'assessment' | 'estimate'; tax: string; flatTax?: string; rate?: string | null };
+type Row = { year: string; source: 'assessment' | 'estimate'; netTaxable?: string; tax: string; flatTax?: string; rate?: string | null };
 
 /**
  * The income tax year by year: a year's notice when there is one, else the server's estimate (from 2025). The notice's
@@ -27,10 +27,10 @@ export function EvolutionSection({ years, assessments, scope, current }: {
   const answers = useQueries({ queries: estimated.map((y) => $api.queryOptions('get', TAX, { params: { query: { year: Number(y), scope } } })) });
   const rows: Row[] = years.flatMap((year): Row[] => {
     const a = notice(year);
-    if (a?.netTax) return [{ year, source: 'assessment', tax: a.netTax.amount, rate: a.averageRate }];
+    if (a?.netTax) return [{ year, source: 'assessment', netTaxable: a.taxableIncome?.amount, tax: a.netTax.amount, rate: a.averageRate }];
     const r = answers[estimated.indexOf(year)]?.data?.result;
     if (!r) return [];
-    return [{ year, source: 'estimate', tax: r.incomeTax, flatTax: ZERO.test(r.capitalFlatTax) ? undefined : r.capitalFlatTax, rate: r.averageRate }];
+    return [{ year, source: 'estimate', netTaxable: r.netTaxableIncome, tax: r.incomeTax, flatTax: ZERO.test(r.capitalFlatTax) ? undefined : r.capitalFlatTax, rate: r.averageRate }];
   });
   const loading = answers.some((q) => q.isPending);
   const sizes = rows.map((r) => Math.max(0, toPlot(r.tax)));
@@ -44,6 +44,7 @@ export function EvolutionSection({ years, assessments, scope, current }: {
         <TableHeader>
           <TableRow>
             <TableHead>{t('tax.evolution.year')}</TableHead>
+            <TableHead className="text-right">{t('tax.figure.net_taxable')}</TableHead>
             <TableHead className="text-right">{t('tax.figure.income_tax')}</TableHead>
             <TableHead className="w-2/5"><span className="sr-only">{t('tax.evolution.bar')}</span></TableHead>
             <TableHead className="text-right">{t('tax.evolution.rate')}</TableHead>
@@ -54,6 +55,7 @@ export function EvolutionSection({ years, assessments, scope, current }: {
           {rows.map((r, i) => (
             <TableRow key={r.year} aria-current={r.year === current ? 'true' : undefined} className={r.year === current ? 'font-medium' : undefined}>
               <TableCell>{r.year}</TableCell>
+              <TableCell className="text-right tabular-nums">{r.netTaxable ? eur(r.netTaxable) : '—'}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {eur(r.tax)}
                 {r.flatTax ? <div className="text-xs font-normal text-muted-foreground">{t('tax.evolution.flat_tax', { amount: eur(r.flatTax) })}</div> : null}

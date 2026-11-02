@@ -655,10 +655,10 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
       const table = await screen.findByRole('table', { name: 'Évolution de l’impôt d’une année à l’autre' });
       await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(4));
-      expect(within(table).getByRole('row', { name: /^2024/ })).toHaveTextContent(/2 100,00 €.*—.*Avis/);
-      expect(within(table).getByRole('row', { name: /^2025/ })).toHaveTextContent(/2 688,00 €.*4,5 %.*Avis/);
+      expect(within(table).getByRole('row', { name: /^2024/ })).toHaveTextContent(/^2024—2 100,00 €.*—.*Avis/);
+      expect(within(table).getByRole('row', { name: /^2025/ })).toHaveTextContent(/^202570 000,00 €2 688,00 €.*4,5 %.*Avis/);
       const current = within(table).getByRole('row', { name: /^2026/ });
-      expect(current).toHaveTextContent(/247,00 €\+ 120,00 € de prélèvement forfaitaire.*0,38 %.*Estimation/);
+      expect(current).toHaveTextContent(/^202664 407,00 €247,00 €\+ 120,00 € de prélèvement forfaitaire.*0,38 %.*Estimation/);
       expect(current).toHaveAttribute('aria-current', 'true');
       expect(years).not.toContain('2025');
       await expectNoAxeViolations(container);
