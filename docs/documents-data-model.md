@@ -47,7 +47,9 @@ Port `IDocumentStorage` : écrire un contenu sous son sha256 s'il n'existe pas, 
 
 ## 4. Dépôt et lecture
 
-**Dépôt** : `POST /api/v1/documents` en `multipart/form-data` : `file` (obligatoire) et `title`, `date`, `note`, `targetKind`, `targetId`, `role` (un premier lien, pour qu'un dépôt depuis un élément se fasse en un appel). Aucun nom de fichier ni titre dans l'URL ; un formulaire sans `file` répond `400`. Réponse `201 { id }`.
+**Dépôt** : `POST /api/v1/documents` en `multipart/form-data` : `file` (obligatoire) et `title`, `date`, `note`, `targetKind`, `targetId`, `role` (un premier lien, pour qu'un dépôt depuis un élément se fasse en un appel) et `warnDuplicate`. Aucun nom de fichier ni titre dans l'URL ; un formulaire sans `file` répond `400`. Réponse `201 { id }`.
+
+**Doublon** (#297) : avec `warnDuplicate=true`, un fichier dont le sha256 est déjà celui d'un document que l'acteur lit (archivé compris) n'écrit rien et répond `409 documents.duplicate` avec ce document (`duplicate`, un `DocumentSummary` : titre, date, archivé, liens lus) ; le plus récent s'il y en a plusieurs. Un document que l'acteur ne lit pas ne compte pas : le dépôt passe comme sans l'option, rien n'est révélé. Sans l'option, le dépôt crée toujours un document ; l'app web la passe sur la page Documents et l'onglet Documents d'un élément, puis renvoie le fichier sans elle sur « Ajouter quand même ».
 
 Contrôles, dans cet ordre :
 
@@ -129,7 +131,7 @@ Un lien d'une réponse : `{ targetKind, targetId, anchorItemId, role, label, can
 | `documents.too_large` | 413 |
 | `documents.unsupported_type` | 415 |
 | `documents.target_not_found`, `documents.content_missing` | 404 |
-| `documents.already_linked`, `documents.source_ref_taken` | 409 |
+| `documents.already_linked`, `documents.source_ref_taken`, `documents.duplicate` | 409 |
 
 Un document illisible ou inexistant, ou un acteur sans droit : `404` et `403` génériques du pipeline (§6).
 

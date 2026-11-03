@@ -47867,6 +47867,12 @@
               "null",
               "string"
             ]
+          },
+          "warnDuplicate": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -47883,6 +47889,16 @@
           },
           "existing": {
             "type": "boolean"
+          },
+          "duplicate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DocumentSummary"
+              }
+            ]
           }
         }
       },

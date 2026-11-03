@@ -11,8 +11,8 @@ import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { todayIso } from '../subscriptions/today';
-import { invalidateDocuments, uploadDocument } from './api';
-import { refusal, UNSUPPORTED, UploadZone } from './DocumentUpload';
+import { invalidateDocuments, linkDocument, uploadDocument } from './api';
+import { DuplicateNotice, duplicateOf, refusal, UNSUPPORTED, UploadZone } from './DocumentUpload';
 import { fileSize, roleText, ROLES } from './format';
 import '@/locales/documents';
 
@@ -23,7 +23,8 @@ type Row = { key: number; file: File; state?: 'done' | Problem };
 /**
  * Files linked to the item at once, sent one after the other as on the documents page, with one type. A lone file can carry
  * a date (past only); several go without. A sent file stays listed and is not sent again; a failed one goes again on « Déposer ».
- * However many files, the list alone scrolls: the type, the date and the buttons stay in view.
+ * However many files, the list alone scrolls: the type, the date and the buttons stay in view. A file already in Nid (#297) waits:
+ * the existing document linked with the chosen type, or the file added anyway.
  */
 export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
   itemId: string; defaultRole: string; onClose: () => void; onDone: (message: string) => void;
@@ -56,7 +57,7 @@ export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
     let failed = false;
     for (const row of queued) {
       try {
-        await uploadDocument(fetchClient, row.file, { targetKind: 'core.item', targetId: itemId, role, date: dated || undefined });
+        await uploadDocument(fetchClient, row.file, { targetKind: 'core.item', targetId: itemId, role, date: dated || undefined, warnDuplicate: 'true' });
         update(row.key, 'done');
       } catch (error) {
         failed = true;
@@ -66,6 +67,21 @@ export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
     void invalidateDocuments(queryClient);
     setSending(false);
     if (!failed) done(t('documents_item.uploaded', { count: files.length }));
+  };
+
+  // One duplicate settled; the dialog stays open, its button now « Fermer ».
+  const settle = async (key: number, write: () => Promise<unknown>) => {
+    setSending(true);
+    try {
+      await write();
+      update(key, 'done');
+    } catch (error) {
+      const problem = toProblem(error);
+      // Already linked to this item: nothing left to do.
+      update(key, problem.code === 'documents.already_linked' ? 'done' : problem);
+    }
+    void invalidateDocuments(queryClient);
+    setSending(false);
   };
 
   return (
@@ -87,23 +103,30 @@ export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
             </Field>
             {rows.length > 0 ? (
               <ul className={cn('divide-y overflow-y-auto rounded-md border text-sm', rows.length > 3 ? 'min-h-28' : 'shrink-0')}>
-                {rows.map(({ key, file, state }) => (
-                  <li key={key} className="flex items-center gap-2 py-1 pr-1 pl-2">
-                    <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                    {typeof state === 'object'
-                      ? <p role="alert" className="min-w-0 flex-1 wrap-anywhere text-destructive">{t(`documents_page.upload.${refusal(state)}`, { name: file.name })}</p>
-                      : (
-                        <>
-                          <span title={file.name} className="min-w-0 flex-1 truncate">{file.name}</span>
-                          <span className="shrink-0 text-xs text-muted-foreground">{fileSize(t, file.size)}</span>
-                        </>
+                {rows.map(({ key, file, state }) => {
+                  const duplicate = typeof state === 'object' ? duplicateOf(state) : undefined;
+                  return (
+                    <li key={key} className="flex items-center gap-2 py-1 pr-1 pl-2">
+                      <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                      {duplicate ? (
+                        <DuplicateNotice name={file.name} document={duplicate} keep={t('documents_page.upload.link_existing')} disabled={sending}
+                          onKeep={() => void settle(key, () => linkDocument(fetchClient, duplicate.id, 'core.item', itemId, role))}
+                          onAdd={() => void settle(key, () => uploadDocument(fetchClient, file, { targetKind: 'core.item', targetId: itemId, role, date: dated || undefined }))} />
+                      ) : typeof state === 'object'
+                        ? <p role="alert" className="min-w-0 flex-1 wrap-anywhere text-destructive">{t(`documents_page.upload.${refusal(state)}`, { name: file.name })}</p>
+                        : (
+                          <>
+                            <span title={file.name} className="min-w-0 flex-1 truncate">{file.name}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground">{fileSize(t, file.size)}</span>
+                          </>
+                        )}
+                      {state === 'done' ? <span className="shrink-0 px-1 py-1 text-xs text-status-good-text">{t('documents_page.upload.done')}</span> : (
+                        <Button type="button" variant="ghost" size="icon" className="size-7 shrink-0" disabled={sending} aria-label={t('documents_item.remove_file', { name: file.name })}
+                          onClick={() => setRows((list) => list.filter((r) => r.key !== key))}><XIcon aria-hidden="true" /></Button>
                       )}
-                    {state === 'done' ? <span className="shrink-0 px-1 py-1 text-xs text-status-good-text">{t('documents_page.upload.done')}</span> : (
-                      <Button type="button" variant="ghost" size="icon" className="size-7 shrink-0" disabled={sending} aria-label={t('documents_item.remove_file', { name: file.name })}
-                        onClick={() => setRows((list) => list.filter((r) => r.key !== key))}><XIcon aria-hidden="true" /></Button>
-                    )}
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
             <Field label={t('documents_item.col_role')}>

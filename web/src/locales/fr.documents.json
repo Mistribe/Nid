@@ -65,7 +65,13 @@
       "done": "Déposé",
       "too_large": "{{name}} : le fichier dépasse la taille permise (25 Mo).",
       "unsupported_type": "{{name}} : ce type de fichier n’est pas pris en charge (PDF, PNG, JPEG ou e-mail .eml).",
-      "failed": "{{name}} : le dépôt a échoué."
+      "failed": "{{name}} : le dépôt a échoué.",
+      "kept": "Existant gardé",
+      "duplicate": "{{name}} est déjà dans Nid :",
+      "duplicate_links": "lié à {{links}}",
+      "keep_existing": "Garder l’existant",
+      "link_existing": "Lier l’existant",
+      "add_anyway": "Ajouter quand même"
     },
     "detail": {
       "back": "Retour aux documents",

@@ -110,13 +110,18 @@ public static class DocumentEndpoints
                 await using var stream = file.OpenReadStream();
                 var content = new byte[file.Length];
                 await stream.ReadExactlyAsync(content, ct);
-                return (await invoker.InvokeAsync(
-                        new UploadDocumentCommand(content, file.FileName, Text("title"), documentDate, Text("note"), link, Text("role")), ct))
-                    .ToHttp(uploaded => new IdResponse(uploaded.Id), StatusCodes.Status201Created);
+                var result = await invoker.InvokeAsync(new UploadDocumentCommand(content, file.FileName, Text("title"), documentDate, Text("note"), link,
+                    Text("role"), WarnDuplicate: Text("warnDuplicate") == "true"), ct);
+                // #297: the document already holding the file, for the page to offer linking it or adding the file anyway.
+                return result.TryGetValue(out var uploaded) && uploaded!.Duplicate is { } duplicate
+                    ? Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "This file is already in a document.",
+                        extensions: new Dictionary<string, object?> { ["code"] = DocumentsCodes.Duplicate, ["duplicate"] = duplicate })
+                    : result.ToHttp(created => new IdResponse(created.Id), StatusCodes.Status201Created);
             })
             .Accepts<UploadDocumentForm>("multipart/form-data")
             .Returns<IdResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -245,7 +250,8 @@ public static class DocumentEndpoints
     private const long FormSlack = 64 * 1024;
 
     /// <summary>The upload form, for the OpenAPI document only: the route reads the form itself.</summary>
-    public sealed record UploadDocumentForm(IFormFile File, string? Title, string? Date, string? Note, string? TargetKind, Guid? TargetId, string? Role);
+    public sealed record UploadDocumentForm(
+        IFormFile File, string? Title, string? Date, string? Note, string? TargetKind, Guid? TargetId, string? Role, bool? WarnDuplicate);
 
     public sealed record LinkDocumentBody(string? TargetKind, Guid? TargetId, string? Role);
 

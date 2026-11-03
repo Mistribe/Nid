@@ -30,14 +30,14 @@ export function DocumentsPage() {
   const [tab, setTab] = useDetailTab(TABS);
   // Held by the page: the switch keeps its state across the tabs.
   const [archived, setArchived] = useState(false);
-  const { uploads, send, refuse } = useUploads();
+  const { uploads, send, refuse, keep, addAnyway } = useUploads();
   const scoped = scope === 'me' ? 'me' : 'household';
   const list = (inbox: boolean) => <List scope={scoped} inbox={inbox} archived={archived} onArchivedChange={setArchived} />;
   return (
     <div className="space-y-4">
       <PageHeader title={t('documents_page.title')} actions={<UploadPicker onFiles={send} />} />
       <UploadZone onFiles={send} onRefused={refuse} />
-      <UploadList uploads={uploads} />
+      <UploadList uploads={uploads} onKeep={keep} onAddAnyway={addAnyway} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'all', label: t('documents_page.tab_all'), content: list(false) },
         { id: 'inbox', label: t('documents_page.tab_inbox'), content: list(true) },

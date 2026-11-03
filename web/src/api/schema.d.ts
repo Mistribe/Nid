@@ -29274,11 +29274,13 @@ export interface components {
             /** Format: uuid */
             targetId?: null | string;
             role?: null | string;
+            warnDuplicate?: null | boolean;
         };
         UploadedDocument: {
             /** Format: uuid */
             id: string;
             existing: boolean;
+            duplicate?: null | components["schemas"]["DocumentSummary"];
         };
         ValuationBody: {
             asOf: string;

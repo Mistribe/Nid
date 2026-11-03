@@ -110,7 +110,7 @@ export async function linkDocument(fetchClient: Api['fetchClient'], id: string, 
 export async function uploadDocument(
   fetchClient: Api['fetchClient'],
   file: File,
-  fields: { title?: string; date?: string; targetKind?: string; targetId?: string; role?: string } = {},
+  fields: { title?: string; date?: string; targetKind?: string; targetId?: string; role?: string; warnDuplicate?: 'true' } = {},
 ): Promise<components['schemas']['IdResponse']> {
   const body = new FormData();
   body.append('file', file);

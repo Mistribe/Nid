@@ -1,5 +1,5 @@
 import { File as NodeFile } from 'node:buffer';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CSRF_HEADER } from '@/api/client';
@@ -67,7 +67,7 @@ describe('DocumentUpload', () => {
     await waitFor(() => expect(api.sent.map((s) => s.name).sort()).toEqual(['avis.pdf', 'bail.pdf']));
     for (const s of api.sent) {
       expect(s.contentType).toMatch(/^multipart\/form-data; boundary=/);
-      expect(s.fields).toEqual(['file']);
+      expect(s.fields).toEqual(['file', 'warnDuplicate']);
       expect(s.csrf).toBe('csrf-alice');
     }
     expect(await screen.findAllByText('Déposé')).toHaveLength(2);
@@ -84,6 +84,38 @@ describe('DocumentUpload', () => {
     expect(await screen.findAllByText('Déposé')).toHaveLength(1);
     // The text file is refused before it is sent; the API refuses the large one.
     expect(api.sent.map((s) => s.name).sort()).toEqual(['bail.pdf', 'scan.pdf']);
+  });
+
+  it('names each file already in Nid, uploads the others, and lets each be kept or added anyway', async () => {
+    const existing = summary({ title: 'Bail 2024', links: [] });
+    const sent: { name: string; warn: FormDataEntryValue | null }[] = [];
+    server.use(
+      http.get('*/api/v1/documents', () => HttpResponse.json(list([summary()]))),
+      http.post('*/api/v1/documents', async ({ request }) => {
+        const form = await request.formData();
+        const name = (form.get('file') as File).name;
+        sent.push({ name, warn: form.get('warnDuplicate') });
+        return name !== 'avis.pdf' && form.get('warnDuplicate') === 'true'
+          ? HttpResponse.json({ status: 409, code: 'documents.duplicate', title: 'Duplicate.', duplicate: existing }, { status: 409 })
+          : HttpResponse.json({ id: crypto.randomUUID() }, { status: 201 });
+      }),
+    );
+    const { user } = await renderApp('/documents');
+    await drop(pdf('bail.pdf'), pdf('avis.pdf'), pdf('copie.pdf'));
+
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2));
+    const [bail, copie] = screen.getAllByRole('alert') as [HTMLElement, HTMLElement];
+    expect(bail).toHaveTextContent('bail.pdf est déjà dans Nid :« Bail 2024 »');
+    expect(copie).toHaveTextContent('copie.pdf est déjà dans Nid :');
+    expect(screen.getByText('Déposé')).toBeInTheDocument();
+
+    await user.click(within(bail).getByRole('button', { name: 'Garder l’existant' }));
+    expect(await screen.findByText('Existant gardé')).toBeInTheDocument();
+    await user.click(within(copie).getByRole('button', { name: 'Ajouter quand même' }));
+    await waitFor(() => expect(screen.getAllByText('Déposé')).toHaveLength(2));
+    expect(sent).toEqual([
+      { name: 'bail.pdf', warn: 'true' }, { name: 'avis.pdf', warn: 'true' }, { name: 'copie.pdf', warn: 'true' }, { name: 'copie.pdf', warn: null },
+    ]);
   });
 
   it('takes a file by its extension or its media type, as the picker does', () => {

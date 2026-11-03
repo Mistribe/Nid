@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Documents.Domain;
@@ -12,11 +13,12 @@ namespace Nid.Documents.Application;
 /// <summary>
 /// Design §5: a file and, optionally, its first link. The access behavior checks a <c>core.item</c> target for writing before the
 /// handler runs; the handler checks every other rule before the bytes are stored. Syndic documents design §2.1: a
-/// <paramref name="SourceRef"/> already stored answers with that document, when the actor reads it.
+/// <paramref name="SourceRef"/> already stored answers with that document, when the actor reads it. #297: with
+/// <paramref name="WarnDuplicate"/>, the same bytes already in a document the actor reads answer with that document, nothing written.
 /// </summary>
 public sealed record UploadDocumentCommand(
     ReadOnlyMemory<byte> Content, string? FileName, string? Title, LocalDate? DocumentDate, string? Note, DocumentTarget? Link, string? Role,
-    string? SourceRef = null, bool FromAssistant = false)
+    string? SourceRef = null, bool FromAssistant = false, bool WarnDuplicate = false)
     : ICommand<UploadedDocument>, IOptionalItemScoped, IRequiresScope
 {
     public ItemId? ItemId => Link is { Kind: TargetKinds.CoreItem } link ? new ItemId(link.Id) : null;
@@ -30,8 +32,14 @@ public sealed record UploadDocumentCommand(
     public string RequiredScope => FromAssistant ? ScopeNames.Write : ScopeNames.WriteDirect;
 }
 
-/// <summary><paramref name="Existing"/>: the source reference was already stored, nothing was written.</summary>
-public sealed record UploadedDocument(Guid Id, bool Existing);
+/// <summary>
+/// <paramref name="Existing"/>: the source reference was already stored, nothing was written. <paramref name="Duplicate"/>: the file is
+/// already in that document (#297), nothing was written.
+/// </summary>
+public sealed record UploadedDocument(Guid Id, bool Existing, DocumentSummary? Duplicate = null) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => Duplicate?.Items() ?? [];
+}
 
 /// <summary>Replaces the title, the date and the note.</summary>
 public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? DocumentDate, string? Note) : ICommand<Guid>;
@@ -116,6 +124,8 @@ public sealed class UploadDocumentHandler(
             if (!checkedLink.TryGetValue(out link))
                 return Result.Failure<UploadedDocument>(checkedLink.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         }
+        if (command.WarnDuplicate && await DuplicateAsync(command.Content, person, ct) is { } duplicate)
+            return Result.Success(new UploadedDocument(duplicate.Id, true, duplicate));
 
         // Stored before the row: a row never points at missing bytes; bytes left by a failed insert are only unreferenced.
         var sha256 = await storage.PutAsync(command.Content, ct);
@@ -134,6 +144,15 @@ public sealed class UploadDocumentHandler(
             return await ExistingAsync(sourceRef!, person, ct) ?? throw new InvalidOperationException("The source reference vanished.");
         }
         return Result.Success(new UploadedDocument(id, false));
+    }
+
+    // The latest copy the actor reads; one they do not read is never told apart from none, so the upload goes through as before.
+    private async Task<DocumentSummary?> DuplicateAsync(ReadOnlyMemory<byte> content, PersonId person, CancellationToken ct)
+    {
+        foreach (var found in await store.FindBySha256Async(Convert.ToHexStringLower(SHA256.HashData(content.Span)), ct))
+            if ((await access.ReadAsync(found.Id, person, ct)).TryGetValue(out var read))
+                return DocumentSummary.Of(read!, await access.LabelsAsync(read!.Links, ct));
+        return null;
     }
 
     // A document the actor does not read is refused without its id: the reference alone says it exists, nothing more.

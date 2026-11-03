@@ -21,6 +21,9 @@ public interface IDocumentStore
 
     Task<DocumentRecord?> FindBySourceRefAsync(string sourceRef, CancellationToken ct);
 
+    /// <summary>Every document stored with these bytes, archived or not, the latest upload first.</summary>
+    Task<IReadOnlyList<DocumentRecord>> FindBySha256Async(string sha256, CancellationToken ct);
+
     Task<IReadOnlyList<DocumentRecord>> ListAsync(bool includeArchived, CancellationToken ct);
 
     Task<IReadOnlyList<LinkRecord>> LinksOfAsync(IReadOnlyCollection<Guid> documents, CancellationToken ct);

@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Problem } from '@/api/errors';
 import type { FieldControl } from '@/components/form/Field';
-import { buttonVariants } from '@/components/ui/button';
+import { LocalDate } from '@/components/LocalDate';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { invalidateDocuments, uploadDocument } from './api';
+import { invalidateDocuments, uploadDocument, type DocumentSummary } from './api';
+import { shownDate } from './format';
 import '@/locales/documents';
 
-type Upload = { key: number; name: string; state: 'sending' | 'done' | Problem };
+type Upload = { key: number; file: File; state: 'sending' | 'done' | 'kept' | Problem };
 
 export const ACCEPT = '.pdf,.png,.jpg,.jpeg,.eml,application/pdf,image/png,image/jpeg,message/rfc822';
 
@@ -22,18 +24,25 @@ export function useUploads() {
   const next = useRef(0);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const settle = (key: number, state: Upload['state']) => setUploads((list) => list.map((u) => (u.key === key ? { ...u, state } : u)));
+  const upload = (key: number, file: File, warn: boolean) => {
+    settle(key, 'sending');
+    queue.current = queue.current.then(() => uploadDocument(fetchClient, file, warn ? { warnDuplicate: 'true' } : {}).then(
+      () => { settle(key, 'done'); void invalidateDocuments(queryClient); },
+      (error: unknown) => settle(key, toProblem(error)),
+    ));
+  };
   const send = (files: File[]) => {
     for (const file of files) {
       const key = next.current++;
-      setUploads((list) => [...list, { key, name: file.name, state: 'sending' }]);
-      queue.current = queue.current.then(() => uploadDocument(fetchClient, file).then(
-        () => { settle(key, 'done'); void invalidateDocuments(queryClient); },
-        (error: unknown) => settle(key, toProblem(error)),
-      ));
+      setUploads((list) => [...list, { key, file, state: 'sending' }]);
+      upload(key, file, true);
     }
   };
-  const refuse = (file: File) => setUploads((list) => [...list, { key: next.current++, name: file.name, state: UNSUPPORTED }]);
-  return { uploads, send, refuse };
+  const refuse = (file: File) => setUploads((list) => [...list, { key: next.current++, file, state: UNSUPPORTED }]);
+  // #297: a file already in Nid waits for the person: the existing document kept, or the file added anyway.
+  const keep = (key: number) => settle(key, 'kept');
+  const addAnyway = (u: Upload) => upload(u.key, u.file, false);
+  return { uploads, send, refuse, keep, addAnyway };
 }
 
 /** « Déposer »: the file picker, several files at once. */
@@ -128,22 +137,54 @@ export function refusal(problem: Problem): 'too_large' | 'unsupported_type' | 'f
   return 'failed';
 }
 
-/** One line per file of this visit: sending, done, or why it was refused. */
-export function UploadList({ uploads }: { uploads: Upload[] }) {
+/** #297: the document already holding the file, when the upload asked to be warned. */
+export const duplicateOf = (problem: Problem) =>
+  problem.code === 'documents.duplicate' ? (problem as Problem & { duplicate?: DocumentSummary }).duplicate : undefined;
+
+/** #297: the file is already in `document` (its title, date, archived or not, what it is linked to); `keep` names the way to keep it. */
+export function DuplicateNotice({ name, document, keep, onKeep, onAdd, disabled }: {
+  name: string; document: DocumentSummary; keep: string; onKeep: () => void; onAdd: () => void; disabled?: boolean;
+}) {
+  const { t } = useTranslation();
+  const links = document.links.map((l) => l.label).join(', ');
+  return (
+    <div role="alert" className="min-w-0 flex-1 space-y-1">
+      <p className="wrap-anywhere text-status-warning-text">{t('documents_page.upload.duplicate', { name })}</p>
+      <p className="wrap-anywhere text-muted-foreground">
+        « {document.title} » · <LocalDate value={shownDate(document)} style="short" />
+        {document.archived ? ` · ${t('documents_page.archived')}` : null}
+        {' · '}{links ? t('documents_page.upload.duplicate_links', { links }) : t('documents_page.tab_inbox')}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onKeep}>{keep}</Button>
+        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onAdd}>{t('documents_page.upload.add_anyway')}</Button>
+      </div>
+    </div>
+  );
+}
+
+/** One line per file of this visit: sending, done, why it was refused, or the document already holding it. */
+export function UploadList({ uploads, onKeep, onAddAnyway }: { uploads: Upload[]; onKeep: (key: number) => void; onAddAnyway: (upload: Upload) => void }) {
   const { t } = useTranslation();
   // Always on the page, empty at first: a live region added with its first message is not announced.
   return (
     <ul aria-label={t('documents_page.upload.progress')} aria-live="polite" className="space-y-1 text-sm">
-      {uploads.map((u) => typeof u.state === 'object' ? (
-        <li key={u.key} className="text-destructive">{t(`documents_page.upload.${refusal(u.state)}`, { name: u.name })}</li>
-      ) : (
-        <li key={u.key} className="flex items-center justify-between gap-2">
-          <span className="truncate">{u.name}</span>
-          <span className={u.state === 'done' ? 'text-status-good-text' : 'text-muted-foreground'}>
-            {t(u.state === 'done' ? 'documents_page.upload.done' : 'documents_page.upload.sending')}
-          </span>
-        </li>
-      ))}
+      {uploads.map((u) => {
+        const duplicate = typeof u.state === 'object' ? duplicateOf(u.state) : undefined;
+        if (duplicate) return (
+          <li key={u.key}>
+            <DuplicateNotice name={u.file.name} document={duplicate} keep={t('documents_page.upload.keep_existing')} onKeep={() => onKeep(u.key)} onAdd={() => onAddAnyway(u)} />
+          </li>
+        );
+        return typeof u.state === 'object' ? (
+          <li key={u.key} className="text-destructive">{t(`documents_page.upload.${refusal(u.state)}`, { name: u.file.name })}</li>
+        ) : (
+          <li key={u.key} className="flex items-center justify-between gap-2">
+            <span className="truncate">{u.file.name}</span>
+            <span className={u.state === 'sending' ? 'text-muted-foreground' : 'text-status-good-text'}>{t(`documents_page.upload.${u.state}`)}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

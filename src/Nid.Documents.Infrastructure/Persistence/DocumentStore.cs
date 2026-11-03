@@ -31,6 +31,9 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
     public async Task<DocumentRecord?> FindBySourceRefAsync(string sourceRef, CancellationToken ct)
         => await db.Documents.AsNoTracking().SingleOrDefaultAsync(d => d.SourceRef == sourceRef, ct) is { } row ? ToRecord(row) : null;
 
+    public async Task<IReadOnlyList<DocumentRecord>> FindBySha256Async(string sha256, CancellationToken ct)
+        => (await db.Documents.AsNoTracking().Where(d => d.Sha256 == sha256).OrderByDescending(d => d.UploadedAt).ToListAsync(ct)).Select(ToRecord).ToList();
+
     // ponytail: a household holds hundreds of documents, not millions; filtering moves to SQL if listing gets slow.
     public async Task<IReadOnlyList<DocumentRecord>> ListAsync(bool includeArchived, CancellationToken ct)
         => (await db.Documents.AsNoTracking().ToListAsync(ct))

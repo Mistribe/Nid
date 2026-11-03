@@ -11,6 +11,7 @@ public static class DocumentsCodes
     public const string ContentMissing = "documents.content_missing";
     public const string AlreadyLinked = "documents.already_linked";
     public const string SourceRefTaken = "documents.source_ref_taken";
+    public const string Duplicate = "documents.duplicate";
 }
 
 public static class DocumentRoles

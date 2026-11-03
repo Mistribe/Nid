@@ -154,7 +154,7 @@ describe('ItemDocuments', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
 
       await waitFor(() => expect(api.writes).toEqual([{ method: 'POST', path: '/api/v1/documents',
-        body: { targetKind: 'core.item', targetId: ITEM, role: 'insurance', date: '2026-09-01' } }]));
+        body: { targetKind: 'core.item', targetId: ITEM, role: 'insurance', date: '2026-09-01', warnDuplicate: 'true' } }]));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(screen.getByText('Document déposé.')).toBeInTheDocument();
       await waitFor(() => expect(api.gets()).toBeGreaterThan(before));
@@ -173,7 +173,45 @@ describe('ItemDocuments', () => {
 
       await user.clear(within(dialog).getByRole('textbox', { name: 'Date du document' }));
       await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
-      await waitFor(() => expect(api.writes).toEqual([expect.objectContaining({ body: { targetKind: 'core.item', targetId: ITEM, role: 'statement' } })]));
+      await waitFor(() => expect(api.writes).toEqual([expect.objectContaining({ body: { targetKind: 'core.item', targetId: ITEM, role: 'statement', warnDuplicate: 'true' } })]));
+    });
+
+    it('warns of a file already in Nid: « Lier l’existant » links that document with the chosen type and uploads nothing', async () => {
+      const existing = summary({ id: D3, title: 'Bail 2024', documentDate: '2024-09-01', archived: true, links: [link({ targetId: OTHER_ITEM, anchorItemId: OTHER_ITEM, label: 'Studio Lyon' })] });
+      const api = serve({ upload: () => HttpResponse.json({ status: 409, code: 'documents.duplicate', title: 'Duplicate.', duplicate: existing }, { status: 409 }) });
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      await user.upload(within(dialog).getByLabelText('Fichiers'), pdf('bail.pdf'));
+      await pick(user, 'Type', 'Bail');
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+
+      const alert = await within(dialog).findByRole('alert');
+      expect(alert).toHaveTextContent('bail.pdf est déjà dans Nid :');
+      expect(alert).toHaveTextContent('« Bail 2024 » · 1 sept. 2024 · Archivé · lié à Studio Lyon');
+      await user.click(within(alert).getByRole('button', { name: 'Lier l’existant' }));
+
+      await waitFor(() => expect(api.writes.at(-1)).toEqual({ method: 'POST', path: `/api/v1/documents/${D3}/links`, body: { targetKind: 'core.item', targetId: ITEM, role: 'lease' } }));
+      expect(api.sent).toEqual(['bail.pdf']);
+      expect(await within(dialog).findByText('Déposé')).toBeInTheDocument();
+    });
+
+    it('« Ajouter quand même » uploads the file again without asking to be warned', async () => {
+      const existing = summary({ id: D3, title: 'Bail 2024', links: [] });
+      const api = serve({ upload: () => api.writes.length === 1
+        ? HttpResponse.json({ status: 409, code: 'documents.duplicate', title: 'Duplicate.', duplicate: existing }, { status: 409 })
+        : HttpResponse.json({ id: D2 }, { status: 201 }) });
+      const { user } = await renderItem();
+      const dialog = await open(user);
+      await user.upload(within(dialog).getByLabelText('Fichiers'), pdf('bail.pdf'));
+      await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('À classer');
+      await user.click(within(dialog).getByRole('button', { name: 'Ajouter quand même' }));
+
+      await waitFor(() => expect(api.writes.map((w) => w.body)).toEqual([
+        { targetKind: 'core.item', targetId: ITEM, role: 'statement', warnDuplicate: 'true' },
+        { targetKind: 'core.item', targetId: ITEM, role: 'statement' },
+      ]));
+      expect(await within(dialog).findByText('Déposé')).toBeInTheDocument();
     });
 
     it('words a refused file as the documents page does', async () => {
@@ -203,7 +241,7 @@ describe('ItemDocuments', () => {
 
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(api.sent).toEqual(['janvier.pdf', 'fevrier.pdf']);
-      const body = { targetKind: 'core.item', targetId: ITEM, role: 'insurance' };
+      const body = { targetKind: 'core.item', targetId: ITEM, role: 'insurance', warnDuplicate: 'true' };
       expect(api.writes.map((w) => w.body)).toEqual([body, body]);
       expect(screen.getByText('2 documents déposés.')).toBeInTheDocument();
     });

@@ -9,6 +9,7 @@ namespace Nid.Host.Api.Json;
     Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(InstantJsonConverter)])]
 [JsonSerializable(typeof(DocumentDetail))]
 [JsonSerializable(typeof(DocumentList))]
+[JsonSerializable(typeof(DocumentSummary))]
 [JsonSerializable(typeof(LinkAdded))]
 [JsonSerializable(typeof(DocumentTargetList))]
 [JsonSerializable(typeof(LinkPreview))]
