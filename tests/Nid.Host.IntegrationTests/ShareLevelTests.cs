@@ -90,4 +90,25 @@ public class ShareLevelTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal("edit", (await JsonAsync(app, app.AdultB, Sharing(id))).GetProperty("shareLevel").GetString());
         Assert.Equal(HttpStatusCode.Created, (await ValueAsync(app, app.AdultB, id, "2025-01-31")).StatusCode);
     }
+
+    [Fact]
+    public async Task A_childminder_arrangement_is_created_at_the_level_asked_and_the_other_adult_then_edits_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/childcare", new
+        {
+            name = "Garde de Léa", childId = app.Dependent.Value, carer = new { name = "Martine", pajemploi = (string?)null, approval = (string?)null },
+            terms = new
+            {
+                from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", mealPrice = (string?)null,
+                programmedWeeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", meal = false } },
+            },
+            gaps = Array.Empty<object>(), visibility = "shared", shareLevel = "edit", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = new ItemId(JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid());
+
+        Assert.Equal("edit", (await JsonAsync(app, app.AdultB, Sharing(id))).GetProperty("shareLevel").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Post, $"/api/v1/childcare/{id.Value}/close", new { on = "2026-06-30" })).StatusCode);
+    }
 }

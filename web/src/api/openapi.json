@@ -28644,6 +28644,12 @@
             "items": {
               "$ref": "#/components/schemas/OwnerBody"
             }
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

@@ -18,8 +18,8 @@ public sealed record TermsInput(
 }
 
 public sealed record CreateChildcareCommand(
-    string Name, PersonId Child, CarerInput Carer, TermsInput Terms, IReadOnlyList<CareGap> Gaps, Visibility Visibility, IReadOnlyList<OwnerShare> Owners)
-    : ICommand<ItemId>, ICreatesItem;
+    string Name, PersonId Child, CarerInput Carer, TermsInput Terms, IReadOnlyList<CareGap> Gaps, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
+    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
 /// <summary>Corrects the arrangement and its current revision in place; the revision keeps its start. <paramref name="Version"/>: the one read.</summary>
 public sealed record EditChildcareCommand(ItemId ItemId, string Name, CarerInput Carer, TermsInput Terms, uint Version) : ICommand<ItemId>, IItemScoped
@@ -64,7 +64,7 @@ public sealed class CreateChildcareHandler(IItemRegistry items, IChildcareStore 
             return Result.Failure<ItemId>(failure!);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var created = await items.CreateAsync(new NewItem(ChildcareModule.Key, ChildcareKinds.Childminder, command.Name.Trim(), command.Visibility, null, command.Owners), ct);
+        var created = await items.CreateAsync(new NewItem(ChildcareModule.Key, ChildcareKinds.Childminder, command.Name.Trim(), command.Visibility, null, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
             return created; // disposed without commit: nothing is left
         await store.CreateAsync(new Arrangement(id, command.Child, command.Carer.Name.Trim(), command.Carer.Pajemploi, command.Carer.Approval, 0),

@@ -24893,6 +24893,7 @@ export interface components {
             gaps?: null | components["schemas"]["CareGapBody"][];
             visibility?: null | string;
             owners?: null | components["schemas"]["OwnerBody"][];
+            shareLevel?: null | string;
         };
         CreateDependentBody: {
             displayName: string;

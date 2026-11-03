@@ -170,7 +170,8 @@ public static class ChildcareEndpoints
     public sealed record CareGapBody(string? Monday, int? Weeks);
 
     public sealed record CreateChildcareBody(
-        string? Name, Guid? ChildId, CarerBody? Carer, TermsBody? Terms, IReadOnlyList<CareGapBody>? Gaps, string? Visibility, IReadOnlyList<OwnerBody>? Owners)
+        string? Name, Guid? ChildId, CarerBody? Carer, TermsBody? Terms, IReadOnlyList<CareGapBody>? Gaps, string? Visibility, IReadOnlyList<OwnerBody>? Owners,
+        string? ShareLevel = null)
     {
         internal CreateChildcareCommand? ToCommand(FieldReader reader)
         {
@@ -179,9 +180,10 @@ public static class ChildcareEndpoints
             var carer = ChildcareBodies.Carer(reader, Carer);
             var terms = ChildcareBodies.Terms(reader, Terms);
             var gaps = ChildcareBodies.Gaps(reader, Gaps);
+            var level = reader.ShareLevel(ShareLevel, "shareLevel");
             return reader.Ok
                 ? new CreateChildcareCommand(Name ?? "", new PersonId(ChildId!.Value), carer!, terms!, gaps, visibility!.Value,
-                    (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList())
+                    (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(), level!.Value)
                 : null;
         }
     }
