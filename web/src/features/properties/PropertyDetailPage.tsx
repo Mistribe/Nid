@@ -2,6 +2,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
 import { present, toProblem } from '@/api/errors';
@@ -33,7 +34,7 @@ const TABS = ['overview', 'rental', 'expenses', 'valuations', 'documents', 'sett
 /**
  * 3D1 design §6, redesign §5.2–5.3: a property as a tabbed page. Under the title, its figures today (and the rental ones
  * when it is rented); the overview adds the real cost's detail and the linked loans; then the rental (only for a rental or
- * a property with a tenancy), the expenses (flows and planned charges), the estimates, the documents and the settings. Estimating is the header's action: its dialog, its announcement
+ * a property with a tenancy), the expenses (flows and planned charges), the estimates, the documents and the settings. Estimating is the header's action: its dialog, its toast
  * and the focus it returns to are the page's; every other table owns its dialog.
  */
 export function PropertyDetailPage() {
@@ -44,7 +45,6 @@ export function PropertyDetailPage() {
   const answer = $api.useQuery('get', PROPERTY, { params: { path: { id } } });
   const [tab, setTab] = useDetailTab(TABS);
   const [estimating, setEstimating] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
   const estimateRef = useRef<HTMLButtonElement>(null);
   const [focusEstimate, setFocusEstimate] = useState(false);
   useEffect(() => {
@@ -54,25 +54,23 @@ export function PropertyDetailPage() {
   }, [focusEstimate]);
   const property = answer.data;
   const back = <Link to="/properties" className="text-sm underline">{t('property_detail.back')}</Link>;
-  // Mounted from the first render, loading included, so the text written later is announced.
-  const status = <p role="status" aria-live="polite">{announcement}</p>;
 
   if (answer.error) {
     // An unknown property and another adult's private one both answer 404: « Cet élément est introuvable. ».
-    return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+    return <article className="space-y-6">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
   }
-  if (!property) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!property) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const rented = property.type === 'rental' || property.tenancies.length > 0;
   const shown = (tab === 'settings' && !property.canWrite) || (tab === 'rental' && !rented) ? 'overview' : tab;
   const actions = (
     <>
       {property.canWrite ? (
-        <Button ref={estimateRef} type="button" onClick={() => { setAnnouncement(''); setEstimating(true); }}>
+        <Button ref={estimateRef} type="button" onClick={() => setEstimating(true)}>
           <Plus aria-hidden="true" />{t('property_valuations.add')}
         </Button>
       ) : null}
-      <SharingMenu item={id} onAnnounce={setAnnouncement} shared={property.canWrite && property.visibility === 'shared'} />
+      <SharingMenu item={id} onAnnounce={toast.success} shared={property.canWrite && property.visibility === 'shared'} />
     </>
   );
 
@@ -91,7 +89,6 @@ export function PropertyDetailPage() {
         )}>
         <section aria-label={t('property_detail.figures')} className="space-y-2"><PropertyStats property={property} /></section>
       </PageHeader>
-      {status}
       {property.canWrite ? null : <p>{t('property_detail.read_only')}</p>}
       {property.warnings.length > 0 ? (
         <ul aria-label={t('property_detail.warnings')} className="space-y-1">
@@ -106,7 +103,7 @@ export function PropertyDetailPage() {
       {property.canWrite && estimating ? (
         <ValuationDialog property={property}
           onClose={() => { setEstimating(false); setFocusEstimate(true); }}
-          onDone={(message) => { setEstimating(false); setAnnouncement(message); setFocusEstimate(true); }} />
+          onDone={(message) => { setEstimating(false); toast.success(message); setFocusEstimate(true); }} />
       ) : null}
       <DetailTabs value={shown} onChange={setTab} tabs={[
         {

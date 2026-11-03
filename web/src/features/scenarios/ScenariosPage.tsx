@@ -136,7 +136,7 @@ function Actions({ item }: { item: ScenarioListItem }) {
     <>
       <RowActions menuId={`scenario-menu-${item.id}`} menuLabel={t('scenarios.row_menu', { name: item.name })}
       items={[{ label: t('scenarios.duplicate'), onSelect: () => void copy() }]}
-      confirmation={t('scenarios.delete_confirm')} remove={remove} onDeleteStarted={() => undefined} present={presentConflict}
+      confirmation={t('scenarios.delete_confirm')} remove={remove} present={presentConflict}
       invalidate={(client) => invalidate(client)}
       onConfirm={() => remove.mutate({ params: { path: { id: item.id } } })} />
       {failure ? <ProblemMessage problem={present(toProblem(failure))} /> : null}

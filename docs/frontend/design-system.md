@@ -67,7 +67,7 @@ Communs à tous les modules, dans `components/`.
 | `<EmptyState>` | Titre, phrase, action |
 | `<ProblemMessage>` | Présente une erreur convertie (`architecture.md` §5) |
 | `<ScopeSwitch>` | Foyer / Moi |
-| `Section` (`components/page/`) | Région titrée d'une fiche, sans carte : titre `h2`, focus et annonce facultatifs |
+| `Section` (`components/page/`) | Région titrée d'une fiche, sans carte : titre `h2`, focus facultatif |
 | `SectionCard` (`components/page/`) | Cadre titré d'une vue d'ensemble (graphique, courte liste) : titre, note, actions dans l'en-tête, dont « Afficher en tableau » pour un graphique |
 | `PageHeader` (`components/page/`) | Titre, retour, chiffres clés en ligne, actions de la page : l'en-tête commun des listes et des fiches |
 | `StatLine` | Ligne de chiffres sous le titre ; seulement quand le serveur donne les totaux (abonnements) |
@@ -85,6 +85,7 @@ Cible **WCAG 2.2 AA**.
 - `lang="fr"`, contraste de texte 4,5:1, focus toujours visible, cibles tactiles d'au moins 44 px sur mobile.
 - Formulaires : libellés associés, erreurs reliées au champ, résumé d'erreurs focalisé à l'envoi.
 - Régions `aria-live` pour la progression d'import et les messages « Annuler ».
+- **L'issue d'une action est un toast** (`toast.success` / `toast.error` de `sonner`, un seul `Toaster` monté par `Shell`, région `aria-live` « Messages ») : « Enregistré », « Frais supprimés », « Synchronisation demandée ». Restent dans la page : les erreurs d'un champ ou d'un formulaire, un message affiché dans un dialogue encore ouvert (la page derrière une modale Radix est inerte), un résultat qui est le contenu de l'écran (récapitulatif de la routine et son « Annuler »), les squelettes de chargement. Le focus revient où la page le place, jamais sur le toast.
 - **Jamais la couleur seule** : statuts et badges ont une icône et un texte.
 - Navigation clavier complète pour la routine et la boîte de validation.
 - Chaque graphique a une **alternative** : vue en tableau, et option « Motifs dans les graphiques » (`dataviz.md` §6).

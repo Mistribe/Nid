@@ -2,6 +2,7 @@ import { Link, useLocation, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Archive } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
@@ -48,11 +49,9 @@ export function LoanDetailPage() {
   const saved = useLocation({ select: (l) => l.state.loanSaved });
   const answer = $api.useQuery('get', LOAN, { params: { path: { id } } });
   const [tab, setTab] = useDetailTab(TABS);
-  const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
-  // The page's own live region (3B2 design §5): the contract page lands here with « Contrat enregistré », written after
-  // mount so assistive technologies hear it. ponytail: the history entry keeps the state, so reloading it says it again.
-  const [announcement, setAnnouncement] = useState('');
-  useEffect(() => { if (saved === 'contract') setAnnouncement(t('loan_contract.saved')); }, [saved, t]);
+  // The contract page lands here with « Contrat enregistré » (3B2 design §5); the id keeps StrictMode's second run to one
+  // toast. ponytail: the history entry keeps the state, so reloading it says it again.
+  useEffect(() => { if (saved === 'contract') toast.success(t('loan_contract.saved'), { id: 'loan-contract-saved' }); }, [saved, t]);
   // 3B2 design §8: the simulation hands a column to the repayments' add dialog; `seq` makes each press a new one.
   const [prefill, setPrefill] = useState<RepaymentPrefill | null>(null);
   const record = (p: Omit<RepaymentPrefill, 'seq'>) => setPrefill((prev) => ({ ...p, seq: (prev?.seq ?? 0) + 1 }));
@@ -71,21 +70,19 @@ export function LoanDetailPage() {
     setTab('operations');
   }, [handed, loan]); // eslint-disable-line react-hooks/exhaustive-deps -- once the loan is read; `record` and `setTab` are recreated every render
   const back = <Link to="/loans" className="text-sm underline">{t('loan_detail.back')}</Link>;
-  // Mounted from the first render, loading included, so the text written later is announced.
-  const status = <p role="status" aria-live="polite">{announcement}</p>;
 
   if (answer.error) {
     // An unknown loan and another adult's private one both answer 404: « Cet élément est introuvable. ».
-    return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+    return <article className="space-y-6">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
   }
-  if (!loan) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!loan) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const actions = (
     <>
       {loan.ended ? null : (
         <Button type="button" data-guide="loans.simulation" onClick={() => { setLandOnSimulation(true); setTab('operations'); }}>{t('loan_detail.simulate')}</Button>
       )}
-      <SharingMenu item={id} onAnnounce={setAnnouncement} shared={loan.canWrite && loan.visibility === 'shared'} />
+      <SharingMenu item={id} onAnnounce={toast.success} shared={loan.canWrite && loan.visibility === 'shared'} />
     </>
   );
 
@@ -105,7 +102,6 @@ export function LoanDetailPage() {
           <LoanStats loan={loan} />
         </section>
       </PageHeader>
-      {status}
       {loan.canWrite ? null : <p>{t('loan_detail.read_only')}</p>}
       {loan.propertyId ? (
         <p>
@@ -147,8 +143,8 @@ export function LoanDetailPage() {
                 <LoanContract loan={loan} />
               </Section>
               {loan.canWrite ? (
-                <Section title={t('loan_detail.settings.title')} announcement={settingsAnnouncement}>
-                  <SettingsForm loan={loan} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+                <Section title={t('loan_detail.settings.title')}>
+                  <SettingsForm loan={loan} onDone={toast.success} />
                 </Section>
               ) : null}
             </>

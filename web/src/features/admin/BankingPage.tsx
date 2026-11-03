@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { Field } from '@/components/form/Field';
@@ -28,20 +29,19 @@ export function BankingPage() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
-  const [saved, setSaved] = useState(false);
   const [appId, setAppId] = useState<string | null>(null);
   const household = $api.useQuery('get', HOUSEHOLD);
   const runs = $api.useQuery('get', RUNS);
   const save = $api.useMutation('patch', HOUSEHOLD, {
     onSuccess: () => {
       setProblem(null);
-      setSaved(true);
+      toast.success(t('admin.banking.saved'));
       setAppId(null);
       void queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD] });
       // The settings tabs and the envelope pages ask whether bank sync is on.
       void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/banking/status'] });
     },
-    onError: (error) => { setSaved(false); setProblem(present(toProblem(error))); },
+    onError: (error) => { setProblem(present(toProblem(error))); },
   });
   // The wire carries plain strings; an unknown value is shown as it came rather than hidden.
   const outcomeLabel = (outcome: string) => (outcome in STATUS ? t(STATUS[outcome as keyof typeof STATUS]) : outcome);
@@ -55,16 +55,14 @@ export function BankingPage() {
   return (
     <AdminFrame title={title}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      {saved ? <p role="status">{t('admin.banking.saved')}</p> : null}
 
       <section className="max-w-prose space-y-3">
         <SwitchField label={t('admin.banking.enabled')} checked={household.data.bankingEnabled}
-          onCheckedChange={(bankingEnabled) => { setSaved(false); save.mutate({ body: { bankingEnabled } }); }} />
+          onCheckedChange={(bankingEnabled) => { save.mutate({ body: { bankingEnabled } }); }} />
         <p className="text-sm text-muted-foreground">{t('admin.banking.hint')}</p>
         <p className="text-sm">{t('admin.banking.provider', { publicUrl: window.location.origin })}</p>
         <form noValidate className="flex flex-wrap items-end gap-2" onSubmit={(event) => {
           event.preventDefault();
-          setSaved(false);
           save.mutate({ body: { enableBankingAppId: appId ?? household.data.enableBankingAppId ?? '' } });
         }}>
           <div className="min-w-64 flex-1">
@@ -78,7 +76,7 @@ export function BankingPage() {
           <Field label={t('admin.banking.retention')} hint={t('admin.banking.retention_hint')}>
             {(c) => (
               <SelectField {...c} value={retention?.toString() ?? ''} disabled={save.isPending}
-                onValueChange={(v) => { setSaved(false); save.mutate({ body: v ? { bankRetentionMonths: Number(v) } : { clearBankRetention: true } }); }}
+                onValueChange={(v) => { save.mutate({ body: v ? { bankRetentionMonths: Number(v) } : { clearBankRetention: true } }); }}
                 options={[
                   { value: '', label: t('admin.banking.retention_none') },
                   // A value set through the API outside these choices is shown as it is.

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { pick } from './controls';
+import { pick, toasts } from './controls';
 import { signIn } from './session';
 
 /** The household's bank sync settings, set through the API: the journey starts from them and leaves them as it found them. */
@@ -26,7 +26,7 @@ test('alice turns bank sync on, names the application, finds Réglages › Banqu
   await expect(toggle).toBeChecked();
   await page.getByLabel('Identifiant de l’application Enable Banking').fill('e2e-application');
   await page.getByRole('button', { name: 'Enregistrer l’identifiant' }).click();
-  await expect(page.getByRole('status')).toHaveText('Enregistré');
+  await expect(toasts(page)).toContainText('Enregistré');
   await expect(page.getByText('Adresse de retour à déclarer : https://nid.localtest.me/api/v1/banking/callback')).toBeVisible();
 
   await page.goto('/settings/banks');
@@ -51,11 +51,11 @@ test('alice keeps the operations 24 months, then without limit', async ({ page }
   await page.reload();
 
   await pick(page, 'Conserver les opérations', '24 mois');
-  await expect(page.getByRole('status')).toHaveText('Enregistré');
+  await expect(toasts(page)).toContainText('Enregistré');
   await page.reload();
   await expect(page.getByRole('combobox', { name: 'Conserver les opérations' })).toHaveText('24 mois');
   await pick(page, 'Conserver les opérations', 'Sans limite');
-  await expect(page.getByRole('status')).toHaveText('Enregistré');
+  await expect(toasts(page)).toContainText('Enregistré');
   await page.reload();
   await expect(page.getByRole('combobox', { name: 'Conserver les opérations' })).toHaveText('Sans limite');
 

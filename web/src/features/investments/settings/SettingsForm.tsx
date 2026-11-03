@@ -85,11 +85,11 @@ function applied(before: EnvelopeDetail, values: SettingsValues): EnvelopeDetail
 }
 
 /**
- * 2B2b design: an open envelope's settings, sending only what changed. The page owns the status region (`onStart`
- * clears it when a save begins, `onDone` fills it), as for every other action on the detail page.
+ * 2B2b design: an open envelope's settings, sending only what changed. `onDone` hands the page
+ * the outcome to toast, as for every other action on the detail page.
  */
-export function SettingsForm({ envelope, onStart, onDone }: {
-  envelope: EnvelopeDetail; onStart: () => void; onDone: (message: string) => void;
+export function SettingsForm({ envelope, onDone }: {
+  envelope: EnvelopeDetail; onDone: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -111,7 +111,6 @@ export function SettingsForm({ envelope, onStart, onDone }: {
   const save = $api.useMutation('patch', ENVELOPE, { onSuccess: () => invalidateInvestments(queryClient) });
 
   const submit = form.handleSubmit((values) => {
-    onStart();
     errors.clear();
     const body = toEditBody(baseline.current, values);
     if (!body) { onDone(t('envelope.settings.nothing')); return; }

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { toasts } from './controls';
 import { revokeTokens, signIn } from './session';
 
 // 1F3a spec §9 test 9: sign in, see it, sign out everywhere, land signed out.
@@ -37,7 +38,7 @@ test('an adult creates a token, calls the API with it, and revokes it', async ({
   await expect(row).toContainText('Lecture seule');
   await row.getByRole('button', { name: 'Révoquer' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Confirmer' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Jeton révoqué.' })).toBeVisible();
+  await expect(toasts(page)).toContainText('Jeton révoqué.');
   await expect(row).toContainText('Révoqué');
 
   expect((await outside.get('/api/v1/platform/capabilities', { headers })).status()).toBe(401);

@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { useId, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
@@ -77,7 +78,6 @@ export function EarlyTab({ scope, overview }: { scope: Scope; overview: LoansOve
   const [penalties, setPenalties] = useState<Record<string, string>>({});
   const [penaltyErrors, setPenaltyErrors] = useState<Record<string, string>>({});
   const [stale, setStale] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
   const sentRef = useRef<string[]>([]);
   const effectId = useId();
   const chosen = form.watch('split') === 'chosen';
@@ -92,7 +92,6 @@ export function EarlyTab({ scope, overview }: { scope: Scope; overview: LoansOve
     if (Object.keys(wrong).length > 0) return;
     sentRef.current = sent.map(([id]) => id);
     errors.clear();
-    setAnnouncement('');
     simulate.mutate(
       {
         body: {
@@ -102,7 +101,7 @@ export function EarlyTab({ scope, overview }: { scope: Scope; overview: LoansOve
         },
       },
       {
-        onSuccess: (view) => { setResult({ view, asked: values }); setStale(false); setAnnouncement(t('loans_early.announced')); },
+        onSuccess: (view) => { setResult({ view, asked: values }); setStale(false); toast.success(t('loans_early.announced')); },
         onError: (error) => {
           errors.onError(error);
           // A penalty's refusal sits under its own field; the rest is placed by `useSubmitErrors`.
@@ -175,7 +174,6 @@ export function EarlyTab({ scope, overview }: { scope: Scope; overview: LoansOve
         </form>
       </Section>
       <div className="space-y-6">
-        <p role="status" aria-live="polite" className="sr-only">{announcement}</p>
         {result ? (
           <Result view={result.view} overview={overview} penalties={penalties} penaltyErrors={penaltyErrors} stale={stale}
             onPenalty={(id, v) => { setPenalties((p) => ({ ...p, [id]: v })); setStale(true); }}

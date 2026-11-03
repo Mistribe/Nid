@@ -9,11 +9,11 @@ import '@/locales/income';
 
 /**
  * A phase's `⋯` menu (spec §7): « Changer le montant » on a running or upcoming phase, « Corriger », and « Supprimer »,
- * which asks first and deletes with the version it read. The confirmation goes to the page's live region: the row
+ * which asks first and deletes with the version it read. The confirmation is the page's toast: the row
  * disappears with the refetch.
  */
-export function PhaseRowActions({ source, phase, onEdit, onChangeAmount, onDeleteStarted, onDeleted }: {
-  source: IncomeSourceDetail; phase: IncomePhase; onEdit: () => void; onChangeAmount?: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+export function PhaseRowActions({ source, phase, onEdit, onChangeAmount, onDeleted }: {
+  source: IncomeSourceDetail; phase: IncomePhase; onEdit: () => void; onChangeAmount?: () => void; onDeleted: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -27,7 +27,7 @@ export function PhaseRowActions({ source, phase, onEdit, onChangeAmount, onDelet
         ...(onChangeAmount ? [{ label: t('income_detail.change.open'), onSelect: onChangeAmount }] : []),
         { label: t('income_detail.correct'), onSelect: onEdit },
       ]}
-      confirmation={t('income_detail.delete_confirm')} remove={remove} onDeleteStarted={onDeleteStarted} present={presentConflict} invalidate={invalidateIncome}
+      confirmation={t('income_detail.delete_confirm')} remove={remove} present={presentConflict} invalidate={invalidateIncome}
       onConfirm={() => remove.mutate({ params: { path: { id: source.id, phaseId: phase.id }, query: { version: phase.version } } })} />
   );
 }

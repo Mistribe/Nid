@@ -12,9 +12,9 @@ import { FileInput } from '../payslips/PayslipCell';
 import type { PayslipWrites } from '../payslips/usePayslipWrites';
 import '@/locales/income';
 
-/** « Corriger » opens the row's dialog; « Supprimer » asks first. The confirmation goes to the section's live region; after « Recharger » the row may be gone, so the section takes the focus. */
-export function OneOffRowActions({ source, oneOff, writes, onEdit, onDeleteStarted, onDeleted, onReloaded }: {
-  source: IncomeSourceDetail; oneOff: IncomeOneOff; writes: PayslipWrites; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+/** « Corriger » opens the row's dialog; « Supprimer » asks first. The confirmation is the section's toast; after « Recharger » the row may be gone, so the section takes the focus. */
+export function OneOffRowActions({ source, oneOff, writes, onEdit, onDeleted, onReloaded }: {
+  source: IncomeSourceDetail; oneOff: IncomeOneOff; writes: PayslipWrites; onEdit: () => void; onDeleted: (message: string) => void;
   onReloaded: () => void;
 }) {
   const { t } = useTranslation();
@@ -31,7 +31,7 @@ export function OneOffRowActions({ source, oneOff, writes, onEdit, onDeleteStart
         { label: t('income_detail.correct'), onSelect: onEdit },
         { label: t('income_detail.payslips.attach_one_off'), onSelect: () => input.current?.click() },
       ]}
-      confirmation={t('income_detail.one_offs.delete_confirm')} remove={remove} onDeleteStarted={onDeleteStarted} present={presentConflict} invalidate={invalidateIncome} onReloaded={onReloaded}
+      confirmation={t('income_detail.one_offs.delete_confirm')} remove={remove} present={presentConflict} invalidate={invalidateIncome} onReloaded={onReloaded}
       onConfirm={() => remove.mutate({ params: { path: { id: source.id, flowId: oneOff.id } } })} />
     <FileInput ref={input} label={t('income_detail.payslips.attach_one_off')}
       onFile={(file) => void writes.attach(file, { kind: 'income.one_off', id: oneOff.id }, oneOff.occurredOn, oneOffTitle(t, oneOff))} />

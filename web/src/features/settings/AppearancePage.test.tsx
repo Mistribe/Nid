@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { aliceSession } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 
 type Body = Record<string, unknown>;
 
@@ -227,7 +228,7 @@ describe('Réglages › Apparence', () => {
 
     await user.click(screen.getByRole('button', { name: 'Revoir tous les guides' }));
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Les guides se rejoueront à votre prochaine visite de chaque module.');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Les guides se rejoueront à votre prochaine visite de chaque module.'));
     expect(sent).toEqual([{ guidesSeen: {}, csrf: 'csrf-alice' }]);
     await expectNoAxeViolations(container);
 

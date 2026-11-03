@@ -1,9 +1,10 @@
-import { screen, within } from '@testing-library/react';
+import { screen, within, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { HouseholdHoldings, HoldingsExposure } from '../api';
 import { holdingRow, householdHoldings, LIFE, PEA, WORLD_PEA } from '../testData';
 
@@ -125,7 +126,7 @@ describe('Placements › supports et frais', () => {
     await user.clear(etf);
     await user.type(etf, '0,1');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
-    expect(await within(projection).findByRole('status')).toHaveTextContent('Références enregistrées.');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Références enregistrées.'));
     expect(sent).toMatchObject({ assumedReturnPct: 4, envelopes: { life_insurance: 0.5 }, holdings: { etf: 0.1, euro_fund: 0 } });
   });
 

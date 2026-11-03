@@ -1,6 +1,7 @@
 import { ChevronRightIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
@@ -33,13 +34,12 @@ const daysOf = (text: string) => (/^\d+$/.test(text.trim()) ? Number(text) : -1)
 export function NotificationSettingsPage() {
   const { t } = useTranslation();
   const query = usePreferences();
-  const [saved, setSaved] = useState(false);
 
   return (
     <SettingsFrame title={t('notification_settings.title')}>
       {query.data ? (
         // A new version (saved here, or reloaded after a conflict) starts the form again from what the server holds.
-        <PreferencesForm key={query.data.version} prefs={query.data} saved={saved} onSaved={setSaved} />
+        <PreferencesForm key={query.data.version} prefs={query.data} />
       ) : query.error ? (
         <ProblemMessage problem={present(toProblem(query.error))} />
       ) : (
@@ -49,7 +49,7 @@ export function NotificationSettingsPage() {
   );
 }
 
-function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; saved: boolean; onSaved: (saved: boolean) => void }) {
+function PreferencesForm({ prefs }: { prefs: PreferencesView }) {
   const { t } = useTranslation();
   const save = useSavePreferences();
   const reload = useReloadPreferences();
@@ -71,7 +71,6 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
   const infoLabel = useId();
   const frequencyLabel = useId();
 
-  const edited = <T,>(set: (value: T) => void) => (value: T) => { onSaved(false); set(value); };
   const messageOf = (code: string, fallback: string) => t(`notification_settings.error.${code.replaceAll('.', '_')}`, { defaultValue: fallback });
 
   const fields = fieldErrorsOf(save.error);
@@ -82,7 +81,6 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
   const leadsWithError = fields.some((f) => f.path.startsWith(LEAD_PREFIX));
 
   const submit = () => {
-    onSaved(false);
     setStale(false);
     const body: NotificationPreferencesBody = {
       emailEnabled: emailEnabled && prefs.emailAvailable,
@@ -94,7 +92,7 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
       version: prefs.version,
     };
     save.mutate(body, {
-      onSuccess: () => onSaved(true),
+      onSuccess: () => { toast.success(t('notification_settings.saved')); },
       onError: (error) => setStale(toProblem(error).code === 'notifications.preferences_conflict'),
     });
   };
@@ -115,7 +113,7 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
         <div className="flex items-center gap-2 text-sm">
           <Checkbox id={emailId} checked={emailEnabled && prefs.emailAvailable} disabled={!prefs.emailAvailable}
             aria-describedby={prefs.emailAvailable ? undefined : emailNoteId}
-            onCheckedChange={(checked) => edited(setEmailEnabled)(checked === true)} />
+            onCheckedChange={(checked) => setEmailEnabled(checked === true)} />
           <Label htmlFor={emailId}>{t('notification_settings.email')}</Label>
         </div>
         {prefs.emailAvailable ? null : <p id={emailNoteId} className="text-sm text-muted-foreground">{t(prefs.hasEmail ? 'notification_settings.email_unavailable' : 'notification_settings.no_address')}</p>}
@@ -142,21 +140,21 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
         <p className="text-sm text-muted-foreground">{t('notification_settings.critical')}</p>
         <div className="space-y-1">
           <p id={actionLabel} className="text-sm">{t('notification_settings.action')}</p>
-          <Segmented aria-labelledby={actionLabel} value={action} onValueChange={edited(setAction)} options={[
+          <Segmented aria-labelledby={actionLabel} value={action} onValueChange={setAction} options={[
             { value: 'immediate', label: t('notification_settings.action_immediate') },
             { value: 'digest', label: t('notification_settings.action_digest') },
           ]} />
         </div>
         <div className="space-y-1">
           <p id={infoLabel} className="text-sm">{t('notification_settings.info')}</p>
-          <Segmented aria-labelledby={infoLabel} value={info} onValueChange={edited(setInfo)} options={[
+          <Segmented aria-labelledby={infoLabel} value={info} onValueChange={setInfo} options={[
             { value: 'digest', label: t('notification_settings.info_digest') },
             { value: 'centre', label: t('notification_settings.info_centre') },
           ]} />
         </div>
         <div className="space-y-1">
           <p id={frequencyLabel} className="text-sm">{t('notification_settings.digest')}</p>
-          <Segmented aria-labelledby={frequencyLabel} value={frequency} onValueChange={edited(setFrequency)} options={[
+          <Segmented aria-labelledby={frequencyLabel} value={frequency} onValueChange={setFrequency} options={[
             { value: 'daily', label: t('notification_settings.frequency_daily') },
             { value: 'weekly', label: t('notification_settings.frequency_weekly') },
           ]} />
@@ -165,7 +163,7 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
           <div className="max-w-48">
             <Field label={t('notification_settings.weekday')} error={errorOf('weekday')}>
               {(c) => (
-                <SelectField {...c} value={String(weekday)} onValueChange={(v) => edited(setWeekday)(Number(v))}
+                <SelectField {...c} value={String(weekday)} onValueChange={(v) => setWeekday(Number(v))}
                   options={WEEKDAYS.map((d) => ({ value: String(d), label: t(`notification_settings.weekday_${d}`) }))} />
               )}
             </Field>
@@ -189,13 +187,13 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
                   <Field label={lead.title} hint={t('notification_settings.default_days', { n: lead.defaultDays })} error={leadError(lead.kind)}>
                     {(c) => (
                       <Input {...c} type="number" inputMode="numeric" min={0} max={365} step={1} value={value}
-                        onChange={(e) => { onSaved(false); setLeads((all) => ({ ...all, [lead.kind]: e.target.value })); }} />
+                        onChange={(e) => { setLeads((all) => ({ ...all, [lead.kind]: e.target.value })); }} />
                     )}
                   </Field>
                 </div>
                 <Button type="button" variant="ghost" size="sm" className="mt-6" disabled={value === String(lead.defaultDays)}
                   aria-label={t('notification_settings.reset_of', { title: lead.title })}
-                  onClick={() => { onSaved(false); setLeads((all) => ({ ...all, [lead.kind]: String(lead.defaultDays) })); }}>
+                  onClick={() => { setLeads((all) => ({ ...all, [lead.kind]: String(lead.defaultDays) })); }}>
                   {t('notification_settings.reset')}
                 </Button>
               </div>
@@ -216,7 +214,6 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={save.isPending}>{t('notification_settings.save')}</Button>
-        <p role="status" aria-live="polite" className="text-sm">{saved ? t('notification_settings.saved') : null}</p>
       </div>
     </form>
   );

@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2 };
 
@@ -37,7 +38,7 @@ describe('Administration › Foyer', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(sent).toEqual([{ maxAdults: 4 }]));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Réglages enregistrés'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés'));
   });
 
   it('shows the refusal the server answers', async () => {

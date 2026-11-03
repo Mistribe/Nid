@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { DocumentSummary } from './api';
 import { list, summary, targets } from './testData';
 
@@ -108,7 +109,7 @@ describe('FileDocumentsDialog', () => {
     expect(sent.previews.sort()).toEqual(['a', 'b']);
     await waitFor(async () => expect(await titles()).toEqual(['Relevé 2025']));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('2 documents classés.');
+    expect(toasts()).toHaveTextContent('2 documents classés.');
     expect(screen.queryByRole('button', { name: 'Classer' })).not.toBeInTheDocument();
   });
 
@@ -145,7 +146,7 @@ describe('FileDocumentsDialog', () => {
 
     await waitFor(() => expect(sent.ids()).toEqual(['a', 'b', 'c']));
     await waitFor(async () => expect(await titles()).toEqual(['Bulletin février']));
-    expect(screen.getByRole('status')).toHaveTextContent('2 documents classés.');
+    expect(toasts()).toHaveTextContent('2 documents classés.');
     expect(screen.getByText('1 document sélectionné')).toBeInTheDocument();
     expect(within(await table()).getByRole('checkbox', { name: 'Sélectionner Bulletin février' })).toHaveAttribute('aria-checked', 'true');
     const refused = screen.getByRole('list', { name: 'Documents non classés' });

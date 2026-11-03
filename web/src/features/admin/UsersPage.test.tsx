@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 
 type Adult = components['schemas']['AdultView'];
 
@@ -52,7 +53,7 @@ describe('Administration › Utilisateurs', () => {
 
     await waitFor(() => expect(sent).toEqual([{ displayName: 'Carol', email: 'carol@example.test' }]));
     await waitFor(() => expect(counter.reads()).toBe(2));
-    expect(await screen.findByRole('status')).toHaveTextContent('Adulte ajouté.');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Adulte ajouté.'));
   });
 
   it('disables the add button, with the reason, when the cap is reached', async () => {

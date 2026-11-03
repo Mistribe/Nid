@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyDetail } from '../api';
 import { PROPERTY, propertyDetail } from '../testData';
@@ -108,7 +109,7 @@ describe('estimates', () => {
     await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getAllByRole('status').map((n) => n.textContent)).toContain('Estimation ajoutée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Estimation ajoutée.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { asOf: '2026-09-30', amount: '295000.5', note: 'notaire' } })]);
     expect(await add()).toHaveFocus();
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('295 000,50 €'));
@@ -127,7 +128,7 @@ describe('estimates', () => {
     await user.type(form.getByLabelText('Valeur'), '300000');
     await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(() => expect(screen.getAllByRole('status').map((n) => n.textContent)).toContain('Estimation remplacée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Estimation remplacée.'));
     expect(sent[0]!.body).toEqual({ asOf: '2026-06-01', amount: '300000' });
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('300 000,00 €'));
     expect(await rows()).toHaveLength(2);
@@ -170,7 +171,7 @@ describe('estimates', () => {
     expect(await screen.findByText('Cette estimation sera supprimée.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Estimation supprimée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Estimation supprimée.'));
     expect(sent[0]!.url).toContain('/valuations/v2');
     await waitFor(async () => expect(await rows()).toHaveLength(1));
   });

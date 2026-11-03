@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { RowActions } from '@/components/page/RowActions';
@@ -15,20 +16,19 @@ import '@/locales/loans';
 
 /**
  * 3B2 design §6: the loan's fees by date (the server's order). Adding and correcting open a dialog; the section owns
- * its live region and where the focus lands (a saved correction replaces its row). A penalty linked to a repayment is
+ * its toasts and where the focus lands (a saved correction replaces its row). A penalty linked to a repayment is
  * changed through it and has no action here.
  */
 export function FeesSection({ loan }: { loan: LoanDetail }) {
   const { t } = useTranslation();
   const writable = loan.canWrite;
   const [dialog, setDialog] = useState<{ editing?: LoanFee } | null>(null);
-  const [announcement, setAnnouncement] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
-  const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
-  const open = (editing?: LoanFee) => { setAnnouncement(''); setDialog({ editing }); };
+  const announce = (message: string) => { toast.success(message); headingRef.current?.focus(); };
+  const open = (editing?: LoanFee) => setDialog({ editing });
   // A saved fee announces (its row, if corrected, is a new one); « Annuler » returns to what opened the dialog.
   const saved = (message: string) => { setDialog(null); announce(message); };
   const cancel = () => { const row = dialog?.editing?.id; setDialog(null); if (row) setFocusId(row); else addButtonRef.current?.focus(); };
@@ -43,7 +43,7 @@ export function FeesSection({ loan }: { loan: LoanDetail }) {
   }, [dialog, loan.fees]);
 
   return (
-    <Section title={t('loan_detail.fees')} headingRef={headingRef} announcement={announcement}>
+    <Section title={t('loan_detail.fees')} headingRef={headingRef}>
       {writable ? <Button ref={addButtonRef} type="button" variant="outline" size="sm" onClick={() => open()}>{t('loan_fees.add')}</Button> : null}
       {writable && dialog ? <FeeDialog loan={loan} editing={dialog.editing} onClose={cancel} onDone={saved} /> : null}
       <Table aria-label={t('loan_fees.table')}>
@@ -68,8 +68,8 @@ export function FeesSection({ loan }: { loan: LoanDetail }) {
               {writable ? (
                 <TableCell>
                   {f.repaymentId ? t('loan_fees.linked') : (
-                    <FeeRowActions loan={loan} fee={f} onEdit={() => open(f)} onDeleteStarted={() => setAnnouncement('')}
-                      onDeleted={announce} onReloaded={() => headingRef.current?.focus()} />
+                    <FeeRowActions loan={loan} fee={f} onEdit={() => open(f)} onDeleted={announce}
+                      onReloaded={() => headingRef.current?.focus()} />
                   )}
                 </TableCell>
               ) : null}
@@ -82,8 +82,8 @@ export function FeesSection({ loan }: { loan: LoanDetail }) {
 }
 
 /** « Corriger » opens the dialog; « Supprimer » asks first and sends the version read. */
-function FeeRowActions({ loan, fee, onEdit, onDeleteStarted, onDeleted, onReloaded }: {
-  loan: LoanDetail; fee: LoanFee; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void; onReloaded: () => void;
+function FeeRowActions({ loan, fee, onEdit, onDeleted, onReloaded }: {
+  loan: LoanDetail; fee: LoanFee; onEdit: () => void; onDeleted: (message: string) => void; onReloaded: () => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -95,7 +95,7 @@ function FeeRowActions({ loan, fee, onEdit, onDeleteStarted, onDeleted, onReload
   return (
     <RowActions menuId={`correct-fee-${fee.id}`} menuLabel={t('loan_detail.row_menu_what', { date: formatLocalDate(fee.onDate), what: feeKindText(t, fee.kind) })}
       items={[{ label: t('loan_detail.correct'), onSelect: onEdit }]} confirmation={t('loan_fees.delete_confirm')}
-      remove={remove} onDeleteStarted={onDeleteStarted} onReloaded={onReloaded} present={presentRefusal} invalidate={invalidateLoans}
+      remove={remove} onReloaded={onReloaded} present={presentRefusal} invalidate={invalidateLoans}
       onConfirm={() => remove.mutate({ params: { path: { id: loan.id, feeId: fee.id }, query: { version: fee.version } } })} />
   );
 }

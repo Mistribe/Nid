@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { LOAN } from '../loans/testData';
 import type { PropertyDetail } from './api';
 import { PROPERTY, propertyDetail, rentedFigures } from './testData';
@@ -208,7 +209,7 @@ describe('PropertyDetailPage', () => {
     await user.click(dialog.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Estimation remplacée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Estimation remplacée.'));
     expect(sent).toEqual([{ asOf: '2026-06-01', amount: '300000' }]);
     await waitFor(() => expect(figure('Valeur')).toHaveTextContent('290 000,00 €'));
     expect(open).toHaveFocus();

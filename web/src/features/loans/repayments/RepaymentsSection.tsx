@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { RowActions } from '@/components/page/RowActions';
@@ -16,26 +17,24 @@ import '@/locales/loans';
 
 /**
  * 3B2 design §7: the early repayments by date (the server's order). Adding (possibly from a simulation) and correcting
- * open a dialog; the section owns its live region and where the focus lands; a deletion the engine refuses is said in
+ * open a dialog; the section owns its toasts and where the focus lands; a deletion the engine refuses is said in
  * the row.
  */
 export function RepaymentsSection({ loan, prefill = null, onConsumed }: { loan: LoanDetail; prefill?: RepaymentPrefill | null; onConsumed?: () => void }) {
   const { t } = useTranslation();
   const writable = loan.canWrite;
   const [dialog, setDialog] = useState<{ editing?: LoanRepayment; prefill?: RepaymentPrefill | null } | null>(null);
-  const [announcement, setAnnouncement] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
-  const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
-  const open = (editing?: LoanRepayment) => { setAnnouncement(''); setDialog({ editing }); };
+  const announce = (message: string) => { toast.success(message); headingRef.current?.focus(); };
+  const open = (editing?: LoanRepayment) => setDialog({ editing });
   const saved = (message: string) => { setDialog(null); announce(message); };
   const cancel = () => { const row = dialog?.editing?.id; setDialog(null); if (row) setFocusId(row); else addButtonRef.current?.focus(); };
   // « Enregistrer ce remboursement » (3B2 design §8): each press opens the add dialog afresh with its column.
   useEffect(() => {
     if (!prefill) return;
-    setAnnouncement('');
     setDialog({ prefill });
     // Consumed once: this tab unmounts and remounts, and must not reopen the dialog with old values.
     onConsumed?.();
@@ -52,7 +51,7 @@ export function RepaymentsSection({ loan, prefill = null, onConsumed }: { loan: 
 
   const m = (amount: string) => money(loan.currency, amount);
   return (
-    <Section title={t('loan_detail.repayments')} headingRef={headingRef} announcement={announcement}>
+    <Section title={t('loan_detail.repayments')} headingRef={headingRef}>
       {writable ? <Button ref={addButtonRef} type="button" variant="outline" size="sm" onClick={() => open()}>{t('loan_repayments.add')}</Button> : null}
       {writable && dialog ? <RepaymentDialog key={dialog.prefill?.seq ?? 0} loan={loan} editing={dialog.editing} prefill={dialog.prefill} onClose={cancel} onDone={saved} /> : null}
       <Table aria-label={t('loan_repayments.table')}>
@@ -78,7 +77,7 @@ export function RepaymentsSection({ loan, prefill = null, onConsumed }: { loan: 
               <TableCell className="whitespace-normal">{r.note}</TableCell>
               {writable ? (
                 <TableCell>
-                  <RepaymentRowActions loan={loan} repayment={r} onEdit={() => open(r)} onDeleteStarted={() => setAnnouncement('')}
+                  <RepaymentRowActions loan={loan} repayment={r} onEdit={() => open(r)}
                     onDeleted={announce} onReloaded={() => headingRef.current?.focus()} />
                 </TableCell>
               ) : null}
@@ -91,8 +90,8 @@ export function RepaymentsSection({ loan, prefill = null, onConsumed }: { loan: 
 }
 
 /** « Corriger » opens the dialog; « Supprimer » asks first, naming the penalty that goes with it. */
-function RepaymentRowActions({ loan, repayment, onEdit, onDeleteStarted, onDeleted, onReloaded }: {
-  loan: LoanDetail; repayment: LoanRepayment; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+function RepaymentRowActions({ loan, repayment, onEdit, onDeleted, onReloaded }: {
+  loan: LoanDetail; repayment: LoanRepayment; onEdit: () => void; onDeleted: (message: string) => void;
   onReloaded: () => void;
 }) {
   const { t } = useTranslation();
@@ -108,7 +107,7 @@ function RepaymentRowActions({ loan, repayment, onEdit, onDeleteStarted, onDelet
   return (
     <RowActions menuId={`correct-repayment-${repayment.id}`} menuLabel={t('loan_detail.row_menu_what', { date: formatLocalDate(repayment.onDate), what: money(loan.currency, repayment.amount) })}
       items={[{ label: t('loan_detail.correct'), onSelect: onEdit }]} confirmation={confirmation}
-      remove={remove} onDeleteStarted={onDeleteStarted} onReloaded={onReloaded} present={presentRefusal} invalidate={invalidateLoans}
+      remove={remove} onReloaded={onReloaded} present={presentRefusal} invalidate={invalidateLoans}
       onConfirm={() => remove.mutate({ params: { path: { id: loan.id, eventId: repayment.id }, query: { version: repayment.version } } })} />
   );
 }

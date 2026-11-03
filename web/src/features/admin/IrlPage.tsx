@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ConfirmAction } from '@/components/ConfirmAction';
@@ -24,7 +25,6 @@ const HOUSEHOLD = '/api/v1/admin/household';
 const IRL = '/api/v1/realestate/irl';
 
 const STATUS = { running: 'admin.fx.status_running', succeeded: 'admin.fx.status_succeeded', failed: 'admin.fx.status_failed' } as const;
-const NOTICE = { saved: 'admin.irl.saved', sync_requested: 'admin.irl.sync_requested', already_running: 'admin.irl.already_running' } as const;
 const QUARTERS = [1, 2, 3, 4].map((q) => ({ value: String(q), label: `T${q}` }));
 
 /** « 2026-Q2 » as the French write it. */
@@ -36,18 +36,16 @@ export function IrlPage() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
-  const [notice, setNotice] = useState<keyof typeof NOTICE | null>(null);
   const household = $api.useQuery('get', HOUSEHOLD);
   const irl = $api.useQuery('get', IRL);
 
   const fail = (error: unknown) => {
-    setNotice(null);
     setProblem(present(toProblem(error)));
   };
   const save = $api.useMutation('patch', HOUSEHOLD, {
     onSuccess: () => {
       setProblem(null);
-      setNotice('saved');
+      toast.success(t('admin.irl.saved'));
       void queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD] });
     },
     onError: fail,
@@ -55,14 +53,14 @@ export function IrlPage() {
   const sync = $api.useMutation('post', '/api/v1/realestate/irl/sync', {
     onSuccess: () => {
       setProblem(null);
-      setNotice('sync_requested');
+      toast.success(t('admin.irl.sync_requested'));
       void queryClient.invalidateQueries({ queryKey: ['get', IRL] });
     },
     onError: (error) => {
       // Not a failure to explain: the update the admin asked for is already under way.
       if (toProblem(error).code === 'realestate.irl_sync_running') {
         setProblem(null);
-        setNotice('already_running');
+        toast.info(t('admin.irl.already_running'));
       } else fail(error);
     },
   });
@@ -77,10 +75,9 @@ export function IrlPage() {
   return (
     <AdminFrame title={title}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      {notice ? <p role="status">{t(NOTICE[notice])}</p> : null}
 
       <section className="space-y-3">
-        <SwitchField label={t('admin.irl.enabled')} checked={enabled} onCheckedChange={(irlEnabled) => { setNotice(null); save.mutate({ body: { irlEnabled } }); }} />
+        <SwitchField label={t('admin.irl.enabled')} checked={enabled} onCheckedChange={(irlEnabled) => { save.mutate({ body: { irlEnabled } }); }} />
         <p className="max-w-prose text-sm text-muted-foreground">{t('admin.irl.hint')}</p>
         <ConfirmAction label={t('admin.irl.sync')} confirmation={t('admin.irl.sync_confirm')} disabled={!enabled} pending={sync.isPending}
           onConfirm={() => sync.mutate({})} />
@@ -165,7 +162,6 @@ function ManualQuarter() {
   const [publishedOn, setPublishedOn] = useState('');
   const [errors, setErrors] = useState<{ year?: string; quarter?: string; value?: string; publishedOn?: string }>({});
   const [problem, setProblem] = useState<Presentation | null>(null);
-  const [saved, setSaved] = useState(false);
   const put = $api.useMutation('put', '/api/v1/realestate/irl/{year}/{quarter}');
 
   const submit = () => {
@@ -175,10 +171,9 @@ function ManualQuarter() {
     const next = { year: required(/^\d{4}$/.test(year.trim())), value: required(!!wire), publishedOn: required(!!publishedOn) };
     setErrors(next);
     setProblem(null);
-    setSaved(false);
     if (next.year || next.value || next.publishedOn) return;
     put.mutate({ params: { path: { year: Number(year), quarter: Number(quarter) } }, body: { value: wire, publishedOn } }, {
-      onSuccess: () => { setValue(''); setSaved(true); void queryClient.invalidateQueries({ queryKey: ['get', IRL] }); },
+      onSuccess: () => { setValue(''); toast.success(t('admin.irl.saved')); void queryClient.invalidateQueries({ queryKey: ['get', IRL] }); },
       onError: (error) => {
         const fields = fieldErrorsOf(error);
         const message = (path: string) => { const f = fields.find((x) => x.path === path); return f ? messageFor(t, f) : undefined; };
@@ -194,7 +189,6 @@ function ManualQuarter() {
       <p className="max-w-prose text-sm text-muted-foreground">{t('admin.irl.manual_hint')}</p>
       <form aria-label={t('admin.irl.manual_title')} noValidate className="max-w-md space-y-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         {problem ? <ProblemMessage problem={problem} /> : null}
-        {saved ? <p role="status">{t('admin.irl.saved')}</p> : null}
         <Field label={t('admin.irl.year')} error={errors.year}>
           {(c) => <Input {...c} inputMode="numeric" maxLength={4} value={year} onChange={(e) => setYear(e.target.value)} />}
         </Field>

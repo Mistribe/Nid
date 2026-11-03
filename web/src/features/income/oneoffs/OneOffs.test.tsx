@@ -6,6 +6,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { link, summary } from '../../documents/testData';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeSourceDetail } from '../api';
@@ -100,7 +101,7 @@ describe('one-off income', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Revenu exceptionnel ajouté.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Revenu exceptionnel ajouté.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { occurredOn: todayIso(), amount: { amount: '250.50', currency: 'EUR' }, note: 'Intéressement' } })]);
     expect(screen.getByRole('heading', { name: 'Revenus exceptionnels' })).toHaveFocus();
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('250,50 €'));
@@ -146,7 +147,7 @@ describe('one-off income', () => {
     await user.type(within(form).getByLabelText('Montant net'), '450');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Revenu exceptionnel corrigé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Revenu exceptionnel corrigé.'));
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('450,00 €'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { occurredOn: '2026-03-10', amount: { amount: '450', currency: 'EUR' }, note: 'Prime de projet' } });
     expect(sent[0]!.url).toContain('/one-offs/o1');
@@ -170,7 +171,7 @@ describe('one-off income', () => {
     expect(await screen.findByText('Ce revenu exceptionnel sera retiré.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Revenu exceptionnel supprimé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Revenu exceptionnel supprimé.'));
     expect(await within(await region()).findByText('Aucun revenu exceptionnel sur les 12 derniers mois.')).toBeInTheDocument();
   });
 
@@ -296,7 +297,7 @@ describe('one-off income', () => {
       await choose(user, 0, 'Corriger');
       await user.click(within(screen.getByRole('form', { name: 'Corriger le revenu exceptionnel' })).getByRole('button', { name: 'Enregistrer' }));
 
-      await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Revenu exceptionnel corrigé.'));
+      await waitFor(() => expect(toasts()).toHaveTextContent('Revenu exceptionnel corrigé.'));
       expect(await within((await rows())[0]!).findByRole('link', { name: 'Avis de prime' })).toBeInTheDocument();
     });
 

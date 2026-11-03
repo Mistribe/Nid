@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { Link2, Upload } from 'lucide-react';
 import { lazy, Suspense, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { LocalDate } from '@/components/LocalDate';
 import { RowMenu } from '@/components/page/RowMenu';
@@ -30,10 +31,9 @@ export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: strin
   const unlink = useUnlinkDocument();
   const [dialog, setDialog] = useState<'upload' | 'link' | null>(null);
   const [removing, setRemoving] = useState<Row | null>(null);
-  const [status, setStatus] = useState('');
   const uploadRef = useRef<HTMLButtonElement>(null);
   const linkRef = useRef<HTMLButtonElement>(null);
-  const done = (ref: typeof uploadRef) => (message: string) => { setDialog(null); setStatus(message); ref.current?.focus(); };
+  const done = (ref: typeof uploadRef) => (message: string) => { setDialog(null); toast.success(message); ref.current?.focus(); };
 
   // A document listed here may also be linked elsewhere (another item, its phase, the household): those links are not this tab's.
   const rows: Row[] = (answer.data?.items ?? []).flatMap((doc) => doc.links
@@ -46,12 +46,12 @@ export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: strin
     <RowMenu label={t('documents_item.menu', { title: row.doc.title })} items={[
       { label: t('documents_item.download'), href: contentUrl(row.doc.id) },
       { label: t('documents_item.open'), onSelect: () => void navigate({ to: '/documents/$id', params: { id: row.doc.id } }) },
-      ...(row.doc.canEdit && row.link.canWrite ? [{ label: t('documents_item.remove'), destructive: true, onSelect: () => { setStatus(''); setRemoving(row); } }] : []),
+      ...(row.doc.canEdit && row.link.canWrite ? [{ label: t('documents_item.remove'), destructive: true, onSelect: () => setRemoving(row) }] : []),
     ]} />
   );
   const remove = ({ doc, link }: Row) => unlink.mutate({ params: { path: { id: doc.id, targetKind: link.targetKind, targetId: link.targetId } } }, {
     // The row is gone: the focus goes back to the first action, when the actor has it.
-    onSuccess: () => { setStatus(t('documents_item.removed')); uploadRef.current?.focus(); },
+    onSuccess: () => { toast.success(t('documents_item.removed')); uploadRef.current?.focus(); },
   });
   const error = unlink.error ?? answer.error;
 
@@ -59,15 +59,14 @@ export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: strin
     <div className="space-y-3">
       {canWrite ? (
         <div className="flex flex-wrap justify-end gap-2">
-          <Button ref={uploadRef} type="button" variant="outline" onClick={() => { setStatus(''); setDialog('upload'); }}>
+          <Button ref={uploadRef} type="button" variant="outline" onClick={() => setDialog('upload')}>
             <Upload aria-hidden="true" />{t('documents_item.upload')}
           </Button>
-          <Button ref={linkRef} type="button" variant="outline" onClick={() => { setStatus(''); setDialog('link'); }}>
+          <Button ref={linkRef} type="button" variant="outline" onClick={() => setDialog('link')}>
             <Link2 aria-hidden="true" />{t('documents_item.link')}
           </Button>
         </div>
       ) : null}
-      <p role="status" aria-live="polite" className="text-sm">{status}</p>
       {error ? <ProblemMessage problem={present(toProblem(error))} /> : null}
       {!answer.data ? (answer.error ? null : <div role="status" aria-busy="true" aria-label={t('documents_page.loading')} className="h-24 shimmer rounded-md border bg-muted" />)
         : rows.length === 0 ? <p className="text-muted-foreground">{t('documents_item.empty')}</p>

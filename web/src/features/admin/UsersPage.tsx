@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
@@ -28,10 +29,6 @@ export function UsersPage() {
   const queryClient = useQueryClient();
   const { session } = useSession();
   const [adding, setAdding] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
-  const statusRef = useRef<HTMLParagraphElement>(null);
-  // The opener is disabled once the cap is reached: the page, not the trigger, takes the focus back.
-  useEffect(() => { if (announcement) statusRef.current?.focus(); }, [announcement]);
   const [problem, setProblem] = useState<Presentation | null>(null);
   const adults = $api.useQuery('get', USERS);
   const household = $api.useQuery('get', HOUSEHOLD);
@@ -87,12 +84,11 @@ export function UsersPage() {
   return (
     <AdminFrame title={title}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      {announcement ? <p ref={statusRef} role="status" tabIndex={-1} className="outline-none">{announcement}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={capReached} onClick={() => { setAnnouncement(''); setAdding(true); }}>{t('admin.users.add_title')}</Button>
+        <Button disabled={capReached} onClick={() => setAdding(true)}>{t('admin.users.add_title')}</Button>
         {capReached ? <p className="text-sm text-muted-foreground">{t('admin.users.cap_reached', { max: household.data.maxAdults })}</p> : null}
       </div>
-      {adding ? <AddAdultDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); setAnnouncement(message); }} /> : null}
+      {adding ? <AddAdultDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); toast.success(message); }} /> : null}
       <Table>
         <TableHeader>
           <TableRow>
@@ -110,7 +106,7 @@ export function UsersPage() {
   );
 }
 
-/** « Ajouter un adulte »: the pre-registration, in a dialog; the page owns the announcement. */
+/** « Ajouter un adulte »: the pre-registration, in a dialog; the page toasts the outcome. */
 function AddAdultDialog({ onClose, onDone }: { onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();

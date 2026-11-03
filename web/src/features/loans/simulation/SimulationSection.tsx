@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { DateField } from '@/components/form/DateField';
@@ -47,20 +48,18 @@ export function SimulationSection({ loan, onRecord, landing, onLanded }: {
   const errors = useSubmitErrors(form.setError, PATHS);
   const simulate = $api.useMutation('post', SIMULATIONS);
   const [result, setResult] = useState<{ view: LoanSimulation; asked: SimulationValues } | null>(null);
-  const [announcement, setAnnouncement] = useState('');
   // The header's « Simuler » lands here: the heading takes the focus, then the page forgets the request.
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (landing) { headingRef.current?.focus(); onLanded?.(); }
   }, [landing]); // eslint-disable-line react-hooks/exhaustive-deps -- only a new request lands; `onLanded` is recreated every render
   // A write refetches the loan: a result computed before it no longer holds.
-  const clear = () => { setResult(null); setAnnouncement(''); errors.clear(); };
+  const clear = () => { setResult(null); errors.clear(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new loan resets; `clear` is recreated every render
   useEffect(clear, [loan]);
 
   const submit = form.handleSubmit((values) => {
     errors.clear();
-    setAnnouncement('');
     simulate.mutate(
       {
         params: { path: { id: loan.id } },
@@ -68,7 +67,7 @@ export function SimulationSection({ loan, onRecord, landing, onLanded }: {
         body: { on: values.on, amount: toWireAmount(values.amount), ...(values.penalty.trim() ? { penalty: toWireAmount(values.penalty) } : {}) },
       },
       {
-        onSuccess: (view) => { setResult({ view, asked: values }); setAnnouncement(t('loan_simulation.announced')); },
+        onSuccess: (view) => { setResult({ view, asked: values }); toast.success(t('loan_simulation.announced')); },
         onError: (error) => errors.onError(error),
       },
     );
@@ -89,7 +88,7 @@ export function SimulationSection({ loan, onRecord, landing, onLanded }: {
   ];
 
   return (
-    <Section title={t('loan_simulation.title')} announcement={announcement} headingRef={headingRef}>
+    <Section title={t('loan_simulation.title')} headingRef={headingRef}>
       <p className="text-sm text-muted-foreground">{t('loan_simulation.help')}</p>
       {problem ? <ProblemMessage problem={problem} /> : null}
       <form noValidate onSubmit={(ev) => void submit(ev)} className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">

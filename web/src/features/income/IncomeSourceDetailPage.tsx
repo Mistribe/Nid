@@ -3,6 +3,7 @@ import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { IncomeDetailSearch, RootSearch } from '@/app/router';
@@ -44,7 +45,7 @@ const TABS = ['overview', 'history', 'oneoffs', 'documents', 'settings'] as cons
  * Income dashboard §4: a source's key figures under the title, its gap warnings, then the overview (evolution, last
  * payments and one-offs, the dated changes with each phase's menu), the history, the one-offs and the settings. The page
  * owns the phase and one-off dialogs, the header's « Changer le montant », « + Exceptionnel » and `⋯` (add a component,
- * end the source), and the status region (rendered from the first render).
+ * end the source), and the toasts of their outcomes.
  */
 export function IncomeSourceDetailPage() {
   const { t } = useTranslation();
@@ -62,28 +63,24 @@ export function IncomeSourceDetailPage() {
   const [editing, setEditing] = useState<{ id: string; mode: 'correct' | 'change'; returnTo: string } | null>(null);
   const [addingOneOff, setAddingOneOff] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
-  const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
-  // The page's live region: phases, one-offs, ending and reopening. Cleared the instant an action starts, filled by its outcome.
-  const [statusAnnouncement, setStatusAnnouncement] = useState('');
-
   // After a save the « Changements » heading takes the focus (the rows are about to change); without it on screen, the menu.
-  const announce = (message: string) => { setStatusAnnouncement(message); (headingRef.current ?? menuRef.current)?.focus(); };
-  const startAdd = (values: PhaseValues) => { setStatusAnnouncement(''); setEditing(null); setAddingOneOff(false); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
+  const announce = (message: string) => { toast.success(message); (headingRef.current ?? menuRef.current)?.focus(); };
+  const startAdd = (values: PhaseValues) => { setEditing(null); setAddingOneOff(false); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
   const closeAdd = (message?: string) => { setAdding(null); if (message) announce(message); else menuRef.current?.focus(); };
   const startEdit = (phaseId: string, mode: 'correct' | 'change', returnTo = `phase-menu-${phaseId}`) => {
-    setStatusAnnouncement(''); setAdding(null); setAddingOneOff(false); setEditing({ id: phaseId, mode, returnTo });
+    setAdding(null); setAddingOneOff(false); setEditing({ id: phaseId, mode, returnTo });
   };
   const closeEdit = (message?: string) => {
     const was = editing;
     setEditing(null);
     if (message) announce(message); else if (was) setFocusId(was.returnTo);
   };
-  const startOneOff = () => { setStatusAnnouncement(''); setAdding(null); setEditing(null); setAddingOneOff(true); };
-  // The dialog gives the focus back to the button that opened it; the outcome goes to the live region.
-  const closeOneOff = (message?: string) => { setAddingOneOff(false); if (message) setStatusAnnouncement(message); };
-  // Ending and reopening: the page owns the announcement (the banner comes and goes with the state) and where the focus
+  const startOneOff = () => { setAdding(null); setEditing(null); setAddingOneOff(true); };
+  // The dialog gives the focus back to the button that opened it; the outcome is a toast.
+  const closeOneOff = (message?: string) => { setAddingOneOff(false); if (message) toast.success(message); };
+  // Ending and reopening: the page owns the toast (the banner comes and goes with the state) and where the focus
   // lands once the refetch has swapped it — the banner after ending, « Changements » after reopening; never <body>.
   const [endOpen, setEndOpen] = useState(false);
   const [landOn, setLandOn] = useState<'banner' | 'phases' | null>(null);
@@ -93,7 +90,7 @@ export function IncomeSourceDetailPage() {
 
   const closeEnd = (message?: string) => {
     setEndOpen(false);
-    if (message) { setStatusAnnouncement(message); setLandOn('banner'); }
+    if (message) { toast.success(message); setLandOn('banner'); }
   };
   // Back to the `⋯` menu when the dialog closes without ending (Escape, « Annuler »).
   useEffect(() => {
@@ -117,10 +114,8 @@ export function IncomeSourceDetailPage() {
 
   const source = answer.data;
   const back = <Link to="/income" className="text-sm underline">{t('income_detail.back')}</Link>;
-  // Mounted from the first render, loading included, so the text written later is announced.
-  const status = <p role="status" aria-live="polite">{statusAnnouncement}</p>;
-  if (answer.error) return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
-  if (!source) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (answer.error) return <article className="space-y-6">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+  if (!source) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   // Every write affordance: the header actions, the row menus and the settings.
   const writable = source.canWrite && !source.ended;
@@ -133,13 +128,13 @@ export function IncomeSourceDetailPage() {
     <>
       <ChangeAmountAction phases={changeable} onChange={(phaseId) => startEdit(phaseId, 'change', CHANGE_AMOUNT_ID)} />
       <Button type="button" variant="outline" aria-label={t('income_detail.one_offs.add')} onClick={startOneOff}><Plus aria-hidden="true" />{t('income_detail.add_one_off')}</Button>
-      <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={source.visibility === 'shared'} label={t('income_detail.more_actions')} triggerRef={menuRef}
+      <SharingMenu item={id} onAnnounce={toast.success} shared={source.visibility === 'shared'} label={t('income_detail.more_actions')} triggerRef={menuRef}
         items={[
           { label: t('income_detail.add_component'), onSelect: () => startAdd(newPhase()) },
-          { label: t('income_detail.ending.open'), onSelect: () => { setStatusAnnouncement(''); setEndOpen(true); } },
+          { label: t('income_detail.ending.open'), onSelect: () => setEndOpen(true) },
         ]} />
     </>
-  ) : source.canWrite ? <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={source.visibility === 'shared'} /> : null;
+  ) : source.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={source.visibility === 'shared'} /> : null;
 
   return (
     <article className="space-y-6">
@@ -154,12 +149,10 @@ export function IncomeSourceDetailPage() {
         {overview.data ? <SourceFigures figures={overview.data.figures} />
           : overview.error ? null : <div aria-busy="true" aria-label={t('income_detail.figures_loading')} className="h-16 shimmer rounded-md bg-muted" />}
       </PageHeader>
-      {status}
       {source.canWrite ? null : <p>{t('income_detail.read_only')}</p>}
       {source.ended ? (
         <EndedBanner source={source} bannerRef={bannerRef}
-          onStart={() => setStatusAnnouncement('')}
-          onReopened={(message) => { setStatusAnnouncement(message); setLandOn('phases'); }} />
+          onReopened={(message) => { toast.success(message); setLandOn('phases'); }} />
       ) : null}
       {source.gapSoon.map((gap) => (
         <p key={gap.label} role="note" className="flex flex-wrap items-center gap-2">
@@ -212,8 +205,7 @@ export function IncomeSourceDetailPage() {
                     <ChangesTimeline changes={overview.data.changes} phases={source.phases}
                       actions={writable ? (p) => (
                         <PhaseRowActions source={source} phase={p} onEdit={() => startEdit(p.id, 'correct')}
-                          onChangeAmount={p.status === 'running' || p.status === 'upcoming' ? () => startEdit(p.id, 'change') : undefined}
-                          onDeleteStarted={() => setStatusAnnouncement('')} onDeleted={announce} />
+                          onChangeAmount={p.status === 'running' || p.status === 'upcoming' ? () => startEdit(p.id, 'change') : undefined} onDeleted={announce} />
                       ) : undefined} />
                   ) : null}
               </Section>
@@ -226,8 +218,8 @@ export function IncomeSourceDetailPage() {
         ...(writable ? [{
           id: 'settings' as const, label: t('income_detail.tab.settings'),
           content: (
-            <Section title={t('income_detail.settings.title')} announcement={settingsAnnouncement}>
-              <SettingsForm source={source} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+            <Section title={t('income_detail.settings.title')}>
+              <SettingsForm source={source} onDone={toast.success} />
             </Section>
           ),
         }] : []),

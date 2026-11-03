@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Nid", "version": "Version {{version}}", "api_version": "API : {{version}}", "api_version_unknown": "indisponible",
+  "app": { "name": "Nid", "version": "Version {{version}}", "api_version": "API : {{version}}", "api_version_unknown": "indisponible", "toasts": "Messages",
     "changelog": { "title": "Nouveautés", "loading": "Chargement…", "error": "Les nouveautés n'ont pas pu être chargées.", "empty": "Aucune nouveauté à afficher.", "close": "Fermer" }
   },
   "theme": { "sobre": "Sobre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },

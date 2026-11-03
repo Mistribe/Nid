@@ -17,11 +17,11 @@ export function EntriesTab({ goalId, entries, writable }: { goalId: string; entr
   const rows = [...entries].sort((a, b) => (a.on < b.on ? 1 : a.on > b.on ? -1 : 0)).map((e) => ({ ...e, id: e.on }));
   const row = useRowDialog(rows, 'entry-menu');
   const actions = (e: GoalEntry) => (
-    <EntryRowActions goalId={goalId} entry={e} onDeleteStarted={() => row.setAnnouncement('')} onDeleted={row.announce}
+    <EntryRowActions goalId={goalId} entry={e} onDeleted={row.announce}
       onReloaded={() => row.headingRef.current?.focus()} />
   );
   return (
-    <Section title={t('goals_detail.tab_entries')} headingRef={row.headingRef} announcement={row.announcement} srTitle>
+    <Section title={t('goals_detail.tab_entries')} headingRef={row.headingRef} srTitle>
       {writable ? <Button ref={row.addButtonRef} type="button" variant="outline" onClick={() => row.open()}>{t('goals_detail.entries.add')}</Button> : null}
       {writable && row.dialog ? <EntryDialog goalId={goalId} onClose={row.cancel} onDone={row.saved} /> : null}
       {rows.length === 0 ? <p className="text-muted-foreground">{t('goals_detail.entries.empty')}</p> : (

@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Fragment, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Presentation } from '@/api/errors';
 import { Segmented } from '@/components/form/Segmented';
@@ -42,31 +43,30 @@ function refusedLines(error: unknown): [number, Column[]][] {
 /**
  * 3F2 design §4: the bank's table on the loan's page. Without one, « Importer le tableau de la banque »; with one, its period,
  * its comparison with the calculation (the server's figures, in words), the reference, « Remplacer le tableau » and
- * « Supprimer le tableau ». The section owns its live region and where the focus lands, as the fees'.
+ * « Supprimer le tableau ». The section owns its toasts and where the focus lands, as the fees'.
  */
 export function BankScheduleSection({ loan }: { loan: LoanDetail }) {
   const { t } = useTranslation();
   const [pasting, setPasting] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
+  const announce = (message: string) => { toast.success(message); headingRef.current?.focus(); };
   const table = loan.bankSchedule;
 
   return (
-    <Section title={t('loan_bank.title')} headingRef={headingRef} announcement={announcement}>
+    <Section title={t('loan_bank.title')} headingRef={headingRef}>
       {table ? (
         <>
           <p>{t('loan_bank.period', { first: formatLocalDate(table.firstDueOn), last: formatLocalDate(table.lastDueOn), count: table.rows.length })}</p>
           {loan.comparison ? <Comparison currency={loan.currency} comparison={loan.comparison} /> : null}
-          <Reference loan={loan} onStart={() => setAnnouncement('')} onDone={announce} />
+          <Reference loan={loan} onDone={announce} />
         </>
       ) : <p>{t('loan_bank.none')}</p>}
       {loan.canWrite && !pasting ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => { setAnnouncement(''); setPasting(true); }}>
+          <Button type="button" variant="outline" onClick={() => setPasting(true)}>
             {t(table ? 'loan_bank.replace' : 'loan_bank.import')}
           </Button>
-          {table ? <DeleteTable loan={loan} onStart={() => setAnnouncement('')} onDone={announce} /> : null}
+          {table ? <DeleteTable loan={loan} onDone={announce} /> : null}
         </div>
       ) : null}
       {loan.canWrite && pasting ? (
@@ -95,7 +95,7 @@ export function Comparison({ currency, comparison: c }: { currency: string; comp
 }
 
 /** « Référence » — two labelled radios and a button, never colour alone; a reader reads it as a sentence. */
-function Reference({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () => void; onDone: (message: string) => void }) {
+function Reference({ loan, onDone }: { loan: LoanDetail; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -110,7 +110,6 @@ function Reference({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () =>
     <form aria-label={t('loan_bank.reference')} noValidate className="space-y-2"
       onSubmit={(ev) => {
         ev.preventDefault();
-        onStart();
         save.mutate({ params: { path: { id: loan.id } }, body: toWireBody({ scheduleSource: choice }) },
           { onSuccess: () => onDone(t(`loan_bank.reference_saved.${choice}`)) });
       }}>
@@ -129,7 +128,7 @@ function Reference({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () =>
 }
 
 /** « Supprimer le tableau », confirmed, with the loan's version as read; a stale version offers « Recharger ». */
-function DeleteTable({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () => void; onDone: (message: string) => void }) {
+function DeleteTable({ loan, onDone }: { loan: LoanDetail; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -140,7 +139,7 @@ function DeleteTable({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () 
   return (
     <span className="flex flex-wrap items-center gap-2">
       <ConfirmAction label={t('loan_bank.delete')} confirmation={t('loan_bank.delete_confirm')} pending={remove.isPending}
-        onConfirm={() => { onStart(); remove.mutate({ params: { path: { id: loan.id }, query: { version: loan.contract.version } } }); }} />
+        onConfirm={() => remove.mutate({ params: { path: { id: loan.id }, query: { version: loan.contract.version } } })} />
       {problem ? (
         <>
           <ProblemMessage problem={problem} />

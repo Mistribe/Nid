@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { detail, list, PEA, summary } from '../testData';
 
 type Patch = Record<string, unknown>;
@@ -54,7 +55,7 @@ describe('an envelope\'s settings', () => {
     await user.type(form.getByLabelText('Nom'), 'PEA Bourse');
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
 
-    expect(await screen.findByText('Réglages enregistrés.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
     expect(bodies).toEqual([{ ...CLEARS, displayName: 'PEA Bourse' }]);
     expect(await screen.findByRole('heading', { level: 1, name: 'PEA Bourse' })).toBeInTheDocument();
     expect(form.getByLabelText('Nom')).toHaveValue('PEA Bourse');
@@ -139,20 +140,19 @@ describe('an envelope\'s settings', () => {
     expect(bodies[1]).toEqual({ ...CLEARS, clearPremiumsBefore2017: true });
   });
 
-  it('sends nothing and says so when nothing changed, then clears that before the next save', async () => {
+  it('sends nothing and says so when nothing changed, then saves the next change', async () => {
     const bodies: Patch[] = [];
     serve(detail(), bodies);
     const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
-    expect(await screen.findByText('Rien à enregistrer.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Rien à enregistrer.'));
     expect(bodies).toEqual([]);
 
     await user.type(form.getByLabelText('Note'), 'Plafond atteint');
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
-    expect(await screen.findByText('Réglages enregistrés.')).toBeInTheDocument();
-    expect(screen.queryByText('Rien à enregistrer.')).not.toBeInTheDocument();
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
   });
 
   it.each(['0', '4000'])('refuses a stale threshold of %s before sending', async (days) => {

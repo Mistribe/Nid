@@ -4,12 +4,13 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { resetAnnouncement } from './announce';
+import { toasts } from '@/test/toasts';
+import { resetFocus } from './focus';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
 describe('Une proposition', () => {
-  beforeEach(resetAnnouncement);
+  beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); await import('./ProposalsPage'); });
 
   it('shows the comparison and approves it unchanged, then opens the next one', async () => {
@@ -28,22 +29,7 @@ describe('Une proposition', () => {
 
     await waitFor(() => expect(sent.approve).toEqual({ version: 1 }));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/proposals/${second.id}`));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Proposition approuvée.'));
-  });
-
-  it('says a decision once: the next proposal opened by hand shows no old announcement', async () => {
-    const [a, b, c] = [proposal(), proposal({ targetName: 'Assurance-vie' }), proposal({ targetName: 'Livret' })];
-    serve([a, b, c]);
-    const { user, router } = await renderApp(`/proposals/${a.id}`);
-
-    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/proposals/${b.id}`));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Proposition approuvée.'));
-
-    await user.click(screen.getByRole('link', { name: 'Proposition suivante' }));
-    await waitFor(() => expect(router.state.location.pathname).not.toBe(`/proposals/${b.id}`));
-    expect(await screen.findByRole('link', { name: 'Livret' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('status')).toBeEmptyDOMElement());
+    await waitFor(() => expect(toasts()).toHaveTextContent('Proposition approuvée.'));
   });
 
   it('refreshes every query after an approval, only the proposals after a rejection', async () => {
@@ -136,7 +122,7 @@ describe('Une proposition', () => {
     expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     await waitFor(() => expect(within(nav).getByRole('link', { name: /À valider/ })).not.toHaveAccessibleName(/en attente/));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Proposition rejetée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Proposition rejetée.'));
   });
 
   // Review Focus 4.

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
-import { resetAnnouncement } from './announce';
+import { resetFocus } from './focus';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
@@ -19,7 +19,7 @@ const linkPreview = {
 
 /** 5C §6.3 step 4: a bank line that pays one expected charge, linked once approved; never edited. */
 describe('Une opération bancaire à relier', () => {
-  beforeEach(resetAnnouncement);
+  beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); await import('./ProposalsPage'); });
 
   it('the link proposal shows the line, the charge and the gap', async () => {

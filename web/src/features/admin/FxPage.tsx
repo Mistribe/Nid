@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -20,10 +21,6 @@ const RUNS = '/api/v1/core/fx-rates/runs';
 
 const KIND = { daily: 'admin.fx.kind_daily', backfill: 'admin.fx.kind_backfill' } as const;
 const STATUS = { running: 'admin.fx.status_running', succeeded: 'admin.fx.status_succeeded', failed: 'admin.fx.status_failed' } as const;
-const NOTICE = {
-  sync_requested: 'admin.fx.sync_requested',
-  already_running: 'admin.fx.already_running',
-} as const;
 
 /** screens.md §12, Taux de change: manual entry, on-demand collection, and the collection journal. */
 export function FxPage() {
@@ -32,25 +29,22 @@ export function FxPage() {
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [entering, setEntering] = useState(false);
-  const [notice, setNotice] = useState<keyof typeof NOTICE | null>(null);
-  const [saved, setSaved] = useState('');
   const runs = $api.useQuery('get', RUNS);
 
   const fail = (error: unknown) => {
-    setNotice(null);
     setProblem(present(toProblem(error)));
   };
   const sync = $api.useMutation('post', '/api/v1/core/fx-rates/sync', {
     onSuccess: () => {
       setProblem(null);
-      setNotice('sync_requested');
+      toast.success(t('admin.fx.sync_requested'));
       void queryClient.invalidateQueries({ queryKey: ['get', RUNS] });
     },
     onError: (error) => {
       // Not a failure to explain: the collection the admin asked for is already under way.
       if (toProblem(error).code === 'core.fx_sync_running') {
         setProblem(null);
-        setNotice('already_running');
+        toast.info(t('admin.fx.already_running'));
       } else fail(error);
     },
   });
@@ -61,7 +55,6 @@ export function FxPage() {
   return (
     <AdminFrame title={t('admin.fx.title')}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      {notice ? <p role="status">{t(NOTICE[notice])}</p> : saved ? <p role="status">{saved}</p> : null}
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.sync_title')}</h2>
@@ -76,9 +69,9 @@ export function FxPage() {
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.manual_title')}</h2>
-        <Button variant="outline" onClick={() => { setNotice(null); setSaved(''); setEntering(true); }}>{t('admin.fx.manual_title')}</Button>
+        <Button variant="outline" onClick={() => { setEntering(true); }}>{t('admin.fx.manual_title')}</Button>
       </section>
-      {entering ? <ManualRateDialog onClose={() => setEntering(false)} onDone={(message) => { setEntering(false); setProblem(null); setNotice(null); setSaved(message); }} /> : null}
+      {entering ? <ManualRateDialog onClose={() => setEntering(false)} onDone={(message) => { setEntering(false); setProblem(null); toast.success(message); }} /> : null}
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.runs_title')}</h2>
@@ -116,7 +109,7 @@ export function FxPage() {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** « Saisir un taux »: one rate for one day, in a dialog; the page owns the announcement. */
+/** « Saisir un taux »: one rate for one day, in a dialog; the page toasts the outcome. */
 function ManualRateDialog({ onClose, onDone }: { onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();

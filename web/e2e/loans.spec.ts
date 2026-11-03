@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillDate } from './controls';
+import { fillDate, toasts } from './controls';
 import { aMonthAgo, plusMonths } from './dates';
 import { signIn } from './session';
 
@@ -75,7 +75,7 @@ test('alice simulates an early repayment, records it from the simulation, then c
   await expect(form.getByLabel('Montant')).toHaveValue('20000');
   await expect(form.getByRole('radio', { name: 'Réduire la mensualité' })).toBeChecked();
   await form.getByRole('button', { name: 'Ajouter' }).click();
-  await expect(repayments.getByRole('status')).toHaveText('Remboursement anticipé ajouté.');
+  await expect(toasts(alice)).toContainText('Remboursement anticipé ajouté.');
   await expect(repayments.getByRole('table', { name: 'Remboursements anticipés du crédit' })).toContainText('20 000,00 €');
   // Reducing the payment: the next one is no longer 1 159,92 €.
   // Wait for an amount first: a negated assertion also passes while the figure is absent.
@@ -130,11 +130,11 @@ test('alice pastes her bank’s table, reads the comparison and takes the bank a
   await expect(bank.getByText('Les deux concordent (écarts d’arrondi seulement).')).toBeVisible();
   await expect(bank.getByRole('table', { name: 'Lignes lues' }).getByRole('row')).toHaveCount(3);
   await bank.getByRole('button', { name: 'Enregistrer le tableau' }).click();
-  await expect(bank.getByRole('status')).toHaveText('Tableau de la banque enregistré.');
+  await expect(toasts(alice)).toContainText('Tableau de la banque enregistré.');
 
   await bank.getByRole('radio', { name: 'Tableau de la banque' }).check();
   await bank.getByRole('button', { name: 'Choisir cette référence' }).click();
-  await expect(bank.getByRole('status')).toHaveText('Le tableau de la banque est la référence.');
+  await expect(toasts(alice)).toContainText('Le tableau de la banque est la référence.');
   // The open year holds the next payment, one of the two the bank's table gives: its row says so.
   await expect(alice.getByRole('table', { name: 'Échéancier par année' }).getByText('Banque').first()).toBeVisible();
 });

@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { Field } from '@/components/form/Field';
@@ -60,7 +61,6 @@ function Lines({ lines, kind, withTarget }: { lines: AllocationLine[]; kind: 'cl
 export function AllocationSection({ d, kind }: { d: DashboardView; kind: 'class' | 'liquidity' }) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState('');
   const a = d.allocation;
   if (!a)
     return (
@@ -82,8 +82,7 @@ export function AllocationSection({ d, kind }: { d: DashboardView; kind: 'class'
           {t(withTarget ? 'dashboard.allocation.edit_target' : 'dashboard.allocation.set_target')}
         </Button>
       ) : null}
-      <p role="status" className="text-sm">{saved}</p>
-      {editing ? <TargetDialog allocation={a} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); setSaved(message); }} /> : null}
+      {editing ? <TargetDialog allocation={a} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); toast.success(message); }} /> : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { formatCurrency } from '@/components/Money';
@@ -29,16 +30,14 @@ export function ProjectionSettingsPage() {
   const persons = $api.useQuery('get', PERSONS);
   // Which dialog is open: the assumptions', or a person's id.
   const [editing, setEditing] = useState<string | null>(null);
-  const [saved, setSaved] = useState('');
   const adults = persons.data?.filter((p) => p.kind !== 'dependent') ?? [];
   const person = adults.find((p) => p.id === editing);
   const close = () => setEditing(null);
-  const done = (message: string) => { setEditing(null); setSaved(message); };
-  const open = (what: string) => { setSaved(''); setEditing(what); };
+  const done = (message: string) => { setEditing(null); toast.success(message); };
+  const open = (what: string) => setEditing(what);
 
   return (
     <SettingsFrame title={t('settings.projection.title')}>
-      <p role="status" aria-live="polite" className="text-sm">{saved}</p>
       <Section title={t('settings.projection.assumptions')}>
         {assumptions.data ? (
           <>

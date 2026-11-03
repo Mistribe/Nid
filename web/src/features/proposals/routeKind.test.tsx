@@ -4,13 +4,13 @@ import { HttpResponse, http } from 'msw/http';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { resetAnnouncement } from './announce';
+import { resetFocus } from './focus';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
 /** Spec 4D3: a proposal that replays a web write has one read-only screen. */
 describe('Une proposition d’action du web', () => {
-  beforeEach(resetAnnouncement);
+  beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); await import('./ProposalsPage'); });
 
   const creation = () => proposal({

@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { Info } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { Field, type FieldControl } from '@/components/form/Field';
@@ -294,7 +295,6 @@ function EnvelopeFees({ d }: { d: HouseholdHoldings }) {
 function Projection({ d }: { d: HouseholdHoldings }) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState('');
   const p = d.projection;
   const money = (v?: MoneyValue | null) => (v ? formatMoney(v) : t('investments.dash'));
   const percentText = (v: number) => t('investments.pct', { value: rate(v) });
@@ -348,8 +348,7 @@ function Projection({ d }: { d: HouseholdHoldings }) {
         </>
       ) : <p className="text-sm text-muted-foreground">{t('investments_holdings.projection_none', { year: d.costYear })}</p>}
       <p className="text-sm text-muted-foreground">{t('investments_holdings.projection_note', { pct: percentText(d.references.assumedReturnPct) })}</p>
-      <p role="status" className="text-sm">{saved}</p>
-      {editing ? <ReferencesDialog references={d.references} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); setSaved(message); }} /> : null}
+      {editing ? <ReferencesDialog references={d.references} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); toast.success(message); }} /> : null}
     </SectionCard>
   );
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillDate, pick } from './controls';
+import { fillDate, pick, toasts } from './controls';
 import { signIn } from './session';
 
 test('alice follows a private PEA and bob never sees it', async ({ browser }) => {
@@ -29,7 +29,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await fillDate(flow, 'Date', '2025-06-15');
   await flow.getByLabel('Montant').fill('2000');
   await flow.getByRole('button', { name: 'Ajouter le flux' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Flux ajouté.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Flux ajouté.');
 
   await alice.getByRole('button', { name: 'Saisir une valeur' }).click();
   const value = alice.getByRole('dialog', { name: 'Nouvelle valeur' });
@@ -60,7 +60,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await alice.getByRole('option', { name: livret }).click();
   await transfer.getByLabel('Montant').fill('500');
   await transfer.getByRole('button', { name: 'Virer', exact: true }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Virement enregistré.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Virement enregistré.');
 
   const period = alice.getByRole('region', { name: 'Performance d’une période' });
   await expect(period.getByRole('radio', { name: 'Depuis le début de l’année' })).toBeChecked();
@@ -75,7 +75,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await alice.getByRole('menuitem', { name: 'Clôturer l’enveloppe' }).click();
   const closing = alice.getByRole('dialog', { name: 'Clôturer l’enveloppe' });
   await closing.getByRole('button', { name: 'Clôturer', exact: true }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Enveloppe clôturée.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Enveloppe clôturée.');
 
   await alice.goto('/investments?tab=list');
   const list = alice.getByRole('table', { name: 'Liste des enveloppes' });
@@ -88,7 +88,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(closedRow).toContainText('Clôturée');
   await closedRow.getByRole('link', { name: livret }).click();
   await alice.getByRole('button', { name: 'Rouvrir' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Enveloppe rouverte.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Enveloppe rouverte.');
 
   const bob = await browser.newPage();
   await signIn(bob, 'bob', '/investments?tab=list');
@@ -117,7 +117,7 @@ test('a withdrawal classed as a dividend shows in the Income tab', async ({ brow
   await fillDate(flow, 'Date', new Date().toISOString().slice(0, 10));
   await flow.getByLabel('Montant').fill('120');
   await flow.getByRole('button', { name: 'Ajouter le flux' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Flux ajouté.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Flux ajouté.');
 
   await alice.goto('/investments?tab=income&scope=me');
   const row = alice.getByRole('table', { name: 'Ce qui a rapporté' }).getByRole('row').filter({ has: alice.getByRole('link', { name }) });

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { Field } from '@/components/form/Field';
@@ -58,12 +59,12 @@ export function SimulationForm({ estimate }: { estimate: TaxEstimate }) {
           })),
         },
       },
-      { onSuccess: setResult },
+      { onSuccess: (r) => { setResult(r); toast.success(t('tax.simulation.done')); } },
     );
   };
 
   return (
-    <Section title={t('tax.simulation.title')} announcement={result ? t('tax.simulation.done') : ''}>
+    <Section title={t('tax.simulation.title')}>
       <p className="text-sm text-muted-foreground">{t('tax.simulation.help')}</p>
       {simulate.error ? <ProblemMessage problem={present(toProblem(simulate.error))} /> : null}
       <form noValidate onSubmit={submit} className="space-y-6">

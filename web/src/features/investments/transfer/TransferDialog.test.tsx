@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { detail, eur, list, PEA, summary } from '../testData';
 
 const LIVRET = '0192f0aa-0000-7000-8000-00000000e002';
@@ -82,7 +83,7 @@ describe('TransferDialog', () => {
     expect(bodies).toEqual([expect.objectContaining({ from: PEA, to: LIVRET, amount: { amount: '500', currency: 'EUR' } })]);
     await waitFor(() => expect(open).toHaveFocus());
     // The announcement is the page's live region, and the source's refetch shows its withdrawal leg under « Flux ».
-    expect(screen.getByText('Virement enregistré.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Virement enregistré.'));
     await user.click(await screen.findByRole('tab', { name: 'Flux (3)' }));
     expect(await within(await screen.findByRole('table', { name: 'Flux de l’enveloppe' })).findByText('Virement')).toBeInTheDocument();
     await expectNoAxeViolations(container);

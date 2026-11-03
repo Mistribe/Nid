@@ -2,6 +2,7 @@ import { useParams } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
@@ -52,9 +53,8 @@ export function HoldingPage() {
   const breakdown = $api.useQuery('get', HOLDING_BREAKDOWN, path, { enabled: marketHolding !== undefined && hasBreakdown(marketHolding) && hasIsin, retry: false });
   const [tab, setTab] = useDetailTab(TABS);
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [announcement, setAnnouncement] = useState('');
-  const open = (next: Dialog) => { setAnnouncement(''); setDialog(next); };
-  const done = (message: string) => { setDialog(null); setAnnouncement(message); };
+  const open = (next: Dialog) => setDialog(next);
+  const done = (message: string) => { setDialog(null); toast.success(message); };
 
   const error = envelope.error ?? holdings.error;
   if (error) return <ProblemMessage problem={present(toProblem(error))} />;
@@ -105,7 +105,6 @@ export function HoldingPage() {
           <p className="text-sm text-muted-foreground">{t('holdings.figures_note')}</p>
         </section>
       </PageHeader>
-      <p role="status" aria-live="polite">{announcement}</p>
       {dialog?.kind === 'movement' ? <MovementDialog envelope={detail} holding={holding} onClose={() => setDialog(null)} onDone={done} /> : null}
       {dialog?.kind === 'edit' ? <HoldingDialog envelope={detail} editing={holding} pricesOn={pricesOn} onClose={() => setDialog(null)} onDone={done} /> : null}
       {dialog?.kind === 'breakdown' ? <BreakdownDialog envelope={detail} holding={holding} current={breakdown.data} onClose={() => setDialog(null)} onDone={done} /> : null}

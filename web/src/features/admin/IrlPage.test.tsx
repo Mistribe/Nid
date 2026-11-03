@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { formatInstant } from './format';
 
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2, pricesEnabled: false };
@@ -56,7 +57,7 @@ describe('Administration › IRL', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Mettre à jour maintenant' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mise à jour demandée'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Mise à jour demandée'));
     expect(calls).toBe(1);
   });
 
@@ -78,7 +79,7 @@ describe('Administration › IRL', () => {
     await user.type(form.getByLabelText('Date de parution (JO)'), '15/10/2026');
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
     await waitFor(() => expect(sent).toEqual([{ url: '/api/v1/realestate/irl/2026/3', body: { value: '149.10', publishedOn: '2026-10-15' } }]));
-    expect(form.getByRole('status')).toHaveTextContent('Enregistré');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Enregistré'));
 
     await user.type(form.getByLabelText('Valeur'), '149,10');
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));

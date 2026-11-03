@@ -3,6 +3,7 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { Pencil } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
@@ -71,7 +72,6 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
   const [tab, setTab] = useDetailTab(TABS);
   const [real, setReal] = useState(true);
   const [dialog, setDialog] = useState<ScenarioDialog | null>(null);
-  const [announcement, setAnnouncement] = useState('');
   const [refused, setRefused] = useState<Refused | null>(null);
   const [problem, setProblem] = useState<Presentation | null>(null);
   // A saved dialog hands the focus back to the button that opened it, never <body>.
@@ -88,7 +88,7 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
   const currency = result.base.currency;
   // The events last sent: shown while their save is pending, so a change made meanwhile builds on them (the list's actions wait too).
   const sent = useRef<{ events: ProjectionEvent[]; message: string }>({ events: [], message: '' });
-  const saveEvents = useSave(scenario, () => { setRefused(null); setProblem(null); setAnnouncement(sent.current.message); }, (error) => {
+  const saveEvents = useSave(scenario, () => { setRefused(null); setProblem(null); toast.success(sent.current.message); }, (error) => {
     const byEvent: Record<number, EventFieldError[]> = {};
     const fields = fieldErrorsOf(error);
     for (const f of fields) {
@@ -104,7 +104,6 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
     if (saveEvents.isPending) return;
     sent.current = { events: next, message: t(`scenarios.projection.events.${change}`) };
     setProblem(null);
-    setAnnouncement('');
     saveEvents.mutate({ params: { path: { id: scenario.id } }, body: bodyOf(scenario, { document: { ...result.document, events: next } }) });
   };
 
@@ -115,8 +114,8 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
     },
   });
 
-  const open = (which: ScenarioDialog) => { setAnnouncement(''); setDialog(which); };
-  const saved = (message: string) => { setReturnTo(dialog); setDialog(null); setAnnouncement(message); };
+  const open = (which: ScenarioDialog) => setDialog(which);
+  const saved = (message: string) => { setReturnTo(dialog); setDialog(null); toast.success(message); };
 
   const last = result.scenario.points.at(-1);
   // The last loan's end is the latest `loan_end` date the server gives (ISO dates compare as strings).
@@ -147,7 +146,6 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
       </PageHeader>
       {canWrite ? null : <p>{t('scenarios.projection.detail.read_only')}</p>}
       {remove.error ? <ProblemMessage problem={present(toProblem(remove.error))} /> : null}
-      <p role="status" aria-live="polite" className="sr-only">{announcement}</p>
 
       {canWrite && dialog ? (
         <Suspense fallback={null}>

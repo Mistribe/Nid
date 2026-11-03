@@ -6,6 +6,7 @@ import { pick } from '@/test/controls';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { Detail } from './api';
 import { detail, persons, SUB } from './testData';
 
@@ -166,7 +167,7 @@ describe('Abonnements › détail', () => {
     await user.type(within(price).getByLabelText('Nouveau montant'), '15,99');
     await user.click(within(price).getByRole('button', { name: 'Changer le prix' }));
     await waitFor(() => expect(prices).toEqual([{ startsOn: '2026-02-28', price: { amount: '15.99', currency: 'EUR' } }]));
-    await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Modification enregistr\u00e9e.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Modification enregistr\u00e9e.'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Ajouter un achat' }));

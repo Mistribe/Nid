@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
 import { formatCurrency } from '@/components/Money';
@@ -64,7 +65,6 @@ export function EventList({ events, errors, currency, scope, readOnly, busy, sil
   const kinds = EVENT_KINDS.filter((k) => modules.includes('realestate') || !ESTATE_KINDS.includes(k));
   const [editing, setEditing] = useState<Editing | null>(null);
   const [removing, setRemoving] = useState<Row | null>(null);
-  const [message, setMessage] = useState('');
   const addButton = useRef<HTMLButtonElement>(null);
   // A change hands the focus to « Ajouter un événement »; disabled while the page saves it, the button takes it back once saved.
   const refocus = useRef(false);
@@ -116,10 +116,10 @@ export function EventList({ events, errors, currency, scope, readOnly, busy, sil
   const menu = (r: Row) => (readOnly ? null : (
     <RowMenu label={t('scenarios.projection.events.row_menu', { name: menuName(r) })} items={[
       { label: t('scenarios.projection.events.edit'), onSelect: () => setEditing({ kind: r.kind, index: r.index }) },
-      { label: t('scenarios.projection.events.remove'), onSelect: () => { setMessage(''); setRemoving(r); }, destructive: true },
+      { label: t('scenarios.projection.events.remove'), onSelect: () => setRemoving(r), destructive: true },
     ]} />
   ));
-  const announce = (text: string) => setMessage(silent ? '' : text);
+  const announce = (text: string) => { if (!silent) toast.success(text); };
   const remove = (r: Row) => { setRemoving(null); onRemove(r.index); announce(t('scenarios.projection.events.removed')); toAdd(); };
   const done = (text: string) => { setEditing(null); announce(text); toAdd(); };
   const edited = editing?.index === undefined ? undefined : events[editing.index];
@@ -150,7 +150,6 @@ export function EventList({ events, errors, currency, scope, readOnly, busy, sil
           {kinds.map((k) => <DropdownMenuItem key={k} onSelect={() => setEditing({ kind: k })}>{t(`scenarios.projection.kind.${k}`)}</DropdownMenuItem>)}
         </DropdownMenuContent>
       </DropdownMenu>}
-      <p role="status" className="sr-only">{message}</p>
       {editing ? (
         <Suspense fallback={null}><EventDialog kind={editing.kind} event={edited} errors={editing.index === undefined ? undefined : errors?.[editing.index]} scope={scope}
           onClose={() => setEditing(null)} onDone={done}

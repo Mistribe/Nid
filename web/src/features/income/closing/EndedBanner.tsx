@@ -13,10 +13,10 @@ import '@/locales/income';
 
 /**
  * Spec §6: the note an ended source wears, with « Rouvrir » for whoever can write. The banner disappears once the
- * refetch shows the source open, so the page announces the success (`onReopened`) in a region that outlives it.
+ * refetch shows the source open, so the page announces the success (`onReopened`).
  */
-export function EndedBanner({ source, bannerRef, onStart, onReopened }: {
-  source: IncomeSourceDetail; bannerRef?: Ref<HTMLParagraphElement>; onStart: () => void; onReopened: (message: string) => void;
+export function EndedBanner({ source, bannerRef, onReopened }: {
+  source: IncomeSourceDetail; bannerRef?: Ref<HTMLParagraphElement>; onReopened: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -24,7 +24,6 @@ export function EndedBanner({ source, bannerRef, onStart, onReopened }: {
   const reopen = $api.useMutation('post', REOPEN_SOURCE, { onSuccess: () => { void invalidateIncome(queryClient); } });
 
   const submit = () => {
-    onStart();
     reopen.mutate({ params: { path: { id: source.id } } }, { onSuccess: () => onReopened(t('income_detail.ending.reopened')) });
   };
   const problem = reopen.error ? presentConflict(t, reopen.error) : null;

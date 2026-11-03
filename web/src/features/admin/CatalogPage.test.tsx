@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { formatInstant } from './format';
 
 type Run = components['schemas']['CatalogSyncRunView'];
@@ -180,7 +181,7 @@ describe('Administration › Catalogue', () => {
     await user.click(syncButton());
     expect(calls).toBe(0);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Synchronisation demandée'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Synchronisation demandée'));
     expect(csrf).toBe('csrf-alice');
     await waitFor(() => expect(syncButton()).toBeDisabled());
 
@@ -229,7 +230,7 @@ describe('Administration › Catalogue', () => {
     await user.click(syncButton());
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une synchronisation est déjà en cours'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Une synchronisation est déjà en cours'));
     expect(syncButton()).toBeEnabled();
   });
 

@@ -12,11 +12,10 @@ import '@/locales/investments';
 
 /**
  * 2B2b design: the note a closed envelope wears, with « Rouvrir » for whoever can write. The banner disappears once
- * the refetch shows the envelope open, so the success is announced by the page (`onReopened`), in a region that
- * outlives it; `onStart` lets the page empty that region first.
+ * the refetch shows the envelope open, so the page toasts the success (`onReopened`).
  */
-export function ClosedBanner({ envelope, bannerRef, onStart, onReopened }: {
-  envelope: EnvelopeDetail; bannerRef?: Ref<HTMLParagraphElement>; onStart: () => void; onReopened: (message: string) => void;
+export function ClosedBanner({ envelope, bannerRef, onReopened }: {
+  envelope: EnvelopeDetail; bannerRef?: Ref<HTMLParagraphElement>; onReopened: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -24,7 +23,6 @@ export function ClosedBanner({ envelope, bannerRef, onStart, onReopened }: {
   const reopen = $api.useMutation('post', REOPEN, { onSuccess: () => { void invalidateInvestments(queryClient); } });
 
   const submit = () => {
-    onStart();
     reopen.mutate({ params: { path: { id: envelope.id } } }, { onSuccess: () => onReopened(t('envelope.closing.reopened')) });
   };
   const problem = reopen.error ? presentConflict(t, reopen.error) : null;

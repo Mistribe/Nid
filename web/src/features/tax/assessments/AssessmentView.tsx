@@ -146,7 +146,7 @@ export function AssessmentView({ assessment: a, persons, actions = true }: { ass
         {actions ? (
           <RowActions menuId={`assessment-menu-${a.id}`} menuLabel={t('tax.assessment.menu', { year: a.year })}
             items={[{ label: t('tax.assessment.correct'), onSelect: () => void navigate({ to: '/tax/assessments/$id/edit', params: { id: a.id } }) }]}
-            confirmation={t('tax.assessment.delete_confirm', { year: a.year })} remove={remove} onDeleteStarted={() => undefined}
+            confirmation={t('tax.assessment.delete_confirm', { year: a.year })} remove={remove}
             present={(_t, error) => present(toProblem(error))} invalidate={invalidateAssessments}
             onConfirm={() => remove.mutate({ params: { path: { id: a.id } } })} />
         ) : null}

@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { EnvelopeDetail } from './api';
 import { todayIso } from '../subscriptions/today';
 import { serve as serveWritable, type Call } from './serveEnvelope';
@@ -152,7 +153,7 @@ describe('EnvelopeDetailPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(await screen.findByRole('tab', { name: 'Valeurs (3)' })).toBeInTheDocument();
     expect(calls).toEqual([{ method: 'POST', path: 'valuations', body: { asOf: todayIso(), amount: { amount: '25400.10', currency: 'EUR' } } }]);
-    expect(screen.getByText('Valeur enregistrée.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Valeur enregistrée.'));
     await expectNoAxeViolations(container);
   });
 

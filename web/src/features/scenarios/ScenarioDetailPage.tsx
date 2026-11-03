@@ -2,6 +2,7 @@ import { useParams } from '@tanstack/react-router';
 import { Pencil } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
@@ -37,7 +38,6 @@ export function ScenarioDetailPage() {
   const answer = $api.useQuery('get', SCENARIO, { params: { path: { id } } });
   const [tab, setTab] = useDetailTab(TABS);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [announcement, setAnnouncement] = useState('');
   // A saved dialog hands the focus back to the page: it returns to the button that opened it, never <body>.
   const [returnTo, setReturnTo] = useState<Editing | null>(null);
   const editRef = useRef<HTMLButtonElement>(null);
@@ -47,8 +47,8 @@ export function ScenarioDetailPage() {
     (returnTo === 'all' ? editRef : assumptionsRef).current?.focus();
     setReturnTo(null);
   }, [returnTo]);
-  const open = (which: Editing) => { setAnnouncement(''); setEditing(which); };
-  const saved = (message: string) => { setReturnTo(editing); setEditing(null); setAnnouncement(message); };
+  const open = (which: Editing) => setEditing(which);
+  const saved = (message: string) => { setReturnTo(editing); setEditing(null); toast.success(message); };
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data) return <div aria-busy="true" aria-label={t('scenarios.detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
@@ -76,7 +76,6 @@ export function ScenarioDetailPage() {
         </section>
       </PageHeader>
       {scenario.canWrite ? null : <p>{t('scenarios.detail.read_only')}</p>}
-      <p role="status" aria-live="polite">{announcement}</p>
 
       {scenario.canWrite && editing ? (
         <AssumptionsDialog scenario={scenario} onClose={() => setEditing(null)} onDone={saved}

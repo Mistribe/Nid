@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { PropertyDetail } from '../api';
 import { PROPERTY, propertyDetail } from '../testData';
 
@@ -45,7 +46,6 @@ function serve(initial: PropertyDetail = propertyDetail()) {
 }
 
 const settings = () => screen.getByRole('form', { name: 'Réglages' });
-const settingsRegion = () => screen.getByRole('region', { name: 'Réglages' });
 // Beside the tab list, outside the form it submits.
 const save = () => screen.getByRole('button', { name: 'Enregistrer les réglages' });
 const heading = (name = 'Maison de Nantes') => screen.findByRole('heading', { name, level: 1 });
@@ -69,7 +69,7 @@ describe('property settings', () => {
     await expectNoAxeViolations(container);
     await user.click(save());
 
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
     await waitFor(() => {
       expect(sent).toEqual([{ ...FLAGS, version: 7, purchasePrice: '255000', clearLocationLabel: true, note: 'toiture refaite' }]);
       expect(reads.detail).toBeGreaterThan(1);
@@ -100,7 +100,7 @@ describe('property settings', () => {
     await heading();
     await user.click(save());
 
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Aucune modification à enregistrer.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Aucune modification à enregistrer.'));
     expect(sent).toEqual([]);
   });
 
@@ -111,7 +111,7 @@ describe('property settings', () => {
     await heading();
     await user.type(within(settings()).getByLabelText('Note'), 'agrandie');
     await user.click(save());
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
     await user.clear(within(settings()).getByLabelText('Nom'));
     await user.type(within(settings()).getByLabelText('Nom'), 'Maison bleue');
     await user.click(save());
@@ -168,7 +168,7 @@ describe('property settings', () => {
     await expectNoAxeViolations(container);
     await user.click(save());
 
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
     await waitFor(() => expect(within(settings()).getByLabelText('Début de location')).toHaveValue('01/01/2021'));
     await user.clear(within(settings()).getByLabelText('Début de location'));
     await user.click(save());

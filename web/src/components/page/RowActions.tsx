@@ -14,13 +14,11 @@ const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
  * `remove`; a refusal reads through `present`, and a conflict or a row already gone offers « Recharger », which runs
  * `invalidate` then `onReloaded`.
  */
-export function RowActions({ menuId, menuLabel, items, confirmation, remove, onConfirm, onDeleteStarted, present, invalidate, onReloaded }: {
+export function RowActions({ menuId, menuLabel, items, confirmation, remove, onConfirm, present, invalidate, onReloaded }: {
   menuId: string; menuLabel: string; items: { label: string; onSelect: () => void }[]; confirmation: string;
   remove: { isPending: boolean; error: unknown; reset: () => void };
-  /** Sends the deletion; `onDeleteStarted` has already run. */
+  /** Sends the deletion. */
   onConfirm: () => void;
-  /** Runs the instant the deletion is confirmed, so the section's live region empties before its next message. */
-  onDeleteStarted: () => void;
   present: (t: TFunction, error: unknown) => Presentation;
   invalidate: (queryClient: QueryClient) => Promise<void>;
   onReloaded?: () => void;
@@ -35,7 +33,7 @@ export function RowActions({ menuId, menuLabel, items, confirmation, remove, onC
       {asking ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={t('common.delete')} confirmation={confirmation} pending={remove.isPending}
-            onClose={() => setAsking(false)} onConfirm={() => { setAsking(false); onDeleteStarted(); onConfirm(); }} />
+            onClose={() => setAsking(false)} onConfirm={() => { setAsking(false); onConfirm(); }} />
         </Suspense>
       ) : null}
       {problem ? (

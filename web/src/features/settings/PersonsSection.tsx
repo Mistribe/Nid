@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
@@ -17,7 +18,6 @@ export function PersonsSection() {
   const { $api } = useApi();
   const persons = $api.useQuery('get', PERSONS);
   const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState('');
   const heading = useId();
 
   return (
@@ -32,9 +32,8 @@ export function PersonsSection() {
           </li>
         ))}
       </ul>
-      <Button variant="outline" onClick={() => { setAdded(''); setAdding(true); }}>{t('settings.persons.add_child')}</Button>
-      {added ? <p role="status">{added}</p> : null}
-      {adding ? <AddChildDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); setAdded(message); }} /> : null}
+      <Button variant="outline" onClick={() => setAdding(true)}>{t('settings.persons.add_child')}</Button>
+      {adding ? <AddChildDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); toast.success(message); }} /> : null}
     </section>
   );
 }

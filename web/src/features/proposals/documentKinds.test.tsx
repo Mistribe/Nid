@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { resetAnnouncement } from './announce';
+import { resetFocus } from './focus';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
@@ -25,7 +25,7 @@ const invoicePreview = {
 const decided = <T extends { status: string }>(p: T) => ({ ...p, status: 'approved' as const, decidedAt: '2026-10-16T09:00:00+00:00', decidedByPersonId: 'a' });
 
 describe('Un bulletin de paie et une facture proposés', () => {
-  beforeEach(resetAnnouncement);
+  beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); });
 
   it('compares a payslip with the expected pay and approves it unchanged', async () => {

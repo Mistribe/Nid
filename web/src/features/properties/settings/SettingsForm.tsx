@@ -3,6 +3,7 @@ import { useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { DateField } from '@/components/form/DateField';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -33,12 +34,11 @@ export function SettingsSubmit() {
 }
 
 /**
- * 3D1 design §6: « Réglages », its live region and its focus. The form remounts on the stored property — its new values
+ * 3D1 design §6: « Réglages », its toast and its focus. The form remounts on the stored property — its new values
  * and version — after a save, « nothing to save » or « Recharger » (precision 8).
  */
 export function SettingsSection({ property }: { property: PropertyDetail }) {
   const { t } = useTranslation();
-  const [announcement, setAnnouncement] = useState('');
   const queryClient = useQueryClient();
   const [generation, setGeneration] = useState(0);
   // The form opens on this snapshot: re-taken from the cache when `done`, as the page's own copy renders a tick later.
@@ -47,12 +47,12 @@ export function SettingsSection({ property }: { property: PropertyDetail }) {
   const done = (message?: string) => {
     setOpened(queryClient.getQueryData<PropertyDetail>(['get', PROPERTY, { params: { path: { id: property.id } } }]) ?? property);
     setGeneration((g) => g + 1);
-    if (message) setAnnouncement(message);
+    if (message) toast.success(message);
     headingRef.current?.focus();
   };
   return (
-    <Section title={t('loan_detail.settings.title')} headingRef={headingRef} announcement={announcement}>
-      <SettingsForm key={generation} property={opened} onStart={() => setAnnouncement('')} onDone={done} />
+    <Section title={t('loan_detail.settings.title')} headingRef={headingRef}>
+      <SettingsForm key={generation} property={opened} onDone={done} />
     </Section>
   );
 }
@@ -61,7 +61,7 @@ export function SettingsSection({ property }: { property: PropertyDetail }) {
  * Only what changed, an emptied optional field with its `clear*` flag, and the version of the property the form opened
  * on: a refetch meanwhile must not turn the expected 409 into an overwrite (3B2 ruling).
  */
-function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail; onStart: () => void; onDone: (message?: string) => void }) {
+function SettingsForm({ property, onDone }: { property: PropertyDetail; onDone: (message?: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -71,7 +71,6 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
   const save = $api.useMutation('patch', PROPERTY);
 
   const submit = form.handleSubmit((values) => {
-    onStart();
     errors.clear();
     const body = toEditBody(opened, values);
     if (!body) { onDone(t('loan_detail.settings.nothing')); return; }
@@ -83,7 +82,7 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
         onError: (error) => errors.onError(error),
       },
     );
-  }, onStart); // an invalid submit clears the previous status too
+  });
 
   const e = form.formState.errors;
   // Every refusal reads in French: a conflict by its own sentence, a 422 no field owns by its code's.

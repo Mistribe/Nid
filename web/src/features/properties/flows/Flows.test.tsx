@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyDetail, PropertyFlow } from '../api';
 import { categoriesOf } from '../format';
@@ -162,7 +163,7 @@ describe('flows', () => {
     await expectNoAxeViolations(container);
     await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Ligne ajoutée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Ligne ajoutée.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { occurredOn: '2026-10-01', kind: 'income', category: 'rent', amount: '850' } })]);
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Dépenses et revenus' })).toHaveFocus());
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Dépenses et revenus du bien' })).getAllByRole('row')[1]).toHaveTextContent('Loyer'));
@@ -181,7 +182,7 @@ describe('flows', () => {
     await user.clear(form.getByLabelText('Note'));
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Ligne corrigée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Ligne corrigée.'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { occurredOn: '2024-03-10', kind: 'expense', category: 'works', amount: '12500' } });
     expect(sent[0]!.body).not.toHaveProperty('note');
     expect(sent[0]!.url).toContain('/flows/f1');
@@ -196,7 +197,7 @@ describe('flows', () => {
     expect(await screen.findByText('Cette ligne sera supprimée.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Ligne supprimée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Ligne supprimée.'));
     expect(sent[0]!.url).toContain('/flows/f2');
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Dépenses et revenus du bien' })).getAllByRole('row')).toHaveLength(2));
   });

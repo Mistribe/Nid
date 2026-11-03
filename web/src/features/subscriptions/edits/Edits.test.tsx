@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { Detail } from '../api';
 import { BOB, detail, persons, PURCHASE, SUB } from '../testData';
 
@@ -165,7 +166,7 @@ describe('Abonnements › modifications', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toEqual([PURCHASE]));
-    await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Achat supprimé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Achat supprimé.'));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Achats' })).toHaveFocus());
   });
 

@@ -35,7 +35,6 @@ export function ProfileForm({ estimate, draft }: { estimate: TaxEstimate; draft:
           <p>{t('tax.profile.from', { year: estimate.profileFrom })}</p>
         </div>
       ) : <p className="text-sm text-muted-foreground">{t('tax.profile.help')}</p>}
-      <p role="status" aria-live="polite">{draft.announcement}</p>
       {draft.problem ? <ProblemMessage problem={present(toProblem(draft.problem))} /> : null}
       <div className="flex flex-wrap items-start gap-10">
         <div className="flex-1 basis-48 lg:sticky lg:top-4 lg:max-w-56"><ProfileNav sections={sections} /></div>

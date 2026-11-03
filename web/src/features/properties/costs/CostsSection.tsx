@@ -16,14 +16,14 @@ import '@/locales/loans';
 
 /**
  * Spec 3D2 §4: « Charges prévues » in the server's order (by start), each with its monthly equivalent and next due date as
- * the server computed them; adding and correcting open a dialog, the section owns its live region and its focus.
+ * the server computed them; adding and correcting open a dialog, the section owns its toasts and its focus.
  */
 export function CostsSection({ property }: { property: PropertyDetail }) {
   const { t } = useTranslation();
   const writable = property.canWrite;
   const s = useRowDialog(property.recurringCosts, 'cost-menu');
   return (
-    <Section title={t('property_costs.title')} headingRef={s.headingRef} announcement={s.announcement}>
+    <Section title={t('property_costs.title')} headingRef={s.headingRef}>
       <p className="text-sm text-muted-foreground">{t('property_costs.intro')}</p>
       {writable ? <Button ref={s.addButtonRef} type="button" variant="outline" size="sm" onClick={() => s.open()}>{t('property_costs.add')}</Button> : null}
       {writable && s.dialog ? <CostDialog property={property} editing={s.dialog.editing} onClose={s.cancel} onDone={s.saved} /> : null}
@@ -57,7 +57,7 @@ export function CostsSection({ property }: { property: PropertyDetail }) {
               <TableCell className="whitespace-normal">{c.note}</TableCell>
               {writable ? (
                 <TableCell>
-                  <CostRowActions property={property} cost={c} onEdit={() => s.open(c)} onDeleteStarted={() => s.setAnnouncement('')}
+                  <CostRowActions property={property} cost={c} onEdit={() => s.open(c)}
                     onDeleted={s.announce} onReloaded={() => s.headingRef.current?.focus()} />
                 </TableCell>
               ) : null}
@@ -70,8 +70,8 @@ export function CostsSection({ property }: { property: PropertyDetail }) {
 }
 
 /** « Corriger » opens the dialog; « Supprimer » asks first and sends the version read. */
-function CostRowActions({ property, cost, onEdit, onDeleteStarted, onDeleted, onReloaded }: {
-  property: PropertyDetail; cost: PropertyRecurringCost; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+function CostRowActions({ property, cost, onEdit, onDeleted, onReloaded }: {
+  property: PropertyDetail; cost: PropertyRecurringCost; onEdit: () => void; onDeleted: (message: string) => void;
   onReloaded: () => void;
 }) {
   const { t } = useTranslation();
@@ -82,7 +82,7 @@ function CostRowActions({ property, cost, onEdit, onDeleteStarted, onDeleted, on
   });
   return (
     <RowActions menuId={`cost-menu-${cost.id}`} menuLabel={t('loan_detail.row_menu_what', { date: formatLocalDate(cost.startsOn), what: categoryText(t, cost.category) })}
-      items={[{ label: t('loan_detail.correct'), onSelect: onEdit }]} confirmation={t('property_costs.delete_confirm')} remove={remove} onDeleteStarted={onDeleteStarted} onReloaded={onReloaded}
+      items={[{ label: t('loan_detail.correct'), onSelect: onEdit }]} confirmation={t('property_costs.delete_confirm')} remove={remove} onReloaded={onReloaded}
       present={presentRefusal} invalidate={invalidateProperties}
       onConfirm={() => remove.mutate({ params: { path: { id: property.id, costId: cost.id }, query: { version: cost.version } } })} />
   );

@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { ConfirmAction } from '@/components/ConfirmAction';
@@ -18,11 +19,10 @@ export function TokensSection() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
   const tokens = $api.useQuery('get', TOKENS);
   const revoke = $api.useMutation('delete', TOKEN, {
     onSuccess: () => {
-      setAnnouncement(t('security.tokens.revoked'));
+      toast.success(t('security.tokens.revoked'));
       void queryClient.invalidateQueries({ queryKey: ['get', TOKENS] });
     },
   });
@@ -31,8 +31,7 @@ export function TokensSection() {
     <section className="space-y-3" aria-labelledby="tokens-title">
       <h2 id="tokens-title" className="text-xl font-semibold">{t('security.tokens.title')}</h2>
       <p>{t('security.tokens.intro')}</p>
-      <p role="status">{announcement}</p>
-      <Button onClick={() => { setAnnouncement(''); setCreating(true); }}>{t('security.tokens.create')}</Button>
+      <Button onClick={() => setCreating(true)}>{t('security.tokens.create')}</Button>
       {creating ? <NewTokenDialog onClose={() => setCreating(false)} /> : null}
       {tokens.error ? <ProblemMessage problem={present(toProblem(tokens.error))} /> : null}
       {revoke.error ? <ProblemMessage problem={present(toProblem(revoke.error))} /> : null}

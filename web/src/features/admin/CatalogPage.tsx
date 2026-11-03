@@ -1,6 +1,7 @@
 import { ChevronRightIcon, CircleCheck, CircleX, LoaderCircle } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
@@ -30,7 +31,6 @@ export const REQUEST_WAIT_MS = 30_000;
 
 const RUNS = '/api/v1/subscriptions/catalog/runs';
 
-const NOTICE = { sync_requested: 'admin.catalog.sync_requested', already_running: 'admin.catalog.already_running' } as const;
 
 /**
  * A sync is under way while the latest run is running, and, after a request was accepted, until a run other than
@@ -106,7 +106,6 @@ export function CatalogPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const [requestedAfter, setRequestedAfter] = useState<string | null | undefined>(undefined);
-  const [notice, setNotice] = useState<keyof typeof NOTICE | null>(null);
   const [problem, setProblem] = useState<Presentation | null>(null);
 
   const runs = $api.useQuery('get', RUNS, {}, {
@@ -132,7 +131,7 @@ export function CatalogPage() {
   const sync = $api.useMutation('post', '/api/v1/subscriptions/catalog/sync', {
     onSuccess: () => {
       setProblem(null);
-      setNotice('sync_requested');
+      toast.success(t('admin.catalog.sync_requested'));
       setRequestedAfter(latest?.id ?? null);
       void runs.refetch();
     },
@@ -141,9 +140,8 @@ export function CatalogPage() {
       // Not a failure to explain: the sync the admin asked for is already under way.
       if (failure.code === 'subscriptions.catalog_sync_running') {
         setProblem(null);
-        setNotice('already_running');
+        toast.info(t('admin.catalog.already_running'));
       } else {
-        setNotice(null);
         setProblem(present(failure));
       }
     },
@@ -152,7 +150,6 @@ export function CatalogPage() {
   return (
     <AdminFrame title={t('admin.catalog.title')}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      {notice ? <p role="status">{t(NOTICE[notice])}</p> : null}
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.catalog.sync_title')}</h2>

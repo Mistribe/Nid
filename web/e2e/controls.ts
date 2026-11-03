@@ -11,3 +11,8 @@ export async function fillDate(page: Page | Locator, label: string | RegExp, iso
   const [y, m, d] = iso.split('-');
   await page.getByLabel(label, { exact: true }).fill(`${d}/${m}/${y}`);
 }
+
+/** The live region of the shell's toasts: what an action announced (design-system.md §5). */
+export function toasts(page: Page): Locator {
+  return page.getByRole('region', { name: /^Messages/ });
+}

@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { LoanDetail } from '../api';
 import { LOAN, loanDetail, schedule } from '../testData';
 
@@ -81,7 +82,7 @@ describe('ContractPage', () => {
       version: 3, principal: '200000.00', totalPayments: 240, disbursedOn: '2025-10-14', firstPaymentDate: '2025-11-15',
       rounding: 'half_up', firstPeriod: 'full', phases: [{ seq: 1, mode: 'annuity', annualRate: '0.032', rateType: 'fixed' }], insurances: [],
     }]);
-    expect(await screen.findByText('Contrat enregistré.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Contrat enregistré.'));
   });
 
   it('opens any other contract on its phase list; a stored insurance keeps its start, an added one follows the first payment', async () => {

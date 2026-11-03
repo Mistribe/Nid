@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
-import { resetAnnouncement } from './announce';
+import { resetFocus } from './focus';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
@@ -19,7 +19,7 @@ const breakdownPreview = {
 const breakdown = () => proposal({ kind: 'investments.record_breakdown', payload, subjectKey: 'FR0000120271:2025-09-30' });
 
 describe('Une répartition proposée', () => {
-  beforeEach(resetAnnouncement);
+  beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); await import('./ProposalsPage'); });
 
   it('shows the proposed shares next to the current ones', async () => {

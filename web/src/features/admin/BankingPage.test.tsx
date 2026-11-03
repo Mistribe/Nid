@@ -6,6 +6,7 @@ import { pick } from '@/test/controls';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { formatInstant } from './format';
 
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2, pricesEnabled: false, irlEnabled: false };
@@ -51,7 +52,7 @@ describe('Administration › Banque', () => {
     await user.click(toggle);
 
     await waitFor(() => expect(sent).toEqual([{ bankingEnabled: true }]));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Enregistré'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Enregistré'));
   });
 
   it('saves the Enable Banking application id', async () => {

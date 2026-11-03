@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { detail, SALARY } from '../testData';
 
 function serve(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: SALARY })) {
@@ -15,7 +16,6 @@ function serve(bodies: unknown[], answer: () => Response = () => HttpResponse.js
 }
 
 const settings = () => screen.getByRole('form', { name: 'Réglages' });
-const settingsRegion = () => screen.getByRole('region', { name: 'Réglages' });
 
 describe('income settings', () => {
   beforeAll(async () => { await import('../IncomeSourceDetailPage'); }, 30_000);
@@ -31,7 +31,7 @@ describe('income settings', () => {
     await expectNoAxeViolations(container);
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
 
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
     expect(bodies).toEqual([{ kind: 'pension', clearPayerLabel: true, clearNote: false }]);
   });
 
@@ -43,7 +43,7 @@ describe('income settings', () => {
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
 
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Aucune modification à enregistrer.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Aucune modification à enregistrer.'));
     expect(bodies).toEqual([]);
   });
 
@@ -72,20 +72,5 @@ describe('income settings', () => {
 
     expect(await within(settings()).findByText('Ce champ est obligatoire.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
-  });
-
-  it('clears the previous « saved » status when a later save is refused client-side', async () => {
-    serve([]);
-    const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
-
-    await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
-    await pick(user, 'Type', 'Pension');
-    await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
-    await user.clear(within(settings()).getByLabelText('Nom'));
-    await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
-
-    expect(await within(settings()).findByText('Ce champ est obligatoire.')).toBeInTheDocument();
-    expect(within(settingsRegion()).getByRole('status')).toBeEmptyDOMElement();
   });
 });

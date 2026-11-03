@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { LoanDetail } from '../api';
 import { agreeing, bankRows, bankTable, LOAN, loanDetail, schedule, withTable } from '../testData';
 
@@ -80,7 +81,7 @@ describe('the bank’s table', () => {
     await expectNoAxeViolations(container);
     await user.click(within(pasteForm()).getByRole('button', { name: 'Enregistrer le tableau' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Tableau de la banque enregistré.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Tableau de la banque enregistré.'));
     expect(sent[1]).toMatchObject({ method: 'PUT', body: { text: TEXT, version: 3 } });
     expect(await within(await region()).findByText('Du 15 novembre 2025 au 15 janvier 2026 (3 échéances)')).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Tableau de la banque à comparer' })).not.toBeInTheDocument();
@@ -145,7 +146,7 @@ describe('the bank’s table', () => {
     await user.click(within(reference).getByRole('radio', { name: 'Tableau de la banque' }));
     await user.click(within(reference).getByRole('button', { name: 'Choisir cette référence' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Le tableau de la banque est la référence.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Le tableau de la banque est la référence.'));
     expect(sent).toEqual([expect.objectContaining({
       method: 'PATCH', body: { clearLender: false, clearNote: false, clearProperty: false, scheduleSource: 'bank' },
     })]);
@@ -180,7 +181,7 @@ describe('the bank’s table', () => {
     await user.click(await within(await region()).findByRole('button', { name: 'Supprimer le tableau' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Tableau de la banque supprimé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Tableau de la banque supprimé.'));
     expect(await within(await region()).findByText('Aucun tableau de la banque enregistré.')).toBeInTheDocument();
     expect(sent.filter((s) => s.method === 'DELETE').map((s) => new URL(s.url).searchParams.get('version'))).toEqual(['3', '3']);
     await expectNoAxeViolations(container);

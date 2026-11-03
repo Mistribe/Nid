@@ -10,7 +10,6 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { formatInstantDay } from '@/features/admin/format';
 import { ToLinkLink } from '../operations/ToLinkLink';
 import { PROPOSALS, type ProposalView } from './api';
-import { useAnnouncement } from './announce';
 import { kindOf, originText } from './kinds';
 import { isRouteKind, routeSummary, useNames } from './routeKind';
 import '@/locales/forms';
@@ -25,7 +24,6 @@ export function ProposalsPage() {
   const navigate = useNavigate();
   const status = search.status ?? 'pending';
   const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
-  const message = useAnnouncement();
   const names = useNames(answer.data?.items.map((p) => p.kind) ?? []);
   const setStatus = (s: string) =>
     void navigate({ to: '/proposals', search: (prev) => ({ ...prev, status: s === 'approved' || s === 'rejected' ? s : undefined }), replace: true, resetScroll: false });
@@ -62,7 +60,6 @@ export function ProposalsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title={t('proposals.title')} actions={<ToLinkLink />} />
-      <p role="status">{message}</p>
       {/* The status as tabs, like every list's (one list, read for the open tab's status). */}
       <DetailTabs value={status} onChange={setStatus}
         tabs={STATUSES.map((s) => ({ id: s, label: t(`proposals.tab.${s}`), content: list }))} />

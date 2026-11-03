@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { aMonthAgo, plusMonths } from './dates';
-import { fillDate, pick } from './controls';
+import { fillDate, pick, toasts } from './controls';
 import { proposeToken, signIn } from './session';
 
 // 4C2: a token proposes a value; alice sees the badge, approves it, and the envelope shows it.
@@ -29,7 +29,7 @@ test('alice approves a value an assistant proposed', async ({ page, playwright }
   await page.getByRole('table', { name: 'Liste des propositions' }).getByRole('row').filter({ hasText: 'Relevé E2E' }).getByRole('link', { name: new RegExp(name) }).click();
   await expect(page.getByRole('row', { name: /Valeur proposée/ })).toContainText('12 345,67');
   await page.getByRole('button', { name: 'Approuver' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Proposition approuvée.' })).toBeVisible();
+  await expect(toasts(page)).toContainText('Proposition approuvée.');
 
   await page.goto(`/investments/${envelope}`);
   await expect(page.getByText('12 345,67', { exact: false }).first()).toBeVisible();
@@ -70,7 +70,7 @@ test('alice approves a statement an assistant proposed, leaving one movement out
   await expect(page.getByRole('table', { name: 'Mouvements du relevé' })).toContainText('Doublon E2E');
   await page.getByRole('checkbox', { name: /Mouvement 2/ }).uncheck();
   await page.getByRole('button', { name: 'Approuver' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Proposition approuvée.' })).toBeVisible();
+  await expect(toasts(page)).toContainText('Proposition approuvée.');
 
   await page.goto(`/investments/${envelope}`);
   await expect(page.getByText('12 345,67', { exact: false }).first()).toBeVisible();
@@ -118,7 +118,7 @@ test('alice approves the bank’s table an assistant proposed, as the loan’s r
   await expect(page.getByText('Les deux concordent (écarts d’arrondi seulement).')).toBeVisible();
   await expect(page.getByRole('checkbox', { name: 'Faire de ce tableau la référence' })).toBeChecked();
   await page.getByRole('button', { name: 'Approuver' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Proposition approuvée.' })).toBeVisible();
+  await expect(toasts(page)).toContainText('Proposition approuvée.');
 
   await page.goto(`/loans/${loan}?tab=schedule`);
   await expect(page.getByRole('table', { name: 'Échéancier par année' }).getByText('Banque').first()).toBeVisible();

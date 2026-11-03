@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillDate } from './controls';
+import { fillDate, toasts } from './controls';
 import { signIn } from './session';
 
 test('alice keeps a private salary up to date and bob never sees it', async ({ browser }) => {
@@ -38,8 +38,8 @@ test('alice keeps a private salary up to date and bob never sees it', async ({ b
   const correction = alice.getByRole('form', { name: 'Corriger la période' });
   await correction.getByLabel('Montant net').fill('1900');
   await correction.getByRole('button', { name: 'Enregistrer' }).click();
-  const status = alice.getByRole('status').filter({ hasText: /\S/ });
-  await expect(status).toHaveText('Période corrigée.');
+  const status = toasts(alice);
+  await expect(status).toContainText('Période corrigée.');
   await expect(timeline).toContainText('1 900,00 €');
 
   await alice.getByRole('button', { name: 'Autres actions' }).click();
@@ -51,7 +51,7 @@ test('alice keeps a private salary up to date and bob never sees it', async ({ b
   await alice.getByRole('option', { name: 'Chaque année' }).click();
   await fillDate(added, 'Début', '2026-07-01');
   await added.getByRole('button', { name: 'Ajouter la période' }).click();
-  await expect(status).toHaveText('Période ajoutée.');
+  await expect(status).toContainText('Période ajoutée.');
   await expect(timeline).toContainText('Prime de vacances');
 
   const bob = await browser.newPage();
@@ -85,7 +85,7 @@ test('alice changes an amount, records a one-off, ends a source and reopens it',
   await alice.getByRole('option').first().click();
   await change.getByLabel('Montant net').fill('2500');
   await change.getByRole('button', { name: 'Enregistrer le changement' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: /\S/ })).toHaveText('Montant changé.');
+  await expect(toasts(alice)).toContainText('Montant changé.');
   await expect(timeline).toContainText('2 500,00 €');
 
   await alice.getByRole('tab', { name: 'Exceptionnels' }).click();
@@ -94,7 +94,7 @@ test('alice changes an amount, records a one-off, ends a source and reopens it',
   const oneOff = alice.getByRole('form', { name: 'Nouveau revenu exceptionnel' });
   await oneOff.getByLabel('Montant').fill('400');
   await oneOff.getByRole('button', { name: 'Ajouter', exact: true }).click();
-  await expect(alice.getByRole('region', { name: 'Revenus exceptionnels' }).getByRole('status')).toHaveText('Revenu exceptionnel ajouté.');
+  await expect(toasts(alice)).toContainText('Revenu exceptionnel ajouté.');
   // The history lists the newest month first: this one.
   await alice.getByRole('tab', { name: 'Historique' }).click();
   const thisMonth = alice.getByRole('table', { name: 'Versements, mois par mois' }).getByRole('rowgroup').nth(1);

@@ -41,9 +41,9 @@ function applied(before: LoanDetail, values: SettingsValues): LoanDetail {
 
 /**
  * 3B1 design §7: name, lender and note, sending only what changed (borrowers, visibility and currency are not edited).
- * The page owns the status region: `onStart` clears it, `onDone` fills it.
+ * `onDone` gets the confirmation, which the page shows as a toast.
  */
-export function SettingsForm({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () => void; onDone: (message: string) => void }) {
+export function SettingsForm({ loan, onDone }: { loan: LoanDetail; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -60,7 +60,6 @@ export function SettingsForm({ loan, onStart, onDone }: { loan: LoanDetail; onSt
   });
 
   const submit = form.handleSubmit((values) => {
-    onStart();
     errors.clear();
     const body = toEditBody(baseline.current, values);
     if (!body) { onDone(t('loan_detail.settings.nothing')); return; }
@@ -75,7 +74,7 @@ export function SettingsForm({ loan, onStart, onDone }: { loan: LoanDetail; onSt
         onError: (error) => errors.onError(error),
       },
     );
-  }, onStart); // an invalid submit clears the previous status too
+  });
 
   const e = form.formState.errors;
   // Every refusal reads in French: a conflict by its own sentence, a 422 no field owns by its code's.

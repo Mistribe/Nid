@@ -41,9 +41,9 @@ function applied(before: IncomeSourceDetail, values: SettingsValues): IncomeSour
 
 /**
  * 2C2a design §7: name, kind, payer label and note, sending only what changed (currency, owners and visibility are not
- * edited). The page owns the status region: `onStart` clears it, `onDone` fills it.
+ * edited). `onDone` gets the confirmation, which the page shows as a toast.
  */
-export function SettingsForm({ source, onStart, onDone }: { source: IncomeSourceDetail; onStart: () => void; onDone: (message: string) => void }) {
+export function SettingsForm({ source, onDone }: { source: IncomeSourceDetail; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -58,7 +58,6 @@ export function SettingsForm({ source, onStart, onDone }: { source: IncomeSource
   const save = $api.useMutation('patch', SOURCE, { onSuccess: () => invalidateIncome(queryClient) });
 
   const submit = form.handleSubmit((values) => {
-    onStart();
     errors.clear();
     const body = toEditBody(baseline.current, values);
     if (!body) { onDone(t('income_detail.settings.nothing')); return; }
@@ -73,7 +72,7 @@ export function SettingsForm({ source, onStart, onDone }: { source: IncomeSource
         onError: (error) => errors.onError(error),
       },
     );
-  }, onStart); // an invalid submit clears the previous status too
+  });
 
   const e = form.formState.errors;
   // Every refusal reads in French: a conflict by its own sentence, a 422 no field owns by its code's.

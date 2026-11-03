@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { pick } from './controls';
+import { pick, toasts } from './controls';
 import { signIn } from './session';
 
 const pdf = (name: string) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n') });
@@ -46,7 +46,7 @@ test('alice files a document under a shared item and bob sees it; a private link
   await link(alice, shared, 'Facture');
   await expect(alice.getByText(/pourra lire ce document/)).toContainText('Bob');
   await alice.getByRole('button', { name: 'Ajouter quand même' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: /\S/ })).toHaveText('Lien ajouté.');
+  await expect(toasts(alice)).toContainText('Lien ajouté.');
   await expect(alice.getByRole('list', { name: 'Liens du document' })).toContainText(shared);
 
   await alice.goto('/documents');
@@ -54,7 +54,7 @@ test('alice files a document under a shared item and bob sees it; a private link
 
   await uploadAndOpen(alice, second);
   await link(alice, secret, 'Bulletin de paie');
-  await expect(alice.getByRole('status').filter({ hasText: /\S/ })).toHaveText('Lien ajouté.');
+  await expect(toasts(alice)).toContainText('Lien ajouté.');
 
   const bob = await browser.newPage();
   await signIn(bob, 'bob', '/documents');
@@ -85,7 +85,7 @@ test('alice files two uploaded documents at once from « À classer »', async (
   await pick(dialog, 'Rôle', 'Facture');
   await dialog.getByRole('button', { name: 'Classer', exact: true }).click();
 
-  await expect(page.getByRole('status').filter({ hasText: /\S/ })).toHaveText('2 documents classés.');
+  await expect(toasts(page)).toContainText('2 documents classés.');
   await expect(table.getByRole('link', { name: first })).toHaveCount(0);
   await expect(table.getByRole('link', { name: second })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Tous' }).click();

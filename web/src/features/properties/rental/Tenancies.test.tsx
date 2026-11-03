@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyDetail, PropertyTenancy } from '../api';
 import { PROPERTY, propertyDetail, rentedFigures, tenancy } from '../testData';
@@ -139,7 +140,7 @@ describe('tenancies', () => {
     await expectNoAxeViolations(container);
     await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Bail ajouté.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Bail ajouté.'));
     await waitFor(() => {
       expect(sent).toEqual([expect.objectContaining({
         method: 'POST', body: { label: 'T2 meublé', startsOn: '2021-01-01', rentMonthly: '900.5', chargesMonthly: '0', indexed: false },
@@ -162,7 +163,7 @@ describe('tenancies', () => {
     await user.clear(form.getByLabelText('Dépôt de garantie'));
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Bail corrigé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Bail corrigé.'));
     await waitFor(() => {
       expect(sent[0]).toMatchObject({ method: 'PUT' });
       expect(sent[0]!.url).toContain('/tenancies/t2');
@@ -295,7 +296,7 @@ describe('tenancies', () => {
     expect(await screen.findByText('Ce bail sera supprimé.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Bail supprimé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Bail supprimé.'));
     await waitFor(async () => {
       expect(sent[0]!.url).toContain('/tenancies/t2?version=3');
       expect(await rows()).toHaveLength(1);

@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -18,16 +19,14 @@ export function HouseholdPage() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
-  const [saved, setSaved] = useState(false);
   const household = $api.useQuery('get', HOUSEHOLD);
   const save = $api.useMutation('patch', HOUSEHOLD, {
     onSuccess: () => {
       setProblem(null);
-      setSaved(true);
+      toast.success(t('admin.household.saved'));
       void queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD] });
     },
     onError: (error) => {
-      setSaved(false);
       setProblem(present(toProblem(error)));
     },
   });
@@ -46,14 +45,12 @@ export function HouseholdPage() {
     if (maxAdults !== current.maxAdults) body.maxAdults = maxAdults;
     if (referenceCurrency !== current.referenceCurrency) body.referenceCurrency = referenceCurrency;
     if (Object.keys(body).length === 0) return;
-    setSaved(false);
     save.mutate({ body });
   };
 
   return (
     <AdminFrame title={title}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      {saved ? <p role="status">{t('admin.household.saved')}</p> : null}
       <form onSubmit={submit} className="max-w-md space-y-4">
         <Field label={t('admin.household.max_adults')} hint={t('admin.household.max_adults_hint', { count: current.adultCount })}>
           {(c) => <Input {...c} name="maxAdults" type="number" required step={1} min={Math.max(1, current.adultCount)} defaultValue={current.maxAdults} />}

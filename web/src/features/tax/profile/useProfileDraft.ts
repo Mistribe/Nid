@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { DASHBOARD } from '../../dashboard/api';
 import { invalidateGoals } from '../../goals/api';
@@ -13,7 +14,7 @@ export type Draft = {
   value: ProfileDraft; /** The profile as last saved, the count's baseline. */ saved: ProfileDraft;
   set: (next: Partial<ProfileDraft>) => void; errors: DraftErrors; changes: number;
   /** Sends the draft; `false` when a field holds an error, and nothing is sent. */ submit: () => boolean;
-  pending: boolean; problem: unknown; announcement: string;
+  pending: boolean; problem: unknown;
 };
 
 type Held = { key: string; initial: ProfileDraft; value: ProfileDraft };
@@ -31,7 +32,6 @@ export function useProfileDraft(estimate: TaxEstimate | undefined, scope: 'me' |
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const save = $api.useMutation('put', TAX_PROFILE);
-  const [announcement, setAnnouncement] = useState('');
   const key = estimate ? `${estimate.year}-${scope}` : '';
   const [held, setHeld] = useState<Held | null>(() => (estimate ? fresh(estimate, key) : null));
   let current = held;
@@ -39,7 +39,6 @@ export function useProfileDraft(estimate: TaxEstimate | undefined, scope: 'me' |
   if (estimate && held?.key !== key) {
     current = fresh(estimate, key);
     setHeld(current);
-    if (announcement) setAnnouncement('');
   }
   // Another year or scope drops the previous one's refused save; a save still in flight no longer speaks for this one.
   const keyRef = useRef(key);
@@ -53,25 +52,24 @@ export function useProfileDraft(estimate: TaxEstimate | undefined, scope: 'me' |
   const value = current.value;
   const errors = draftErrors(value);
   const submit = () => {
-    setAnnouncement('');
     if (Object.keys(errors).length) return false;
     save.mutate({ params: { path: { year: estimate.year }, query: { scope } }, body: profileBody(value) }, {
       onSuccess: () => {
         // Every read the profile feeds: the estimate, the 2044 (regime, carried deficit), the dashboard's and the goals' tax commitment.
         for (const path of [TAX, TAX_2044, DASHBOARD]) void queryClient.invalidateQueries({ queryKey: ['get', path] });
         void invalidateGoals(queryClient);
-        // Saved for a year or scope no longer shown: its reads are stale, but this draft and its announcement are another's.
+        // Saved for a year or scope no longer shown: its reads are stale, but this draft and its toast are another's.
         if (keyRef.current !== key) return;
         // What was sent is the saved profile now: nothing left unsaved.
         setHeld((h) => (h && h.key === key ? { ...h, initial: value } : h));
-        setAnnouncement(t('tax.profile.saved'));
+        toast.success(t('tax.profile.saved'));
       },
     });
     return true;
   };
   return {
     key, value, saved: current.initial, errors, changes: countChanges(value, current.initial), submit,
-    pending: save.isPending, problem: save.error, announcement,
+    pending: save.isPending, problem: save.error,
     set: (next) => setHeld((h) => (h ? { ...h, value: { ...h.value, ...next } } : h)),
   };
 }

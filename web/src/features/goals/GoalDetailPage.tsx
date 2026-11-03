@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import type { RootSearch } from '@/app/router';
 import { AccessBadge } from '@/components/AccessBadge';
@@ -40,7 +41,6 @@ export function GoalDetailPage() {
   const { scope }: RootSearch = useSearch({ strict: false });
   const answer = useGoal(id, scope === 'me' ? 'me' : 'household');
   const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState('');
   const close = useCloseGoal();
   const reopen = useReopenGoal();
   const crumbs = [{ label: t('goals_list.title'), to: '/goals' as const }];
@@ -52,11 +52,11 @@ export function GoalDetailPage() {
   const pending = close.isPending || reopen.isPending;
   const error = close.error ?? reopen.error;
   const params = { params: { path: { id } } };
-  const sharing = <SharingMenu item={id} onAnnounce={setSaved} shared={goal.visibility === 'shared'} />;
+  const sharing = <SharingMenu item={id} onAnnounce={toast.success} shared={goal.visibility === 'shared'} />;
   const actions = !goal.canWrite ? null : goal.closed
     ? <><Button type="button" variant="outline" disabled={pending} onClick={() => reopen.mutate(params)}>{t('goals_list.reopen')}</Button>{sharing}</>
     : <>
-      <Button type="button" variant="outline" onClick={() => { setSaved(''); setEditing(true); }}>{t('goals_form.edit')}</Button>
+      <Button type="button" variant="outline" onClick={() => setEditing(true)}>{t('goals_form.edit')}</Button>
       <ConfirmAction label={t('goals_list.close')} confirmation={t('goals_list.close_confirmation', { name: goal.name })} pending={pending} onConfirm={() => close.mutate(params)} />
       {sharing}
     </>;
@@ -87,10 +87,8 @@ export function GoalDetailPage() {
           ]} />
         </section>
       </PageHeader>
-      {/* Mounted from the first render, as `Section`'s live region, so the text written later is announced. */}
-      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{saved}</p>
       {goal.canWrite ? null : <p>{t('goals_list.read_only')}</p>}
-      {editing ? <EditGoalDialog goalId={id} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); setSaved(message); }} /> : null}
+      {editing ? <EditGoalDialog goalId={id} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); toast.success(message); }} /> : null}
       {error ? <ProblemMessage problem={presentGoalConflict(t, error)} /> : null}
       <ul className="space-y-1 text-sm">
         {goal.partial ? <li className="text-muted-foreground">{t('goals_list.partial')}</li> : null}

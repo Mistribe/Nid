@@ -9,7 +9,7 @@ const SharingDialog = lazy(() => import('./SharingDialog').then((m) => ({ defaul
 /**
  * #294: a detail page's `⋯` with « Partage… » after its own entries when the item is shared and the person may change its
  * level (an owner; an adult who may only edit it sees the level in the page's badges instead). The menu owns the dialog and the
- * focus coming back to it; the page's live region says what was saved (`onAnnounce`, '' as the dialog opens).
+ * focus coming back to it; the page toasts what was saved (`onAnnounce`).
  */
 export function SharingMenu({ item, shared, label, items = [], triggerRef, onAnnounce }: {
   item: string; shared: boolean; label?: string; items?: ComponentProps<typeof RowMenu>['items']; triggerRef?: RefObject<HTMLButtonElement | null>;
@@ -24,7 +24,7 @@ export function SharingMenu({ item, shared, label, items = [], triggerRef, onAnn
   return (
     <>
       <RowMenu label={label ?? t('sharing.level')} triggerRef={trigger}
-        items={shared && canChange ? [...items, { label: t('sharing.menu'), onSelect: () => { onAnnounce(''); setOpen(true); } }] : items} />
+        items={shared && canChange ? [...items, { label: t('sharing.menu'), onSelect: () => setOpen(true) }] : items} />
       {open ? <Suspense fallback={null}><SharingDialog item={item} onClose={() => close()} onDone={close} /></Suspense> : null}
     </>
   );

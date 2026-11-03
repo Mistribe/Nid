@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { LoanDetail, LoanSimulation } from '../api';
 import { LOAN, loanDetail, schedule, simulation } from '../testData';
 
@@ -65,7 +66,7 @@ describe('the simulation', () => {
     expect(await line('Intérêts sur toute la durée')).toHaveTextContent('de 78 380,66 € à 71 814,08 €');
     expect(await line('Intérêts économisés')).toHaveTextContent('6 566,58 €');
     expect(await line('Économie nette (pénalité déduite)')).toHaveTextContent('+6 266,58 €');
-    expect(within(await region()).getByRole('status')).toHaveTextContent('Simulation calculée : comparez les deux effets ci-dessous.');
+    expect(toasts()).toHaveTextContent('Simulation calculée : comparez les deux effets ci-dessous.');
     // No effect sent: the server answers both.
     expect(asked).toEqual([{ on: '2026-10-12', amount: '10000', penalty: '300' }]);
     await expectNoAxeViolations(container);
@@ -105,7 +106,6 @@ describe('the simulation', () => {
     await user.type(within(await region()).getByLabelText('Montant à rembourser'), '0');
 
     expect(screen.queryByRole('table', { name: 'Résultat de la simulation' })).not.toBeInTheDocument();
-    expect(within(await region()).getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('opens the repayment dialog prefilled from a column, each press afresh; nothing is sent until submitted, then the result goes', async () => {
@@ -147,7 +147,6 @@ describe('the simulation', () => {
     await waitFor(() => expect(recorded).toEqual([{ onDate: '2026-10-12', amount: '10000', effect: 'reduce_term', penalty: '300' }]));
     // The loan changed: a comparison of the loan before it no longer holds.
     await waitFor(() => expect(screen.queryByRole('table', { name: 'Résultat de la simulation' })).not.toBeInTheDocument());
-    expect(within(await region()).getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('does not reopen the repayment dialog with an old prefill when the tab is left and reached again', async () => {

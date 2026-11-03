@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import '@/app/i18n';
 import { cleanup, configure } from '@testing-library/react';
+import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { server } from './server';
 
@@ -50,6 +51,8 @@ beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 
 afterEach(() => {
   cleanup();
+  // sonner's toasts outlive their Toaster and would be replayed into the next test's (isolate: false).
+  toast.dismiss();
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   document.documentElement.className = '';

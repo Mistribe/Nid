@@ -5,6 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useForm, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import type { TFunction } from 'i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -23,7 +24,7 @@ import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type Propos
 import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
 import { RoutePayload, isRouteKind, routeElement, routeLabel, routeLink, useNames } from './routeKind';
-import { announce, focusHeading, focusNextHeading, useAnnouncement } from './announce';
+import { focusHeading, focusNextHeading } from './focus';
 import '@/locales/proposals';
 import '@/locales/forms';
 
@@ -48,10 +49,8 @@ function applyFailedText(t: TFunction, message: string): string {
 /** Spec 4C2 §4: one proposal — read, edit, decide, move on. */
 export function ProposalDetailPage() {
   const { id } = useParams({ from: '/proposals/$id' });
-  const message = useAnnouncement(id);
   return (
     <div className="space-y-6">
-      <p role="status">{message}</p>
       <Proposal id={id} />
     </div>
   );
@@ -165,7 +164,8 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
   const after = (done: string, approved = false) => {
-    announce(done);
+    // A toast outlives the navigation that follows (the shell holds it).
+    toast.success(done);
     // An approval writes through the kind's handler, which may touch any screen's data.
     void (approved ? queryClient.invalidateQueries() : invalidateProposals(queryClient));
     if (next) focusNextHeading();

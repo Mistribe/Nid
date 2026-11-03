@@ -2,6 +2,7 @@ import { CheckIcon } from 'lucide-react';
 import { RadioGroup } from 'radix-ui';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { useSession } from '@/app/Providers';
@@ -32,7 +33,6 @@ export function AppearancePage() {
   // show it: they follow the SAVED preferences (pessimistic writes, frontend/architecture.md §6),
   // only the page's look follows the choice at once.
   const [desired, setDesired] = useState<Choice | null>(null);
-  const [replayed, setReplayed] = useState(false);
   const pending = useRef(0);
 
   const savedTheme = resolveTheme(session.preferences.theme);
@@ -62,7 +62,7 @@ export function AppearancePage() {
         setDesired(null);
         setProblem(null);
       }
-      setReplayed(body.guidesSeen !== undefined);
+      if (body.guidesSeen !== undefined) toast.success(t('guides.settings.replayed'));
     },
     onError: (error) => {
       pending.current -= 1;
@@ -78,7 +78,6 @@ export function AppearancePage() {
   });
 
   const change = (body: Change) => {
-    setReplayed(false);
     setProblem(null);
     pending.current += 1;
     // ponytail: a reset that then fails stays local, so the guides replay this session anyway — what the person asked.
@@ -147,7 +146,6 @@ export function AppearancePage() {
       <section className="space-y-2">
         <h2 className="font-medium">{t('guides.settings.title')}</h2>
         <Button variant="outline" onClick={() => change({ guidesSeen: {} })}>{t('guides.settings.replay_all')}</Button>
-        <p role="status">{replayed ? t('guides.settings.replayed') : null}</p>
       </section>
 
       <PersonsSection />

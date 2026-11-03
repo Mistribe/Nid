@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
-import { resetAnnouncement } from './announce';
+import { resetFocus } from './focus';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
@@ -29,7 +29,7 @@ const recurringPreview = {
 
 /** 5C §6.4: a recurring debit no charge explains, proposed as a new subscription; never edited. */
 describe('Un prélèvement récurrent', () => {
-  beforeEach(resetAnnouncement);
+  beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); await import('./ProposalsPage'); });
 
   it('the recurring proposal shows the rhythm and the paying account', async () => {

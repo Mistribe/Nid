@@ -2,6 +2,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
@@ -40,7 +41,7 @@ type IncludedProvider = components['schemas']['IncludedProviderView'];
 /**
  * 1E2a design §4, redesign §5.3: one page without tabs. Under the title the costs and the next charge; the findings in a
  * notice; the coverage, the prices, the purchases and the payments as compact tables. Changing the price and adding a
- * purchase are the header's actions, each in a dialog; the page owns the announcement and where the focus lands.
+ * purchase are the header's actions, each in a dialog; the page owns the toast and where the focus lands.
  */
 export function SubscriptionDetailPage() {
   const { t } = useTranslation();
@@ -49,18 +50,15 @@ export function SubscriptionDetailPage() {
   const answer = $api.useQuery('get', DETAIL, { params: { path: { id } } });
   const people = $api.useQuery('get', PERSONS);
   const [dialog, setDialog] = useState<'price' | 'purchase' | 'terms' | 'insurance' | null>(null);
-  const [announcement, setAnnouncement] = useState('');
   const priceRef = useRef<HTMLButtonElement>(null);
   const purchaseRef = useRef<HTMLButtonElement>(null);
   const termsRef = useRef<HTMLButtonElement>(null);
   const insuranceRef = useRef<HTMLButtonElement>(null);
   const purchasesHeadingRef = useRef<HTMLHeadingElement>(null);
   const back = <Link to="/subscriptions" className="text-sm underline">{t('subscription.back')}</Link>;
-  // Mounted from the first render, loading included, so the text written later is announced.
-  const status = <p role="status" aria-live="polite">{announcement}</p>;
 
-  if (answer.error) return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
-  if (!answer.data) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('subscription.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (answer.error) return <article className="space-y-6">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+  if (!answer.data) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('subscription.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const detail = answer.data;
   const findings = visibleFindings(detail.findings);
@@ -69,16 +67,16 @@ export function SubscriptionDetailPage() {
   const close = (message?: string) => {
     const was = dialog;
     setDialog(null);
-    if (message) setAnnouncement(message);
+    if (message) toast.success(message);
     ({ price: priceRef, purchase: purchaseRef, terms: termsRef, insurance: insuranceRef })[was ?? 'purchase'].current?.focus();
   };
-  const sharing = <SharingMenu item={id} onAnnounce={setAnnouncement} shared={detail.visibility === 'shared'} />;
+  const sharing = <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} />;
   const actions = detail.canWrite ? (
     <>
-      <Button ref={priceRef} type="button" onClick={() => { setAnnouncement(''); setDialog('price'); }}>{t('edit.price_title')}</Button>
-      <Button ref={purchaseRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('purchase'); }}>{t('edit.purchase_title')}</Button>
-      <Button ref={termsRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('terms'); }}>{t('contract_terms.edit')}</Button>
-      <Button ref={insuranceRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setDialog('insurance'); }}>{detail.insurance ? t('insurance.change') : t('insurance.add')}</Button>
+      <Button ref={priceRef} type="button" onClick={() => setDialog('price')}>{t('edit.price_title')}</Button>
+      <Button ref={purchaseRef} type="button" variant="outline" onClick={() => setDialog('purchase')}>{t('edit.purchase_title')}</Button>
+      <Button ref={termsRef} type="button" variant="outline" onClick={() => setDialog('terms')}>{t('contract_terms.edit')}</Button>
+      <Button ref={insuranceRef} type="button" variant="outline" onClick={() => setDialog('insurance')}>{detail.insurance ? t('insurance.change') : t('insurance.add')}</Button>
       {sharing}
     </>
   ) : null;
@@ -109,7 +107,6 @@ export function SubscriptionDetailPage() {
           {detail.freeDays > 0 ? <p className="text-sm text-muted-foreground">{t('subscription.free_days', { count: detail.freeDays })}</p> : null}
         </section>
       </PageHeader>
-      {status}
       {detail.provider && detail.provider.included.length > 0 ? <IncludedProviders included={detail.provider.included} /> : null}
       {detail.canWrite ? null : <ReadOnly detail={detail} persons={persons} />}
       {findings.length > 0 ? (
@@ -147,7 +144,7 @@ export function SubscriptionDetailPage() {
 
       <ContractSection detail={detail} />
 
-      <InsuranceSection detail={detail} onRemoved={(message) => { setAnnouncement(message); insuranceRef.current?.focus(); }} />
+      <InsuranceSection detail={detail} onRemoved={(message) => { toast.success(message); insuranceRef.current?.focus(); }} />
 
       <Section title={t('subscription.phases')}>
         <Table aria-label={t('subscription.phases')}>
@@ -204,7 +201,7 @@ export function SubscriptionDetailPage() {
                         : t('subscription.grant_elsewhere', { duration: durationText(t, g.duration) })}</span>
                     ))}
                   </TableCell>
-                  {detail.canWrite ? <TableCell><DeletePurchase detail={detail} purchase={p} onDeleted={(message) => { setAnnouncement(message); purchasesHeadingRef.current?.focus(); }} /></TableCell> : null}
+                  {detail.canWrite ? <TableCell><DeletePurchase detail={detail} purchase={p} onDeleted={(message) => { toast.success(message); purchasesHeadingRef.current?.focus(); }} /></TableCell> : null}
                 </TableRow>
               ))}
             </TableBody>

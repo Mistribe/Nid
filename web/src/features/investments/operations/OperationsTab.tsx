@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
@@ -25,7 +26,6 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [importing, setImporting] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
   const [landOn, setLandOn] = useState(false);
   const importRef = useRef<HTMLButtonElement>(null);
   // A half-typed date asks nothing: only a whole one bounds the period.
@@ -43,16 +43,16 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       ) : null}
     </span>
   );
-  const actions = (l: BankTransaction) => <LineActions line={l} onDone={setAnnouncement} />;
+  const actions = (l: BankTransaction) => <LineActions line={l} onDone={toast.success} />;
   const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
 
   return (
-    <Section title={t('banks.operations.title')} srTitle announcement={announcement}>
+    <Section title={t('banks.operations.title')} srTitle>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-44"><Field label={t('banks.operations.from')}>{(c) => <DateField {...c} value={from} onChange={setFrom} />}</Field></div>
         <div className="w-44"><Field label={t('banks.operations.to')}>{(c) => <DateField {...c} value={to} onChange={setTo} />}</Field></div>
         {writable ? (
-          <Button ref={importRef} type="button" variant="outline" className="ml-auto" onClick={() => { setAnnouncement(''); setImporting(true); }}>
+          <Button ref={importRef} type="button" variant="outline" className="ml-auto" onClick={() => setImporting(true)}>
             {t('banks.import.open')}
           </Button>
         ) : null}
@@ -84,7 +84,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       ) : null}
       {importing ? (
         <ImportStatementDialog envelopeId={envelope.id} onClose={() => setImporting(false)}
-          onDone={(message) => { setImporting(false); setAnnouncement(message); setLandOn(true); }} />
+          onDone={(message) => { setImporting(false); toast.success(message); setLandOn(true); }} />
       ) : null}
     </Section>
   );

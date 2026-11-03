@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { CircleAlertIcon, InfoIcon, OctagonAlertIcon } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
@@ -112,14 +113,13 @@ export function NotificationsPage() {
   const dismiss = useDismiss();
   const [snoozing, setSnoozing] = useState<NotificationView | null>(null);
   const [dismissing, setDismissing] = useState<NotificationView | null>(null);
-  const [status, setStatus] = useState('');
 
   const failure = [readAll, read, snooze, dismiss].map((m) => m.error).find((e) => e != null);
   const actions: Actions = {
     read: (n) => read.mutate({ params: { path: { id: n.id } } }),
     week: (n) => snooze.mutate({ params: { path: { id: n.id } }, body: { preset: 'week' } }),
     month: (n) => snooze.mutate({ params: { path: { id: n.id } }, body: { preset: 'month' } }),
-    until: (n) => { setStatus(''); setSnoozing(n); },
+    until: (n) => setSnoozing(n),
     dismiss: (n) => setDismissing(n),
   };
 
@@ -127,11 +127,10 @@ export function NotificationsPage() {
     <article className="space-y-6">
       <PageHeader title={t('notifications_page.title')}
         actions={<Button type="button" variant="outline" disabled={readAll.isPending} onClick={() => readAll.mutate({})}>{t('notifications_page.read_all')}</Button>} />
-      <p role="status" aria-live="polite" className="sr-only">{status}</p>
       {failure ? <ProblemMessage problem={present(toProblem(failure))} /> : null}
       {snoozing ? (
         <Suspense fallback={null}>
-          <SnoozeDialog id={snoozing.id} onClose={() => setSnoozing(null)} onDone={(message) => { setSnoozing(null); setStatus(message); }} />
+          <SnoozeDialog id={snoozing.id} onClose={() => setSnoozing(null)} onDone={(message) => { setSnoozing(null); toast.success(message); }} />
         </Suspense>
       ) : null}
       {dismissing ? (

@@ -1,8 +1,9 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 
 const alice = { id: '01926b9e-0000-7000-8000-00000000000a', kind: 'adult', displayName: 'Alice Martin', email: 'alice@example.test' };
 
@@ -27,7 +28,7 @@ describe('Réglages › Personnes', () => {
     await user.type(within(dialog).getByLabelText('Prénom et nom'), 'Léo Martin');
     await user.click(within(dialog).getByRole('button', { name: 'Ajouter' }));
 
-    expect(await screen.findByText('Léo Martin fait maintenant partie du foyer.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Léo Martin fait maintenant partie du foyer.'));
     expect(sent).toEqual([{ displayName: 'Léo Martin' }]);
     const list = within(screen.getByRole('region', { name: 'Personnes' })).getByRole('list');
     const leo = await within(list).findByText('Léo Martin');

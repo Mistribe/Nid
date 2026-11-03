@@ -2,6 +2,7 @@ import { Link, Navigate, useParams } from '@tanstack/react-router';
 import { Download, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { LocalDate } from '@/components/LocalDate';
@@ -30,7 +31,6 @@ export function DocumentDetailPage() {
   const archive = useArchiveDocument();
   const unarchive = useUnarchiveDocument();
   const [dialog, setDialog] = useState<'editing' | 'linking' | null>(null);
-  const [status, setStatus] = useState('');
   const editRef = useRef<HTMLButtonElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const back = <Link to="/documents" className="text-sm underline">{t('documents_page.detail.back')}</Link>;
@@ -45,7 +45,7 @@ export function DocumentDetailPage() {
   const path = { params: { path: { id: doc.id } } };
   const uploader = targets.data?.items.find((x) => x.kind === 'core.person' && x.id === detail.uploadedBy)?.label;
   // The dialog handed itself back: the page says what happened and puts the focus back on the button that opened it.
-  const done = (ref: typeof editRef) => (message: string) => { setDialog(null); setStatus(message); ref.current?.focus(); };
+  const done = (ref: typeof editRef) => (message: string) => { setDialog(null); toast.success(message); ref.current?.focus(); };
   const error = archive.error ?? unarchive.error ?? answer.error;
 
   const actions = (
@@ -53,11 +53,11 @@ export function DocumentDetailPage() {
       <Button asChild variant="outline"><a href={contentUrl(doc.id)} download><Download aria-hidden="true" />{t('documents_page.download')}</a></Button>
       {doc.canEdit ? (
         <>
-          <Button ref={editRef} type="button" variant="outline" onClick={() => { setStatus(''); setDialog('editing'); }}>{t('documents_page.edit')}</Button>
+          <Button ref={editRef} type="button" variant="outline" onClick={() => setDialog('editing')}>{t('documents_page.edit')}</Button>
           {doc.archived
-            ? <Button type="button" variant="outline" disabled={unarchive.isPending} onClick={() => unarchive.mutate(path, { onSuccess: () => { setStatus(t('documents_page.detail.status_unarchived')); editRef.current?.focus(); } })}>{t('documents_page.unarchive')}</Button>
+            ? <Button type="button" variant="outline" disabled={unarchive.isPending} onClick={() => unarchive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_unarchived')); editRef.current?.focus(); } })}>{t('documents_page.unarchive')}</Button>
             : <ConfirmAction label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}
-                onConfirm={() => archive.mutate(path, { onSuccess: () => { setStatus(t('documents_page.detail.status_archived')); editRef.current?.focus(); } })} />}
+                onConfirm={() => archive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_archived')); editRef.current?.focus(); } })} />}
         </>
       ) : null}
     </>
@@ -76,7 +76,6 @@ export function DocumentDetailPage() {
           ]} />
         </section>
       </PageHeader>
-      <p role="status" aria-live="polite">{status}</p>
       {error ? <ProblemMessage problem={present(toProblem(error))} /> : null}
       {detail.note ? (
         <Section title={t('documents_page.detail.note')}><p className="whitespace-pre-wrap">{detail.note}</p></Section>
@@ -84,7 +83,7 @@ export function DocumentDetailPage() {
       <Section title={t('documents_page.links.title')}>
         <DocumentLinks doc={doc} onRemoved={() => addRef.current?.focus()} />
         {doc.canEdit ? (
-          <Button ref={addRef} type="button" variant="outline" onClick={() => { setStatus(''); setDialog('linking'); }}>
+          <Button ref={addRef} type="button" variant="outline" onClick={() => setDialog('linking')}>
             <Plus aria-hidden="true" />{t('documents_page.links.add')}
           </Button>
         ) : null}

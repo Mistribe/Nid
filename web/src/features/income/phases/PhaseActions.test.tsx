@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { IncomeSourceDetail } from '../api';
 import { detail, phase, SALARY } from '../testData';
 
@@ -43,7 +44,6 @@ function serveStateful(initial: IncomeSourceDetail = detail()) {
   return { sent, bump: (id: string, netAmount?: string) => { current = { ...current, phases: current.phases.map((p) => (p.id === id ? { ...p, version: p.version + 1, ...(netAmount ? { netAmount: { amount: netAmount, currency: 'EUR' } } : {}) } : p)) }; } };
 }
 
-const statuses = () => screen.getAllByRole('status').map((s) => s.textContent);
 /** The `⋯` of a label's `row`-th phase in the timeline, newest first. */
 const menuOf = (label: string, row = 0) => screen.getAllByRole('button', { name: new RegExp(`^Actions de la période ${label}`) })[row]!;
 const findMenu = (label: string) => screen.findAllByRole('button', { name: new RegExp(`^Actions de la période ${label}`) });
@@ -75,7 +75,7 @@ describe('phase actions', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter la période' }));
 
-    await waitFor(() => expect(statuses()).toContain('Période ajoutée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Période ajoutée.'));
     expect(sent[0]).toMatchObject({ method: 'POST', body: { label: 'Prime de vacances', startsOn: '2026-07-01', netAmount: { amount: '500', currency: 'EUR' }, every: { count: 1, unit: 'year' } } });
     expect(screen.getByRole('heading', { name: 'Changements' })).toHaveFocus();
   });
@@ -94,7 +94,7 @@ describe('phase actions', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(statuses()).toContain('Période corrigée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Période corrigée.'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { label: 'Prime annuelle', version: 0, netAmount: { amount: '1900', currency: 'EUR' } } });
   });
 
@@ -118,7 +118,7 @@ describe('phase actions', () => {
     expect(await screen.findByText('Cette période sera retirée.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(() => expect(statuses()).toContain('Période supprimée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Période supprimée.'));
     await waitFor(() => expect(screen.queryByRole('button', { name: /^Actions de la période Prime annuelle/ })).not.toBeInTheDocument());
     expect(new URL(sent[0]!.url).searchParams.get('version')).toBe('0');
   });

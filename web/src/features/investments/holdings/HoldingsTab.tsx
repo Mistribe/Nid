@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { AlertTriangle, ChevronRightIcon, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
@@ -41,12 +42,11 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
   const { $api } = useApi();
   const answer = $api.useQuery('get', HOLDINGS, { params: { path: { id: envelope.id } } });
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [announcement, setAnnouncement] = useState('');
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('');
   const [showClosed, setShowClosed] = useState(false);
-  const open = (next: Dialog) => { setAnnouncement(''); setDialog(next); };
-  const done = (message: string) => { setDialog(null); setAnnouncement(message); };
+  const open = (next: Dialog) => setDialog(next);
+  const done = (message: string) => { setDialog(null); toast.success(message); };
   const close = () => setDialog(null);
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
@@ -99,12 +99,10 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
           : dialog.kind === 'snapshot' ? <SnapshotDialog envelope={envelope} holdings={openHoldings} onClose={close} onDone={done} />
             : <SwitchDialog envelope={envelope} holdings={openHoldings} onClose={close} onDone={done} />
   ) : null;
-  const status = <p role="status" aria-live="polite">{announcement}</p>;
 
   // One tree whatever the branch: the first holding swaps the invitation for the table, and an open dialog must survive it.
   return (
     <>
-      {status}
       {holdings.length === 0 ? (
         <EmptyState title={t('holdings.empty_title')} body={t('holdings.empty_body')}
           action={writable ? <Button type="button" onClick={() => open({ kind: 'holding' })}>{t('holdings.detail')}</Button> : undefined} />

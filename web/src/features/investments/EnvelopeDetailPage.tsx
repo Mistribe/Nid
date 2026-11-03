@@ -2,6 +2,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
@@ -53,7 +54,7 @@ const newestFirst = <T,>(rows: T[], date: (row: T) => string) =>
  * period performance), the values and flows tables newest first, the settings. The entry forms are dialogs, opened
  * from the header or a row's ⋯ menu, shown only when `canWrite` and the envelope is open. A correction gets a new id
  * and a deletion removes the row entirely, so neither can carry its own confirmation once the refetch lands: the page
- * announces it in that table's section and moves focus to the section's heading instead.
+ * toasts it and moves focus to that table's section heading instead.
  */
 export function EnvelopeDetailPage() {
   const { t } = useTranslation();
@@ -72,8 +73,6 @@ export function EnvelopeDetailPage() {
   // The dialogs: a new value or flow (`{}`), the correction of a row, or a new flow on « Versements antérieurs ».
   const [valueDialog, setValueDialog] = useState<{ editing?: Valuation } | null>(null);
   const [flowDialog, setFlowDialog] = useState<{ editing?: Flow; opening?: boolean } | null>(null);
-  const [valuesAnnouncement, setValuesAnnouncement] = useState('');
-  const [flowsAnnouncement, setFlowsAnnouncement] = useState('');
   const valuesHeadingRef = useRef<HTMLHeadingElement>(null);
   const flowsHeadingRef = useRef<HTMLHeadingElement>(null);
   const enterRef = useRef<HTMLButtonElement>(null);
@@ -87,24 +86,15 @@ export function EnvelopeDetailPage() {
   const [focusRow, setFocusRow] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const transferWasOpen = useRef(false);
-  // Closing and reopening: the page owns the announcement (the banner and the write actions come and go with
+  // Closing and reopening: the page owns the toast (the banner and the write actions come and go with
   // the state), and where the focus lands once the refetch has swapped them — never <body>.
   const [closeOpen, setCloseOpen] = useState(false);
   const closeWasOpen = useRef(false);
-  const [statusAnnouncement, setStatusAnnouncement] = useState('');
-  // The « Réglages » status region: cleared when a save starts, filled by its outcome (no focus move: the form stays).
-  const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
   const [landOn, setLandOn] = useState<'banner' | 'enter' | null>(null);
   const isClosed = answer.data?.closed;
 
-  // Cleared the instant an action on that section starts (opening a row's correction, confirming a deletion) and
-  // set again only on success: an unchanged string never re-triggers the polite live region, so going through
-  // empty in between is what makes two successive « Supprimé. » (or a repeat « Flux corrigé. ») each announce, and
-  // what keeps a failed correction from reading a previous row's success.
-  const clearValues = () => setValuesAnnouncement('');
-  const clearFlows = () => setFlowsAnnouncement('');
-  const announceValues = (message: string) => { setValuesAnnouncement(message); setFocusTarget('values'); };
-  const announceFlows = (message: string) => { setFlowsAnnouncement(message); setFocusTarget('flows'); };
+  const announceValues = (message: string) => { toast.success(message); setFocusTarget('values'); };
+  const announceFlows = (message: string) => { toast.success(message); setFocusTarget('flows'); };
   useEffect(() => {
     if (!focusTarget) return;
     ({ values: valuesHeadingRef, flows: flowsHeadingRef, enter: enterRef, flow: flowRef })[focusTarget].current?.focus();
@@ -118,23 +108,21 @@ export function EnvelopeDetailPage() {
   const cancelValue = () => { const row = valueDialog?.editing?.id; setValueDialog(null); if (row) setFocusRow(`correct-value-${row}`); };
   const cancelFlow = () => { const row = flowDialog?.editing?.id; setFlowDialog(null); if (row) setFocusRow(`correct-flow-${row}`); };
 
-  // A saved entry: a new one announces in the page's own region and returns to its header button; a corrected row
-  // announces in its table's section.
+  // A saved entry: a new one returns the focus to its header button; a corrected row to its table's section.
   const savedValue = (editing: boolean) => (message: string) => {
     setValueDialog(null);
-    if (editing) announceValues(message); else { setStatusAnnouncement(message); setFocusTarget('enter'); }
+    if (editing) announceValues(message); else { toast.success(message); setFocusTarget('enter'); }
   };
   const savedFlow = (editing: boolean) => (message: string) => {
     setFlowDialog(null);
-    if (editing) announceFlows(message); else { setStatusAnnouncement(message); setFocusTarget('flow'); }
+    if (editing) announceFlows(message); else { toast.success(message); setFocusTarget('flow'); }
   };
 
   // The focus goes back to the ⋯ menu whichever way a dialog opened from it closed (its own `close` already ran by then).
   const focusMenu = () => (menuRef.current ?? enterRef.current ?? bannerRef.current)?.focus();
-  const openTransfer = () => { setStatusAnnouncement(''); setTransferOpen(true); };
   const closeTransfer = (message?: string) => {
     setTransferOpen(false);
-    if (message) setStatusAnnouncement(message);
+    if (message) toast.success(message);
   };
   useEffect(() => {
     if (transferOpen) transferWasOpen.current = true;
@@ -143,7 +131,7 @@ export function EnvelopeDetailPage() {
 
   const closeClose = (message?: string) => {
     setCloseOpen(false);
-    if (message) { setStatusAnnouncement(message); setLandOn('banner'); }
+    if (message) { toast.success(message); setLandOn('banner'); }
   };
   useEffect(() => {
     if (closeOpen) closeWasOpen.current = true;
@@ -188,12 +176,12 @@ export function EnvelopeDetailPage() {
         <Plus aria-hidden="true" />{t('envelope.enter_value')}
       </Button>
       <Button ref={flowRef} type="button" variant="outline" onClick={() => setFlowDialog({})}>{t('envelope.add_flow_open')}</Button>
-      <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={detail.visibility === 'shared'} label={t('envelope.more_actions')} triggerRef={menuRef} items={[
-        { label: t('envelope.transfer.open'), onSelect: openTransfer },
-        { label: t('envelope.closing.open'), onSelect: () => { setStatusAnnouncement(''); setCloseOpen(true); } },
+      <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('envelope.more_actions')} triggerRef={menuRef} items={[
+        { label: t('envelope.transfer.open'), onSelect: () => setTransferOpen(true) },
+        { label: t('envelope.closing.open'), onSelect: () => setCloseOpen(true) },
       ]} />
     </>
-  ) : detail.canWrite ? <SharingMenu item={id} onAnnounce={setStatusAnnouncement} shared={detail.visibility === 'shared'} /> : null;
+  ) : detail.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} /> : null;
 
   return (
     <article className="space-y-6">
@@ -249,11 +237,9 @@ export function EnvelopeDetailPage() {
         </section>
       </PageHeader>
       {detail.canWrite ? null : <p>{t('envelope.read_only')}</p>}
-      <p role="status" aria-live="polite">{statusAnnouncement}</p>
       {detail.closed ? (
         <ClosedBanner envelope={detail} bannerRef={bannerRef}
-          onStart={() => setStatusAnnouncement('')}
-          onReopened={(message) => { setStatusAnnouncement(message); setLandOn('enter'); }} />
+          onReopened={(message) => { toast.success(message); setLandOn('enter'); }} />
       ) : null}
       {figures.missingOpening ? (
         <p role="note" className="flex flex-wrap items-center gap-2">
@@ -308,7 +294,7 @@ export function EnvelopeDetailPage() {
         {
           id: 'values', label: t('envelope.tab.values', { count: values.length }),
           content: (
-            <Section title={t('envelope.values')} srTitle headingRef={valuesHeadingRef} announcement={valuesAnnouncement}>
+            <Section title={t('envelope.values')} srTitle headingRef={valuesHeadingRef}>
               <Table aria-label={t('envelope.values_table')}>
                 <TableHeader>
                   <TableRow>
@@ -327,7 +313,7 @@ export function EnvelopeDetailPage() {
                       <TableCell><Money value={v.amount} tabular /></TableCell>
                       <TableCell className="whitespace-normal">{v.note}<SourceLink documentId={v.documentId} /></TableCell>
                       {writable ? (
-                        <TableCell><RowActions kind="value" envelope={detail} item={v} onEdit={() => { clearValues(); setValueDialog({ editing: v }); }} onDeleteStarted={clearValues} onDeleted={announceValues} /></TableCell>
+                        <TableCell><RowActions kind="value" envelope={detail} item={v} onEdit={() => setValueDialog({ editing: v })} onDeleted={announceValues} /></TableCell>
                       ) : null}
                     </TableRow>
                   ))}
@@ -339,7 +325,7 @@ export function EnvelopeDetailPage() {
         {
           id: 'flows', label: t('envelope.tab.flows', { count: flows.length }),
           content: (
-            <Section title={t('envelope.flows')} srTitle headingRef={flowsHeadingRef} announcement={flowsAnnouncement}>
+            <Section title={t('envelope.flows')} srTitle headingRef={flowsHeadingRef}>
               <Table aria-label={t('envelope.flows_table')}>
                 <TableHeader>
                   <TableRow>
@@ -360,7 +346,7 @@ export function EnvelopeDetailPage() {
                       <TableCell><Money value={f.amount} tabular /></TableCell>
                       <TableCell className="whitespace-normal">{f.note}<SourceLink documentId={f.documentId} /></TableCell>
                       {writable ? (
-                        <TableCell><RowActions kind="flow" envelope={detail} item={f} onEdit={() => { clearFlows(); setFlowDialog({ editing: f }); }} onDeleteStarted={clearFlows} onDeleted={announceFlows} /></TableCell>
+                        <TableCell><RowActions kind="flow" envelope={detail} item={f} onEdit={() => setFlowDialog({ editing: f })} onDeleted={announceFlows} /></TableCell>
                       ) : null}
                     </TableRow>
                   ))}
@@ -389,8 +375,8 @@ export function EnvelopeDetailPage() {
         ...(writable ? [{
           id: 'settings' as const, label: t('envelope.tab.settings'),
           content: (
-            <Section title={t('envelope.settings.title')} srTitle announcement={settingsAnnouncement}>
-              <SettingsForm envelope={detail} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+            <Section title={t('envelope.settings.title')} srTitle>
+              <SettingsForm envelope={detail} onDone={toast.success} />
             </Section>
           ),
         }] : []),

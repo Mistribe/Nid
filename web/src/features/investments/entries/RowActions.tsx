@@ -11,14 +11,8 @@ import '@/locales/investments';
 type RowActionsProps = {
   envelope: EnvelopeDetail;
   onEdit: () => void;
-  /** Called the instant the deletion is confirmed, before the request even resolves: the section's live region
-   * must go empty first, so a later identical « Supprimé. » is a real change (an unchanged string never
-   * re-announces) and a row deleted after a previous row's message doesn't keep reading the old one if this one
-   * fails. */
-  onDeleteStarted: () => void;
-  /** The deletion's confirmation message, for the section's own live region: the row (and this very component)
-   * disappears once the refetch lands, so the status and the focus it moves belong to the page, not to this
-   * soon-gone one. */
+  /** The deletion's confirmation message: the row (and this very component) disappears once the refetch lands, so
+   * the toast and the focus it moves belong to the page. */
   onDeleted: (message: string) => void;
 } & ({ kind: 'value'; item: Valuation } | { kind: 'flow'; item: Flow });
 
@@ -56,7 +50,7 @@ export function RowActions(props: RowActionsProps) {
     <SharedRowActions menuId={`correct-${props.kind}-${props.item.id}`}
       menuLabel={props.kind === 'flow' ? t('envelope.row_menu_what', { date, what: flowKindText(t, props.item) }) : t('envelope.row_menu', { date })}
       items={transferLeg ? [] : [{ label: t('envelope.correct'), onSelect: props.onEdit }]}
-      confirmation={confirmation} remove={remove} onDeleteStarted={props.onDeleteStarted} onConfirm={onConfirm}
+      confirmation={confirmation} remove={remove} onConfirm={onConfirm}
       present={presentConflict} invalidate={invalidateInvestments} />
   );
 }

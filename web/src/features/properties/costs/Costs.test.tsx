@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyDetail, PropertyRecurringCost } from '../api';
 import { PROPERTY, propertyDetail, recurringCost } from '../testData';
@@ -147,7 +148,7 @@ describe('recurring costs', () => {
     await expectNoAxeViolations(container);
     await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Charge prévue ajoutée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Charge prévue ajoutée.'));
     await waitFor(() => {
       expect(sent).toEqual([expect.objectContaining({
         method: 'POST', body: { category: 'condo_fees', amount: '250', every: { count: 3, unit: 'month' }, startsOn: '2025-01-01' },
@@ -172,7 +173,7 @@ describe('recurring costs', () => {
     await user.type(form.getByLabelText('Fin'), '31/12/2025');
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Charge prévue corrigée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Charge prévue corrigée.'));
     await waitFor(() => {
       expect(sent[0]!.url).toContain('/recurring-costs/c1');
       expect(sent[0]!.body).toEqual({
@@ -191,7 +192,7 @@ describe('recurring costs', () => {
     expect(await screen.findByText('Cette charge prévue sera supprimée.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Charge prévue supprimée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Charge prévue supprimée.'));
     await waitFor(async () => {
       expect(sent[0]!.url).toContain('/recurring-costs/c0?version=2');
       expect(await rows()).toHaveLength(1);

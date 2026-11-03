@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { lazy, Suspense, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import type { RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
@@ -54,7 +55,6 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [refused, setRefused] = useState<Filed['refused']>([]);
   const [filing, setFiling] = useState(false);
-  const [status, setStatus] = useState('');
   const fileRef = useRef<HTMLButtonElement>(null);
   const all = answer.data?.items ?? [];
   // The filters, and the archived switch below, start a new selection: what was ticked may no longer be shown.
@@ -70,7 +70,7 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
   const chosen = inbox ? rows.filter((d) => selected.has(d.id)) : [];
   const filed = (message: string, outcome: Filed) => {
     setFiling(false);
-    setStatus(message);
+    toast.success(message);
     setSelected(new Set(outcome.refused.map((r) => r.id)));
     setRefused(outcome.refused);
     if (outcome.refused.length > 0) fileRef.current?.focus(); else focusTabs();
@@ -79,7 +79,6 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
   return (
     <>
       <DocumentFilters rows={all} filters={filters} onChange={filter} archived={archived} onArchivedChange={onArchivedChange} />
-      {inbox ? <p role="status" aria-live="polite">{status}</p> : null}
       {chosen.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
           <span className="text-sm">{t('documents_page.file.selected', { count: chosen.length })}</span>

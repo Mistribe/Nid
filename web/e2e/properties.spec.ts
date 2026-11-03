@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { fillDate, pick } from './controls';
+import { fillDate, pick, toasts } from './controls';
 import { signIn } from './session';
 
 /** README §12's purchase through the form — 250 000 € and 19 000 € of notary fees on 2020-06-15 —, landing on its detail. */
@@ -47,7 +47,7 @@ test('alice records a shared property, its estimate, its works and her loan; bob
   await expect(flow.getByRole('combobox', { name: 'Catégorie' })).toHaveText('Travaux');
   await flow.getByLabel('Montant').fill('12000');
   await flow.getByRole('button', { name: 'Ajouter' }).click();
-  await expect(flows.getByRole('status')).toHaveText('Ligne ajoutée.');
+  await expect(toasts(alice)).toContainText('Ligne ajoutée.');
 
   // Her loan, private, disbursed today: nothing is repaid yet, so its balance is the 200 000 € borrowed.
   const loan = `Prêt ${stamp}`;
@@ -104,7 +104,7 @@ test('alice lets her property: a tenancy under way, a yearly property tax, and i
   await fillDate(lease, 'Début', '2021-01-01');
   await lease.getByLabel('Loyer mensuel', { exact: true }).fill('900');
   await lease.getByRole('button', { name: 'Ajouter' }).click();
-  await expect(rental.getByRole('status')).toHaveText('Bail ajouté.');
+  await expect(toasts(page)).toContainText('Bail ajouté.');
   await expect(rental.getByRole('table', { name: 'Baux du bien' }).getByRole('row').nth(1)).toContainText('En cours');
 
   await page.getByRole('tab', { name: 'Dépenses' }).click();
@@ -115,7 +115,7 @@ test('alice lets her property: a tenancy under way, a yearly property tax, and i
   await tax.getByLabel('Tous les', { exact: true }).fill('1');
   await fillDate(tax, 'Début', '2021-10-15');
   await tax.getByRole('button', { name: 'Ajouter' }).click();
-  await expect(costs.getByRole('status')).toHaveText('Charge prévue ajoutée.');
+  await expect(toasts(page)).toContainText('Charge prévue ajoutée.');
   await expect(costs.getByRole('table', { name: 'Charges prévues du bien' }).getByRole('row').nth(1)).toContainText('100,00 €');
 
   // Twelve rents of 900 € through the API, all within the last 12 months: 10 800 € over 281 000 € is 3,84 %.

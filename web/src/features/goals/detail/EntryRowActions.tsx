@@ -8,8 +8,8 @@ import { presentGoalConflict } from '../format';
 import '@/locales/goals';
 
 /** A reading's « Supprimer », its own mutation per row (as `OneOffRowActions`): a refusal shows on this row only. */
-export function EntryRowActions({ goalId, entry, onDeleteStarted, onDeleted, onReloaded }: {
-  goalId: string; entry: GoalEntry; onDeleteStarted: () => void; onDeleted: (message: string) => void; onReloaded: () => void;
+export function EntryRowActions({ goalId, entry, onDeleted, onReloaded }: {
+  goalId: string; entry: GoalEntry; onDeleted: (message: string) => void; onReloaded: () => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -21,7 +21,7 @@ export function EntryRowActions({ goalId, entry, onDeleteStarted, onDeleted, onR
   const date = formatLocalDate(entry.on);
   return (
     <RowActions menuId={`entry-menu-${entry.on}`} menuLabel={t('goals_detail.entries.menu', { date })} items={[]}
-      confirmation={t('goals_detail.entries.delete_confirm', { date })} remove={remove} onDeleteStarted={onDeleteStarted}
+      confirmation={t('goals_detail.entries.delete_confirm', { date })} remove={remove}
       present={presentGoalConflict} invalidate={invalidateGoals} onReloaded={onReloaded}
       onConfirm={() => remove.mutate({ params: { path: { id: goalId, on: entry.on } } })} />
   );

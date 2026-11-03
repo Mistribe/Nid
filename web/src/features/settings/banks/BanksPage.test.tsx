@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { formatInstant, formatInstantDay } from '../../admin/format';
 import { summary } from '../../investments/testData';
 import { account, CONNECTION, connection, rule, serveBanks } from './testData';
@@ -242,7 +243,7 @@ describe('Réglages › Banques', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toBe('00000000-0000-7000-8000-0000000000c1'));
-    expect(await within(section).findByText('Règle supprimée.')).toBeInTheDocument();
+    await waitFor(() => expect(toasts()).toHaveTextContent('Règle supprimée.'));
     await waitFor(() => expect(within(section).queryByText('PRLV SEPA NETFLIX')).toBeNull());
   });
 });

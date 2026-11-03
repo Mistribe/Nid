@@ -36,7 +36,7 @@ const quarterWords = (t: TFunction, quarter: string) => {
 
 /**
  * Spec 3D2 §3: « Location » — the rental figures, then the tenancies newest first (the server lists them by start); adding
- * and correcting open a dialog, the section owns its live region and where the focus lands.
+ * and correcting open a dialog, the section owns its toasts and where the focus lands.
  */
 export function RentalSection({ property }: { property: PropertyDetail }) {
   const { t } = useTranslation();
@@ -51,7 +51,7 @@ export function RentalSection({ property }: { property: PropertyDetail }) {
     return before ? [x, ...historyOf(before)] : [x];
   };
   return (
-    <Section title={t('property_rental.title')} headingRef={s.headingRef} announcement={s.announcement}>
+    <Section title={t('property_rental.title')} headingRef={s.headingRef}>
       <RentalFigures property={property} />
       {writable ? <Button ref={s.addButtonRef} type="button" variant="outline" size="sm" onClick={() => s.open()}>{t('property_rental.add')}</Button> : null}
       {writable && s.dialog ? <TenancyDialog property={property} editing={s.dialog.editing} onClose={s.cancel} onDone={s.saved} /> : null}
@@ -93,7 +93,7 @@ export function RentalSection({ property }: { property: PropertyDetail }) {
                 <TableCell className="whitespace-normal">{x.note}</TableCell>
                 {writable ? (
                   <TableCell>
-                    <TenancyRowActions property={property} tenancy={x} onEdit={() => s.open(x)} onDeleteStarted={() => s.setAnnouncement('')}
+                    <TenancyRowActions property={property} tenancy={x} onEdit={() => s.open(x)}
                       onDeleted={s.announce} onReloaded={() => s.headingRef.current?.focus()} />
                   </TableCell>
                 ) : null}
@@ -107,8 +107,8 @@ export function RentalSection({ property }: { property: PropertyDetail }) {
 }
 
 /** « Corriger » opens the dialog; « Supprimer » asks first and sends the version read — not on a revised link, which is undone instead. */
-function TenancyRowActions({ property, tenancy, onEdit, onDeleteStarted, onDeleted, onReloaded }: {
-  property: PropertyDetail; tenancy: PropertyTenancy; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+function TenancyRowActions({ property, tenancy, onEdit, onDeleted, onReloaded }: {
+  property: PropertyDetail; tenancy: PropertyTenancy; onEdit: () => void; onDeleted: (message: string) => void;
   onReloaded: () => void;
 }) {
   const { t } = useTranslation();
@@ -122,7 +122,7 @@ function TenancyRowActions({ property, tenancy, onEdit, onDeleteStarted, onDelet
   if (tenancy.revisedFrom) return <RowMenu id={`tenancy-menu-${tenancy.id}`} label={menuLabel} items={items} />;
   return (
     <RowActions menuId={`tenancy-menu-${tenancy.id}`} menuLabel={menuLabel}
-      items={items} confirmation={t('property_rental.delete_confirm')} remove={remove} onDeleteStarted={onDeleteStarted} onReloaded={onReloaded}
+      items={items} confirmation={t('property_rental.delete_confirm')} remove={remove} onReloaded={onReloaded}
       present={presentRefusal} invalidate={invalidateProperties}
       onConfirm={() => remove.mutate({ params: { path: { id: property.id, tenancyId: tenancy.id }, query: { version: tenancy.version } } })} />
   );

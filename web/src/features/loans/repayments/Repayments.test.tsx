@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { todayIso } from '../../subscriptions/today';
 import type { LoanDetail, LoanRepayment } from '../api';
 import { LOAN, loanDetail, schedule } from '../testData';
@@ -113,7 +114,7 @@ describe('early repayments', () => {
     await expectNoAxeViolations(container);
     await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé ajouté.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Remboursement anticipé ajouté.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { onDate: todayIso(), amount: '5000', effect: 'reduce_term', penalty: '150' } })]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Remboursements anticipés' })).toHaveFocus();
@@ -131,7 +132,7 @@ describe('early repayments', () => {
     await user.clear(form.getByLabelText('Pénalité'));
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé corrigé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Remboursement anticipé corrigé.'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { onDate: '2026-03-20', amount: '10000.00', effect: 'reduce_payment', note: 'prime', version: 3 } });
     expect(sent[0]!.body).not.toHaveProperty('penalty');
     expect(sent[0]!.url).toContain('/repayments/r1');
@@ -160,7 +161,7 @@ describe('early repayments', () => {
     expect(await screen.findByText('Ce remboursement anticipé et sa pénalité de 300,00 € seront supprimés.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé supprimé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Remboursement anticipé supprimé.'));
     expect(await within(await region()).findByText('Aucun remboursement anticipé')).toBeInTheDocument();
     expect(sent[0]!.url).toContain('version=3');
   });

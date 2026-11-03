@@ -1,7 +1,8 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
+import { toasts } from '@/test/toasts';
 import { server } from '@/test/server';
 import { detail, GOAL } from '@/features/goals/testData';
 
@@ -34,7 +35,7 @@ describe('SharingMenu (#294)', () => {
     expect(within(dialog).getByText(/sans en devenir propriétaire/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
-    expect(await screen.findByText('Partage enregistré.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Partage enregistré.'));
     expect(sent).toEqual([{ shareLevel: 'edit' }]);
     expect(await screen.findByText('Lecture et modification')).toBeInTheDocument();
   });

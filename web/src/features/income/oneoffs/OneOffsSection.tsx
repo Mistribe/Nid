@@ -27,7 +27,7 @@ const ALL_FROM = '0001-01-01';
 
 /**
  * Spec §4: the source's one-off income, newest first: the last twelve months as the page loaded them, or all of them
- * (`?oneOffs=all`, issue #22). The section owns its dialog (adding or correcting), its live region and where the focus
+ * (`?oneOffs=all`, issue #22). The section owns its dialog (adding or correcting), its toasts and where the focus
  * lands (`useRowDialog`); without write access it is a read-only table. An ended source still takes one-offs up to its end.
  */
 export function OneOffsSection({ source, writable }: { source: IncomeSourceDetail; writable: boolean }) {
@@ -52,7 +52,7 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
   const cols = writable ? 4 : 3;
 
   return (
-    <Section title={t('income_detail.one_offs.title')} headingRef={row.headingRef} announcement={row.announcement}>
+    <Section title={t('income_detail.one_offs.title')} headingRef={row.headingRef}>
       {writable ? <Button ref={row.addButtonRef} type="button" variant="outline" onClick={() => row.open()}>{t('income_detail.one_offs.add')}</Button> : null}
       {writable && dialog ? (
         <FormDialog title={dialog.editing ? t('income_detail.one_offs.edit_title') : t('income_detail.one_offs.add_title')} onClose={row.cancel} onDone={row.saved}>
@@ -97,7 +97,7 @@ function OneOffRow({ source, oneOff, docs, writable, row }: {
       </TableCell>
       {writable ? (
         <TableCell>
-          <OneOffRowActions source={source} oneOff={oneOff} writes={writes} onEdit={() => row.open(oneOff)} onDeleteStarted={() => row.setAnnouncement('')} onDeleted={row.announce} onReloaded={() => row.headingRef.current?.focus()} />
+          <OneOffRowActions source={source} oneOff={oneOff} writes={writes} onEdit={() => row.open(oneOff)} onDeleted={row.announce} onReloaded={() => row.headingRef.current?.focus()} />
         </TableCell>
       ) : null}
     </TableRow>

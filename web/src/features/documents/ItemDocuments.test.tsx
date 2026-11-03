@@ -7,10 +7,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApi } from '@/api/client';
 import { createQueryClient } from '@/app/bootstrap';
 import { Providers } from '@/app/Providers';
+import { Toaster } from '@/components/ui/sonner';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { aliceSession, allCapabilities } from '@/test/fixtures';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { DocumentSummary } from './api';
 import { ItemDocuments } from './ItemDocuments';
 import { ITEM, link, list, summary } from './testData';
@@ -60,7 +62,7 @@ function serve({ anchored = [d1(), older], mine = [] as DocumentSummary[], previ
   return { writes, sent, gets: () => gets };
 }
 
-/** The component alone under the real providers; its title links need a router. */
+/** The component alone under the real providers; its title links need a router, its toasts the shell's Toaster. */
 async function renderItem(props: { canWrite?: boolean; defaultRole?: string } = {}) {
   const queryClient = createQueryClient();
   const api = createApi({ getCsrf: () => aliceSession.csrf, onUnauthenticated: vi.fn() });
@@ -71,6 +73,7 @@ async function renderItem(props: { canWrite?: boolean; defaultRole?: string } = 
   const utils = render(
     <Providers api={api} queryClient={queryClient} session={aliceSession} capabilities={allCapabilities} location={location}>
       <RouterProvider router={router} />
+      <Toaster containerAriaLabel="Messages" />
     </Providers>,
   );
   return { ...utils, user: userEvent.setup() };
@@ -156,7 +159,7 @@ describe('ItemDocuments', () => {
       await waitFor(() => expect(api.writes).toEqual([{ method: 'POST', path: '/api/v1/documents',
         body: { targetKind: 'core.item', targetId: ITEM, role: 'insurance', date: '2026-09-01', warnDuplicate: 'true' } }]));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(screen.getByText('Document déposé.')).toBeInTheDocument();
+      await waitFor(() => expect(toasts()).toHaveTextContent('Document déposé.'));
       await waitFor(() => expect(api.gets()).toBeGreaterThan(before));
     });
 
@@ -243,7 +246,7 @@ describe('ItemDocuments', () => {
       expect(api.sent).toEqual(['janvier.pdf', 'fevrier.pdf']);
       const body = { targetKind: 'core.item', targetId: ITEM, role: 'insurance', warnDuplicate: 'true' };
       expect(api.writes.map((w) => w.body)).toEqual([body, body]);
-      expect(screen.getByText('2 documents déposés.')).toBeInTheDocument();
+      await waitFor(() => expect(toasts()).toHaveTextContent('2 documents déposés.'));
     });
 
     it('adds dropped files to those already chosen, and one can be removed before sending', async () => {
@@ -309,7 +312,7 @@ describe('ItemDocuments', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(api.sent).toEqual(['a.pdf', 'b.pdf', 'c.pdf', 'b.pdf']);
-      expect(screen.getByText('3 documents déposés.')).toBeInTheDocument();
+      await waitFor(() => expect(toasts()).toHaveTextContent('3 documents déposés.'));
     });
 
     it('keeps the type and the buttons out of the list that scrolls, whatever the number of files', async () => {
@@ -410,7 +413,7 @@ describe('ItemDocuments', () => {
       await choose(user);
       await waitFor(() => expect(api.writes).toEqual([{ method: 'POST', path: `/api/v1/documents/${D2}/links`, body: { targetKind: 'core.item', targetId: ITEM, role: 'statement' } }]));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(screen.getByText('Document relié.')).toBeInTheDocument();
+      await waitFor(() => expect(toasts()).toHaveTextContent('Document relié.'));
     });
 
     it('names who would gain it, and links only once confirmed', async () => {
@@ -435,7 +438,7 @@ describe('ItemDocuments', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(api.writes).toEqual([{ method: 'DELETE', path: `/api/v1/documents/${D1}/links/income.phase/${P1}`, body: undefined }]));
-    expect(await screen.findByText('Lien retiré.')).toBeInTheDocument();
+    await waitFor(() => expect(toasts()).toHaveTextContent('Lien retiré.'));
     await waitFor(() => expect(api.gets()).toBeGreaterThan(before));
   });
 

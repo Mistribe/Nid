@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { DateField } from '@/components/form/DateField';
@@ -25,7 +26,6 @@ export function SettingsForm({ detail }: { detail: Detail }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const [saved, setSaved] = useState(false);
   const schema = z.object({
     autoRenew: z.boolean(),
     cancelledAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), t('edit.invalid_date')),
@@ -43,8 +43,8 @@ export function SettingsForm({ detail }: { detail: Detail }) {
   useEffect(() => { form.reset(initial, { keepDirtyValues: true }); }, [form, initial]);
   const errors = useSubmitErrors(form.setError, PATHS);
   const save = $api.useMutation('patch', DETAIL, {
-    onSuccess: () => { setSaved(true); errors.clear(); form.reset(form.getValues()); void invalidateSubscriptions(queryClient); },
-    onError: (error) => { setSaved(false); errors.onError(error); },
+    onSuccess: () => { toast.success(t('edit.saved')); errors.clear(); form.reset(form.getValues()); void invalidateSubscriptions(queryClient); },
+    onError: (error) => errors.onError(error),
   });
 
   const submit = form.handleSubmit((values) => {
@@ -58,14 +58,12 @@ export function SettingsForm({ detail }: { detail: Detail }) {
       ...(dirty.note ? { note: values.note } : {}),
       ...(dirty.provider && values.provider ? { providerKey: values.provider.key } : {}),
     };
-    setSaved(false);
     save.mutate({ params: { path: { id: detail.id } }, body: asEditBody(body) });
   });
 
   return (
     <form aria-label={t('edit.settings_title')} onSubmit={(e) => void submit(e)} className="max-w-xl space-y-3" noValidate>
       {errors.problem ? <><ProblemMessage problem={errors.problem} />{errors.problem.kind === 'conflict' ? <Reload /> : null}</> : null}
-      {saved ? <p role="status">{t('edit.saved')}</p> : null}
       <Controller control={form.control} name="autoRenew" render={({ field }) => (
         <Field label={t('edit.auto_renew')} inline>{(c) => <Switch {...c} checked={field.value} onCheckedChange={field.onChange} />}</Field>
       )} />

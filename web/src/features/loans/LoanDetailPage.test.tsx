@@ -5,6 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { LoanDetail, LoanSchedule } from './api';
 import { PROPERTY } from '../properties/testData';
 import { pick } from '@/test/controls';
@@ -302,7 +303,7 @@ describe('LoanDetailPage', () => {
     await user.click(fee.getByRole('button', { name: 'Ajouter' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(sent).toEqual([{ path: 'fees', body: { kind: 'guarantee', amount: '1500.50', onDate: '2025-10-20' } }]);
-    expect(screen.getByText('Frais ajoutés.')).toHaveAttribute('role', 'status');
+    expect(toasts()).toHaveTextContent('Frais ajoutés.');
     expect(screen.getByRole('heading', { name: 'Frais' })).toHaveFocus();
 
     await user.click(screen.getByRole('button', { name: 'Ajouter un remboursement' }));
@@ -312,7 +313,7 @@ describe('LoanDetailPage', () => {
     await user.click(repayment.getByRole('button', { name: 'Ajouter' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(sent[1]).toEqual({ path: 'repayments', body: expect.objectContaining({ amount: '5000', effect: 'reduce_term' }) as unknown });
-    expect(screen.getByText('Remboursement anticipé ajouté.')).toHaveAttribute('role', 'status');
+    expect(toasts()).toHaveTextContent('Remboursement anticipé ajouté.');
   });
 
   it('says an unknown or unreadable loan is not found', async () => {

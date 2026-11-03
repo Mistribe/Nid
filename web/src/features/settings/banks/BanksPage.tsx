@@ -2,6 +2,7 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
@@ -38,21 +39,21 @@ const refresh = (queryClient: QueryClient) => Promise.all([
   queryClient.invalidateQueries({ queryKey: ['get', ACCOUNTS] }),
 ]).then(() => undefined);
 
-/** The « Synchroniser » mutation (D6): `{}` reads all the person's connections, `{ connectionId }` one; `announce` says how it went. */
-function useSync(announce: (message: string) => void) {
+/** The « Synchroniser » mutation (D6): `{}` reads all the person's connections, `{ connectionId }` one; a toast says how it went. */
+function useSync() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   return $api.useMutation('post', SYNC, {
     onSuccess: () => {
-      announce(t('banks.synced'));
+      toast.success(t('banks.synced'));
       // The balances became values or proposals.
       void refresh(queryClient);
       void invalidateInvestments(queryClient);
       void queryClient.invalidateQueries({ queryKey: ['get', PROPOSALS] });
     },
     // Not a failure to explain: the sync asked for is already under way.
-    onError: (error) => { if (toProblem(error).code === 'banking.sync_running') announce(t('banks.error.banking_sync_running')); },
+    onError: (error) => { if (toProblem(error).code === 'banking.sync_running') toast.info(t('banks.error.banking_sync_running')); },
   });
 }
 
@@ -76,34 +77,29 @@ function SyncAll() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const connections = $api.useQuery('get', CONNECTIONS);
-  const [announcement, setAnnouncement] = useState('');
-  const sync = useSync(setAnnouncement);
-  const failed = sync.error && toProblem(sync.error).code !== 'banking.sync_running' ? bankErrorText(t, toProblem(sync.error).code ?? '', t('banks.sync_failed')) : '';
+  const sync = useSync();
+  const failed = (error: unknown) => {
+    const code = toProblem(error).code;
+    if (code !== 'banking.sync_running') toast.error(bankErrorText(t, code ?? '', t('banks.sync_failed')));
+  };
   if (!connections.data?.length) return null;
-  return (
-    <>
-      <span role="status" aria-live="polite" className="text-sm">{failed || announcement}</span>
-      <Button type="button" variant="outline" disabled={sync.isPending} onClick={() => { setAnnouncement(''); sync.mutate({ body: {} }); }}>{t('banks.sync_all')}</Button>
-    </>
-  );
+  return <Button type="button" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate({ body: {} }, { onError: failed })}>{t('banks.sync_all')}</Button>;
 }
 
 /** « Importer un relevé » (spec §5.2) on no envelope: banking on is enough, a household may use statement files alone. */
 function ImportStatement() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
   const [landOn, setLandOn] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   // Once the dialog handed itself back, the focus returns to its button, never <body>.
   useEffect(() => { if (landOn) { button.current?.focus(); setLandOn(false); } }, [landOn]);
   return (
     <>
-      <span role="status" aria-live="polite" className="text-sm">{announcement}</span>
-      <Button ref={button} type="button" variant="outline" onClick={() => { setAnnouncement(''); setOpen(true); }}>{t('banks.import.open')}</Button>
+      <Button ref={button} type="button" variant="outline" onClick={() => setOpen(true)}>{t('banks.import.open')}</Button>
       {open ? (
         <Suspense fallback={null}>
-          <ImportStatementDialog onClose={() => setOpen(false)} onDone={(message) => { setOpen(false); setAnnouncement(message); setLandOn(true); }} />
+          <ImportStatementDialog onClose={() => setOpen(false)} onDone={(message) => { setOpen(false); toast.success(message); setLandOn(true); }} />
         </Suspense>
       ) : null}
     </>
@@ -119,7 +115,6 @@ function Connections({ configured }: { configured: boolean }) {
   // What the bank's callback left in the address, read once: the address drops it so a reload does not repeat it.
   const [arrival] = useState(search);
   const offered = useRef(false);
-  const [saved, setSaved] = useState(arrival.connected ? t('banks.connected') : '');
   const [connecting, setConnecting] = useState(false);
   const [editing, setEditing] = useState<BankAccount | null>(null);
   const connections = $api.useQuery('get', CONNECTIONS, undefined, { enabled: configured });
@@ -127,8 +122,10 @@ function Connections({ configured }: { configured: boolean }) {
   const readable = useBankAccounts();
 
   useEffect(() => {
+    // The id keeps it one toast when the effect runs twice (React's strict mode).
+    if (arrival.connected) toast.success(t('banks.connected'), { id: 'banks-connected' });
     if (arrival.connected || arrival.error) void navigate({ to: '/settings/banks', search: {}, replace: true });
-  }, [arrival, navigate]);
+  }, [arrival, navigate, t]);
   // Back from the bank: its first account not placed yet opens, so the person says where it goes.
   useEffect(() => {
     if (offered.current || !arrival.connected || !connections.data) return;
@@ -142,13 +139,12 @@ function Connections({ configured }: { configured: boolean }) {
   // Accounts no connection of the person's lists: their connection was deleted, or a renewal left them out (spec §8).
   const unsynced = connections.data || !configured ? (readable ?? []).filter((a) => !a.synced && !listed.some((l) => l.id === a.id)) : [];
   const all = [...listed, ...unsynced];
-  const edit = (account: BankAccount) => { setSaved(''); setEditing(account); };
-  const announce = (message: string) => { setEditing(null); setConnecting(false); setSaved(message); };
-  const connect = <Button type="button" onClick={() => { setSaved(''); setConnecting(true); }}>{t('banks.connect')}</Button>;
+  const edit = (account: BankAccount) => setEditing(account);
+  const announce = (message: string) => { setEditing(null); setConnecting(false); toast.success(message); };
+  const connect = <Button type="button" onClick={() => setConnecting(true)}>{t('banks.connect')}</Button>;
 
   return (
     <div className="space-y-6">
-      <p role="status" aria-live="polite" className="text-sm">{saved}</p>
       {arrival.error ? <p role="alert" className="text-sm text-destructive">{bankErrorText(t, arrival.error, t('banks.error.generic'))}</p> : null}
       {configured ? null : <p>{t('banks.not_configured')}</p>}
       {connections.error ? <ProblemMessage problem={present(toProblem(connections.error))} /> : null}
@@ -158,7 +154,7 @@ function Connections({ configured }: { configured: boolean }) {
         <>
           <div>{connect}</div>
           {connections.data.map((c) => (
-            <ConnectionSection key={c.id} connection={c} all={all} envelopes={envelopes.data?.items ?? []} onEdit={edit} onDeleted={setSaved} />
+            <ConnectionSection key={c.id} connection={c} all={all} envelopes={envelopes.data?.items ?? []} onEdit={edit} />
           ))}
         </>
       ) : null}
@@ -177,35 +173,33 @@ function Connections({ configured }: { configured: boolean }) {
   );
 }
 
-function ConnectionSection({ connection, all, envelopes, onEdit, onDeleted }: {
-  connection: Connection; all: BankAccount[]; envelopes: EnvelopeSummary[]; onEdit: (account: BankAccount) => void; onDeleted: (message: string) => void;
+function ConnectionSection({ connection, all, envelopes, onEdit }: {
+  connection: Connection; all: BankAccount[]; envelopes: EnvelopeSummary[]; onEdit: (account: BankAccount) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const { goTo } = useSession();
   const queryClient = useQueryClient();
-  const [announcement, setAnnouncement] = useState('');
   const bank = connection.aspspName;
   const path = { params: { path: { id: connection.id } } };
-  const sync = useSync(setAnnouncement);
+  const sync = useSync();
   const renew = $api.useMutation('post', RENEW, { onSuccess: (started) => goTo(started.redirectUrl) });
   const remove = $api.useMutation('delete', CONNECTION);
   const failed = [sync, renew].find((m) => m.error && toProblem(m.error).code !== 'banking.sync_running')?.error;
 
   return (
-    <Section title={bank} announcement={announcement}>
+    <Section title={bank}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t(`banks.status.${connection.status}`, { defaultValue: connection.status })}</span>
         {connection.validUntil ? <span>{t('banks.expires', { date: day.format(new Date(connection.validUntil)) })}</span> : null}
         <span>{connection.lastSyncedAt ? t('banks.last_sync', { date: formatInstant(connection.lastSyncedAt) }) : t('banks.never_synced')}</span>
         <RowActions menuId={`bank-${connection.id}`} menuLabel={t('banks.actions_of', { bank })}
           items={[
-            { label: t('banks.sync'), onSelect: () => { setAnnouncement(''); sync.mutate({ body: { connectionId: connection.id } }); } },
-            { label: t('banks.renew'), onSelect: () => { setAnnouncement(''); renew.mutate(path); } },
+            { label: t('banks.sync'), onSelect: () => sync.mutate({ body: { connectionId: connection.id } }) },
+            { label: t('banks.renew'), onSelect: () => renew.mutate(path) },
           ]}
           confirmation={t('banks.delete_confirm', { bank })} remove={remove}
-          onDeleteStarted={() => setAnnouncement('')}
-          onConfirm={() => remove.mutate(path, { onSuccess: () => { onDeleted(t('banks.deleted', { bank })); void refresh(queryClient); } })}
+          onConfirm={() => remove.mutate(path, { onSuccess: () => { toast.success(t('banks.deleted', { bank })); void refresh(queryClient); } })}
           present={(_, error) => present(toProblem(error))} invalidate={refresh} />
       </div>
       {failed ? <ProblemMessage problem={present(toProblem(failed))} /> : null}
@@ -263,7 +257,6 @@ const invalidateRules = (queryClient: QueryClient) => queryClient.invalidateQuer
 function Rules() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const [announcement, setAnnouncement] = useState('');
   const rules = $api.useQuery('get', RULES);
   // A real-estate target is a loan or a property: the two lists (unpaged, ended loans included) tell which.
   const estate = { enabled: rules.data?.some((r) => r.module === 'realestate') === true };
@@ -280,11 +273,11 @@ function Rules() {
   };
   const lastUsed = (r: BankRule) => (r.lastUsedAt ? formatInstantDay(r.lastUsedAt) : t('banks.rules.never'));
   const actions = (r: BankRule, menuId: string) => (
-    <RuleActions rule={r} menuId={menuId} onDeleteStarted={() => setAnnouncement('')} onDeleted={setAnnouncement} />
+    <RuleActions rule={r} menuId={menuId} />
   );
 
   return (
-    <Section title={t('banks.rules.title')} announcement={announcement}>
+    <Section title={t('banks.rules.title')}>
       <p className="text-sm text-muted-foreground">{t('banks.rules.hint')}</p>
       {rules.error ? <ProblemMessage problem={present(toProblem(rules.error))} /> : null}
       {rules.data?.length === 0 ? <p>{t('banks.rules.empty')}</p> : null}
@@ -308,16 +301,14 @@ function Rules() {
   );
 }
 
-function RuleActions({ rule, menuId, onDeleteStarted, onDeleted }: {
-  rule: BankRule; menuId: string; onDeleteStarted: () => void; onDeleted: (message: string) => void;
-}) {
+function RuleActions({ rule, menuId }: { rule: BankRule; menuId: string }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const remove = $api.useMutation('delete', RULE, { onSuccess: () => { onDeleted(t('banks.rules.deleted')); void invalidateRules(queryClient); } });
+  const remove = $api.useMutation('delete', RULE, { onSuccess: () => { toast.success(t('banks.rules.deleted')); void invalidateRules(queryClient); } });
   return (
     <RowActions menuId={menuId} menuLabel={t('banks.rules.actions_of', { stem: rule.labelStem })} items={[]}
-      confirmation={t('banks.rules.delete_confirm', { stem: rule.labelStem })} remove={remove} onDeleteStarted={onDeleteStarted}
+      confirmation={t('banks.rules.delete_confirm', { stem: rule.labelStem })} remove={remove}
       onConfirm={() => remove.mutate({ params: { path: { id: rule.id } } })}
       present={(_, error) => present(toProblem(error))} invalidate={invalidateRules} />
   );

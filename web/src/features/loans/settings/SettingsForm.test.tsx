@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { PROPERTY, propertyList, propertySummary } from '../../properties/testData';
 import type { LoanDetail } from '../api';
 import { LOAN, loanDetail, schedule } from '../testData';
@@ -22,7 +23,6 @@ function serve(bodies: unknown[], answer: () => Response = () => HttpResponse.js
 
 const PAGE = `/loans/${LOAN}?tab=contract`;
 const settings = () => screen.getByRole('form', { name: 'Réglages' });
-const settingsRegion = () => screen.getByRole('region', { name: 'Réglages' });
 const save = () => within(settings()).getByRole('button', { name: 'Enregistrer les réglages' });
 
 describe('loan settings', () => {
@@ -39,7 +39,7 @@ describe('loan settings', () => {
     await expectNoAxeViolations(container);
     await user.click(save());
 
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
     expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: true, clearNote: false, clearProperty: false }]);
     await waitFor(() => expect(reads.detail).toBeGreaterThan(1));
   });
@@ -52,7 +52,7 @@ describe('loan settings', () => {
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
     await user.click(save());
 
-    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Aucune modification à enregistrer.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Aucune modification à enregistrer.'));
     expect(bodies).toEqual([]);
   });
 
@@ -93,7 +93,7 @@ describe('loan settings', () => {
     }));
     return () => reads;
   };
-  const saved = () => waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
+  const saved = () => waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
 
   it('prefills « Bien financé », changes the link, and reads the loans and the properties again', async () => {
     const bodies: unknown[] = [];

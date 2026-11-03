@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { todayIso } from '../../subscriptions/today';
 import { detail, eur, figures, list, PEA, summary } from '../testData';
 
@@ -66,7 +67,7 @@ describe('closing an envelope', () => {
     await expectNoAxeViolations(document.body);
     await user.click(within(dialog).getByRole('button', { name: 'Clôturer' }));
 
-    expect(await screen.findByText('Enveloppe clôturée.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Enveloppe clôturée.'));
     expect(bodies).toEqual([{ closedOn: todayIso() }]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const banner = await screen.findByText('Enveloppe clôturée');
@@ -183,7 +184,7 @@ describe('a closed envelope', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Rouvrir' }));
 
-    expect(await screen.findByText('Enveloppe rouverte.')).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Enveloppe rouverte.'));
     expect(await screen.findByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
     expect(screen.queryByText('Enveloppe clôturée')).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Saisir une valeur' })).toHaveFocus());

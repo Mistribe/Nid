@@ -7,7 +7,7 @@ export type Call = { method: string; path: string; body?: unknown };
 /**
  * Mocks the server's real behaviour, not just an id echo: a value on an already-known date replaces that row (a
  * new id), a flow correction supersedes the old one (a new id, the server's `SupersedeAsync`), and a deletion
- * removes the row — so a test can assert on the table and the section's live region after the refetch, the way the
+ * removes the row — so a test can assert on the table and the toasts after the refetch, the way the
  * real page reacts.
  */
 export function serve(current: EnvelopeDetail, calls: Call[]) {

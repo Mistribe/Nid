@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { formatInstant } from './format';
 
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2 };
@@ -47,7 +48,7 @@ describe('Administration › Cours', () => {
     await user.click(toggle);
 
     await waitFor(() => expect(sent).toEqual([{ pricesEnabled: true }]));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Enregistré'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Enregistré'));
   });
 
   it('asks for an update, and says when one is already running', async () => {
@@ -67,10 +68,10 @@ describe('Administration › Cours', () => {
     await user.click(await screen.findByRole('button', { name: 'Mettre à jour maintenant' }));
     expect(calls).toBe(0);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mise à jour demandée'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Mise à jour demandée'));
 
     await user.click(screen.getByRole('button', { name: 'Mettre à jour maintenant' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une mise à jour est déjà en cours'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Une mise à jour est déjà en cours'));
   });
 });

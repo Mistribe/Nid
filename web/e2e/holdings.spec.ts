@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillDate, pick } from './controls';
+import { fillDate, pick, toasts } from './controls';
 import { signIn } from './session';
 
 test('alice details an assurance-vie by holding, records a snapshot and a cost report', async ({ browser }) => {
@@ -19,13 +19,13 @@ test('alice details an assurance-vie by holding, records a snapshot and a cost r
   await dialog.getByLabel('Support', { exact: true }).fill('Fonds euros');
   await pick(alice, 'Type', 'Fonds en euros');
   await dialog.getByRole('button', { name: 'Ajouter le support' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Support ajouté.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Support ajouté.');
 
   await alice.getByRole('button', { name: 'Ajouter un support' }).click();
   dialog = alice.getByRole('dialog', { name: 'Nouveau support' });
   await dialog.getByLabel('Support', { exact: true }).fill('Monde ESG');
   await dialog.getByRole('button', { name: 'Ajouter le support' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Support ajouté.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Support ajouté.');
 
   await alice.getByRole('button', { name: 'Saisir un relevé' }).click();
   dialog = alice.getByRole('dialog', { name: 'Relevé des supports' });
@@ -36,7 +36,7 @@ test('alice details an assurance-vie by holding, records a snapshot and a cost r
   await dialog.getByLabel('Valeur de Fonds euros', { exact: true }).fill('800');
   await dialog.getByLabel('Enregistrer aussi la valeur de l’enveloppe', { exact: true }).check();
   await dialog.getByRole('button', { name: 'Enregistrer le relevé' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Relevé enregistré.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Relevé enregistré.');
 
   const table = alice.getByRole('table', { name: 'Supports de l’enveloppe' });
   await expect(table.getByRole('row').filter({ hasText: 'Monde ESG' })).toContainText('60 %');
@@ -54,7 +54,7 @@ test('alice details an assurance-vie by holding, records a snapshot and a cost r
   await dialog.getByLabel('Frais totaux (%)', { exact: true }).fill('2,5');
   await dialog.getByLabel('Rendement net (%)', { exact: true }).fill('5,5');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(alice.getByRole('status').filter({ hasText: 'Rapport de frais enregistré.' })).toBeVisible();
+  await expect(toasts(alice)).toContainText('Rapport de frais enregistré.');
   await alice.getByRole('tab', { name: 'Coûts' }).click();
   await expect(alice.getByRole('table', { name: 'Coûts' }).getByRole('row').filter({ hasText: '2025' })).toContainText('2,5 %');
 });

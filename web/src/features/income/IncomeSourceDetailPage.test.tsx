@@ -6,6 +6,7 @@ import { reduceMotion } from '@/test/motion';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { todayIso } from '../subscriptions/today';
 import type { IncomeSourceDetail, IncomeSourceOverview } from './api';
 import { detail, eur, phase, SALARY, sourceOverview } from './testData';
@@ -176,14 +177,14 @@ describe('IncomeSourceDetailPage', () => {
     const form = screen.getByRole('form', { name: 'Corriger la période' });
     expect(within(form).getByLabelText('Montant net')).toHaveValue('1800');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Période corrigée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Période corrigée.'));
     expect(screen.getByRole('heading', { name: 'Changements' })).toHaveFocus();
     await waitFor(() => expect(timeline()[1]).toHaveTextContent('15 décembre 2024·Prime annuelle·nouvelle composante·1 900,00 €'));
 
     await user.click(menu());
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Période supprimée.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Période supprimée.'));
     await waitFor(() => expect(screen.queryByRole('button', { name: /^Actions de la période Prime annuelle/ })).not.toBeInTheDocument());
     await waitFor(() => expect(timeline().map(text).some((r) => r?.includes('Prime annuelle'))).toBe(false));
     expect(sent).toEqual(['PUT p2', 'DELETE p2']);
@@ -210,7 +211,7 @@ describe('IncomeSourceDetailPage', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Revenu exceptionnel ajouté.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Revenu exceptionnel ajouté.'));
     expect(sent).toEqual([expect.objectContaining({ occurredOn: todayIso(), amount: { amount: '250', currency: 'EUR' } })]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await waitFor(() => expect(within(screen.getByRole('region', { name: 'Derniers exceptionnels' })).getAllByRole('row')).toHaveLength(2));
@@ -347,7 +348,7 @@ describe('IncomeSourceDetailPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer le changement' }));
 
     await waitFor(() => expect(sent).toEqual([expect.objectContaining({ label: 'Salaire de base', netAmount: { amount: '2500', currency: 'EUR' } })]));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Montant changé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Montant changé.'));
     await expectNoAxeViolations(container);
   });
 
@@ -368,7 +369,7 @@ describe('IncomeSourceDetailPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Rouvrir' }));
     expect(await screen.findByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Source rouverte.');
+    expect(toasts()).toHaveTextContent('Source rouverte.');
   });
 
   it('a reader sees no write action', async () => {

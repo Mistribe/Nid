@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { IncomeSourceDetail } from '../api';
 import { detail, eur, phase, SALARY } from '../testData';
 
@@ -92,7 +93,7 @@ describe('changing the amount', () => {
     await user.type(within(form).getByLabelText('Montant net'), '2500');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer le changement' }));
 
-    await waitFor(() => expect(screen.getAllByRole('status').map((x) => x.textContent)).toContain('Montant changé.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Montant changé.'));
     expect(sent).toEqual([{ label: 'Salaire de base', effectiveOn: expect.stringMatching(/^\d{4}-\d{2}-01$/) as string, netAmount: { amount: '2500', currency: 'EUR' }, every: { count: 1, unit: 'month' } }]);
     expect(screen.getByRole('heading', { name: 'Changements' })).toHaveFocus();
   });

@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw/http';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { resetAnnouncement } from './announce';
+import { resetFocus } from './focus';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
@@ -25,7 +25,7 @@ const tablePreview = (over: object = {}) => ({
 const checkbox = { name: 'Faire de ce tableau la référence' };
 
 describe('Un tableau d’amortissement proposé', () => {
-  beforeEach(resetAnnouncement);
+  beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); });
 
   it('shows the comparison, the rows and the reference, and approves it as the reference', async () => {

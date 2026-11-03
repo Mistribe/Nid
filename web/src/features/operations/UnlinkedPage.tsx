@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { LocalDate } from '@/components/LocalDate';
@@ -17,7 +17,6 @@ import '@/locales/banks';
 export function UnlinkedPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const [message, setMessage] = useState('');
   const lines = $api.useInfiniteQuery('get', UNLINKED_LINES, { params: { query: {} } }, {
     pageParamName: 'page',
     initialPageParam: 1,
@@ -27,7 +26,6 @@ export function UnlinkedPage() {
   return (
     <div className="space-y-4">
       <PageHeader title={t('banks.operations.to_link')} />
-      <p role="status">{message}</p>
       {lines.error ? <ProblemMessage problem={present(toProblem(lines.error))} /> : null}
       {lines.isPending ? <div role="status" aria-busy="true" aria-label={t('banks.operations.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
       {lines.data && rows.length === 0 ? <p className="text-muted-foreground">{t('banks.operations.to_link_empty')}</p> : null}
@@ -38,14 +36,14 @@ export function UnlinkedPage() {
             { id: 'account', header: t('banks.operations.account'), sort: (l) => l.accountName, cell: (l) => l.accountName },
             { id: 'label', header: t('banks.operations.label'), sort: (l) => l.label, cell: (l) => <span className="whitespace-normal">{l.label}</span> },
             { id: 'amount', header: t('banks.operations.amount'), align: 'end', sort: (l) => amountKey(l.amount), cell: (l) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span> },
-            { id: 'actions', header: t('banks.operations.actions_col'), align: 'end', cell: (l) => <LineActions line={l} onDone={setMessage} /> },
+            { id: 'actions', header: t('banks.operations.actions_col'), align: 'end', cell: (l) => <LineActions line={l} onDone={toast.success} /> },
           ]}
           mobile={(l) => (
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-2"><span>{l.label}</span><span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span></div>
               <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
                 <span><LocalDate value={l.bookedOn} style="short" /> · {l.accountName}</span>
-                <LineActions line={l} onDone={setMessage} />
+                <LineActions line={l} onDone={toast.success} />
               </div>
             </div>
           )} />

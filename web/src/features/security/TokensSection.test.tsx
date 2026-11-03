@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 
 const token = (over: Record<string, unknown> = {}) => ({
   id: 't1', name: 'Claude sur mon laptop', preset: 'propose', prefix: 'abcd1234', createdAt: '2026-10-01T08:00:00+00:00',
@@ -129,6 +130,6 @@ describe('Mes jetons', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toBe('t1'));
-    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Mes jetons' })).getByRole('status')).toHaveTextContent('Jeton révoqué.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Jeton révoqué.'));
   });
 });

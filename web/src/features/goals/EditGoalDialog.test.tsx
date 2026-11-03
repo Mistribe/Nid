@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { list as envelopeList, summary as envelope } from '../investments/testData';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import type { GoalDetail } from './api';
 import { detail, ENVELOPE, GOAL } from './testData';
 
@@ -114,7 +115,7 @@ describe('EditGoalDialog', () => {
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(scopes).toContain('me');
     expect(puts[0]).toMatchObject({ funding: [{ envelopeId: ENVELOPE, shareBp: 5000 }], version: 4 });
-    expect(await screen.findByRole('status')).toHaveTextContent('Objectif modifié.');
+    await waitFor(() => expect(toasts()).toHaveTextContent('Objectif modifié.'));
   });
 
   it('keeps a partial goal funded: envelopes mode, no rows, and saves without adding one', async () => {

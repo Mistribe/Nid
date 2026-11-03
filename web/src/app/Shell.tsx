@@ -20,6 +20,8 @@ const VersionInfo = lazy(() => import('./VersionInfo').then((m) => ({ default: m
 const RailTip = lazy(() => import('./RailTip').then((m) => ({ default: m.RailTip })));
 const VERSION = import.meta.env.VITE_NID_VERSION ?? 'dev';
 // cmdk and the dialog load on the first ⌘K (200 kB budget).
+// sonner loads after the shell (200 kB budget); a toast fired before it mounts is replayed when it does.
+const Toaster = lazy(() => import('@/components/ui/sonner').then((m) => ({ default: m.Toaster })));
 const CommandMenu = lazy(() => import('./CommandMenu').then((m) => ({ default: m.CommandMenu })));
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -159,6 +161,11 @@ export function Shell() {
           {more.some((item) => item.to === '/proposals') ? <span className="absolute top-0.5 left-1/2 ml-1.5"><PendingBadge /></span> : null}
         </Link>
       </nav>
+      {/* An action's outcome (design-system.md §5); on a phone, above the tab bar. */}
+      <Suspense fallback={null}>
+        <Toaster containerAriaLabel={t('app.toasts')} position="bottom-right"
+          mobileOffset={{ bottom: 'calc(4rem + env(safe-area-inset-bottom) + 1rem)' }} />
+      </Suspense>
     </div>
   );
 }

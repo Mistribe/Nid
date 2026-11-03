@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { formatInstant } from './format';
 
 const run = {
@@ -40,11 +41,11 @@ describe('Administration › Taux de change', () => {
     await user.click(await screen.findByRole('button', { name: 'Synchroniser' }));
     expect(calls).toBe(0);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Collecte demandée'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Collecte demandée'));
 
     await user.click(screen.getByRole('button', { name: 'Synchroniser' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une collecte est déjà en cours'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Une collecte est déjà en cours'));
   });
 
   it('enters a manual rate', async () => {
@@ -65,7 +66,7 @@ describe('Administration › Taux de change', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
 
     await waitFor(() => expect(sent).toEqual([{ path: '2025-10-01/EUR', body: { rate: '0.8612' } }]));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Taux enregistré'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Taux enregistré'));
   });
 
   it('sends nothing, and says why, when the date, the currency or the rate is missing', async () => {

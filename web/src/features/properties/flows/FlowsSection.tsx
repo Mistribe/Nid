@@ -19,7 +19,7 @@ import '@/locales/properties';
 
 /**
  * 3D1 design §6: the property's expenses and income, newest first (the server lists them oldest first). Adding and
- * correcting open a dialog; the section owns its live region and where the focus lands.
+ * correcting open a dialog; the section owns its toasts and where the focus lands.
  */
 export function FlowsSection({ property }: { property: PropertyDetail }) {
   const { t } = useTranslation();
@@ -29,7 +29,7 @@ export function FlowsSection({ property }: { property: PropertyDetail }) {
   // The months the server gives a receipt for: in the rent ledger, up to the current one, of one lease or one revision chain.
   const receiptMonth = (month: string) => property.receiptMonths.includes(month);
   return (
-    <Section title={t('property_flows.title')} headingRef={s.headingRef} announcement={s.announcement}>
+    <Section title={t('property_flows.title')} headingRef={s.headingRef}>
       {writable ? <Button ref={s.addButtonRef} type="button" variant="outline" size="sm" onClick={() => s.open()}>{t('property_flows.add')}</Button> : null}
       {writable && s.dialog ? <FlowDialog property={property} editing={s.dialog.editing} onClose={s.cancel} onDone={s.saved} /> : null}
       <Table aria-label={t('property_flows.table')}>
@@ -64,7 +64,7 @@ export function FlowsSection({ property }: { property: PropertyDetail }) {
               </TableCell>
               {writable ? (
                 <TableCell>
-                  <FlowRowActions property={property} flow={f} onEdit={() => s.open(f)} onDeleteStarted={() => s.setAnnouncement('')}
+                  <FlowRowActions property={property} flow={f} onEdit={() => s.open(f)}
                     onDeleted={s.announce} onReloaded={() => s.headingRef.current?.focus()} />
                 </TableCell>
               ) : null}
@@ -77,8 +77,8 @@ export function FlowsSection({ property }: { property: PropertyDetail }) {
 }
 
 /** « Corriger » opens the dialog; « Supprimer » asks first. */
-function FlowRowActions({ property, flow, onEdit, onDeleteStarted, onDeleted, onReloaded }: {
-  property: PropertyDetail; flow: PropertyFlow; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void; onReloaded: () => void;
+function FlowRowActions({ property, flow, onEdit, onDeleted, onReloaded }: {
+  property: PropertyDetail; flow: PropertyFlow; onEdit: () => void; onDeleted: (message: string) => void; onReloaded: () => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -88,7 +88,7 @@ function FlowRowActions({ property, flow, onEdit, onDeleteStarted, onDeleted, on
   });
   return (
     <RowActions menuId={`flow-menu-${flow.id}`} menuLabel={t('loan_detail.row_menu_what', { date: formatLocalDate(flow.occurredOn), what: `${kindText(t, flow.kind)} ${categoryText(t, flow.category)}` })}
-      items={[{ label: t('loan_detail.correct'), onSelect: onEdit }]} confirmation={t('property_flows.delete_confirm')} remove={remove} onDeleteStarted={onDeleteStarted} onReloaded={onReloaded}
+      items={[{ label: t('loan_detail.correct'), onSelect: onEdit }]} confirmation={t('property_flows.delete_confirm')} remove={remove} onReloaded={onReloaded}
       present={presentRefusal} invalidate={invalidateProperties}
       onConfirm={() => remove.mutate({ params: { path: { id: property.id, flowId: flow.id } } })} />
   );
