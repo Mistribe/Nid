@@ -98,7 +98,7 @@ public sealed class EnvelopesNetWorth(
 
     /// <summary>
     /// 2D2b spec §4: at each date, each envelope's last reading on or before it, with the net contributions up to that
-    /// reading (as <see cref="EnvelopeMath.Series"/>), so the gap between the two lines stays the gain. A closed
+    /// reading (as <see cref="EnvelopeMath.Series"/>, its valuations only), so the gap between the two lines stays the gain. A closed
     /// envelope counts strictly before its closing; one whose facts cannot be read counts as having no reading.
     /// Holding prices spec §5.4: at today's date only, the reading's value is the estimate when <see cref="TodayValue"/> picks it.
     /// </summary>
@@ -119,7 +119,7 @@ public sealed class EnvelopesNetWorth(
                 Money? estimate = estimates.GetValueOrDefault(envelope.ItemId) is { Value: not null } e
                     && EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today) is { Value: not null } figures
                     && TodayValue.Pick(figures, e) is { Estimated: true } picked ? picked.Value : null;
-                series.Add((f.Envelope.ClosedOn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency), estimate));
+                series.Add((f.Envelope.ClosedOn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency).Where(p => !p.PaidIn).ToList(), estimate));
             }
 
         var points = new List<NetWorthPoint>();

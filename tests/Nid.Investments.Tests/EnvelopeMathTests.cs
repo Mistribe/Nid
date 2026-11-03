@@ -246,11 +246,33 @@ public class EnvelopeMathTests
     }
 
     [Fact]
-    public void The_series_is_ordered_by_date_whatever_the_input_order_and_empty_without_values()
+    public void The_series_is_ordered_by_date_whatever_the_input_order_and_empty_without_values_or_flows()
     {
         var points = EnvelopeMath.Series([PeaValues[1], PeaValues[0]], PeaFlows, Currency.Eur);
 
         Assert.Equal([new LocalDate(2024, 12, 31), new LocalDate(2025, 12, 31)], points.Select(p => p.AsOf));
-        Assert.Empty(EnvelopeMath.Series([], PeaFlows, Currency.Eur));
+        Assert.All(points, p => Assert.False(p.PaidIn));
+        Assert.Empty(EnvelopeMath.Series([], [], Currency.Eur));
+    }
+
+    [Fact]
+    public void Before_its_first_value_the_series_counts_the_amount_paid_in_on_each_date_of_money_in_or_out()
+    {
+        Flow[] flows =
+        [
+            Flow(2020, 1, 15, FlowKind.Opening, 1_000m), Flow(2020, 6, 1, FlowKind.Contribution, 500m), Flow(2020, 6, 1, FlowKind.Contribution, 200m),
+            Flow(2021, 1, 1, FlowKind.Withdrawal, 100m), Flow(2022, 3, 1, FlowKind.Expense, 10m), Flow(2026, 10, 18, FlowKind.Contribution, 300m),
+        ];
+
+        var points = EnvelopeMath.Series([Value(2026, 10, 18, 2_000m)], flows, Currency.Eur);
+
+        Assert.Equal(
+            [
+                (new LocalDate(2020, 1, 15), Eur(1_000m), Eur(1_000m), true), (new LocalDate(2020, 6, 1), Eur(1_700m), Eur(1_700m), true),
+                (new LocalDate(2021, 1, 1), Eur(1_600m), Eur(1_600m), true), (new LocalDate(2026, 10, 18), Eur(2_000m), Eur(1_900m), false),
+            ],
+            points.Select(p => (p.AsOf, p.Value, p.NetContributions, p.PaidIn)));
+        // Never valued: every point is the amount paid in.
+        Assert.All(EnvelopeMath.Series([], PeaFlows, Currency.Eur), p => Assert.True(p.PaidIn && p.Value == p.NetContributions));
     }
 }

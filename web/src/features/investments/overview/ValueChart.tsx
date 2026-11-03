@@ -18,8 +18,8 @@ import '@/locales/investments';
 
 const SPANS = ['12m', '3y', 'all'] as const;
 type Span = (typeof SPANS)[number];
-type Row = { on: string; label: string; total: number | null; net: number | null; totalText: string; netText: string; texts: Record<string, string> }
-  & Record<string, number | null | string | Record<string, string>>;
+type Row = { on: string; label: string; total: number | null; net: number | null; totalText: string; netText: string; paidIn: boolean; texts: Record<string, string> }
+  & Record<string, number | null | string | boolean | Record<string, string>>;
 
 const key = (kind: string) => `k_${kind}`;
 
@@ -85,7 +85,7 @@ function Chart({ d, label, view }: { d: InvestmentsOverview; label: (p: Overview
   const rows: Row[] = d.points.map((p, i) => {
     const row: Row = {
       on: p.on, label: label(p, i), total: p.value ? toPlot(p.value.amount) : null, net: p.netContributions ? toPlot(p.netContributions.amount) : null,
-      totalText: p.value ? formatMoney(p.value) : '', netText: p.netContributions ? formatMoney(p.netContributions) : '', texts: {},
+      totalText: p.value ? formatMoney(p.value) : '', netText: p.netContributions ? formatMoney(p.netContributions) : '', paidIn: p.paidIn, texts: {},
     };
     for (const kind of kinds) row[key(kind)] = null;
     // A point whose total is unknown is not drawn (a missing rate): the note under the chart says so.
@@ -133,6 +133,7 @@ function PointTooltip({ active, payload, kinds }: { active?: boolean; payload?: 
     <div className="grid gap-1 rounded-xl border bg-background px-3 py-2 text-xs shadow-md">
       <div className="font-medium">{row.label}</div>
       <div className="tabular-nums">{t('investments_overview.series_value')} : {row.totalText}</div>
+      {row.paidIn ? <PaidIn /> : null}
       {kinds.filter((k) => row.texts[k]).map((k) => (
         <div key={k} className="flex items-center gap-1.5 tabular-nums">
           <span aria-hidden="true" className="size-2 rounded-sm" style={{ background: kindColor(k) }} />{kindText(t, k)} : {row.texts[k]}
@@ -141,6 +142,12 @@ function PointTooltip({ active, payload, kinds }: { active?: boolean; payload?: 
       <div className="tabular-nums">{t('investments_overview.series_net')} : {row.netText}</div>
     </div>
   );
+}
+
+/** Issue #325: some envelope counts at what was paid into it, not at a valuation: words, not colour, as an estimate. */
+function PaidIn() {
+  const { t } = useTranslation();
+  return <span className="block text-xs text-muted-foreground">{t('investments_overview.paid_in')}</span>;
 }
 
 function PointsTable({ d, label }: { d: InvestmentsOverview; label: (p: OverviewPoint, i: number) => string }) {
@@ -165,7 +172,7 @@ function PointsTable({ d, label }: { d: InvestmentsOverview; label: (p: Overview
               const value = p.byKind.find((x) => x.kind === k)?.value;
               return <TableCell key={k} className="text-right">{value ? <Money value={value} tabular /> : p.value ? '' : unknown}</TableCell>;
             })}
-            <TableCell className="text-right">{p.value ? <Money value={p.value} tabular /> : unknown}</TableCell>
+            <TableCell className="text-right">{p.value ? <Money value={p.value} tabular /> : unknown}{p.paidIn ? <PaidIn /> : null}</TableCell>
             <TableCell className="text-right">{p.netContributions ? <Money value={p.netContributions} tabular /> : unknown}</TableCell>
           </TableRow>
         ))}

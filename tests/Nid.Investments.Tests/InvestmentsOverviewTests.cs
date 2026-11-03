@@ -146,6 +146,34 @@ public class InvestmentsOverviewTests
         Assert.Equal(D(2024, 12, 31), o.FirstAsOf);
     }
 
+    /// <summary>Paid into by contributions, valued once on 18 October.</summary>
+    private static EnvelopePerformance.Facts Tontine(LocalDate first) => new EnvelopeFacts("Tontine", EnvelopeKind.LifeInsurance)
+        .Flow(first, FlowKind.Contribution, 1_000m).Flow(D(2026, 4, 10), FlowKind.Contribution, 2_000m).Value(D(2026, 10, 18), 3_500m).Build();
+
+    [Fact]
+    public void Before_its_first_value_an_envelope_counts_at_the_amount_paid_in_from_each_contributions_date()
+    {
+        var o = Build([Tontine(D(2025, 11, 15))]);
+
+        Assert.Equal(
+            [
+                (D(2025, 10, 31), (decimal?)null, (decimal?)null, false), (D(2025, 11, 30), 1_000m, 1_000m, true),
+                (D(2026, 3, 31), 1_000m, 1_000m, true), (D(2026, 4, 30), 3_000m, 3_000m, true), (D(2026, 9, 30), 3_000m, 3_000m, true),
+                (Today, 3_500m, 3_000m, false),
+            ],
+            o.Points.Where(p => p.On.Month is 10 or 11 or 3 or 4 or 9)
+                .Select(p => (p.On, p.Value is null ? (decimal?)null : N(p.Value), p.NetContributions is null ? (decimal?)null : N(p.NetContributions), p.PaidIn)));
+    }
+
+    [Fact]
+    public void All_starts_at_the_first_contribution_when_it_is_older_than_any_value()
+    {
+        var o = Build([Life(), Tontine(D(2020, 3, 1))], OverviewSpan.All);
+
+        Assert.Equal((D(2020, 3, 31), 1_000m, true), (o.Points[0].On, N(o.Points[0].Value), o.Points[0].PaidIn));
+        Assert.Equal(D(2024, 12, 31), o.FirstAsOf);
+    }
+
     [Fact]
     public void An_envelope_in_dollars_is_converted_at_each_dates_rate_and_a_missing_rate_says_so()
     {

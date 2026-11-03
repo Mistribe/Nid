@@ -53,11 +53,24 @@ public static class EnvelopeMath
             M(net, currency), M(end.Value.Amount - start.Value.Amount - net, currency));
     }
 
-    /// <summary>One point per valuation, by date: the value and the net contributions dated on or before it.</summary>
+    /// <summary>
+    /// One point per valuation, by date: the value and the net contributions dated on or before it. Before the first valuation, one
+    /// point per date of money in or out, its value the net contributions up to it (<c>PaidIn</c>): a stand-in, no gain invented.
+    /// </summary>
     public static IReadOnlyList<SeriesPointFigures> Series(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency)
-        => values.OrderBy(v => v.AsOf)
-            .Select(v => new SeriesPointFigures(v.AsOf, v.Value, M(NetContributions(flows, f => f.OccurredOn <= v.AsOf), currency)))
+    {
+        var first = values.Count == 0 ? LocalDate.MaxIsoValue : values.Min(v => v.AsOf);
+        var paidIn = flows.Where(f => f.OccurredOn < first && f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal)
+            .Select(f => f.OccurredOn).Distinct().Order()
+            .Select(d =>
+            {
+                var net = M(NetContributions(flows, f => f.OccurredOn <= d), currency);
+                return new SeriesPointFigures(d, net, net, PaidIn: true);
+            });
+        return paidIn.Concat(values.OrderBy(v => v.AsOf)
+            .Select(v => new SeriesPointFigures(v.AsOf, v.Value, M(NetContributions(flows, f => f.OccurredOn <= v.AsOf), currency))))
             .ToList();
+    }
 
     /// <summary>
     /// Projection spec §2.1: the contributions minus the withdrawals dated in [<paramref name="from"/>, <paramref name="to"/>]. Openings are

@@ -22,7 +22,7 @@ public sealed class GetEnvelopeSeriesHandler(EnvelopePerformance performance)
             return Result.Failure<EnvelopeSeries>(failure!);
         facts.TryGetValue(out var f);
         var points = EnvelopeMath.Series(f!.Values, f.Flows, f.Currency)
-            .Select(p => new SeriesPoint(p.AsOf, AmountView.From(p.Value), AmountView.From(p.NetContributions)))
+            .Select(p => new SeriesPoint(p.AsOf, AmountView.From(p.Value), AmountView.From(p.NetContributions), p.PaidIn))
             .ToList();
         return Result.Success(new EnvelopeSeries(query.ItemId, points));
     }

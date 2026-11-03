@@ -38590,7 +38590,8 @@
       "OverviewPointView": {
         "required": [
           "on",
-          "byKind"
+          "byKind",
+          "paidIn"
         ],
         "type": "object",
         "properties": {
@@ -38623,6 +38624,9 @@
             "items": {
               "$ref": "#/components/schemas/KindValueView"
             }
+          },
+          "paidIn": {
+            "type": "boolean"
           }
         }
       },
@@ -44404,7 +44408,8 @@
         "required": [
           "asOf",
           "value",
-          "netContributions"
+          "netContributions",
+          "paidIn"
         ],
         "type": "object",
         "properties": {
@@ -44417,6 +44422,9 @@
           },
           "netContributions": {
             "$ref": "#/components/schemas/AmountView"
+          },
+          "paidIn": {
+            "type": "boolean"
           }
         }
       },

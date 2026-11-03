@@ -27176,6 +27176,7 @@ export interface components {
             value?: null | components["schemas"]["AmountView"];
             netContributions?: null | components["schemas"]["AmountView"];
             byKind: components["schemas"]["KindValueView"][];
+            paidIn: boolean;
         };
         OwnerBody: {
             /** Format: uuid */
@@ -28527,6 +28528,7 @@ export interface components {
             asOf: string;
             value: components["schemas"]["AmountView"];
             netContributions: components["schemas"]["AmountView"];
+            paidIn: boolean;
         };
         SessionPerson: {
             /** Format: uuid */

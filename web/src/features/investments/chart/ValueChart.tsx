@@ -15,7 +15,7 @@ import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/investments';
 
 // `at` places the point in time: an axis of dates evenly spaced would squeeze the sparse years and stretch the dense ones.
-type Row = { asOf: string; at: number; value: number; net: number; valueText: string; netText: string };
+type Row = { asOf: string; at: number; value: number; net: number; valueText: string; netText: string; paidIn: boolean };
 type Point = components['schemas']['SeriesPoint'];
 
 /** The envelope's value against its net contributions over time; the same points are one button away as a table. */
@@ -49,6 +49,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
     net: toPlot(p.netContributions.amount),
     valueText: formatMoney(p.value),
     netText: formatMoney(p.netContributions),
+    paidIn: p.paidIn,
   }));
   // Display of the plotting number only: the axis is a scale, not a figure the person reads exactly.
   const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, notation: 'compact' });
@@ -71,7 +72,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
             {points.map((p) => (
               <TableRow key={p.asOf}>
                 <TableCell><LocalDate value={p.asOf} /></TableCell>
-                <TableCell><Money value={p.value} tabular /></TableCell>
+                <TableCell><Money value={p.value} tabular />{p.paidIn ? <PaidIn /> : null}</TableCell>
                 <TableCell><Money value={p.netContributions} tabular /></TableCell>
               </TableRow>
             ))}
@@ -109,7 +110,14 @@ function ValueTooltip({ active, payload, netLabel }: { active?: boolean; payload
     <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{formatLocalDate(row.asOf)}</div>
       <div className="flex justify-between gap-4"><span>{t('envelope.value')}</span><span className="tabular-nums">{row.valueText}</span></div>
+      {row.paidIn ? <PaidIn /> : null}
       <div className="flex justify-between gap-4"><span>{netLabel}</span><span className="tabular-nums">{row.netText}</span></div>
     </div>
   );
+}
+
+/** Issue #325: before its first valuation, an envelope's value is what was paid in: said in words. */
+function PaidIn() {
+  const { t } = useTranslation();
+  return <span className="block text-xs text-muted-foreground">{t('envelope.paid_in')}</span>;
 }

@@ -65,9 +65,9 @@ export const household = (): InvestmentsOverview => overview({
       valueConverted: eur('10000.00'), gainConverted: eur('200.00') }),
   ],
   points: [
-    { on: '2025-08-31', value: eur('33000.00'), netContributions: eur('31000.00'), byKind: [{ kind: 'pea', value: eur('23000.00') }, { kind: 'savings', value: eur('10000.00') }] },
-    { on: '2025-09-30', value: eur('35000.00'), netContributions: eur('31800.00'), byKind: [{ kind: 'pea', value: eur('25000.00') }, { kind: 'savings', value: eur('10000.00') }] },
-    { on: '2025-10-15', value: eur('35000.00'), netContributions: eur('31800.00'), byKind: [{ kind: 'pea', value: eur('25000.00') }, { kind: 'savings', value: eur('10000.00') }] },
+    { on: '2025-08-31', value: eur('33000.00'), netContributions: eur('31000.00'), byKind: [{ kind: 'pea', value: eur('23000.00') }, { kind: 'savings', value: eur('10000.00') }], paidIn: true },
+    { on: '2025-09-30', value: eur('35000.00'), netContributions: eur('31800.00'), byKind: [{ kind: 'pea', value: eur('25000.00') }, { kind: 'savings', value: eur('10000.00') }], paidIn: false },
+    { on: '2025-10-15', value: eur('35000.00'), netContributions: eur('31800.00'), byKind: [{ kind: 'pea', value: eur('25000.00') }, { kind: 'savings', value: eur('10000.00') }], paidIn: false },
   ],
   watch: [
     { code: 'stale_value', envelopeId: LIVRET, holdingId: null, on: '2025-08-31' },

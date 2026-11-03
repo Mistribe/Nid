@@ -62,7 +62,8 @@ public sealed record PeriodView(
         p.EndAsOf, AmountView.From(p.EndValue), AmountView.From(p.NetContributions), AmountView.From(p.Performance));
 }
 
-public sealed record SeriesPoint(LocalDate AsOf, AmountView Value, AmountView NetContributions);
+/// <summary><c>PaidIn</c>: the value is the amount paid in before the first valuation, not a valuation.</summary>
+public sealed record SeriesPoint(LocalDate AsOf, AmountView Value, AmountView NetContributions, bool PaidIn);
 
 public sealed record EnvelopeSeries(ItemId Id, IReadOnlyList<SeriesPoint> Points) : IExposesItems
 {

@@ -203,7 +203,7 @@ public sealed class GetHoldingSeriesHandler(IEnvelopeStore envelopes, IItemRegis
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<HoldingSeries>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var points = HoldingMath.Series(query.Holding, await holdings.SnapshotsAsync(query.ItemId, ct), facts!.Movements, facts.Currency)
-            .Select(p => new SeriesPoint(p.AsOf, AmountView.From(p.Value), AmountView.From(p.NetContributions)))
+            .Select(p => new SeriesPoint(p.AsOf, AmountView.From(p.Value), AmountView.From(p.NetContributions), p.PaidIn))
             .ToList();
         return Result.Success(new HoldingSeries(query.ItemId, query.Holding, points));
     }

@@ -35,8 +35,11 @@ public sealed record EnvelopeOverviewRow(
 
 public sealed record KindValueView(string Kind, AmountView? Value);
 
-/// <summary>One point of the curve: the envelopes' last readings on or before it, by kind, converted at its date (D4).</summary>
-public sealed record OverviewPointView(LocalDate On, AmountView? Value, AmountView? NetContributions, IReadOnlyList<KindValueView> ByKind);
+/// <summary>
+/// One point of the curve: the envelopes' last readings on or before it, by kind, converted at its date (D4). <c>PaidIn</c>: at least
+/// one envelope counts at the amount paid in, not yet valued.
+/// </summary>
+public sealed record OverviewPointView(LocalDate On, AmountView? Value, AmountView? NetContributions, IReadOnlyList<KindValueView> ByKind, bool PaidIn);
 
 /// <summary>Spec §3.2: something to look at; the screen writes the sentence from the code.</summary>
 public sealed record EnvelopeWatchView(string Code, ItemId EnvelopeId, Guid? HoldingId, LocalDate? On);
@@ -312,7 +315,8 @@ internal static class InvestmentsOverviewMath
 
     /// <summary>
     /// As the net worth curve (2D2b): at each date, each envelope's last reading on or before it, with its net contributions up to
-    /// that reading; a closed envelope counts strictly before its closing. « Tout » starts at the first date with a reading.
+    /// that reading; a closed envelope counts strictly before its closing. Before its first valuation, an envelope counts at the amount
+    /// paid in (<see cref="EnvelopeMath.Series"/>). « Tout » starts at the first date with a reading.
     /// Holding prices spec §5.4: at today's date only, an envelope's value is its estimate when <see cref="TodayValue"/> picks it.
     /// </summary>
     private static List<OverviewPointView> Points(
@@ -329,16 +333,16 @@ internal static class InvestmentsOverviewMath
                 .Where(x => x.Reading is not null)
                 .Select(x => (Kind: EnvelopeWire.Of(x.Facts.Envelope.Kind),
                     Value: convert.Of(date == today && estimates.TryGetValue(x.Facts.Item.Id, out var e) ? e.Amount : x.Reading!.Value.Amount, x.Facts.Currency, date),
-                    Net: convert.Of(x.Reading!.NetContributions.Amount, x.Facts.Currency, date)))
+                    Net: convert.Of(x.Reading!.NetContributions.Amount, x.Facts.Currency, date), x.Reading.PaidIn))
                 .ToList();
             if (at.Count == 0)
             {
-                points.Add(new OverviewPointView(date, null, null, []));
+                points.Add(new OverviewPointView(date, null, null, [], false));
                 continue;
             }
             var byKind = at.GroupBy(x => x.Kind).OrderBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => new KindValueView(g.Key, convert.View(SumOrNull(g.Select(x => x.Value))))).ToList();
-            points.Add(new OverviewPointView(date, convert.View(SumOrNull(at.Select(x => x.Value))), convert.View(SumOrNull(at.Select(x => x.Net))), byKind));
+            points.Add(new OverviewPointView(date, convert.View(SumOrNull(at.Select(x => x.Value))), convert.View(SumOrNull(at.Select(x => x.Net))), byKind, at.Any(x => x.PaidIn)));
         }
         return span == OverviewSpan.All ? points.SkipWhile(p => p.ByKind.Count == 0).ToList() : points;
     }

@@ -80,6 +80,9 @@ describe('Placements › vue d’ensemble', () => {
     const table = screen.getByRole('table', { name: 'Valeur et versements' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Date', 'PEA', 'Livret', 'Valeur', 'Versé net']);
     expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent('Aujourd’hui25 000,00 €10 000,00 €35 000,00 €31 800,00 €');
+    // A point where an envelope counts at what was paid in says so; a valued one does not.
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('33 000,00 €dont versements pas encore valorisés');
+    expect(within(table).getAllByRole('row').at(-1)).not.toHaveTextContent('pas encore valorisés');
   });
 
   it('says a figure a missing rate left out, and why', async () => {

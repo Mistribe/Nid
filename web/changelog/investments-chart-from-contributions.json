@@ -1,0 +1,4 @@
+{
+  "en": "The « Valeur et versements » chart counts an envelope from its first payment, at the amount paid in until its first valuation, and says so in the tooltip and the table; so does an envelope's own chart.",
+  "fr": "Le graphique « Valeur et versements » compte une enveloppe dès son premier versement, au montant versé jusqu’à sa première valorisation, et le signale dans l’infobulle et le tableau ; le graphique de l’enveloppe fait de même."
+}
