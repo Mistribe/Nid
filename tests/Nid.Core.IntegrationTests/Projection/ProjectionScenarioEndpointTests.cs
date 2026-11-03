@@ -308,4 +308,142 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{id}")).StatusCode);
         Assert.Empty(List(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/scenarios")), "items"));
     }
+
+    // Spec §14: GET /api/v1/scenarios/compare, the base and 1 to 3 scenarios on the request's grid and scope.
+
+    private static Task<HttpResponseMessage> CompareRawAsync(NidApp app, string ids, string? horizon = null, string scope = "household", PersonId? actor = null)
+        => app.RawAsync(actor ?? app.AdultA, HttpMethod.Get,
+            $"/api/v1/scenarios/compare?scope={scope}&ids={ids}{(horizon is null ? "" : $"&horizon={horizon}")}");
+
+    private static async Task<JsonElement> CompareAsync(NidApp app, string ids, string? horizon = null, string scope = "household")
+        => await OkAsync(await CompareRawAsync(app, ids, horizon, scope));
+
+    private static decimal Dec(JsonElement element, string name) => decimal.Parse(Str(element, name)!, System.Globalization.CultureInfo.InvariantCulture);
+
+    private static object PurchaseEventOn(Guid scenario)
+        => new { id = Guid.NewGuid(), kind = "property_purchase", start = new { on = "2025-10-15" }, scenario };
+
+    [Fact]
+    public async Task Compare_returns_the_base_once_and_each_scenario_in_ids_order()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var purchase = await PurchaseAsync(app);
+        var projection = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+
+        var view = await CompareAsync(app, $"{projection},{purchase}");
+
+        var scenarios = List(view, "scenarios");
+        Assert.Equal([(projection, "projection", "Retraite anticipée"), (purchase, "property_purchase", "Appartement")],
+            scenarios.Select(s => (s.GetProperty("id").GetGuid(), Str(s, "kind"), Str(s, "name"))));
+        var grid = List(view.GetProperty("base"), "points").Select(p => Str(p, "on")).ToList();
+        foreach (var scenario in scenarios)
+        {
+            var points = List(scenario.GetProperty("result"), "points");
+            Assert.Equal(grid, points.Select(p => Str(p, "on")));
+            Assert.Equal(Dec(points[^1], "nominal") - Dec(List(view.GetProperty("base"), "points")[^1], "nominal"), Dec(scenario, "gapNominal"));
+        }
+        Assert.NotEqual(0m, Dec(scenarios[0], "gapNominal"));
+    }
+
+    [Fact]
+    public async Task Compare_a_purchase_equals_a_projection_with_its_single_purchase_event()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var purchase = await PurchaseAsync(app);
+        var projection = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", PurchaseEventOn(purchase)))));
+
+        var scenarios = List(await CompareAsync(app, $"{purchase},{projection}"), "scenarios");
+
+        Assert.Equal(Raw(List(scenarios[1].GetProperty("result"), "points")), Raw(List(scenarios[0].GetProperty("result"), "points")));
+        Assert.Equal(Str(scenarios[1], "gapNominal"), Str(scenarios[0], "gapNominal"));
+    }
+
+    [Fact]
+    public async Task Compare_uses_the_request_horizon_not_the_stored_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var projection = await SavedAsync(await CreateAsync(app, Body(app, Document("20y", Income()))));
+
+        var view = await CompareAsync(app, $"{projection}", "5y");
+
+        var result = Assert.Single(List(view, "scenarios")).GetProperty("result");
+        Assert.Equal(("5y", "5y"), (Str(view.GetProperty("base"), "horizon"), Str(result, "horizon")));
+        Assert.Equal(Str(List(view.GetProperty("base"), "points")[^1], "on"), Str(List(result, "points")[^1], "on"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    [InlineData(-1)]
+    public async Task Compare_refuses_ids_out_of_bounds(int count)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var one = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+        var ids = count switch
+        {
+            0 => "",
+            -1 => $"{one},{one}",
+            _ => string.Join(',', Enumerable.Range(0, count).Select(_ => Guid.NewGuid())),
+        };
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "ids"), await RefusalAsync(await CompareRawAsync(app, ids)));
+    }
+
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("deleted")]
+    [InlineData("private of B")]
+    public async Task Compare_answers_404_for_an_unknown_a_deleted_or_another_adults_private_scenario(string which)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+        var target = which switch
+        {
+            "unknown" => Guid.NewGuid(),
+            "deleted" => shared,
+            _ => await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()), "Secret", "private", app.AdultB), app.AdultB)),
+        };
+        if (which == "deleted")
+            Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/scenarios/{shared}")).StatusCode);
+
+        var response = await CompareRawAsync(app, $"{target}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain("Secret", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Compare_answers_404_for_my_private_scenario_in_household_scope()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mine = await SavedAsync(await CreateAsync(app, Scoped(app, "me", Document("10y", Income()), "À moi", "private")));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await CompareRawAsync(app, $"{mine}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await CompareRawAsync(app, $"{mine}", scope: "me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Compare_does_not_repeat_the_base_warnings_under_a_scenario()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
+        {
+            ["displayName"] = "Mon CDD", ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = "shared",
+            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["phases"] = new[]
+            {
+                new
+                {
+                    label = "CDD", startsOn = "2025-01-01", endsOn = "2026-03-01", netAmount = new { amount = "2000", currency = "EUR" },
+                    every = new { count = 1, unit = "month" },
+                },
+            },
+        })).EnsureSuccessStatusCode();
+        var projection = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+
+        var view = await CompareAsync(app, $"{projection}");
+
+        Assert.Contains(List(view.GetProperty("base"), "warnings"), w => Str(w, "code") == "income_end_extended");
+        Assert.DoesNotContain(List(Assert.Single(List(view, "scenarios")).GetProperty("result"), "warnings"), w => Str(w, "code") == "income_end_extended");
+    }
 }

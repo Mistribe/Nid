@@ -6,6 +6,7 @@ import type { HouseholdPoint } from '@/features/dashboard/api';
 import { monthLabel } from '../../income/expected/months';
 import type { ProjectionComparison } from './api';
 import { ProjectionComparisonChart, useMilestoneText } from './ProjectionComparisonChart';
+import { baseAndScenario } from './chartSeries';
 import '@/locales/scenarios';
 
 /** yyyy-mm-dd as jj/mm/aaaa (a string swap, nothing computed). */
@@ -29,7 +30,7 @@ export default function ProjectionScenarioTab({ comparison, real }: { comparison
   return (
     <>
       <Section title={t('scenarios.projection.detail.chart')} srTitle>
-        <ProjectionComparisonChart comparison={comparison} real={real} className="h-72" />
+        <ProjectionComparisonChart series={baseAndScenario(comparison, t)} currency={comparison.base.currency} milestones={comparison.scenario.milestones} real={real} className="h-72" />
         {milestones.length > 0 ? (
           <ul aria-label={t('scenarios.projection.detail.milestones')} className="space-y-0.5 text-sm text-muted-foreground">
             {milestones.map((m) => (

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { Pencil } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -127,13 +127,24 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
     <>
       <PageHeader crumbs={[{ label: t('scenarios.title'), to: '/scenarios' }]} title={scenario.name}
         meta={<AccessBadge access={scenario.visibility === 'private' ? 'private' : 'shared'} />}
-        actions={canWrite ? (
+        actions={(
           <>
-            <Button ref={renameRef} type="button" variant="outline" onClick={() => open('rename')}><Pencil aria-hidden="true" />{t('scenarios.projection.detail.rename')}</Button>
-            <ConfirmAction label={t('scenarios.projection.detail.delete')} confirmation={t('scenarios.projection.detail.delete_confirm')}
-              pending={remove.isPending} onConfirm={() => remove.mutate({ params: { path: { id: scenario.id } } })} />
+            <Button asChild variant="outline">
+              {/* A private scenario is visible in scope « Moi » only, whatever scope it was saved with. */}
+              <Link to="/scenarios/compare"
+                search={{ ids: scenario.id, ...(scenario.scope === 'me' || scenario.visibility === 'private' ? { scope: 'me' as const } : {}) }}>
+                {t('scenarios.compare.open')}
+              </Link>
+            </Button>
+            {canWrite ? (
+              <>
+                <Button ref={renameRef} type="button" variant="outline" onClick={() => open('rename')}><Pencil aria-hidden="true" />{t('scenarios.projection.detail.rename')}</Button>
+                <ConfirmAction label={t('scenarios.projection.detail.delete')} confirmation={t('scenarios.projection.detail.delete_confirm')}
+                  pending={remove.isPending} onConfirm={() => remove.mutate({ params: { path: { id: scenario.id } } })} />
+              </>
+            ) : null}
           </>
-        ) : null}>
+        )}>
         <section aria-label={t('scenarios.detail.figures')} className="space-y-2">
           <StatLine items={[
             { label: t(real ? 'scenarios.projection.detail.at_horizon_real' : 'scenarios.projection.detail.at_horizon_nominal'), value: money(last ? (real ? last.real : last.nominal) : undefined) },

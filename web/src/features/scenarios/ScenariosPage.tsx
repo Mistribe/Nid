@@ -35,7 +35,14 @@ export function ScenariosPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t('scenarios.title')} actions={add} />
+      <PageHeader title={t('scenarios.title')} actions={(
+        <>
+          <Button asChild variant="outline">
+            <Link to="/scenarios/compare" search={search.scope === 'me' ? { scope: 'me' } : {}}>{t('scenarios.compare.open')}</Link>
+          </Button>
+          {add}
+        </>
+      )} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data ? (
           <ul aria-busy="true" aria-label={t('scenarios.loading')} className="space-y-2">

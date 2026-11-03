@@ -17,3 +17,6 @@ export type ProjectionScenarioBody = components['schemas']['ProjectionScenarioBo
 export const PROJECTION_SCENARIOS = '/api/v1/scenarios/projection' as const;
 export const PROJECTION_SCENARIO = '/api/v1/scenarios/projection/{id}' as const;
 export const PROJECTION_SIMULATE = '/api/v1/scenarios/projection/simulate' as const;
+
+export type ScenarioCompare = components['schemas']['ProjectionCompareView'];
+export const SCENARIO_COMPARE = '/api/v1/scenarios/compare' as const;

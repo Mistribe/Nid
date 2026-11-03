@@ -34,6 +34,14 @@ async function rows(): Promise<HTMLElement[]> {
 describe('ScenariosPage', () => {
   beforeAll(async () => { await import('./ScenariosPage'); }, 30_000);
 
+  it('« Comparer » opens the compare page, keeping the scope', async () => {
+    serve([item(), projection]);
+    await renderApp('/scenarios?scope=me');
+
+    const link = await screen.findByRole('link', { name: 'Comparer' });
+    expect(link).toHaveAttribute('href', '/scenarios/compare?scope=me');
+  });
+
   it('lists the scenarios with their figures and owners', async () => {
     serve([item(), item({ id: 'b', name: 'T3 Paris', use: 'primary', debtRatioAfter: null })]);
     await renderApp('/scenarios');

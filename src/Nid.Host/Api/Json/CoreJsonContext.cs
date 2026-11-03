@@ -34,6 +34,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ProjectionAssumptionsView))]
 [JsonSerializable(typeof(ProjectionView))]
 [JsonSerializable(typeof(ProjectionComparisonView))]
+[JsonSerializable(typeof(ProjectionCompareView))]
 [JsonSerializable(typeof(ProjectionScenarioView))]
 [JsonSerializable(typeof(ProposalDetail))]
 [JsonSerializable(typeof(ProposalList))]

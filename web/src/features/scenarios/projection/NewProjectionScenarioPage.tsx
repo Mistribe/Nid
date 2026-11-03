@@ -26,6 +26,7 @@ import type { EventFieldError } from './EventDialog';
 import { EventList } from './EventList';
 import { ProjectionWarnings } from './ProjectionWarnings';
 import '@/locales/forms';
+import { baseAndScenario } from './chartSeries';
 import '@/locales/scenarios';
 
 // The chart (Recharts) loads once there is a result to draw.
@@ -206,7 +207,7 @@ function Result({ result }: { result: ProjectionComparison }) {
         { label: t('scenarios.projection.result.gap_real'), value: formatCurrency(result.gapReal, currency) },
         { label: t('scenarios.projection.result.gap_nominal'), value: formatCurrency(result.gapNominal, currency) },
       ]} />
-      <Suspense fallback={<Skeleton className="h-56 w-full rounded-xl" />}><ProjectionComparisonChart comparison={result} real /></Suspense>
+      <Suspense fallback={<Skeleton className="h-56 w-full rounded-xl" />}><ProjectionComparisonChart series={baseAndScenario(result, t)} currency={result.base.currency} milestones={result.scenario.milestones} real /></Suspense>
       <ProjectionWarnings warnings={result.scenario.warnings} />
       <p className="text-sm text-muted-foreground">{t('scenarios.projection.result.reminder')}</p>
     </div>

@@ -1,3 +1,4 @@
+using Nid.Core.Application.Projection;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
 using UnambitiousFx.Synapse.Abstractions;
@@ -41,6 +42,12 @@ public static class ScenarioEndpoints
             => (await invoker.InvokeAsync(new GetScenarioDefaultsQuery(ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<ScenarioDefaultsView>();
 
+        // Net worth projection spec §14: the base and 1 to 3 scenarios, projections or purchases, on the request's grid.
+        api.MapGet("/compare", async (string? scope, string? horizon, string? ids, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CompareScenariosQuery(ParseScope(scope), ProjectionEndpoints.ParseHorizon(horizon), ParseIds(ids)), ct))
+                .ToHttp(view => view))
+            .Returns<ProjectionCompareView>();
+
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetScenarioQuery(new ItemId(id)), ct)).ToHttp(view => view))
             .Returns<ScenarioView>();
@@ -64,6 +71,12 @@ public static class ScenarioEndpoints
 
         return routes;
     }
+
+    /// <summary>Spec §14.1: comma-separated ids, in order; a part that is no id is a bad request (the count is the handler's rule).</summary>
+    private static List<ItemId> ParseIds(string? ids)
+        => (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => Guid.TryParse(part, out var id) ? new ItemId(id) : throw new BadHttpRequestException($"'{part}' is not a scenario id."))
+            .ToList();
 
     /// <summary>The document is the same shape as the one the reads answer with; a missing member is read as such, never passed on as null.</summary>
     public sealed record ScenarioBody(string? Name, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Scope, PropertyPurchaseView? Document)

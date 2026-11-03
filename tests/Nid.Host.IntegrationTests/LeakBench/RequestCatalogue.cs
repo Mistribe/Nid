@@ -450,6 +450,11 @@ public static class RequestCatalogue
                 target, "bench", d.VisibilityOf(target), VisibilityScope.Me, BenchProjection(PurchaseEvent(d.PurchaseTwinOf(other))))),
             SecondItemAccess = AccessKind.Read,
         },
+        // Spec §14: J-AB's projection twin (B's event on B's private loan, which A must not see) beside S-A's purchase twin, compared by
+        // both adults; the scans check what the answer exposes. The 404s (unknown, deleted, private of the other adult, private outside
+        // the scope) are ProjectionScenarioEndpointTests.Compare_*'s.
+        new(typeof(CompareScenariosQuery), false, (d, item) => new CompareScenariosQuery(VisibilityScope.Me, ProjectionHorizon.Default,
+            [d.ProjectionScenarios["J-AB"], d.PurchaseTwinOf(item)])),
         new(typeof(GetIncomeSourceQuery), true, (_, item) => new GetIncomeSourceQuery(item)),
         new(typeof(EditIncomeSourceCommand), true, (_, item) => new EditIncomeSourceCommand(item, null, null, new IncomeSourceChange(Note: "bench"))),
         new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,

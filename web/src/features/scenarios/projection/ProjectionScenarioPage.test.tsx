@@ -49,6 +49,31 @@ const table = () => screen.getByRole('table', { name: 'Patrimoine en fin d’ann
 describe('ProjectionScenarioPage', () => {
   beforeAll(async () => { await import('./ProjectionScenarioPage'); }, 30_000);
 
+  it('« Comparer » opens the compare page with this scenario, also for a reader who cannot write', async () => {
+    serve(view({ canWrite: false }));
+    await renderApp(`/scenarios/projection/${ID}`);
+
+    const link = await screen.findByRole('link', { name: 'Comparer' });
+    expect(link).toHaveAttribute('href', `/scenarios/compare?ids=${ID}`);
+  });
+
+  it('« Comparer » opens a private scenario saved in scope Foyer in scope « Moi », where it is visible', async () => {
+    serve(view({ visibility: 'private', scope: 'household' }));
+    await renderApp(`/scenarios/projection/${ID}`);
+
+    const link = await screen.findByRole('link', { name: 'Comparer' });
+    expect(new URL(link.getAttribute('href')!, 'http://x').searchParams.get('scope')).toBe('me');
+  });
+
+  it('« Comparer » opens the comparison in scope « Moi » for a « Moi » scenario', async () => {
+    serve(view({ scope: 'me' }));
+    await renderApp(`/scenarios/projection/${ID}`);
+
+    const link = await screen.findByRole('link', { name: 'Comparer' });
+    expect(new URL(link.getAttribute('href')!, 'http://x').searchParams.get('scope')).toBe('me');
+    expect(new URL(link.getAttribute('href')!, 'http://x').searchParams.get('ids')).toBe(ID);
+  });
+
   it('shows the server’s figures inline: the scenario at the horizon, the gap with the base and the last loan’s end', async () => {
     serve();
     await renderApp(`/scenarios/projection/${ID}`);
