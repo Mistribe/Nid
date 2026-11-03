@@ -231,7 +231,8 @@ public sealed class MixedDataset
                 await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
                 {
                     Guid[] twins = [items[row.Name].Value, envelopes[row.Name].Value, incomeSources[row.Name].Value, loans[row.Name].Value,
-                        properties[row.Name].Value, goals[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value];
+                        properties[row.Name].Value, goals[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value,
+                        childcare[row.Name].Value];
                     await core.Items.Where(i => twins.Contains(i.Id)).ExecuteUpdateAsync(s => s.SetProperty(i => i.ShareLevel, "edit"));
                 }
 

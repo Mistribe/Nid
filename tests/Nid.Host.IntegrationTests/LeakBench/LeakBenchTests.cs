@@ -1073,6 +1073,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             var data = await MixedDataset.CreateAsync(fixture);
             await using var app = data.App;
 
+            // Every mismatch, not the first: one wrong entry must not hide the ones after it.
+            var mismatches = new List<string>();
             foreach (var entry in RequestCatalogue.Entries.Where(e => e.IsItemScoped))
             foreach (var (name, item) in data.ItemsFor(entry.RequestType))
             foreach (var actor in new[] { app.AdultA, app.AdultB })
@@ -1090,27 +1092,29 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
                 if (!data.ExpectedReadable(actor).Contains(item))
                 {
-                    Assert.True(failure is NotFoundFailure { Resource: "item" },
-                        $"{where}: the rules hide this item, so it must be 'not found' — existence is never "
+                    if (failure is not NotFoundFailure { Resource: "item" })
+                        mismatches.Add($"{where}: the rules hide this item, so it must be 'not found' — existence is never "
                         + $"disclosed — but the pipeline answered {Describe(failure)}");
                     continue;
                 }
 
                 if ((access == AccessKind.Write && !data.ExpectedWritable(name, actor)) || (access == AccessKind.Own && !data.ExpectedOwned(name, actor)))
                 {
-                    Assert.True(failure is UnauthorizedFailure,
-                        $"{where}: the rules let this actor read but not {access.ToString().ToLowerInvariant()}, so it must be forbidden, "
+                    if (failure is not UnauthorizedFailure)
+                        mismatches.Add($"{where}: the rules let this actor read but not {access.ToString().ToLowerInvariant()}, so it must be forbidden, "
                         + $"but the pipeline answered {Describe(failure)}");
                     continue;
                 }
 
                 // Allowed. The request may still fail on its own merits — the bench invents phase and purchase
                 // ids — but it must never be turned away by the access rules.
-                Assert.False(failure is UnauthorizedFailure,
-                    $"{where}: refused although the rules allow it — {Describe(failure)}");
-                Assert.False(failure is NotFoundFailure { Resource: "item" },
-                    $"{where}: hidden although the rules allow it — {Describe(failure)}");
+                if (failure is UnauthorizedFailure)
+                    mismatches.Add($"{where}: refused although the rules allow it — {Describe(failure)}");
+                if (failure is NotFoundFailure { Resource: "item" })
+                    mismatches.Add($"{where}: hidden although the rules allow it — {Describe(failure)}");
             }
+
+            Assert.True(mismatches.Count == 0, string.Join("\n", mismatches));
         }
 
         [Fact]

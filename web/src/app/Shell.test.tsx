@@ -42,7 +42,8 @@ describe('the shell', () => {
     server.use(http.get('*/api/v1/platform/version', () => HttpResponse.json({ version: '1.2.3' })));
     const { user } = await renderApp('/subscriptions');
     await user.hover(await within(sidebar()).findByRole('button', { name: 'Version dev' }));
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('API : 1.2.3');
+    // The tooltip opens on « API : … » while the version is still loading.
+    await waitFor(async () => expect(await screen.findByRole('tooltip')).toHaveTextContent('API : 1.2.3'));
   });
 
   it('lists what changed in each version on a click on the version', async () => {
