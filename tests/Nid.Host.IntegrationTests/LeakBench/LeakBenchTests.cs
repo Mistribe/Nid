@@ -322,7 +322,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var data = await MixedDataset.CreateAsync(fixture);
         await using var app = data.App;
         var commands = RequestCatalogue.Entries.Where(e => e.OnEveryRow && RequestCatalogue.IsCommand(e.RequestType)).ToList();
-        Assert.Equal(2, commands.Count);
+        Assert.Equal(3, commands.Count);
 
         foreach (var entry in commands)
         foreach (var (name, item) in data.Items)

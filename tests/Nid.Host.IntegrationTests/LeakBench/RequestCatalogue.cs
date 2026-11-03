@@ -561,9 +561,13 @@ public static class RequestCatalogue
         new(typeof(GetDocumentQuery), false, (d, item) => new GetDocumentQuery(d.Documents[item])) { OnEveryRow = true },
         new(typeof(GetDocumentContentQuery), false, (d, item) => new GetDocumentContentQuery(d.Documents[item])) { OnEveryRow = true },
         new(typeof(EditDocumentCommand), false, (d, item) => new EditDocumentCommand(d.Documents[item], "bench", null, null)) { OnEveryRow = true },
+        new(typeof(FileDocumentsCommand), false, (d, item) => new FileDocumentsCommand([new DocumentEdit(d.Documents[item], "bench", null, null)], [])) { OnEveryRow = true },
         new(typeof(SetDocumentArchivedCommand), false, (d, item) => new SetDocumentArchivedCommand(d.Documents[item], true)) { OnEveryRow = true },
         new(typeof(UploadDocumentCommand), true, (_, item) => new UploadDocumentCommand(DocumentApi.Pdf, "bench.pdf", "bench", null, null,
             new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Statement)),
+        // A browser actor has no token to tie the URL to: an allowed writer meets documents.invalid_field, never an access refusal.
+        new(typeof(RequestDocumentUploadCommand), true, (_, item) => new RequestDocumentUploadCommand("bench.pdf", "bench", new NodaTime.LocalDate(2025, 1, 1), null,
+            new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Statement, null)),
         // The row's document is already linked to the row: an allowed writer meets documents.already_linked, never an access refusal.
         new(typeof(LinkDocumentCommand), true, (d, item) => new LinkDocumentCommand(d.Documents[item],
             new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Statement)),

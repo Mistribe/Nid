@@ -15,6 +15,8 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
 
     public DbSet<DocumentLinkRow> Links => Set<DocumentLinkRow>();
 
+    public DbSet<UploadTicketRow> UploadTickets => Set<UploadTicketRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -37,6 +39,16 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
             e.HasIndex(x => new { x.TargetKind, x.TargetId });
             e.HasIndex(x => x.AnchorItemId);
             e.HasOne<DocumentRow>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UploadTicketRow>(e =>
+        {
+            e.ToTable("upload_ticket");
+            e.HasKey(x => x.TokenHash);
+            e.Property(x => x.TokenHash).HasColumnType("char(64)");
+            e.Property(x => x.Title).HasMaxLength(255);
+            e.Property(x => x.Note).HasMaxLength(2000);
+            e.Property(x => x.SourceRef).HasMaxLength(200);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

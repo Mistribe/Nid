@@ -28,3 +28,20 @@ public sealed class DocumentLinkRow
     public Guid LinkedByPersonId { get; set; }
     public Instant LinkedAt { get; set; }
 }
+
+/// <summary>#305: an upload URL not used yet; no history, it is deleted when claimed or expired.</summary>
+public sealed class UploadTicketRow
+{
+    public string TokenHash { get; set; } = "";
+    public Guid PersonId { get; set; }
+    public Guid TokenId { get; set; }
+    public string FileName { get; set; } = "";
+    public string Title { get; set; } = "";
+    public LocalDate DocumentDate { get; set; }
+    public string? Note { get; set; }
+    public string TargetKind { get; set; } = "";
+    public Guid TargetId { get; set; }
+    public string Role { get; set; } = "";
+    public string? SourceRef { get; set; }
+    public Instant ExpiresAt { get; set; }
+}

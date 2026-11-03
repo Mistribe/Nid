@@ -1,8 +1,10 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
 import { formatMoney } from '@/components/Money';
 import strings from '@/locales/fr.proposals.json';
 import { Table, TableBody } from '@/components/ui/table';
+import { DOCUMENTS } from '../documents/api';
 import type { ProposalView } from './api';
 import { Row, type LinkTarget } from './kindParts';
 import '@/locales/proposals';
@@ -57,6 +59,10 @@ function lines(value: unknown, path: string, out: [string, string][]) {
 
 export function RoutePayload({ p }: { p: ProposalView }) {
   const { t } = useTranslation();
+  const { $api } = useApi();
+  // A filing round names documents by id: whoever approves reads their titles.
+  const documents = $api.useQuery('get', DOCUMENTS, { params: { query: { scope: 'me' } } }, { enabled: p.kind.startsWith('documents.') });
+  const titles = new Map(documents.data?.items.map((d) => [d.id, d.title]));
   const { body, ...route } = payloadOf(p);
   // The target is the « Élément » line already; a line's id (`flowId`), a version and an id that is no target (a document's) stay.
   const rows = [...lines(Object.fromEntries(Object.entries(route).filter(([k]) => k !== 'id' || !p.targetItemId)), '', []), ...lines(body ?? {}, '', [])];
@@ -67,7 +73,7 @@ export function RoutePayload({ p }: { p: ProposalView }) {
       {replacesInsurance ? <p role="note" className="mb-2 text-sm text-muted-foreground">{t('proposal.route.replaces_insurance')}</p> : null}
       {rows.length === 0 ? <p>{t('proposal.route.no_fields')}</p> : (
         <Table>
-          <TableBody>{rows.map(([label, v]) => <Row key={label} label={label}>{v}</Row>)}</TableBody>
+          <TableBody>{rows.map(([label, v]) => <Row key={label} label={label}>{titles.get(v) ?? v}</Row>)}</TableBody>
         </Table>
       )}
     </section>

@@ -11,5 +11,5 @@ public sealed class DocumentsAuditMap : IAuditMap
         [typeof(DocumentLinkRow)] = new(e => AuditItems.Of(e, nameof(DocumentLinkRow.AnchorItemId))),
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(UploadTicketRow) };
 }

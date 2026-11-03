@@ -38,6 +38,23 @@ public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? Docum
 
 public sealed record SetDocumentArchivedCommand(Guid Id, bool Archived) : ICommand<Guid>;
 
+/// <summary>#305: one document of a filing round: only what is given changes (an empty note removes it).</summary>
+public sealed record DocumentEdit(Guid Id, string? Title, LocalDate? DocumentDate, string? Note);
+
+/// <summary>#305: the role of one link in a filing round.</summary>
+public sealed record DocumentRoleChange(Guid Id, DocumentTarget Target, string Role);
+
+/// <summary>
+/// #305: a filing round, all of it or nothing: each line runs <see cref="EditDocumentCommand"/> or <see cref="SetLinkRoleCommand"/>, with
+/// their rights and rules, so one proposal covers dozens of documents and one approval applies them.
+/// </summary>
+public sealed record FileDocumentsCommand(IReadOnlyList<DocumentEdit> Edits, IReadOnlyList<DocumentRoleChange> Roles) : ICommand<FiledDocuments>
+{
+    public const int MaxLines = 200;
+}
+
+public sealed record FiledDocuments(int Edited, int Roles);
+
 internal static class DocumentFields
 {
     // Builder's choice: 255, as a cleaned file name, so the title taken from one always fits.
@@ -145,6 +162,41 @@ public sealed class EditDocumentHandler(IDocumentStore store, DocumentAccess acc
         await store.EditAsync(command.Id, command.Title.Trim(), command.DocumentDate, DocumentFields.Note(command.Note), ct);
         return Result.Success(command.Id);
     }
+}
+
+[RequestHandler<FileDocumentsCommand, FiledDocuments>]
+public sealed class FileDocumentsHandler(IInvoker invoker, IDocumentStore store, IUnitOfWork unitOfWork) : IRequestHandler<FileDocumentsCommand, FiledDocuments>
+{
+    public async ValueTask<Result<FiledDocuments>> HandleAsync(FileDocumentsCommand command, CancellationToken ct = default)
+    {
+        var lines = command.Edits.Count + command.Roles.Count;
+        if (lines is 0 or > FileDocumentsCommand.MaxLines)
+            return Result.Failure<FiledDocuments>(new Failure(DocumentsCodes.InvalidField, $"A filing round has 1 to {FileDocumentsCommand.MaxLines} lines.", null));
+
+        // Every early return skips the commit and so rolls back the lines already written.
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        foreach (var (edit, i) in command.Edits.Select((e, i) => (e, i)))
+        {
+            // Unreadable answers as missing: the edit's own access check refuses before anything read here is used.
+            var current = await store.FindAsync(edit.Id, ct);
+            var edited = await invoker.InvokeAsync(new EditDocumentCommand(edit.Id, edit.Title ?? current?.Title ?? "",
+                edit.DocumentDate ?? current?.DocumentDate, edit.Note ?? current?.Note), ct);
+            if (edited.TryGetFailure(out var refused))
+                return Result.Failure<FiledDocuments>(Located(refused!, $"edits[{i}]"));
+        }
+        foreach (var (role, i) in command.Roles.Select((r, i) => (r, i)))
+        {
+            var set = await invoker.InvokeAsync(new SetLinkRoleCommand(role.Id, role.Target, role.Role), ct);
+            if (set.TryGetFailure(out var refused))
+                return Result.Failure<FiledDocuments>(Located(refused!, $"roles[{i}]"));
+        }
+        await transaction.CommitAsync(ct);
+        return Result.Success(new FiledDocuments(command.Edits.Count, command.Roles.Count));
+    }
+
+    /// <summary>A rule's refusal names its line, so the assistant fixes that one among dozens; not found and forbidden stay what they are.</summary>
+    private static Failure Located(Failure failure, string line)
+        => FieldErrors.At(failure, failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) ? $"{line}.{field}" : line);
 }
 
 /// <summary>Design §7: an archived document stays readable by the same persons; it leaves the default lists.</summary>

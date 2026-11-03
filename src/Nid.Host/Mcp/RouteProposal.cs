@@ -65,10 +65,12 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
                     route[field.Name] = n.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 else if (action.IsDate(field.Name) && field.Value.ValueKind == JsonValueKind.String && LocalDatePattern.Iso.Parse(field.Value.GetString()!).Success)
                     route[field.Name] = field.Value.GetString()!;
+                else if (action.IsText(field.Name) && field.Value.ValueKind == JsonValueKind.String)
+                    route[field.Name] = field.Value.GetString()!;
                 else if (action.IsMonth(field.Name) && field.Value.ValueKind == JsonValueKind.String
                          && NodaTime.Text.YearMonthPattern.CreateWithInvariantCulture("uuuu-MM").Parse(field.Value.GetString()!).Success)
                     route[field.Name] = field.Value.GetString()!;
-                else if (!action.IsInteger(field.Name) && !action.IsDate(field.Name) && !action.IsMonth(field.Name) && field.Value.ValueKind == JsonValueKind.String
+                else if (!action.IsInteger(field.Name) && !action.IsDate(field.Name) && !action.IsMonth(field.Name) && !action.IsText(field.Name) && field.Value.ValueKind == JsonValueKind.String
                          && Guid.TryParse(field.Value.GetString(), out var id))
                     route[field.Name] = id.ToString();
                 else
@@ -100,7 +102,7 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
 
     private static string Required(RouteAction action, string parameter)
         => action.IsInteger(parameter) ? "An integer is required." : action.IsDate(parameter) ? "An ISO date (yyyy-mm-dd) is required."
-            : action.IsMonth(parameter) ? "A month (yyyy-MM) is required." : "A UUID is required.";
+            : action.IsMonth(parameter) ? "A month (yyyy-MM) is required." : action.IsText(parameter) ? "A text is required." : "A UUID is required.";
 
     private static JsonElement Normalized(RouteCall call)
     {

@@ -44,6 +44,28 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
     }
 
     // Tracked row, one property set each: EF writes only what changed, so the other command's field is left alone.
+    public async Task AddUploadTicketAsync(UploadTicket ticket, Instant now, CancellationToken ct)
+    {
+        await db.UploadTickets.Where(t => t.ExpiresAt <= now).ExecuteDeleteAsync(ct);
+        db.UploadTickets.Add(new UploadTicketRow
+        {
+            TokenHash = ticket.TokenHash, PersonId = ticket.PersonId, TokenId = ticket.TokenId, FileName = ticket.FileName, Title = ticket.Title,
+            DocumentDate = ticket.DocumentDate, Note = ticket.Note, TargetKind = ticket.TargetKind, TargetId = ticket.TargetId, Role = ticket.Role,
+            SourceRef = ticket.SourceRef, ExpiresAt = ticket.ExpiresAt,
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
+    // The delete is the claim: of two requests at once, one removes the row and the other removes nothing.
+    public async Task<UploadTicket?> ClaimUploadTicketAsync(string tokenHash, Instant now, CancellationToken ct)
+    {
+        if (await db.UploadTickets.AsNoTracking().SingleOrDefaultAsync(t => t.TokenHash == tokenHash, ct) is not { } row
+            || await db.UploadTickets.Where(t => t.TokenHash == tokenHash).ExecuteDeleteAsync(ct) == 0 || row.ExpiresAt <= now)
+            return null;
+        return new UploadTicket(row.TokenHash, row.PersonId, row.TokenId, row.FileName, row.Title, row.DocumentDate, row.Note,
+            row.TargetKind, row.TargetId, row.Role, row.SourceRef, row.ExpiresAt);
+    }
+
     public async Task EditAsync(Guid id, string title, LocalDate? documentDate, string? note, CancellationToken ct)
     {
         var row = await db.Documents.SingleAsync(d => d.Id == id, ct);

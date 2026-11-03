@@ -9,6 +9,7 @@ using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
 using Nid.Host.Api;
+using Nid.Host.Auth;
 using Nid.Platform.Contracts;
 using NodaTime.Text;
 using PDFtoImage;
@@ -145,6 +146,44 @@ public sealed class DocumentTools
         if (!uploaded.TryGetValue(out var document))
             return McpCalls.Refusal(uploaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         return McpCalls.Answer(services, new JsonObject { ["id"] = document!.Id, ["existing"] = document.Existing }, limited: false);
+    }
+
+    [McpServerTool(Name = "request_document_upload", ReadOnly = false, Destructive = false, Idempotent = false)]
+    [Description("Prepares filing a real file on an element, without its bytes passing through this conversation: answers a URL your own shell or " +
+                 "runtime POSTs the file to, as the raw body, e.g. curl --data-binary @file.pdf '<url>'. The target, role, date and title are checked now and " +
+                 "fixed in the URL's ticket; PDF, PNG, JPEG or .eml, up to `maxBytes`. The URL works once, even for a refused file, and expires quickly: " +
+                 "ask for one per file, right before sending it, and never show it. No proposal, since a document changes no figure. With " +
+                 "sourceRef, a reference already filed answers its document with existing=true and writes nothing. Needs the 'write' scope. " + McpSetup.Untrusted)]
+    public static async Task<CallToolResult> RequestDocumentUpload(IServiceProvider services,
+        [Description("The file's name, with its extension.")] string filename,
+        [Description("A readable title, 255 characters at most.")] string title,
+        [Description("The document's own date (yyyy-mm-dd), not in the future.")] string date,
+        [Description("'core.item', 'core.person' or 'core.household'.")] string targetKind,
+        [Description("The target's id (none for the household).")] Guid? targetId,
+        [Description("The link's role: " + RoleList + ".")] string role,
+        [Description("A note, 2000 characters at most.")] string? note = null,
+        [Description("Where the file comes from, 200 characters at most; the same reference is never filed twice.")] string? sourceRef = null,
+        CancellationToken ct = default)
+    {
+        if (services.GetRequiredService<IActorAccessor>().Current?.Has(ScopeNames.Write) != true)
+            return McpCalls.Error($"Refused: uploading needs the '{ScopeNames.Write}' scope.");
+        if (!LocalDatePattern.Iso.Parse(date).TryGetValue(default, out var documentDate))
+            return McpCalls.Error("Refused: date is not a yyyy-mm-dd date.");
+        // The configured address, never the request's Host header: a forged one must not send the file elsewhere.
+        var publicUrl = services.GetRequiredService<IOptions<NidAuthOptions>>().Value.PublicUrl.TrimEnd('/');
+        if (publicUrl.Length == 0)
+            return McpCalls.Error("Refused: this Nid has no public address (Auth:PublicUrl).");
+
+        var granted = await services.GetRequiredService<IInvoker>().InvokeAsync(new RequestDocumentUploadCommand(filename, title, documentDate, note,
+            new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), role, sourceRef), ct);
+        if (!granted.TryGetValue(out var grant))
+            return McpCalls.Refusal(granted.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        return McpCalls.Answer(services, new JsonObject
+        {
+            ["url"] = $"{publicUrl}{DocumentEndpoints.UploadsPath}/{grant!.Token}",
+            ["expiresAt"] = grant.ExpiresAt.ToString(),
+            ["maxBytes"] = services.GetRequiredService<DocumentsOptions>().MaxSizeBytes,
+        }, limited: false);
     }
 
     internal const string RoleList = "lease, loan_offer, deed, tax_notice, statement (periodic information), payslip, insurance, invoice, amortization_table, " +

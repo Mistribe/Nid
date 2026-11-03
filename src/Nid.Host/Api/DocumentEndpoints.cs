@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Http.Features;
+using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
+using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
@@ -11,8 +14,41 @@ namespace Nid.Host.Api;
 /// <summary>Documents design §5, §7: upload, read, download, edit, archive, links and the scoped list.</summary>
 public static class DocumentEndpoints
 {
+    /// <summary>#305: where an upload URL points; <see cref="Auth.CsrfMiddleware"/> leaves it alone, it reads no cookie.</summary>
+    public const string UploadsPath = "/api/v1/documents/uploads";
+
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder routes)
     {
+        // #305: no session and no token: the URL itself is the right, once, as whoever asked for it. The first request claims it, before a byte
+        // is read, so a request with no valid URL reads no body and a refused file needs a new URL. Same answer for unknown, used or expired.
+        routes.MapPost(UploadsPath + "/{token}", async (string token, HttpRequest request, DocumentsOptions options, IDocumentStore store,
+                IPersonalAccessTokens tokens, IPersonRegistry persons, IActorAccessor actor, IInvoker invoker, IClock clock, CancellationToken ct) =>
+            {
+                var gone = Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "This upload URL is not valid: ask for a new one.");
+                var now = clock.GetCurrentInstant();
+                if (await store.ClaimUploadTicketAsync(UploadTokens.Hash(token), now, ct) is not { } ticket)
+                    return gone;
+                // As authentication refuses it: a token revoked since, an adult no longer active.
+                var person = new PersonId(ticket.PersonId);
+                var issuer = (await tokens.ListAsync(person, ct)).FirstOrDefault(t => t.Id == ticket.TokenId);
+                if (issuer is null || issuer.RevokedAt is not null || issuer.ExpiresAt <= now
+                    || await persons.FindAsync(person, ct) is not { Kind: PersonKind.Adult, IsPending: false })
+                    return gone;
+
+                if (await BoundedBodyAsync(request, options.MaxSizeBytes, ct) is not { } content)
+                    return Result.Failure<UploadedDocument>(new Failure(DocumentsCodes.TooLarge, $"A document is at most {options.MaxSizeBytes} bytes.", null)).ToHttp(u => u);
+                actor.Current = Actor.Token(person, issuer.Id, issuer.Scopes, ActorOrigin.Mcp);
+                return (await invoker.InvokeAsync(new UploadDocumentCommand(content, ticket.FileName, ticket.Title, ticket.DocumentDate, ticket.Note,
+                        new DocumentTarget(ticket.TargetKind, ticket.TargetId), ticket.Role, ticket.SourceRef, FromAssistant: true), ct))
+                    .ToHttp(uploaded => uploaded, StatusCodes.Status201Created);
+            })
+            .AllowAnonymous()
+            .Accepts<Stream>("application/octet-stream")
+            .Returns<UploadedDocument>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+
         var api = routes.MapGroup("/api/v1/documents").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
@@ -140,6 +176,18 @@ public static class DocumentEndpoints
             })
             .Returns<IdResponse>();
 
+        // #305: a filing round, every line or none; dates are read here, so a refused one names its line.
+        api.MapPost("/filing", async (FileDocumentsBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var edits = (body.Edits ?? []).OfType<DocumentEditBody>()
+                    .Select((e, i) => new DocumentEdit(e.Id, e.Title, reader.Date(e.DocumentDate, $"edits[{i}].documentDate", required: false), e.Note)).ToList();
+                var roles = (body.Roles ?? []).OfType<DocumentRoleBody>()
+                    .Select(r => new DocumentRoleChange(r.Id, new DocumentTarget(r.TargetKind ?? "", r.TargetId ?? TargetKinds.Household), r.Role ?? "")).ToList();
+                return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new FileDocumentsCommand(edits, roles), ct)).ToHttp(filed => filed);
+            })
+            .Returns<FiledDocuments>();
+
         api.MapPost("/{id:guid}/archive", async (Guid id, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new SetDocumentArchivedCommand(id, true), ct)).ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
@@ -168,6 +216,31 @@ public static class DocumentEndpoints
         return routes;
     }
 
+    /// <summary>The body, at most <paramref name="max"/> bytes, declared or sent chunked; null past it, and nothing is kept.</summary>
+    private static async Task<byte[]?> BoundedBodyAsync(HttpRequest request, long max, CancellationToken ct)
+    {
+        if (request.ContentLength > max)
+            return null;
+        if (request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+            limit.MaxRequestBodySize = max;
+        using var content = new MemoryStream();
+        var chunk = new byte[81920];
+        try
+        {
+            for (var read = await request.Body.ReadAsync(chunk, ct); read > 0; read = await request.Body.ReadAsync(chunk, ct))
+            {
+                if (content.Length + read > max)
+                    return null;
+                content.Write(chunk, 0, read);
+            }
+        }
+        catch (BadHttpRequestException e) when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        {
+            return null;
+        }
+        return content.ToArray();
+    }
+
     /// <summary>Room for the form's other parts and boundaries on top of the file.</summary>
     private const long FormSlack = 64 * 1024;
 
@@ -180,4 +253,13 @@ public static class DocumentEndpoints
 
     /// <summary>Replaces the title, the date and the note; a missing title is refused by the handler.</summary>
     public sealed record EditDocumentBody(string? Title, string? DocumentDate, string? Note);
+
+    /// <summary>A filing round (#305): the documents to change and the links whose role changes.</summary>
+    public sealed record FileDocumentsBody(IReadOnlyList<DocumentEditBody>? Edits = null, IReadOnlyList<DocumentRoleBody>? Roles = null);
+
+    /// <summary>Only what is given changes.</summary>
+    public sealed record DocumentEditBody(Guid Id, string? Title = null, string? DocumentDate = null, string? Note = null);
+
+    /// <summary>targetKind=core.household needs no targetId.</summary>
+    public sealed record DocumentRoleBody(Guid Id, string? TargetKind, string? Role, Guid? TargetId = null);
 }

@@ -45,6 +45,12 @@ public interface IDocumentStore
 
     /// <summary>The ids of the documents holding a link to the target, whoever may read it.</summary>
     Task<IReadOnlySet<Guid>> DocumentsLinkedToAsync(DocumentTarget target, CancellationToken ct);
+
+    /// <summary>#305: stores the ticket and clears those expired before <paramref name="now"/>.</summary>
+    Task AddUploadTicketAsync(UploadTicket ticket, Instant now, CancellationToken ct);
+
+    /// <summary>#305: takes the ticket out, once, whoever asks at the same time; null when it is unknown, used or expired.</summary>
+    Task<UploadTicket?> ClaimUploadTicketAsync(string tokenHash, Instant now, CancellationToken ct);
 }
 
 public sealed class DocumentLinks(IDocumentStore store) : IDocumentLinks

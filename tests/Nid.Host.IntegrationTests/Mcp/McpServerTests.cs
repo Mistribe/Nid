@@ -40,7 +40,7 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     internal static bool IsWrite(string name) => name.StartsWith("propose_", StringComparison.Ordinal);
 
     /// <summary>Syndic documents design §2.3: `upload_document` writes without proposing, so it is neither a read nor a `propose_*`.</summary>
-    internal static bool IsRead(string name) => !IsWrite(name) && name is not ("upload_document" or "delete_proposal");
+    internal static bool IsRead(string name) => !IsWrite(name) && name is not ("upload_document" or "request_document_upload" or "delete_proposal");
 
     [Fact]
     public async Task The_write_tools_declare_their_writes_and_ask_to_copy_the_document()

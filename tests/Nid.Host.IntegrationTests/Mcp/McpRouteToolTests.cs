@@ -21,8 +21,10 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/subscriptions/catalog/sync", "/api/v1/investments/prices/sync", "/price/accept", "/api/v1/realestate/irl/sync", "PUT /api/v1/realestate/irl/{year:int}/{quarter:int}", "/api/v1/realestate/loans/{id:guid}/simulations", "/api/v1/realestate/loans/overview/simulations",
         "/api/v1/realestate/loans/{id:guid}/bank-schedule/preview", "PUT /api/v1/realestate/loans/{id:guid}/bank-schedule",
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "PUT /api/v1/investments/fee-references", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
-        // Documents: the assistant links one (propose_link_document), never uploads, edits, archives or unlinks it.
-        "/api/v1/documents",
+        // Documents: the assistant links, edits and files them through proposals (#305), never archives or unlinks them.
+        "/archive", "/unarchive", "DELETE /api/v1/documents/{id:guid}/links/{targetKind}/{targetId:guid}",
+        // Its uploads change no figure: upload_document and request_document_upload write directly, this URL carrying the file.
+        "POST /api/v1/documents/uploads/{token}",
         // The household's projection assumptions (spec §7): read in the web app, which is where they are set.
         "/api/v1/core/projection-assumptions",
         // Bank sync §8: connecting a bank needs the person at their bank, in the browser; no tool touches a connection.
@@ -43,6 +45,9 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         // #294: who may edit an item is its owners' click in the web app, never a proposal.
         "PUT /api/v1/core/items/{id:guid}/sharing",
     ];
+
+    /// <summary>A route that is a prefix of covered ones: the web's upload form.</summary>
+    private const string WebUpload = "POST /api/v1/documents/";
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)
         => await McpHarness.ClientAsync(app, (await TokenApi.CreateAsync(app, person ?? app.AdultA, preset)).Secret);
@@ -91,7 +96,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var uncovered = endpoints
             .Where(w => !RouteActions.All.Any(a => a.Method == w.Method && a.Route == w.Endpoint.RoutePattern.RawText))
             .Select(w => $"{w.Method} {w.Endpoint.RoutePattern.RawText}")
-            .Where(w => !NotProposed.Any(left => w.Contains(left, StringComparison.Ordinal)))
+            .Where(w => w != WebUpload && !NotProposed.Any(left => w.Contains(left, StringComparison.Ordinal)))
             .ToList();
         Assert.Empty(uncovered);
 

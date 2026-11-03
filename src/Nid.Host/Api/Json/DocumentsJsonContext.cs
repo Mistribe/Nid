@@ -12,7 +12,10 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(LinkAdded))]
 [JsonSerializable(typeof(DocumentTargetList))]
 [JsonSerializable(typeof(LinkPreview))]
+[JsonSerializable(typeof(UploadedDocument))]
+[JsonSerializable(typeof(FiledDocuments))]
 [JsonSerializable(typeof(DocumentEndpoints.EditDocumentBody))]
+[JsonSerializable(typeof(DocumentEndpoints.FileDocumentsBody))]
 [JsonSerializable(typeof(DocumentEndpoints.LinkDocumentBody))]
 [JsonSerializable(typeof(DocumentEndpoints.SetLinkRoleBody))]
 internal sealed partial class DocumentsJsonContext : JsonSerializerContext;

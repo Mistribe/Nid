@@ -1,3 +1,4 @@
+using Nid.Documents.Contracts;
 using static Nid.Host.Api.BankingEndpoints;
 using static Nid.Host.Api.CatalogEndpoints;
 using static Nid.Host.Api.ChildcareEndpoints;
@@ -31,10 +32,12 @@ public sealed record RouteAction(
 
     public bool Targeted => OnItem && RouteParameters.Contains("id");
 
-    /// <summary>`{year:int}` is an integer; `{on}` an ISO date (a goal's progress entry); `{month}` a month; every other route parameter a UUID.</summary>
+    /// <summary>`{year:int}` is an integer; `{on}` an ISO date (a goal's progress entry); `{month}` a month; `{targetKind}` a word (a document link's); every other route parameter a UUID.</summary>
     public bool IsInteger(string parameter) => Route.Contains($"{{{parameter}:int}}", StringComparison.Ordinal);
 
     public bool IsDate(string parameter) => parameter == "on";
+
+    public bool IsText(string parameter) => parameter == "targetKind";
 
     /// <summary>`{month}`: a statement's month, `yyyy-MM` (childcare spec decision 27).</summary>
     public bool IsMonth(string parameter) => parameter == "month";
@@ -45,8 +48,8 @@ public sealed record RouteAction(
 /// area, tokens and sessions, preferences, the import, the FX and catalog syncs (admin or browser-only), the reads sent as
 /// POST (simulations, the bank table's preview), the bank table (<c>propose_amortization</c>), and the tax profile and the
 /// target allocation (issue #104): household settings replaced whole, which the assistant does not change; the purchase scenarios (#122),
-/// hypothetical and read by no tool either; the stored documents, which the assistant reads and links (issue #179) but
-/// never uploads, edits, archives or unlinks; and the bank connections, sync and statement import, which need the person's browser.
+/// hypothetical and read by no tool either; the stored documents' archive and unlink (the assistant reads, links and, since
+/// #305, edits them through proposals; its uploads are `upload_document` and `request_document_upload`, no proposal: they change no figure); and the bank connections, sync and statement import, which need the person's browser.
 /// </summary>
 public static class RouteActions
 {
@@ -58,6 +61,7 @@ public static class RouteActions
         + "balance is positive when tax is due, negative when refunded. documentId (list_documents) is the notice's PDF: it is linked to each declarant, "
         + "so a joint notice's PDF becomes readable by both. ";
     private const string Versioned = "version is the one get_* returned for that line. ";
+    private static readonly string Roles = string.Join(", ", DocumentRoles.All.Order(StringComparer.Ordinal));
 
     public static readonly IReadOnlyList<RouteAction> All =
     [
@@ -278,6 +282,17 @@ public static class RouteActions
             + "yet); targetKind 'core.item' (an envelope, property, loan, income source, subscription…), 'income.phase' (an income "
             + "period, get_income_source), 'income.one_off' (a one-off income), 'core.person' or 'core.household' (no targetId); role: "
             + DocumentTools.RoleList + ". Nothing else changes: a payslip linked to its period records no pay. " + Ids, OnItem: false),
+        // #305: filing: one document or link replays the web's route; a round is one proposal, approved at once.
+        new("edit_document", "PUT", "/api/v1/documents/{id:guid}", typeof(EditDocumentBody),
+            "Replace a document's title, date (documentDate) and note: send all three, read_document gives them; what is left out is removed. id is the "
+            + "document's id (list_documents). Several documents, or only a date: propose_file_documents. " + Ids, Destructive: true, OnItem: false),
+        new("set_document_role", "PUT", "/api/v1/documents/{id:guid}/links/{targetKind}/{targetId:guid}", typeof(SetLinkRoleBody),
+            "Change the role of a document's link: id, targetKind and targetId are the document's and its link's (list_documents; the household's targetId "
+            + "is all zeros). Role: " + Roles + ". " + Ids, OnItem: false),
+        new("file_documents", "POST", "/api/v1/documents/filing", typeof(FileDocumentsBody),
+            "A filing round, up to 200 lines, one proposal approved in one action, applied whole or not at all. edits: { id, and any of title, "
+            + "documentDate, note }, only what is given changes. roles: { id, targetKind, targetId, role }, the link as list_documents gives it (no "
+            + "targetId for the household); role: " + Roles + ". A refusal names its line, e.g. payload.body.edits[3].documentDate. " + Ids, OnItem: false),
 
         // Tax notices (issue #182): the route links the source PDF, so an approved proposal does too.
         new("add_tax_year", "POST", "/api/v1/tax/assessments", typeof(AddTaxAssessmentBody), TaxNotice + Ids + Amounts),

@@ -36,7 +36,7 @@ public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions
     }
 
     private static bool RequiresCsrf(PathString path)
-        => path.StartsWithSegments("/api") || path.StartsWithSegments("/auth/logout");
+        => (path.StartsWithSegments("/api") && !path.StartsWithSegments(Api.DocumentEndpoints.UploadsPath)) || path.StartsWithSegments("/auth/logout");
 
     private bool IsSameOrigin(HttpRequest request)
     {

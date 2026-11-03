@@ -1,7 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { HttpResponse, http } from 'msw/http';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
 import { resetAnnouncement } from './announce';
 import { proposal } from './testData';
 import { serve } from './testServe';
@@ -30,6 +32,20 @@ describe('Une proposition d’action du web', () => {
 
     await user.click(screen.getByRole('button', { name: 'Approuver' }));
     await waitFor(() => expect(sent.approve).toEqual({ version: 1 }));
+  });
+
+  it('names the documents of a filing round by their titles', async () => {
+    const p = proposal({
+      kind: 'documents.file_documents', targetItemId: null, targetName: null, subjectKey: null,
+      payload: { body: { edits: [{ id: 'doc-1', documentDate: '2024-03-31' }] } },
+    });
+    serve([p], { preview: {} });
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json({ items: [{ id: 'doc-1', title: 'Relevé mars' }] })));
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Classement de documents' })).toBeInTheDocument();
+    expect(await screen.findByRole('row', { name: /edits\[0\]\.id/ })).toHaveTextContent('Relevé mars');
+    expect(screen.getByRole('row', { name: /edits\[0\]\.documentDate/ })).toHaveTextContent('2024-03-31');
   });
 
   it('is listed by its action and the name it will have', async () => {

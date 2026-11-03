@@ -67,6 +67,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
         ["src/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
         ["src/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
+        ["src/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 2, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited)
         ["src/Nid.Investments.Infrastructure/Persistence/SecurityBreakdownStore.cs"] = 1, // security_breakdown: excluded from the item audit
         ["src/Nid.Investments.Infrastructure/Persistence/SecurityPriceStore.cs"] = 3, // security_price: excluded
         ["src/Nid.Platform.Infrastructure/Notifications/NotificationStore.cs"] = 8, // notification, notification_run: excluded (+1: the ExecuteUpdateAsync of ResolveKeyAsync)
