@@ -42,7 +42,11 @@
       "security_breakdowns": "Répartitions des supports",
       "goals": "Objectifs",
       "childcare_arrangements": "Gardes",
-      "childcare_statements": "Relevés de garde"
+      "childcare_statements": "Relevés de garde",
+      "bank_accounts": "Comptes bancaires",
+      "bank_transactions": "Opérations bancaires",
+      "bank_links": "Opérations reliées",
+      "bank_rules": "Règles de libellé"
     }
   }
 }

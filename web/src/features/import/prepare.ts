@@ -25,6 +25,7 @@ export const SECTIONS = [
   'holdings', 'holding_snapshots', 'holding_movements', 'security_breakdowns',
   'goals',
   'childcare_arrangements', 'childcare_statements',
+  'bank_accounts', 'bank_transactions', 'bank_links', 'bank_rules',
 ] as const;
 const RESERVED = new Set(['documents']);
 const ENVELOPE = new Set(['format', 'version', 'exported_at']);

@@ -1,0 +1,4 @@
+{
+  "en": "A nid.data file holding bank accounts, their transactions, links and label rules now imports from the browser instead of being refused.",
+  "fr": "Un fichier nid.data qui contient des comptes bancaires, leurs opérations, leurs liens et leurs règles de libellé s’importe désormais depuis le navigateur au lieu d’être refusé."
+}
