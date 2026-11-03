@@ -1,7 +1,7 @@
 name: ci
 
 # The monthly Actions minutes are the budget (1000), so each commit is paid for once:
-#  - a pull request builds the solution and checks the web app (`build`, `web`), each only when its files change (`changes`). It
+#  - a pull request runs one job, `check`: it builds the solution and checks the web app, each only when its files change. It
 #    runs no test: the developer runs them before opening it (.claude/CLAUDE.md). The integration tests also run weekly in e2e.yml;
 #  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
 #    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
@@ -27,18 +27,16 @@ permissions:
   contents: read
 
 jobs:
-  # The jobs a pull request needs, from the files it changes: a job costs minutes (`web` about 12, `build` about 4), so a change to the
-  # C# tests does not lint the web app, nor a change to the web app build the solution. `build` also follows openapi.json, which it
-  # compares with the server's. Without a pull request (workflow_dispatch), both run.
-  changes:
+  # One job for the whole pull request: each job is billed rounded up to the minute and sets up its own runner, so the checks
+  # share one. Its steps follow the files the pull request changes (`web` about 12 minutes, `build` about 4): a change to the C#
+  # tests does not lint the web app, nor a change to the web app build the solution. The solution also follows openapi.json, which
+  # it compares with the server's. Without a pull request (workflow_dispatch), both run.
+  check:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read # the changed files, read from the API: no checkout
-    outputs:
-      dotnet: ${{ steps.files.outputs.dotnet }}
-      web: ${{ steps.files.outputs.web }}
+      pull-requests: read # the changed files, read from the API
     steps:
       - id: files
         env:
@@ -55,43 +53,40 @@ jobs:
           if grep -qE '^(web/|\.github/workflows/ci\.yml$)' <<< "$files"; then web=true; else web=false; fi
           echo "dotnet=$dotnet" >> "$GITHUB_OUTPUT"
           echo "web=$web" >> "$GITHUB_OUTPUT"
+      - if: steps.files.outputs.dotnet == 'true' || steps.files.outputs.web == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-  build:
-    needs: changes
-    if: needs.changes.outputs.dotnet == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+      - if: steps.files.outputs.dotnet == 'true'
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: global.json
       # Every project, the test projects included: they are compiled here, not run. Nid.Host regenerates web/src/api/openapi.json.
-      - run: dotnet build Nid.slnx --configuration Release
-      - run: git diff --exit-code -- web/src/api/openapi.json
+      - if: steps.files.outputs.dotnet == 'true'
+        run: dotnet build Nid.slnx --configuration Release
+      - if: steps.files.outputs.dotnet == 'true'
+        run: git diff --exit-code -- web/src/api/openapi.json
 
-  web:
-    needs: changes
-    if: needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
+      - if: steps.files.outputs.web == 'true'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
         with:
           package_json_file: web/package.json
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - if: steps.files.outputs.web == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm --dir web install --frozen-lockfile
-      # schema.d.ts against the committed openapi.json; `build` compares that one with the server's.
-      - run: pnpm --dir web check:api
+      - if: steps.files.outputs.web == 'true'
+        run: pnpm --dir web install --frozen-lockfile
+      # schema.d.ts against the committed openapi.json; the solution's build compares that one with the server's.
+      - if: steps.files.outputs.web == 'true'
+        run: pnpm --dir web check:api
       # `check` without vitest.
-      - run: pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web build && pnpm --dir web budget
+      - if: steps.files.outputs.web == 'true'
+        run: pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web build && pnpm --dir web budget
         env:
           # Typed linting outgrows Node's default heap of about 2 GB.
           NODE_OPTIONS: --max-old-space-size=4096
-
 
   # Release: build the two images (nid, nid-backup), push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:
   # the pull request already ran its checks, and they cost too much CI time to run again on landing.
