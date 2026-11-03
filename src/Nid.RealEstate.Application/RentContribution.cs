@@ -76,7 +76,7 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
 
     /// <summary>The end of the tenancy covering <paramref name="today"/> when it has one and no tenancy follows it.</summary>
     private static LocalDate? EndOf(IReadOnlyList<Tenancy> tenancies, LocalDate today)
-        => tenancies.FirstOrDefault(t => PropertyMath.Covers(t, today))?.EndsOn is { } end && !tenancies.Any(t => t.StartsOn >= end) ? end : null;
+        => tenancies.FirstOrDefault(t => PropertyMath.Covers(t, today))?.EndsOn is { } end && !tenancies.Any(t => t.StartsOn > end) ? end : null;
 
     /// <summary>The earliest due after <paramref name="today"/>: the month of the day after, or the one following, holds it.</summary>
     private static RentDue? NextDue(IReadOnlyList<Tenancy> tenancies, LocalDate today)

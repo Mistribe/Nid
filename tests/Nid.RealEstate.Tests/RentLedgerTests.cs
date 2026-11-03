@@ -76,7 +76,7 @@ public class RentLedgerTests
             // starts mid-window, one lump
             1 => (new[] { Lease(new LocalDate(2025, 3, 10)) }, [Cash(new LocalDate(2025, 6, 1), 2000m)]),
             // revision mid-month
-            2 => (new[] { Lease(new LocalDate(2020, 9, 1), new LocalDate(2025, 6, 16)), Lease(new LocalDate(2025, 6, 16), rent: 809.22m) },
+            2 => (new[] { Lease(new LocalDate(2020, 9, 1), new LocalDate(2025, 6, 15)), Lease(new LocalDate(2025, 6, 16), rent: 809.22m) },
                 on5.Skip(4).Take(3).Select(on => Cash(on, 850m)).ToList()),
             // overpaid: arrears negative, remainders all 0
             _ => (new[] { Standard }, on5.Select(on => Cash(on, 2000m)).ToList()),
@@ -133,7 +133,7 @@ public class RentLedgerTests
     [Fact]
     public void Revision_month_sums_both_links()
     {
-        var old = Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 9, 16), 800m, 0m);
+        var old = Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 9, 15), 800m, 0m);
         var revised = Lease(new LocalDate(2026, 9, 16), rent: 809.22m, charges: 0m);
         var r = RentReceipt.For([old, revised], [], new LocalDate(2026, 9, 1), new LocalDate(2026, 9, 30))!;
         var expected = PropertyMath.Expected(old, new LocalDate(2026, 9, 1), new LocalDate(2026, 9, 15))
@@ -236,7 +236,7 @@ public class RentLedgerTests
     public void Each_tenancy_counts_from_its_own_start()
     {
         // A first tenant until June 2025, never recorded, then a second one from July whose rents are all in Nid.
-        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2025, 7, 1));
+        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2025, 6, 30));
         var next = Lease(new LocalDate(2025, 7, 1));
         var flows = Monthly(new LocalDate(2025, 7, 5), 16); // July 2025 to October 2026
         Assert.Equal(0m, Arrears(flows, October23, gone, next));
@@ -351,7 +351,7 @@ public class RentLedgerTests
     [Fact]
     public void A_lease_ended_before_the_month_owes_none_of_it_whatever_its_tracked_start()
     {
-        var gone = Lease(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 1));
+        var gone = Lease(new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 28));
         Assert.False(RentLedger.Counts(gone, gone.StartsOn, new LocalDate(2025, 4, 1)));
     }
 
@@ -359,14 +359,14 @@ public class RentLedgerTests
     [MemberData(nameof(NotCash))]
     public void A_former_tenant_with_only_other_flows_owes_nothing(FlowKind kind, string category)
     {
-        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2026, 1, 1));
+        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2025, 12, 31));
         Assert.Empty(RentLedger.Started([gone], [Flow(new LocalDate(2025, 6, 5), kind, category)], October23));
     }
 
     [Fact]
     public void A_former_tenant_s_payment_on_the_evaluation_day_is_recorded_cash()
     {
-        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2026, 1, 1));
+        var gone = Lease(new LocalDate(2020, 1, 1), new LocalDate(2025, 12, 31));
         Assert.Single(RentLedger.Started([gone], [Cash(October23, 850m)], October23));
     }
 

@@ -27,7 +27,7 @@ public class PropertyIndexedTenancyTests(PostgresFixture fixture) : IClassFixtur
         var id = await NewPropertyAsync(app, Home(app));
         var tenancies = $"{Properties}/{id}/tenancies";
 
-        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2021-01-01", "2023-01-01", indexed: true, quarter: 2)));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2021-01-01", "2022-12-31", indexed: true, quarter: 2)));
         var view = Only(await PropertyAsync(app, id), "tenancies");
         Assert.True(view.GetProperty("indexed").GetBoolean());
         Assert.Equal(2, view.GetProperty("irlReferenceQuarter").GetInt32());
@@ -96,7 +96,7 @@ public class PropertyIndexedTenancyTests(PostgresFixture fixture) : IClassFixtur
         await using var app = await NidApp.StartAsync(fixture);
         var id = await NewPropertyAsync(app, Home(app));
         var tenancies = $"{Properties}/{id}/tenancies";
-        var old = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2021-01-01", "2022-01-01", indexed: true, quarter: 2)));
+        var old = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2021-01-01", "2021-12-31", indexed: true, quarter: 2)));
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
@@ -110,8 +110,8 @@ public class PropertyIndexedTenancyTests(PostgresFixture fixture) : IClassFixtur
 
         foreach (var (field, body) in new (string, object)[]
                  {
-                     ("rentMonthly", Lease("2021-01-01", "2022-01-01", "950", version: version, indexed: true, quarter: 2)),
-                     ("startsOn", Lease("2021-02-01", "2022-01-01", version: version, indexed: true, quarter: 2)),
+                     ("rentMonthly", Lease("2021-01-01", "2021-12-31", "950", version: version, indexed: true, quarter: 2)),
+                     ("startsOn", Lease("2021-02-01", "2021-12-31", version: version, indexed: true, quarter: 2)),
                      ("endsOn", Lease("2021-01-01", "2021-12-01", version: version, indexed: true, quarter: 2)),
                  })
             Assert.Equal((HttpStatusCode.UnprocessableEntity, Revised, field),
@@ -119,7 +119,7 @@ public class PropertyIndexedTenancyTests(PostgresFixture fixture) : IClassFixtur
 
         // Another field stays editable.
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{tenancies}/{old}",
-            Lease("2021-01-01", "2022-01-01", label: "Bail 2021", version: version, indexed: true, quarter: 2))).StatusCode);
+            Lease("2021-01-01", "2021-12-31", label: "Bail 2021", version: version, indexed: true, quarter: 2))).StatusCode);
 
         views = (await PropertyAsync(app, id)).GetProperty("tenancies").EnumerateArray().ToList();
         Assert.Equal((HttpStatusCode.UnprocessableEntity, Revised, (string?)null),

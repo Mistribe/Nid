@@ -68,7 +68,7 @@ public sealed class GetPropertyArrearsHandler(IPropertyStore properties, IItemRe
             if (lease?.LandlordAddress is null) missing.Add("landlord_address");
             letter = new ArrearsLetterView(Amount(inLetter.Sum(m => m.Remaining)), inLetter.Select(m => ReceiptMonths.Wire(m.Month)).ToList(), postal,
                 lease?.TenantNames, lease?.LandlordName, lease?.LandlordAddress, missing, inLetter.Count < overdue.Count,
-                lease?.EndsOn is { } ended && ended <= today);
+                lease?.EndsOn is { } ended && ended < today);
         }
 
         return Result.Success(new PropertyArrearsView(

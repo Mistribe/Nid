@@ -89,7 +89,7 @@ public class RentRevisionTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var tenancies = Tenancies(await PropertyAsync(app, property));
         Assert.Equal(2, tenancies.Count);
-        Assert.Equal((old, "2026-09-01"), (tenancies[0].GetProperty("id").GetGuid(), S(tenancies[0], "endsOn")));
+        Assert.Equal((old, "2026-08-31"), (tenancies[0].GetProperty("id").GetGuid(), S(tenancies[0], "endsOn")));
         var next = tenancies[1];
         Assert.Equal((revised, old), (next.GetProperty("id").GetGuid(), next.GetProperty("revisedFrom").GetGuid()));
         Assert.Equal(("2026-09-01", "809.22", "50.00", "800.00", "T2", "Bail Dupont"),
@@ -154,7 +154,7 @@ public class RentRevisionTests(PostgresFixture fixture) : IClassFixture<Postgres
         var rents = (await JsonAsync(response)).GetProperty("rents").EnumerateArray().Where(r => S(r, "category") == "rent").ToList();
 
         var september = new LocalDate(2026, 9, 1);
-        var before = PropertyMath.RentIn(new Tenancy("T2", new LocalDate(2025, 9, 1), new LocalDate(2026, 9, 16), 800m, 50m, null, null), september, charges: false)!.Value;
+        var before = PropertyMath.RentIn(new Tenancy("T2", new LocalDate(2025, 9, 1), new LocalDate(2026, 9, 15), 800m, 50m, null, null), september, charges: false)!.Value;
         var after = PropertyMath.RentIn(new Tenancy("T2", new LocalDate(2026, 9, 16), null, 809.22m, 50m, null, null), september, charges: false)!.Value;
         // 15 days of 30 on each side: no day uncovered, none counted twice.
         Assert.Equal((400.00m, 404.61m), (before.Amount, after.Amount));

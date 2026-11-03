@@ -48,13 +48,13 @@ public class RealEstateRentsTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var app = await NidApp.StartAsync(fixture);
         var alone = await NewPropertyAsync(app, Home(app, "Seule"));
         var followed = await NewPropertyAsync(app, Home(app, "Suivie"));
-        await LeaseAsync(app, app.AdultA, alone, "2025-01-01", "2026-01-01");
-        await LeaseAsync(app, app.AdultA, followed, "2025-01-01", "2026-01-01");
+        await LeaseAsync(app, app.AdultA, alone, "2025-01-01", "2025-12-31");
+        await LeaseAsync(app, app.AdultA, followed, "2025-01-01", "2025-12-31");
         await LeaseAsync(app, app.AdultA, followed, "2026-01-01");
 
         var sources = (await RentsAsync(app, app.AdultA)).ToDictionary(s => s.Name);
 
-        Assert.Equal(new LocalDate(2026, 1, 1), sources["Seule"].EndsOn);
+        Assert.Equal(new LocalDate(2025, 12, 31), sources["Seule"].EndsOn);
         Assert.Null(sources["Suivie"].EndsOn);
     }
 
@@ -76,7 +76,7 @@ public class RealEstateRentsTests(PostgresFixture fixture) : IClassFixture<Postg
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await NewPropertyAsync(app, Home(app));
-        await LeaseAsync(app, app.AdultA, id, "2025-01-01", "2025-10-01");
+        await LeaseAsync(app, app.AdultA, id, "2025-01-01", "2025-09-30");
         await using (var scope = app.Services.CreateAsyncScope())
         {
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
@@ -95,7 +95,7 @@ public class RealEstateRentsTests(PostgresFixture fixture) : IClassFixture<Postg
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await NewPropertyAsync(app, Home(app));
-        await LeaseAsync(app, app.AdultA, id, "2025-01-01", "2025-11-20");
+        await LeaseAsync(app, app.AdultA, id, "2025-01-01", "2025-11-19");
         await LeaseAsync(app, app.AdultA, id, "2025-11-20");
 
         var window = DateRange.Create(new LocalDate(2025, 9, 16), new LocalDate(2025, 11, 15)).Ok();

@@ -164,13 +164,13 @@ public class RentReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal((HttpStatusCode.UnprocessableEntity, MonthRefused, "month"), await RefusalAsync(await ReceiptAsync(app, old, "2022-07")));
 
         // A lease ended in August with a late payment in October: the newest covered month with cash, never a refusal.
-        var ended = await LetAsync(app, endsOn: "2026-08-16");
+        var ended = await LetAsync(app, endsOn: "2026-08-15");
         await PaidAsync(app, ended, "2026-06-05", "850");
         await PaidAsync(app, ended, "2026-10-05", "850");
         Assert.Equal("2026-06", S(await OkAsync(await ReceiptAsync(app, ended)), "month"));
 
         // No cash in at all on a lease that has ended: its rents were never tracked in Nid, no month is owed nor offered.
-        var quiet = await LetAsync(app, endsOn: "2026-08-16");
+        var quiet = await LetAsync(app, endsOn: "2026-08-15");
         Assert.Equal((HttpStatusCode.UnprocessableEntity, NoTenancy, "month"), await RefusalAsync(await ReceiptAsync(app, quiet)));
         Assert.Empty(Strings(await PropertyAsync(app, quiet), "receiptMonths"));
     }
@@ -249,7 +249,7 @@ public class RentReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await StartAsync(fixture);
         // Mme Martin leaves on 16 June, M. Durand moves in the same day: a change of tenant, not a revision.
-        var property = await LetAsync(app, endsOn: "2026-06-16");
+        var property = await LetAsync(app, endsOn: "2026-06-15");
         await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{property}/tenancies", new
         {
             label = "T2", startsOn = "2026-06-16", rentMonthly = "900", chargesMonthly = "50", tenantNames = "M. Durand",

@@ -70,14 +70,14 @@ public class PropertyRoutineMathTests
 
     [Fact]
     public void A_tenancy_ending_mid_month_is_prorated_and_dated_on_the_first() // Review Focus #1
-        // Its end is exclusive: 1 to 9 September, 9 days of 30 at 900: 270.00.
+        // Its end is its last day: 1 to 9 September, 9 days of 30 at 900: 270.00.
         => Assert.Equal<(decimal, LocalDate)?>((270m, new LocalDate(2025, 9, 1)),
-            PropertyMath.RentIn(Lease(new LocalDate(2021, 1, 1), new LocalDate(2025, 9, 10)), September));
+            PropertyMath.RentIn(Lease(new LocalDate(2021, 1, 1), new LocalDate(2025, 9, 9)), September));
 
     [Fact]
     public void A_tenancy_covering_no_day_of_the_month_expects_nothing() // Review Focus #1
     {
-        Assert.Null(PropertyMath.RentIn(Lease(new LocalDate(2021, 1, 1), new LocalDate(2025, 9, 1)), September)); // ended on the 1st
+        Assert.Null(PropertyMath.RentIn(Lease(new LocalDate(2021, 1, 1), new LocalDate(2025, 8, 31)), September)); // ended on 31 August
         Assert.Null(PropertyMath.RentIn(Lease(new LocalDate(2025, 10, 1)), September));
     }
 
@@ -86,7 +86,7 @@ public class PropertyRoutineMathTests
     {
         // 0.15 for one day of 30 is 0.005: half up gives 0.01, never 0.00.
         Assert.Equal<(decimal, LocalDate)?>((0.01m, new LocalDate(2025, 9, 30)),
-            PropertyMath.RentIn(Lease(new LocalDate(2025, 9, 30), new LocalDate(2025, 10, 1), rent: 0.15m), September));
+            PropertyMath.RentIn(Lease(new LocalDate(2025, 9, 30), new LocalDate(2025, 9, 30), rent: 0.15m), September));
         // 15 days of a leap February's 29 at 870: 450.00.
         Assert.Equal<(decimal, LocalDate)?>((450m, new LocalDate(2024, 2, 15)),
             PropertyMath.RentIn(Lease(new LocalDate(2024, 2, 15), rent: 870m), new LocalDate(2024, 2, 1)));

@@ -57,7 +57,7 @@ public static class RentLedger
     /// tenant — every lease ended by d — without any cash in to d nor « Loyers suivis depuis »: rents never recorded in Nid are not owed.
     /// </summary>
     public static List<Tenancy> Started(IReadOnlyList<Tenancy> tenancies, IReadOnlyList<Flow> flows, LocalDate d)
-        => tenancies.All(t => t.EndsOn is { } end && end <= d && t.RentsTrackedFrom is null) && !flows.Any(f => IsCash(f) && f.OccurredOn <= d)
+        => tenancies.All(t => t.EndsOn is { } end && end < d && t.RentsTrackedFrom is null) && !flows.Any(f => IsCash(f) && f.OccurredOn <= d)
             ? []
             : tenancies.Where(t => t.StartsOn <= d).ToList();
 

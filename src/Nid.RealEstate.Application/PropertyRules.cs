@@ -124,11 +124,11 @@ internal static class PropertyRules
     }
 
     /// <summary>
-    /// Spec 3C2 §2: two tenancies of one property never overlap, each from its start (inclusive) to its end (exclusive), an open one
+    /// Spec 3C2 §2: two tenancies of one property never overlap, each from its start (inclusive) to its end (inclusive), an open one
     /// running on; <paramref name="others"/> leaves out the one being written.
     /// </summary>
     public static Failure? Overlap(Tenancy t, IEnumerable<Tenancy> others)
-        => others.Any(o => o.StartsOn < (t.EndsOn ?? LocalDate.MaxIsoValue) && t.StartsOn < (o.EndsOn ?? LocalDate.MaxIsoValue))
+        => others.Any(o => o.StartsOn <= (t.EndsOn ?? LocalDate.MaxIsoValue) && t.StartsOn <= (o.EndsOn ?? LocalDate.MaxIsoValue))
             ? new Failure(PropertyCodes.TenancyOverlap, "Another tenancy of this property covers part of this period.",
                 new Dictionary<string, object?> { ["field"] = "startsOn" })
             : null;

@@ -169,7 +169,7 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await RegimeAsync(app, "real");
         var home = await RentalAsync(app, "Locatif");
-        await PostAsync(app, home, "tenancies", new { label = "Ancien bail", startsOn = "2021-01-01", endsOn = "2025-09-10", rentMonthly = "900", chargesMonthly = "50" });
+        await PostAsync(app, home, "tenancies", new { label = "Ancien bail", startsOn = "2021-01-01", endsOn = "2025-09-09", rentMonthly = "900", chargesMonthly = "50" });
         await PostAsync(app, home, "tenancies", new { label = "Nouveau bail", startsOn = "2025-09-10", rentMonthly = "600", chargesMonthly = "50" });
         // September recorded the old way, one flow per tenancy: 9/30 of 900 + 50, then 21/30 of 600 + 50.
         await FlowAsync(app, home, "2025-09-01", "income", "rent", "285");
@@ -187,7 +187,7 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await RegimeAsync(app, "real");
         var home = await RentalAsync(app, "Locatif");
-        await PostAsync(app, home, "tenancies", new { label = "A", startsOn = "2021-01-01", endsOn = "2025-09-10", rentMonthly = "650", chargesMonthly = "50" });
+        await PostAsync(app, home, "tenancies", new { label = "A", startsOn = "2021-01-01", endsOn = "2025-09-09", rentMonthly = "650", chargesMonthly = "50" });
         await PostAsync(app, home, "tenancies", new { label = "B", startsOn = "2025-09-10", rentMonthly = "300", chargesMonthly = "0" });
         // B's bare 21/30 of 300 is 210, also A's 9/30 of 650 + 50: B's flow must not be read as A's rent and charges (195 bare).
         await FlowAsync(app, home, "2025-09-10", "income", "rent", "210");

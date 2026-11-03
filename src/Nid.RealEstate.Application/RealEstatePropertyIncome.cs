@@ -22,9 +22,9 @@ public sealed class RealEstatePropertyIncome(IVisibleItems visible, IItemRegistr
         var last = range.EndBefore ?? today.With(DateAdjusters.StartOfMonth).PlusMonths(1);
         var found = await properties.FindManyAsync(await visible.ForAsync(reader, scope, includeArchived: true, ct), ct);
         var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
-        // A tenancy overlaps [start, last) when it starts before the end and does not end on or before the start.
+        // A tenancy overlaps [start, last) when it starts before the end and does not end before the start.
         var let = found.Where(p => accesses.ContainsKey(p.ItemId)
-            && p.Tenancies.Any(t => t.Tenancy.StartsOn < last && (t.Tenancy.EndsOn is not { } end || end > range.Start))).ToList();
+            && p.Tenancies.Any(t => t.Tenancy.StartsOn < last && (t.Tenancy.EndsOn is not { } end || end >= range.Start))).ToList();
         var ids = let.Select(p => p.ItemId).ToList();
         if (ids.Count == 0 || last <= range.Start) // an open range starting after today reads nothing
             return Result.Success<IReadOnlyList<PropertyIncomeSource>>([]);

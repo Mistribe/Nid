@@ -80,7 +80,7 @@ public static class PropertyMath
         var next = month.PlusMonths(1);
         var inMonth = flows.Where(f => f.OccurredOn >= month && f.OccurredOn < next).ToList();
         decimal Sum(FlowKind kind, Func<string?, bool> category) => inMonth.Where(f => f.Kind == kind && category(f.Category)).Sum(f => f.Amount.Amount);
-        var let = tenancies.Any(t => t.StartsOn < next && (t.EndsOn is not { } end || end > month));
+        var let = tenancies.Any(t => t.StartsOn < next && (t.EndsOn is not { } end || end >= month));
         var costs = Sum(FlowKind.Expense, c => c != PropertyCategories.Works) - Sum(FlowKind.Income, c => c == PropertyCategories.RecoverableCharges);
         return new PropertyIncomeMonth(month, Sum(FlowKind.Income, c => c == PropertyCategories.Rent), let ? costs : 0m);
     }
@@ -123,8 +123,8 @@ public static class PropertyMath
         }
     }
 
-    /// <summary>Spec 3C2 §4: a tenancy covers its days from its start (inclusive) to its end (exclusive).</summary>
-    public static bool Covers(Tenancy tenancy, LocalDate d) => tenancy.StartsOn <= d && (tenancy.EndsOn is not { } end || d < end);
+    /// <summary>Spec 3C2 §4: a tenancy covers its days from its start (inclusive) to its end (inclusive).</summary>
+    public static bool Covers(Tenancy tenancy, LocalDate d) => tenancy.StartsOn <= d && (tenancy.EndsOn is not { } end || d <= end);
 
     /// <summary>The monthly rent (without charges) of the tenancy covering <paramref name="on"/>, 0 when none does.</summary>
     public static decimal MonthlyRentAt(IEnumerable<Tenancy> tenancies, LocalDate on)
@@ -202,7 +202,7 @@ public static class PropertyMath
     public static int Covered(Tenancy tenancy, LocalDate from, LocalDate to)
     {
         var start = tenancy.StartsOn > from ? tenancy.StartsOn : from;
-        var end = tenancy.EndsOn is { } ends && ends.PlusDays(-1) < to ? ends.PlusDays(-1) : to;
+        var end = tenancy.EndsOn is { } ends && ends < to ? ends : to;
         return start > end ? 0 : Period.DaysBetween(start, end) + 1;
     }
 

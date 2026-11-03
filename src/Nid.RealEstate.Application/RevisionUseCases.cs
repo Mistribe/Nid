@@ -66,7 +66,7 @@ internal static class RentRevisions
     public static ChainRevision Of(StoredProperty property, StoredTenancy link, IReadOnlyList<IrlValue> irl, LocalDate today)
     {
         var t = link.Tenancy;
-        if (property.Tenancies.Any(s => s.RevisedFrom == link.Id) || t.EndsOn is { } end && end <= today)
+        if (property.Tenancies.Any(s => s.RevisedFrom == link.Id) || t.EndsOn is { } end && end < today)
             return new ChainRevision(link, new RevisionNone(), null);
         var chain = new List<StoredTenancy> { link };
         while (chain[^1].RevisedFrom is { } previous && property.Tenancies.FirstOrDefault(p => p.Id == previous) is { } before)
@@ -142,10 +142,10 @@ public sealed class AcceptRentRevisionHandler(
         var old = current.Tenancy;
         if (!RentRevision.EffectiveOnAllowed(command.EffectiveOn, due.Anniversary, today, old.EndsOn))
             return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionEffectiveOn,
-                "The effective date lies between the anniversary and today, before the tenancy's end.", "effectiveOn"));
+                "The effective date lies between the anniversary and today, on or before the tenancy's end.", "effectiveOn"));
 
         var id = Guid.CreateVersion7();
-        await properties.UpdateTenancyAsync(command.ItemId, current.Id, old with { EndsOn = command.EffectiveOn }, ct);
+        await properties.UpdateTenancyAsync(command.ItemId, current.Id, old with { EndsOn = command.EffectiveOn.PlusDays(-1) }, ct);
         await properties.AddTenancyAsync(command.ItemId, id, old with { StartsOn = command.EffectiveOn, RentMonthly = due.NewRent }, ct, revisedFrom: current.Id);
         await transaction.CommitAsync(ct);
         return Result.Success(id);

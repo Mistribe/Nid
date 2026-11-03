@@ -184,9 +184,9 @@ public class PropertyRulesTests
     [Fact]
     public void Back_to_back_tenancies_do_not_overlap_and_an_open_one_does() // Review Focus #1
     {
-        var first = Lease(new LocalDate(2021, 1, 1), new LocalDate(2023, 1, 1));
+        var first = Lease(new LocalDate(2021, 1, 1), new LocalDate(2022, 12, 31));
         Assert.Null(PropertyRules.Overlap(Lease(new LocalDate(2023, 1, 1)), [first]));
-        Assert.Null(PropertyRules.Overlap(Lease(new LocalDate(2020, 7, 1), new LocalDate(2021, 1, 1)), [first]));
+        Assert.Null(PropertyRules.Overlap(Lease(new LocalDate(2020, 7, 1), new LocalDate(2020, 12, 31)), [first]));
         var refused = PropertyRules.Overlap(Lease(new LocalDate(2022, 12, 31)), [first]);
         Assert.Equal((PropertyCodes.TenancyOverlap, "startsOn"), (refused!.Code, Loans.FieldOf(refused)));
         Assert.NotNull(PropertyRules.Overlap(Lease(new LocalDate(2030, 1, 1)), [Lease(new LocalDate(2023, 1, 1))])); // an open one runs on

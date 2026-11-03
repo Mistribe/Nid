@@ -54,7 +54,7 @@ public class RentArrearsTests
     private static (IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> Tenancies, Guid Old, Guid Revised) RevisedPair(LocalDate on, decimal rent)
     {
         Guid a = Guid.NewGuid(), b = Guid.NewGuid();
-        return ([(a, null, Lease(new LocalDate(2020, 9, 1), on)), (b, a, Lease(on, rent: rent))], a, b);
+        return ([(a, null, Lease(new LocalDate(2020, 9, 1), on.PlusDays(-1))), (b, a, Lease(on, rent: rent))], a, b);
     }
 
     [Theory]
@@ -106,8 +106,8 @@ public class RentArrearsTests
         var switchOn = new LocalDate(2026, 6, 15);
         IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies =
         [
-            (oldTenant, null, Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 3, 1))),
-            (oldRevision, oldTenant, Lease(new LocalDate(2026, 3, 1), switchOn, rent: 820m)),
+            (oldTenant, null, Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 2, 28))),
+            (oldRevision, oldTenant, Lease(new LocalDate(2026, 3, 1), switchOn.PlusDays(-1), rent: 820m)),
             (newTenant, null, Lease(switchOn)),
         ];
         var months = RentArrears.Of(tenancies, Paid(new LocalDate(2025, 7, 5), 8), new LocalDate(2026, 6, 20)); // Jul 2025 .. Feb 2026 paid
@@ -120,7 +120,7 @@ public class RentArrearsTests
     // One account per tenant: Mme Martin (850) leaves on 15 June 2026 owing May; M. Durand (900) moves in that day.
     private static readonly LocalDate SwitchOn = new(2026, 6, 15), October23 = new(2026, 10, 23);
     private static readonly Guid Martin = Guid.NewGuid(), Durand = Guid.NewGuid();
-    private static readonly Tenancy MartinLease = Lease(new LocalDate(2025, 1, 1), SwitchOn), DurandLease = Lease(SwitchOn, rent: 850m);
+    private static readonly Tenancy MartinLease = Lease(new LocalDate(2025, 1, 1), SwitchOn.PlusDays(-1)), DurandLease = Lease(SwitchOn, rent: 850m);
     private static readonly IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> TwoTenants = [(Martin, null, MartinLease), (Durand, null, DurandLease)];
     private static readonly decimal MartinJune = PropertyMath.Expected(MartinLease, new LocalDate(2026, 6, 1), new LocalDate(2026, 6, 14));
     private static readonly decimal DurandJune = PropertyMath.Expected(DurandLease, SwitchOn, new LocalDate(2026, 6, 30));
@@ -170,7 +170,7 @@ public class RentArrearsTests
     [Fact]
     public void Cash_goes_to_the_tenant_whose_lease_covers_its_date()
     {
-        var gone = Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 5, 1));
+        var gone = Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 4, 30));
         var next = Lease(new LocalDate(2026, 6, 1));
         IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies = [(Martin, null, gone), (Durand, null, next)];
         Flow before = Cash(new LocalDate(2024, 12, 20), 1m), during = Cash(new LocalDate(2026, 4, 5), 2m), gap = Cash(new LocalDate(2026, 5, 10), 3m),
@@ -201,7 +201,7 @@ public class RentArrearsTests
 
     /// <summary>Mme Martin until 31 May 2026, her rents never recorded in Nid; M. Durand from 1 June pays 900 on the 5th.</summary>
     private static (IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> Tenancies, List<Flow> Flows) RecordedFromTheNewTenant(LocalDate? trackedFrom = null)
-        => ([(Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2026, 6, 1)) with { RentsTrackedFrom = trackedFrom }),
+        => ([(Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2026, 5, 31)) with { RentsTrackedFrom = trackedFrom }),
              (Durand, null, Lease(new LocalDate(2026, 6, 1), rent: 850m))], Paid(new LocalDate(2026, 6, 5), 5, 900m));
 
     [Fact]
@@ -226,7 +226,7 @@ public class RentArrearsTests
 
     /// <summary>Mme Martin until 31 May 2026, paid January 2025 to May 2026; M. Durand from 1 June pays June on <paramref name="advance"/>, then 900 on the 5th.</summary>
     private static (IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> Tenancies, List<Flow> Flows) PaidAtSigning(LocalDate advance)
-        => ([(Martin, null, Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 6, 1))), (Durand, null, Lease(new LocalDate(2026, 6, 1), rent: 850m))],
+        => ([(Martin, null, Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 5, 31))), (Durand, null, Lease(new LocalDate(2026, 6, 1), rent: 850m))],
             [.. Paid(new LocalDate(2025, 1, 5), 17), Cash(advance, 900m), .. Paid(new LocalDate(2026, 7, 5), 4, 900m)]);
 
     [Fact]
@@ -280,7 +280,7 @@ public class RentArrearsTests
     public void A_cyclic_revision_chain_still_ends()
     {
         Guid a = Guid.NewGuid(), b = Guid.NewGuid();
-        var months = RentArrears.Of([(a, b, Lease(new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 1))), (b, a, Lease(new LocalDate(2025, 6, 1)))], [], new LocalDate(2025, 8, 20));
+        var months = RentArrears.Of([(a, b, Lease(new LocalDate(2025, 1, 1), new LocalDate(2025, 5, 31))), (b, a, Lease(new LocalDate(2025, 6, 1)))], [], new LocalDate(2025, 8, 20));
         Assert.NotEmpty(months);
     }
 
@@ -288,7 +288,7 @@ public class RentArrearsTests
     public void A_revision_chain_reads_oldest_first_whatever_order_it_comes_in()
     {
         Guid a = Guid.NewGuid(), b = Guid.NewGuid();
-        Tenancy old = Lease(new LocalDate(2025, 1, 1), new LocalDate(2026, 1, 1)), revised = Lease(new LocalDate(2026, 1, 1));
+        Tenancy old = Lease(new LocalDate(2025, 1, 1), new LocalDate(2025, 12, 31)), revised = Lease(new LocalDate(2026, 1, 1));
         Assert.Equal([old, revised], Assert.Single(RentLedger.Accounts([(b, a, revised), (a, null, old)], [])).Tenancies);
     }
 
@@ -307,7 +307,7 @@ public class RentArrearsTests
         IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies =
         [
             (Martin, null, Lease(new LocalDate(2025, 1, 1))),
-            (Durand, null, Lease(new LocalDate(2025, 3, 1), new LocalDate(2025, 6, 1))),
+            (Durand, null, Lease(new LocalDate(2025, 3, 1), new LocalDate(2025, 5, 31))),
             (revised, Durand, Lease(new LocalDate(2025, 6, 1))),
         ];
         Assert.Single(RentLedger.Accounts(tenancies, [Cash(new LocalDate(2025, 7, 5), 1m)]).Single(a => a.Chain == revised).Cash);
@@ -317,7 +317,7 @@ public class RentArrearsTests
     public void After_every_lease_ended_the_cash_goes_to_the_one_that_ended_last()
     {
         IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies =
-            [(Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2021, 1, 1))), (Durand, null, Lease(new LocalDate(2022, 1, 1), new LocalDate(2023, 1, 1)))];
+            [(Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2020, 12, 31))), (Durand, null, Lease(new LocalDate(2022, 1, 1), new LocalDate(2022, 12, 31)))];
         Assert.Single(RentLedger.Accounts(tenancies, [Cash(new LocalDate(2024, 1, 5), 1m)]).Single(a => a.Chain == Durand).Cash);
     }
 
@@ -327,9 +327,9 @@ public class RentArrearsTests
         Guid revised = Guid.NewGuid();
         IReadOnlyList<(Guid, Guid?, Tenancy)> tenancies =
         [
-            (Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2021, 1, 1))),
-            (revised, Martin, Lease(new LocalDate(2021, 1, 1), new LocalDate(2023, 1, 1))),
-            (Durand, null, Lease(new LocalDate(2021, 6, 1), new LocalDate(2022, 1, 1))),
+            (Martin, null, Lease(new LocalDate(2020, 1, 1), new LocalDate(2020, 12, 31))),
+            (revised, Martin, Lease(new LocalDate(2021, 1, 1), new LocalDate(2022, 12, 31))),
+            (Durand, null, Lease(new LocalDate(2021, 6, 1), new LocalDate(2021, 12, 31))),
         ];
         Assert.Single(RentLedger.Accounts(tenancies, [Cash(new LocalDate(2024, 1, 5), 1m)]).Single(a => a.Chain == revised).Cash);
     }

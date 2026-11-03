@@ -81,7 +81,7 @@ public class PropertyRentalMathTests
     {
         // 0.15 for one day of a 30-day September is 0.005: half up gives 0.01, never 0.00.
         Assert.Equal(0.01m, At(Bought(new LocalDate(2020, 9, 1)), [],
-            Lease(new LocalDate(2025, 9, 30), new LocalDate(2025, 10, 1), rent: 0.15m)).Rental.ExpectedRent);
+            Lease(new LocalDate(2025, 9, 30), new LocalDate(2025, 9, 30), rent: 0.15m)).Rental.ExpectedRent);
         // From 10 June, 600 + 50: 21 days of 30 (455.00), July to September (1 950.00), 15 days of 31 in October (314.52).
         Assert.Equal(2_719.52m, At(Bought(), [], Lease(new LocalDate(2025, 6, 10), rent: 600m, charges: 50m)).Rental.ExpectedRent);
     }
@@ -89,13 +89,22 @@ public class PropertyRentalMathTests
     [Fact]
     public void Vacancy_counts_the_days_between_two_tenancies_and_a_shared_month_is_prorated_for_each() // Review Focus #4
     {
-        var r = At(Bought(), [], Lease(new LocalDate(2020, 9, 1), new LocalDate(2025, 3, 10)), Lease(new LocalDate(2025, 3, 20))).Rental;
+        var r = At(Bought(), [], Lease(new LocalDate(2020, 9, 1), new LocalDate(2025, 3, 9)), Lease(new LocalDate(2025, 3, 20))).Rental;
         Assert.Equal(10, r.VacantDays); // 10 to 19 March 2025
         Assert.Equal(0.0274m, decimal.Round(r.VacancyRate!.Value, 4)); // 10 ÷ 365
         // March: 9 days of the first (261.29) and 12 days of the second (348.39), each prorated and rounded on its own.
         Assert.Equal(10_509.68m, r.ExpectedRent);
         // Nothing received: the ledger's last 12 months, October 2025 due whole (16 more days of the second lease, 464.52).
         Assert.Equal(10_974.20m, r.Arrears);
+    }
+
+    [Fact]
+    public void Back_to_back_tenancies_leave_no_vacant_day_and_their_months_are_due_whole()
+    {
+        // The first ends on 31 March, its last day let; the second starts on 1 April.
+        var r = At(Bought(), [], Lease(new LocalDate(2020, 9, 1), new LocalDate(2025, 3, 31)), Lease(new LocalDate(2025, 4, 1))).Rental;
+        Assert.Equal(0, r.VacantDays);
+        Assert.Equal(10_800m, r.ExpectedRent); // 12 × 900
     }
 
     [Fact]
@@ -204,11 +213,12 @@ public class PropertyRentalMathTests
     }
 
     [Fact]
-    public void A_tenancy_covers_its_start_and_not_its_end()
+    public void A_tenancy_covers_its_start_and_its_end()
     {
         var lease = Lease(new LocalDate(2025, 1, 1), D);
         Assert.True(PropertyMath.Covers(lease, new LocalDate(2025, 1, 1)));
-        Assert.False(PropertyMath.Covers(lease, D));
+        Assert.True(PropertyMath.Covers(lease, D));
+        Assert.False(PropertyMath.Covers(lease, D.PlusDays(1)));
         Assert.True(PropertyMath.Covers(Lease(new LocalDate(2025, 1, 1)), D));
         Assert.False(PropertyMath.Covers(Lease(D.PlusDays(1)), D));
     }

@@ -28,11 +28,11 @@ public class PropertyIncomeMathTests
 
     [Fact]
     public void A_month_without_a_tenancy_keeps_a_late_rent_and_no_costs()
-        => Assert.Equal(new PropertyIncomeMonth(Month, 800m, 0m), PropertyMath.IncomeIn(Month, Flows, [Lease(new LocalDate(2024, 1, 1), new LocalDate(2025, 9, 30))]));
+        => Assert.Equal(new PropertyIncomeMonth(Month, 800m, 0m), PropertyMath.IncomeIn(Month, Flows, [Lease(new LocalDate(2024, 1, 1), new LocalDate(2025, 9, 29))]));
 
     [Fact]
     public void A_tenancy_ending_on_the_third_covers_the_month()
-        => Assert.Equal(1300m, PropertyMath.IncomeIn(Month, Flows, [Lease(new LocalDate(2024, 1, 1), new LocalDate(2025, 10, 3))]).Costs);
+        => Assert.Equal(1300m, PropertyMath.IncomeIn(Month, Flows, [Lease(new LocalDate(2024, 1, 1), new LocalDate(2025, 10, 2))]).Costs);
 
     [Fact]
     public void A_tenancy_starting_later_in_the_month_covers_it()

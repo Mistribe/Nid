@@ -84,7 +84,7 @@ public class PropertyTenancyTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Empty((await PropertyAsync(app, id)).GetProperty("tenancies").EnumerateArray());
 
         // [2021-01-01, 2023-01-01), then one starting on its end: half-open, they touch without overlapping.
-        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2021-01-01", "2023-01-01")));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2021-01-01", "2022-12-31")));
         await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2023-01-01")));
         foreach (var (startsOn, endsOn) in new (string StartsOn, string? EndsOn)[] { ("2022-06-01", "2022-07-01"), ("2020-07-01", "2021-01-02"), ("2030-01-01", null) })
             Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.tenancy_overlap", "startsOn"),

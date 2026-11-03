@@ -101,7 +101,7 @@ public class RentArrearsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     /// <summary>Mme Martin (850) leaves on 16 August having paid January to June; M. Durand (950) moves in the same day.</summary>
     private static async Task<Guid> ChangeOfTenantAsync(NidApp app)
     {
-        var property = await LetAsync(app, endsOn: "2026-08-16");
+        var property = await LetAsync(app, endsOn: "2026-08-15");
         await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{property}/tenancies", new
         {
             label = "T2", startsOn = "2026-08-16", rentMonthly = "900", chargesMonthly = "50", tenantNames = "M. Durand",

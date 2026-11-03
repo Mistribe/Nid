@@ -29,7 +29,7 @@ internal static class EstateFile
         """;
 
     public const string Lease1 = """
-        {"id":"ten-1","property":"prop-flat","label":"T1 meublé","starts_on":"2021-04-01","ends_on":"2024-04-01",
+        {"id":"ten-1","property":"prop-flat","label":"T1 meublé","starts_on":"2021-04-01","ends_on":"2024-03-31",
          "rent_monthly":{"amount":"650.00","currency":"EUR"},"charges_monthly":{"amount":"50.00","currency":"EUR"},
          "deposit":{"amount":"650.00","currency":"EUR"}}
         """;

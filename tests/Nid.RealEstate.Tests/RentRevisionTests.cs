@@ -146,7 +146,7 @@ public sealed class RentRevisionTests
         => Assert.Null(RentRevision.Lost(new LocalDate(2024, 9, 1), [new LocalDate(2026, 9, 1)], "C", new LocalDate(2026, 10, 1)));
 
     [Fact]
-    public void Effective_date_between_anniversary_and_today_before_ends_on()
+    public void Effective_date_between_anniversary_and_today_on_or_before_ends_on()
     {
         var anniversary = new LocalDate(2026, 9, 1);
         var today = new LocalDate(2026, 9, 20);
@@ -154,6 +154,7 @@ public sealed class RentRevisionTests
         Assert.True(RentRevision.EffectiveOnAllowed(today, anniversary, today, new LocalDate(2026, 9, 21)));
         Assert.False(RentRevision.EffectiveOnAllowed(new LocalDate(2026, 8, 31), anniversary, today, null));
         Assert.False(RentRevision.EffectiveOnAllowed(new LocalDate(2026, 9, 21), anniversary, today, null));
-        Assert.False(RentRevision.EffectiveOnAllowed(today, anniversary, today, today));
+        Assert.True(RentRevision.EffectiveOnAllowed(today, anniversary, today, today));
+        Assert.False(RentRevision.EffectiveOnAllowed(today, anniversary, today, today.PlusDays(-1)));
     }
 }

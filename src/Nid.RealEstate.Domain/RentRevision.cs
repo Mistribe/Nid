@@ -59,7 +59,7 @@ public static class RentRevision
         return energyClass is "F" or "G" || previous < Anniversary(chainStart, chainStart.Year + 1) || linkStarts.Any(s => s >= previous) ? null : previous;
     }
 
-    /// <summary>The effective date lies in [anniversary, today] and before the tenancy's exclusive end.</summary>
+    /// <summary>The effective date lies in [anniversary, today] and on or before the tenancy's end.</summary>
     public static bool EffectiveOnAllowed(LocalDate effectiveOn, LocalDate anniversary, LocalDate today, LocalDate? endsOn)
-        => effectiveOn >= anniversary && effectiveOn <= today && (endsOn is not { } end || effectiveOn < end);
+        => effectiveOn >= anniversary && effectiveOn <= today && (endsOn is not { } end || effectiveOn <= end);
 }

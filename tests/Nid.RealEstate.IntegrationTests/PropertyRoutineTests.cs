@@ -79,10 +79,10 @@ public class PropertyRoutineTests(PostgresFixture fixture, SharedNidApp shared) 
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await NewPropertyAsync(app, Home(app, "Locatif"));
-        await PostAsync(app, id, "tenancies", new { label = "Ancien bail", startsOn = "2021-01-01", endsOn = "2025-09-10", rentMonthly = "900" });
+        await PostAsync(app, id, "tenancies", new { label = "Ancien bail", startsOn = "2021-01-01", endsOn = "2025-09-09", rentMonthly = "900" });
         await PostAsync(app, id, "tenancies", new { label = "Nouveau bail", startsOn = "2025-09-10", rentMonthly = "600", chargesMonthly = "50" });
         var sold = await NewPropertyAsync(app, Home(app, "Vendu"));
-        await PostAsync(app, sold, "tenancies", new { label = "Fini", startsOn = "2021-01-01", endsOn = "2025-09-01", rentMonthly = "700" });
+        await PostAsync(app, sold, "tenancies", new { label = "Fini", startsOn = "2021-01-01", endsOn = "2025-08-31", rentMonthly = "700" });
 
         var rents = Lines(await ReadAsync(app), "rents");
 
@@ -126,7 +126,7 @@ public class PropertyRoutineTests(PostgresFixture fixture, SharedNidApp shared) 
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await NewPropertyAsync(app, Home(app, "Locatif"));
-        await PostAsync(app, id, "tenancies", new { label = "Ancien bail", startsOn = "2021-01-01", endsOn = "2025-09-10", rentMonthly = "900", chargesMonthly = "50" });
+        await PostAsync(app, id, "tenancies", new { label = "Ancien bail", startsOn = "2021-01-01", endsOn = "2025-09-09", rentMonthly = "900", chargesMonthly = "50" });
         await PostAsync(app, id, "tenancies", new { label = "Nouveau bail", startsOn = "2025-09-10", rentMonthly = "600", chargesMonthly = "50" });
         await PostAsync(app, id, "flows", new { occurredOn = "2025-09-01", kind = "income", category = "rent", amount = "270" });
         await PostAsync(app, id, "flows", new { occurredOn = "2025-09-10", kind = "income", category = "rent", amount = "420" });

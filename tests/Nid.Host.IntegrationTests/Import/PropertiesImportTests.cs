@@ -153,7 +153,7 @@ public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<Post
             Tax.Replace("cost-tax", "c2").Replace("\"unit\":\"year\"", "\"unit\":\"fortnight\"")));
         var tenancies = await client.PutAsync(app.AdultA, session.Id, "tenancies", 0, List(
             Lease2.Replace("\"amount\":\"700.00\"", "\"amount\":\"0\""),
-            Lease1.Replace("ten-1", "t1").Replace("\"ends_on\":\"2024-04-01\"", "\"ends_on\":\"2021-03-01\"")));
+            Lease1.Replace("ten-1", "t1").Replace("\"ends_on\":\"2024-03-31\"", "\"ends_on\":\"2021-03-01\"")));
         await client.CancelRawAsync(app.AdultA, session.Id);
 
         Assert.False(properties.Accepted);
@@ -185,7 +185,7 @@ public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<Post
             List(Home.Replace("2020-06-15", "2026-01-01"), Flat),
             List(Condo.Replace("\"currency\":\"EUR\"", "\"currency\":\"USD\""), Tax.Replace("cost-tax", "cost-x").Replace("prop-home", "prop-nobody")),
             List(Lease1, Lease2.Replace("\"starts_on\":\"2024-04-01\"", "\"starts_on\":\"2024-03-01\""),
-                Lease1.Replace("ten-1", "ten-3").Replace("\"starts_on\":\"2021-04-01\",\"ends_on\":\"2024-04-01\"", "\"starts_on\":\"2021-01-01\",\"ends_on\":\"2021-02-01\""))));
+                Lease1.Replace("ten-1", "ten-3").Replace("\"starts_on\":\"2021-04-01\",\"ends_on\":\"2024-03-31\"", "\"starts_on\":\"2021-01-01\",\"ends_on\":\"2021-02-01\""))));
 
         Assert.Equal("invalid", validated.State);
         Assert.Equal(

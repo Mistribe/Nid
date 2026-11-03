@@ -91,7 +91,7 @@ public sealed record PropertyWarning(string Code, ItemId? LoanId = null);
 /// <summary>Spec 3C2 §2: a planned cost; it generates no flow (§1.1). <c>Every</c> is months or years; the range is [StartsOn, EndsOn).</summary>
 public sealed record RecurringCost(string Category, decimal Amount, Duration Every, LocalDate StartsOn, LocalDate? EndsOn, string? Note);
 
-/// <summary>Spec 3C2 §2: a lease on the property, [StartsOn, EndsOn); a flat share is one tenancy at the total rent, its label never personal data.
+/// <summary>Spec 3C2 §2: a lease on the property, [StartsOn, EndsOn], its end the last day let; a flat share is one tenancy at the total rent, its label never personal data.
 /// The names and the landlord's address are optional and serve receipts and letters (rental receipts spec §2). <c>RentsTrackedFrom</c>, the first
 /// day of a month, is the first rent recorded in Nid; null lets the rent ledger find it (<c>RentLedger.Tracked</c>).</summary>
 public sealed record Tenancy(
