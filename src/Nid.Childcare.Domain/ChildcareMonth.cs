@@ -37,7 +37,7 @@ public static class ChildcareMonth
         var (upkeep, meals) = Upkeep.Month(input.Days, input.Terms);
 
         int? leaveDays = input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : null;
-        var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, basePay, leaveDays!.Value) : 0m;
+        var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
 
         var netPay = basePay - deduction + extraPay + leavePay;
         // Mensualised days less the deducted ones: the guides' reading of the field, no official text found (spec §9).

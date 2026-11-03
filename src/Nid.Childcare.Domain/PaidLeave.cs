@@ -15,7 +15,10 @@ public static class PaidLeave
     public static int Accrued(int monthsWithCare)
         => Math.Min(ChildcareRules.LeaveDaysCap, (int)Math.Ceiling(ChildcareRules.LeaveDaysPerMonth * monthsWithCare));
 
-    /// <summary>Tenth of the period's net pay, or maintained pay = base pay × days ÷ 26 working days.</summary>
-    public static decimal JuneIndemnity(decimal referenceNetPay, decimal monthlyBasePay, int days)
-        => Math.Max(Mensualisation.Round(referenceNetPay / 10m), Mensualisation.Round(monthlyBasePay * days / 26m));
+    /// <summary>
+    /// Tenth of the period's net pay, or maintained pay = days ÷ 6 working days a week × average weekly hours × net
+    /// hourly rate (Pajemploi, art. 48.1.1.5; spec §9).
+    /// </summary>
+    public static decimal JuneIndemnity(decimal referenceNetPay, decimal netHourlyRate, decimal weeklyHours, int days)
+        => Math.Max(Mensualisation.Round(referenceNetPay / 10m), Mensualisation.Round(days * weeklyHours * netHourlyRate / 6m));
 }
