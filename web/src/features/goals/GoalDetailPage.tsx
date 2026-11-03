@@ -10,6 +10,7 @@ import { Money } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -69,7 +70,7 @@ export function GoalDetailPage() {
         meta={(
           <>
             <span className="text-sm text-muted-foreground">{kindText(t, goal.kind)}</span>
-            <AccessBadge access={goal.visibility === 'private' ? 'private' : 'shared'} />
+            <AccessBadge access={goal.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
             {goal.closed ? <Badge variant="secondary">{t('goals_list.closed_badge')}</Badge> : null}
             <OwnerChips owners={goal.owners} />
           </>

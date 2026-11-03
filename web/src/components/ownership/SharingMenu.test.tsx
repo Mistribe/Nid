@@ -5,22 +5,26 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { detail, GOAL } from '@/features/goals/testData';
 
-const sharing = (over: object = {}) => ({ visibility: 'shared', shareLevel: 'view', canChange: true, ...over });
+const sharing = (over: object = {}) => ({ visibility: 'shared', shareLevel: 'view', canChange: true, isOwner: true, ...over });
 
 describe('SharingMenu (#294)', () => {
   beforeAll(async () => { await import('@/features/goals/GoalDetailPage'); }, 30_000);
 
   it('lets an owner open a shared item to edits, and announces it', async () => {
     const sent: unknown[] = [];
+    let level = 'view';
     server.use(
       http.get('*/api/v1/goals/:id', () => HttpResponse.json(detail())),
-      http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json(sharing())),
+      http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json(sharing({ shareLevel: level }))),
       http.put('*/api/v1/core/items/:id/sharing', async ({ request }) => {
         sent.push(await request.json());
-        return HttpResponse.json(sharing({ shareLevel: 'edit' }));
+        level = 'edit';
+        return HttpResponse.json(sharing({ shareLevel: level }));
       }),
     );
     const { user } = await renderApp(`/goals/${GOAL}`);
+    expect(await screen.findByText('Vous en êtes propriétaire')).toBeInTheDocument();
+    expect(screen.getByText('Lecture seule')).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: 'Partage' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Partage…' }));
@@ -32,22 +36,20 @@ describe('SharingMenu (#294)', () => {
 
     expect(await screen.findByText('Partage enregistré.')).toHaveAttribute('role', 'status');
     expect(sent).toEqual([{ shareLevel: 'edit' }]);
+    expect(await screen.findByText('Lecture et modification')).toBeInTheDocument();
   });
 
-  it('shows an adult who may only edit the level, without a way to change it', async () => {
+  it('shows an adult who may only edit the item its level and that they do not own it, with no way to change it', async () => {
     server.use(
       http.get('*/api/v1/goals/:id', () => HttpResponse.json(detail())),
-      http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json(sharing({ shareLevel: 'edit', canChange: false }))),
+      http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json(sharing({ shareLevel: 'edit', canChange: false, isOwner: false }))),
     );
-    const { user } = await renderApp(`/goals/${GOAL}`);
+    await renderApp(`/goals/${GOAL}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Partage' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Partage…' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Partage' });
-    expect(await within(dialog).findByText('Lecture et modification')).toBeInTheDocument();
-    expect(within(dialog).getByText(/Seuls les propriétaires changent le partage/)).toBeInTheDocument();
-    expect(within(dialog).queryByRole('radio')).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('button', { name: 'Enregistrer' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Vous n’en êtes pas propriétaire')).toBeInTheDocument();
+    expect(screen.getByText('Lecture et modification')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Partage' })).not.toBeInTheDocument();
   });
 
   it('offers nothing on a private item', async () => {

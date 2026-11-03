@@ -8,6 +8,7 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { LocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -94,7 +95,7 @@ export function LoanDetailPage() {
         meta={(
           <>
             {loan.lender ? <span className="text-sm text-muted-foreground">{loan.lender}</span> : null}
-            <AccessBadge access={loan.visibility === 'private' ? 'private' : 'shared'} />
+            <AccessBadge access={loan.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
             {loan.ended ? (
               <span className="inline-flex items-center gap-1 text-sm"><Archive aria-hidden="true" className="size-4" />{t('loan_detail.ended')}</span>
             ) : null}

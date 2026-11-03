@@ -35618,7 +35618,8 @@
         "required": [
           "visibility",
           "shareLevel",
-          "canChange"
+          "canChange",
+          "isOwner"
         ],
         "type": "object",
         "properties": {
@@ -35629,6 +35630,9 @@
             "type": "string"
           },
           "canChange": {
+            "type": "boolean"
+          },
+          "isOwner": {
             "type": "boolean"
           }
         }

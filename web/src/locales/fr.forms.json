@@ -272,6 +272,8 @@
     "save": "Enregistrer",
     "cancel": "Annuler",
     "saved": "Partage enregistré.",
-    "not_owner": "Seuls les propriétaires changent le partage."
+    "not_owner": "Seuls les propriétaires changent le partage.",
+    "owner": "Vous en êtes propriétaire",
+    "not_an_owner": "Vous n’en êtes pas propriétaire"
   }
 }

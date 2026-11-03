@@ -11,6 +11,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -147,7 +148,7 @@ export function IncomeSourceDetailPage() {
           <>
             <span className="text-sm text-muted-foreground">{kindText(t, source.kind)}</span>
             {source.payerLabel ? <span className="text-sm text-muted-foreground">{source.payerLabel}</span> : null}
-            <AccessBadge access={source.visibility === 'private' ? 'private' : 'shared'} />
+            <AccessBadge access={source.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
           </>
         )}>
         {overview.data ? <SourceFigures figures={overview.data.figures} />

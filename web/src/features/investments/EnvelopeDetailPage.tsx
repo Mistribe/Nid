@@ -9,6 +9,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -197,7 +198,7 @@ export function EnvelopeDetailPage() {
   return (
     <article className="space-y-6">
       <PageHeader crumbs={[{ label: t('nav.investments'), to: '/investments' }]} title={detail.displayName} actions={actions}
-        meta={<><span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span><AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} /></>}>
+        meta={<><span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span><AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} /></>}>
         <section aria-label={t('envelope.figures')} data-guide="investments.figures" className="space-y-2">
           <StatLine items={[
             { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf) }) : t('envelope.value'),

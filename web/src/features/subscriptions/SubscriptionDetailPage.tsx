@@ -10,6 +10,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -96,7 +97,7 @@ export function SubscriptionDetailPage() {
             {detail.displayName}
           </span>
         )}
-        meta={<AccessBadge access={accessOf(detail, persons)} />}>
+        meta={<><AccessBadge access={accessOf(detail, persons)} /><SharingBadges item={id} /></>}>
         <section aria-label={t('subscription.costs')} className="space-y-2">
           <StatLine items={[
             { label: t('subscription.cash'), value: detail.cashCost.map((m) => <Money key={m.currency} value={m} tabular />) },

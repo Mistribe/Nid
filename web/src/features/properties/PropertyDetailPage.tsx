@@ -8,6 +8,7 @@ import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -82,7 +83,7 @@ export function PropertyDetailPage() {
           <>
             <span className="text-sm text-muted-foreground">{typeText(t, property.type)}</span>
             {property.locationLabel ? <span className="text-sm text-muted-foreground">{property.locationLabel}</span> : null}
-            <AccessBadge access={property.visibility === 'private' ? 'private' : 'shared'} />
+            <AccessBadge access={property.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
             {property.type === 'rental' && capabilities.modules.includes('income') ? (
               <Link to="/tax" search={{ tab: '2044' }} className="text-sm hover:underline">{t('property_detail.tax_2044')}</Link>
             ) : null}

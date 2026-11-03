@@ -8,8 +8,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Segmented } from '@/components/form/Segmented';
 import { Button } from '@/components/ui/button';
 import '@/locales/forms';
-
-export const ITEM_SHARING = '/api/v1/core/items/{id}/sharing';
+import { ITEM_SHARING } from './SharingBadges';
 
 /**
  * #294: « Partage », a shared item's level (view only, or view and edit). Only its owners change it: anyone else who reads it

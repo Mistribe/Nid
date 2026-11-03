@@ -45,7 +45,8 @@ public class ShareLevelTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         // View only, today's sharing: B reads, B does not write, B decides nothing.
         var view = await JsonAsync(app, app.AdultB, Sharing(envelope));
-        Assert.Equal(("shared", "view", false), (view.GetProperty("visibility").GetString(), view.GetProperty("shareLevel").GetString(), view.GetProperty("canChange").GetBoolean()));
+        Assert.Equal(("shared", "view", false, false), (view.GetProperty("visibility").GetString(), view.GetProperty("shareLevel").GetString(),
+            view.GetProperty("canChange").GetBoolean(), view.GetProperty("isOwner").GetBoolean()));
         Assert.Equal(HttpStatusCode.Forbidden, (await ValueAsync(app, app.AdultB, envelope, "2025-01-31")).StatusCode);
         var byA = await ProposeAsync(app, app.AdultA, envelope, "2025-02-28");
         Assert.False(await DecidesAsync(app, app.AdultB, byA));
@@ -53,7 +54,8 @@ public class ShareLevelTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         // A opens it to edits: B writes and decides, without being able to change the level.
         var opened = await SetAsync(app, app.AdultA, envelope, "edit");
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
-        Assert.True((await JsonAsync(app, app.AdultA, Sharing(envelope))).GetProperty("canChange").GetBoolean());
+        var byOwner = await JsonAsync(app, app.AdultA, Sharing(envelope));
+        Assert.True(byOwner.GetProperty("canChange").GetBoolean() && byOwner.GetProperty("isOwner").GetBoolean());
         Assert.Equal(HttpStatusCode.Forbidden, (await SetAsync(app, app.AdultB, envelope, "view")).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await ValueAsync(app, app.AdultB, envelope, "2025-01-31")).StatusCode);
         Assert.True(await DecidesAsync(app, app.AdultB, byA));

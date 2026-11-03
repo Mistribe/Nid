@@ -26319,6 +26319,7 @@ export interface components {
             visibility: string;
             shareLevel: string;
             canChange: boolean;
+            isOwner: boolean;
         };
         JobDetailView: {
             key: string;
