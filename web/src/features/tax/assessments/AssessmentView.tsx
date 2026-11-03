@@ -39,6 +39,65 @@ function balanceText(t: TFunction, balance: Money): string {
   return balance.amount.startsWith('-') ? t('tax.assessment.refunded', { amount: eur(balance.amount.slice(1)) }) : t('tax.assessment.to_pay', { amount: eur(balance.amount) });
 }
 
+function declarantText(t: TFunction, d: Declarant, key: (typeof DECLARANT_ROWS)[number]): string | null {
+  if (key === 'deduction') return d.deduction ? t(d.deduction === 'actual' ? 'tax.assessment.deduction_actual' : 'tax.assessment.deduction_allowance') : null;
+  return d[key] ? eur(d[key].amount) : null;
+}
+
+/** Every figure of a notice as shown, keyed so two notices line up: a declarant's by rank. */
+function figures(t: TFunction, a: TaxAssessment, persons: Person[]): Map<string, { label: string; text: string }> {
+  const out = new Map<string, { label: string; text: string }>();
+  const label = (key: FieldKey) => t(`tax.assessment.field.${key}`);
+  const money = (m: Money) => (m ? eur(m.amount) : '—');
+  out.set('year', { label: t('tax.assessment.changes.year'), text: String(a.year) });
+  out.set('issuedYear', { label: t('tax.assessment.changes.issued_year'), text: String(a.issuedYear) });
+  out.set('shares', { label: label('shares'), text: a.shares ?? '—' });
+  out.set('referenceIncome', { label: label('referenceIncome'), text: money(a.referenceIncome) });
+  out.set('averageRate', { label: label('averageRate'), text: a.averageRate ? percentText(t, a.averageRate) : '—' });
+  out.set('marginalRate', { label: label('marginalRate'), text: a.marginalRate ? percentText(t, a.marginalRate) : '—' });
+  for (const [, keys] of MONEY_GROUPS)
+    for (const key of keys) out.set(key, { label: label(key), text: key === 'balance' ? balanceText(t, a[key]) : money(a[key]) });
+  for (const d of a.declarants) {
+    const who = t('tax.assessment.changes.of', { declarant: t('tax.assessment.declarant', { rank: d.rank }), name: persons.find((p) => p.id === d.personId)?.displayName ?? '' });
+    for (const key of DECLARANT_ROWS) {
+      const name = t(`tax.assessment.field.${key === 'withholding' ? 'withholding_declarant' : key}`, isPerAmount(key) ? { year: perLineYear(key, a.year) } : {});
+      out.set(`${d.rank}.${key}`, { label: `${name} ${who}`, text: declarantText(t, d, key) ?? '—' });
+    }
+  }
+  return out;
+}
+
+/** Issue #321: a correction's figures that change, as recorded then as proposed; the whole notice follows it. */
+export function AssessmentChanges({ before, after, persons }: { before: TaxAssessment; after: TaxAssessment; persons: Person[] }) {
+  const { t } = useTranslation();
+  const [old, next] = [figures(t, before, persons), figures(t, after, persons)];
+  const keys = [...new Set([...next.keys(), ...old.keys()])].filter((k) => old.get(k)?.text !== next.get(k)?.text);
+  return (
+    <Section title={t('tax.assessment.changes.title')}>
+      {keys.length === 0 ? <p>{t('tax.assessment.changes.none')}</p> : (
+        <Table aria-label={t('tax.assessment.changes.title')}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('tax.assessment.figure')}</TableHead>
+              <TableHead className="text-right">{t('tax.assessment.changes.recorded')}</TableHead>
+              <TableHead className="text-right">{t('tax.assessment.changes.proposed')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {keys.map((k) => (
+              <TableRow key={k}>
+                <TableHead scope="row" className="font-normal">{(next.get(k) ?? old.get(k))!.label}</TableHead>
+                <TableCell className="text-right tabular-nums text-muted-foreground">{old.get(k)?.text ?? '—'}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums">{next.get(k)?.text ?? '—'}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </Section>
+  );
+}
+
 /**
  * One past notice, read-only: its key figures, then every printed figure, a column per declarant for the personal ones.
  * `actions` false: a notice not recorded yet (a proposal's), which has no menu to correct or delete it.
@@ -51,12 +110,8 @@ export function AssessmentView({ assessment: a, persons, actions = true }: { ass
   const money = (m: Money) => (m ? eur(m.amount) : '—');
   const label = (key: FieldKey) => t(`tax.assessment.field.${key}`);
 
-  const declarantCell = (d: Declarant, key: (typeof DECLARANT_ROWS)[number]) => {
-    if (key === 'deduction') return d.deduction ? t(d.deduction === 'actual' ? 'tax.assessment.deduction_actual' : 'tax.assessment.deduction_allowance') : null;
-    return d[key] ? eur(d[key].amount) : null;
-  };
   const declarantRows = DECLARANT_ROWS.flatMap((key) => {
-    const cells = declarants.map((d) => declarantCell(d, key));
+    const cells = declarants.map((d) => declarantText(t, d, key));
     // The declarant's withholding is the notice's « RAS sur salaires et pensions », not the household's total.
     return cells.every((c) => c === null) ? [] : [{ key, label: t(`tax.assessment.field.${key === 'withholding' ? 'withholding_declarant' : key}`, isPerAmount(key) ? { year: perLineYear(key, a.year) } : {}), cells }];
   });

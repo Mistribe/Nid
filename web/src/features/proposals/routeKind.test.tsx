@@ -103,15 +103,23 @@ describe('Une proposition d’action du web', () => {
     },
   });
 
-  it('names a tax notice by its year in the list, a deletion without one by its action alone', async () => {
-    serve([notice('tax.add_tax_year'), notice('tax.correct_tax_year'), proposal({
-      kind: 'tax.delete_tax_year', targetItemId: null, targetName: null, subjectKey: null, payload: { id: '00000000-0000-7000-8000-0000000000f1' },
-    })]);
+  /** The notice as recorded, the server's `{ current }` preview of a correction or a deletion (issue #321). */
+  const recorded = {
+    id: '00000000-0000-7000-8000-0000000000f1', version: 3, year: 2024, issuedYear: 2025, shares: '2', netTax: { amount: '4100.00', currency: 'EUR' },
+    declarants: [{ personId: 'a', rank: 1, deduction: 'allowance', grossSalaries: { amount: '52000.00', currency: 'EUR' } }],
+  };
+  const deletion = () => proposal({
+    kind: 'tax.delete_tax_year', targetItemId: null, targetName: null, subjectKey: null, payload: { id: '00000000-0000-7000-8000-0000000000f1' },
+  });
+
+  it('names a tax notice by its year in the list, a deletion by the notice it removes', async () => {
+    serve([notice('tax.add_tax_year'), notice('tax.correct_tax_year'), deletion()]);
+    server.use(http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [recorded] })));
     await renderApp('/proposals');
     const table = within(await screen.findByRole('table', { name: 'Liste des propositions' }));
     expect(table.getByRole('link', { name: 'Nouvel avis d’imposition — Avis d’imposition 2024' })).toBeInTheDocument();
     expect(table.getByRole('link', { name: 'Correction d’un avis d’imposition — Avis d’imposition 2024' })).toBeInTheDocument();
-    expect(table.getByRole('link', { name: 'Suppression d’un avis d’imposition' })).toBeInTheDocument();
+    expect(await table.findByRole('link', { name: 'Suppression d’un avis d’imposition — Avis d’imposition 2024' })).toBeInTheDocument();
     expect(table.queryByText(/Élément inconnu/)).not.toBeInTheDocument();
   });
 
@@ -143,8 +151,42 @@ describe('Une proposition d’action du web', () => {
     expect(screen.getByText('établi en 2025')).toBeInTheDocument();
   });
 
+  it('shows what a correction changes, recorded then proposed, before the whole notice', async () => {
+    const p = notice('tax.correct_tax_year');
+    serve([p], { preview: { current: recorded } });
+    const { container } = await renderApp(`/proposals/${p.id}`);
+
+    const changes = within(await screen.findByRole('table', { name: 'Ce qui change' }));
+    const netTax = changes.getByRole('row', { name: /^Impôt net/ });
+    expect(within(netTax).getAllByRole('cell').map((c) => c.textContent)).toEqual([expect.stringMatching(/4\s100/), expect.stringMatching(/4\s200/)]);
+    // Only what changes: the salaries are the same.
+    expect(changes.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByRole('table', { name: 'Chiffres de l’avis 2024' })).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('says so when a correction changes no figure', async () => {
+    const p = notice('tax.correct_tax_year');
+    serve([p], { preview: { current: { ...recorded, netTax: { amount: '4200.00', currency: 'EUR' } } } });
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByText('Aucun chiffre ne change.')).toBeInTheDocument();
+  });
+
+  it('shows the notice a deletion removes', async () => {
+    const p = deletion();
+    serve([p], { preview: { current: recorded } });
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByRole('note')).toHaveTextContent('Cet avis sera supprimé avec tous ses chiffres');
+    const figures = within(screen.getByRole('table', { name: 'Chiffres de l’avis 2024' }));
+    expect(figures.getByRole('row', { name: /^Impôt net/ })).toHaveTextContent(/4\s100/);
+    expect(screen.queryByRole('button', { name: 'Actions de l’avis 2024' })).not.toBeInTheDocument();
+  });
+
   it('never calls a deletion a new item', async () => {
-    const p = proposal({ kind: 'tax.delete_tax_year', targetItemId: null, targetName: null, subjectKey: null, payload: { id: '00000000-0000-7000-8000-0000000000f1' } });
+    // The notice is gone or unreadable: no preview, nothing named.
+    const p = deletion();
     serve([p], { preview: {} });
     await renderApp(`/proposals/${p.id}`);
 

@@ -100,6 +100,14 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
             .ToList();
         Assert.Empty(uncovered);
 
+        // Issue #321: the read of what a correction or a deletion changes is a GET with the action's own route parameters.
+        foreach (var action in RouteActions.All.Where(a => a.Current is not null))
+        {
+            var read = new RouteAction(action.Name, "GET", action.Current!, null, "");
+            Assert.NotNull(app.Services.GetRequiredService<RouteReplay>().Find(read));
+            Assert.Subset(action.RouteParameters.ToHashSet(), read.RouteParameters.ToHashSet());
+        }
+
         await using var client = await ClientAsync(app, TokenPresets.Propose);
         var tools = (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).ToDictionary(t => t.Name);
         Assert.All(RouteActions.All, a => Assert.Contains(a.Tool, tools.Keys));

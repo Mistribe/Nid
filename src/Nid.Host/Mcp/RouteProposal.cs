@@ -33,9 +33,19 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
             : Result.Success(new ProposalCheck(null, [], Normalized(call!)));
     }
 
-    /// <summary>The generic screen shows the payload itself: no current state to compare.</summary>
-    public Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
-        => Task.FromResult(McpCalls.Element([]));
+    /// <summary>
+    /// Issue #321: what a correction or a deletion changes, read with the action's <see cref="RouteAction.Current"/> route as the
+    /// person reading the proposal, so the route's access rules decide. Nothing to read, a refusal or an item gone: no current state.
+    /// </summary>
+    public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
+    {
+        if (action.Current is not { } current || !Read(action, payload).TryGetValue(out var call))
+            return McpCalls.Element([]);
+        var read = await replay.RunAsync(services, new RouteAction(action.Name, "GET", current, null, action.Description), call! with { Query = new Dictionary<string, string>(), Body = null }, ct);
+        return read.TryGetValue(out var state) && state.ValueKind == JsonValueKind.Object
+            ? McpCalls.Element(new JsonObject { ["current"] = JsonNode.Parse(state.GetRawText()) })
+            : McpCalls.Element([]);
+    }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {

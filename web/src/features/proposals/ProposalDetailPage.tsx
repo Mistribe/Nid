@@ -106,7 +106,7 @@ function Proposal({ id }: { id: string }) {
         </section>
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} original={p.editedPayload ?? p.payload} /> : null}
-      {route ? <RoutePayload p={p} /> : !kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
+      {route ? <RoutePayload p={p} preview={preview} /> : !kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
     </>
   );
   const tail = (

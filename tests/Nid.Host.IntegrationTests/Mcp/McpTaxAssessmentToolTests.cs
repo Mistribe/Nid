@@ -115,6 +115,39 @@ public class McpTaxAssessmentToolTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(0, (await ItemsAsync(app, app.AdultA)).GetArrayLength());
     }
 
+    /// <summary>Issue #321: a correction's and a deletion's preview is the notice as recorded, read as the reader; gone, there is none.</summary>
+    [Fact]
+    public async Task A_correction_and_a_deletion_preview_the_recorded_notice_until_it_is_gone()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var notice = new
+        {
+            year = 2023, declarants = new[] { new { personId = app.AdultA.Value, rank = 1 } },
+            netTax = new { amount = "4100.00", currency = "EUR" },
+        };
+        var created = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, Route, notice)).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+        var id = created.GetProperty("id").GetGuid();
+
+        var correct = await AnswerAsync(propose, "propose_correct_tax_year", new { id, body = new
+        {
+            notice.year, notice.declarants, netTax = new { amount = "4200.00", currency = "EUR" }, version = created.GetProperty("version").GetUInt32(),
+        } });
+        var delete = await AnswerAsync(propose, "propose_delete_tax_year", new { id });
+        async Task<JsonElement> PreviewAsync(JsonElement proposed)
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{ProposalKindHelpers.Proposals}/{proposed.GetProperty("proposal").GetProperty("id").GetGuid()}"))
+                .RootElement.GetProperty("preview");
+
+        foreach (var proposed in new[] { correct, delete })
+        {
+            var current = (await PreviewAsync(proposed)).GetProperty("current");
+            Assert.Equal((2023, "4100.00"), (current.GetProperty("year").GetInt32(), current.GetProperty("netTax").GetProperty("amount").GetString()));
+        }
+
+        Assert.True((await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Route}/{id}")).IsSuccessStatusCode);
+        Assert.False((await PreviewAsync(correct)).TryGetProperty("current", out _));
+    }
+
     [Theory]
     [InlineData("propose_add_tax_year")]
     [InlineData("propose_correct_tax_year")]

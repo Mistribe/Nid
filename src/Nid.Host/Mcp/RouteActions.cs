@@ -17,10 +17,12 @@ namespace Nid.Host.Mcp;
 /// One web write the assistant may propose: the REST route it replays when approved (or applied), so validation, access and
 /// ownership rules stay the route's. <paramref name="Body"/> is the route's body type (null: none); <paramref name="Query"/>
 /// the query parameters it reads. A route with an <c>{id}</c> is about that item: its proposal targets it, unless
-/// <paramref name="OnItem"/> is false (a document's <c>{id}</c> is no item).
+/// <paramref name="OnItem"/> is false (a document's <c>{id}</c> is no item). <paramref name="Current"/> is the GET route, with the
+/// same parameters, that reads what a correction or a deletion changes: its proposal's preview is <c>{ current }</c> (issue #321).
 /// </summary>
 public sealed record RouteAction(
-    string Name, string Method, string Route, Type? Body, string Description, bool Destructive = false, string[]? Query = null, bool OnItem = true)
+    string Name, string Method, string Route, Type? Body, string Description, bool Destructive = false, string[]? Query = null, bool OnItem = true,
+    string? Current = null)
 {
     public string Tool => "propose_" + Name;
 
@@ -61,6 +63,7 @@ public static class RouteActions
         + "balance is positive when tax is due, negative when refunded. documentId (list_documents) is the notice's PDF: it is linked to each declarant, "
         + "so a joint notice's PDF becomes readable by both. ";
     private const string Versioned = "version is the one get_* returned for that line. ";
+    private const string TaxNoticeRead = "/api/v1/tax/assessments/{id:guid}";
     private static readonly string Roles = string.Join(", ", DocumentRoles.All.Order(StringComparer.Ordinal));
 
     public static readonly IReadOnlyList<RouteAction> All =
@@ -298,9 +301,9 @@ public static class RouteActions
         new("add_tax_year", "POST", "/api/v1/tax/assessments", typeof(AddTaxAssessmentBody), TaxNotice + Ids + Amounts),
         new("correct_tax_year", "PUT", "/api/v1/tax/assessments/{id:guid}", typeof(CorrectTaxAssessmentBody),
             TaxNotice + "Replaces the whole notice: send every field again with the version list_tax_years gave. " + Ids + Amounts,
-            Destructive: true, OnItem: false),
+            Destructive: true, OnItem: false, Current: TaxNoticeRead),
         new("delete_tax_year", "DELETE", "/api/v1/tax/assessments/{id:guid}", null, "Delete a tax notice entered by mistake. " + Ids,
-            Destructive: true, OnItem: false),
+            Destructive: true, OnItem: false, Current: TaxNoticeRead),
 
         // Bank sync (§8): a bank account's settings; connecting a bank stays in the browser.
         new("bank_account_update", "PATCH", "/api/v1/banking/accounts/{id:guid}", typeof(BankAccountBody),

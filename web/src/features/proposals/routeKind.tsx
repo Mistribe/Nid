@@ -7,8 +7,8 @@ import strings from '@/locales/fr.proposals.json';
 import { Table, TableBody } from '@/components/ui/table';
 import { percent } from '../dashboard/format';
 import { DOCUMENTS } from '../documents/api';
-import type { TaxAssessment } from '../tax/assessments/api';
-import { AssessmentView } from '../tax/assessments/AssessmentView';
+import { TAX_ASSESSMENTS, type TaxAssessment } from '../tax/assessments/api';
+import { AssessmentChanges, AssessmentView } from '../tax/assessments/AssessmentView';
 import { PERSONS } from '../subscriptions/api';
 import type { ProposalView } from './api';
 import { Row, type LinkTarget } from './kindParts';
@@ -32,12 +32,18 @@ export const routeLabel = (t: TFunction, kind: string) => t(`proposal.action.${a
 
 /** Ids the household can read named: persons (a declarant, a child) and, when the kinds need them, documents. */
 export function useNames(kinds: string[]): Map<string, string> {
+  const { t } = useTranslation();
   const { $api } = useApi();
   const persons = $api.useQuery('get', PERSONS);
   const documents = $api.useQuery('get', DOCUMENTS, { params: { query: { scope: 'me' } } },
     { enabled: kinds.some((k) => moduleOf(k) === 'documents' || moduleOf(k) === 'tax') });
+  // A notice is no item: a deletion's id is named by the notices the reader sees (issue #321).
+  const notices = $api.useQuery('get', TAX_ASSESSMENTS, { params: { query: { scope: 'household' } } }, { enabled: kinds.some((k) => moduleOf(k) === 'tax') });
   // ponytail: an item's id (an envelope, a property) is not named, so it is hidden; the server would have to send the names it may show.
-  return new Map([...(persons.data ?? []).map((x) => [x.id, x.displayName] as const), ...(documents.data?.items ?? []).map((d) => [d.id, d.title] as const)]);
+  return new Map([
+    ...(persons.data ?? []).map((x) => [x.id, x.displayName] as const), ...(documents.data?.items ?? []).map((d) => [d.id, d.title] as const),
+    ...(notices.data?.items ?? []).map((n) => [n.id, t('proposal.route.tax_year', { year: n.year })] as const),
+  ]);
 }
 
 const isText = (v: unknown): v is string => typeof v === 'string';
@@ -137,19 +143,43 @@ function groups(t: TFunction, value: Record<string, unknown>, heading: string | 
  * A tax notice proposed (`add_tax_year`, `correct_tax_year`) reads as the tax page shows a recorded one: same figures, same
  * order, a column per declarant. The body has the view's field names (TaxEndpoints); a left-out issuedYear is year + 1 there too.
  */
-function ProposedNotice({ id, body }: { id: string | undefined; body: Record<string, unknown> }) {
+function ProposedNotice({ id, body, before }: { id: string | undefined; body: Record<string, unknown>; before: TaxAssessment | undefined }) {
   const { $api } = useApi();
   const persons = $api.useQuery('get', PERSONS);
   const year = body.year as number;
   const notice = { ...body, id: id ?? '', version: 0, issuedYear: (body.issuedYear as number | undefined) ?? year + 1 } as TaxAssessment;
-  return <AssessmentView assessment={notice} persons={persons.data ?? []} actions={false} />;
+  return (
+    <>
+      {before ? <AssessmentChanges before={before} after={notice} persons={persons.data ?? []} /> : null}
+      <AssessmentView assessment={notice} persons={persons.data ?? []} actions={false} />
+    </>
+  );
 }
 
-export function RoutePayload({ p }: { p: ProposalView }) {
+/** Issue #321: a deletion shows the notice it removes, as recorded. */
+function RemovedNotice({ notice }: { notice: TaxAssessment }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const persons = $api.useQuery('get', PERSONS);
+  return (
+    <>
+      <p role="note" className="text-sm text-muted-foreground">{t('proposal.route.removes_notice')}</p>
+      <AssessmentView assessment={notice} persons={persons.data ?? []} actions={false} />
+    </>
+  );
+}
+
+/** `preview`: the server's `{ current }` for a correction or a deletion (issue #321), absent when it cannot be read. */
+export function RoutePayload({ p, preview }: { p: ProposalView; preview?: unknown }) {
   const { t } = useTranslation();
   const names = useNames([p.kind]);
   const { body, ...route } = payloadOf(p);
-  if (moduleOf(p.kind) === 'tax' && typeof body?.year === 'number') return <ProposedNotice id={route.id} body={body} />;
+  const current = (preview as { current?: unknown } | null | undefined)?.current;
+  if (moduleOf(p.kind) === 'tax') {
+    const recorded = current as TaxAssessment | undefined;
+    if (typeof body?.year === 'number') return <ProposedNotice id={route.id} body={body} before={recorded} />;
+    if (recorded) return <RemovedNotice notice={recorded} />;
+  }
   // The route's own values (`year`, `on`) first; its `id` is the subject, its other ids named or hidden.
   // An entry whose only field is its name (a guarantee) keeps its heading.
   const shownGroups = groups(t, { ...route, ...body }, null, names, [], 'id').filter((g) => g.rows.length > 0 || g.heading);

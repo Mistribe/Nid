@@ -45,6 +45,7 @@
       "refunded": "{{amount}} remboursé",
       "deduction_allowance": "10 %",
       "deduction_actual": "Frais réels",
+      "changes": { "title": "Ce qui change", "recorded": "Enregistré", "proposed": "Proposé", "none": "Aucun chiffre ne change.", "year": "Année des revenus", "issued_year": "Année de l’avis", "of": "({{declarant}}, {{name}})" },
       "group": {
         "declarants": "Déclarants",
         "household": "Revenus du foyer",
