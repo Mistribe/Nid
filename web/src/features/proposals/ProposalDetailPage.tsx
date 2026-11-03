@@ -22,7 +22,7 @@ import { PERSONS } from '../subscriptions/api';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from './api';
 import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
-import { RoutePayload, isRouteKind, routeLabel, routeLink } from './routeKind';
+import { RoutePayload, isRouteKind, routeElement, routeLabel, routeLink, useNames } from './routeKind';
 import { announce, focusHeading, focusNextHeading, useAnnouncement } from './announce';
 import '@/locales/proposals';
 import '@/locales/forms';
@@ -62,6 +62,7 @@ function Proposal({ id }: { id: string }) {
   const { $api } = useApi();
   const answer = $api.useQuery('get', PROPOSAL, { params: { path: { id } } });
   const pending = usePending();
+  const names = useNames(answer.data ? [answer.data.proposal.kind] : []);
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = answer.data?.proposal.id;
   // Keyed on the shown proposal, not the h1's mount: a cached next proposal keeps the same h1.
@@ -81,7 +82,7 @@ function Proposal({ id }: { id: string }) {
   // Spec 4D3: a kind without its own screen replays a web write, approved as proposed.
   const route = !kind && !unsupported && isRouteKind(p.kind);
   const link = kind ? kind.link(p) : route ? routeLink(p) : undefined;
-  const targetName = p.targetName ?? t(p.targetItemId ? 'proposals.unknown_target' : 'proposal.route.new');
+  const targetName = route ? routeElement(t, p, names) : p.targetName ?? t(p.targetItemId ? 'proposals.unknown_target' : 'proposal.route.new');
 
   const title = kind ? t(kind.label) : route ? routeLabel(t, p.kind) : t('proposal.unknown_kind', { kind: p.kind });
   const head = (actions: ReactNode) => (
@@ -91,8 +92,10 @@ function Proposal({ id }: { id: string }) {
   const body = (
     <>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
-        <dt className="text-muted-foreground">{t('proposal.target')}</dt>
-        <dd>{link && p.targetItemId ? <Link to={link.to} params={link.params} className="underline">{targetName}</Link> : targetName}</dd>
+        {targetName ? (<>
+          <dt className="text-muted-foreground">{t('proposal.target')}</dt>
+          <dd>{link && p.targetItemId ? <Link to={link.to} params={link.params} className="underline">{targetName}</Link> : targetName}</dd>
+        </>) : null}
         {p.sourceLabel ? (<><dt className="text-muted-foreground">{t('proposal.statement')}</dt><dd>{p.sourceLabel}</dd></>) : null}
       </dl>
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>

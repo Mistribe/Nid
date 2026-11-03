@@ -234,6 +234,53 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(RouteActions.All.Select(a => a.Name).Order(StringComparer.Ordinal), labels.EnumerateObject().Select(l => l.Name).Order(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// Issue #290: « À valider » reads every field of a route action through <c>proposal.field</c> (an array's entries through
+    /// <c>proposal.entry</c>, an enum's values through <c>proposal.value</c>), so a new action brings its French labels with it.
+    /// </summary>
+    [Fact]
+    public void Every_field_of_every_action_has_its_french_label()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (!File.Exists(Path.Combine(root.FullName, "Nid.slnx")))
+            root = root.Parent!;
+        var strings = JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "web", "src", "locales", "fr.proposals.json"))).RootElement.GetProperty("proposal");
+        bool Has(string group, params string[] path)
+        {
+            if (!strings.TryGetProperty(group, out var node))
+                return false;
+            foreach (var key in path)
+                if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty(key, out node))
+                    return false;
+            return true;
+        }
+
+        var missing = new SortedSet<string>(StringComparer.Ordinal);
+        void Walk(string name, JsonElement schema)
+        {
+            if (schema.TryGetProperty("enum", out var values))
+                foreach (var v in values.EnumerateArray().Where(v => v.ValueKind == JsonValueKind.String))
+                    if (!Has("value", name, v.GetString()!)) missing.Add($"value.{name}.{v.GetString()}");
+            if (schema.TryGetProperty("items", out var items))
+            {
+                if (!Has("entry", name)) missing.Add($"entry.{name}");
+                Walk(name, items);
+            }
+            if (schema.TryGetProperty("properties", out var properties))
+                foreach (var p in properties.EnumerateObject())
+                {
+                    // Technical: the web never shows them (issue #290).
+                    if (p.Name is not ("version" or "rank") && !Has("field", p.Name)) missing.Add($"field.{p.Name}");
+                    Walk(p.Name, p.Value);
+                }
+        }
+        foreach (var action in RouteActions.All)
+            foreach (var p in new RouteTool(action).ProtocolTool.InputSchema.GetProperty("properties").EnumerateObject())
+                if (p.Name == "body") Walk("body", p.Value);
+                else if (p.Name is not ("sourceLabel" or "apply" or "version") && !Has("field", p.Name)) missing.Add($"field.{p.Name}");
+        Assert.True(missing.Count == 0, string.Join('\n', missing));
+    }
+
     [Fact]
     public async Task A_property_and_its_loan_are_proposed_then_created_when_the_adult_approves()
     {

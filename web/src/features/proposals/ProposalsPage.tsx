@@ -12,7 +12,7 @@ import { ToLinkLink } from '../operations/ToLinkLink';
 import { PROPOSALS, type ProposalView } from './api';
 import { useAnnouncement } from './announce';
 import { kindOf, originText } from './kinds';
-import { isRouteKind, routeSummary } from './routeKind';
+import { isRouteKind, routeSummary, useNames } from './routeKind';
 import '@/locales/forms';
 
 const STATUSES = ['pending', 'approved', 'rejected'] as const;
@@ -26,11 +26,12 @@ export function ProposalsPage() {
   const status = search.status ?? 'pending';
   const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
   const message = useAnnouncement();
+  const names = useNames(answer.data?.items.map((p) => p.kind) ?? []);
   const setStatus = (s: string) =>
     void navigate({ to: '/proposals', search: (prev) => ({ ...prev, status: s === 'approved' || s === 'rejected' ? s : undefined }), replace: true, resetScroll: false });
 
   const summary = (p: ProposalView) =>
-    kindOf(p.kind)?.summary(t, p) ?? (isRouteKind(p.kind) ? routeSummary(t, p)
+    kindOf(p.kind)?.summary(t, p) ?? (isRouteKind(p.kind) ? routeSummary(t, p, names)
       : t('proposals.unknown_summary', { kind: p.kind, target: p.targetName ?? t('proposals.unknown_target') }));
 
   const list = (
