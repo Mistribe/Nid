@@ -579,7 +579,7 @@
       "rental_without_tenancy": "Bien locatif sans bail ni date de début de location"
     },
     "figures": "Aujourd’hui",
-    "tab": { "overview": "Vue d’ensemble", "rental": "Location", "valuations": "Estimations", "expenses": "Dépenses", "settings": "Réglages" },
+    "tab": { "overview": "Vue d’ensemble", "rental": "Location", "return": "Rentabilité", "valuations": "Estimations", "expenses": "Dépenses", "settings": "Réglages" },
     "cost_title": "Coût réel",
     "value": "Valeur",
     "value_on": "{{amount}} au {{date}}",

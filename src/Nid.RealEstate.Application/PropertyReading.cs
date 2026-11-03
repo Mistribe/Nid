@@ -8,7 +8,11 @@ using UnambitiousFx.Functional;
 namespace Nid.RealEstate.Application;
 
 /// <summary>What a property's detail shows: its facts, the items of its readable linked loans (by name), and its figures.</summary>
-public sealed record PropertyRead(IReadOnlyList<Valuation> Values, IReadOnlyList<Flow> Flows, IReadOnlyList<ItemAccess> Loans, PropertyFigures Figures);
+public sealed record PropertyRead(
+    IReadOnlyList<Valuation> Values, IReadOnlyList<Flow> Flows, IReadOnlyList<ItemAccess> Loans, PropertyFigures Figures, IReadOnlyList<LoanSource> Sources);
+
+/// <summary>A readable linked loan, its schedule and its rate to the property's currency (null when missing).</summary>
+public sealed record LoanSource(ItemAccess Item, LoanTerms Terms, LoanSchedule Schedule, bool OtherCurrency, decimal? Rate);
 
 /// <summary>
 /// Spec 3C1 §5: a property's facts and figures today, read as the ambient actor, <c>reader</c>. Only the linked loans the
@@ -97,20 +101,26 @@ public sealed class PropertyReading(
     {
         var currency = LoanViews.CurrencyOf(item);
         var readable = loans.OrderBy(l => l.Item.DisplayName, French).ThenBy(l => l.Item.Id.Value).ToList();
-        var linked = readable.Select(l => Linked(l.Loan, l.Item, currency, rates, today)).ToList();
+        var sources = readable.Select(l => Source(l.Loan, l.Item, currency, rates, today)).ToList();
+        var linked = sources.Select(s => Linked(s, today)).ToList();
 
         return new PropertyRead(values, flowList, readable.Select(l => l.Item).ToList(),
             PropertyMath.At(property.Details, item.Visibility == Visibility.Shared, values, flowList, linked,
-                property.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), today));
+                property.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), today), sources);
     }
 
     /// <summary>A linked loan at <paramref name="today"/>, with its rate to the property's currency: the detail's and the overview's.</summary>
     internal static LinkedLoan Linked(StoredLoan loan, ItemAccess item, Currency currency, RateTable rates, LocalDate today)
+        => Linked(Source(loan, item, currency, rates, today), today);
+
+    private static LinkedLoan Linked(LoanSource s, LocalDate today)
+        => new(s.Item.Id, s.OtherCurrency, s.Item.Visibility == Visibility.Private, LoanMath.At(s.Terms, s.Schedule, today), s.Rate);
+
+    private static LoanSource Source(StoredLoan loan, ItemAccess item, Currency currency, RateTable rates, LocalDate today)
     {
         var loanCurrency = LoanViews.CurrencyOf(item);
         var terms = LoanReading.Terms(loanCurrency, loan.Contract, loan.Fees, loan.Repayments);
         decimal? rate = rates.TryConvert(1m, loanCurrency, currency, today, projected: false, out var converted, out _) ? converted : null;
-        return new LinkedLoan(item.Id, loanCurrency != currency, item.Visibility == Visibility.Private,
-            LoanMath.At(terms, LoanReading.Schedule(terms, loan), today), rate);
+        return new LoanSource(item, terms, LoanReading.Schedule(terms, loan), loanCurrency != currency, rate);
     }
 }

@@ -160,6 +160,22 @@ public sealed record TaxProfile(
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }
 
+/// <summary>Property return spec §5: a property's Pinel commitment and its reduction for every year of it.</summary>
+public sealed record PinelOutlook(int StartYear, int InitialYears, int TotalYears, IReadOnlyDictionary<int, decimal> Reductions);
+
+/// <summary>Property return spec §5: the household estimate's marginal rate (null without one), the rental social rate, the property's Pinel.</summary>
+public sealed record RentalTaxOutlook(decimal? MarginalRate, decimal RentalSocialRate, PinelOutlook? Pinel);
+
+/// <summary>Property return spec §5: the tax rules a property's return reads, kept in the Core.</summary>
+public interface IRentalTaxOutlook
+{
+    /// <summary>The estimate of <paramref name="d"/>'s year; Pinel's base from the cost price and surface the module gives.</summary>
+    Task<Result<RentalTaxOutlook>> OutlookAsync(ItemId property, decimal costPrice, decimal? surfaceM2, LocalDate purchasedOn, LocalDate d, CancellationToken ct);
+
+    /// <summary>Spec §4.3: income tax, social tax and surtax on a sale at <paramref name="netSalePrice"/> (resale fees taken off) on <paramref name="on"/>.</summary>
+    decimal CapitalGainsTax(PropertyForSale property, decimal netSalePrice, LocalDate on);
+}
+
 /// <summary>A stored profile and the revenue year it was saved for (an earlier one when the year has none yet).</summary>
 public sealed record StoredTaxProfile(int Year, TaxProfile Profile);
 

@@ -141,6 +141,12 @@ public interface IPropertyStore
     /// <summary>Every field in place.</summary>
     Task UpdateAsync(ItemId item, PropertyDetails details, CancellationToken ct);
 
+    /// <summary>Property return spec §3: null when none are stored.</summary>
+    Task<ReturnAssumptions?> FindReturnAssumptionsAsync(ItemId item, CancellationToken ct);
+
+    /// <summary>Property return spec §3: null clears them, back to the defaults.</summary>
+    Task SaveReturnAssumptionsAsync(ItemId item, ReturnAssumptions? assumptions, CancellationToken ct);
+
     Task AddCostAsync(ItemId property, Guid id, RecurringCost cost, CancellationToken ct);
 
     /// <summary>Every value in place; the cost's version always moves.</summary>

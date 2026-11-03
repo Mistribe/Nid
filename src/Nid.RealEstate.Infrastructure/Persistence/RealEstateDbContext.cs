@@ -157,6 +157,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             e.Property(x => x.AgencyFees).HasColumnType("numeric(19,4)");
             e.Property(x => x.OtherAcquisitionCosts).HasColumnType("numeric(19,4)");
             e.Property(x => x.SurfaceM2).HasColumnType("numeric(19,4)");
+            e.Property(x => x.ReturnAssumptions).HasColumnType("jsonb");
             MapXmin(e.Property(x => x.Version));
         });
 

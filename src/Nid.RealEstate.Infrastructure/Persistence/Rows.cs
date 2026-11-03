@@ -126,6 +126,7 @@ public sealed class PropertyRow : IImportMarked
     public string? Note { get; set; }
     public string? EnergyClass { get; set; }
     public string? PostalAddress { get; set; }
+    public string? ReturnAssumptions { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }

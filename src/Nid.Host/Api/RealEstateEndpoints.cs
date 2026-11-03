@@ -263,6 +263,30 @@ public static class RealEstateEndpoints
             })
             .Returns<IdResponse>();
 
+        // Property return spec §5: the return of the whole operation and its assumptions.
+        api.MapGet("/properties/{id:guid}/return", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPropertyReturnQuery(new ItemId(id)), ct)).ToHttp(view => view))
+            .Returns<PropertyReturnView>();
+
+        api.MapPut("/properties/{id:guid}/return-assumptions", async (Guid id, PropertyReturnAssumptionsBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var assumptions = new ReturnAssumptions(
+                    body.YearsAfterPinel, LoanBodies.Number(reader, body.ResalePrice, "resalePrice", required: false),
+                    LoanBodies.Number(reader, body.ValueGrowth, "valueGrowth", required: false), LoanBodies.Number(reader, body.RentGrowth, "rentGrowth", required: false),
+                    LoanBodies.Number(reader, body.ChargesGrowth, "chargesGrowth", required: false), body.VacancyMonths,
+                    LoanBodies.Number(reader, body.RentAfterPinel, "rentAfterPinel", required: false),
+                    LoanBodies.Number(reader, body.MarginalRate, "marginalRate", required: false), LoanBodies.Number(reader, body.ResaleFees, "resaleFees", required: false));
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new SavePropertyReturnAssumptionsCommand(new ItemId(id), assumptions), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/properties/{id:guid}/return-assumptions", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ClearPropertyReturnAssumptionsCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
         api.MapPost("/properties/{id:guid}/valuations", async (Guid id, PropertyValuationBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
@@ -650,6 +674,11 @@ public static class RealEstateEndpoints
 
     /// <summary>Spec 3C1 §4: an estimate, under the envelopes' member names; the amount an invariant decimal string (precision 1).</summary>
     public sealed record PropertyValuationBody(string? AsOf, string? Amount, string? Note);
+
+    /// <summary>Property return spec §3: every field optional; amounts and rates as decimal strings, rates as fractions.</summary>
+    public sealed record PropertyReturnAssumptionsBody(
+        int? YearsAfterPinel, string? ResalePrice, string? ValueGrowth, string? RentGrowth, string? ChargesGrowth, int? VacancyMonths,
+        string? RentAfterPinel, string? MarginalRate, string? ResaleFees);
 
     /// <summary>
     /// Spec 3C1 §4: <c>{ occurredOn, kind, amount, category, note?, externalRef? }</c>; kind and category are the module's convention,

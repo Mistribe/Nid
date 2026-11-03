@@ -15927,6 +15927,267 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/properties/{id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertyReturnView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/realestate/properties/{id}/return-assumptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PropertyReturnAssumptionsBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/properties/{id}/valuations": {
         parameters: {
             query?: never;
@@ -27919,6 +28180,27 @@ export interface components {
             /** Format: date */
             nextDueOn?: null | string;
         };
+        PropertyReturnAssumptionsBody: {
+            /** Format: int32 */
+            yearsAfterPinel?: null | number;
+            resalePrice?: null | string;
+            valueGrowth?: null | string;
+            rentGrowth?: null | string;
+            chargesGrowth?: null | string;
+            /** Format: int32 */
+            vacancyMonths?: null | number;
+            rentAfterPinel?: null | string;
+            marginalRate?: null | string;
+            resaleFees?: null | string;
+        };
+        PropertyReturnView: {
+            assumptions: components["schemas"]["ReturnAssumptionsView"];
+            scenario?: null | components["schemas"]["ReturnScenarioView"];
+            sensitivity: components["schemas"]["ReturnOutcomeView"][];
+            /** Format: date */
+            pinelEnd?: null | string;
+            warnings: components["schemas"]["PropertyWarning"][];
+        };
         PropertyRoutineBody: {
             on?: null | string;
             estimates?: null | components["schemas"]["PropertyRoutineEstimateBody"][];
@@ -28109,6 +28391,11 @@ export interface components {
             note?: null | string;
             /** Format: uuid */
             documentId?: null | string;
+        };
+        PropertyWarning: {
+            code: string;
+            /** Format: uuid */
+            loanId?: null | string;
         };
         PropertyWarningView: {
             code: string;
@@ -28336,9 +28623,42 @@ export interface components {
             /** Format: date */
             on: string;
         };
+        ReturnAssumptionsView: {
+            /** Format: int32 */
+            yearsAfterPinel: number;
+            resalePrice?: null | string;
+            valueGrowth: string;
+            rentGrowth: string;
+            chargesGrowth: string;
+            /** Format: int32 */
+            vacancyMonths: number;
+            rentAfterPinel?: null | string;
+            marginalRate: string;
+            resaleFees: string;
+            defaulted: string[];
+        };
+        ReturnBreakdownLineView: {
+            line: string;
+            realized: string;
+            projected: string;
+        };
+        ReturnOutcomeView: {
+            /** Format: date */
+            resaleOn: string;
+            resalePrice: string;
+            irr?: null | string;
+            netGain: string;
+            pinelClawback: boolean;
+        };
         ReturnReferenceView: {
             /** Format: double */
             annualReturnPct: number;
+        };
+        ReturnScenarioView: {
+            outcome: components["schemas"]["ReturnOutcomeView"];
+            priceSource: string;
+            savingsEffort: string;
+            breakdown: components["schemas"]["ReturnBreakdownLineView"][];
         };
         ReviseChildcareBody: {
             terms?: null | components["schemas"]["TermsBody"];

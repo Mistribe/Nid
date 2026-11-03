@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
@@ -5,8 +7,27 @@ using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.RealEstate.Infrastructure.Persistence;
 
-public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
+public sealed partial class PropertyStore(RealEstateDbContext db) : IPropertyStore
 {
+    /// <summary>Property return spec §2: the stored document, versioned.</summary>
+    private sealed record ReturnDocument(int Version, ReturnAssumptions Assumptions);
+
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSerializable(typeof(ReturnDocument))]
+    private sealed partial class ReturnJson : JsonSerializerContext;
+
+    public async Task<ReturnAssumptions?> FindReturnAssumptionsAsync(ItemId item, CancellationToken ct)
+    {
+        var json = await db.Properties.AsNoTracking().Where(p => p.ItemId == item.Value).Select(p => p.ReturnAssumptions).FirstOrDefaultAsync(ct);
+        return json is null ? null : JsonSerializer.Deserialize(json, ReturnJson.Default.ReturnDocument)?.Assumptions;
+    }
+
+    public async Task SaveReturnAssumptionsAsync(ItemId item, ReturnAssumptions? assumptions, CancellationToken ct)
+    {
+        var json = assumptions is null ? null : JsonSerializer.Serialize(new ReturnDocument(1, assumptions), ReturnJson.Default.ReturnDocument);
+        await db.Properties.Where(p => p.ItemId == item.Value).ExecuteUpdateAsync(s => s.SetProperty(p => p.ReturnAssumptions, json), ct);
+    }
+
     public async Task CreateAsync(ItemId item, PropertyDetails details, CancellationToken ct)
     {
         var row = new PropertyRow { ItemId = item.Value };

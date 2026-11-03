@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { CostRow, PropertyArrears, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertiesValuation, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
+import type { CostRow, PropertyArrears, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertiesValuation, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyReturn, PropertyTenancy } from './api';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 
@@ -224,4 +224,24 @@ export const householdValuation = (): PropertiesValuation => propertiesValuation
       estimates: [{ on: '2024-09-30', value: '198000.00' }], costSteps: [{ on: '2023-12-05', costPrice: '186300.00' }],
     },
   ],
+});
+
+/** A rental's return: a scenario sold in 2033 at the Pinel's end, sixteen resale years from 2026, the rate by default. */
+export const propertyReturn = (over: Partial<PropertyReturn> = {}): PropertyReturn => ({
+  assumptions: {
+    yearsAfterPinel: 0, resalePrice: null, valueGrowth: '0.0100', rentGrowth: '0.0100', chargesGrowth: '0.0200', vacancyMonths: 0,
+    rentAfterPinel: null, marginalRate: '0.3000', resaleFees: '0.0500',
+    defaulted: ['yearsAfterPinel', 'resalePrice', 'valueGrowth', 'rentGrowth', 'chargesGrowth', 'vacancyMonths', 'rentAfterPinel', 'marginalRate', 'resaleFees'],
+  },
+  scenario: {
+    outcome: { resaleOn: '2033-11-02', resalePrice: '214000.00', irr: '3.4', netGain: '41250.00', pinelClawback: false },
+    priceSource: 'growth', savingsEffort: '18500.00',
+    breakdown: [{ line: 'rent', realized: '45000.00', projected: '60000.00' }, { line: 'resale', realized: '0.00', projected: '214000.00' }],
+  },
+  sensitivity: Array.from({ length: 16 }, (_, k) => ({
+    resaleOn: `${2026 + k}-11-02`, resalePrice: `${200000 + k * 2000}.00`, irr: k === 0 ? null : '2.5', netGain: `${k * 1000}.00`, pinelClawback: 2026 + k < 2033,
+  })),
+  pinelEnd: '2033-01-01',
+  warnings: [{ code: 'marginal_rate_default', loanId: null }],
+  ...over,
 });

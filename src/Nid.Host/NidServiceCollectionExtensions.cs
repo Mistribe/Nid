@@ -149,6 +149,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IScenarioStore, ScenarioStore>();
         services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
         services.AddScoped<Nid.Core.Application.Tax.SaleTaxEstimates>();
+        services.AddScoped<IRentalTaxOutlook, Nid.Core.Application.Tax.RentalTaxOutlookService>();
         services.AddScoped<ICommitmentsContribution, Nid.Core.Application.Tax.TaxCommitments>();
         services.AddScoped<Nid.Core.Application.Tax.PerDeadline>();
         services.AddScoped<Nid.Core.Application.Scenarios.ScenarioFactsReader>();

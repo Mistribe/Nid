@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -29,7 +29,10 @@ import '@/locales/properties';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 
-const TABS = ['overview', 'rental', 'expenses', 'valuations', 'documents', 'settings'] as const;
+const TABS = ['overview', 'rental', 'return', 'expenses', 'valuations', 'documents', 'settings'] as const;
+
+// Property return spec §6: loaded with its tab.
+const ReturnSection = lazy(() => import('./return/ReturnSection').then((m) => ({ default: m.ReturnSection })));
 
 /**
  * 3D1 design §6, redesign §5.2–5.3: a property as a tabbed page. Under the title, its figures today (and the rental ones
@@ -62,7 +65,7 @@ export function PropertyDetailPage() {
   if (!property) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const rented = property.type === 'rental' || property.tenancies.length > 0;
-  const shown = (tab === 'settings' && !property.canWrite) || (tab === 'rental' && !rented) ? 'overview' : tab;
+  const shown = (tab === 'settings' && !property.canWrite) || ((tab === 'rental' || tab === 'return') && !rented) ? 'overview' : tab;
   const actions = (
     <>
       {property.canWrite ? (
@@ -116,7 +119,10 @@ export function PropertyDetailPage() {
             </>
           ),
         },
-        ...(rented ? [{ id: 'rental' as const, label: t('property_detail.tab.rental'), content: <RentalSection property={property} /> }] : []),
+        ...(rented ? [
+          { id: 'rental' as const, label: t('property_detail.tab.rental'), content: <RentalSection property={property} /> },
+          { id: 'return' as const, label: t('property_detail.tab.return'), content: <Suspense fallback={null}><ReturnSection property={property} /></Suspense> },
+        ] : []),
         { id: 'expenses', label: t('property_detail.tab.expenses'), content: <><FlowsSection property={property} /><CostsSection property={property} /></> },
         { id: 'valuations', label: t('property_detail.tab.valuations'), content: <ValuationsSection property={property} /> },
         { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={property.id} canWrite={property.canWrite} defaultRole="deed" /> },

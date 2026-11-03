@@ -389,5 +389,59 @@
     "request": "Nous vous remercions de bien vouloir régler cette somme au plus tard le {{deadline}}. Si votre règlement a été effectué entre-temps, nous vous prions de ne pas tenir compte de ce courrier.",
     "closing": "Veuillez agréer, Madame, Monsieur, l’expression de nos salutations distinguées.",
     "made_on": "Fait le {{date}}"
+  },
+  "property_return": {
+    "title": "Rentabilité",
+    "loading": "Calcul de la rentabilité",
+    "scenario": "Revente en {{year}} à {{price}}",
+    "irr": "TRI",
+    "net_gain": "Gain net",
+    "savings_effort": "Effort d’épargne",
+    "irr_today": "TRI à date",
+    "none": "—",
+    "edit": "Modifier les hypothèses",
+    "assumptions": "Hypothèses : revalorisation {{value}}/an · loyers {{rent}}/an · charges {{charges}}/an · vacance {{vacancy}} mois/an · TMI {{marginal}} · frais de revente {{fees}}",
+    "by_default": "par défaut : {{value}}",
+    "breakdown": "Détail par poste",
+    "line": "Poste",
+    "realized": "Réalisé",
+    "projected": "Projeté",
+    "sensitivity": "Rentabilité selon l’année de revente",
+    "date": "Revente le",
+    "price": "Prix de revente",
+    "pinel_end": "fin du Pinel",
+    "clawback": "reprise Pinel",
+    "disclaimer": "Estimation indicative fondée sur des hypothèses ; ce n’est pas un conseil en investissement.",
+    "lines": {
+      "purchase": "Achat et frais", "loan_in": "Capital emprunté", "loan_fees": "Frais de prêt", "rent": "Loyers et charges récupérées",
+      "charges": "Charges", "works": "Travaux", "loan_payment": "Échéances du prêt", "rental_tax": "Impôt sur les loyers",
+      "pinel": "Réduction Pinel", "resale": "Prix de revente", "resale_fees": "Frais de revente", "loan_balance": "Capital restant dû",
+      "penalty": "Indemnités de remboursement anticipé", "capital_gains_tax": "Impôt sur la plus-value", "pinel_clawback": "Reprise Pinel"
+    },
+    "warnings": {
+      "no_valuation": "Pas d’estimation du bien ni de prix de revente saisi : ajoutez une estimation pour calculer la rentabilité.",
+      "no_pinel": "Aucun engagement Pinel pour ce bien dans le profil fiscal : la réduction n’est pas comptée.",
+      "loan_excluded": "Un crédit lié est écarté du calcul (taux ou taux de change manquant).",
+      "resale_in_past": "La date de revente était passée : la revente est supposée aujourd’hui.",
+      "marginal_rate_default": "Pas d’estimation d’impôt : la tranche marginale est supposée à 30 %."
+    },
+    "dialog": {
+      "title": "Hypothèses de calcul",
+      "years_after_pinel": "Années de location après le Pinel",
+      "resale_price": "Prix de revente (€)",
+      "value_growth": "Revalorisation du bien (%/an)",
+      "rent_growth": "Hausse des loyers (%/an)",
+      "charges_growth": "Hausse des charges (%/an)",
+      "vacancy_months": "Vacance (mois par an)",
+      "rent_after_pinel": "Loyer après le Pinel (€/mois, hors charges)",
+      "marginal_rate": "Tranche marginale d’imposition",
+      "resale_fees": "Frais de revente (% du prix)",
+      "estimated": "calculé",
+      "current_rent": "le loyer en cours",
+      "save": "Enregistrer",
+      "reset": "Revenir aux valeurs par défaut",
+      "cancel": "Annuler",
+      "whole_number": "Un nombre entier, sans virgule."
+    }
   }
 }

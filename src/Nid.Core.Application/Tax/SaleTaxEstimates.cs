@@ -15,6 +15,15 @@ namespace Nid.Core.Application.Tax;
 /// </summary>
 public sealed class SaleTaxEstimates(IEnumerable<ISaleContribution> contributions, IPersonRegistry persons, IVisibleItems visible)
 {
+    /// <summary>A property's type as the sale engine reads it.</summary>
+    internal static PropertySaleKind KindOf(string type) => type switch
+    {
+        "primary_residence" => PropertySaleKind.PrimaryResidence,
+        "rental" => PropertySaleKind.Rental,
+        "land" => PropertySaleKind.Land,
+        _ => PropertySaleKind.Other,
+    };
+
     public async Task<Result<SaleTaxView>> ComputeAsync(PersonId reader, VisibilityScope scope, ItemId? item, LocalDate today, CancellationToken ct)
     {
         // Everything the reader sees feeds the threshold and the transfers' sources (D8d, D12, D16); the scope only chooses what a
@@ -97,14 +106,7 @@ public sealed class SaleTaxEstimates(IEnumerable<ISaleContribution> contribution
             var view = Base(p.Item, "properties", p.Name, p.Type, p.Value, p.ValueOn, false, p.Stale);
             if (!InEuros(p.Currency)) return Found(view, "other_currency");
             if (p.Value is not { } value) return Found(view, "no_value");
-            var kind = p.Type switch
-            {
-                "primary_residence" => PropertySaleKind.PrimaryResidence,
-                "rental" => PropertySaleKind.Rental,
-                "land" => PropertySaleKind.Land,
-                _ => PropertySaleKind.Other,
-            };
-            var r = PropertySale.Compute(new PropertySaleInput(kind, p.PurchasedOn, p.PurchasePrice, p.ActualFees, p.ActualWorks, value,
+            var r = PropertySale.Compute(new PropertySaleInput(KindOf(p.Type), p.PurchasedOn, p.PurchasePrice, p.ActualFees, p.ActualWorks, value,
                 p.Owners.Select(o => new SaleOwner(o.PersonId.Value, o.ShareBp)).ToList(), today), rules);
             // Past 30 years both allowances reach 100 %: nothing is due, as for a primary residence.
             if (r.Exempt || PropertyAllowance.Income(r.YearsHeld) == 1m && PropertyAllowance.Social(r.YearsHeld) == 1m)

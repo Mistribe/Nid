@@ -34,6 +34,22 @@ public class PropertyStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal([id], (await store.FindManyAsync([id, ItemId.New()], TestContext.Current.CancellationToken)).Select(p => p.ItemId));
     }
 
+    [Fact]
+    public async Task Return_assumptions_round_trip()
+    {
+        var store = new PropertyStore(PostgresFixture.NewRealEstateContext(await fixture.NewConnectionStringAsync()));
+        var id = ItemId.New();
+        await store.CreateAsync(id, Home(), TestContext.Current.CancellationToken);
+        Assert.Null(await store.FindReturnAssumptionsAsync(id, TestContext.Current.CancellationToken));
+
+        var saved = new ReturnAssumptions(YearsAfterPinel: 3, ResalePrice: 250_000m, ValueGrowth: 0.015m);
+        await store.SaveReturnAssumptionsAsync(id, saved, TestContext.Current.CancellationToken);
+        Assert.Equal(saved, await store.FindReturnAssumptionsAsync(id, TestContext.Current.CancellationToken));
+
+        await store.SaveReturnAssumptionsAsync(id, null, TestContext.Current.CancellationToken);
+        Assert.Null(await store.FindReturnAssumptionsAsync(id, TestContext.Current.CancellationToken));
+    }
+
     private static Duration Every(int count, DurationUnit unit)
         => Duration.Create(count, unit).TryGetValue(out var every) ? every : throw new InvalidOperationException();
 

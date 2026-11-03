@@ -1,6 +1,6 @@
 using NodaTime;
 
-namespace Nid.Investments.Domain;
+namespace Nid.Core.Contracts;
 
 /// <summary><c>investments-data-model.md</c> §6: the money-weighted annual return (XIRR, Actual/365) shared by envelopes and holdings.</summary>
 public static class Xirr
@@ -26,6 +26,6 @@ public static class Xirr
             var mid = (low + high) / 2;
             if (Math.Sign(Npv(mid)) == Math.Sign(Npv(low))) low = mid; else high = mid;
         }
-        return EnvelopeMath.RoundPercent((decimal)((low + high) / 2 * 100));
+        return Math.Round((decimal)((low + high) / 2 * 100), 1, MidpointRounding.AwayFromZero);
     }
 }

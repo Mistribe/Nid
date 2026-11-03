@@ -159,6 +159,24 @@ internal static class PropertyRules
     private static Failure? Note(string? note)
         => note is { Length: > LoanRules.NoteMax } ? Invalid("note", $"A note has at most {LoanRules.NoteMax} characters.") : null;
 
+    /// <summary>Property return spec §3: the marginal rates of the income tax scale.</summary>
+    public static readonly IReadOnlyList<decimal> MarginalRates = [0m, 0.11m, 0.30m, 0.41m, 0.45m];
+
+    /// <summary>Property return spec §3: each field set within its bounds.</summary>
+    public static Failure? ReturnAssumptions(ReturnAssumptions a)
+        => Within(a.YearsAfterPinel, 0, 20, "yearsAfterPinel")
+           ?? (a.ResalePrice is { } price ? Positive(price, "resalePrice") : null)
+           ?? Within(a.ValueGrowth, -0.10m, 0.10m, "valueGrowth")
+           ?? Within(a.RentGrowth, -0.10m, 0.10m, "rentGrowth")
+           ?? Within(a.ChargesGrowth, -0.10m, 0.20m, "chargesGrowth")
+           ?? Within(a.VacancyMonths, 0, 12, "vacancyMonths")
+           ?? (a.RentAfterPinel is { } rent ? NotNegative(rent, "rentAfterPinel") : null)
+           ?? (a.MarginalRate is { } rate && !MarginalRates.Contains(rate) ? Invalid("marginalRate", "A marginal rate is 0, 11, 30, 41 or 45 %.") : null)
+           ?? Within(a.ResaleFees, 0m, 0.15m, "resaleFees");
+
+    private static Failure? Within(decimal? x, decimal min, decimal max, string field)
+        => x is { } v && (v < min || v > max) ? Invalid(field, $"Between {min} and {max}.") : null;
+
     /// <summary>Once <see cref="Category"/> has passed: the Core's kind.</summary>
     public static FlowKind KindOf(string kind) => kind == "income" ? FlowKind.Income : FlowKind.Expense;
 

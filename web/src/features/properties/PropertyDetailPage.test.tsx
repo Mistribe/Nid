@@ -164,7 +164,7 @@ describe('PropertyDetailPage', () => {
 
     await heading();
     expect(screen.getAllByRole('tab').map((x) => x.textContent))
-      .toEqual(['Vue d’ensemble', 'Location', 'Dépenses', 'Estimations', 'Documents', 'Réglages']);
+      .toEqual(['Vue d’ensemble', 'Location', 'Rentabilité', 'Dépenses', 'Estimations', 'Documents', 'Réglages']);
   });
 
   it('a reader sees no write action, nor the settings tab, and is told the page is read-only', async () => {

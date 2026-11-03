@@ -25,6 +25,8 @@ export type CostRow = components['schemas']['CostRow'];
 export type CostDue = components['schemas']['CostDueView'];
 export type PropertiesValuation = components['schemas']['PropertiesValuation'];
 export type ValuationRow = components['schemas']['ValuationRow'];
+export type PropertyReturn = components['schemas']['PropertyReturnView'];
+export type ReturnAssumptionsBody = components['schemas']['PropertyReturnAssumptionsBody'];
 
 export const PROPERTIES = '/api/v1/realestate/properties' as const;
 export const PROPERTY = '/api/v1/realestate/properties/{id}' as const;
@@ -42,11 +44,13 @@ export const RECURRING_COSTS = '/api/v1/realestate/properties/{id}/recurring-cos
 export const RECURRING_COST = '/api/v1/realestate/properties/{id}/recurring-costs/{costId}' as const;
 export const PROPERTY_ARREARS = '/api/v1/realestate/properties/{id}/arrears' as const;
 export const PROPERTY_RECEIPTS = '/api/v1/realestate/properties/{id}/receipts' as const;
+export const PROPERTY_RETURN = '/api/v1/realestate/properties/{id}/return' as const;
+export const RETURN_ASSUMPTIONS = '/api/v1/realestate/properties/{id}/return-assumptions' as const;
 
 /**
  * Every write on a property invalidates the list, the overview's tabs and every detail (3D1 design §6), as do the loan link's
  * (§7); the income page and the home income too, which count the rents (income dashboard §5).
  */
 export function invalidateProperties(queryClient: QueryClient): Promise<void> {
-  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, PROPERTY_RECEIPTS, PROPERTY_ARREARS, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, PROPERTY_RECEIPTS, PROPERTY_ARREARS, PROPERTY_RETURN, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

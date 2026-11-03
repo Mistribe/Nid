@@ -22,7 +22,7 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("realestate")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -811,6 +811,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate?>("RentalStartsOn")
                         .HasColumnType("date")
                         .HasColumnName("rental_starts_on");
+
+                    b.Property<string>("ReturnAssumptions")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("return_assumptions");
 
                     b.Property<int?>("StaleAfterDays")
                         .HasColumnType("integer")

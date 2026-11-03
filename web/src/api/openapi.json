@@ -17044,6 +17044,284 @@
         }
       }
     },
+    "/api/v1/realestate/properties/{id}/return": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyReturnView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/realestate/properties/{id}/return-assumptions": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PropertyReturnAssumptionsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/properties/{id}/valuations": {
       "post": {
         "tags": [
@@ -41612,6 +41890,109 @@
           }
         }
       },
+      "PropertyReturnAssumptionsBody": {
+        "type": "object",
+        "properties": {
+          "yearsAfterPinel": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "resalePrice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "valueGrowth": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentGrowth": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "chargesGrowth": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vacancyMonths": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "rentAfterPinel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "marginalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resaleFees": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PropertyReturnView": {
+        "required": [
+          "assumptions",
+          "sensitivity",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "assumptions": {
+            "$ref": "#/components/schemas/ReturnAssumptionsView"
+          },
+          "scenario": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReturnScenarioView"
+              }
+            ]
+          },
+          "sensitivity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReturnOutcomeView"
+            }
+          },
+          "pinelEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyWarning"
+            }
+          }
+        }
+      },
       "PropertyRoutineBody": {
         "type": "object",
         "properties": {
@@ -42382,6 +42763,24 @@
             ]
           },
           "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "PropertyWarning": {
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "loanId": {
             "type": [
               "null",
               "string"
@@ -43365,6 +43764,111 @@
           }
         }
       },
+      "ReturnAssumptionsView": {
+        "required": [
+          "yearsAfterPinel",
+          "valueGrowth",
+          "rentGrowth",
+          "chargesGrowth",
+          "vacancyMonths",
+          "marginalRate",
+          "resaleFees",
+          "defaulted"
+        ],
+        "type": "object",
+        "properties": {
+          "yearsAfterPinel": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resalePrice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "valueGrowth": {
+            "type": "string"
+          },
+          "rentGrowth": {
+            "type": "string"
+          },
+          "chargesGrowth": {
+            "type": "string"
+          },
+          "vacancyMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rentAfterPinel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "marginalRate": {
+            "type": "string"
+          },
+          "resaleFees": {
+            "type": "string"
+          },
+          "defaulted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReturnBreakdownLineView": {
+        "required": [
+          "line",
+          "realized",
+          "projected"
+        ],
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string"
+          },
+          "realized": {
+            "type": "string"
+          },
+          "projected": {
+            "type": "string"
+          }
+        }
+      },
+      "ReturnOutcomeView": {
+        "required": [
+          "resaleOn",
+          "resalePrice",
+          "netGain",
+          "pinelClawback"
+        ],
+        "type": "object",
+        "properties": {
+          "resaleOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "resalePrice": {
+            "type": "string"
+          },
+          "irr": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netGain": {
+            "type": "string"
+          },
+          "pinelClawback": {
+            "type": "boolean"
+          }
+        }
+      },
       "ReturnReferenceView": {
         "required": [
           "annualReturnPct"
@@ -43374,6 +43878,32 @@
           "annualReturnPct": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "ReturnScenarioView": {
+        "required": [
+          "outcome",
+          "priceSource",
+          "savingsEffort",
+          "breakdown"
+        ],
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/ReturnOutcomeView"
+          },
+          "priceSource": {
+            "type": "string"
+          },
+          "savingsEffort": {
+            "type": "string"
+          },
+          "breakdown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReturnBreakdownLineView"
+            }
           }
         }
       },
