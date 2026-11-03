@@ -276,9 +276,8 @@ public static class RouteActions
         new("link_document", "POST", "/api/v1/documents/{id:guid}/links", typeof(LinkDocumentBody),
             "Link a document already in Nid to what it is about: id is the document's id (list_documents, inbox=true for those not filed "
             + "yet); targetKind 'core.item' (an envelope, property, loan, income source, subscription…), 'income.phase' (an income "
-            + "period, get_income_source), 'income.one_off' (a one-off income), 'core.person' or 'core.household' (no targetId); role "
-            + "'payslip', 'statement', 'invoice', 'tax_notice', 'lease', 'loan_offer', 'deed', 'insurance', 'amortization_table' or "
-            + "'other'. Nothing else changes: a payslip linked to its period records no pay. " + Ids, OnItem: false),
+            + "period, get_income_source), 'income.one_off' (a one-off income), 'core.person' or 'core.household' (no targetId); role: "
+            + DocumentTools.RoleList + ". Nothing else changes: a payslip linked to its period records no pay. " + Ids, OnItem: false),
 
         // Tax notices (issue #182): the route links the source PDF, so an approved proposal does too.
         new("add_tax_year", "POST", "/api/v1/tax/assessments", typeof(AddTaxAssessmentBody), TaxNotice + Ids + Amounts),

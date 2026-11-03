@@ -45,6 +45,11 @@
       "copro_call": "Appel de fonds",
       "copro_minutes": "Assemblée générale",
       "copro_accounts": "Comptes de copropriété",
+      "contract": "Contrat",
+      "transaction_notice": "Avis d’opération",
+      "request": "Demande",
+      "advice": "Conseil",
+      "product_sheet": "Annexe support",
       "other": "Autre"
     },
     "upload": {

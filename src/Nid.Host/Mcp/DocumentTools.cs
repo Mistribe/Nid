@@ -147,8 +147,10 @@ public sealed class DocumentTools
         return McpCalls.Answer(services, new JsonObject { ["id"] = document!.Id, ["existing"] = document.Existing }, limited: false);
     }
 
-    private const string RoleList = "lease, loan_offer, deed, tax_notice, statement, payslip, insurance, invoice, amortization_table, " +
-                                    "copro_call (call for funds), copro_minutes (general meeting), copro_accounts (co-ownership accounts), other";
+    internal const string RoleList = "lease, loan_offer, deed, tax_notice, statement (periodic information), payslip, insurance, invoice, amortization_table, " +
+                                     "copro_call (call for funds), copro_minutes (general meeting), copro_accounts (co-ownership accounts), " +
+                                     "contract (membership letter, particular conditions), transaction_notice (notice of a switch, surrender or scheduled investment), " +
+                                     "request (switch request, surrender form), advice (personalised advice, proposal), product_sheet (a fund's annex, information document), other";
 
     // #181: MCP has no content type for a PDF and clients refuse one as a resource, so the assistant reads its pages as PNG.
     private static List<ContentBlock> PdfPages(byte[] pdf)

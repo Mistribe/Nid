@@ -128,6 +128,31 @@ public class McpDocumentUploadTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.False(annotations.IdempotentHint);
     }
 
+    /// <summary>Issue #304: both tools take the investment papers' roles and name them to the assistant.</summary>
+    [Theory]
+    [InlineData(DocumentRoles.Contract)]
+    [InlineData(DocumentRoles.TransactionNotice)]
+    [InlineData(DocumentRoles.Request)]
+    [InlineData(DocumentRoles.Advice)]
+    [InlineData(DocumentRoles.ProductSheet)]
+    public async Task Takes_and_lists_each_investment_paper_role(string role)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await app.NewSubscriptionAsync("Assurance vie", app.AdultA, Visibility.Shared);
+        await using var client = await ClientAsync(app);
+
+        var uploaded = await client.CallToolAsync("upload_document", new Dictionary<string, object?>
+        {
+            ["contentBase64"] = PdfBase64, ["filename"] = "papier.pdf", ["title"] = "Papier", ["date"] = "2025-10-01",
+            ["targetKind"] = TargetKinds.CoreItem, ["targetId"] = home.Value, ["role"] = role,
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.False(uploaded.IsError == true, McpHarness.TextOf(uploaded));
+
+        var tools = (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).ToDictionary(t => t.Name);
+        Assert.Contains(role, tools["upload_document"].JsonSchema.GetProperty("properties").GetProperty("role").GetProperty("description").GetString());
+        Assert.Contains(role, tools["propose_link_document"].Description);
+    }
+
     [Fact]
     public async Task Refuses_content_over_the_mcp_cap()
     {

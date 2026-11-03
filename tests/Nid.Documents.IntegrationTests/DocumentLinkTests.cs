@@ -275,12 +275,18 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal("lease", Assert.Single(await LinksAsync(app, app.AdultA, id)).GetProperty("role").GetString());
     }
 
-    /// <summary>Syndic documents design §2.2: the copropriété roles.</summary>
+    /// <summary>Syndic documents design §2.2 and issue #304: the roles added after the first ones.</summary>
     [Theory]
     [InlineData("copro_call")]
     [InlineData("copro_minutes")]
     [InlineData("copro_accounts")]
-    public async Task Links_with_each_copropriete_role(string role)
+    // Issue #304: the investment papers.
+    [InlineData("contract")]
+    [InlineData("transaction_notice")]
+    [InlineData("request")]
+    [InlineData("advice")]
+    [InlineData("product_sheet")]
+    public async Task Links_with_each_added_role(string role)
     {
         await using var app = await NidApp.StartAsync(fixture);
         var shared = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Shared);

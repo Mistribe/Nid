@@ -27,10 +27,16 @@ public static class DocumentRoles
     public const string CoproCall = "copro_call";
     public const string CoproMinutes = "copro_minutes";
     public const string CoproAccounts = "copro_accounts";
+    public const string Contract = "contract";
+    public const string TransactionNotice = "transaction_notice";
+    public const string Request = "request";
+    public const string Advice = "advice";
+    public const string ProductSheet = "product_sheet";
     public const string Other = "other";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>
     {
-        Lease, LoanOffer, Deed, TaxNotice, Statement, Payslip, Insurance, Invoice, AmortizationTable, CoproCall, CoproMinutes, CoproAccounts, Other,
+        Lease, LoanOffer, Deed, TaxNotice, Statement, Payslip, Insurance, Invoice, AmortizationTable, CoproCall, CoproMinutes, CoproAccounts,
+        Contract, TransactionNotice, Request, Advice, ProductSheet, Other,
     };
 }
