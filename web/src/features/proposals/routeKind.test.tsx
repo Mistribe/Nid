@@ -115,7 +115,7 @@ describe('Une proposition d’action du web', () => {
     expect(table.queryByText(/Élément inconnu/)).not.toBeInTheDocument();
   });
 
-  it('shows a tax correction in French, grouped by declarant, without its technical fields', async () => {
+  it('shows a proposed tax notice as the tax page shows a recorded one, without its menu', async () => {
     const p = notice('tax.correct_tax_year');
     serve([p], { preview: {} });
     const { container } = await renderApp(`/proposals/${p.id}`);
@@ -123,14 +123,24 @@ describe('Une proposition d’action du web', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Correction d’un avis d’imposition' })).toBeInTheDocument();
     expect(screen.getByText('Avis d’imposition 2024', { selector: 'dd' })).toBeInTheDocument();
     expect(screen.queryByText('Nouvel élément')).not.toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /^Impôt net/ })).toHaveTextContent(/4\s200,00\s€/);
-    const declarant = within(await screen.findByRole('region', { name: 'Déclarant 1 — Camille' }));
-    expect(declarant.getByRole('row', { name: /^Salaires bruts/ })).toHaveTextContent(/52\s000,00\s€/);
-    expect(declarant.getByRole('row', { name: /^Déduction des frais/ })).toHaveTextContent('Abattement forfaitaire de 10 %');
-    const labels = screen.getAllByRole('rowheader').map((h) => h.textContent ?? '');
-    expect(labels.filter((l) => /[[.\]]|^[a-z]+[A-Z]|^(id|version|rank|personId)$/.test(l))).toEqual([]);
-    expect(screen.getByRole('region', { name: 'Champs proposés' })).not.toHaveTextContent(/00000000-|personId|Version|Rang/);
+    const figures = within(await screen.findByRole('table', { name: 'Chiffres de l’avis 2024' }));
+    expect(await figures.findByRole('columnheader', { name: /Déclarant 1\s*Camille/ })).toBeInTheDocument();
+    expect(figures.getByRole('row', { name: /^Impôt net/ })).toHaveTextContent(/4\s200/);
+    expect(figures.getByRole('row', { name: /^Salaires/ })).toHaveTextContent(/52\s000/);
+    expect(screen.getByText('établi en 2025')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actions de l’avis 2024' })).not.toBeInTheDocument();
+    expect(container).not.toHaveTextContent(/00000000-|personId/);
     await expectNoAxeViolations(container);
+  });
+
+  it('shows a new notice without its issued year as issued the next year', async () => {
+    const p = notice('tax.add_tax_year');
+    delete (p.payload as { body: Record<string, unknown> }).body.issuedYear;
+    serve([p], { preview: {} });
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByRole('table', { name: 'Chiffres de l’avis 2024' })).toBeInTheDocument();
+    expect(screen.getByText('établi en 2025')).toBeInTheDocument();
   });
 
   it('never calls a deletion a new item', async () => {

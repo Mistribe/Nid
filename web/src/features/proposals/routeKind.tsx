@@ -7,6 +7,8 @@ import strings from '@/locales/fr.proposals.json';
 import { Table, TableBody } from '@/components/ui/table';
 import { percent } from '../dashboard/format';
 import { DOCUMENTS } from '../documents/api';
+import type { TaxAssessment } from '../tax/assessments/api';
+import { AssessmentView } from '../tax/assessments/AssessmentView';
 import { PERSONS } from '../subscriptions/api';
 import type { ProposalView } from './api';
 import { Row, type LinkTarget } from './kindParts';
@@ -131,10 +133,23 @@ function groups(t: TFunction, value: Record<string, unknown>, heading: string | 
   return out;
 }
 
+/**
+ * A tax notice proposed (`add_tax_year`, `correct_tax_year`) reads as the tax page shows a recorded one: same figures, same
+ * order, a column per declarant. The body has the view's field names (TaxEndpoints); a left-out issuedYear is year + 1 there too.
+ */
+function ProposedNotice({ id, body }: { id: string | undefined; body: Record<string, unknown> }) {
+  const { $api } = useApi();
+  const persons = $api.useQuery('get', PERSONS);
+  const year = body.year as number;
+  const notice = { ...body, id: id ?? '', version: 0, issuedYear: (body.issuedYear as number | undefined) ?? year + 1 } as TaxAssessment;
+  return <AssessmentView assessment={notice} persons={persons.data ?? []} actions={false} />;
+}
+
 export function RoutePayload({ p }: { p: ProposalView }) {
   const { t } = useTranslation();
   const names = useNames([p.kind]);
   const { body, ...route } = payloadOf(p);
+  if (moduleOf(p.kind) === 'tax' && typeof body?.year === 'number') return <ProposedNotice id={route.id} body={body} />;
   // The route's own values (`year`, `on`) first; its `id` is the subject, its other ids named or hidden.
   // An entry whose only field is its name (a guarantee) keeps its heading.
   const shownGroups = groups(t, { ...route, ...body }, null, names, [], 'id').filter((g) => g.rows.length > 0 || g.heading);

@@ -39,8 +39,11 @@ function balanceText(t: TFunction, balance: Money): string {
   return balance.amount.startsWith('-') ? t('tax.assessment.refunded', { amount: eur(balance.amount.slice(1)) }) : t('tax.assessment.to_pay', { amount: eur(balance.amount) });
 }
 
-/** One past notice, read-only: its key figures, then every printed figure, a column per declarant for the personal ones. */
-export function AssessmentView({ assessment: a, persons }: { assessment: TaxAssessment; persons: Person[] }) {
+/**
+ * One past notice, read-only: its key figures, then every printed figure, a column per declarant for the personal ones.
+ * `actions` false: a notice not recorded yet (a proposal's), which has no menu to correct or delete it.
+ */
+export function AssessmentView({ assessment: a, persons, actions = true }: { assessment: TaxAssessment; persons: Person[]; actions?: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const remove = useDeleteTaxAssessment();
@@ -85,11 +88,13 @@ export function AssessmentView({ assessment: a, persons }: { assessment: TaxAsse
       <div className="flex flex-wrap items-center gap-2">
         <OwnerChips owners={declarants.map((d) => ({ personId: d.personId, shareBp: 10000 / declarants.length }))} shares={false} />
         <SourceLink documentId={a.documentId} />
-        <RowActions menuId={`assessment-menu-${a.id}`} menuLabel={t('tax.assessment.menu', { year: a.year })}
-          items={[{ label: t('tax.assessment.correct'), onSelect: () => void navigate({ to: '/tax/assessments/$id/edit', params: { id: a.id } }) }]}
-          confirmation={t('tax.assessment.delete_confirm', { year: a.year })} remove={remove} onDeleteStarted={() => undefined}
-          present={(_t, error) => present(toProblem(error))} invalidate={invalidateAssessments}
-          onConfirm={() => remove.mutate({ params: { path: { id: a.id } } })} />
+        {actions ? (
+          <RowActions menuId={`assessment-menu-${a.id}`} menuLabel={t('tax.assessment.menu', { year: a.year })}
+            items={[{ label: t('tax.assessment.correct'), onSelect: () => void navigate({ to: '/tax/assessments/$id/edit', params: { id: a.id } }) }]}
+            confirmation={t('tax.assessment.delete_confirm', { year: a.year })} remove={remove} onDeleteStarted={() => undefined}
+            present={(_t, error) => present(toProblem(error))} invalidate={invalidateAssessments}
+            onConfirm={() => remove.mutate({ params: { path: { id: a.id } } })} />
+        ) : null}
       </div>
       <Table aria-label={t('tax.assessment.table', { year: a.year })}>
         <TableHeader>
