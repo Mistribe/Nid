@@ -1,6 +1,6 @@
 # Design system
 
-> Statut : direction visuelle décidée (refonte 2026-10-18, `../superpowers/specs/2026-10-18-ui-redesign-design.md`). Jetons, formats, composants métier, accessibilité, thèmes.
+> Statut : direction visuelle décidée (refonte 2026-10-18, `../superpowers/specs/2026-10-18-ui-redesign-design.md`), nouvelle identité adoptée le 2026-11-03 (issue #327, §8, appliquée au fil de ses PR). Jetons, formats, composants métier, accessibilité, thèmes, principes d’interface.
 > Références : `README.md`, `dataviz.md`, `architecture.md`, `../core-data-model.md` (préférences de la personne).
 
 ---
@@ -80,7 +80,7 @@ Communs à tous les modules, dans `components/`.
 
 ## 5. Accessibilité
 
-Cible **WCAG 2.2 AA**.
+Cible **WCAG 2.2 AA**, et les règles d'Apple du §8.2 (réglages de la personne, contraste sur le verre, taille du texte, cibles).
 
 - `lang="fr"`, contraste de texte 4,5:1, focus toujours visible, cibles tactiles d'au moins 44 px sur mobile.
 - Formulaires : libellés associés, erreurs reliées au champ, résumé d'erreurs focalisé à l'envoi.
@@ -223,3 +223,180 @@ Un seul curseur de teinte génère l'accent et les surfaces par une **formule OK
 - Le test de contraste (§7.7) couvre **tous** les thèmes.
 - Les captures visuelles (`testing.md`) portent sur le thème par défaut plus un thème alternatif, pour ne pas multiplier le coût.
 - Un test E2E vérifie qu'un changement de thème s'applique sans rechargement, qu'il est conservé après reconnexion, et qu'il n'y a pas de flash au chargement.
+
+## 8. Principes d'interface, d'après les HIG d'Apple
+
+> Adopté le 2026-11-03 (issue #327, `../superpowers/specs/2026-11-03-visual-identity-design.md`). Source : les Human
+> Interface Guidelines d'Apple (Accessibility, Materials, Color, Typography, Layout, Dark Mode, Motion, Buttons), lues le
+> 2026-11-03 ; les citations sont en anglais, comme chez Apple. Les valeurs d'Apple sont en points : on les prend en
+> pixels CSS. Ces règles s'appliquent au fil des PR de #327. Une fois une PR livrée, ce qu'elle applique ici l'emporte
+> sur §1 à §7.
+
+On reprend d'Apple la manière (couches, verre, tuiles, grands titres, capsules) **et** les règles qui vont avec,
+l'accessibilité d'abord. Les effets sont la présentation par défaut ; chacun a une variante opaque et contrastée que
+le réglage de la personne déclenche (§8.2). L'accessibilité ne passe pas par un défaut appauvri.
+
+### 8.1 Couches et matériaux
+
+| Couche | Éléments | Matériau |
+|---|---|---|
+| **Fond** | `body`, derrière tout | Couleur de fond et halos (`--halo`), fixés à la fenêtre, jamais animés |
+| **Contenu** | Cartes, `SectionCard`, listes groupées, widget du chiffre héros, tableaux, formulaires | **Matériau dépoli** : assez opaque (≈ 80 %) pour un texte fin, flou du fond, liseré de lumière en haut |
+| **Navigation** | Barre latérale, barre d'outils (fil d'Ariane, recherche, Foyer / Moi), barre d'onglets du téléphone, menus, popovers, dialogues | **Verre liquide** : plus fin, reflet sur l'arête, flotte au-dessus du contenu avec une marge et son propre rayon |
+
+- Le verre liquide est réservé à la couche de navigation : « Don't use Liquid Glass in the content layer. » Il reste
+  rare : « Use Liquid Glass effects sparingly. »
+- Une surface qui porte beaucoup de texte (barre latérale, menu, popover, dialogue) prend le verre « regular », plus
+  opaque : « alerts, sidebars, or popovers ». Le verre « clear » n'existe pas chez nous : il est fait pour la photo et
+  la vidéo.
+- Sur le verre, la lisibilité passe par des couleurs franches (« vibrant colors on top of materials ») et par
+  l'opacité du matériau. Un texte fin appelle un matériau plus épais.
+- La couleur reste rare sur le verre : seul le fond de l'action principale se teinte (« color the background, not the
+  label »), jamais le fond de plusieurs contrôles à la fois.
+- **Élévation en mode sombre** : le fond est le plus sombre, le contenu plus clair, la navigation et les popovers les
+  plus clairs (« base » et « elevated » chez Apple).
+- **Rayons concentriques** : une forme imbriquée a pour rayon celui de son conteneur moins l'espace qui les sépare.
+  Valeurs de départ :
+  - panneaux de fenêtre : 18 px ;
+  - cartes : 16 px, et 22 px pour le widget héros ;
+  - lignes et champs : 10 px ;
+  - tuiles : 28 % de leur taille ;
+  - capsules : arrondi complet.
+- **Bord de défilement** : sous la barre d'outils flottante, le contenu s'estompe (masque en dégradé) au lieu de passer
+  sous une bande pleine (« use a scroll edge effect »).
+
+### 8.2 Accessibilité
+
+**Réglages de la personne.** Chaque réglage système a sa traduction web. Nid les respecte tous, séparément et ensemble.
+
+| Réglage (Apple) | Côté web | Ce que fait Nid |
+|---|---|---|
+| Réduire la transparence | `prefers-reduced-transparency: reduce`, et le réglage « Réduire la transparence » d'Apparence (gardé sur l'appareil, `nid.transparency`) pour les navigateurs qui n'exposent pas la requête | Verre et matériaux deviennent opaques, halos retirés. Rayons, tuiles, ombres et couleurs restent : c'est toujours Nid |
+| Augmenter le contraste | `prefers-contrast: more` | Mêmes surfaces opaques. Contours à 3:1 sur chaque surface, texte atténué remonté au moins à 7:1, séparateurs pleins |
+| Couleurs forcées (Windows) | `forced-colors: active` | Effets coupés. Les couleurs du système l'emportent (`Canvas`, `CanvasText`, `Highlight`). Icônes et tuiles en `currentColor` |
+| Réduire les animations | `prefers-reduced-motion: reduce` | Règle globale de `globals.css` (§3.1), et en plus : pas de flou qui apparaît ou disparaît, pas de zoom ni de mise à l'échelle, des fondus à la place des glissements, pas d'entrée échelonnée (« avoid animating into and out of blurs ») |
+| Apparence sombre | `prefers-color-scheme`, mode du §7.1 | Les deux modes sont dessinés et testés avec les réglages ci-dessus |
+
+**Contraste.** Mesuré par `contrast.test.ts` (§7.7) dans les deux modes et sur tous les thèmes :
+
+| Élément | Seuil |
+|---|---|
+| Texte jusqu'à 18 px | 4,5:1 |
+| Texte d'au moins 18 px, ou gras d'au moins 14 px | 3:1 |
+| Texte courant sur le thème par défaut | 7:1 visé : « strive for a contrast ratio of 7:1, especially in small text ». 4,5:1 reste le plancher |
+| Objets graphiques (glyphe d'une tuile, contour d'un champ, anneau de focus) | 3:1 |
+
+- Sur le verre et le dépoli, le contraste se mesure sur le **composite** : la surface fondue à son opacité sur le pire
+  point du fond (le halo le plus lumineux en sombre, le plus saturé en clair).
+
+**Taille du texte.**
+
+- Tout est en `rem`. Une page reste utilisable avec le texte agrandi à 200 % (zoom ou taille de police du navigateur),
+  et sans défilement horizontal à 320 px de large (WCAG 1.4.10) : « by at least 200 percent ».
+- **Planchers** : 14 px pour le texte courant, 12 px pour une légende (`text-caption`), 11 px seulement pour un compteur
+  ou un badge. Apple fixe 11 pt au minimum sur iOS et 10 pt sur macOS.
+- **Quand le texte grossit :**
+  - les éléments côte à côte s'empilent, les lignes s'agrandissent ;
+  - rien ne se tronque qui ne l'était pas (« keep text truncation to a minimum as font size increases ») ;
+  - les icônes qui portent un sens grandissent avec le texte (taille en `em`).
+- **Graisses** : 400, 500, 600, 650 à 700, et 800 pour le grand titre. Jamais de graisse fine : « avoid light font
+  weights ».
+
+**Cibles.**
+
+- **Au doigt** (`pointer: coarse`) : 44 × 44 px au moins, comme le défaut d'iOS.
+- **À la souris** : 28 × 28 px au moins pour un bouton icône (défaut de macOS ; 24 px est le plancher de WCAG 2.5.8),
+  36 px pour une entrée de navigation (§6.1).
+- **Espacement** : environ 12 px autour d'un contrôle bordé, environ 24 px autour d'un contrôle sans bordure.
+
+**Couleur et sens.**
+
+- Jamais la couleur seule (§5) : « Convey information with more than color alone. » Une variation a une flèche et un
+  signe, un statut une icône et un texte.
+- Une tuile de module a toujours son libellé à côté. Un lien dans un texte est souligné.
+- Un même ton ne porte jamais deux sens dans le même graphique.
+
+**Lecteurs d'écran.**
+
+- Chaque bouton icône a un nom accessible.
+- Tuiles, halos, filigrane du nid et chevrons sont décoratifs (`aria-hidden`).
+- Une liste groupée est une liste (`ul` / `li`) ou un tableau. Une ligne cliquable est un seul lien, nommé par son
+  libellé et sa valeur.
+- Les titres suivent la hiérarchie : un `h1` par page, des `h2` pour les sections.
+- Le chiffre héros a un nom complet (« Patrimoine net du foyer : 412 380 €, en hausse de 12 740 € sur 12 mois »).
+
+**Focus et clavier.**
+
+- L'anneau de focus fait 3 px à l'accent, décalé, et contraste à 3:1 sur le verre comme sur le fond.
+- L'ordre de focus suit l'ordre visuel.
+- La barre d'outils flottante ne cache jamais l'élément focalisé : `scroll-padding-top` égale sa hauteur (WCAG 2.4.11).
+- Tout ce qui se fait par un geste (glisser, balayer) se fait aussi au clic et au clavier : « Offer alternatives to
+  gestures. »
+
+**Outils.** `axe-core` (`web/src/test/axe.ts`) passe sur chaque écran modifié, et les captures Playwright imitent les
+réglages ci-dessus (§8.9).
+
+### 8.3 Couleur
+
+- Chaque couleur faite main a une variante claire, une sombre et une à contraste augmenté (« work well in light, dark,
+  and increased contrast contexts ») : un thème redéfinit ses jetons sous `prefers-contrast: more`.
+- Des jetons sémantiques seulement, jamais une valeur en dur (§1, « avoid hard-coding system color values »).
+- Hiérarchie des fonds, comme les fonds groupés d'iOS : fond de page, puis carte, puis ligne posée sur la carte.
+- L'accent reste rare : action principale, élément courant de la navigation, courbe du chiffre héros. Les couleurs
+  de statut ne servent qu'aux états (§2) ; la courbe héros prend l'accent, et seule la variation porte le vert ou le
+  rouge.
+- Les blancs sont adoucis en clair (« soften the color of white backgrounds ») : le fond est bleuté, les cartes
+  blanches posées dessus.
+
+### 8.4 Typographie
+
+- Inter seule, à la manière d'Apple : grands titres gras, titres de section demi-gras, texte courant régulier. Les
+  jetons de taille sont dans la spec (§3.4) : `text-large-title`, `text-title`, `text-hero`, `text-figure`, `text-body`,
+  `text-label`, `text-caption`, `text-overline`.
+- La hiérarchie passe par la taille et la graisse, pas par la couleur.
+- Un nom long passe sur deux lignes dans une liste avant de se tronquer.
+
+### 8.5 Mise en page
+
+- Largeur de lecture : un texte suivi ne dépasse pas environ 70 caractères par ligne.
+- Zones sûres : §6.1.
+- Sur ordinateur, rien d'essentiel n'est collé au bas de la fenêtre (« avoid placing controls or critical information at
+  the bottom of a window »). Les boutons d'un formulaire sont au pied du formulaire, pas dans une barre fixe. La barre
+  d'onglets reste propre au téléphone.
+
+### 8.6 Boutons et contrôles
+
+- **Formes** : capsule pour les boutons, la recherche, les choix segmentés et les pastilles (« prefer circular or
+  capsule-shape buttons ») ; rectangle arrondi (10 px) pour les champs.
+- **Un seul bouton proéminent par vue.** Apple en permet un ou deux, Nid en garde un (§6). Le style le distingue, pas la
+  taille (« use style — not size »).
+- **Action destructive** : jamais en bouton principal (« Don't assign the primary role to a button that performs a
+  destructive action »), toujours confirmée.
+- **État pressé** : chaque bouton fait main a le sien (« Always include a press state »).
+- **Pas de bouton fond blanc et texte noir fait main** : ce rendu est réservé à l'état choisi d'un contrôle (option
+  courante d'un `Segmented`).
+
+### 8.7 Mouvement
+
+- Facultatif, utile, bref : « Make motion optional », « Add motion purposefully », « Aim for brevity and precision ».
+- Rien d'animé sur les gestes fréquents : un survol de ligne change de fond sans animation de forme.
+- La personne n'attend jamais la fin d'une animation, et peut l'interrompre (« Let people cancel motion »).
+- Réduction des animations : §8.2.
+
+### 8.8 Mode sombre
+
+- Le fond est d'encre, pas noir pur. Il s'assombrit sous le contenu, qui s'éclaircit en montant (§8.1).
+- Chaque écran se vérifie en sombre avec Augmenter le contraste et Réduire la transparence, séparément et ensemble.
+- **Écart assumé :** Apple déconseille un réglage d'apparence propre à l'app (« Avoid offering an app-specific
+  appearance setting »). Nid garde son choix de mode (système par défaut) et ses thèmes (§7), qui sont des demandes du
+  foyer.
+
+### 8.9 Tests
+
+- **`contrast.test.ts`** : les paires du §7.7, les paires composites du §8.2, la cible de 7:1 du texte courant sur
+  `ardoise`, et les valeurs opaques de repli, qui doivent passer seules.
+- **Test unitaire** : avec le réglage « Réduire la transparence », les jetons de verre et de dépoli prennent leurs
+  valeurs opaques et le halo vaut `none`.
+- **Playwright** : captures de l'accueil et d'une fiche avec `prefers-reduced-transparency`, `prefers-contrast: more`,
+  `forced-colors: active` et `prefers-reduced-motion` imités, et texte à 200 % sans défilement horizontal.
+- **`axe-core`** passe sur chaque écran touché.
