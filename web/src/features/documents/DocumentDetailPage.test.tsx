@@ -83,7 +83,7 @@ describe('DocumentDetailPage', () => {
     expectHeaderActionRule(container);
     expect(screen.queryByRole('button', { name: 'Archiver' })).not.toBeInTheDocument();
     await openMore(user);
-    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Archiver']);
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Modifier', 'Archiver']);
     await user.click(screen.getByRole('menuitem', { name: 'Archiver' }));
     expect(writes()).toEqual([]);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
@@ -114,7 +114,8 @@ describe('DocumentDetailPage', () => {
     const more = screen.getByRole('button', { name: 'Autres actions' });
     for (const dismiss of [() => user.click(screen.getByRole('button', { name: 'Annuler' })), () => user.keyboard('{Escape}')]) {
       await openMore(user);
-      await screen.findByRole('menuitem', { name: 'Archiver' });
+      // jsdom shows the phone-only « Modifier » first (no `sm:hidden`): the keyboard goes to « Archiver ».
+      (await screen.findByRole('menuitem', { name: 'Archiver' })).focus();
       await user.keyboard('{Enter}');
       await screen.findByRole('alertdialog');
       await dismiss();

@@ -1,6 +1,6 @@
 # Écrans et navigation
 
-> Statut : direction visuelle décidée (refonte 2026-10-18, `../superpowers/specs/2026-10-18-ui-redesign-design.md`). Carte des écrans, routine mensuelle, boîte de validation, assistants d'import et d'export, états et erreurs.
+> Statut : direction visuelle décidée (refonte 2026-10-18, `../superpowers/specs/2026-10-18-ui-redesign-design.md`), identité visuelle du 2026-11-03 (`../superpowers/specs/2026-11-03-visual-identity-design.md`, captures au §13). Carte des écrans, routine mensuelle, boîte de validation, assistants d'import et d'export, états et erreurs.
 > Références : `README.md`, `design-system.md`, `dataviz.md`, `../Project.md` §5 à §8, `../import-format.md` §10 et §11.
 
 ---
@@ -229,3 +229,20 @@ Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2)
 - Aucun libellé, montant ni compteur d'éléments : l'Administration ne dit rien des données du foyer.
 - Chaque action d'écriture est confirmée ; une confirmation dit l'effet (« Cette personne pourra se connecter avec l'email … », « Toutes ses sessions seront fermées »).
 - La soumission d'un formulaire (« Ajouter un adulte », enregistrer le Foyer) vaut confirmation à elle seule ; la confirmation en ligne ne concerne que les écritures déclenchées par un bouton isolé.
+
+## 13. Captures
+
+Une capture par type de page, en clair et en sombre, à 1372×870, thème `ardoise` (`screens/`). Ce sont les vraies pages, rendues avec les données des tests (`renderApp` et les gestionnaires MSW) : le DOM des tests et le CSS construit, axes des graphiques rendus sans mesure du texte, dans la coquille : barre latérale, barre du haut et fenêtre de contenu. Les dates et montants sont ceux des tests. Les règles derrière chaque page : `design-system.md` §6.1.
+
+| Type | Clair | Sombre | Ce qu'elle montre |
+|---|---|---|---|
+| Vue d'ensemble | ![Placements, vue d’ensemble, clair](screens/overview-light.png) | ![Placements, vue d’ensemble, sombre](screens/overview-dark.png) | Placements : le `Hero` (valeur, variation, courbe), le `StatLine` des autres chiffres, puis le graphique dans son `SectionCard` |
+| Liste | ![Abonnements, liste, clair](screens/list-light.png) | ![Abonnements, liste, sombre](screens/list-dark.png) | Abonnements › Liste : la rangée de filtres de l'onglet, le total du foyer, puis le tableau dense avec ses propriétaires et ses libellés |
+| Fiche | ![Fiche d’une enveloppe, clair](screens/detail-light.png) | ![Fiche d’une enveloppe, sombre](screens/detail-dark.png) | Une enveloppe (PEA) : badges, un bouton principal, un secondaire et le `⋯` ; chiffres clés dans l'en-tête, puis les onglets |
+| Formulaire | ![Nouveau crédit, clair](screens/form-light.png) | ![Nouveau crédit, sombre](screens/form-dark.png) | Nouveau crédit : un `StepForm` dans `FormPage`, sans carte, l'indicateur d'étapes sous le titre et les boutons au pied |
+| Réglages | ![Réglages › Apparence, clair](screens/settings-light.png) | ![Réglages › Apparence, sombre](screens/settings-dark.png) | Réglages › Apparence : le fil « Réglages › Apparence » dans la barre du haut, les onglets des réglages, mode, thème et « Réduire la transparence » |
+| État vide | ![Objectifs, état vide, clair](screens/empty-light.png) | ![Objectifs, état vide, sombre](screens/empty-dark.png) | Objectifs sans objectif : la tuile du module sur les arcs du nid, le titre, la phrase et l'action en `outline` sous le `primary` de l'en-tête |
+
+Sur téléphone, à 390 px, en sombre : la fiche d'une enveloppe, avec le lien « ‹ Placements » dans la barre du haut, un seul bouton principal et `⋯` dans l'en-tête, et la barre d'onglets en verre en bas.
+
+![Fiche d’une enveloppe sur téléphone, sombre](screens/phone-detail-dark.png)

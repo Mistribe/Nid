@@ -51,10 +51,11 @@ export function EnvelopesPage() {
   // §5.1 D20: « Supports et frais » only while an envelope has a snapshot; its answer is shared with the tab.
   const detailed = ($api.useQuery('get', HOUSEHOLD_HOLDINGS, { params: { query: { scope } } }).data?.detailedCount ?? 0) > 0;
   const [tab, setTab] = useDetailTab<(typeof WITH_HOLDINGS)[number]>(detailed ? WITH_HOLDINGS : WITHOUT_HOLDINGS);
-  const add = <Link to="/investments/new" className={buttonVariants()}>{t('investments.add')}</Link>;
+  // The empty state's action repeats the header's primary: `outline`, one primary per view (design-system.md §6.1).
+  const add = (variant?: 'outline') => <Link to="/investments/new" className={buttonVariants({ variant })}>{t('investments.add')}</Link>;
   return (
     <div className="space-y-4">
-      <PageHeader title={t('investments.title')} actions={add} />
+      <PageHeader title={t('investments.title')} actions={add()} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('investments_overview.tab_overview'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
@@ -64,7 +65,7 @@ export function EnvelopesPage() {
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><IncomeTab scope={scope} /></Suspense> },
         ...(detailed ? [{ id: 'holdings' as const, label: t('investments_overview.tab_holdings'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><HoldingsTab scope={scope} /></Suspense> }] : []),
-        { id: 'list', label: t('investments_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },
+        { id: 'list', label: t('investments_overview.tab_list'), content: <ListTab scope={scope} add={add('outline')} /> },
       ]} />
     </div>
   );

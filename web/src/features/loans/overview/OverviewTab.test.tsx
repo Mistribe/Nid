@@ -6,6 +6,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { LoansOverview } from '../api';
 import { CAR, household, LOAN, overview, overviewRow } from '../testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 const serve = (body: LoansOverview, seen: string[] = []) =>
   server.use(http.get('*/api/v1/realestate/loans/overview', ({ request }) => {
@@ -123,10 +124,11 @@ describe('Crédits › vue d’ensemble', () => {
 
   it('invites to add a first loan when there is none', async () => {
     serve(overview());
-    await renderApp('/loans');
+    const { container } = await renderApp('/loans');
 
     expect(await screen.findByRole('heading', { name: 'Aucun crédit pour l’instant' })).toBeInTheDocument();
     expect(screen.queryByText('Capital restant dû')).not.toBeInTheDocument();
+    expectOnePrimary(container);
   });
 
   it('says nothing is running when only ended loans exist, and opens the list with them', async () => {

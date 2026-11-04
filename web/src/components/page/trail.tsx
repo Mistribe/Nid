@@ -32,6 +32,7 @@ export function usePageTrail(trail: Trail): void {
   const latest = useRef(trail);
   latest.current = trail;
   // Callers rebuild `crumbs` each render: key on content, not identity.
+  // ponytail: JSON.stringify drops a function-valued `search` (TanStack's updater), so a change of its result alone keeps the old trail; pass an object.
   const key = JSON.stringify([trail.current, trail.crumbs?.map((c) => [c.label, c.to, c.params, c.search])]);
   useLayoutEffect(() => {
     setter?.set(owner, latest.current);

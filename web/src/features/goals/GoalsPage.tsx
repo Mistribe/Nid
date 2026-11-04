@@ -29,14 +29,15 @@ export function GoalsPage() {
   const { t } = useTranslation();
   const { scope }: RootSearch = useSearch({ strict: false });
   const [tab, setTab] = useDetailTab(TABS);
-  const add = <Link to="/goals/new" className={buttonVariants()}>{t('goals_list.add')}</Link>;
+  // The empty state's action repeats the header's primary: `outline`, one primary per view (design-system.md §6.1).
+  const add = (variant?: 'outline') => <Link to="/goals/new" className={buttonVariants({ variant })}>{t('goals_list.add')}</Link>;
   const scoped = scope === 'me' ? 'me' : 'household';
   return (
     <div className="space-y-4">
-      <PageHeader title={t('goals_list.title')} actions={add} />
+      <PageHeader title={t('goals_list.title')} actions={add()} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
-        { id: 'open', label: t('goals_list.tab_open'), content: <List scope={scoped} closed={false} add={add} /> },
-        { id: 'closed', label: t('goals_list.tab_closed'), content: <List scope={scoped} closed add={add} /> },
+        { id: 'open', label: t('goals_list.tab_open'), content: <List scope={scoped} closed={false} add={add('outline')} /> },
+        { id: 'closed', label: t('goals_list.tab_closed'), content: <List scope={scoped} closed add={add('outline')} /> },
       ]} />
     </div>
   );

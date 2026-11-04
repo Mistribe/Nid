@@ -7,7 +7,7 @@ import { PageHeader } from './PageHeader';
  * reading width from the left edge, its actions at its foot (`FormActions`).
  */
 export function FormPage({ crumbs, title, width = 'max-w-3xl', children }: {
-  crumbs: ComponentProps<typeof PageHeader>['crumbs']; title: ReactNode; width?: 'max-w-2xl' | 'max-w-3xl'; children: ReactNode;
+  crumbs?: ComponentProps<typeof PageHeader>['crumbs']; title: ReactNode; width?: 'max-w-2xl' | 'max-w-3xl'; children: ReactNode;
 }) {
   return (
     <article className={cn('w-full space-y-6', width)}>

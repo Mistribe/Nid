@@ -6,6 +6,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { Overview } from '../api';
 import { ALICE, BOB, eur, list, overview, persons, summary } from '../testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 const SPOTIFY = '0192f0aa-0000-7000-8000-0000000000d1';
 const PRIME = '0192f0aa-0000-7000-8000-0000000000d2';
@@ -33,10 +34,11 @@ describe('Abonnements › vue d’ensemble', () => {
   });
 
   it('An_empty_household_sees_the_first_subscription_invite', async () => {
-    await renderApp('/subscriptions');
+    const { container } = await renderApp('/subscriptions');
 
     const action = await screen.findByRole('link', { name: 'Ajouter votre premier abonnement' });
     expect(action).toHaveAttribute('href', '/subscriptions/new');
+    expectOnePrimary(container);
     expect(screen.queryByText('Par mois')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'À surveiller' })).not.toBeInTheDocument();
   });

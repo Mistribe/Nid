@@ -29,6 +29,15 @@ describe('the token banner', () => {
     await expectNoAxeViolations(container);
   });
 
+  // « Jamais sur le fond nu »: a pane like the content under it.
+  it('sits on a material pane, never the bare ground', async () => {
+    const soon = new Date(Date.now() + 2 * 86_400_000).toISOString();
+    server.use(http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([{ ...base, status: 'active', expiresAt: soon }])));
+    await renderApp('/');
+
+    expect(await screen.findByRole('note')).toHaveClass('material', 'rounded-pane');
+  });
+
   it('stays hidden otherwise', async () => {
     await renderApp('/');
     await screen.findByRole('heading', { level: 1, name: 'Accueil' });

@@ -104,7 +104,7 @@ function Body({ answer, withEnded }: { answer: ReturnType<typeof useLoans>; with
   if (empty)
     return (
       <EmptyState module="/loans" title={t('loans.empty_title')} body={t('loans.empty_body')}
-        action={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
+        action={<Link to="/loans/new" className={buttonVariants({ variant: 'outline' })}>{t('loans.add')}</Link>} />
     );
 
   return (

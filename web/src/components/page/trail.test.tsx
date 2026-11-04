@@ -2,6 +2,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { act, render, screen } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
+import { TopBarTrail } from '@/app/TopBarTrail';
 import { PageHeader } from './PageHeader';
 import { TrailProvider, useTrail } from './trail';
 
@@ -62,6 +63,35 @@ describe('trail', () => {
     act(() => setUi(<Counted />));
     expect(renders - before).toBeLessThan(5);
     expect(trail()?.current).toBe('X');
+  });
+
+  it('a change of params or search updates the trail', async () => {
+    const at = (params: { id: string }, search: { tab: string }) =>
+      <PageHeader crumbs={[{ label: 'Prêt', to: '/loans/$id', params, search }]} title="X" />;
+    await mount(at({ id: 'a' }, { tab: 'x' }));
+    expect(trail()?.crumbs?.[0]).toMatchObject({ params: { id: 'a' }, search: { tab: 'x' } });
+    act(() => setUi(at({ id: 'b' }, { tab: 'x' })));
+    expect(trail()?.crumbs?.[0]).toMatchObject({ params: { id: 'b' } });
+    act(() => setUi(at({ id: 'b' }, { tab: 'y' })));
+    expect(trail()?.crumbs?.[0]).toMatchObject({ search: { tab: 'y' } });
+  });
+
+  it.each([['x', false], ['y', true]])('a crumb to this page with search tab=x is plain text only when the page has it too (page tab=%s: link %s)', async (tab, link) => {
+    const root = createRootRoute({
+      component: () => <TrailProvider><TopBarTrail /><PageHeader crumbs={[{ label: 'Ici', to: '/', search: { tab: 'x' } as never }]} title="X" /></TrailProvider>,
+    });
+    render(<RouterProvider router={createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?tab=${tab}`] }) })} />);
+    await screen.findByRole('navigation', { name: 'Fil d’Ariane', hidden: true });
+    expect(screen.queryAllByRole('link', { name: 'Ici', hidden: true }).length > 0).toBe(link);
+  });
+
+  it('a crumb to this page is plain text whatever the order of its search keys', async () => {
+    const root = createRootRoute({
+      component: () => <TrailProvider><TopBarTrail /><PageHeader crumbs={[{ label: 'Ici', to: '/', search: { tab: 'x', closed: 1 } as never }]} title="X" /></TrailProvider>,
+    });
+    render(<RouterProvider router={createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?closed=1&tab=x'] }) })} />);
+    await screen.findByRole('navigation', { name: 'Fil d’Ariane', hidden: true });
+    expect(screen.queryAllByRole('link', { name: 'Ici', hidden: true })).toHaveLength(0);
   });
 
   it('without a provider the header renders and registers nothing', async () => {

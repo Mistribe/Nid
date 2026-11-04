@@ -284,7 +284,7 @@ describe('ProjectionScenarioPage', () => {
     expectHeaderActionRule(container);
     expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument();
     await openMore(user);
-    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Supprimer']);
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Renommer', 'Supprimer']);
     await user.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirmer' }));
 
@@ -299,7 +299,8 @@ describe('ProjectionScenarioPage', () => {
     const more = screen.getByRole('button', { name: 'Autres actions' });
     for (const dismiss of [() => user.click(screen.getByRole('button', { name: 'Annuler' })), () => user.keyboard('{Escape}')]) {
       await openMore(user);
-      await screen.findByRole('menuitem', { name: 'Supprimer' });
+      // jsdom shows the phone-only « Renommer » first (no `sm:hidden`): the keyboard goes to « Supprimer ».
+      (await screen.findByRole('menuitem', { name: 'Supprimer' })).focus();
       await user.keyboard('{Enter}');
       await screen.findByRole('alertdialog');
       await dismiss();

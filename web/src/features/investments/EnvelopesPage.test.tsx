@@ -6,6 +6,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { EnvelopeList } from './api';
 import { eur, figures, household, list, summary, unknownFigures } from './testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 function serve(body: EnvelopeList, seen: string[] = []) {
   server.use(http.get('*/api/v1/investments/envelopes', ({ request }) => {
@@ -142,6 +143,7 @@ describe('EnvelopesPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Aucune enveloppe pour l’instant' })).toBeInTheDocument();
     for (const link of screen.getAllByRole('link', { name: 'Ajouter une enveloppe' })) expect(link).toHaveAttribute('href', '/investments/new');
+    expectOnePrimary(container);
     await expectNoAxeViolations(container);
   });
 

@@ -37,8 +37,9 @@ const RAIL = 'relative flex h-10 items-center justify-center rounded-md transiti
 const ACTIVE = 'bg-primary/15 font-semibold text-foreground hover:bg-primary/20 hover:text-foreground [&>svg]:text-primary';
 // A tab colours its icon, not its label.
 const TAB_ACTIVE = 'font-semibold text-foreground [&>svg]:text-primary';
-// A phone shares its width among five tabs: icon above a short label, each tab an equal share (2E1 final review).
-const TAB = 'relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-xs hover:bg-accent hover:text-accent-foreground';
+// A phone shares its width among five tabs: icon above a short label, each tab an equal share (2E1 final review). iOS's 10 px
+// labels on a 2 px edge: « Abonnements » in bold fits a fifth of 390 px whole.
+const TAB = 'relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[10px] leading-tight hover:bg-accent hover:text-accent-foreground';
 
 const badge = (item: NavItem, dot = false) =>
   item.to === '/proposals' ? <PendingBadge dot={dot} /> : item.to === '/routine' ? <RoutineBadge dot={dot} /> : null;
@@ -136,12 +137,13 @@ export function Shell() {
         </div>
       </nav>
       <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
-        {/* Sticky over the page it scrolls; the search opens the ⌘K palette, the scope and the guides sit at the end. */}
-        <header className="sticky top-0 z-30 px-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 md:pl-0 print:hidden">
+        {/* Sticky over the page it scrolls; the search opens the ⌘K palette, the scope and the guides sit at the end. Its box
+            runs the full width and 8 px below the pane: only the pane takes the pointer. */}
+        <header className="pointer-events-none sticky top-0 z-30 px-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 md:pl-0 print:hidden">
           {/* The fade sits behind the pane: a mask or backdrop-filter on an ancestor would cut the pane's own blur. */}
           <div aria-hidden="true" data-fade className="scroll-edge pointer-events-none absolute inset-0 -z-10" />
-          <div data-pane="toolbar" className="glass rounded-pane">
-            <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-4 md:gap-4">
+          <div data-pane="toolbar" className="glass rounded-pane pointer-events-auto">
+            <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-1 px-3 md:gap-4 md:px-4">
               <button type="button" onClick={toggle} aria-label={toggleLabel} aria-controls="sidebar" aria-keyshortcuts={MAC ? 'Meta+B' : 'Control+B'} title={`${toggleLabel} (${toggleShortcut})`}
                 className="hidden size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:-ml-2 md:inline-flex">
                 {rail ? <PanelLeftOpen aria-hidden="true" className="size-4.5" /> : <PanelLeftClose aria-hidden="true" className="size-4.5" />}
@@ -153,7 +155,7 @@ export function Shell() {
                 <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{t('command.open')}</span>
                 <kbd aria-hidden="true" className="hidden rounded border bg-muted px-1.5 font-sans text-xs whitespace-nowrap xl:inline">{t(MAC ? 'command.shortcut_mac' : 'command.shortcut')}</kbd>
               </button>
-              <div className="ml-auto flex shrink-0 items-center gap-2"><NotificationBell /><ScopeSwitch /><Guides /></div>
+              <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2"><NotificationBell /><ScopeSwitch /><Guides /></div>
             </div>
           </div>
         </header>

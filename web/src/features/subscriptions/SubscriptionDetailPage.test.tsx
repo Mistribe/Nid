@@ -63,7 +63,7 @@ describe('Abonnements › détail', () => {
 
     await openMore(user);
     await screen.findByRole('menuitem', { name: 'Conditions du contrat' });
-    await waitFor(() => expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Conditions du contrat', 'Ajouter l’assurance', 'Partage…']));
+    await waitFor(() => expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Ajouter un achat', 'Conditions du contrat', 'Ajouter l’assurance', 'Partage…']));
     await user.click(screen.getByRole('menuitem', { name: 'Conditions du contrat' }));
     const terms = await screen.findByRole('dialog', { name: 'Conditions du contrat' });
     await user.click(within(terms).getByRole('button', { name: 'Annuler' }));

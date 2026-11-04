@@ -28,8 +28,9 @@ const PAIRS: [foreground: string, background: string, minimum: number][] = [
   ['primary', 'background', 4.5],
 ];
 
-// Layers over the halo ground (visual identity spec §3.3): [text, surface, opacity variable of the surface].
-const COMPOSITE: [text: string, surface: string, opacity: string][] = [
+// Layers over the halo ground (visual identity spec §3.3): [text, surface, opacity variable of the surface, and a tint
+// laid over the surface: its colour and the alpha of its `bg-x/N` class].
+const COMPOSITE: [text: string, surface: string, opacity: string, tint?: [colour: string, alpha: number]][] = [
   ['foreground', 'card', 'material-opacity'],
   ['muted-foreground', 'card', 'material-opacity'],
   ['card-foreground', 'card', 'material-opacity'],
@@ -43,6 +44,9 @@ const COMPOSITE: [text: string, surface: string, opacity: string][] = [
   ['sidebar-foreground', 'glass', 'glass-opacity'],
   ['popover-foreground', 'popover', 'glass-regular-opacity'],
   ['muted-foreground', 'popover', 'glass-regular-opacity'],
+  // The rail's initials (Shell, PersonMenu: `bg-primary/15`) and the critical banner (`bg-status-warning/10` on material).
+  ['foreground', 'glass', 'glass-opacity', ['primary', 0.15]],
+  ['foreground', 'card', 'material-opacity', ['status-warning', 0.1]],
 ];
 
 // Composites in sRGB: a·top + (1 − a)·bottom per channel.
@@ -111,10 +115,15 @@ describe.each(themes.map((t) => t.id))('theme %s', (id) => {
       return ref ? vars[ref[1]!]! : value;
     };
 
-    // A module tile's white glyph under the tile's top light, where the glyph starts (the `primary` tile takes
-    // --primary-foreground: see PAIRS) (WCAG 1.4.11, visual identity spec §3.6).
-    it.each(['tile-1', 'tile-2', 'tile-3', 'tile-4', 'tile-5', 'tile-6', 'tile-7', 'tile-8', 'tile-neutral'])('a white glyph on %s reaches 3:1', (tile) => {
-      expect(wcagContrast('#ffffff', over('#ffffff', GLOSS_AT_GLYPH, formatHex(resolve(tile))!))).toBeGreaterThanOrEqual(3);
+    // A module tile's glyph under the tile's top light, where the glyph starts (WCAG 1.4.11, visual identity spec §3.6):
+    // white on a slot colour, `--primary-foreground` on the `primary` tile.
+    it.each([
+      ['tile-1', '#ffffff'], ['tile-2', '#ffffff'], ['tile-3', '#ffffff'], ['tile-4', '#ffffff'], ['tile-5', '#ffffff'],
+      ['tile-6', '#ffffff'], ['tile-7', '#ffffff'], ['tile-8', '#ffffff'], ['tile-neutral', '#ffffff'],
+      ['primary', 'primary-foreground'],
+    ])('a glyph on %s reaches 3:1', (tile, glyph) => {
+      const glyphColour = glyph.startsWith('#') ? glyph : formatHex(resolve(glyph))!;
+      expect(wcagContrast(glyphColour, over('#ffffff', GLOSS_AT_GLYPH, formatHex(resolve(tile))!))).toBeGreaterThanOrEqual(3);
     });
 
     // A monogram chip (ProviderIcon): its slot colour at CHIP_TINT over the card, the initials in the text colour.
@@ -135,7 +144,7 @@ describe.each(themes.map((t) => t.id))('theme %s', (id) => {
       for (const n of [1, 2, 3, 4]) expect(parse(vars[`halo-${n}`]!), `--halo-${n}`).toBeDefined();
     });
 
-    it.each(COMPOSITE)('%s on %s over every halo reaches 4.5:1', (text, surface, opacity) => {
+    it.each(COMPOSITE)('%s on %s over every halo reaches 4.5:1 (%s, tint %j)', (text, surface, opacity, tint) => {
       const background = formatHex(vars['background'])!;
       const grounds = [background];
       for (const n of [1, 2, 3, 4]) {
@@ -144,7 +153,8 @@ describe.each(themes.map((t) => t.id))('theme %s', (id) => {
       }
       const alpha = parseFloat(vars[opacity]!) / 100;
       for (const ground of grounds) {
-        const composite = over(formatHex(resolve(surface))!, alpha, ground);
+        const pane = over(formatHex(resolve(surface))!, alpha, ground);
+        const composite = tint ? over(formatHex(resolve(tint[0]))!, tint[1], pane) : pane;
         expect(wcagContrast(formatHex(resolve(text))!, composite), `${text} on ${surface} over ${ground}`).toBeGreaterThanOrEqual(4.5);
       }
     });

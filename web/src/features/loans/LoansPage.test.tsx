@@ -7,6 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { LoanList } from './api';
 import { list, LOAN, summary } from './testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 /** `withEnded` answers `ended=true`; the plain list answers everything else. */
 function serve(body: LoanList, seen: string[] = [], withEnded: LoanList = body) {
@@ -89,6 +90,7 @@ describe('LoansPage', () => {
     expect(await screen.findByRole('heading', { name: 'Aucun crédit pour l’instant' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Ajouter un crédit' })[0]).toHaveAttribute('href', '/loans/new');
     expect(seen).toEqual(['?scope=household', '?scope=household&ended=true']);
+    expectOnePrimary(container);
     await expectNoAxeViolations(container);
   });
 

@@ -31,7 +31,6 @@ export function ScenariosPage() {
   const { $api } = useApi();
   const search: RootSearch = useSearch({ strict: false });
   const answer = $api.useQuery('get', SCENARIOS, { params: { query: { scope: search.scope === 'me' ? 'me' : 'household' } } });
-  const add = <AddMenu />;
 
   return (
     <div className="space-y-4">
@@ -40,7 +39,7 @@ export function ScenariosPage() {
           <Button asChild variant="outline">
             <Link to="/scenarios/compare" search={search.scope === 'me' ? { scope: 'me' } : {}}>{t('scenarios.compare.open')}</Link>
           </Button>
-          {add}
+          <AddMenu />
         </>
       )} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
@@ -49,18 +48,18 @@ export function ScenariosPage() {
             {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
           </ul>
         ) : answer.data.items.length === 0
-          ? <EmptyState module="/scenarios" title={t('scenarios.empty_title')} body={t('scenarios.empty_body')} action={add} />
+          ? <EmptyState module="/scenarios" title={t('scenarios.empty_title')} body={t('scenarios.empty_body')} action={<AddMenu variant="outline" />} />
           : <List items={answer.data.items} />}
     </div>
   );
 }
 
-/** « Nouveau scénario » asks for the kind: a purchase keeps its own page, a projection is `?kind=projection`. */
-function AddMenu() {
+/** « Nouveau scénario » asks for the kind: a purchase keeps its own page, a projection is `?kind=projection`. `outline` under the header's. */
+function AddMenu({ variant }: { variant?: 'outline' }) {
   const { t } = useTranslation();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button>{t('scenarios.add')}</Button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><Button variant={variant}>{t('scenarios.add')}</Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem asChild><Link to="/scenarios/new">{t('scenarios.add_menu.property_purchase')}</Link></DropdownMenuItem>
         <DropdownMenuItem asChild><Link to="/scenarios/new" search={{ kind: 'projection' }}>{t('scenarios.add_menu.projection')}</Link></DropdownMenuItem>

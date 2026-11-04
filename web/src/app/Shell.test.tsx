@@ -68,6 +68,31 @@ describe('the shell', () => {
     expect(container.querySelector('header')).not.toHaveClass('scroll-edge');
   });
 
+  // The header's box runs the full width and 8 px below the pane: only the pane takes the pointer.
+  it('the top bar’s box lets the pointer through to the content, its pane does not', async () => {
+    const { container } = await renderApp('/subscriptions');
+    expect(container.querySelector('header')).toHaveClass('pointer-events-none');
+    expect(container.querySelector('[data-pane="toolbar"]')).toHaveClass('pointer-events-auto');
+  });
+
+  // A phone's 390 px: the trail keeps « Placements » whole between the tight row and the bar's 36 px icon buttons.
+  it('the top bar packs tighter on a phone, its icon buttons 36 px', async () => {
+    const { container } = await renderApp('/subscriptions');
+    const row = container.querySelector<HTMLElement>('[data-pane="toolbar"] > div')!;
+    expect(row).toHaveClass('gap-1', 'px-3', 'md:gap-4', 'md:px-4');
+    expect(row).not.toHaveClass('gap-2', 'px-4');
+    const trailing = row.lastElementChild!;
+    expect(trailing).toHaveClass('gap-1', 'md:gap-2');
+    expect(trailing).not.toHaveClass('gap-2');
+    expect(within(row).getByRole('button', { name: 'Rechercher ou aller à…' })).toHaveClass('h-9');
+  });
+
+  // iOS's tab label size: « Abonnements » fits a fifth of 390 px, bold, without truncating.
+  it('phone tab labels are 10 px, tight, on a near-edge padding', async () => {
+    await renderApp('/subscriptions');
+    for (const link of within(tabs()).getAllByRole('link')) expect(link).toHaveClass('text-[10px]', 'leading-tight', 'px-0.5');
+  });
+
   it('lists « Garde » only with the childcare module', async () => {
     await renderApp('/subscriptions', { capabilities: { modules: ['core', 'subscriptions', 'income'], admin: false } });
     expect(within(sidebar()).queryByRole('link', { name: 'Garde' })).not.toBeInTheDocument();
@@ -349,6 +374,8 @@ describe('the shell', () => {
     expect(within(sidebar()).queryByRole('link', { name: 'Plus' })).not.toBeInTheDocument();
   });
   describe('the rail', () => {
+    const toggle = (name: string) => screen.getByRole('button', { name });
+
     it('the sidebar shows the wordmark, the rail only the mark', async () => {
       const { user } = await renderApp('/subscriptions');
       const brand = () => sidebar().querySelector('.h-14')!;
@@ -358,8 +385,6 @@ describe('the shell', () => {
       expect(brand().querySelector('[data-wordmark]')).toBeNull();
       expect(brand().querySelector('ellipse')).not.toBeNull();
     });
-
-    const toggle = (name: string) => screen.getByRole('button', { name });
 
     it('folds the sidebar into a rail and remembers it on this device', async () => {
       const { user } = await renderApp('/subscriptions');

@@ -10,6 +10,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { shownOr } from '@/components/page/RowMenu';
 import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
@@ -100,7 +101,7 @@ export function EnvelopeDetailPage() {
   const announceFlows = (message: string) => { toast.success(message); setFocusTarget('flows'); };
   useEffect(() => {
     if (!focusTarget) return;
-    ({ values: valuesHeadingRef, flows: flowsHeadingRef, enter: enterRef, flow: flowRef })[focusTarget].current?.focus();
+    shownOr(({ values: valuesHeadingRef, flows: flowsHeadingRef, enter: enterRef, flow: flowRef })[focusTarget].current, menuRef.current)?.focus();
     setFocusTarget(null);
   }, [focusTarget]);
   useEffect(() => {
@@ -178,13 +179,14 @@ export function EnvelopeDetailPage() {
       <Button ref={enterRef} data-guide="investments.enter" type="button" onClick={() => setValueDialog({})}>
         <Plus aria-hidden="true" />{t('envelope.enter_value')}
       </Button>
-      <Button ref={flowRef} type="button" variant="outline" onClick={() => setFlowDialog({})}>{t('envelope.add_flow_open')}</Button>
+      <Button ref={flowRef} type="button" variant="outline" className="max-sm:hidden" onClick={() => setFlowDialog({})}>{t('envelope.add_flow_open')}</Button>
       <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('page.more_actions')} triggerRef={menuRef} items={[
+        { label: t('envelope.add_flow_open'), phone: true, onSelect: () => setFlowDialog({}) },
         { label: t('envelope.transfer.open'), onSelect: () => setTransferOpen(true) },
         { label: t('envelope.closing.open'), onSelect: () => setCloseOpen(true) },
       ]} />
     </>
-  ) : detail.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} /> : null;
+  ) : detail.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('page.more_actions')} /> : null;
 
   return (
     <article className="space-y-6">

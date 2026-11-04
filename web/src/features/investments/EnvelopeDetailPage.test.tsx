@@ -223,6 +223,33 @@ describe('EnvelopeDetailPage', () => {
     expect(await screen.findByRole('dialog', { name: 'Virement' })).toBeInTheDocument();
   });
 
+  it('folds « Ajouter un flux » into ⋯ on a phone: the menu starts with it, shown below sm only', async () => {
+    serve(detail());
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    expect(await screen.findByRole('button', { name: 'Ajouter un flux' })).toHaveClass('max-sm:hidden');
+    await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+    const first = (await screen.findAllByRole('menuitem'))[0]!;
+    expect(first).toHaveTextContent('Ajouter un flux');
+    expect(first).toHaveClass('sm:hidden');
+    await user.click(first);
+    expect(await screen.findByRole('dialog', { name: 'Nouveau flux' })).toBeInTheDocument();
+  });
+
+  it('hands the focus to ⋯ after a flow added while « Ajouter un flux » is folded away', async () => {
+    serveWritable(detail(), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const flow = await screen.findByRole('button', { name: 'Ajouter un flux' });
+    Object.defineProperty(flow, 'checkVisibility', { value: () => false });
+    await user.click(flow);
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nouveau flux' }));
+    await user.type(dialog.getByLabelText('Montant'), '150');
+    await user.click(dialog.getByRole('button', { name: 'Ajouter le flux' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Autres actions' })).toHaveFocus());
+  });
+
   it('offers a reader no write action', async () => {
     serve(detail({ canWrite: false }));
     await renderApp(`/investments/${PEA}`);

@@ -15,7 +15,7 @@ export function Folded({ label, hasError, open, onOpenChange, children }: {
   return (
     <Collapsible open={shown} onOpenChange={onOpenChange ?? setOwn} className="space-y-3">
       <CollapsibleTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="group -ml-3">
+        <Button type="button" variant="ghost" size="sm" className="group -ml-3 h-auto min-h-8 max-w-full py-1.5 text-left whitespace-normal">
           <ChevronRightIcon aria-hidden="true" className="transition-transform group-data-[state=open]:rotate-90" />
           {label}
         </Button>

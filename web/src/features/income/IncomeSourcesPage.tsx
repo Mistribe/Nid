@@ -82,7 +82,7 @@ function Sources({ data, filtered, withEnded, deciding }: { data: Overview; filt
   if (data.sources.length === 0 && data.split.length === 0)
     return (
       <EmptyState module="/income" title={t('income.empty_title')} body={t('income.empty_body')}
-        action={<Link to="/income/new" className={buttonVariants()}>{t('income.add')}</Link>} />
+        action={<Link to="/income/new" className={buttonVariants({ variant: 'outline' })}>{t('income.add')}</Link>} />
     );
 
   return (

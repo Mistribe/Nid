@@ -160,10 +160,12 @@ describe('TransferDialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
     server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(detail({ closed: true }))));
     await user.click(await within(dialog).findByRole('button', { name: 'Recharger' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Autres actions', hidden: true })).not.toBeInTheDocument());
+    expect(await screen.findByText('Enveloppe clôturée')).toBeInTheDocument();
+    // The open envelope's write affordances are gone (the modal makes the page behind inert: `hidden`).
+    expect(screen.queryByRole('button', { name: 'Saisir une valeur', hidden: true })).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
 
-    // The ⋯ menu is gone with the write affordances of a closed envelope: the banner is where the focus lands.
+    // The write menu is gone with the write affordances of a closed envelope: the banner is where the focus lands.
     await waitFor(() => expect(screen.getByText('Enveloppe clôturée')).toHaveFocus());
   });
 

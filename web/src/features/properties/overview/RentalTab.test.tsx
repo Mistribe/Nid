@@ -65,6 +65,8 @@ describe('Biens › location', () => {
     expect(icon).toHaveClass('text-status-serious');
     expect(due.className).not.toMatch(/text-status-|text-destructive/);
     expect(due).toHaveTextContent('450,00 €');
+    // The icon comes first, then the amount.
+    expect(due.firstElementChild).toBe(icon);
   });
 
   it('lists each let property with its lease and cash flow, each row to its rental tab', async () => {

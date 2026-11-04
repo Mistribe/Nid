@@ -7,6 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { IncomeOverview } from './api';
 import { eur, overview, sourceRow } from './testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 type Row = IncomeOverview['sources'][number];
 
@@ -81,6 +82,7 @@ describe('IncomeSourcesPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Aucun revenu pour l’instant' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Ajouter un revenu' })[0]).toHaveAttribute('href', '/income/new');
+    expectOnePrimary(container);
     await expectNoAxeViolations(container);
   });
 

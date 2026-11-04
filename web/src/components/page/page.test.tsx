@@ -2,7 +2,7 @@ import { createMemoryHistory, createRootRoute, createRoute, createRouter, Router
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detailSearch } from '@/app/router';
 import { ApiContext } from '@/api/ApiProvider';
 import { createApi } from '@/api/client';
@@ -47,6 +47,8 @@ async function renderTabs(path: string) {
 }
 
 describe('page grammar', () => {
+  // setup.ts restores spies after the whole file only: a test's mocked layout must not reach the next one.
+  afterEach(() => vi.restoreAllMocks());
   it('useDetailTab falls back to the first tab', async () => {
     const user = userEvent.setup();
     const router = await renderTabs('/investments/x?tab=nope');
@@ -68,6 +70,24 @@ describe('page grammar', () => {
 
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'values' }));
     expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ resetScroll: false }));
+  });
+
+  // On a phone the list scrolls inside itself: a tab opened from the URL, past the list's edge, comes into its view.
+  it('DetailTabs scrolls the open tab into the list’s view, sideways only', async () => {
+    const page = vi.spyOn(Element.prototype, 'scrollIntoView');
+    // The list is 300 px wide; the open tab sits past its right edge (400–480).
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const box = this.getAttribute('role') === 'tablist' ? { left: 0, width: 300 }
+        : this.getAttribute('data-state') === 'active' ? { left: 400, width: 80 } : { left: 0, width: 0 };
+      return { ...box, right: box.left + box.width, top: 0, bottom: 0, height: 0, x: box.left, y: 0, toJSON: () => box };
+    });
+    await renderTabs('/investments/x?tab=values');
+
+    await screen.findByRole('tab', { name: 'Valeurs' });
+    const list = screen.getByRole('tablist');
+    expect(list).toHaveClass('overflow-x-auto');
+    await waitFor(() => expect(list.scrollLeft).toBe(290));
+    expect(page).not.toHaveBeenCalled();
   });
 
   it('StepForm stops on the first invalid step', async () => {
@@ -169,7 +189,7 @@ describe('page grammar', () => {
   });
 
   it('FormPage starts at the left like every page, without a card', () => {
-    render(<FormPage crumbs={undefined} title="Nouveau" width="max-w-2xl"><input aria-label="Nom" /></FormPage>);
+    render(<FormPage title="Nouveau" width="max-w-2xl"><input aria-label="Nom" /></FormPage>);
     const article = screen.getByRole('article');
     expect(article).toHaveClass('max-w-2xl', 'w-full');
     expect(article).not.toHaveClass('mx-auto');

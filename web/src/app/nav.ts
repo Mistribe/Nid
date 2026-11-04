@@ -26,7 +26,7 @@ export const NAV = [
   { group: 'account', module: null, admin: false, mobile: 'more', to: '/security', icon: KeyRound, tile: 'neutral', label: 'nav.security' },
   { group: 'account', module: null, admin: false, mobile: 'more', to: '/settings/appearance', icon: Settings, tile: 'neutral', label: 'nav.settings' },
   { group: 'account', module: null, admin: true, mobile: 'more', to: '/admin/users', icon: ShieldCheck, tile: 'neutral', label: 'nav.admin' },
-] as const;
+] as const satisfies readonly ({ tile: Tile } & Record<string, unknown>)[];
 
 export type NavItem = (typeof NAV)[number];
 

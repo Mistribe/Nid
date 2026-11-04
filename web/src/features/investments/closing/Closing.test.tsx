@@ -71,7 +71,8 @@ describe('closing an envelope', () => {
     expect(bodies).toEqual([{ closedOn: todayIso() }]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const banner = await screen.findByText('Enveloppe clôturée');
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument());
+    // The open envelope's write affordances are gone (the modal makes the page behind inert: `hidden`).
+    expect(screen.queryByRole('button', { name: 'Saisir une valeur', hidden: true })).not.toBeInTheDocument();
     await waitFor(() => expect(banner).toHaveFocus());
     await expectNoAxeViolations(container);
   });
@@ -166,15 +167,22 @@ describe('a correction open when the envelope closes', () => {
 describe('a closed envelope', () => {
   it('shows the banner and no write affordance', async () => {
     serve(detail({ closed: true, figures: figures({ missingOpening: true }) }));
-    const { container } = await renderApp(`/investments/${PEA}`);
+    const { user, container } = await renderApp(`/investments/${PEA}`);
 
     const article = await screen.findByRole('article');
     expect(await within(article).findByText('Enveloppe clôturée')).toBeInTheDocument();
     expect(within(article).getByRole('button', { name: 'Rouvrir' })).toBeInTheDocument();
     for (const name of ['Nouvelle valeur', 'Nouveau flux', 'Réglages']) expect(within(article).queryByRole('form', { name })).not.toBeInTheDocument();
-    for (const name of ['Saisir une valeur', 'Ajouter un flux', 'Autres actions', 'Saisir les versements antérieurs'])
+    for (const name of ['Saisir une valeur', 'Ajouter un flux', 'Saisir les versements antérieurs'])
       expect(within(article).queryByRole('button', { name })).not.toBeInTheDocument();
     expect(within(article).queryByRole('tab', { name: 'Réglages' })).not.toBeInTheDocument();
+    // The shared item the viewer may change keeps its menu, and only its sharing entry.
+    await user.click(within(article).getByRole('button', { name: 'Autres actions' }));
+    expect(screen.queryByRole('menuitem', { name: 'Clôturer l’enveloppe' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Virement' })).not.toBeInTheDocument();
+    expect(await screen.findAllByRole('menuitem')).toHaveLength(1);
+    expect(screen.getByRole('menuitem', { name: 'Partage…' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     await expectNoAxeViolations(container);
   });
 

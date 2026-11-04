@@ -82,7 +82,7 @@ describe('Réglages › Apparence', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Sobre' }));
 
-    expect(sent).toEqual([{ theme: 'sobre', csrf: 'csrf-alice' }]);
+    await waitFor(() => expect(sent).toEqual([{ theme: 'sobre', csrf: 'csrf-alice' }]));
   });
 
   it('previews a theme on hover and restores the saved one after', async () => {
@@ -230,8 +230,9 @@ describe('Réglages › Apparence', () => {
 
     expect(html().hasAttribute('data-reduce-transparency')).toBe(true);
     expect(localStorage.getItem('nid.transparency')).toBe('reduce');
-    expect(sent).toEqual([]);
-    html().removeAttribute('data-reduce-transparency');
+    // A canary: a theme save does PATCH, so a stray transparency PATCH, sent before it, would arrive first.
+    await user.click(screen.getByRole('radio', { name: 'Sauge' }));
+    await waitFor(() => expect(sent).toEqual([{ theme: 'sauge', csrf: 'csrf-alice' }]));
   });
 
   it('resets every guide', async () => {

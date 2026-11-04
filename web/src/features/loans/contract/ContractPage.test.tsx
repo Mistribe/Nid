@@ -197,7 +197,7 @@ describe('ContractPage', () => {
     const header = container.querySelector('header[data-page-header]')!;
     expect(within(header as HTMLElement).queryByRole('navigation', { name: 'Fil d’Ariane' })).toBeNull();
     expect(within(header as HTMLElement).getByRole('heading', { level: 1 })).toHaveTextContent('Modifier le contrat : Prêt maison');
-    expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Prêt maison' })).toHaveAttribute('href', `/loans/${LOAN}`);
+    expect(within(within(document.querySelector<HTMLElement>('[data-pane="toolbar"]')!).getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Prêt maison' })).toHaveAttribute('href', `/loans/${LOAN}`);
     expectHeaderActionRule(container);
     expect(formEl.closest('.bg-card')).toBeNull();
   });
@@ -208,7 +208,7 @@ describe('ContractPage', () => {
 
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     // The form page's header still mounts: « Crédits » is its ancestor link, the form title the current item.
-    const trail = within(screen.getByRole('navigation', { name: 'Fil d’Ariane' }));
+    const trail = within(within(document.querySelector<HTMLElement>('[data-pane="toolbar"]')!).getByRole('navigation', { name: 'Fil d’Ariane' }));
     expect(trail.getByRole('link', { name: 'Crédits' })).not.toHaveAttribute('aria-current');
     expect(trail.getAllByRole('link')).toHaveLength(1);
     expect(trail.getByText('Contrat du crédit')).toHaveAttribute('aria-current', 'page');

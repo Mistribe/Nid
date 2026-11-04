@@ -8,7 +8,7 @@ import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import { LocalDate } from '@/components/LocalDate';
 import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
-import { RowMenu } from '@/components/page/RowMenu';
+import { RowMenu, shownOr } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -51,7 +51,7 @@ export function DocumentDetailPage() {
   const path = { params: { path: { id: doc.id } } };
   const uploader = targets.data?.items.find((x) => x.kind === 'core.person' && x.id === detail.uploadedBy)?.label;
   // The dialog handed itself back: the page says what happened and puts the focus back on the button that opened it.
-  const done = (ref: typeof editRef) => (message: string) => { setDialog(null); toast.success(message); ref.current?.focus(); };
+  const done = (ref: typeof editRef) => (message: string) => { setDialog(null); toast.success(message); shownOr(ref.current, moreRef.current)?.focus(); };
   const error = archive.error ?? unarchive.error ?? answer.error;
 
   const actions = (
@@ -59,9 +59,9 @@ export function DocumentDetailPage() {
       <Button asChild variant="outline"><a href={contentUrl(doc.id)} download><Download aria-hidden="true" />{t('documents_page.download')}</a></Button>
       {doc.canEdit ? (
         <>
-          <Button ref={editRef} type="button" variant="outline" onClick={() => setDialog('editing')}>{t('documents_page.edit')}</Button>
-          <RowMenu label={t('page.more_actions')} triggerRef={moreRef} items={[doc.archived
-            ? { label: t('documents_page.unarchive'), onSelect: () => { if (!unarchive.isPending) unarchive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_unarchived')); editRef.current?.focus(); } }); } }
+          <Button ref={editRef} type="button" variant="outline" className="max-sm:hidden" onClick={() => setDialog('editing')}>{t('documents_page.edit')}</Button>
+          <RowMenu label={t('page.more_actions')} triggerRef={moreRef} items={[{ label: t('documents_page.edit'), phone: true, onSelect: () => setDialog('editing') }, doc.archived
+            ? { label: t('documents_page.unarchive'), onSelect: () => { if (!unarchive.isPending) unarchive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_unarchived')); shownOr(editRef.current, moreRef.current)?.focus(); } }); } }
             : { label: t('documents_page.archive'), disabled: archive.isPending, onSelect: () => setArchiving(true) }]} />
         </>
       ) : null}
@@ -96,7 +96,7 @@ export function DocumentDetailPage() {
       {archiving ? (
         <ConfirmFromMenu label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}
           returnFocus={moreRef} onClose={() => setArchiving(false)}
-          onConfirm={() => archive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_archived')); editRef.current?.focus(); } })} />
+          onConfirm={() => archive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_archived')); shownOr(editRef.current, moreRef.current)?.focus(); } })} />
       ) : null}
       {dialog === 'editing' ? <EditDocumentDialog detail={detail} onClose={() => setDialog(null)} onDone={done(editRef)} /> : null}
       {dialog === 'linking' ? <AddLinkDialog doc={doc} onClose={() => setDialog(null)} onDone={done(addRef)} /> : null}

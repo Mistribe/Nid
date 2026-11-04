@@ -37,6 +37,18 @@ describe('form controls', () => {
     await expectNoAxeViolations(container);
   });
 
+  // In a form Radix puts a hidden <select> after the trigger: `space-y-*` (margin under every child but the last) gave the
+  // trigger 4 px more under it than any other field.
+  it('Field spaces its parts from the top, so a SelectField in a form gets no phantom margin under its trigger', () => {
+    render(<form><Field label="Type">{(c) => <SelectField {...c} value="a" onValueChange={() => {}} options={[{ value: 'a', label: 'A' }]} />}</Field></form>);
+    const trigger = screen.getByRole('combobox', { name: 'Type' });
+    const root = trigger.parentElement!;
+    expect(trigger.nextElementSibling?.tagName, 'Radix’s hidden select').toBe('SELECT');
+    expect(root.className).not.toMatch(/space-y-/);
+    expect(root).toHaveClass('[&>*+*]:mt-1');
+    expect(trigger.className).not.toMatch(/(^|\s)(m|my|mb)-/);
+  });
+
   it('ComboboxField filters by typed text', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();

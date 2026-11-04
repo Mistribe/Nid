@@ -6,6 +6,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { InvestmentsOverview } from '../api';
 import { ALICE, eur, household, LIVRET, overview, PEA } from '../testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 const serve = (body: InvestmentsOverview, seen: string[] = []) =>
   server.use(http.get('*/api/v1/investments/overview', ({ request }) => {
@@ -125,8 +126,9 @@ describe('Placements › vue d’ensemble', () => {
 
   it('without an envelope, offers to add one; with closed ones only, leads to them', async () => {
     serve(overview());
-    await renderApp('/investments');
+    const { container } = await renderApp('/investments');
     expect(await screen.findByText('Aucune enveloppe pour l’instant')).toBeInTheDocument();
+    expectOnePrimary(container);
 
     serve(overview({ closedCount: 1 }));
     await renderApp('/investments');

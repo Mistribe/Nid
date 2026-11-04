@@ -6,6 +6,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { PropertiesOverview } from '../api';
 import { householdOverview, OWNER, PROPERTY, propertiesOverview, RENTAL } from '../testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 const serve = (body: PropertiesOverview, seen: string[] = []) =>
   server.use(http.get('*/api/v1/realestate/properties/overview', ({ request }) => {
@@ -129,6 +130,7 @@ describe('Biens › vue d’ensemble', () => {
     const { container } = await renderApp('/properties');
 
     expect(await screen.findByRole('heading', { name: 'Aucun bien pour l’instant' })).toBeInTheDocument();
+    expectOnePrimary(container);
     await expectNoAxeViolations(container);
   });
 

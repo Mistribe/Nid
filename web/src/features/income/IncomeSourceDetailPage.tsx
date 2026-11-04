@@ -130,14 +130,15 @@ export function IncomeSourceDetailPage() {
   const actions = writable ? (
     <>
       <ChangeAmountAction phases={changeable} onChange={(phaseId) => startEdit(phaseId, 'change', CHANGE_AMOUNT_ID)} />
-      <Button type="button" variant="outline" aria-label={t('income_detail.one_offs.add')} onClick={startOneOff}><Plus aria-hidden="true" />{t('income_detail.add_one_off')}</Button>
+      <Button type="button" variant="outline" className="max-sm:hidden" aria-label={t('income_detail.one_offs.add')} onClick={startOneOff}><Plus aria-hidden="true" />{t('income_detail.add_one_off')}</Button>
       <SharingMenu item={id} onAnnounce={toast.success} shared={source.visibility === 'shared'} label={t('page.more_actions')} triggerRef={menuRef}
         items={[
+          { label: t('income_detail.one_offs.add'), phone: true, onSelect: startOneOff },
           { label: t('income_detail.add_component'), onSelect: () => startAdd(newPhase()) },
           { label: t('income_detail.ending.open'), onSelect: () => setEndOpen(true) },
         ]} />
     </>
-  ) : source.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={source.visibility === 'shared'} /> : null;
+  ) : source.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={source.visibility === 'shared'} label={t('page.more_actions')} /> : null;
 
   return (
     <article className="space-y-6">

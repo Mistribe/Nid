@@ -12,6 +12,7 @@ import type { CostReport, Holding, HoldingBreakdown, HoldingsView, Movement, Sna
 import { detail, eur, PEA } from '../testData';
 import { signedUnits, trimUnits } from './holdingFormat';
 import { startLines } from './SnapshotDialog';
+import { expectOnePrimary } from '@/test/headerActions';
 
 const FUND = '0192f0aa-0000-7000-8000-0000000000f1';
 const EURO = '0192f0aa-0000-7000-8000-0000000000f2';
@@ -82,7 +83,9 @@ describe('the « Supports » tab', () => {
     const calls = serve(view({ holdings: [], warnings: [], ucSharePct: null, explicitFees: null, unallocated: null }));
     const { user, container } = await renderApp(`/investments/${PEA}?tab=holdings`);
 
-    await user.click(await screen.findByRole('button', { name: 'Détailler les supports' }));
+    await screen.findByRole('button', { name: 'Détailler les supports' });
+    expectOnePrimary(container);
+    await user.click(screen.getByRole('button', { name: 'Détailler les supports' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Nouveau support' }));
     await user.type(dialog.getByLabelText('Support'), 'Fonds euros');
     await pick(user, 'Type', 'Fonds en euros');
@@ -119,6 +122,7 @@ describe('the « Supports » tab', () => {
     const { user, container } = await renderApp(`/investments/${PEA}?tab=holdings`);
 
     const table = await screen.findByRole('table', { name: 'Supports de l’enveloppe' });
+    expectOnePrimary(container);
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows[0]).toHaveTextContent('Monde ESG');
     expect(rows[0]).toHaveTextContent('12,5');

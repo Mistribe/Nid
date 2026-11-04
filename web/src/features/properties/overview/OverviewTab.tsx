@@ -47,7 +47,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
   if (d.count === 0)
     return (
       <EmptyState module="/properties" title={t('properties.empty_title')} body={t('properties.empty_body')}
-        action={<Link to="/properties/new" className={buttonVariants()}>{t('properties.add')}</Link>} />
+        action={<Link to="/properties/new" className={buttonVariants({ variant: 'outline' })}>{t('properties.add')}</Link>} />
     );
 
   // DOM order is the phone's (figures, curve, watch, split, persons, properties).

@@ -1,4 +1,4 @@
-import { Link, useRouterState } from '@tanstack/react-router';
+import { deepEqual, Link, useRouterState } from '@tanstack/react-router';
 import { ChevronLeft } from 'lucide-react';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,8 +17,9 @@ export function TopBarTrail() {
   const current = trail ? trail.current : moduleLabel;
   const ancestors: Crumb[] = trail?.crumbs
     ?? (module && moduleLabel !== current ? [{ label: moduleLabel!, to: module.to }] : []);
-  // An ancestor that is the page itself (« Réglages » on /settings/appearance) is plain text, not a link to here.
-  const isSelf = (c: Crumb) => c.to === pathname && !c.params;
+  const search = useRouterState({ select: (s) => s.location.search });
+  // An ancestor that is the page itself (« Réglages » on /settings/appearance, same search) is plain text, not a link to here.
+  const isSelf = (c: Crumb) => c.to === pathname && !c.params && (c.search === undefined || deepEqual(c.search, search));
   const last = ancestors.at(-1);
   const parent = last && !isSelf(last) ? last : undefined;
   return (

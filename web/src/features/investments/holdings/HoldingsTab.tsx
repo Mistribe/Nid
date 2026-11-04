@@ -105,7 +105,7 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
     <>
       {holdings.length === 0 ? (
         <EmptyState module="/investments" title={t('holdings.empty_title')} body={t('holdings.empty_body')}
-          action={writable ? <Button type="button" onClick={() => open({ kind: 'holding' })}>{t('holdings.detail')}</Button> : undefined} />
+          action={writable ? <Button type="button" variant="outline" onClick={() => open({ kind: 'holding' })}>{t('holdings.detail')}</Button> : undefined} />
       ) : (
         <section aria-labelledby="holdings-title" className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -115,7 +115,7 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
             {writable ? (
               <div className="flex flex-wrap gap-2">
                 {openHoldings.length > 0 ? (
-                  <Button type="button" onClick={() => open({ kind: 'snapshot' })}><Plus aria-hidden="true" />{t('holdings.snapshot.open')}</Button>
+                  <Button type="button" variant="outline" onClick={() => open({ kind: 'snapshot' })}><Plus aria-hidden="true" />{t('holdings.snapshot.open')}</Button>
                 ) : null}
                 <Button type="button" variant="outline" onClick={() => open({ kind: 'holding' })}>{t('holdings.add')}</Button>
                 {openHoldings.length > 1 ? (

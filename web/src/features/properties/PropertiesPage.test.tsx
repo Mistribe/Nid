@@ -7,6 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { PropertyList } from './api';
 import { PROPERTY, propertyList, propertySummary } from './testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 function serve(body: PropertyList, seen: string[] = []) {
   server.use(http.get('*/api/v1/realestate/properties', ({ request }) => {
@@ -106,6 +107,7 @@ describe('PropertiesPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Aucun bien pour l’instant' })).toBeInTheDocument();
     for (const link of screen.getAllByRole('link', { name: 'Ajouter un bien' })) expect(link).toHaveAttribute('href', '/properties/new');
+    expectOnePrimary(container);
     await expectNoAxeViolations(container);
   });
 

@@ -20,7 +20,8 @@ export function Field({ label, error, hint, badge, children, inline = false }: {
   if (describedBy) control['aria-describedby'] = describedBy;
   return (
     <FieldLabel value={label}>
-      <div className={inline ? 'flex items-center gap-2' : 'space-y-1'}>
+      {/* Spaced from the top: Radix Select's hidden native select after its trigger made `space-y-1` add 4 px under the trigger. */}
+      <div className={inline ? 'flex items-center gap-2' : '[&>*+*]:mt-1'}>
         {inline ? children(control) : null}
         {badge ? (
           <div className="flex items-center gap-1.5">

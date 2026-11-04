@@ -253,6 +253,8 @@ describe('NewLoan', () => {
     await fillLoan(user);
     const options = screen.getByRole('button', { name: 'Options de calcul' });
     expect(options).toHaveAttribute('aria-expanded', 'false');
+    // A long label wraps under its chevron on a phone instead of overflowing (Folded).
+    expect(options).toHaveClass('h-auto', 'min-h-8', 'max-w-full', 'text-left', 'whitespace-normal');
     expect(screen.queryByLabelText('Arrondi des intérêts')).not.toBeInTheDocument();
     await user.click(options);
     await pick(user, 'Arrondi des intérêts', 'Tronqué');

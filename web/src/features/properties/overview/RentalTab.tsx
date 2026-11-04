@@ -70,6 +70,7 @@ function Figures({ d }: { d: PropertiesRental }) {
   const { t } = useTranslation();
   const unknown = t('properties_rental.unknown');
   const arrears = d.arrears;
+  const owed = !!arrears && !isZero(arrears.amount) && !arrears.amount.startsWith('-');
   return (
     <StatLine items={[
       { label: t('properties_rental.received'), value: (
@@ -77,7 +78,7 @@ function Figures({ d }: { d: PropertiesRental }) {
       ) },
       { label: t('properties_rental.arrears'), value: (
         <>
-          {arrears && !isZero(arrears.amount) && !arrears.amount.startsWith('-') ? <TriangleAlert aria-hidden="true" className="mr-1 inline size-4 text-status-serious" /> : null}
+          {owed ? <TriangleAlert aria-hidden="true" className="mr-1 inline size-4 text-status-serious" /> : null}
           {arrears ? formatMoney(arrears) : unknown}
           {arrears && isZero(arrears.amount) ? <Sub>{t('properties_rental.arrears_none')}</Sub> : null}
           {arrears?.amount.startsWith('-') ? <Sub>{t('properties_rental.arrears_over')}</Sub> : null}

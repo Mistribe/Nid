@@ -12,6 +12,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { shownOr } from '@/components/page/RowMenu';
 import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
@@ -86,7 +87,7 @@ export function SubscriptionDetailPage() {
     if (dialog) { opened.current = dialog; return; }
     const was = opened.current;
     opened.current = null;
-    if (was) (was === 'price' ? priceRef : was === 'purchase' ? purchaseRef : menuRef).current?.focus();
+    if (was) shownOr((was === 'price' ? priceRef : was === 'purchase' ? purchaseRef : menuRef).current, menuRef.current)?.focus();
   }, [dialog]);
 
   // No `PageHeader` yet: the bar's trail still leads back to the list (no inline link of its own).
@@ -106,8 +107,9 @@ export function SubscriptionDetailPage() {
   const actions = detail.canWrite ? (
     <>
       <Button ref={priceRef} type="button" onClick={() => setDialog('price')}>{t('edit.price_title')}</Button>
-      <Button ref={purchaseRef} type="button" variant="outline" onClick={() => setDialog('purchase')}>{t('edit.purchase_title')}</Button>
+      <Button ref={purchaseRef} type="button" variant="outline" className="max-sm:hidden" onClick={() => setDialog('purchase')}>{t('edit.purchase_title')}</Button>
       <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('page.more_actions')} triggerRef={menuRef} items={[
+        { label: t('edit.purchase_title'), phone: true, onSelect: () => setDialog('purchase') },
         { label: t('contract_terms.edit'), onSelect: () => setDialog('terms') },
         { label: detail.insurance ? t('insurance.change') : t('insurance.add'), onSelect: () => setDialog('insurance') },
       ]} />

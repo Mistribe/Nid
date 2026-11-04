@@ -5,9 +5,9 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { Segmented } from '../form/Segmented';
 import { buttonVariants } from './button';
 import { Card } from './card';
-import { Command } from './command';
+import { CommandDialog, CommandInput } from './command';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from './dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from './select';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from './sheet';
@@ -39,9 +39,32 @@ describe('surfaces', () => {
     expect(content).not.toHaveClass('bg-background');
   });
 
-  it('the command list sits transparent in its overlay', () => {
-    const { container } = render(<Command />);
-    expect(container.firstElementChild).toHaveClass('bg-transparent');
+  // The class merged on the open menu: an own `bg-…` would paint over the dialog's glass.
+  it('the command list sits transparent in its open overlay', () => {
+    render(<CommandDialog open title="t" description="d"><CommandInput /></CommandDialog>);
+    const dialog = screen.getByRole('dialog', { hidden: true });
+    expect(dialog).toHaveClass('glass-regular');
+    const command = dialog.querySelector('[data-slot="command"]');
+    expect(command).toHaveClass('bg-transparent');
+    expect(command?.className).not.toMatch(/\bbg-(popover|background|card)\b/);
+  });
+
+  it('an open submenu is regular glass', () => {
+    render(
+      <DropdownMenu open>
+        <DropdownMenuTrigger>o</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuSub open>
+            <DropdownMenuSubTrigger>s</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent><DropdownMenuItem>i</DropdownMenuItem></DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    const sub = document.querySelector('[data-slot="dropdown-menu-sub-content"]');
+    expect(sub).toHaveAttribute('data-state', 'open');
+    expect(sub).toHaveClass('glass-regular');
+    expect(sub).not.toHaveClass('bg-popover');
   });
 
   it.each(['default', 'sm', 'lg', 'icon'] as const)('a %s button is a capsule', (size) => {

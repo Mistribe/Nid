@@ -25,3 +25,15 @@ export function expectHeaderActionRule(container: HTMLElement) {
   // Button's default variant is the only one with the `bg-primary` class (`hover:bg-primary/90` is another token).
   expect(actions.filter((el) => el.classList.contains('bg-primary')).length, 'primary actions').toBeLessThanOrEqual(1);
 }
+
+/**
+ * Spec §6: one primary per view. Counts the visible buttons and links with Button's default variant (`bg-primary`) in the routed
+ * page, leaving out an open menu and what is hidden from assistive technology: an empty state's action under a header that
+ * carries the primary is `outline`.
+ */
+export function expectOnePrimary(container: HTMLElement) {
+  const page = container.querySelector<HTMLElement>('[data-pane="content"]') ?? container;
+  const primaries = [...page.querySelectorAll<HTMLElement>('button, a[href]')].filter((el) =>
+    el.classList.contains('bg-primary') && !el.closest('[role="menu"], [hidden], [aria-hidden="true"]'));
+  expect(primaries.length, `primary actions: ${primaries.map((el) => el.textContent?.trim()).join(', ')}`).toBeLessThanOrEqual(1);
+}

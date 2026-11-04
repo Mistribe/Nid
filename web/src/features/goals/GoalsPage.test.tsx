@@ -6,6 +6,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { GoalList } from './api';
 import { list, summary } from './testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 function serve(body: GoalList, seen: string[] = []) {
   server.use(http.get('*/api/v1/goals', ({ request }) => {
@@ -120,8 +121,9 @@ describe('GoalsPage', () => {
 
   it('invites to create the first goal', async () => {
     serve(list([]));
-    await renderApp('/goals');
+    const { container } = await renderApp('/goals');
     expect(await screen.findByRole('heading', { name: 'Aucun objectif' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Nouvel objectif' })).toHaveLength(2);
+    expectOnePrimary(container);
   });
 });

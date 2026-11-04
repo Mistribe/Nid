@@ -14,7 +14,7 @@ import { formatCurrency } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail, type Crumb } from '@/components/page/trail';
-import { RowMenu } from '@/components/page/RowMenu';
+import { RowMenu, shownOr } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -90,7 +90,7 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
   const moreRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!returnTo) return;
-    (returnTo === 'rename' ? renameRef : assumptionsRef).current?.focus();
+    shownOr((returnTo === 'rename' ? renameRef : assumptionsRef).current, moreRef.current)?.focus();
     setReturnTo(null);
   }, [returnTo]);
 
@@ -148,9 +148,9 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
             </Button>
             {canWrite ? (
               <>
-                <Button ref={renameRef} type="button" variant="outline" onClick={() => open('rename')}><Pencil aria-hidden="true" />{t('scenarios.projection.detail.rename')}</Button>
+                <Button ref={renameRef} type="button" variant="outline" className="max-sm:hidden" onClick={() => open('rename')}><Pencil aria-hidden="true" />{t('scenarios.projection.detail.rename')}</Button>
                 <RowMenu label={t('page.more_actions')} triggerRef={moreRef}
-                  items={[{ label: t('scenarios.projection.detail.delete'), destructive: true, disabled: remove.isPending, onSelect: () => setDeleting(true) }]} />
+                  items={[{ label: t('scenarios.projection.detail.rename'), phone: true, onSelect: () => open('rename') }, { label: t('scenarios.projection.detail.delete'), destructive: true, disabled: remove.isPending, onSelect: () => setDeleting(true) }]} />
               </>
             ) : null}
           </>

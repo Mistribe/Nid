@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { ScenarioListItem } from './api';
+import { expectOnePrimary } from '@/test/headerActions';
 
 const ALICE = '0192f0aa-0000-7000-8000-0000000000a1';
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
@@ -161,9 +162,10 @@ describe('ScenariosPage', () => {
 
   it('shows an empty state without scenarios', async () => {
     serve([]);
-    await renderApp('/scenarios');
+    const { container } = await renderApp('/scenarios');
 
     expect(await screen.findByText('Aucun scénario pour l\'instant')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Nouveau scénario' }).length).toBeGreaterThan(0);
+    expectOnePrimary(container);
   });
 });

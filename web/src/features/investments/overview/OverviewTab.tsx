@@ -47,7 +47,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
   if (d.openCount === 0 && d.closedCount === 0)
     return (
       <EmptyState module="/investments" title={t('investments.empty_title')} body={t('investments.empty_body')}
-        action={<Link to="/investments/new" className={buttonVariants()}>{t('investments.add')}</Link>} />
+        action={<Link to="/investments/new" className={buttonVariants({ variant: 'outline' })}>{t('investments.add')}</Link>} />
     );
   if (d.openCount === 0)
     return (

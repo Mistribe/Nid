@@ -7,6 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { ListResponse, Summary } from './api';
 import { eur, list, overview, summary } from './testData';
+import { expectOnePrimary } from '@/test/headerActions';
 
 const two = list([
   summary({}),
@@ -112,10 +113,11 @@ describe('Abonnements › liste', () => {
 
   it('invites to add the first subscription when there is none', async () => {
     serve(list([], { householdCashCost: [], householdAmortizedCost: [] }));
-    await renderApp('/subscriptions?tab=list');
+    const { container } = await renderApp('/subscriptions?tab=list');
 
     const action = await screen.findByRole('link', { name: 'Ajouter votre premier abonnement' });
     expect(action).toHaveAttribute('href', '/subscriptions/new');
+    expectOnePrimary(container);
   });
 
   it('writes the name and the status into the address and asks the server for them', async () => {

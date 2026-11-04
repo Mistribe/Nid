@@ -45,10 +45,11 @@ export function PropertiesPage() {
   // §4.1 D10: « Location » only while a property is let; its answer is shared with the tab.
   const rented = ($api.useQuery('get', PROPERTIES_RENTAL, { params: { query: { scope } } }).data?.count ?? 0) > 0;
   const [tab, setTab] = useDetailTab<(typeof WITH_RENTAL)[number]>(rented ? WITH_RENTAL : WITHOUT_RENTAL);
-  const add = <Link to="/properties/new" className={buttonVariants()}>{t('properties.add')}</Link>;
+  // The empty state's action repeats the header's primary: `outline`, one primary per view (design-system.md §6.1).
+  const add = (variant?: 'outline') => <Link to="/properties/new" className={buttonVariants({ variant })}>{t('properties.add')}</Link>;
   return (
     <div className="space-y-4">
-      <PageHeader title={t('properties.title')} actions={add} />
+      <PageHeader title={t('properties.title')} actions={add()} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('properties_overview.tab_overview'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.history ?? '3y'} /></Suspense> },
@@ -58,7 +59,7 @@ export function PropertiesPage() {
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><CostsTab scope={scope} /></Suspense> },
         { id: 'valuation', label: t('properties_valuation.tab'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><ValuationTab scope={scope} /></Suspense> },
-        { id: 'list', label: t('properties_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },
+        { id: 'list', label: t('properties_overview.tab_list'), content: <ListTab scope={scope} add={add('outline')} /> },
       ]} />
     </div>
   );

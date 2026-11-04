@@ -42,7 +42,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
   if (d.runningCount === 0 && d.endedCount === 0)
     return (
       <EmptyState module="/loans" title={t('loans.empty_title')} body={t('loans.empty_body')}
-        action={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
+        action={<Link to="/loans/new" className={buttonVariants({ variant: 'outline' })}>{t('loans.add')}</Link>} />
     );
   if (d.runningCount === 0)
     return (

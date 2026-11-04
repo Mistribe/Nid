@@ -41,7 +41,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
   if (d.activeCount === 0 && d.endedCount === 0)
     return (
       <EmptyState module="/subscriptions" title={tc('subscriptions.empty_title')} body={tc('subscriptions.empty_body')}
-        action={<Link to="/subscriptions/new" className={buttonVariants()}>{tc('subscriptions.empty_action')}</Link>} />
+        action={<Link to="/subscriptions/new" className={buttonVariants({ variant: 'outline' })}>{tc('subscriptions.empty_action')}</Link>} />
     );
 
   // DOM order is the phone's (figures, months, watch, upcoming, persons, labels); `lg:order-*` lays out the desktop grid.
