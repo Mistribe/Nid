@@ -79,7 +79,6 @@
     "since_january": "Depuis janvier",
     "enter_value": "Saisir une valeur",
     "add_flow_open": "Ajouter un flux",
-    "more_actions": "Autres actions",
     "row_menu": "Actions pour le {{date}}",
     "row_menu_what": "Actions pour le {{date}} : {{what}}",
     "last_values": "Dernières valeurs",

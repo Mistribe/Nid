@@ -40,9 +40,31 @@ describe('Biens › location', () => {
     expect(figures).toHaveTextContent('Impayés à ce jour450,00 €');
     expect(figures).toHaveTextContent('Vacance2,59 %14 jours sans bail');
     expect(figures).toHaveTextContent('Rendement brut4,98 %net avant impôt 4,38 %1 bien loué depuis moins de 12 mois n’y compte pas');
-    expect(figures).toHaveTextContent('Cash-flow-604,00 €après charges et mensualités · ≈ -50,33 € par mois');
+    expect(figures).toHaveTextContent('Cash-flow-604,00 €en baisseaprès charges et mensualités · ≈ -50,33 € par mois');
     expect(screen.getByText('2 biens loués · du 23 oct. 2025 au 22 oct. 2026')).toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the cash flow with its arrow, the figure uncoloured', async () => {
+    serve(householdRental());
+    await renderApp('/properties?tab=rental');
+
+    const cash = (await screen.findByText('Cash-flow', { selector: 'dt' })).nextElementSibling!;
+    expect(cash.className).not.toMatch(/text-status-good-text|text-destructive/);
+    expect(cash.querySelector('svg')).toHaveClass('text-status-critical');
+    expect(within(cash as HTMLElement).getByText('en baisse')).toBeInTheDocument();
+  });
+
+  it('arrears due show a warning icon beside the amount, the amount uncoloured', async () => {
+    serve(householdRental());
+    await renderApp('/properties?tab=rental');
+
+    const due = (await screen.findByText('Impayés à ce jour', { selector: 'dt' })).nextElementSibling!;
+    const icon = due.querySelector('svg');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(icon).toHaveClass('text-status-serious');
+    expect(due.className).not.toMatch(/text-status-|text-destructive/);
+    expect(due).toHaveTextContent('450,00 €');
   });
 
   it('lists each let property with its lease and cash flow, each row to its rental tab', async () => {

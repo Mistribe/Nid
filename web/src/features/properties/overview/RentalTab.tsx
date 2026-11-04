@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { useId, useState, type ReactNode } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
@@ -21,6 +22,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/features/investments/chart/plot';
+import { Direction } from '@/features/investments/Figures';
 import { monthLabel } from '@/features/income/expected/months';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PROPERTIES_RENTAL, type PropertiesRental, type RentalMonth, type RentalRow } from '../api';
@@ -62,8 +64,6 @@ function Sub({ children }: { children: ReactNode }) {
 }
 
 const isZero = (amount: string) => /^-?0*(\.0*)?$/.test(amount);
-const toneOf = (value?: MoneyValue | null): 'up' | 'down' | undefined =>
-  !value || isZero(value.amount) ? undefined : value.amount.startsWith('-') ? 'down' : 'up';
 const signed = (value: MoneyValue) => signedMoney(value.currency, value.amount);
 
 function Figures({ d }: { d: PropertiesRental }) {
@@ -75,8 +75,9 @@ function Figures({ d }: { d: PropertiesRental }) {
       { label: t('properties_rental.received'), value: (
         <>{d.rentReceived ? formatMoney(d.rentReceived) : unknown}{d.expectedRent ? <Sub>{t('properties_rental.received_note', { amount: formatMoney(d.expectedRent) })}</Sub> : null}</>
       ) },
-      { label: t('properties_rental.arrears'), tone: arrears && !isZero(arrears.amount) && !arrears.amount.startsWith('-') ? 'down' : undefined, value: (
+      { label: t('properties_rental.arrears'), value: (
         <>
+          {arrears && !isZero(arrears.amount) && !arrears.amount.startsWith('-') ? <TriangleAlert aria-hidden="true" className="mr-1 inline size-4 text-status-serious" /> : null}
           {arrears ? formatMoney(arrears) : unknown}
           {arrears && isZero(arrears.amount) ? <Sub>{t('properties_rental.arrears_none')}</Sub> : null}
           {arrears?.amount.startsWith('-') ? <Sub>{t('properties_rental.arrears_over')}</Sub> : null}
@@ -92,8 +93,8 @@ function Figures({ d }: { d: PropertiesRental }) {
           {d.grossYield && d.notSignificantCount > 0 ? <Sub>{t('properties_rental.not_significant_count', { count: d.notSignificantCount })}</Sub> : null}
         </>
       ) },
-      { label: t('properties_rental.cash'), tone: toneOf(d.cashFlow), value: (
-        <>{d.cashFlow ? signed(d.cashFlow) : unknown}{d.cashFlowMonthly ? <Sub>{t('properties_rental.cash_note', { amount: signed(d.cashFlowMonthly) })}</Sub> : null}</>
+      { label: t('properties_rental.cash'), value: (
+        <>{d.cashFlow ? <Direction amount={d.cashFlow} /> : unknown}{d.cashFlowMonthly ? <Sub>{t('properties_rental.cash_note', { amount: signed(d.cashFlowMonthly) })}</Sub> : null}</>
       ) },
     ]} />
   );

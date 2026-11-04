@@ -54,7 +54,6 @@
     },
     "back": "Retour aux revenus",
     "tab": { "overview": "Vue d’ensemble", "history": "Historique", "oneoffs": "Exceptionnels", "settings": "Réglages" },
-    "more_actions": "Autres actions",
     "phase_menu": "Actions de la période {{label}} du {{date}}",
     "loading": "Chargement du revenu",
     "read_only": "Vous pouvez consulter ce revenu, pas le modifier.",

@@ -7,12 +7,13 @@ import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
-import { ConfirmAction } from '@/components/ConfirmAction';
+import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import { Segmented } from '@/components/form/Segmented';
 import { LocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { RowMenu } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -71,6 +72,7 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
   const readingId = useId();
   const [tab, setTab] = useDetailTab(TABS);
   const [real, setReal] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<ScenarioDialog | null>(null);
   const [refused, setRefused] = useState<Refused | null>(null);
   const [problem, setProblem] = useState<Presentation | null>(null);
@@ -78,6 +80,7 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
   const [returnTo, setReturnTo] = useState<ScenarioDialog | null>(null);
   const renameRef = useRef<HTMLButtonElement>(null);
   const assumptionsRef = useRef<HTMLButtonElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!returnTo) return;
     (returnTo === 'rename' ? renameRef : assumptionsRef).current?.focus();
@@ -139,8 +142,8 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
             {canWrite ? (
               <>
                 <Button ref={renameRef} type="button" variant="outline" onClick={() => open('rename')}><Pencil aria-hidden="true" />{t('scenarios.projection.detail.rename')}</Button>
-                <ConfirmAction label={t('scenarios.projection.detail.delete')} confirmation={t('scenarios.projection.detail.delete_confirm')}
-                  pending={remove.isPending} onConfirm={() => remove.mutate({ params: { path: { id: scenario.id } } })} />
+                <RowMenu label={t('page.more_actions')} triggerRef={moreRef}
+                  items={[{ label: t('scenarios.projection.detail.delete'), destructive: true, disabled: remove.isPending, onSelect: () => setDeleting(true) }]} />
               </>
             ) : null}
           </>
@@ -155,6 +158,10 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
           <p className="text-sm text-muted-foreground">{t('scenarios.projection.result.reminder')}</p>
         </section>
       </PageHeader>
+      {deleting ? (
+        <ConfirmFromMenu label={t('scenarios.projection.detail.delete')} confirmation={t('scenarios.projection.detail.delete_confirm')} pending={remove.isPending}
+          returnFocus={moreRef} onClose={() => setDeleting(false)} onConfirm={() => remove.mutate({ params: { path: { id: scenario.id } } })} />
+      ) : null}
       {canWrite ? null : <p>{t('scenarios.projection.detail.read_only')}</p>}
       {remove.error ? <ProblemMessage problem={present(toProblem(remove.error))} /> : null}
 

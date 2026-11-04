@@ -183,7 +183,6 @@
   },
   "loan_contract": {
     "title": "Modifier le contrat : {{name}}",
-    "back": "Retour au crédit",
     "loading": "Chargement du contrat",
     "form": "Contrat du crédit",
     "submit": "Enregistrer le contrat",

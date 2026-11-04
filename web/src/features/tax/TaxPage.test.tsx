@@ -595,6 +595,18 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     expect(screen.queryByText('435')).not.toBeInTheDocument();
   });
 
+  it('a deficit is named by its label, the figure carries no colour', async () => {
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...view2044().totals, result: '-500.00', globalDeficit: '500.00' } }))),
+    );
+    await renderApp('/tax?tab=2044');
+
+    const figure = (await screen.findByText('Déficit', { selector: 'dt' })).nextElementSibling!;
+    expect(figure).toHaveTextContent('-500,00');
+    expect(figure.className).not.toMatch(/text-status-|text-destructive/);
+  });
+
   it('falls back to last year when ?year= is not one of the offered years', async () => {
     const asked: string[] = [];
     server.use(

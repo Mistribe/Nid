@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { expectHeaderActionRule, openMore } from '@/test/headerActions';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -262,13 +263,53 @@ describe('ProjectionScenarioPage', () => {
 
   it('deletes the scenario after a confirmation and goes back to the list', async () => {
     const { deleted } = serve();
-    const { user, router } = await renderApp(`/scenarios/projection/${ID}`);
+    const { user, router, container } = await renderApp(`/scenarios/projection/${ID}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Supprimer' }));
+    await screen.findByRole('button', { name: 'Renommer' });
+    expectHeaderActionRule(container);
+    expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument();
+    await openMore(user);
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Supprimer']);
+    await user.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toEqual([ID]));
     await waitFor(() => expect(router.state.location.pathname).toBe('/scenarios'));
+  });
+
+  it('puts the focus back on « Autres actions » when the delete confirmation is cancelled or escaped', async () => {
+    const { deleted } = serve();
+    const { user } = await renderApp(`/scenarios/projection/${ID}`);
+    await screen.findByRole('button', { name: 'Renommer' });
+    const more = screen.getByRole('button', { name: 'Autres actions' });
+    for (const dismiss of [() => user.click(screen.getByRole('button', { name: 'Annuler' })), () => user.keyboard('{Escape}')]) {
+      await openMore(user);
+      await screen.findByRole('menuitem', { name: 'Supprimer' });
+      await user.keyboard('{Enter}');
+      await screen.findByRole('alertdialog');
+      await dismiss();
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      await waitFor(() => expect(more).toHaveFocus());
+    }
+    expect(deleted).toEqual([]);
+  });
+
+  it('disables « Supprimer » while the delete request runs', async () => {
+    serve();
+    let release: () => void = () => undefined;
+    server.use(http.delete('*/api/v1/scenarios/:id', async () => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      return new HttpResponse(null, { status: 204 });
+    }));
+    const { user } = await renderApp(`/scenarios/projection/${ID}`);
+    await screen.findByRole('button', { name: 'Renommer' });
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    await openMore(user);
+    expect(await screen.findByRole('menuitem', { name: 'Supprimer' })).toHaveAttribute('aria-disabled', 'true');
+    release();
   });
 
   it('is read-only when the reader cannot write it', async () => {
@@ -280,7 +321,7 @@ describe('ProjectionScenarioPage', () => {
     expect(screen.queryByRole('button', { name: 'Ajouter un événement' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Actions pour/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Renommer' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Hypothèses' }));
     expect(await screen.findByRole('region', { name: 'Hypothèses du scénario' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Modifier les hypothèses' })).not.toBeInTheDocument();

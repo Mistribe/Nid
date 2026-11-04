@@ -208,7 +208,7 @@ function Result({ view, overview, penalties, penaltyErrors, stale, onPenalty, on
   return (
     <>
       <StatLine items={[
-        { label: t('loans_early.net'), tone: 'up',
+        { label: t('loans_early.net'),
           value: <>{signedMoney(view.currency, view.netSaving.amount)}<span className="block text-sm font-normal text-muted-foreground">{t('loans_early.net_sub', { interest: formatMoney(view.interestSaved), penalties: formatMoney(view.penalties) })}</span></> },
         { label: t('loans_early.monthly'),
           value: <>{text(view.monthlyPaymentAfter)}<span className="block text-sm font-normal text-muted-foreground">

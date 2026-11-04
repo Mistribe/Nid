@@ -23,11 +23,21 @@ describe('Biens › valorisation', () => {
 
     expect(await screen.findByRole('tab', { name: 'Valorisation' })).toHaveAttribute('aria-selected', 'true');
     const figures = (await screen.findByText('Plus-value latente', { selector: 'dt' })).closest('dl')!;
-    expect(figures).toHaveTextContent('+20 700,00 €+4,4 % sur 467 300,00 € de prix de revient · avant impôt');
+    expect(figures).toHaveTextContent('+20 700,00 €en hausse+4,4 % sur 467 300,00 € de prix de revient · avant impôt');
     expect(figures).toHaveTextContent('Valeur au m²3 392,00 €85,5 m² au total1 bien sans surface n’y compte pas');
     expect(figures).toHaveTextContent('Estimations1 sur 2 à jour1 bien à réestimer');
     expect(seen).toEqual(['?scope=household']);
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the latent gain with its arrow, the figure uncoloured', async () => {
+    serve(householdValuation());
+    await renderApp('/properties?tab=valuation');
+
+    const gain = (await screen.findByText('Plus-value latente', { selector: 'dt' })).nextElementSibling!;
+    expect(gain.className).not.toMatch(/text-status-good-text|text-destructive/);
+    expect(gain.querySelector('svg')).toHaveClass('text-status-good');
+    expect(within(gain as HTMLElement).getByText('en hausse')).toBeInTheDocument();
   });
 
   it('draws each property since its purchase, with a table for assistive tech', async () => {

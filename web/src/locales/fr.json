@@ -319,6 +319,7 @@
     "sign_in_again": "Se reconnecter"
   },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
+  "page": { "more_actions": "Autres actions" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "common": { "confirm": "Confirmer",
     "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "breadcrumb": "Fil d’Ariane",

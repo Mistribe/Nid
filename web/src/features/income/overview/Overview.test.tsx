@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -7,6 +7,8 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { IncomeOverview } from '../api';
 import { overview, SALARY, sourceRow } from '../testData';
+import { Change } from './OverviewFigures';
+import '@/locales/income';
 
 const ALICE = '0192f0aa-0000-7000-8000-0000000000a1';
 
@@ -124,5 +126,22 @@ describe('Income overview', () => {
 
     await screen.findByText('6 420,00 €');
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('Change', () => {
+  it('shows its arrow in the status colour and says its direction', () => {
+    const { container, rerender } = render(<Change value={0.042} />);
+    expect(container.querySelector('svg')).toHaveClass('text-status-good');
+    expect(screen.getByText('hausse')).toBeInTheDocument();
+    rerender(<Change value={-0.01} />);
+    expect(container.querySelector('svg')).toHaveClass('text-status-critical');
+    expect(screen.getByText('baisse')).toBeInTheDocument();
+  });
+
+  it('a zero change shows no arrow', () => {
+    const { container } = render(<Change value={0} />);
+    expect(container.querySelector('svg')).toBeNull();
+    expect(container.innerHTML).not.toMatch(/text-status/);
   });
 });

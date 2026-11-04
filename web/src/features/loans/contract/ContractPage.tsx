@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useNavigate, useParams } from '@tanstack/react-router';
+import { useState, type ReactNode } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -9,7 +9,7 @@ import { present, toProblem } from '@/api/errors';
 import { formatLocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { FormActions } from '@/components/page/FormPage';
+import { FormActions, FormPage } from '@/components/page/FormPage';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
@@ -29,24 +29,18 @@ export function ContractPage() {
   const answer = $api.useQuery('get', LOAN, { params: { path: { id } } });
   // « Recharger » remounts the form on the contract read again; a background refetch never resets what is being typed.
   const [generation, setGeneration] = useState(0);
-  const back = <Link to="/loans/$id" params={{ id }} className="text-sm underline">{t('loan_contract.back')}</Link>;
+  // The loan's crumb waits for its name.
+  const crumbs = (name?: string) => [{ label: t('nav.loans'), to: '/loans' as const }, ...(name ? [{ label: name, to: '/loans/$id' as const, params: { id } }] : [])];
+  const page = (name: string | undefined, children: ReactNode, title = t('loan_contract.form')) => <FormPage crumbs={crumbs(name)} title={title} width="max-w-2xl">{children}</FormPage>;
 
   // An unknown loan and another adult's private one both answer 404: « Cet élément est introuvable. ».
-  if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
-  if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('loan_contract.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (answer.error) return page(undefined, <ProblemMessage problem={present(toProblem(answer.error))} />);
+  if (!answer.data) return page(undefined, <div aria-busy="true" aria-label={t('loan_contract.loading')} className="h-40 shimmer rounded-md border bg-muted" />);
 
   const loan = answer.data;
-  return (
-    <article className="mx-auto w-full max-w-2xl space-y-4">
-      {back}
-      <h1 className="text-2xl font-semibold">{t('loan_contract.title', { name: loan.name })}</h1>
-      <div className="rounded-xl border bg-card p-4 shadow-card sm:p-6">
-      {loan.canWrite
-        ? <ContractForm key={generation} loan={loan} onReload={() => answer.refetch().then(() => setGeneration((g) => g + 1))} />
-        : <p>{t('loan_detail.read_only')}</p>}
-      </div>
-    </article>
-  );
+  return page(loan.name, loan.canWrite
+    ? <ContractForm key={generation} loan={loan} onReload={() => answer.refetch().then(() => setGeneration((g) => g + 1))} />
+    : <p>{t('loan_detail.read_only')}</p>, t('loan_contract.title', { name: loan.name }));
 }
 
 function ContractForm({ loan, onReload }: { loan: LoanDetail; onReload: () => Promise<void> }) {

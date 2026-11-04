@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { components } from '@/api/schema';
+import { expectHeaderActionRule } from '@/test/headerActions';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -188,10 +189,24 @@ describe('ContractPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('says an unknown or unreadable loan is not found', async () => {
+  it('is a form page: a left-aligned header with a crumb back to the loan, no card around the form', async () => {
+    serve();
+    const { container } = await renderApp(PAGE);
+
+    const formEl = await form();
+    const header = container.querySelector('header[data-page-header]')!;
+    expect(within(header as HTMLElement).getByRole('heading', { level: 1 })).toHaveTextContent('Modifier le contrat : Prêt maison');
+    expect(within(header as HTMLElement).getByRole('link', { name: 'Prêt maison' })).toHaveAttribute('href', `/loans/${LOAN}`);
+    expectHeaderActionRule(container);
+    expect(formEl.closest('.bg-card')).toBeNull();
+  });
+
+  it('says an unknown or unreadable loan is not found, under the loans crumb alone', async () => {
     server.use(http.get('*/api/v1/realestate/loans/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(PAGE);
 
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    const crumbs = within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getAllByRole('link');
+    expect(crumbs.map((l) => l.textContent)).toEqual(['Crédits']);
   });
 });

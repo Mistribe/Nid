@@ -26,11 +26,21 @@ describe('Placements › vue d’ensemble', () => {
     const figures = (await screen.findByText('Valeur des placements')).closest('dl')!;
     expect(figures).toHaveTextContent('35 000,00 €au 31 août 20251 valeur à mettre à jour');
     expect(figures).toHaveTextContent('Versé net31 800,00 €versements − retraits');
-    expect(figures).toHaveTextContent('Gain+3 200,00 €+10,0 % · avant fiscalité');
+    expect(figures).toHaveTextContent('Gain+3 200,00 €en hausse+10,0 % · avant fiscalité');
     expect(figures).toHaveTextContent('Rendement annuel+6,2 % par an');
-    expect(figures).toHaveTextContent('Depuis le 1er janvier+1 840,00 €hors versements · +5,6 %');
+    expect(figures).toHaveTextContent('Depuis le 1er janvier+1 840,00 €en haussehors versements · +5,6 %');
     expect(seen).toEqual(['?scope=household&span=12m']);
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the gain with its arrow, the figure uncoloured', async () => {
+    serve(household());
+    await renderApp('/investments');
+
+    const gain = (await screen.findByText('Gain', { selector: 'dt' })).nextElementSibling!;
+    expect(gain.className).not.toMatch(/text-status-good-text|text-destructive/);
+    expect(gain.querySelector('svg')).toHaveClass('text-status-good');
+    expect(within(gain as HTMLElement).getByText('en hausse')).toBeInTheDocument();
   });
 
   it('splits by kind and by person, and lists the envelopes with a total', async () => {

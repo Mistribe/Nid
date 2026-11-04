@@ -7,7 +7,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
-import { formatMoney, type MoneyValue } from '@/components/Money';
+import { formatMoney } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
@@ -18,6 +18,7 @@ import { ChartContainer, type ChartConfig } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/features/investments/chart/plot';
+import { Direction } from '@/features/investments/Figures';
 import { money, signedMoney } from '@/features/loans/format';
 import { PROPERTIES_VALUATION, type PropertiesValuation, type ValuationRow } from '../api';
 import { typeText } from '../format';
@@ -59,16 +60,15 @@ const share = (t: TFunction, value: number) =>
   t('properties_valuation.pct', { value: new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(value) });
 /** A surface as the server wrote it, in French: « 82 », « 45,5 »; text only. */
 const surfaceText = (value: string) => value.replace(/\.?0+$/, '').replace('.', ',');
-const isNegative = (value?: MoneyValue | null) => !!value && value.amount.startsWith('-');
 
 function Figures({ d }: { d: PropertiesValuation }) {
   const { t } = useTranslation();
   const unknown = t('properties_valuation.unknown');
   return (
     <StatLine items={[
-      { label: t('properties_valuation.gain'), tone: d.latentGain ? (isNegative(d.latentGain) ? 'down' : 'up') : undefined, value: (
+      { label: t('properties_valuation.gain'), value: (
         <>
-          {d.latentGain ? signedMoney(d.latentGain.currency, d.latentGain.amount) : unknown}
+          {d.latentGain ? <Direction amount={d.latentGain} /> : unknown}
           <Sub>{d.latentGainPct !== null && d.latentGainPct !== undefined && d.costPrice
             ? t('properties_valuation.gain_note', { pct: share(t, d.latentGainPct), cost: formatMoney(d.costPrice) })
             : t('properties_valuation.gain_note_plain')}</Sub>

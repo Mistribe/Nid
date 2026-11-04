@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PERSONS } from '@/features/subscriptions/api';
 import { OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '../api';
-import { AnnualReturn, Gain, pct } from '../Figures';
+import { AnnualReturn, Direction, Gain, pct } from '../Figures';
 import { kindText } from '../format';
 import { kindColor } from './colors';
 import { missingCodes, ValueChart } from './ValueChart';
@@ -84,10 +84,6 @@ function Sub({ children }: { children: ReactNode }) {
   return <span className="block text-sm font-normal text-muted-foreground">{children}</span>;
 }
 
-/** The sign of a server amount, read from its string. */
-const toneOf = (value?: MoneyValue | null): 'up' | 'down' | undefined =>
-  !value ? undefined : value.amount.startsWith('-') ? 'down' : /^0*(\.0*)?$/.test(value.amount) ? undefined : 'up';
-
 /** A share the server rounded, written without a sign. */
 const share = (value: number) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 
@@ -115,9 +111,9 @@ function Figures({ d }: { d: InvestmentsOverview }) {
         </>
       ) },
       { label: t('investments_overview.net'), value: <>{figure(d.netContributions)}<Sub>{t('investments_overview.net_note')}</Sub></> },
-      { label: t('investments_overview.gain'), tone: toneOf(d.gain), value: (
+      { label: t('investments_overview.gain'), value: (
         <>
-          {d.gain ? signed(d.gain) : figure(d.gain)}
+          {d.gain ? <Direction amount={d.gain} /> : figure(d.gain)}
           <Sub>{d.gainPct === null || d.gainPct === undefined ? t('investments_overview.gain_note_plain') : t('investments_overview.gain_note', { pct: percent(d.gainPct) })}</Sub>
         </>
       ) },
@@ -127,9 +123,9 @@ function Figures({ d }: { d: InvestmentsOverview }) {
           <Sub>{t('investments_overview.annual_note')}</Sub>
         </>
       ) },
-      ...(d.sinceJanuary ? [{ label: t('investments_overview.since'), tone: toneOf(d.sinceJanuary), value: (
+      ...(d.sinceJanuary ? [{ label: t('investments_overview.since'), value: (
         <>
-          {signed(d.sinceJanuary)}
+          <Direction amount={d.sinceJanuary} />
           <Sub>{d.sinceJanuaryPct === null || d.sinceJanuaryPct === undefined ? t('investments_overview.since_note_plain') : t('investments_overview.since_note', { pct: percent(d.sinceJanuaryPct) })}</Sub>
         </>
       ) }] : []),

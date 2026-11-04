@@ -103,7 +103,7 @@ function Figures({ view }: { view: Rental2044 }) {
       { label: t('tax.d2044.figure.receipts'), value: eur(totals.receipts) },
       { label: t('tax.d2044.figure.charges'), value: eur(totals.charges) },
       { label: t('tax.d2044.figure.interest'), value: eur(totals.interest) },
-      { label: t(deficit ? 'tax.d2044.figure.deficit' : 'tax.d2044.figure.result'), value: eur(totals.result), tone: deficit ? 'down' : undefined },
+      { label: t(deficit ? 'tax.d2044.figure.deficit' : 'tax.d2044.figure.result'), value: eur(totals.result) },
     ]} />
   );
 }

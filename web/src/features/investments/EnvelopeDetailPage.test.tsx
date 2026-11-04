@@ -64,7 +64,7 @@ describe('EnvelopeDetailPage', () => {
 
     await screen.findByRole('heading', { name: 'PEA', level: 1 });
     const figuresBlock = screen.getByRole('region', { name: 'Valeur et gain' });
-    await waitFor(() => expect(figuresBlock).toHaveTextContent('Valeur estimée au 2 octobre 2025'));
+    await waitFor(() => expect(figuresBlock).toHaveTextContent('Valeur estimée au 2 oct. 2025'));
     expect(figuresBlock).toHaveTextContent('26 100,00 €');
     expect(figuresBlock).toHaveTextContent('convertie');
   });
@@ -128,12 +128,19 @@ describe('EnvelopeDetailPage', () => {
     server.use(http.get('*/api/v1/investments/envelopes/:id/performance', () => HttpResponse.json({ from: '2025-01-01', to: '2025-10-18', performance: eur('439.0000') })));
     await renderApp(`/investments/${PEA}`);
 
-    const line = (await screen.findByText('Valeur au 30 septembre 2025')).closest('dl')!;
+    const line = (await screen.findByText('Valeur au 30 sept. 2025')).closest('dl')!;
     expect(line).toHaveTextContent('25 000,00 €');
     expect(within(line).getByText('Versements nets').nextElementSibling).toHaveTextContent('22 000,00 €');
     expect(within(line).getByText('Gain').nextElementSibling).toHaveTextContent(/\+3\s000,00\s€.*\+13,6\s%/);
     expect(within(line).getByText('Rendement annuel').nextElementSibling).toHaveTextContent(/\+14,2\s%\spar an/);
     await waitFor(() => expect(within(line).getByText('Depuis janvier').nextElementSibling).toHaveTextContent('+439,00 €'));
+  });
+
+  it('dates in figure labels are short', async () => {
+    serve(detail());
+    await renderApp(`/investments/${PEA}`);
+
+    expect(await screen.findByText('Valeur au 30 sept. 2025', { selector: 'dt' })).toBeInTheDocument();
   });
 
   it('enters a value from the header, in a dialog that closes and updates the values tab', async () => {

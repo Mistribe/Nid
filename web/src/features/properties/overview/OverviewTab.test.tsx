@@ -27,11 +27,21 @@ describe('Biens › vue d’ensemble', () => {
     expect(figures).toHaveTextContent('488 000,00 €1 estimation à mettre à jour');
     expect(figures).toHaveTextContent('Crédits restants193 564,23 €1 crédit lié');
     expect(figures).toHaveTextContent('Valeur nette294 435,77 €60,3 % de la valeur');
-    expect(figures).toHaveTextContent('Plus-value latente+20 700,00 €4,4 % sur le prix de revient · avant impôt');
+    expect(figures).toHaveTextContent('Plus-value latente+20 700,00 €en hausse4,4 % sur le prix de revient · avant impôt');
     expect(figures).toHaveTextContent('Loyers reçus, 12 mois9 360,00 €rendement brut 5,02 %');
     // Three years by default, out of the URL.
     expect(seen).toEqual(['?scope=household&span=3y']);
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the latent gain with its arrow, the figure uncoloured', async () => {
+    serve(householdOverview());
+    await renderApp('/properties');
+
+    const gain = (await screen.findByText('Plus-value latente', { selector: 'dt' })).nextElementSibling!;
+    expect(gain.className).not.toMatch(/text-status-good-text|text-destructive/);
+    expect(gain.querySelector('svg')).toHaveClass('text-status-good');
+    expect(within(gain as HTMLElement).getByText('en hausse')).toBeInTheDocument();
   });
 
   it('splits by type and by person, and lists the properties with a total', async () => {

@@ -13,7 +13,7 @@ export function Change({ value, label }: { value: number; label?: string }) {
   const Icon = value < 0 ? ArrowDown : ArrowUp;
   return (
     <span className="inline-flex items-center gap-1 text-sm font-normal">
-      {value === 0 ? null : <Icon aria-hidden="true" className="size-3.5" />}
+      {value === 0 ? null : <Icon aria-hidden="true" className={`size-3.5 ${value < 0 ? 'text-status-critical' : 'text-status-good'}`} />}
       {value === 0 ? null : <span className="sr-only">{value < 0 ? t('income.overview.down') : t('income.overview.up')}</span>}
       {t('income.overview.pct', { value: percent(value, true) })}
       {label ? <span className="text-muted-foreground">{label}</span> : null}
@@ -22,8 +22,6 @@ export function Change({ value, label }: { value: number; label?: string }) {
 }
 
 export const Sub = ({ children }: { children: ReactNode }) => <span className="block text-sm font-normal text-muted-foreground">{children}</span>;
-
-export const tone = (value?: number | null) => (value == null || value === 0 ? undefined : value > 0 ? 'up' : 'down');
 
 /** The four key figures as the server computed them; one it could not compute reads « — » and says why on focus. */
 export function OverviewFigures({ figures, missingRates, period, year }: {
@@ -45,7 +43,7 @@ export function OverviewFigures({ figures, missingRates, period, year }: {
     <TooltipProvider>
       <StatLine items={[
         {
-          label: t('income.overview.per_month'), tone: tone(monthlyChange1y),
+          label: t('income.overview.per_month'),
           value: monthlyNow ? <>{formatMoney(monthlyNow)}{monthlyChange1y != null ? <Change value={monthlyChange1y} label={t('income.overview.over_1y')} /> : null}</> : dash,
         },
         {
@@ -53,11 +51,11 @@ export function OverviewFigures({ figures, missingRates, period, year }: {
           value: total ? <>{formatMoney(total)}{yearly && elapsed ? <Sub>{t('income.overview.elapsed', { amount: formatMoney(elapsed) })}</Sub> : null}</> : dash,
         },
         {
-          label: t('income.overview.vs_previous'), tone: tone(changeVsPreviousPct),
+          label: t('income.overview.vs_previous'),
           value: changeVsPrevious ? <>{formatMoney(changeVsPrevious)}{changeVsPreviousPct != null ? <Change value={changeVsPreviousPct} /> : null}</> : dash,
         },
         {
-          label: t('income.overview.last_3y'), tone: tone(change3y),
+          label: t('income.overview.last_3y'),
           value: change3y != null
             ? <><Change value={change3y} />{change3yYearly != null ? <Sub>{t('income.overview.yearly', { amount: t('income.overview.pct', { value: percent(change3yYearly, true) }) })}</Sub> : null}</>
             : dash,

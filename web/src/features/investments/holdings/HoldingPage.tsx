@@ -72,7 +72,7 @@ export function HoldingPage() {
   const actions = writable && !holding.closedOn ? (
     <>
       <Button type="button" onClick={() => open({ kind: 'movement' })}><Plus aria-hidden="true" />{t('holdings.movement.open')}</Button>
-      <RowMenu label={t('envelope.more_actions')} items={[
+      <RowMenu label={t('page.more_actions')} items={[
         { label: t('holdings.edit'), onSelect: () => open({ kind: 'edit' }) },
         { label: t('holdings.costs.add'), onSelect: () => open({ kind: 'cost' }) },
       ]} />
@@ -86,7 +86,7 @@ export function HoldingPage() {
         meta={<Meta holding={holding} />}>
         <section aria-label={t('holdings.figures')} className="space-y-2">
           <StatLine items={[
-            { label: figures ? t('envelope.value_at', { date: formatLocalDate(figures.asOf) }) : t('envelope.value'), value: figures ? <Money value={figures.value} tabular /> : absent },
+            { label: figures ? t('envelope.value_at', { date: formatLocalDate(figures.asOf, 'short') }) : t('envelope.value'), value: figures ? <Money value={figures.value} tabular /> : absent },
             { label: t('holdings.money_in'), value: figures ? <Money value={figures.moneyIn} tabular /> : absent },
             { label: t('holdings.money_out'), value: figures ? <Money value={figures.moneyOut} tabular /> : absent },
             { label: t('envelope.gain'), value: figures ? (

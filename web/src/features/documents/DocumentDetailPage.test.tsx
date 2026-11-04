@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { expectHeaderActionRule, openMore } from '@/test/headerActions';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -62,24 +63,67 @@ describe('DocumentDetailPage', () => {
 
   it('archives after a confirmation, then offers « Désarchiver »', async () => {
     const { writes } = serveDocument();
-    const { user } = await renderApp(PATH);
-    await user.click(await screen.findByRole('button', { name: 'Archiver' }));
+    const { user, container } = await renderApp(PATH);
+    await screen.findByRole('link', { name: 'Télécharger' });
+    expectHeaderActionRule(container);
+    expect(screen.queryByRole('button', { name: 'Archiver' })).not.toBeInTheDocument();
+    await openMore(user);
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Archiver']);
+    await user.click(screen.getByRole('menuitem', { name: 'Archiver' }));
     expect(writes()).toEqual([]);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(writes().map((w) => w.path)).toEqual([`/api/v1/documents/${DOC}/archive`]));
-    await user.click(await screen.findByRole('button', { name: 'Désarchiver' }));
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Désarchiver' }));
     await waitFor(() => expect(writes().map((w) => w.path).at(-1)).toBe(`/api/v1/documents/${DOC}/unarchive`));
   });
 
   it('keeps the focus on « Modifier » after archiving and after unarchiving', async () => {
     serveDocument();
     const { user } = await renderApp(PATH);
-    await user.click(await screen.findByRole('button', { name: 'Archiver' }));
+    await screen.findByRole('link', { name: 'Télécharger' });
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Archiver' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await user.click(await screen.findByRole('button', { name: 'Désarchiver' }));
-    await screen.findByRole('button', { name: 'Archiver' });
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Désarchiver' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Autres actions' })).toBeInTheDocument());
     await waitFor(() => expect(screen.getByRole('button', { name: 'Modifier' })).toHaveFocus());
+  });
+
+  it('puts the focus back on « Autres actions » when the archive confirmation is cancelled or escaped', async () => {
+    serveDocument();
+    const { user } = await renderApp(PATH);
+    await screen.findByRole('link', { name: 'Télécharger' });
+    const more = screen.getByRole('button', { name: 'Autres actions' });
+    for (const dismiss of [() => user.click(screen.getByRole('button', { name: 'Annuler' })), () => user.keyboard('{Escape}')]) {
+      await openMore(user);
+      await screen.findByRole('menuitem', { name: 'Archiver' });
+      await user.keyboard('{Enter}');
+      await screen.findByRole('alertdialog');
+      await dismiss();
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      await waitFor(() => expect(more).toHaveFocus());
+    }
+  });
+
+  it('disables « Archiver » while the archive request runs', async () => {
+    serveDocument();
+    let release: () => void = () => undefined;
+    server.use(http.post('*/api/v1/documents/:id/archive', async () => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      return new HttpResponse(null, { status: 204 });
+    }));
+    const { user } = await renderApp(PATH);
+    await screen.findByRole('link', { name: 'Télécharger' });
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Archiver' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    await openMore(user);
+    expect(await screen.findByRole('menuitem', { name: 'Archiver' })).toHaveAttribute('aria-disabled', 'true');
+    release();
   });
 
   it('keeps the page when a background refetch fails', async () => {

@@ -1,7 +1,22 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 
 const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
+
+/**
+ * The same dialog for an action started elsewhere (a `⋯` menu item): the page keeps `asking`, so a destructive menu item still asks.
+ * With no trigger of its own, the dialog hands the focus back to `returnFocus` (the `⋯`) when it closes, confirmed or not; a
+ * success that lands elsewhere moves it on from there.
+ */
+export function ConfirmFromMenu({ label, confirmation, pending, returnFocus, onConfirm, onClose }: {
+  label: string; confirmation: string; pending?: boolean; returnFocus: RefObject<HTMLElement | null>; onConfirm: () => void; onClose: () => void;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <ConfirmDialog label={label} confirmation={confirmation} pending={pending} returnFocus={returnFocus} onClose={onClose} onConfirm={() => { onClose(); onConfirm(); }} />
+    </Suspense>
+  );
+}
 
 /**
  * A write is confirmed before it happens (screens.md §12): the button opens an alert dialog that states the effect and

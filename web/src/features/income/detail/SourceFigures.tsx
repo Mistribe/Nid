@@ -5,7 +5,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { percent } from '@/features/dashboard/format';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeSourceOverview } from '../api';
-import { Change, Sub, tone } from '../overview/OverviewFigures';
+import { Change, Sub } from '../overview/OverviewFigures';
 import '@/locales/income';
 
 /**
@@ -39,7 +39,7 @@ export function SourceFigures({ figures }: { figures: IncomeSourceOverview['figu
             : '—',
         },
         {
-          label: t('income_detail.over_1y'), tone: tone(change1y),
+          label: t('income_detail.over_1y'),
           value: (
             <>
               {change1y != null ? <Change value={change1y} /> : '—'}

@@ -4,9 +4,10 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
-import { ConfirmAction } from '@/components/ConfirmAction';
+import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import { LocalDate } from '@/components/LocalDate';
 import { PageHeader } from '@/components/page/PageHeader';
+import { RowMenu } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -20,8 +21,8 @@ import { fileSize, localDay } from './format';
 import '@/locales/documents';
 
 /**
- * Design §2.2: the title with « Télécharger », « Modifier » and « Archiver », the file's figures inline, then the elements it
- * is linked to. The uploader's name comes from the persons the actor may link to; one they cannot see stays unnamed.
+ * Design §2.2: the title with « Télécharger » and « Modifier », « Archiver » in its `⋯` menu, the file's figures inline, then
+ * the elements it is linked to. The uploader's name comes from the persons the actor may link to; one they cannot see stays unnamed.
  */
 export function DocumentDetailPage() {
   const { t } = useTranslation();
@@ -30,9 +31,11 @@ export function DocumentDetailPage() {
   const targets = useDocumentTargets();
   const archive = useArchiveDocument();
   const unarchive = useUnarchiveDocument();
+  const [archiving, setArchiving] = useState(false);
   const [dialog, setDialog] = useState<'editing' | 'linking' | null>(null);
   const editRef = useRef<HTMLButtonElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
   const back = <Link to="/documents" className="text-sm underline">{t('documents_page.detail.back')}</Link>;
 
   if (!answer.data && answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
@@ -54,10 +57,9 @@ export function DocumentDetailPage() {
       {doc.canEdit ? (
         <>
           <Button ref={editRef} type="button" variant="outline" onClick={() => setDialog('editing')}>{t('documents_page.edit')}</Button>
-          {doc.archived
-            ? <Button type="button" variant="outline" disabled={unarchive.isPending} onClick={() => unarchive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_unarchived')); editRef.current?.focus(); } })}>{t('documents_page.unarchive')}</Button>
-            : <ConfirmAction label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}
-                onConfirm={() => archive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_archived')); editRef.current?.focus(); } })} />}
+          <RowMenu label={t('page.more_actions')} triggerRef={moreRef} items={[doc.archived
+            ? { label: t('documents_page.unarchive'), onSelect: () => { if (!unarchive.isPending) unarchive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_unarchived')); editRef.current?.focus(); } }); } }
+            : { label: t('documents_page.archive'), disabled: archive.isPending, onSelect: () => setArchiving(true) }]} />
         </>
       ) : null}
     </>
@@ -88,6 +90,11 @@ export function DocumentDetailPage() {
           </Button>
         ) : null}
       </Section>
+      {archiving ? (
+        <ConfirmFromMenu label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}
+          returnFocus={moreRef} onClose={() => setArchiving(false)}
+          onConfirm={() => archive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_archived')); editRef.current?.focus(); } })} />
+      ) : null}
       {dialog === 'editing' ? <EditDocumentDialog detail={detail} onClose={() => setDialog(null)} onDone={done(editRef)} /> : null}
       {dialog === 'linking' ? <AddLinkDialog doc={doc} onClose={() => setDialog(null)} onDone={done(addRef)} /> : null}
     </article>

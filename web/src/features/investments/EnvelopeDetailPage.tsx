@@ -176,7 +176,7 @@ export function EnvelopeDetailPage() {
         <Plus aria-hidden="true" />{t('envelope.enter_value')}
       </Button>
       <Button ref={flowRef} type="button" variant="outline" onClick={() => setFlowDialog({})}>{t('envelope.add_flow_open')}</Button>
-      <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('envelope.more_actions')} triggerRef={menuRef} items={[
+      <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('page.more_actions')} triggerRef={menuRef} items={[
         { label: t('envelope.transfer.open'), onSelect: () => setTransferOpen(true) },
         { label: t('envelope.closing.open'), onSelect: () => setCloseOpen(true) },
       ]} />
@@ -189,14 +189,14 @@ export function EnvelopeDetailPage() {
         meta={<><span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span><AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} /></>}>
         <section aria-label={t('envelope.figures')} data-guide="investments.figures" className="space-y-2">
           <StatLine items={[
-            { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf) }) : t('envelope.value'),
+            { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf, 'short') }) : t('envelope.value'),
               value: figures.value ? <><Money value={figures.value} tabular />{' '}<StaleBadge days={figures.staleDays} /></> : absent },
             { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
             { label: t('envelope.gain'), value: <Gain figures={figures} /> },
             ...(figures.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
             ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
             ...(holdings.data?.estimate?.value && holdings.data.estimate.asOf ? [{
-              label: t('holding_prices.estimate_at', { date: formatLocalDate(holdings.data.estimate.asOf) }),
+              label: t('holding_prices.estimate_at', { date: formatLocalDate(holdings.data.estimate.asOf, 'short') }),
               value: <><Money value={holdings.data.estimate.value} tabular />{holdings.data.estimate.converted ? <span className="ml-2 text-sm font-normal text-muted-foreground">{t('holding_prices.estimate_converted')}</span> : null}</>,
             }] : []),
             ...extra(t('envelope.fees'), figures.fees),

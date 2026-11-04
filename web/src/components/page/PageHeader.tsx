@@ -26,7 +26,7 @@ export function PageHeader({ crumbs, title, titleRef, meta, actions, children }:
           <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className="text-large-title break-words outline-none">{title}</h1>
           {meta}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div data-page-actions className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
       {children}
     </header>

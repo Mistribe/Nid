@@ -12,6 +12,7 @@ import { server } from '@/test/server';
 import { expectNoAxeViolations } from '@/test/axe';
 import { OwnerChips } from '../OwnerChips';
 import { DetailTabs, useDetailTab } from './DetailTabs';
+import { FormActions, FormPage } from './FormPage';
 import { PageHeader } from './PageHeader';
 import { RowMenu } from './RowMenu';
 import { Section } from './Section';
@@ -163,6 +164,21 @@ describe('page grammar', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('FormPage starts at the left like every page, without a card', () => {
+    render(<FormPage crumbs={undefined} title="Nouveau" width="max-w-2xl"><input aria-label="Nom" /></FormPage>);
+    const article = screen.getByRole('article');
+    expect(article).toHaveClass('max-w-2xl', 'w-full');
+    expect(article).not.toHaveClass('mx-auto');
+    expect(article.firstElementChild).toContainElement(screen.getByRole('heading', { level: 1 }));
+    expect(article.lastElementChild).toBe(screen.getByLabelText('Nom'));
+    expect(article.querySelector('.rounded-xl, .border, .bg-card, .shadow-card')).toBeNull();
+  });
+
+  it('the form keeps its buttons at its foot, set apart', () => {
+    render(<FormActions>ok</FormActions>);
+    expect(screen.getByText('ok')).toHaveClass('border-t', 'pt-4', 'justify-end');
+  });
+
   it('PageHeader titles in the large title style', () => {
     render(<PageHeader title="Placements" />);
     const h1 = screen.getByRole('heading', { level: 1, name: 'Placements' });
@@ -182,9 +198,21 @@ describe('page grammar', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Alice' })).toHaveClass('text-title');
   });
 
-  it('StatLine keeps the figure style on a toned figure', () => {
-    render(<StatLine items={[{ label: 'Gain', value: '+5 €', tone: 'up' }]} />);
-    expect(screen.getByText('+5 €')).toHaveClass('text-figure', 'text-status-good-text');
+  it('StatLine figures carry no colour of their own', () => {
+    render(<StatLine items={[
+      { label: 'Gain', value: '+5 €' },
+      // @ts-expect-error a figure takes no tone: its sense shows in its arrow
+      { label: 'Perte', value: '-5 €', tone: 'down' },
+    ]} />);
+    const dd = screen.getByText('+5 €');
+    expect(dd).toHaveClass('text-figure');
+    expect(dd.className).not.toMatch(/text-status-|text-destructive/);
+    expect(screen.getByText('-5 €').className).not.toMatch(/text-status-|text-destructive/);
+  });
+
+  it('StatLine labels wrap, never truncate', () => {
+    render(<StatLine items={[{ label: 'Valeur estimée au 20 oct. 2026', value: '1 000 €' }]} />);
+    expect(screen.getByText('Valeur estimée au 20 oct. 2026').className).not.toMatch(/truncate|whitespace-nowrap|line-clamp/);
   });
 
   it('StatLine figures and labels use the scale', () => {

@@ -3,7 +3,7 @@ import type { Ref } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-type Item = { label: string; onSelect: () => void; destructive?: boolean };
+type Item = { label: string; onSelect: () => void; destructive?: boolean; disabled?: boolean };
 /** A plain link that downloads (a file route of the API, no client-side route behind it). */
 type Download = { label: string; href: string };
 /** An entry that opens a submenu instead of acting by itself. */
@@ -30,7 +30,7 @@ export function RowMenu({ label, items, triggerRef, id }: {
         ) : 'href' in item ? (
           <DropdownMenuItem key={item.label} asChild><a href={item.href} download>{item.label}</a></DropdownMenuItem>
         ) : (
-          <DropdownMenuItem key={item.label} variant={item.destructive ? 'destructive' : 'default'} onSelect={item.onSelect}>{item.label}</DropdownMenuItem>
+          <DropdownMenuItem key={item.label} variant={item.destructive ? 'destructive' : 'default'} disabled={item.disabled} onSelect={item.onSelect}>{item.label}</DropdownMenuItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>

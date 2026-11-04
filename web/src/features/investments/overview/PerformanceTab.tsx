@@ -25,7 +25,7 @@ import { todayIso } from '../../subscriptions/today';
 import { HOUSEHOLD_PERFORMANCE, OVERVIEW, type HouseholdPerformance } from '../api';
 import { toPlot } from '../chart/plot';
 import { missingRateCodes } from '../format';
-import { pct } from '../Figures';
+import { Direction, pct } from '../Figures';
 import { presetRange } from '../period/periods';
 import { kindColor } from './colors';
 import { TableToggle } from '@/components/page/TableToggle';
@@ -139,8 +139,8 @@ function Body({ d }: { d: HouseholdPerformance }) {
   return (
     <>
       <StatLine items={[
-        { label: t('investments_performance.performance'), tone: d.performance ? (negative(d.performance) ? 'down' : 'up') : undefined,
-          value: <>{figure(d.performance, signed)}{sub(t('investments_performance.performance_note'))}</> },
+        { label: t('investments_performance.performance'),
+          value: <>{figure(d.performance, (v) => <Direction amount={v} />)}{sub(t('investments_performance.performance_note'))}</> },
         { label: t('investments_performance.engaged'),
           value: <>{d.performancePct === null || d.performancePct === undefined ? '—' : t('investments.pct', { value: pct(d.performancePct) })}{sub(t('investments_performance.engaged_note'))}</> },
         ...(best?.performance ? [{ label: t('investments_performance.best'), value: <>{signed(best.performance)}{sub(month(best.month))}</> }] : []),

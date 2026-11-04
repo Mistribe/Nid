@@ -47,6 +47,7 @@ describe('Crédits › rembourser plus tôt', () => {
     expect(figures).toHaveTextContent('+1 855,50 €1 855,50 € d’intérêts, 0,00 € de pénalité');
     expect(figures).toHaveTextContent('Mensualité du foyer1 159,92 €au lieu de 2 159,92 € dès décembre 2026');
     expect(figures).toHaveTextContent('Sans crédit enjuillet 2045au lieu de octobre 2045');
+    expect(within(figures).getByText('Économie nette').nextElementSibling!.className).not.toMatch(/text-status-|text-destructive/);
     const where = await region(WHERE);
     const [car, home] = within(within(where).getByRole('table')).getAllByRole('row').slice(1);
     expect(car).toHaveTextContent('Prêt auto5 %3 000,00 €soldé en novembre 2026');

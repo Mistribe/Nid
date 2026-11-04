@@ -3,16 +3,16 @@ import { cn } from '@/lib/utils';
 import { PageHeader } from './PageHeader';
 
 /**
- * A creation or edit page (design-system.md §6.1): a centred column of reading width, the header above, the form on a
- * card below it, its actions at the foot of the card (`FormActions`).
+ * A creation or edit page (design-system.md §6.1): the header where every page has it, the form below in a column of
+ * reading width from the left edge, its actions at its foot (`FormActions`).
  */
 export function FormPage({ crumbs, title, width = 'max-w-3xl', children }: {
   crumbs: ComponentProps<typeof PageHeader>['crumbs']; title: ReactNode; width?: 'max-w-2xl' | 'max-w-3xl'; children: ReactNode;
 }) {
   return (
-    <article className={cn('mx-auto w-full space-y-4', width)}>
+    <article className={cn('w-full space-y-6', width)}>
       <PageHeader crumbs={crumbs} title={title} />
-      <div className="rounded-xl border bg-card p-4 shadow-card sm:p-6">{children}</div>
+      {children}
     </article>
   );
 }

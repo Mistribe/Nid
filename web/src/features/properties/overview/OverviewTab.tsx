@@ -19,6 +19,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Direction } from '@/features/investments/Figures';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PERSONS } from '@/features/subscriptions/api';
 import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow, type PropertyWatch } from '../api';
@@ -76,15 +77,9 @@ function Sub({ children }: { children: ReactNode }) {
   return <span className="block text-sm font-normal text-muted-foreground">{children}</span>;
 }
 
-/** The sign of a server amount, read from its string. */
-const toneOf = (value?: MoneyValue | null): 'up' | 'down' | undefined =>
-  !value ? undefined : value.amount.startsWith('-') ? 'down' : /^0*(\.0*)?$/.test(value.amount) ? undefined : 'up';
-
 /** A share the server rounded to 0.1 %, written as it is. */
 const share = (t: TFunction, value: number) =>
   t('properties_overview.pct', { value: new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value) });
-
-const signed = (value: MoneyValue) => signedMoney(value.currency, value.amount);
 
 function Figures({ d }: { d: PropertiesOverview }) {
   const { t } = useTranslation();
@@ -105,9 +100,9 @@ function Figures({ d }: { d: PropertiesOverview }) {
       { label: t('properties_overview.net'), value: (
         <>{figure(d.netValue)}{known(d.netValuePct) ? <Sub>{t('properties_overview.net_note', { pct: share(t, d.netValuePct) })}</Sub> : null}</>
       ) },
-      { label: t('properties_overview.gain'), tone: toneOf(d.latentGain), value: (
+      { label: t('properties_overview.gain'), value: (
         <>
-          {d.latentGain ? signed(d.latentGain) : figure(d.latentGain)}
+          {d.latentGain ? <Direction amount={d.latentGain} /> : figure(d.latentGain)}
           <Sub>{known(d.latentGainPct) ? t('properties_overview.gain_note', { pct: share(t, d.latentGainPct) }) : t('properties_overview.gain_note_plain')}</Sub>
         </>
       ) },

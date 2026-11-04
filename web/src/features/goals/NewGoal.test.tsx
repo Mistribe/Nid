@@ -25,6 +25,15 @@ const step = () => screen.getByRole('listitem', { current: 'step' });
 beforeAll(async () => { await import('./NewGoal'); }, 30_000);
 
 describe('NewGoal', () => {
+  it('lays its form on the page, not on a card', async () => {
+    serve([]);
+    await renderApp('/goals/new');
+    const field = await screen.findByLabelText('Nom');
+    const article = field.closest('article')!;
+    expect(within(article).getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(field.closest('.bg-card')).toBeNull();
+  });
+
   it('creates a savings goal with one envelope at 50 %', async () => {
     const bodies: unknown[] = [];
     serve(bodies);
