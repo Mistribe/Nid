@@ -22,8 +22,14 @@ describe('GoalsCard', () => {
     serve();
     await renderApp('/dashboard');
     const card = await screen.findByRole('region', { name: 'Objectifs' });
-    const links = within(card).getAllByRole('link').map((a) => a.textContent);
-    expect(links).toEqual(['Tous les objectifs', 'Voyage', 'Toit', 'Voiture', 'Mariage']);
+    const rows = within(card).getAllByRole('listitem');
+    expect(rows.map((r) => r.querySelector('a')?.textContent)).toEqual([
+      expect.stringMatching(/^Voyage/), expect.stringMatching(/^Toit/), expect.stringMatching(/^Voiture/), expect.stringMatching(/^Mariage/),
+    ]);
+    // The list is the grouped one, each row led by the goals module's tile and linking to its goal.
+    expect(rows.map((r) => r.dataset.tile)).toEqual(['4', '4', '4', '4']);
+    expect(within(rows[0] as HTMLElement).getByRole('link')).toHaveAttribute('href', '/goals/0192f0aa-0000-7000-8000-00000000a100');
+    expect(within(rows[0] as HTMLElement).getByText('40 %', { exact: false })).toBeInTheDocument();
     expect(within(card).getAllByText('En retard')).toHaveLength(4);
     expect(within(card).getByRole('link', { name: 'Tous les objectifs' })).toHaveAttribute('href', '/goals');
   });

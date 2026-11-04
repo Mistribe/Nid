@@ -11,6 +11,9 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money, type MoneyValue } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { SectionCard } from '@/components/page/SectionCard';
+import { tileOf } from '@/app/nav';
+import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
+import { Hero, HeroChange, HeroUnknown } from '@/components/page/Hero';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
@@ -21,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PERSONS } from '@/features/subscriptions/api';
 import { OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '../api';
+import { toPlot } from '../chart/plot';
 import { AnnualReturn, Direction, Gain, pct } from '../Figures';
 import { kindText } from '../format';
 import { kindColor } from './colors';
@@ -58,6 +62,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
+        <ValueHero d={d} />
         <Figures d={d} />
         <ValueChart d={d} span={span} />
         <div className="grid gap-4 md:grid-cols-3">
@@ -95,21 +100,37 @@ function Estimated({ on }: { on: string }) {
   return <span className="block text-xs text-muted-foreground">{t('investments_overview.estimated_on', { date: formatLocalDate(on, 'short') })}</span>;
 }
 
+/** The value leads, with the change since 1 January and the server's points as its curve. */
+function ValueHero({ d }: { d: InvestmentsOverview }) {
+  const { t } = useTranslation();
+  const figure = useFigure(d);
+  const notes = d.oldestAsOf || d.staleCount > 0 || d.estimatedCount > 0 || d.withoutValueCount > 0;
+  return (
+    <Hero label={t('investments_overview.value')} figure={d.value ? figure(d.value) : <HeroUnknown>{figure(d.value)}</HeroUnknown>}
+      change={d.sinceJanuary ? (
+        <HeroChange amount={d.sinceJanuary}
+          pct={d.sinceJanuaryPct === null || d.sinceJanuaryPct === undefined ? null : t('investments.pct', { value: pct(d.sinceJanuaryPct) })}>
+          {t('investments_overview.since_hero')}
+        </HeroChange>
+      ) : null}
+      note={notes ? (
+        <>
+          {d.oldestAsOf ? <Sub>{t('investments_overview.value_as_of', { date: formatLocalDate(d.oldestAsOf, 'short') })}</Sub> : null}
+          {d.staleCount > 0 ? <Sub><span className="inline-flex items-center gap-1"><Clock aria-hidden="true" className="size-3.5" />{t('investments_overview.stale', { count: d.staleCount })}</span></Sub> : null}
+          {d.estimatedCount > 0 ? <Sub>{t('investments_overview.estimated_count', { count: d.estimatedCount })}</Sub> : null}
+          {d.withoutValueCount > 0 ? <Sub>{t('investments_overview.without_value', { count: d.withoutValueCount })}</Sub> : null}
+        </>
+      ) : null}
+      values={d.points.flatMap((p) => (p.value ? [toPlot(p.value.amount)] : []))} />
+  );
+}
+
 function Figures({ d }: { d: InvestmentsOverview }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
   const percent = (value: number) => t('investments.pct', { value: pct(value) });
   return (
     <StatLine items={[
-      { label: t('investments_overview.value'), value: (
-        <>
-          {figure(d.value)}
-          {d.oldestAsOf ? <Sub>{t('investments_overview.value_as_of', { date: formatLocalDate(d.oldestAsOf, 'short') })}</Sub> : null}
-          {d.staleCount > 0 ? <Sub><span className="inline-flex items-center gap-1"><Clock aria-hidden="true" className="size-3.5" />{t('investments_overview.stale', { count: d.staleCount })}</span></Sub> : null}
-          {d.estimatedCount > 0 ? <Sub>{t('investments_overview.estimated_count', { count: d.estimatedCount })}</Sub> : null}
-          {d.withoutValueCount > 0 ? <Sub>{t('investments_overview.without_value', { count: d.withoutValueCount })}</Sub> : null}
-        </>
-      ) },
       { label: t('investments_overview.net'), value: <>{figure(d.netContributions)}<Sub>{t('investments_overview.net_note')}</Sub></> },
       { label: t('investments_overview.gain'), value: (
         <>
@@ -123,12 +144,6 @@ function Figures({ d }: { d: InvestmentsOverview }) {
           <Sub>{t('investments_overview.annual_note')}</Sub>
         </>
       ) },
-      ...(d.sinceJanuary ? [{ label: t('investments_overview.since'), value: (
-        <>
-          <Direction amount={d.sinceJanuary} />
-          <Sub>{d.sinceJanuaryPct === null || d.sinceJanuaryPct === undefined ? t('investments_overview.since_note_plain') : t('investments_overview.since_note', { pct: percent(d.sinceJanuaryPct) })}</Sub>
-        </>
-      ) }] : []),
     ]} />
   );
 }
@@ -202,15 +217,13 @@ function WatchCard({ d }: { d: InvestmentsOverview }) {
   const shown = all ? d.watch : d.watch.slice(0, WATCH_SHOWN);
   return (
     <SectionCard title={t('investments_overview.watch_title')}>
-      <ul className="space-y-3 text-sm">
+      <GroupedList>
         {shown.map((w) => (
-          <li key={`${w.code}/${w.envelopeId}/${w.holdingId ?? ''}`}>
-            <Link to="/investments/$id" params={{ id: w.envelopeId }} search={w.holdingId || w.code === 'uc_share_below_floor' ? { tab: 'holdings' } : {}}
-              className="font-medium hover:underline">{names.get(w.envelopeId) ?? ''}</Link>
-            <span className="block text-muted-foreground">{watchText(t, w)}</span>
-          </li>
+          <GroupedRow key={`${w.code}/${w.envelopeId}/${w.holdingId ?? ''}`} tile={tileOf('/investments')}
+            link={{ to: '/investments/$id', params: { id: w.envelopeId }, search: w.holdingId || w.code === 'uc_share_below_floor' ? { tab: 'holdings' } : {} }}
+            title={names.get(w.envelopeId) ?? ''} detail={watchText(t, w)} />
         ))}
-      </ul>
+      </GroupedList>
       {d.watch.length > WATCH_SHOWN ? (
         <Button type="button" variant="link" className="h-auto p-0" onClick={() => setAll((v) => !v)}>
           {all ? t('investments_overview.watch_less') : t('investments_overview.watch_all', { count: d.watch.length })}

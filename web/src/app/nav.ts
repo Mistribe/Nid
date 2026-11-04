@@ -51,3 +51,9 @@ export function tileOf(to: Place): { icon: LucideIcon; tile: Tile } {
   const { icon, tile } = to in PLACES ? PLACES[to as keyof typeof PLACES] : NAV.find((i) => i.to === to)!;
   return { icon, tile };
 }
+
+/** The page of a module the server names (an event's `module`), if it has one. */
+export function placeOf(module: string): Place | undefined {
+  const to = `/${module}`;
+  return NAV.some((i) => i.to === to) ? (to as Place) : undefined;
+}

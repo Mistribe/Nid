@@ -48,7 +48,7 @@ describe('dashboard lists', () => {
     expect(items[1]).toHaveTextContent('Expire');
     expect(items[2]).toHaveTextContent('Dernier jour pour résilier');
     expect(items[3]).toHaveTextContent('Fin de « CDD »');
-    expect(within(items[3] as HTMLElement).getByRole('link', { name: 'Employeur' })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000b1');
+    expect(within(items[3] as HTMLElement).getByRole('link', { name: /Employeur/ })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000b1');
     await expectNoAxeViolations(container);
   });
 
@@ -67,15 +67,22 @@ describe('dashboard lists', () => {
     const { container } = await renderApp('/dashboard');
 
     const items = within(await section('À venir')).getAllByRole('listitem');
+    expect(items[0]).toHaveAttribute('data-tile', '3');
     expect(items[0]).toHaveTextContent('Taxe foncière');
     expect(items[0]).toHaveTextContent('1 200,00 €');
-    expect(within(items[0] as HTMLElement).getByRole('link', { name: 'Maison' })).toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f1');
+    expect(within(items[0] as HTMLElement).getByRole('link', { name: /Maison/ })).toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f1');
     expect(items[1]).toHaveTextContent('Estimation à refaire');
     expect(items[2]).toHaveTextContent('Dernière échéance');
-    expect(within(items[2] as HTMLElement).getByRole('link', { name: 'Prêt travaux' })).toHaveAttribute('href', '/loans/00000000-0000-7000-8000-0000000000f2');
+    expect(within(items[2] as HTMLElement).getByRole('link', { name: 'Dernière échéance Prêt travaux' })).toHaveAttribute('href', '/loans/00000000-0000-7000-8000-0000000000f2');
     expect(items[3]).toHaveTextContent('Fin de la phase 1 : taux ou différé qui change');
     expect(items[4]).toHaveTextContent('Fin du bail « T2 meublé »');
     await expectNoAxeViolations(container);
+  });
+
+  it('falls back to the neutral tile for a module with no page', async () => {
+    serve(dashboard({ upcoming: [event({ module: 'unknown', id: null })] }));
+    await renderApp('/dashboard');
+    expect(within(await section('À venir')).getAllByRole('listitem')[0]).toHaveAttribute('data-tile', 'neutral');
   });
 
   it('shows the PER deadline of 31 December, linked to the tax page', async () => {
@@ -91,9 +98,9 @@ describe('dashboard lists', () => {
     const items = within(await section('À venir')).getAllByRole('listitem');
     expect(items[0]).toHaveTextContent('reste à verser avant le 31 décembre');
     expect(items[0]).toHaveTextContent('2 920,00 €');
-    expect(within(items[0] as HTMLElement).getByRole('link', { name: 'Foyer (plafonds mutualisés)' })).toHaveAttribute('href', '/tax');
+    expect(within(items[0] as HTMLElement).getByRole('link', { name: /Foyer \(plafonds mutualisés\)/ })).toHaveAttribute('href', '/tax');
     expect(items[1]).toHaveTextContent('minimum à verser avant le 31 décembre pour ne rien perdre');
-    expect(within(items[1] as HTMLElement).getByRole('link', { name: 'Alice' })).toHaveAttribute('href', '/tax');
+    expect(within(items[1] as HTMLElement).getByRole('link', { name: 'PER : minimum à verser avant le 31 décembre pour ne rien perdre Alice 1 000,00 €' })).toHaveAttribute('href', '/tax');
     await expectNoAxeViolations(container);
   });
 

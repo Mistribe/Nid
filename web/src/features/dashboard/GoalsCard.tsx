@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { tileOf } from '@/app/nav';
+import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { SectionCard } from '@/components/page/SectionCard';
 import { useGoals } from '../goals/api';
 import { Amounts, GoalProgress, GoalStatus } from '../goals/GoalStatus';
@@ -14,16 +16,14 @@ export function GoalsCard({ scope }: { scope: 'me' | 'household' }) {
   if (!data || data.items.length === 0) return null;
   return (
     <SectionCard title={t('goals_card.title')} actions={<Link to="/goals" className="text-sm hover:underline">{t('goals_card.all')}</Link>}>
-      <ul className="divide-y">
+      <GroupedList>
         {data.items.slice(0, MAX).map((g) => (
-          <li key={g.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
-            <Link to="/goals/$id" params={{ id: g.id }} className="font-medium hover:underline">{g.name}</Link>
-            <GoalProgress pct={g.progressPct} />
-            <span className="text-sm text-muted-foreground"><Amounts goal={g} /></span>
-            <GoalStatus status={g.status} />
-          </li>
+          // The progress bar and the amounts go in `detail`: a row has no other place for them.
+          <GroupedRow key={g.id} link={{ to: '/goals/$id', params: { id: g.id } }} tile={tileOf('/goals')} title={g.name}
+            detail={<span className="flex flex-wrap items-center gap-x-4 gap-y-1 whitespace-nowrap"><GoalProgress pct={g.progressPct} /><Amounts goal={g} /></span>}
+            trailing={<GoalStatus status={g.status} />} />
         ))}
-      </ul>
+      </GroupedList>
     </SectionCard>
   );
 }

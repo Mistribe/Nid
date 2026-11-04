@@ -15,4 +15,8 @@ describe('cn', () => {
     expect(cn(layer, 'bg-card')).toBe('bg-card');
     expect(cn('bg-card', layer)).toBe(layer);
   });
+  it.each(['bg-fill', 'bg-separator'])('keeps %s next to other background utilities', (c) => {
+    expect(cn(c, 'rounded-md', 'text-sm')).toBe(`${c} rounded-md text-sm`);
+    expect(cn(c, 'bg-card')).toBe('bg-card');
+  });
 });

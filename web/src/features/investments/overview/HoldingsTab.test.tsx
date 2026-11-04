@@ -74,8 +74,8 @@ describe('Placements › supports et frais', () => {
     expect(fees).toHaveTextContent('Toujours une estimation.');
     expect(fees).toHaveTextContent('2 supports n’ont pas de rapport de frais pour 2024.');
     const watch = within(await region('À surveiller')).getAllByRole('listitem');
-    expect(watch[0]).toHaveTextContent('PEAParts inexpliquées sur Amundi MSCI World au relevé du 30 sept. 2025');
-    expect(within(watch[1]!).getByRole('link', { name: 'Assurance-vie' })).toHaveAttribute('href', expect.stringContaining(`/investments/${LIFE}/holdings/`));
+    expect(watch[0]).toHaveTextContent('PEA Parts inexpliquées sur Amundi MSCI World au relevé du 30 sept. 2025');
+    expect(within(watch[1]!).getByRole('link', { name: 'Assurance-vie Athena 2023 arrive à échéance le 5 déc. 2025' })).toHaveAttribute('href', expect.stringContaining(`/investments/${LIFE}/holdings/`));
   });
 
   it('shows each envelope’s fees and what they cost against the household’s references, which it saves', async () => {

@@ -74,6 +74,8 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 
 ### Grammaire des écrans (refonte)
 
+Les vues d'ensemble de Placements, de Biens et de Crédits s'ouvrent sur un `Hero` (chiffre principal, variation, courbe), puis le `StatLine` des autres chiffres. Les « À surveiller » et l'agenda sont des `GroupedList`.
+
 Listes : tableaux denses triables avec colonne des propriétaires. Fiches : chiffres clés en ligne, onglets (`?tab=`), dialogues, menus de ligne. Formulaires : pages à part en grille ; étapes pour crédit, revenu, bien et assistant d'abonnement ; champs rares repliés ; devises cherchables. Détail : `design-system.md` §4 et §6.1.
 
 ## 4. Abonnements

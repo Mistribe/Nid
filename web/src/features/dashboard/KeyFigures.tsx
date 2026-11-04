@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
+import { HeroBody, HeroChange, HeroUnknown } from '@/components/page/Hero';
 import { cn } from '@/lib/utils';
-import { Direction } from '../investments/Figures';
 import type { DashboardFigure, DashboardView } from './api';
 import { percent } from './format';
 import { Sparkline } from './Sparkline';
@@ -15,14 +15,14 @@ export function Value({ figure, unknown, unknownRate = 'dashboard.unknown_rate',
 }) {
   const { t } = useTranslation();
   if (figure.total) return <span className={className}>{formatMoney(figure.total)}</span>;
-  return <span className="text-sm text-muted-foreground">{figure.missingCurrency ? t(unknownRate, { code: figure.missingCurrency }) : unknown}</span>;
+  return <HeroUnknown>{figure.missingCurrency ? t(unknownRate, { code: figure.missingCurrency }) : unknown}</HeroUnknown>;
 }
 
-function Tile({ label, panel, onOpen, className, children }: { label: string; panel: Panel; onOpen: (p: Panel) => void; className?: string; children: ReactNode }) {
+function Tile({ label, panel, onOpen, className, children }: { label?: string; panel: Panel; onOpen: (p: Panel) => void; className?: string; children: ReactNode }) {
   return (
     <button type="button" onClick={() => onOpen(panel)}
       className={cn('flex min-w-0 flex-col items-start gap-1 rounded-xl border material p-3 text-left shadow-card outline-none transition-[translate,box-shadow,border-color] duration-200 ease-emphasized hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-raised focus-visible:ring-[3px] focus-visible:ring-ring/50', className)}>
-      <span className="text-label text-muted-foreground">{label}</span>
+      {label ? <span className="text-label text-muted-foreground">{label}</span> : null}
       {children}
     </button>
   );
@@ -39,32 +39,20 @@ export function KeyFigures({ d, onOpen, scope }: { d: DashboardView; onOpen: (pa
   const change = d.change.total;
   return (
     <div data-guide="dashboard.tiles" className="stagger grid grid-cols-2 gap-3 md:grid-cols-3">
-      <Tile label={t('dashboard.key.net_worth')} panel="net_worth" onOpen={onOpen}
-        className="relative col-span-2 gap-2 p-5 sm:pr-72 md:col-span-3">
-        <span>
-          <Value figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} className="text-hero tabular-nums" />
-          {d.netWorth.total && d.estimatedEnvelopes > 0 ? <span className="text-sm text-muted-foreground"> {t('dashboard.estimated_total')}</span> : null}
-        </span>
-        {change ? (
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-medium">
-              <Direction amount={change}>
-                {/* The percent apart from the amount: a rule between them, and set back in the secondary colour. */}
-                {d.changePct != null ? (
-                  <>
-                    <span aria-hidden="true" className="mx-1.5 h-3.5 w-px bg-foreground/20" />
-                    <span className="tabular-nums font-normal text-muted-foreground">{t('dashboard.pct', { value: percent(d.changePct, true) })}</span>
-                  </>
-                ) : null}
-              </Direction>
-            </span>
-            {/* A change says since when, and what it leaves out: an item without a recent value on 1 January has no start. */}
-            <span className="text-sm text-muted-foreground">{t('dashboard.since_january')}</span>
-          </span>
-        ) : <span className="text-sm text-muted-foreground"><Value figure={d.change} unknown={t('dashboard.change_unknown')} unknownRate="dashboard.change_unknown_rate" /></span>}
-        {change && d.envelopesWithoutStart > 0
-          ? <span className="text-xs text-muted-foreground">{t('dashboard.without_start', { count: d.envelopesWithoutStart })}</span> : null}
-        {d.envelopes > 0 ? <span className="absolute right-5 bottom-5 hidden w-56 sm:block"><Sparkline scope={scope} /></span> : null}
+      <Tile panel="net_worth" onOpen={onOpen} className="col-span-2 rounded-[22px] p-5 md:col-span-3">
+        <HeroBody label={t('dashboard.key.net_worth')}
+          figure={(
+            <>
+              <Value figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} className="text-hero tabular-nums" />
+              {d.netWorth.total && d.estimatedEnvelopes > 0 ? <span className="text-sm font-normal tracking-normal text-muted-foreground"> {t('dashboard.estimated_total')}</span> : null}
+            </>
+          )}
+          // A change says since when, and what it leaves out: an item without a recent value on 1 January has no start.
+          change={change
+            ? <HeroChange amount={change} pct={d.changePct != null ? t('dashboard.pct', { value: percent(d.changePct, true) }) : null}>{t('dashboard.since_january')}</HeroChange>
+            : <Value figure={d.change} unknown={t('dashboard.change_unknown')} unknownRate="dashboard.change_unknown_rate" />}
+          note={change && d.envelopesWithoutStart > 0 ? t('dashboard.without_start', { count: d.envelopesWithoutStart }) : null}
+          curve={d.envelopes > 0 ? <Sparkline scope={scope} /> : null} />
       </Tile>
       <Tile label={t('dashboard.key.income')} panel="income" onOpen={onOpen}>
         <Value figure={d.income} unknown={t('dashboard.income_unknown')} />

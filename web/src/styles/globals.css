@@ -28,6 +28,8 @@
   /* Relief (design-system.md §3): a card sits one step above the page, a hovered card one more. */
   --elevation-card: inset 0 1px 0 oklch(1 0 0 / 70%), 0 1px 2px oklch(0 0 0 / 4%), 0 4px 12px -4px oklch(0 0 0 / 6%);
   --elevation-raised: 0 2px 4px oklch(0 0 0 / 5%), 0 12px 24px -8px oklch(0 0 0 / 12%);
+  /* Neutral, so no theme redefines them: the line between grouped rows, and the track a control sits in. */
+  --separator: oklch(0.4 0.01 265 / .12); --fill: oklch(0.6 0.01 265 / .12);
   /* Layers (visual identity spec §3.2): the halo ground, frosted content (material), liquid-glass navigation (glass). */
   --material-opacity: 80%; --glass-opacity: 55%; --glass-regular-opacity: 85%;
   --backdrop-material: blur(24px) saturate(170%); --backdrop-glass: blur(26px) saturate(180%); --backdrop-edge: blur(6px);
@@ -44,6 +46,7 @@
   /* A shadow barely shows on a dark page: a light top edge gives the card its lift. */
   --elevation-card: inset 0 1px 0 oklch(1 0 0 / 5%), 0 1px 2px oklch(0 0 0 / 40%), 0 8px 24px -12px oklch(0 0 0 / 60%);
   --elevation-raised: inset 0 1px 0 oklch(1 0 0 / 8%), 0 2px 4px oklch(0 0 0 / 45%), 0 16px 32px -12px oklch(0 0 0 / 70%);
+  --separator: oklch(0.45 0.01 265 / .6); --fill: oklch(0.6 0.01 265 / .24);
   --glass-opacity: 45%;
   --glass-edge: oklch(1 0 0 / 12%);
   --elevation-glass: inset 0 1px 0 oklch(1 0 0 / 18%), inset 0 -1px 0 oklch(1 0 0 / 5%), 0 12px 34px -10px oklch(0 0 0 / 60%);
@@ -66,6 +69,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
+  --color-separator: var(--separator);
+  --color-fill: var(--fill);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
@@ -244,5 +249,5 @@ body:has([data-guide-active]) main { padding-bottom: 100dvh; }
 @media (prefers-contrast: more) {
   [data-theme], [data-theme].dark { --muted-foreground: var(--foreground); --border: var(--input); }
   /* A pane's edge, near-invisible by default, takes a field's outline. */
-  :root, .dark { --glass-edge: var(--input); }
+  :root, .dark { --glass-edge: var(--input); --separator: var(--border); }
 }

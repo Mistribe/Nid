@@ -155,4 +155,11 @@ describe('form controls', () => {
     expect(onValueChange).toHaveBeenCalledWith('private');
     await expectNoAxeViolations(container);
   });
+
+  it('the Segmented track is the fill colour, outlined only under Increase Contrast', () => {
+    render(<Segmented aria-label="Visibilité" value="a" onValueChange={() => {}} options={[{ value: 'a', label: 'A' }]} />);
+    const track = screen.getByRole('radiogroup');
+    expect(track).toHaveClass('bg-fill', 'contrast-more:border-input', 'forced-colors:border-[CanvasText]');
+    expect(track).not.toHaveClass('bg-muted');
+  });
 });

@@ -9,9 +9,11 @@ import { PendingLine } from '../proposals/PendingLine';
 import { usePendingCount } from '../proposals/api';
 import { categoryText } from '../properties/format';
 import { SectionCard } from '@/components/page/SectionCard';
+import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
+import { placeOf, tileOf } from '@/app/nav';
 import { todayIso } from '../subscriptions/today';
 import type { DashboardEvent, DashboardView } from './api';
-import { ItemLink } from './ItemLink';
+import { itemRoute } from './ItemLink';
 import { incomeGaps, isRoutineTodo } from './todo';
 
 function EventText({ e }: { e: DashboardEvent }) {
@@ -38,14 +40,6 @@ const ICON: Record<string, LucideIcon> = {
   loan_end: Flag, valuation_due: Scale, property_cost_due: Receipt, tenancy_end: KeyRound, holding_maturity: Hourglass,
   per_deadline: PiggyBank, per_ceiling_expiring: TimerOff,
 };
-// The module's colour, as in « Où part le revenu du mois »: subscriptions, loans and property costs take their chart
-// colour, the income the accent, the PER deadline the tax's; an icon carries it, the text says what it is.
-const TINT: Record<string, string> = {
-  subscriptions: 'var(--chart-1)', loans: 'var(--chart-2)', properties: 'var(--chart-3)', income: 'var(--primary)', tax: 'var(--chart-4)',
-};
-
-const NAME = 'block truncate text-xs text-muted-foreground hover:text-foreground hover:underline';
-
 /** « Aujourd’hui », « Demain », else the weekday and date, the year only when it is not this one. */
 function dayLabel(t: TFunction, on: string, today: string): string {
   if (on === today) return t('dashboard.upcoming.today');
@@ -77,28 +71,20 @@ export function Upcoming({ d }: { d: DashboardView }) {
               <p id={`${listId}-${day.on}`} className="mb-1 text-xs font-medium text-muted-foreground first-letter:uppercase">
                 <time dateTime={day.on} title={formatLocalDate(day.on)}>{dayLabel(t, day.on, today)}</time>
               </p>
-              <ul aria-labelledby={`${listId}-${day.on}`} className="divide-y text-sm">
+              <GroupedList labelledBy={`${listId}-${day.on}`}>
                 {day.events.map((e) => {
-                  const Icon = ICON[e.kind] ?? CalendarClock;
-                  const tint = TINT[e.module] ?? 'var(--muted-foreground)';
+                  const place = placeOf(e.module);
                   return (
-                    <li key={`${e.kind}-${e.id ?? e.name}-${e.on}-${e.label ?? ''}`} className="flex items-center gap-3 py-2">
-                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                        style={{ color: tint, background: `color-mix(in oklab, ${tint} 14%, transparent)` }}>
-                        <Icon className="size-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate"><EventText e={e} /></span>
-                        {e.id ? <ItemLink module={e.module} id={e.id} className={NAME}>{e.name}</ItemLink> : (
-                          // The PER deadline is about a person (or the household), not an item: it leads to the tax page's PER block.
-                          <Link to="/tax" className={NAME}>{e.label === 'household' ? t('dashboard.upcoming.per_household') : e.name}</Link>
-                        )}
-                      </span>
-                      {e.amount ? <span className="shrink-0 font-medium tabular-nums">{formatMoney(e.amount)}</span> : null}
-                    </li>
+                    <GroupedRow key={`${e.kind}-${e.id ?? e.name}-${e.on}-${e.label ?? ''}`}
+                      // The PER deadline is about a person (or the household), not an item: it leads to the tax page's PER block.
+                      link={e.id ? itemRoute(e.module, e.id) : { to: '/tax' }}
+                      tile={{ icon: ICON[e.kind] ?? CalendarClock, tile: place ? tileOf(place).tile : 'neutral' }}
+                      title={<EventText e={e} />}
+                      detail={e.id ? e.name : e.label === 'household' ? t('dashboard.upcoming.per_household') : e.name}
+                      trailing={e.amount ? formatMoney(e.amount) : undefined} />
                   );
                 })}
-              </ul>
+              </GroupedList>
             </div>
           ))}
         </div>

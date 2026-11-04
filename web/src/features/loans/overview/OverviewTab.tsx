@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
+import { Hero, HeroUnknown } from '@/components/page/Hero';
 import { SectionCard } from '@/components/page/SectionCard';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
@@ -56,6 +57,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
   return (
     <TooltipProvider>
     <div className="flex flex-col gap-6">
+      <BalanceHero d={d} />
       <Figures d={d} />
       <SectionCard title={t('loans_overview.progress_title')}><Advance d={d} /></SectionCard>
       <SectionCard title={t('loans_overview.chart_title')}><BalanceChart d={d} /></SectionCard>
@@ -80,6 +82,17 @@ function Sub({ children }: { children: ReactNode }) {
   return <span className="block text-sm font-normal text-muted-foreground">{children}</span>;
 }
 
+/** The balance leads, the months ahead as its curve; the server gives no signed change for it. */
+function BalanceHero({ d }: { d: LoansOverview }) {
+  const { t } = useTranslation();
+  const figure = useFigure(d);
+  return (
+    <Hero label={t('loans_overview.balance')} figure={d.balance ? figure(d.balance) : <HeroUnknown>{figure(d.balance)}</HeroUnknown>}
+      note={d.principal ? t('loans_overview.balance_of', { principal: formatMoney(d.principal) }) : null}
+      values={d.months.flatMap((m) => (m.total ? [toPlot(m.total.amount)] : []))} />
+  );
+}
+
 function Figures({ d }: { d: LoansOverview }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
@@ -91,7 +104,6 @@ function Figures({ d }: { d: LoansOverview }) {
     : years > 0 ? t('loans_overview.years', { count: years }) : t('loans_overview.months', { count: months });
   return (
     <StatLine items={[
-      { label: t('loans_overview.balance'), value: <>{figure(d.balance)}{d.principal ? <Sub>{t('loans_overview.balance_of', { principal: formatMoney(d.principal) })}</Sub> : null}</> },
       { label: t('loans_overview.monthly'), value: <>{figure(d.monthlyPayment, (amount) => t('loans_overview.monthly_value', { amount }))}<Sub>{t('loans_overview.monthly_note')}</Sub></> },
       { label: t('loans_overview.cost'), value: <>{figure(d.costRemaining)}{d.costPaid ? <Sub>{t('loans_overview.cost_paid', { amount: formatMoney(d.costPaid) })}</Sub> : null}</> },
       ...(d.freeOn ? [{ label: t('loans_overview.free'), value: <>{monthText(d.freeOn.slice(0, 7))}<Sub>{left > 0 ? t('loans_overview.free_in', { span }) : t('loans_overview.free_this_month')}</Sub></> }] : []),

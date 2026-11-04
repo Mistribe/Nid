@@ -26,8 +26,8 @@ describe('Crédits › vue d’ensemble', () => {
     const { container } = await renderApp('/loans');
 
     expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
-    const figures = (await screen.findByText('Capital restant dû')).closest('dl')!;
-    expect(figures).toHaveTextContent('199 564,23 €sur 212 000,00 € empruntés');
+    expect(await region('Capital restant dû')).toHaveTextContent('Capital restant dû199 564,23 €sur 212 000,00 € empruntés');
+    const figures = (await screen.findByText('Mensualités', { selector: 'dt' })).closest('dl')!;
     expect(figures).toHaveTextContent('2 159,92 € / moisassurances comprises');
     expect(figures).toHaveTextContent('72 157,31 €6 823,35 € déjà payés');
     expect(figures).toHaveTextContent('Sans crédit enoctobre 2045dans 18 ans et 11 mois');
@@ -35,6 +35,18 @@ describe('Crédits › vue d’ensemble', () => {
     expect(seen).toEqual(['?scope=household']);
     expect(screen.getByRole('link', { name: 'Ajouter un crédit' })).toHaveAttribute('href', '/loans/new');
     await expectNoAxeViolations(container);
+  });
+
+  it('leads with the hero: the balance as the page’s first figure', async () => {
+    serve(household());
+    await renderApp('/loans');
+
+    const hero = await region('Capital restant dû');
+    expect(within(hero).getByText('199 564,23 €')).toHaveClass('text-hero', 'tabular-nums');
+    expect(hero.querySelector('svg[aria-hidden="true"] path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
+    const figures = (await screen.findByText('Mensualités', { selector: 'dt' })).closest('dl')!;
+    expect(figures).not.toHaveTextContent('Capital restant dû');
+    expect(figures).not.toHaveTextContent('199 564,23 €');
   });
 
   it('lists the running loans with their figures, a total, and links to each detail', async () => {
@@ -92,8 +104,10 @@ describe('Crédits › vue d’ensemble', () => {
     }));
     await renderApp('/loans');
 
-    const figures = (await screen.findByText('Capital restant dû')).closest('dl')!;
-    expect(figures).toHaveTextContent('Inconnutaux USD manquant');
+    const hero = await region('Capital restant dû');
+    expect(hero.querySelector('.text-hero')).toHaveTextContent(/^Inconnutaux USD manquant$/);
+    expect(within(hero.querySelector<HTMLElement>('.text-hero')!).getByText('Inconnu').closest('.text-muted-foreground'))
+      .toHaveClass('text-sm', 'font-normal');
     expect(await region('Capital restant dû jusqu’à la fin')).toHaveTextContent('Les mois dont un taux de change manque ne sont pas tracés.');
   });
 

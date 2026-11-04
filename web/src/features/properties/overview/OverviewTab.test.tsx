@@ -26,22 +26,35 @@ describe('Biens › vue d’ensemble', () => {
     const figures = (await screen.findByText('Valeur des biens', { selector: 'dt' })).closest('dl')!;
     expect(figures).toHaveTextContent('488 000,00 €1 estimation à mettre à jour');
     expect(figures).toHaveTextContent('Crédits restants193 564,23 €1 crédit lié');
-    expect(figures).toHaveTextContent('Valeur nette294 435,77 €60,3 % de la valeur');
-    expect(figures).toHaveTextContent('Plus-value latente+20 700,00 €en hausse4,4 % sur le prix de revient · avant impôt');
+    expect(await region('Valeur nette')).toHaveTextContent(
+      'Valeur nette294 435,77 €+20 700,00 €4,4 %en hausseplus-value latente sur le prix de revient · avant impôt60,3 % de la valeur');
     expect(figures).toHaveTextContent('Loyers reçus, 12 mois9 360,00 €rendement brut 5,02 %');
     // Three years by default, out of the URL.
     expect(seen).toEqual(['?scope=household&span=3y']);
     await expectNoAxeViolations(container);
   });
 
+  it('leads with the hero: the net value as the page’s first figure', async () => {
+    serve(householdOverview());
+    await renderApp('/properties');
+
+    const hero = await region('Valeur nette');
+    expect(within(hero).getByText('294 435,77 €')).toHaveClass('text-hero', 'tabular-nums');
+    expect(hero.querySelector('svg[aria-hidden="true"] path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
+    const figures = (await screen.findByText('Valeur des biens', { selector: 'dt' })).closest('dl')!;
+    expect(figures).not.toHaveTextContent('Valeur nette');
+    expect(figures).not.toHaveTextContent('294 435,77 €');
+    expect(figures).not.toHaveTextContent('Plus-value latente');
+  });
+
   it('shows the latent gain with its arrow, the figure uncoloured', async () => {
     serve(householdOverview());
     await renderApp('/properties');
 
-    const gain = (await screen.findByText('Plus-value latente', { selector: 'dt' })).nextElementSibling!;
+    const gain = within(await region('Valeur nette')).getByText('en hausse').parentElement!;
     expect(gain.className).not.toMatch(/text-status-good-text|text-destructive/);
     expect(gain.querySelector('svg')).toHaveClass('text-status-good');
-    expect(within(gain as HTMLElement).getByText('en hausse')).toBeInTheDocument();
+    expect(within(gain).getByText('en hausse')).toBeInTheDocument();
   });
 
   it('splits by type and by person, and lists the properties with a total', async () => {
@@ -75,9 +88,9 @@ describe('Biens › vue d’ensemble', () => {
     const watch = await region('À surveiller');
     const items = within(watch).getAllByRole('listitem');
     expect(items).toHaveLength(3);
-    expect(items[0]).toHaveTextContent('T2 VilleurbanneEstimation à mettre à jour, dernière au 30 sept. 2024');
-    expect(items[1]).toHaveTextContent('T2 VilleurbanneImpayés : 780,00 €');
-    expect(items[2]).toHaveTextContent('T2 VilleurbanneCharge prévue le 15 nov. 2026 : 1 120,00 €');
+    expect(items[0]).toHaveTextContent('T2 Villeurbanne Estimation à mettre à jour, dernière au 30 sept. 2024');
+    expect(items[1]).toHaveTextContent('T2 Villeurbanne Impayés : 780,00 €');
+    expect(items[2]).toHaveTextContent('T2 Villeurbanne Charge prévue le 15 nov. 2026 : 1 120,00 €');
     expect(within(items[0]!).getByRole('link')).toHaveAttribute('href', `/properties/${RENTAL}?tab=valuations`);
     expect(within(items[1]!).getByRole('link')).toHaveAttribute('href', `/properties/${RENTAL}?tab=rental`);
     expect(within(items[2]!).getByRole('link')).toHaveAttribute('href', `/properties/${RENTAL}?tab=expenses`);
@@ -128,5 +141,9 @@ describe('Biens › vue d’ensemble', () => {
 
     const figures = (await screen.findByText('Valeur des biens', { selector: 'dt' })).closest('dl')!;
     expect(figures).toHaveTextContent('Valeur des biensInconnutaux de change manquant : CHF');
+    const hero = await region('Valeur nette');
+    expect(hero.querySelector('.text-hero')).toHaveTextContent(/^Inconnutaux de change manquant : CHF$/);
+    expect(within(hero.querySelector<HTMLElement>('.text-hero')!).getByText('Inconnu').closest('.text-muted-foreground'))
+      .toHaveClass('text-sm', 'font-normal');
   });
 });

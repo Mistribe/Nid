@@ -149,7 +149,7 @@ Un créneau peut avoir un sens différent selon le domaine, jamais deux séries 
 | Sources de couverture | 1 payée, 2 bonus, 3 incluse, 4 essai, 5 cadeau ; toute autre source : 8 (bande de couverture) |
 | Crédits | par rang du restant dû : 1 à 8, neutre au-delà |
 | Crédit (échéancier) | capital `--primary`, intérêts neutre (`NEUTRAL_COLOR`), capital restant dû 3 |
-| Agenda | 1 abonnements, 2 crédits, 3 biens, 4 impôts, revenus `--primary` |
+| Agenda | tuile du module (table de navigation), icône de l’évènement |
 | Revenus, répartition (`SplitBar`) | par rang des parts colorées : 1 à 6, puis on reboucle ; « Autres » en neutre |
 | Revenus, fiche d'une source (`SourceChart`) | séries 1, 2, 3, 5, 7 dans l'ordre ; ponctuels 4 |
 | Revenus, mois (`MonthsChart`) | récurrents 1, ponctuels 4 |

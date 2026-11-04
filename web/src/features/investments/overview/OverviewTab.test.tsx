@@ -23,14 +23,27 @@ describe('Placements › vue d’ensemble', () => {
     const { container } = await renderApp('/investments');
 
     expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
-    const figures = (await screen.findByText('Valeur des placements')).closest('dl')!;
-    expect(figures).toHaveTextContent('35 000,00 €au 31 août 20251 valeur à mettre à jour');
+    expect(await region('Valeur des placements')).toHaveTextContent('35 000,00 €+1 840,00 €+5,6 %en haussedepuis le 1er janvier · hors versementsau 31 août 20251 valeur à mettre à jour');
+    const figures = (await screen.findByText('Versé net', { selector: 'dt' })).closest('dl')!;
     expect(figures).toHaveTextContent('Versé net31 800,00 €versements − retraits');
     expect(figures).toHaveTextContent('Gain+3 200,00 €en hausse+10,0 % · avant fiscalité');
     expect(figures).toHaveTextContent('Rendement annuel+6,2 % par an');
-    expect(figures).toHaveTextContent('Depuis le 1er janvier+1 840,00 €en haussehors versements · +5,6 %');
     expect(seen).toEqual(['?scope=household&span=12m']);
     await expectNoAxeViolations(container);
+  });
+
+  it('leads with the hero: the value as the page’s first figure', async () => {
+    serve(household());
+    await renderApp('/investments');
+
+    const hero = await region('Valeur des placements');
+    expect(within(hero).getByText('35 000,00 €')).toHaveClass('text-hero', 'tabular-nums');
+    // The curve is the server's points, a shape beside the figure.
+    expect(hero.querySelector('svg[aria-hidden="true"] path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
+    const figures = (await screen.findByText('Versé net', { selector: 'dt' })).closest('dl')!;
+    expect(figures).not.toHaveTextContent('Valeur des placements');
+    expect(figures).not.toHaveTextContent('35 000,00 €');
+    expect(figures).not.toHaveTextContent('Depuis le 1er janvier');
   });
 
   it('shows the gain with its arrow, the figure uncoloured', async () => {
@@ -71,9 +84,9 @@ describe('Placements › vue d’ensemble', () => {
 
     const watch = await region('À surveiller');
     const items = within(watch).getAllByRole('listitem');
-    expect(items[0]).toHaveTextContent('Livret AValeur à mettre à jour, dernière au 31 août 2025');
+    expect(items[0]).toHaveTextContent('Livret A Valeur à mettre à jour, dernière au 31 août 2025');
     expect(within(items[0]!).getByRole('link')).toHaveAttribute('href', `/investments/${LIVRET}`);
-    expect(items[1]).toHaveTextContent('PEAUn support arrive à échéance le 5 déc. 2025');
+    expect(items[1]).toHaveTextContent('PEA Un support arrive à échéance le 5 déc. 2025');
     expect(within(items[1]!).getByRole('link')).toHaveAttribute('href', `/investments/${PEA}?tab=holdings`);
   });
 
@@ -102,8 +115,12 @@ describe('Placements › vue d’ensemble', () => {
     }));
     await renderApp('/investments');
 
-    const figures = (await screen.findByText('Valeur des placements')).closest('dl')!;
-    expect(figures).toHaveTextContent('InconnuTaux de change manquant : USD');
+    const hero = await region('Valeur des placements');
+    // The hero figure says « Inconnu » and why, never 0.
+    expect(hero.querySelector('.text-hero')).toHaveTextContent(/^InconnuTaux de change manquant : USD$/);
+    // Small and set back: a huge « Inconnu » would read as a data point.
+    expect(within(hero.querySelector<HTMLElement>('.text-hero')!).getByText('Inconnu').closest('.text-muted-foreground'))
+      .toHaveClass('text-sm', 'font-normal');
   });
 
   it('without an envelope, offers to add one; with closed ones only, leads to them', async () => {
@@ -124,7 +141,7 @@ describe('Placements › vue d’ensemble', () => {
     serve(body);
     const { container } = await renderApp('/investments');
 
-    expect((await screen.findByText('Valeur des placements')).closest('dl')).toHaveTextContent('1 valeur estimée');
+    expect(await region('Valeur des placements')).toHaveTextContent('1 valeur estimée');
     const envelopes = await region('Enveloppes');
     expect(envelopes).toHaveTextContent('Total · 2 enveloppes35 000,00 € estimé · +3 200,00 €');
     const [pea, livret] = within(envelopes).getAllByRole('row').slice(1);

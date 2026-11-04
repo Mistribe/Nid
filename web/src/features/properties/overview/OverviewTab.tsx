@@ -11,6 +11,9 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { SectionCard } from '@/components/page/SectionCard';
+import { tileOf } from '@/app/nav';
+import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
+import { Hero, HeroChange, HeroUnknown } from '@/components/page/Hero';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
@@ -19,7 +22,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Direction } from '@/features/investments/Figures';
+import { toPlot } from '@/features/investments/chart/plot';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PERSONS } from '@/features/subscriptions/api';
 import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow, type PropertyWatch } from '../api';
@@ -51,6 +54,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
+        <NetHero d={d} />
         <Figures d={d} />
         <NetValueChart d={d} span={span} />
         <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
@@ -81,10 +85,27 @@ function Sub({ children }: { children: ReactNode }) {
 const share = (t: TFunction, value: number) =>
   t('properties_overview.pct', { value: new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value) });
 
+const known = (value?: number | null): value is number => value !== null && value !== undefined;
+
+/** The net value leads, with the latent gain and the server's points as its curve. */
+function NetHero({ d }: { d: PropertiesOverview }) {
+  const { t } = useTranslation();
+  const figure = useFigure(d);
+  return (
+    <Hero label={t('properties_overview.net')} figure={d.netValue ? figure(d.netValue) : <HeroUnknown>{figure(d.netValue)}</HeroUnknown>}
+      change={d.latentGain ? (
+        <HeroChange amount={d.latentGain} pct={known(d.latentGainPct) ? share(t, d.latentGainPct) : null}>
+          {t(known(d.latentGainPct) ? 'properties_overview.hero_gain' : 'properties_overview.hero_gain_plain')}
+        </HeroChange>
+      ) : <span className="flex flex-wrap gap-x-1"><span className="text-muted-foreground">{t('properties_overview.gain')}</span>{figure(d.latentGain)}</span>}
+      note={known(d.netValuePct) ? t('properties_overview.net_note', { pct: share(t, d.netValuePct) }) : null}
+      values={d.points.flatMap((p) => (p.netValue ? [toPlot(p.netValue.amount)] : []))} />
+  );
+}
+
 function Figures({ d }: { d: PropertiesOverview }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
-  const known = (value?: number | null): value is number => value !== null && value !== undefined;
   return (
     <StatLine items={[
       { label: t('properties_overview.value'), value: (
@@ -96,15 +117,6 @@ function Figures({ d }: { d: PropertiesOverview }) {
       ) },
       { label: t('properties_overview.balance'), value: (
         <>{figure(d.linkedBalance)}<Sub>{d.loanCount > 0 ? t('properties_overview.loans', { count: d.loanCount }) : t('properties_overview.no_loan')}</Sub></>
-      ) },
-      { label: t('properties_overview.net'), value: (
-        <>{figure(d.netValue)}{known(d.netValuePct) ? <Sub>{t('properties_overview.net_note', { pct: share(t, d.netValuePct) })}</Sub> : null}</>
-      ) },
-      { label: t('properties_overview.gain'), value: (
-        <>
-          {d.latentGain ? <Direction amount={d.latentGain} /> : figure(d.latentGain)}
-          <Sub>{known(d.latentGainPct) ? t('properties_overview.gain_note', { pct: share(t, d.latentGainPct) }) : t('properties_overview.gain_note_plain')}</Sub>
-        </>
       ) },
       ...(d.rentReceived ? [{ label: t('properties_overview.rent'), value: (
         <>
@@ -198,20 +210,17 @@ function WatchCard({ d }: { d: PropertiesOverview }) {
   const shown = all ? d.watch : d.watch.slice(0, WATCH_SHOWN);
   return (
     <SectionCard title={t('properties_overview.watch_title')}>
-      <ul className="space-y-3 text-sm">
+      <GroupedList>
         {shown.map((w) => {
           const code = WATCH_CODES.find((c) => c === w.code);
           const tab = code ? WATCH_TAB[code] : undefined;
           return (
-            <li key={`${w.code}/${w.propertyId}/${w.loanId ?? ''}/${w.on ?? ''}`}>
-              <Link to="/properties/$id" params={{ id: w.propertyId }} search={tab ? { tab } : {}} className="font-medium hover:underline">
-                {names.get(w.propertyId) ?? ''}
-              </Link>
-              <span className="block text-muted-foreground">{watchText(t, w)}</span>
-            </li>
+            <GroupedRow key={`${w.code}/${w.propertyId}/${w.loanId ?? ''}/${w.on ?? ''}`} tile={tileOf('/properties')}
+              link={{ to: '/properties/$id', params: { id: w.propertyId }, search: tab ? { tab } : {} }}
+              title={names.get(w.propertyId) ?? ''} detail={watchText(t, w)} />
           );
         })}
-      </ul>
+      </GroupedList>
       {d.watch.length > WATCH_SHOWN ? (
         <Button type="button" variant="link" className="h-auto p-0" onClick={() => setAll((v) => !v)}>
           {all ? t('properties_overview.watch_less') : t('properties_overview.watch_all', { count: d.watch.length })}

@@ -13,6 +13,8 @@ import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
+import { tileOf } from '@/app/nav';
+import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
@@ -423,21 +425,20 @@ function WatchCard({ d }: { d: HouseholdHoldings }) {
   const envelope = (id: string) => d.holdings.find((h) => h.envelopeId === id)?.envelopeName ?? '';
   return (
     <SectionCard title={t('investments_holdings.watch_title')}>
-      <ul className="space-y-3 text-sm">
+      <GroupedList>
         {d.watch.map((w) => {
           const code = WATCH.find((c) => c === w.code);
           const text = code ? t(`investments_holdings.watch.${code}`, { holding: holding(w.holdingId), date: w.on ? formatLocalDate(w.on, 'short') : '' })
             : t('investments_holdings.watch.other');
           return (
-            <li key={`${w.code}/${w.envelopeId}/${w.holdingId ?? ''}`}>
-              {w.holdingId
-                ? <Link to="/investments/$id/holdings/$holdingId" params={{ id: w.envelopeId, holdingId: w.holdingId }} className="font-medium hover:underline">{envelope(w.envelopeId)}</Link>
-                : <Link to="/investments/$id" params={{ id: w.envelopeId }} search={{ tab: 'holdings' }} className="font-medium hover:underline">{envelope(w.envelopeId)}</Link>}
-              <span className="block text-muted-foreground">{text}</span>
-            </li>
+            <GroupedRow key={`${w.code}/${w.envelopeId}/${w.holdingId ?? ''}`} tile={tileOf('/investments')}
+              link={w.holdingId
+                ? { to: '/investments/$id/holdings/$holdingId', params: { id: w.envelopeId, holdingId: w.holdingId } }
+                : { to: '/investments/$id', params: { id: w.envelopeId }, search: { tab: 'holdings' } }}
+              title={envelope(w.envelopeId)} detail={text} />
           );
         })}
-      </ul>
+      </GroupedList>
     </SectionCard>
   );
 }

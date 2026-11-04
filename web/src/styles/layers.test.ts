@@ -57,4 +57,19 @@ describe('layers', () => {
     expect(b).toContain('background-color: color-mix(');
     expect(b).not.toMatch(/background:/);
   });
+
+  it('defines --separator and --fill in both modes', () => {
+    const root = /^:root\s*\{([^}]*)\}/m.exec(css)![1];
+    const dark = /^\.dark\s*\{([^}]*)\}/m.exec(css)![1];
+    expect(root).toContain('--separator: oklch(0.4 0.01 265 / .12)');
+    expect(root).toContain('--fill: oklch(0.6 0.01 265 / .12)');
+    expect(dark).toContain('--separator: oklch(0.45 0.01 265 / .6)');
+    expect(dark).toContain('--fill: oklch(0.6 0.01 265 / .24)');
+    expect(css).toContain('--color-separator: var(--separator)');
+    expect(css).toContain('--color-fill: var(--fill)');
+  });
+
+  it('makes separators the border under Increase Contrast', () => {
+    expect(block('@media (prefers-contrast: more)')).toContain('--separator: var(--border)');
+  });
 });
