@@ -38,7 +38,7 @@ describe('PropertyDetailPage', () => {
     expect(header).toHaveTextContent('Résidence principale');
     expect(header).toHaveTextContent('Nantes');
     expect(within(header).getByText('Partagé')).toBeInTheDocument();
-    expect(within(header).getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/properties');
+    expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/properties');
     expect(screen.queryByRole('list', { name: 'Avertissements' })).not.toBeInTheDocument();
     expect(screen.queryByText('Vous pouvez consulter ce bien, pas le modifier.')).not.toBeInTheDocument();
     expect(figure('Valeur')).toHaveTextContent('290 000,00 € au 1 juin 2026');

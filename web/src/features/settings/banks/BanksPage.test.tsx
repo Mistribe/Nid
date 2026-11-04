@@ -29,7 +29,7 @@ describe('Réglages › Banques', () => {
     expect(rows[1]).toHaveTextContent('Visa Premier');
     expect(rows[1]).toHaveTextContent('Carte');
     expect(screen.getByRole('region', { name: 'Crédit Agricole' })).toHaveTextContent('Expirée');
-    expect(screen.getByRole('link', { name: 'Banques' })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Banques' })).toHaveAttribute('aria-current', 'page');
     await expectNoAxeViolations(container);
   });
 
@@ -53,8 +53,8 @@ describe('Réglages › Banques', () => {
     await renderApp('/settings/banks');
 
     expect(await screen.findByText(/La synchronisation bancaire n'est pas activée/)).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Banques' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Apparence' })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Réglages' })).queryByRole('link', { name: 'Banques' })).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Apparence' })).toBeInTheDocument();
   });
 
   it('says the administrator has yet to configure it when it is on without its application', async () => {
@@ -62,7 +62,7 @@ describe('Réglages › Banques', () => {
     await renderApp('/settings/banks');
 
     expect(await screen.findByText(/pas encore configurée/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Banques' })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Banques' })).toBeInTheDocument();
   });
 
   it('without Enable Banking, still lists the imported accounts and offers « Importer un relevé », not « Relier une banque »', async () => {

@@ -85,7 +85,7 @@ function Proposal({ id }: { id: string }) {
 
   const title = kind ? t(kind.label) : route ? routeLabel(t, p.kind) : t('proposal.unknown_kind', { kind: p.kind });
   const head = (actions: ReactNode) => (
-    <PageHeader crumbs={[{ label: t('proposal.back'), to: '/proposals' }]} title={title} titleRef={heading} actions={actions}
+    <PageHeader crumbs={[{ label: t('nav.proposals'), to: '/proposals' }]} title={title} titleRef={heading} actions={actions}
       meta={p.sourceLabel ? <span className="text-sm text-muted-foreground">{p.sourceLabel}</span> : undefined} />
   );
   const body = (

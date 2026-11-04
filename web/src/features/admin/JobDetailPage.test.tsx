@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -26,5 +26,15 @@ describe('Administration › Tâches › une tâche', () => {
     await renderApp('/admin/jobs/fx-backfill', { capabilities: adminCapabilities });
 
     expect(await screen.findByText('Aucune exécution enregistrée')).toBeInTheDocument();
+  });
+
+  it('the job’s name is the current crumb', async () => {
+    server.use(http.get('*/api/v1/admin/jobs/bank-sync-nightly', () => HttpResponse.json({ key: 'bank-sync-nightly', cron: null, nextRunAt: null, runs: [] })));
+    await renderApp('/admin/jobs/bank-sync-nightly', { capabilities: adminCapabilities });
+
+    await screen.findByText('Aucune exécution enregistrée');
+    const trail = within(screen.getByRole('navigation', { name: 'Fil d’Ariane' }));
+    expect(trail.getByRole('link', { name: 'Tâches planifiées' })).toBeInTheDocument();
+    expect(trail.getByText('Synchronisation bancaire')).toHaveAttribute('aria-current', 'page');
   });
 });

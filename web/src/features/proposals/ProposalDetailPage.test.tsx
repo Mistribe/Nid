@@ -32,6 +32,16 @@ describe('Une proposition', () => {
     await waitFor(() => expect(toasts()).toHaveTextContent('Proposition approuvée.'));
   });
 
+  it('names its parent « À valider » in the trail and the phone link', async () => {
+    const p = proposal();
+    serve([p]);
+    await renderApp(`/proposals/${p.id}`);
+    await screen.findByRole('heading', { level: 1, name: 'Valeur d’une enveloppe' });
+    const trail = screen.getByRole('navigation', { name: 'Fil d’Ariane' });
+    expect(within(trail).getByRole('link', { name: 'À valider' })).toHaveAttribute('href', '/proposals');
+    expect(screen.getByRole('link', { name: 'Retour à À valider' })).toHaveAttribute('href', '/proposals');
+  });
+
   it('refreshes every query after an approval, only the proposals after a rejection', async () => {
     const p = proposal();
     const q = proposal({ targetName: 'Assurance-vie' });
@@ -217,7 +227,7 @@ describe('Une proposition', () => {
     serve([p], { preview: null });
     await renderApp(`/proposals/${p.id}`);
 
-    expect(await screen.findByText('Type de proposition inconnu : realestate.future_kind')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Type de proposition inconnu : realestate.future_kind' })).toBeInTheDocument();
     expect(screen.getByText('{"x":1}')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approuver' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Rejeter' })).toBeInTheDocument();

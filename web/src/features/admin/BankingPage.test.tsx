@@ -39,7 +39,7 @@ describe('Administration › Banque', () => {
     expect(within(row).getAllByRole('cell').map((c) => c.textContent).slice(1)).toEqual(['Nuit', 'réussi', '2', '5', '9', '3', '4', '1', '']);
     expect(screen.getByText(`Les données bancaires passent par Enable Banking (prestataire agréé, Finlande). Adresse de retour à déclarer : ${window.location.origin}/api/v1/banking/callback`))
       .toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Banque' })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation', { name: 'Sections de l\'administration' })).getByRole('link', { name: 'Banque' })).toHaveAttribute('aria-current', 'page');
     await expectNoAxeViolations(container);
   });
 

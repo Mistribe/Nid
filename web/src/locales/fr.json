@@ -322,7 +322,7 @@
   "page": { "more_actions": "Autres actions" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "common": { "confirm": "Confirmer",
-    "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "breadcrumb": "Fil d’Ariane",
+    "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "breadcrumb": "Fil d’Ariane", "back_to": "Retour à {{label}}",
     "show_table": "Afficher en tableau", "show_chart": "Afficher le graphique" },
   "form": { "none": "Aucun", "search": "Rechercher", "no_result": "Aucun résultat", "loading": "Chargement…", "currency_option": "{{code}} — {{name}}", "pick_date": "Choisir une date : {{label}}", "date_placeholder": "jj/mm/aaaa" },
   "subscriptions": {

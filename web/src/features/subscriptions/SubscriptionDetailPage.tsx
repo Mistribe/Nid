@@ -88,7 +88,7 @@ export function SubscriptionDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={[{ label: t('nav.subscriptions'), to: '/subscriptions' }]} actions={actions}
+      <PageHeader crumbs={[{ label: t('nav.subscriptions'), to: '/subscriptions' }]} crumbLabel={detail.displayName} actions={actions}
         title={(
           <span className="inline-flex items-center gap-3">
             <ProviderIcon name={detail.provider?.name ?? detail.displayName} iconUrl={detail.provider?.iconUrl} color={detail.provider?.labels[0]?.color} />

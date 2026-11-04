@@ -35,3 +35,6 @@ export function visibleNav(capabilities: Capabilities): NavItem[] {
 
 /** The first path segment an entry stands for: « Plus » is current on any page under one of its entries. */
 export const section = (to: string) => `/${to.split('/')[1]}`;
+
+/** The entry of the module a path belongs to (its first segment), if any. */
+export const moduleOf = (pathname: string): NavItem | undefined => NAV.find((item) => section(item.to) === section(pathname));

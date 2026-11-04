@@ -34,7 +34,7 @@ export function JobDetailPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader crumbs={crumbs} title={<span className={known ? undefined : 'font-mono'}>{name}</span>}
+      <PageHeader crumbs={crumbs} crumbLabel={name} title={<span className={known ? undefined : 'font-mono'}>{name}</span>}
         meta={known ? <span className="font-mono text-sm text-muted-foreground">{t('admin.jobs.key_label', { key })}</span> : null}>
         <StatLine items={[
           { label: t('admin.jobs.schedule_col'), value: scheduleInWords(t, data.cron) },

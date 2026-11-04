@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { dashboard, todoItem } from '@/features/dashboard/testData';
 import { detail, overview, SALARY, sourceRow } from '@/features/income/testData';
+import { detail as envelope, PEA } from '@/features/investments/testData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
@@ -403,5 +404,113 @@ describe('the shell', () => {
       const { container } = await renderApp('/subscriptions');
       await expectNoAxeViolations(container);
     });
+  });
+});
+
+describe('the top bar trail', () => {
+  const bar = () => document.querySelector<HTMLElement>('[data-pane="toolbar"]')!;
+  const trail = () => within(bar()).getByRole('navigation', { name: 'Fil d’Ariane' });
+  const serveEnvelope = () => server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(envelope())));
+
+  it('shows the page trail, ending with the current page', async () => {
+    serveEnvelope();
+    await renderApp(`/investments/${PEA}`);
+    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+    expect(within(trail()).getByRole('link', { name: 'Placements' })).toHaveAttribute('href', '/investments');
+    const last = within(trail()).getAllByRole('listitem').filter((li) => li.textContent).at(-1)!;
+    expect(last).toHaveTextContent('PEA');
+    expect(within(last).getByText('PEA')).toHaveAttribute('aria-current', 'page');
+    expect(document.querySelector('header[data-page-header]')!.querySelector('nav[aria-label="Fil d’Ariane"]')).toBeNull();
+    expect(screen.getAllByRole('navigation', { name: 'Fil d’Ariane' })).toHaveLength(1);
+  });
+
+  it('a page with no crumbs gets its module from the navigation', async () => {
+    await renderApp('/settings/appearance');
+    await screen.findByRole('heading', { level: 1, name: 'Apparence' });
+    // The module is the page's own section: plain text, not a link to here.
+    expect(within(trail()).getByText('Réglages')).not.toHaveAttribute('aria-current');
+    expect(within(trail()).queryByRole('link')).toBeNull();
+    expect(within(trail()).getByText('Apparence')).toHaveAttribute('aria-current', 'page');
+    expect(within(bar()).queryByRole('link', { name: /^Retour/ })).toBeNull();
+  });
+
+  it('a top-level page shows its name alone', async () => {
+    await renderApp('/investments');
+    await screen.findByRole('heading', { level: 1, name: 'Placements' });
+    expect(within(trail()).queryByRole('link')).toBeNull();
+    expect(within(trail()).getByText('Placements')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('while a page loads, the bar shows its module', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    server.use(http.get('*/api/v1/investments/envelopes/:id', async () => { await held; return HttpResponse.json(envelope()); }));
+    await renderApp(`/investments/${PEA}`);
+    expect(within(trail()).queryByRole('link', { name: 'Placements' })).toBeNull();
+    expect(within(trail()).getByText('Placements')).toHaveAttribute('aria-current', 'page');
+    release();
+    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+  });
+
+  it('moving to another page replaces the trail', async () => {
+    serveEnvelope();
+    const { user } = await renderApp(`/investments/${PEA}`);
+    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+    await user.click(within(trail()).getByRole('link', { name: 'Placements' }));
+    await screen.findByRole('heading', { level: 1, name: 'Placements' });
+    expect(within(trail()).getByText('Placements')).toHaveAttribute('aria-current', 'page');
+    expect(trail()).not.toHaveTextContent('PEA');
+  });
+
+  it('long names truncate in the bar', async () => {
+    serveEnvelope();
+    await renderApp(`/investments/${PEA}`);
+    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+    expect(within(trail()).getByRole('list')).toHaveClass('min-w-0');
+    for (const text of [within(trail()).getByRole('link', { name: 'Placements' }), within(trail()).getByText('PEA')]) {
+      expect(text).toHaveClass('truncate');
+      expect(text.className).toMatch(/max-w-/);
+    }
+  });
+
+  it('on a phone the bar offers « ‹ Parent », and the wordmark on a top-level page', async () => {
+    serveEnvelope();
+    await renderApp(`/investments/${PEA}`);
+    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+    const back = within(bar()).getByRole('link', { name: 'Retour à Placements' });
+    expect(back).toHaveAttribute('href', '/investments');
+    expect(back).toHaveClass('md:hidden');
+    expect(back).not.toHaveAttribute('aria-current');
+    expect(within(trail()).getByRole('link', { name: 'Placements' })).not.toHaveAttribute('aria-current');
+    expect(within(trail()).queryByRole('link', { name: 'PEA' })).toBeNull();
+    expect(bar().querySelector('[data-wordmark]')).toBeNull();
+  });
+
+  it('keeps the ancestors while the current title absorbs the squeeze', async () => {
+    serveEnvelope();
+    await renderApp(`/investments/${PEA}`);
+    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+    expect(within(trail()).getByRole('link', { name: 'Placements' }).closest('li')).toHaveClass('shrink-[0.1]');
+    expect(within(trail()).getByText('PEA').closest('li')).not.toHaveClass('shrink-[0.1]');
+  });
+
+  it('the phone back link has a focus ring and a touch target', async () => {
+    serveEnvelope();
+    await renderApp(`/investments/${PEA}`);
+    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+    expect(within(bar()).getByRole('link', { name: 'Retour à Placements' })).toHaveClass('h-9', 'pointer-coarse:h-11', 'focus-visible:ring-[3px]');
+  });
+
+  it('the end group never shrinks, so the scope switch stays on one line', async () => {
+    await renderApp('/investments');
+    await screen.findByRole('heading', { level: 1, name: 'Placements' });
+    expect(bar().querySelector('.ml-auto')).toHaveClass('shrink-0');
+  });
+
+  it('a top-level page has the wordmark and no back link on a phone', async () => {
+    await renderApp('/investments');
+    await screen.findByRole('heading', { level: 1, name: 'Placements' });
+    expect(bar().querySelector('[data-wordmark]')).not.toBeNull();
+    expect(within(bar()).queryByRole('link', { name: /^Retour/ })).toBeNull();
   });
 });

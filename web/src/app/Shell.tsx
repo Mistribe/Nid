@@ -11,6 +11,8 @@ import { TokenBanner } from '@/features/security/TokenBanner';
 import { CriticalBanner } from './CriticalBanner';
 import { NotificationBell } from './NotificationBell';
 import { RoutineBadge } from './RoutineBadge';
+import { TopBarTrail } from './TopBarTrail';
+import { TrailProvider } from '@/components/page/trail';
 import { section, TAB_ORDER, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
 import { initials, useSidebar } from './sidebar';
@@ -100,6 +102,7 @@ export function Shell() {
   const toggleShortcut = t(MAC ? 'nav.toggle_shortcut_mac' : 'nav.toggle_shortcut');
 
   return (
+    <TrailProvider>
     <div
       style={{ '--sidebar-width': rail ? '4rem' : '14rem' } as CSSProperties}
       className="min-h-dvh md:grid md:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] md:transition-[grid-template-columns] md:duration-200 md:ease-emphasized motion-reduce:transition-none print:block">
@@ -143,14 +146,14 @@ export function Shell() {
                 className="hidden size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:-ml-2 md:inline-flex">
                 {rail ? <PanelLeftOpen aria-hidden="true" className="size-4.5" /> : <PanelLeftClose aria-hidden="true" className="size-4.5" />}
               </button>
-              <p className="font-semibold md:hidden">{t('app.name')}</p>
+              <TopBarTrail />
               <button type="button" onClick={() => setPalette(true)} aria-label={t('command.open')} aria-keyshortcuts={MAC ? 'Meta+K' : 'Control+K'}
-                className="flex h-9 items-center gap-2 rounded-md border bg-card px-2.5 text-sm text-muted-foreground shadow-xs transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:w-full md:max-w-sm">
+                className="flex h-9 items-center gap-2 rounded-md border bg-card px-2.5 text-sm text-muted-foreground shadow-xs transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:w-full md:min-w-9 md:max-w-sm md:overflow-hidden md:shrink-[10]">
                 <Search aria-hidden="true" className="size-4 shrink-0" />
-                <span aria-hidden="true" className="hidden flex-1 text-left md:inline">{t('command.open')}</span>
-                <kbd aria-hidden="true" className="hidden rounded border bg-muted px-1.5 font-sans text-xs md:inline">{t(MAC ? 'command.shortcut_mac' : 'command.shortcut')}</kbd>
+                <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{t('command.open')}</span>
+                <kbd aria-hidden="true" className="hidden rounded border bg-muted px-1.5 font-sans text-xs whitespace-nowrap xl:inline">{t(MAC ? 'command.shortcut_mac' : 'command.shortcut')}</kbd>
               </button>
-              <div className="ml-auto flex items-center gap-2"><NotificationBell /><ScopeSwitch /><Guides /></div>
+              <div className="ml-auto flex shrink-0 items-center gap-2"><NotificationBell /><ScopeSwitch /><Guides /></div>
             </div>
           </div>
         </header>
@@ -179,5 +182,6 @@ export function Shell() {
           mobileOffset={{ bottom: 'calc(5rem + env(safe-area-inset-bottom) + 1rem)' }} />
       </Suspense>
     </div>
+    </TrailProvider>
   );
 }

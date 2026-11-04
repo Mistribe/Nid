@@ -40,6 +40,14 @@ describe('Abonnements › détail', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('ends the trail with the subscription name', async () => {
+    serveDetail(detail({ canWrite: false }));
+    await renderApp(`/subscriptions/${SUB}`);
+    await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+    const trail = screen.getByRole('navigation', { name: 'Fil d’Ariane' });
+    expect(within(trail).getByText('Spotify Premium Duo')).toHaveAttribute('aria-current', 'page');
+  });
+
   it('lists what a bundle includes, and nothing for a provider that includes nothing', async () => {
     const bundle = { key: 'apple-one', name: 'Apple One', origin: 'catalog', labels: [], iconUrl: null };
     serveDetail(detail({
