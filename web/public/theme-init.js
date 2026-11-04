@@ -3,9 +3,11 @@
 (function () {
   var theme = 'ardoise';
   var mode = 'system';
+  var reduced = false;
   try {
     theme = localStorage.getItem('nid.theme') || theme;
     mode = localStorage.getItem('nid.mode') || mode;
+    reduced = localStorage.getItem('nid.transparency') === 'reduce';
   } catch {
     // Storage refused: keep the defaults.
   }
@@ -13,4 +15,5 @@
   var dark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', theme);
   document.documentElement.classList.toggle('dark', dark);
+  if (reduced) document.documentElement.setAttribute('data-reduce-transparency', '');
 })();

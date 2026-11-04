@@ -32,14 +32,14 @@ export function Segmented({ value, onValueChange, options, ...aria }: {
   const [root, pill] = usePill(value);
   return (
     <RadioGroup.Root ref={root} value={value} onValueChange={onValueChange} {...aria}
-      className="relative inline-flex max-w-full flex-wrap rounded-md border border-input bg-muted p-0.5">
+      className="relative inline-flex max-w-full flex-wrap rounded-full border border-input bg-muted p-0.5">
       {pill ? (
         <span aria-hidden="true" style={{ left: pill.left, top: pill.top, width: pill.width, height: pill.height }}
-          className={`absolute rounded bg-background shadow-xs ${pill.moved ? 'transition-[left,top,width,height] duration-300 ease-emphasized' : ''}`} />
+          className={`absolute rounded-full bg-background shadow-xs ${pill.moved ? 'transition-[left,top,width,height] duration-300 ease-emphasized' : ''}`} />
       ) : null}
       {options.map((o) => (
         <RadioGroup.Item key={o.value} value={o.value}
-          className="relative rounded px-3 py-1 text-sm whitespace-nowrap outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:font-medium">
+          className="relative rounded-full px-3 py-1 text-sm whitespace-nowrap outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:font-medium">
           {o.label}
         </RadioGroup.Item>
       ))}

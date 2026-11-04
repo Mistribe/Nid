@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse, wcagContrast } from 'culori';
+import { differenceEuclidean, formatHex, parse, rgb, wcagContrast } from 'culori';
 import { describe, expect, it } from 'vitest';
 import { themes } from './index';
 
@@ -24,7 +24,33 @@ const PAIRS: [foreground: string, background: string, minimum: number][] = [
   ['status-good-text', 'card', 4.5],
   ['input', 'background', 3],
   ['ring', 'background', 3],
+  ['primary', 'background', 4.5],
 ];
+
+// Layers over the halo ground (visual identity spec §3.3): [text, surface, opacity variable of the surface].
+const COMPOSITE: [text: string, surface: string, opacity: string][] = [
+  ['foreground', 'card', 'material-opacity'],
+  ['muted-foreground', 'card', 'material-opacity'],
+  ['card-foreground', 'card', 'material-opacity'],
+  // Text on the content window (`content-pane`): the accents a page writes in.
+  ['destructive', 'card', 'material-opacity'],
+  ['status-good-text', 'card', 'material-opacity'],
+  ['status-warning-text', 'card', 'material-opacity'],
+  ['primary', 'card', 'material-opacity'],
+  ['foreground', 'glass', 'glass-opacity'],
+  ['muted-foreground', 'glass', 'glass-opacity'],
+  ['sidebar-foreground', 'glass', 'glass-opacity'],
+  ['popover-foreground', 'popover', 'glass-regular-opacity'],
+  ['muted-foreground', 'popover', 'glass-regular-opacity'],
+];
+
+// Composites in sRGB: a·top + (1 − a)·bottom per channel.
+function over(top: string, alpha: number, bottom: string): string {
+  const t = rgb(top)!;
+  const b = rgb(bottom)!;
+  const mix = (x: number, y: number) => alpha * x + (1 - alpha) * y;
+  return formatHex({ mode: 'rgb', r: mix(t.r, b.r), g: mix(t.g, b.g), b: mix(t.b, b.b) });
+}
 
 function block(css: string, selector: RegExp): Record<string, string> {
   const match = selector.exec(css);
@@ -49,6 +75,10 @@ function variables(id: string) {
   };
 }
 
+it('over() blends in sRGB', () => {
+  expect(differenceEuclidean('rgb')(over('#ffffff', 0.5, '#000000'), '#808080')).toBeLessThan(0.01);
+});
+
 describe.each(themes.map((t) => t.id))('theme %s', (id) => {
   describe.each(['light', 'dark'] as const)('%s mode', (mode) => {
     const vars = variables(id)[mode];
@@ -61,5 +91,43 @@ describe.each(themes.map((t) => t.id))('theme %s', (id) => {
       for (const value of [fg!, bg!]) expect(parse(value)?.alpha ?? 1, `${value} must be opaque to be measured`).toBe(1);
       expect(wcagContrast(fg!, bg!)).toBeGreaterThanOrEqual(minimum);
     });
+
+    // A `var(--x)` value resolves once to `vars[x]`.
+    const resolve = (name: string) => {
+      const value = vars[name]!;
+      const ref = /^var\(--([\w-]+)\)$/.exec(value);
+      return ref ? vars[ref[1]!]! : value;
+    };
+
+    it('defines an opaque --glass and four halos', () => {
+      expect(parse(vars['glass']!), '--glass').toBeDefined();
+      expect(parse(vars['glass']!)?.alpha ?? 1).toBe(1);
+      for (const n of [1, 2, 3, 4]) expect(parse(vars[`halo-${n}`]!), `--halo-${n}`).toBeDefined();
+    });
+
+    it.each(COMPOSITE)('%s on %s over every halo reaches 4.5:1', (text, surface, opacity) => {
+      const background = formatHex(vars['background'])!;
+      const grounds = [background];
+      for (const n of [1, 2, 3, 4]) {
+        const halo = parse(vars[`halo-${n}`]!)!;
+        grounds.push(over(formatHex(halo), halo.alpha ?? 1, background));
+      }
+      const alpha = parseFloat(vars[opacity]!) / 100;
+      for (const ground of grounds) {
+        const composite = over(formatHex(resolve(surface))!, alpha, ground);
+        expect(wcagContrast(formatHex(resolve(text))!, composite), `${text} on ${surface} over ${ground}`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it('foreground reaches 7:1 on background and card', () => {
+      for (const surface of ['background', 'card']) expect(wcagContrast(vars['foreground']!, vars[surface]!)).toBeGreaterThanOrEqual(7);
+    });
+
+    if (id === 'ardoise') {
+      it('ardoise is not Tailwind slate and blue', () => {
+        if (mode === 'dark') expect(vars['background']).not.toBe('oklch(0.129 0.042 264.7)');
+        expect(['oklch(0.623 0.188 259.8)', 'oklch(0.546 0.215 262.9)']).not.toContain(vars['primary']);
+      });
+    }
   });
 });

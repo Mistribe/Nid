@@ -376,7 +376,9 @@
       "title": "Apparence",
       "mode": "Mode",
       "theme": "Thème",
-      "chart_patterns": "Motifs dans les graphiques"
+      "chart_patterns": "Motifs dans les graphiques",
+      "reduce_transparency": "Réduire la transparence",
+      "reduce_transparency_hint": "Rend les surfaces opaques et retire les halos du fond. Réglé sur cet appareil."
     },
     "persons": {
       "title": "Personnes",

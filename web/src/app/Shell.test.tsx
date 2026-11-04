@@ -20,6 +20,37 @@ describe('the shell', () => {
     expect(links).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
   });
 
+  it('the sidebar, the top bar and the phone tabs are floating glass panes', async () => {
+    const { container } = await renderApp('/subscriptions');
+    for (const pane of ['sidebar', 'toolbar', 'tabs']) {
+      const el = container.querySelector(`[data-pane="${pane}"]`);
+      expect(el, pane).toHaveClass('glass', 'rounded-pane');
+    }
+    expect(sidebar()).not.toHaveClass('border-r');
+    expect(sidebar()).not.toHaveClass('bg-sidebar');
+  });
+
+  it('the routed page sits in one content window, never on the bare ground', async () => {
+    await renderApp('/subscriptions');
+    const pane = (await screen.findByRole('heading', { level: 1 })).closest('[data-pane="content"]');
+    expect(pane).toHaveClass('content-pane', 'rounded-pane');
+  });
+
+  it('marks the current page with a tinted pill, its label in the text colour', async () => {
+    await renderApp('/subscriptions');
+    for (const nav of [sidebar(), tabs()]) {
+      const current = within(nav).getByRole('link', { current: 'page' });
+      expect(current).toHaveClass('text-foreground', 'font-semibold');
+      expect(current).not.toHaveClass('text-primary');
+    }
+  });
+
+  it('the top bar fades the content scrolling under it', async () => {
+    const { container } = await renderApp('/subscriptions');
+    expect(container.querySelector('header [data-fade]')).toHaveClass('scroll-edge');
+    expect(container.querySelector('header')).not.toHaveClass('scroll-edge');
+  });
+
   it('lists « Garde » only with the childcare module', async () => {
     await renderApp('/subscriptions', { capabilities: { modules: ['core', 'subscriptions', 'income'], admin: false } });
     expect(within(sidebar()).queryByRole('link', { name: 'Garde' })).not.toBeInTheDocument();
@@ -209,7 +240,8 @@ describe('the shell', () => {
 
   it('shows the not-found page for an unknown path', async () => {
     await renderApp('/nowhere');
-    expect(await screen.findByRole('heading', { name: 'Cet élément est introuvable.' })).toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { name: 'Cet élément est introuvable.' });
+    expect(heading.closest('[data-pane="content"]')).toHaveClass('content-pane');
   });
 
   it('signs out with the CSRF token and says what stays open', async () => {

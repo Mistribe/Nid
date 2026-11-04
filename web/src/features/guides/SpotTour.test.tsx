@@ -74,6 +74,8 @@ describe('the on-screen tour', () => {
     expect(within(card).getByText('1 sur 3')).toBeInTheDocument();
     expect(card).toHaveAccessibleDescription(/^1 sur 3 Capital restant dû/);
     expect(card).not.toHaveAttribute('aria-modal');
+    // Out of the toolbar's glass: a backdrop-filter ancestor would hold the fixed card inside the bar.
+    expect(card.parentElement).toBe(document.body);
     await waitFor(() => expect(target('loans.figures')).toHaveAttribute('data-guide-active'));
     await waitFor(() => expect(card).toHaveFocus());
 

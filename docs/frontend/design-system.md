@@ -19,8 +19,9 @@
 | Actions | `primary`, `secondary`, `accent` et leurs `-foreground`, `destructive` |
 | Contours | `border`, `input`, `ring` |
 | Barre latérale | `sidebar`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring` |
-| Forme | `--radius` (les autres rayons en dérivent) |
-| Relief | `--elevation-card` (`shadow-card`) : une carte posée un cran au-dessus de la page ; `--elevation-raised` (`shadow-raised`) : une carte cliquable survolée. En mode sombre, un liseré clair en haut remplace l'ombre, qui ne se voit pas sur un fond sombre. Communs à tous les thèmes |
+| Forme | `--radius` (les autres rayons en dérivent) ; `rounded-pane` : le rayon d'un volet flottant (barre latérale, barre du haut, onglets) |
+| Couches | `--material-opacity`, `--glass-opacity`, `--glass-regular-opacity` : l'opacité des surfaces ; `--backdrop-*` : le flou de ce qu'elles recouvrent ; `--glass-edge` : leur liseré ; `--elevation-glass` : leur relief ; `--halo` : les halos colorés fixes du fond. Utilitaires `content-pane` (la fenêtre de contenu, sans flou), `material` (cartes givrées), `glass` (volets flottants), `glass-regular` (menus, fenêtres), `scroll-edge` (le fondu sous la barre du haut). Tout passe à 100 % et sans flou avec « Réduire la transparence », `prefers-contrast: more` et `forced-colors` |
+| Relief | `--elevation-card` (`shadow-card`) : une carte posée un cran au-dessus de la page ; `--elevation-raised` (`shadow-raised`) : une carte cliquable survolée. En mode sombre, un liseré clair en haut remplace l'ombre, qui ne se voit pas sur un fond sombre ; en mode clair, un liseré clair en haut aussi (`--elevation-card`). Communs à tous les thèmes |
 | Mouvement | Dans `@theme` : `ease-emphasized` (décélération), `animate-enter` (fondu et 6 px vers le haut, 400 ms), `animate-shimmer`, `animate-draw` (une ligne qui se trace), `animate-grow` (une barre qui se remplit) ; utilitaires `stagger` et `shimmer` |
 | Graphiques | `--chart-1` à `--chart-8` : palette **fixe**, indépendante du thème (`dataviz.md` §3) |
 | Statuts | `--status-good`, `--status-warning`, `--status-serious`, `--status-critical` : **fixes**, indépendants du thème (`dataviz.md` §4). `--status-warning-text` et `--status-good-text` pour du texte : `--status-warning` n'atteint que 1,75:1 sur fond clair, `--status-good` 3,20:1 (assez pour une icône, pas pour un texte) |
@@ -135,7 +136,7 @@ Un thème est un **jeu de valeurs de variables CSS**, avec sa variante claire et
 
 | Un thème peut changer | Un thème ne change pas |
 |---|---|
-| `primary`, `accent`, teinte des surfaces (`background`, `card`, `muted`, `secondary`), `border`, `input`, `ring`, `--radius`, barre latérale | La **palette des graphiques** (`--chart-N`), les couleurs de **statut**, la sémantique des badges |
+| `primary`, `accent`, teinte des surfaces (`background`, `card`, `muted`, `secondary`), `border`, `input`, `ring`, `--radius`, barre latérale, `--glass` et `--halo-1` à `--halo-4` (la teinte du verre et des halos) | La **palette des graphiques** (`--chart-N`), les couleurs de **statut**, la sémantique des badges |
 
 Raison : la palette de graphiques est validée pour le daltonisme et le contraste ; la redéfinir par thème obligerait à la re-valider à chaque fois. Les couleurs de statut portent un sens (bon, alerte, critique) qui ne doit pas varier.
 
@@ -199,6 +200,7 @@ Un **test de contraste en CI** parcourt tous les thèmes dans les deux modes :
 |---|---|
 | `foreground` sur `background`, `card`, `popover` | 4,5:1 |
 | `primary-foreground` sur `primary` | 4,5:1 |
+| `primary` (en texte) sur `background` | 4,5:1 |
 | `muted-foreground` sur `background` et `card` | 4,5:1 |
 | `secondary-foreground` sur `secondary` | 4,5:1 |
 | `status-warning-text` et `status-good-text` sur `background` et `card` | 4,5:1 |
@@ -241,9 +243,11 @@ le réglage de la personne déclenche (§8.2). L'accessibilité ne passe pas par
 | Couche | Éléments | Matériau |
 |---|---|---|
 | **Fond** | `body`, derrière tout | Couleur de fond et halos (`--halo`), fixés à la fenêtre, jamais animés |
-| **Contenu** | Cartes, `SectionCard`, listes groupées, widget du chiffre héros, tableaux, formulaires | **Matériau dépoli** : assez opaque (≈ 80 %) pour un texte fin, flou du fond, liseré de lumière en haut |
+| **Contenu** | Une seule fenêtre de contenu sous la barre d'outils (`content-pane`, `data-pane="content"`), comme une fenêtre macOS ; dessus, cartes, `SectionCard`, listes groupées, widget du chiffre héros, tableaux, formulaires | **Matériau dépoli** : assez opaque (≈ 80 %) pour un texte fin. La fenêtre n'a pas de flou (les halos sont des dégradés doux, et un `backdrop-filter` en ferait le bloc conteneur de tout `position: fixed` de la page) ; les cartes posées dessus gardent `material` : flou du fond, liseré de lumière en haut |
 | **Navigation** | Barre latérale, barre d'outils (fil d'Ariane, recherche, Foyer / Moi), barre d'onglets du téléphone, menus, popovers, dialogues | **Verre liquide** : plus fin, reflet sur l'arête, flotte au-dessus du contenu avec une marge et son propre rayon |
 
+- Un texte ne repose jamais sur le fond nu : la page est dans la fenêtre de contenu, et les écrans hors de la coque
+  (déconnecté, connexion refusée, échec au démarrage) posent leur texte sur la même fenêtre.
 - Le verre liquide est réservé à la couche de navigation : « Don't use Liquid Glass in the content layer. » Il reste
   rare : « Use Liquid Glass effects sparingly. »
 - Une surface qui porte beaucoup de texte (barre latérale, menu, popover, dialogue) prend le verre « regular », plus
@@ -287,7 +291,8 @@ le réglage de la personne déclenche (§8.2). L'accessibilité ne passe pas par
 | Objets graphiques (glyphe d'une tuile, contour d'un champ, anneau de focus) | 3:1 |
 
 - Sur le verre et le dépoli, le contraste se mesure sur le **composite** : la surface fondue à son opacité sur le pire
-  point du fond (le halo le plus lumineux en sombre, le plus saturé en clair).
+  point du fond (le halo le plus lumineux en sombre, le plus saturé en clair). Sur la fenêtre de contenu, le test y
+  mesure aussi `destructive`, `status-good-text`, `status-warning-text` et `primary`.
 
 **Taille du texte.**
 

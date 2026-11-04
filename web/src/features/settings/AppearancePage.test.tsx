@@ -221,6 +221,19 @@ describe('Réglages › Apparence', () => {
     await waitFor(() => expect(sent).toEqual([{ chartPatterns: true, csrf: 'csrf-alice' }]));
   });
 
+  it('« Réduire la transparence » makes the surfaces opaque on this device', async () => {
+    const sent: Body[] = [];
+    acceptPreferences(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('switch', { name: 'Réduire la transparence' }));
+
+    expect(html().hasAttribute('data-reduce-transparency')).toBe(true);
+    expect(localStorage.getItem('nid.transparency')).toBe('reduce');
+    expect(sent).toEqual([]);
+    html().removeAttribute('data-reduce-transparency');
+  });
+
   it('resets every guide', async () => {
     const sent: Body[] = [];
     acceptPreferences(sent);

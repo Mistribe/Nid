@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { findTarget, type Guide } from './guideData';
@@ -51,7 +52,8 @@ export function SpotTour({ guide, onEnd }: { guide: Guide; onEnd: () => void }) 
   // i18next types its keys; every tour step shares loans.figures' shape (guides.test.ts checks they exist).
   const key = `guides.${guide.id}.tour.${step}` as 'guides.loans.tour.figures';
 
-  return (
+  // In the body: the toolbar pane's backdrop-filter would make it the containing block of this fixed card.
+  return createPortal(
     <div ref={card} role="dialog" aria-labelledby={titleId} aria-describedby={`${countId} ${bodyId}`} tabIndex={-1}
       className="fixed inset-x-4 bottom-20 z-40 mx-auto max-w-md space-y-3 rounded-md border bg-background p-4 text-foreground shadow-lg md:bottom-4">
       <div className="flex items-start justify-between gap-2">
@@ -64,6 +66,7 @@ export function SpotTour({ guide, onEnd }: { guide: Guide; onEnd: () => void }) 
         {i > 0 ? <Button variant="outline" onClick={() => move(-1)}>{t('guides.common.previous')}</Button> : null}
         <Button onClick={last ? onEnd : () => move(1)}>{t(last ? 'guides.common.finish' : 'guides.common.next')}</Button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

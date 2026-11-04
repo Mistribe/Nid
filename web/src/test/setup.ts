@@ -55,6 +55,7 @@ afterEach(() => {
   toast.dismiss();
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
+  document.documentElement.removeAttribute('data-reduce-transparency');
   document.documentElement.className = '';
   // Files share their worker's window (isolate: false): a Radix modal's scroll lock and focus guards, or Recharts'
   // measuring span, would otherwise reach the next file's body.

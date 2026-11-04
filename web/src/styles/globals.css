@@ -22,8 +22,14 @@
   --sidebar-accent: var(--accent); --sidebar-accent-foreground: var(--accent-foreground);
   --sidebar-border: var(--border); --sidebar-ring: var(--ring);
   /* Relief (design-system.md §3): a card sits one step above the page, a hovered card one more. */
-  --elevation-card: 0 1px 2px oklch(0 0 0 / 4%), 0 4px 12px -4px oklch(0 0 0 / 6%);
+  --elevation-card: inset 0 1px 0 oklch(1 0 0 / 70%), 0 1px 2px oklch(0 0 0 / 4%), 0 4px 12px -4px oklch(0 0 0 / 6%);
   --elevation-raised: 0 2px 4px oklch(0 0 0 / 5%), 0 12px 24px -8px oklch(0 0 0 / 12%);
+  /* Layers (visual identity spec §3.2): the halo ground, frosted content (material), liquid-glass navigation (glass). */
+  --material-opacity: 80%; --glass-opacity: 55%; --glass-regular-opacity: 85%;
+  --backdrop-material: blur(24px) saturate(170%); --backdrop-glass: blur(26px) saturate(180%); --backdrop-edge: blur(6px);
+  --glass-edge: oklch(1 0 0 / 75%);
+  --elevation-glass: inset 0 1px 0 oklch(1 0 0 / 95%), inset 0 -1px 0 oklch(1 0 0 / 35%), 0 10px 30px -10px oklch(0.3 0.05 260 / 18%);
+  --halo: radial-gradient(60vw 50vh at 30% -10%, var(--halo-1), transparent 62%), radial-gradient(50vw 45vh at 100% 15%, var(--halo-2), transparent 60%), radial-gradient(45vw 40vh at 55% 115%, var(--halo-3), transparent 60%), radial-gradient(32vw 36vh at 0% 85%, var(--halo-4), transparent 70%);
 }
 .dark {
   --chart-1: #4488dc; --chart-2: #d26035; --chart-3: #329c72; --chart-4: #c48729;
@@ -32,6 +38,9 @@
   /* A shadow barely shows on a dark page: a light top edge gives the card its lift. */
   --elevation-card: inset 0 1px 0 oklch(1 0 0 / 5%), 0 1px 2px oklch(0 0 0 / 40%), 0 8px 24px -12px oklch(0 0 0 / 60%);
   --elevation-raised: inset 0 1px 0 oklch(1 0 0 / 8%), 0 2px 4px oklch(0 0 0 / 45%), 0 16px 32px -12px oklch(0 0 0 / 70%);
+  --glass-opacity: 45%;
+  --glass-edge: oklch(1 0 0 / 12%);
+  --elevation-glass: inset 0 1px 0 oklch(1 0 0 / 18%), inset 0 -1px 0 oklch(1 0 0 / 5%), 0 12px 34px -10px oklch(0 0 0 / 60%);
 }
 
 @theme inline {
@@ -70,6 +79,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-pane: calc(var(--radius) + 6px);
   --shadow-card: var(--elevation-card);
   --shadow-raised: var(--elevation-raised);
 }
@@ -134,6 +144,39 @@ main :has(> [data-page-header]) { @apply stagger; }
 @layer base {
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground; }
+  /* Focus is never hidden under the floating bars (WCAG 2.4.11). */
+  html { scroll-padding-top: calc(5rem + env(safe-area-inset-top)); scroll-padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+  @media (min-width: 48rem) { html { scroll-padding-bottom: 0; } }
+}
+
+/* The ground: the theme's halo, fixed behind the page (the body's colour propagates to the canvas, so z-index -1 still paints above it). */
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: var(--halo); }
+
+@utility material {
+  background: color-mix(in oklab, var(--card) var(--material-opacity), transparent);
+  backdrop-filter: var(--backdrop-material);
+}
+/* The content window: frosted like `material`, with no blur (the halos are smooth, and a backdrop-filter would make it the
+   containing block of every `position: fixed` in a page). */
+@utility content-pane {
+  background-color: color-mix(in oklab, var(--card) var(--material-opacity), transparent);
+}
+@utility glass {
+  background: color-mix(in oklab, var(--glass) var(--glass-opacity), transparent);
+  backdrop-filter: var(--backdrop-glass);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--elevation-glass);
+}
+@utility glass-regular {
+  background: color-mix(in oklab, var(--popover) var(--glass-regular-opacity), transparent);
+  backdrop-filter: var(--backdrop-glass);
+  /* The colour only: each overlay draws its own edges (`border`, a sheet's `border-l`…). */
+  border-color: var(--glass-edge);
+  box-shadow: var(--elevation-glass);
+}
+@utility scroll-edge {
+  backdrop-filter: var(--backdrop-edge);
+  mask-image: linear-gradient(to bottom, black 70%, transparent);
 }
 
 /* The tour's ring (module guides spec §4.4): unlayered, so it beats a button's `outline-none`; `ring` on `background` is
@@ -145,4 +188,28 @@ body:has([data-guide-active]) main { padding-bottom: 100dvh; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Opaque fallbacks (visual identity spec §3.2): no translucency, blur or halo where the system asks for less, or on paper. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  :root, .dark {
+    --material-opacity: 100%; --glass-opacity: 100%; --glass-regular-opacity: 100%;
+    --backdrop-material: none; --backdrop-glass: none; --backdrop-edge: none; --halo: none;
+  }
+}
+:root[data-reduce-transparency] {
+  --material-opacity: 100%; --glass-opacity: 100%; --glass-regular-opacity: 100%;
+  --backdrop-material: none; --backdrop-glass: none; --backdrop-edge: none; --halo: none;
+}
+@media print {
+  :root, .dark {
+    --material-opacity: 100%; --glass-opacity: 100%; --glass-regular-opacity: 100%;
+    --backdrop-material: none; --backdrop-glass: none; --backdrop-edge: none; --halo: none;
+  }
+}
+/* Increase Contrast: the theme files set these with [data-theme], so the override repeats that specificity and comes later. */
+@media (prefers-contrast: more) {
+  [data-theme], [data-theme].dark { --muted-foreground: var(--foreground); --border: var(--input); }
+  /* A pane's edge, near-invisible by default, takes a field's outline. */
+  :root, .dark { --glass-edge: var(--input); }
 }

@@ -7,6 +7,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import type { Preferences } from '@/app/session';
+import { useReduceTransparency } from '@/app/transparency';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from '@/app/theme';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Segmented } from '@/components/form/Segmented';
@@ -34,6 +35,7 @@ export function AppearancePage() {
   // only the page's look follows the choice at once.
   const [desired, setDesired] = useState<Choice | null>(null);
   const pending = useRef(0);
+  const transparency = useReduceTransparency();
 
   const savedTheme = resolveTheme(session.preferences.theme);
   const savedMode = resolveMode(session.preferences.mode);
@@ -142,6 +144,9 @@ export function AppearancePage() {
 
       <SwitchField label={t('settings.appearance.chart_patterns')} checked={session.preferences.chartPatterns}
         onCheckedChange={(chartPatterns) => change({ chartPatterns })} />
+
+      <SwitchField label={t('settings.appearance.reduce_transparency')} hint={t('settings.appearance.reduce_transparency_hint')}
+        checked={transparency.reduced} onCheckedChange={transparency.setReduced} />
 
       <section className="space-y-2">
         <h2 className="font-medium">{t('guides.settings.title')}</h2>

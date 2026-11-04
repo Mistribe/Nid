@@ -17,7 +17,7 @@ export function PersonMenu({ rail = false }: { rail?: boolean }) {
       <DropdownMenuTrigger asChild>
         {rail ? (
           <Button variant="ghost" size="icon" aria-label={name} className="mx-auto flex size-10 rounded-full">
-            <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials(name)}</span>
+            <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-foreground">{initials(name)}</span>
           </Button>
         ) : (
           <Button variant="ghost" className="w-full justify-between">
