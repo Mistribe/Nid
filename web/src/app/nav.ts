@@ -1,4 +1,6 @@
-import { Baby, Building2, Calculator, CalendarCheck, FileText, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Target, Upload, Wallet } from 'lucide-react';
+import { Baby, Bell, Building2, Calculator, CalendarCheck, FileText, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Target, Upload, Wallet } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import type { Tile } from '@/components/ModuleTile';
 import type { Capabilities } from './Providers';
 
 /** The phone's tab order (the other entries sit in « Plus »). */
@@ -38,3 +40,14 @@ export const section = (to: string) => `/${to.split('/')[1]}`;
 
 /** The entry of the module a path belongs to (its first segment), if any. */
 export const moduleOf = (pathname: string): NavItem | undefined => NAV.find((item) => section(item.to) === section(pathname));
+
+/** Pages outside the sidebar that still belong to a colour slot. */
+export const PLACES = { '/notifications': { icon: Bell, tile: 'primary' } } as const;
+
+export type Place = NavItem['to'] | keyof typeof PLACES;
+
+/** The icon and colour slot of a module's page, for its tile. */
+export function tileOf(to: Place): { icon: LucideIcon; tile: Tile } {
+  const { icon, tile } = to in PLACES ? PLACES[to as keyof typeof PLACES] : NAV.find((i) => i.to === to)!;
+  return { icon, tile };
+}

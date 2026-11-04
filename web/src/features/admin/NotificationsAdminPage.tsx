@@ -93,7 +93,7 @@ export function NotificationsAdminPage() {
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.notifications.failures_title')}</h2>
         {failures.length === 0 ? (
-          <EmptyState title={t('admin.notifications.no_failures')} body="" />
+          <EmptyState module="/admin/users" title={t('admin.notifications.no_failures')} body="" level={3} />
         ) : (
           <SortableTable
             caption={t('admin.notifications.failures_title')}

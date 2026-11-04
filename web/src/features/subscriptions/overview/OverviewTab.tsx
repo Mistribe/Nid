@@ -40,7 +40,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
   if (!d) return <Skeleton aria-busy="true" className="h-64 w-full" />;
   if (d.activeCount === 0 && d.endedCount === 0)
     return (
-      <EmptyState title={tc('subscriptions.empty_title')} body={tc('subscriptions.empty_body')}
+      <EmptyState module="/subscriptions" title={tc('subscriptions.empty_title')} body={tc('subscriptions.empty_body')}
         action={<Link to="/subscriptions/new" className={buttonVariants()}>{tc('subscriptions.empty_action')}</Link>} />
     );
 

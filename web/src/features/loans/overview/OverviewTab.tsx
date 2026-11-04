@@ -40,12 +40,12 @@ export function OverviewTab({ scope }: { scope: Scope }) {
   if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('loans_overview.loading')} className="h-64 w-full" />;
   if (d.runningCount === 0 && d.endedCount === 0)
     return (
-      <EmptyState title={t('loans.empty_title')} body={t('loans.empty_body')}
+      <EmptyState module="/loans" title={t('loans.empty_title')} body={t('loans.empty_body')}
         action={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
     );
   if (d.runningCount === 0)
     return (
-      <EmptyState title={t('loans.none_running_title')} body={t('loans.none_running_body')}
+      <EmptyState module="/loans" title={t('loans.none_running_title')} body={t('loans.none_running_body')}
         action={(
           <Link to="/loans" search={(prev: RootSearch & LoansSearch) => ({ ...prev, tab: 'list', ended: 1 as const })}
             className={buttonVariants({ variant: 'outline' })}>{t('loans.see_ended')}</Link>

@@ -66,12 +66,12 @@ function Sources({ data, filtered, withEnded, deciding }: { data: Overview; filt
   const nothingRunning = data.sources.length === 0 && (withEnded?.sources.length ?? 0) > 0;
   if (nothingRunning)
     return (
-      <EmptyState title={t('income.none_running_title')} body={t('income.none_running_body')}
+      <EmptyState module="/income" title={t('income.none_running_title')} body={t('income.none_running_body')}
         action={<Link from="/income" to="/income" search={(prev: RootSearch & IncomeSearch) => ({ ...prev, ended: 1 as const })} className={buttonVariants({ variant: 'outline' })}>{t('income.see_ended')}</Link>} />
     );
   if (data.sources.length === 0 && data.split.length === 0 && filtered)
     return (
-      <EmptyState title={t('income.empty_filter_title')} body={t('income.empty_filter_body')}
+      <EmptyState module="/income" title={t('income.empty_filter_title')} body={t('income.empty_filter_body')}
         action={(
           <Link from="/income" to="/income" className={buttonVariants({ variant: 'outline' })}
             search={(prev: RootSearch & IncomeSearch) => ({ ...prev, person: undefined, kind: undefined, source: undefined })}>
@@ -81,7 +81,7 @@ function Sources({ data, filtered, withEnded, deciding }: { data: Overview; filt
     );
   if (data.sources.length === 0 && data.split.length === 0)
     return (
-      <EmptyState title={t('income.empty_title')} body={t('income.empty_body')}
+      <EmptyState module="/income" title={t('income.empty_title')} body={t('income.empty_body')}
         action={<Link to="/income/new" className={buttonVariants()}>{t('income.add')}</Link>} />
     );
 

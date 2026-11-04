@@ -102,7 +102,7 @@ function Body({ answer, add }: { answer: ReturnType<typeof useEnvelopes>; add: R
 
   const data = answer.data;
   if (data.items.length === 0)
-    return <EmptyState title={t('investments.empty_title')} body={t('investments.empty_body')} action={add} />;
+    return <EmptyState module="/investments" title={t('investments.empty_title')} body={t('investments.empty_body')} action={add} />;
 
   return (
     <>

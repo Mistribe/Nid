@@ -49,7 +49,7 @@ export function ScenariosPage() {
             {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
           </ul>
         ) : answer.data.items.length === 0
-          ? <EmptyState title={t('scenarios.empty_title')} body={t('scenarios.empty_body')} action={add} />
+          ? <EmptyState module="/scenarios" title={t('scenarios.empty_title')} body={t('scenarios.empty_body')} action={add} />
           : <List items={answer.data.items} />}
     </div>
   );

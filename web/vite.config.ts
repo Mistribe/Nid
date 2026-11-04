@@ -17,7 +17,12 @@ export default defineConfig({
     headers: securityHeaders({ csp: false }),
   },
   preview: { headers: securityHeaders(), port: 4173, strictPort: true },
-  build: { manifest: true },
+  build: {
+    manifest: true,
+    // every module the entry loads statically goes in one chunk: dozens of small shared chunks cost kilobytes of gzip overhead
+    rolldownOptions: { output: { codeSplitting: { groups: [{ name: 'initial', tags: ['$initial'] }] } } },
+    chunkSizeWarningLimit: 700,
+  },
   test: {
     environment: 'jsdom',
     // One jsdom per worker rather than per file (it was a quarter of the run): files share a worker's window and modules,

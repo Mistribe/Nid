@@ -1,12 +1,29 @@
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
+/** The two arcs alone, in the text colour: decorative (empty states lay them behind a tile). */
+export function NestArcs({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" className={className}>
+      <ArcPaths />
+    </svg>
+  );
+}
+
+function ArcPaths() {
+  return (
+    <>
+      <path d="M3 12.5 Q12 23 21 12.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <path d="M6.5 14 Q12 19.5 17.5 14" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+    </>
+  );
+}
+
 /** The nest: two arcs and an egg. The arcs follow the text colour, the egg the accent (or the text, on a tile). */
 export function Logo({ className, onTile }: { className?: string; onTile?: boolean }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" className={className}>
-      <path d="M3 12.5 Q12 23 21 12.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-      <path d="M6.5 14 Q12 19.5 17.5 14" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <ArcPaths />
       <ellipse cx="12" cy="9" rx="3" ry="3.8" fill={onTile ? 'currentColor' : 'var(--primary)'} />
     </svg>
   );

@@ -48,7 +48,7 @@ export function SecurityJournalPage() {
         </FilterField>
       </FilterRow>
       {!journal.data || !adults.data ? <AdminSkeleton /> : journal.data.entries.length === 0 ? (
-        <EmptyState title={t('admin.security.empty')} body="" />
+        <EmptyState module="/admin/users" title={t('admin.security.empty')} body="" />
       ) : (
         <Table>
           <TableHeader>

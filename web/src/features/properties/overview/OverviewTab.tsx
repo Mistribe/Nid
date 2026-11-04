@@ -43,7 +43,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
   if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('properties_overview.loading')} className="h-64 w-full" />;
   if (d.count === 0)
     return (
-      <EmptyState title={t('properties.empty_title')} body={t('properties.empty_body')}
+      <EmptyState module="/properties" title={t('properties.empty_title')} body={t('properties.empty_body')}
         action={<Link to="/properties/new" className={buttonVariants()}>{t('properties.add')}</Link>} />
     );
 

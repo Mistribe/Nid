@@ -170,7 +170,7 @@ export function CatalogPage() {
       ) : !runs.data ? (
         <AdminSkeleton />
       ) : latest === undefined ? (
-        <EmptyState title={t('admin.catalog.empty_title')} body={t('admin.catalog.empty_body')} />
+        <EmptyState module="/admin/users" title={t('admin.catalog.empty_title')} body={t('admin.catalog.empty_body')} />
       ) : (
         <>
           <LastSync run={latest} />

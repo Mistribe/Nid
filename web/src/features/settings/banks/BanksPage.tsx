@@ -149,7 +149,7 @@ function Connections({ configured }: { configured: boolean }) {
       {configured ? null : <p>{t('banks.not_configured')}</p>}
       {connections.error ? <ProblemMessage problem={present(toProblem(connections.error))} /> : null}
       {configured && !connections.data && !connections.error ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton> : null}
-      {connections.data?.length === 0 ? <EmptyState title={t('banks.empty_title')} body={t('banks.empty_body')} action={connect} /> : null}
+      {connections.data?.length === 0 ? <EmptyState module="/settings/appearance" title={t('banks.empty_title')} body={t('banks.empty_body')} action={connect} /> : null}
       {connections.data && connections.data.length > 0 ? (
         <>
           <div>{connect}</div>

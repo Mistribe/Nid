@@ -48,7 +48,7 @@ function Panel({ list, actions }: { list: NotificationList; actions: Actions }) 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('notifications_page.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
   const rows = answer.data.pages.flatMap((page) => page.entries);
-  if (rows.length === 0) return <EmptyState title={t(`notifications_page.empty.${list}`)} body="" />;
+  if (rows.length === 0) return <EmptyState module="/notifications" title={t(`notifications_page.empty.${list}`)} body="" />;
 
   const menu = (n: NotificationView) => {
     if (list === 'history') return null;

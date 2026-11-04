@@ -197,7 +197,7 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
 
   if (data.items.length === 0 && bare && everything.data?.items.length === 0)
     return page(
-      <EmptyState title={t('subscriptions.empty_title')} body={t('subscriptions.empty_body')}
+      <EmptyState module="/subscriptions" title={t('subscriptions.empty_title')} body={t('subscriptions.empty_body')}
         action={<Link to="/subscriptions/new" className={buttonVariants()}>{t('subscriptions.empty_action')}</Link>} />,
     );
 

@@ -51,7 +51,7 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
   // Counts, not amounts: nothing at all yet is a welcome, not four « inconnu ».
   if (data.envelopes + data.subscriptions + data.incomeSources === 0)
     return (
-      <EmptyState title={t('dashboard.empty_title')} body={t('dashboard.empty_body')}
+      <EmptyState module="/dashboard" title={t('dashboard.empty_title')} body={t('dashboard.empty_body')}
         action={<ModuleLinks />} />
     );
   const open = (panel: Panel) => void navigate({ to: '/dashboard', search: (prev: RootSearch & DashboardSearch) => ({ ...prev, panel }) });

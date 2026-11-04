@@ -42,12 +42,12 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
   if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('investments_overview.loading')} className="h-64 w-full" />;
   if (d.openCount === 0 && d.closedCount === 0)
     return (
-      <EmptyState title={t('investments.empty_title')} body={t('investments.empty_body')}
+      <EmptyState module="/investments" title={t('investments.empty_title')} body={t('investments.empty_body')}
         action={<Link to="/investments/new" className={buttonVariants()}>{t('investments.add')}</Link>} />
     );
   if (d.openCount === 0)
     return (
-      <EmptyState title={t('investments_overview.none_open_title')} body={t('investments_overview.none_open_body')}
+      <EmptyState module="/investments" title={t('investments_overview.none_open_title')} body={t('investments_overview.none_open_body')}
         action={(
           <Link to="/investments" search={(prev: RootSearch & InvestmentsSearch) => ({ ...prev, tab: 'list', closed: 1 as const })}
             className={buttonVariants({ variant: 'outline' })}>{t('investments_overview.see_closed')}</Link>

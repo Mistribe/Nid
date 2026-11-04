@@ -104,7 +104,7 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
   return (
     <>
       {holdings.length === 0 ? (
-        <EmptyState title={t('holdings.empty_title')} body={t('holdings.empty_body')}
+        <EmptyState module="/investments" title={t('holdings.empty_title')} body={t('holdings.empty_body')}
           action={writable ? <Button type="button" onClick={() => open({ kind: 'holding' })}>{t('holdings.detail')}</Button> : undefined} />
       ) : (
         <section aria-labelledby="holdings-title" className="space-y-3">

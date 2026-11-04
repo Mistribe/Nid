@@ -98,12 +98,12 @@ function Body({ answer, withEnded }: { answer: ReturnType<typeof useLoans>; with
 
   if (empty && (withEnded?.data?.items.length ?? 0) > 0)
     return (
-      <EmptyState title={t('loans.none_running_title')} body={t('loans.none_running_body')}
+      <EmptyState module="/loans" title={t('loans.none_running_title')} body={t('loans.none_running_body')}
         action={<Link to="/loans" search={(prev: RootSearch & LoansSearch) => ({ ...prev, ended: 1 as const })} className={buttonVariants({ variant: 'outline' })}>{t('loans.see_ended')}</Link>} />
     );
   if (empty)
     return (
-      <EmptyState title={t('loans.empty_title')} body={t('loans.empty_body')}
+      <EmptyState module="/loans" title={t('loans.empty_title')} body={t('loans.empty_body')}
         action={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
     );
 

@@ -78,7 +78,7 @@ function ListTab({ scope, add }: { scope: 'me' | 'household'; add: ReactNode }) 
         {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
       </ul>
     );
-  if (items.length === 0) return <EmptyState title={t('properties.empty_title')} body={t('properties.empty_body')} action={add} />;
+  if (items.length === 0) return <EmptyState module="/properties" title={t('properties.empty_title')} body={t('properties.empty_body')} action={add} />;
   return (
     <SortableTable<PropertySummary> caption={t('properties.list')} rows={items} rowKey={(r) => r.id}
       rowLink={(r) => ({ to: '/properties/$id', params: { id: r.id } })}

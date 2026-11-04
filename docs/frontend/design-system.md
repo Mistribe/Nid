@@ -66,10 +66,10 @@ Communs à tous les modules, dans `components/`.
 | `<AccessBadge>` | Privé, Partagé, Enfant : **icône et texte** |
 | `<StaleValue>` | Signale une valeur périmée avec son ancienneté (pas encore construit : chaque écran l'affiche lui-même, icône et texte) |
 | `<ProvenanceBadge>` | Source d'une donnée : manuel, document, API bancaire, import ; ouvre le document d'origine (pas encore construit) |
-| `Logo` (`components/Logo.tsx`) | La marque (le nid : deux arcs et un œuf) ; arcs en `currentColor`, œuf en `--primary` (ou en `currentColor` avec `onTile`). Icônes `favicon.svg`, `apple-touch-icon.png`, `icon-192/512.png` et `icon-maskable-512.png` générées par `web/scripts/render-icons.mjs` |
+| `Logo` (`components/Logo.tsx`) | La marque (le nid : deux arcs et un œuf ; les arcs seuls : `NestArcs`) ; arcs en `currentColor`, œuf en `--primary` (ou en `currentColor` avec `onTile`). Icônes `favicon.svg`, `apple-touch-icon.png`, `icon-192/512.png` et `icon-maskable-512.png` générées par `web/scripts/render-icons.mjs` |
 | `Wordmark` | La marque suivie de « Nid » (lettres tracées d'après Fraunces 600) ; `markOnly` pour le rail replié ; la hauteur vient de `className` |
-| `ModuleTile` | Le pictogramme d'un module sur sa tuile de couleur (`tile` dans `app/nav.ts`, `--tile-*`, `dataviz.md` §5) ; sidebar et menu de commandes, pas la barre d'onglets du téléphone |
-| `<EmptyState>` | Titre, phrase, action |
+| `ModuleTile` | Le pictogramme d'un module sur sa tuile de couleur (`tile` dans `app/nav.ts`, `--tile-*`, `dataviz.md` §5) ; sidebar, menu de commandes et états vides, pas la barre d'onglets du téléphone |
+| `<EmptyState>` | Tuile du module (48 px) sur les arcs du nid, titre `h2` (`level={3}` sous un `h2`) `text-title`, phrase, actions en capsules ; le module vient de la table de navigation (`tileOf`, `PLACES` pour les pages hors menu) |
 | `<ProblemMessage>` | Présente une erreur convertie (`architecture.md` §5) |
 | `<ScopeSwitch>` | Foyer / Moi |
 | `Section` (`components/page/`) | Région titrée d'une fiche, sans carte : titre `h2`, focus facultatif |

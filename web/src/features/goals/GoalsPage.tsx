@@ -56,8 +56,8 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
   const rows = closed ? answer.data.items.filter((g) => g.closed) : answer.data.items;
   if (rows.length === 0)
     return closed
-      ? <EmptyState title={t('goals_list.empty_closed_title')} body={t('goals_list.empty_closed_body')} />
-      : <EmptyState title={t('goals_list.empty_title')} body={t('goals_list.empty_body')} action={add} />;
+      ? <EmptyState module="/goals" title={t('goals_list.empty_closed_title')} body={t('goals_list.empty_closed_body')} />
+      : <EmptyState module="/goals" title={t('goals_list.empty_title')} body={t('goals_list.empty_body')} action={add} />;
 
   const due = (g: GoalSummary) => g.targetDate ? <LocalDate value={g.targetDate} style="short" /> : <Dash />;
   const monthly = (g: GoalSummary) => g.monthlyNeeded ? <Money value={g.monthlyNeeded} tabular /> : <Dash />;

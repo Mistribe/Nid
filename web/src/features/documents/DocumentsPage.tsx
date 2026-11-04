@@ -103,8 +103,8 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
           </ul>
         )
         : all.length === 0 ? (inbox
-          ? <EmptyState title={t('documents_page.empty_inbox_title')} body={t('documents_page.empty_inbox_body')} />
-          : <EmptyState title={t('documents_page.empty_title')} body={t('documents_page.empty_body')} />)
+          ? <EmptyState module="/documents" title={t('documents_page.empty_inbox_title')} body={t('documents_page.empty_inbox_body')} />
+          : <EmptyState module="/documents" title={t('documents_page.empty_title')} body={t('documents_page.empty_body')} />)
         : <Table rows={rows} selection={inbox ? { selected, onChange: setSelected, allLabel: t('documents_page.file.select_all'),
           label: (d) => t('documents_page.file.select', { title: d.title }), disabled: (d) => !d.canEdit } : undefined} />}
     </>

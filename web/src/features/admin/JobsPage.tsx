@@ -24,7 +24,7 @@ export function JobsPage() {
   if (jobs.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(jobs.error))} /></AdminFrame>;
   if (!jobs.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
   if (jobs.data.length === 0)
-    return <AdminFrame title={title}><EmptyState title={t('admin.jobs.empty_title')} body={t('admin.jobs.empty_body')} /></AdminFrame>;
+    return <AdminFrame title={title}><EmptyState module="/admin/users" title={t('admin.jobs.empty_title')} body={t('admin.jobs.empty_body')} /></AdminFrame>;
 
   return (
     <AdminFrame title={title}>

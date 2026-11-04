@@ -28,7 +28,7 @@ export function Rental2044Section({ year, scope }: { year: number; scope: 'me' |
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!view) return <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
   const real = view.regime !== 'micro';
-  if (real && view.properties.length === 0) return <EmptyState title={t('tax.d2044.empty_title')} body={t('tax.d2044.empty_body')} />;
+  if (real && view.properties.length === 0) return <EmptyState module="/tax" title={t('tax.d2044.empty_title')} body={t('tax.d2044.empty_body')} />;
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
