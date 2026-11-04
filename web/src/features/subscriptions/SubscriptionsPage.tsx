@@ -13,6 +13,7 @@ import { OwnerChips } from '@/components/OwnerChips';
 import { Segmented } from '@/components/form/Segmented';
 import { PageHeader } from '@/components/page/PageHeader';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
@@ -21,7 +22,6 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { components } from '@/api/schema';
 import { LABELS, LIST, PERSONS, type ListResponse, type Summary } from './api';
@@ -91,10 +91,6 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
   const { $api } = useApi();
   const search: SubscriptionsSearch = useSearch({ strict: false });
   const navigate = useNavigate();
-  const searchId = useId();
-  const statusId = useId();
-  const groupId = useId();
-  const labelsId = useId();
   const totalsId = useId();
   const status = search.status ?? 'active';
   const groupBy: GroupBy = search.group ?? 'provider';
@@ -134,27 +130,24 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
 
   const filters = (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="space-y-1">
-        <Label htmlFor={searchId}>{t('subscriptions.search')}</Label>
-        <Input id={searchId} type="search" value={search.q ?? ''} onChange={(e) => setSearch({ q: e.target.value || undefined })} />
-      </div>
-      <div className="space-y-1">
-        <Label id={statusId}>{t('subscriptions.status_label')}</Label>
-        <div>
-          <Segmented aria-labelledby={statusId} value={status}
+    <FilterRow label={t('common.filters')}>
+      <FilterField label={t('subscriptions.search')} labelFor className="w-full sm:w-auto">
+        {(labelId, controlId) => <Input id={controlId} aria-labelledby={labelId} type="search" className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={search.q ?? ''} onChange={(e) => setSearch({ q: e.target.value || undefined })} />}
+      </FilterField>
+      <FilterField label={t('subscriptions.status_label')}>
+        {(labelId) => (
+          <Segmented aria-labelledby={labelId} value={status}
             onValueChange={(v) => setSearch({ status: v === 'ended' || v === 'all' ? v : undefined })}
             options={[
               { value: 'active', label: t('subscriptions.status_active') },
               { value: 'ended', label: t('subscriptions.status_ended') },
               { value: 'all', label: t('subscriptions.status_all') },
             ]} />
-        </div>
-      </div>
-      <div className="space-y-1">
-        <Label id={groupId}>{t('subscriptions.group_by')}</Label>
-        <div>
-          <Segmented aria-labelledby={groupId} value={groupBy}
+        )}
+      </FilterField>
+      <FilterField label={t('subscriptions.group_by')}>
+        {(labelId) => (
+          <Segmented aria-labelledby={labelId} value={groupBy}
             onValueChange={(v) => setSearch({ group: v === 'label' || v === 'person' || v === 'none' ? v : undefined })}
             options={[
               { value: 'provider', label: t('subscriptions.group_provider') },
@@ -162,13 +155,13 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
               { value: 'person', label: t('subscriptions.group_person') },
               { value: 'none', label: t('subscriptions.group_none') },
             ]} />
-        </div>
-      </div>
+        )}
+      </FilterField>
       {offered.length > 0 ? (
         <div className="flex items-center gap-2">
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button id={labelsId} type="button" variant="outline">
+              <Button type="button" variant="outline">
                 {t('subscriptions.labels')}{active.length > 0 ? ` (${active.length})` : ''}
                 <ChevronDownIcon aria-hidden="true" />
               </Button>
@@ -188,10 +181,11 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
           ) : null}
         </div>
       ) : null}
-    </div>
+    </FilterRow>
   );
 
-  const page = (content: ReactNode) => <>{totals}{filters}{content}</>;
+  // The totals depend on the filters: they come right under them (spec §4.2).
+  const page = (content: ReactNode) => <>{filters}{totals}{content}</>;
 
   if (!data || (data.items.length === 0 && bare && !everything.data && !everything.error))
     return page(

@@ -1,15 +1,15 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { X } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { RootSearch } from '@/app/router';
 import { ComboboxField } from '@/components/form/ComboboxField';
-import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { formatCurrency } from '@/components/Money';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
 import { TableToggle } from '@/components/page/TableToggle';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -40,8 +40,6 @@ export function ScenarioComparePage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
-  const horizonId = useId();
-  const readingId = useId();
   const [real, setReal] = useState(true);
   const [asTable, setAsTable] = useState(false);
   const search: RootSearch & CompareSearch = useSearch({ strict: false });
@@ -73,37 +71,43 @@ export function ScenarioComparePage() {
   return (
     <article className="space-y-6">
       <PageHeader crumbs={[{ label: t('scenarios.title'), to: '/scenarios' }]} title={t('scenarios.compare.title')} />
-      <div className="grid gap-3 sm:grid-cols-3">
-        {Array.from({ length: pickers }, (_, i) => (
-          <div key={i} className="flex items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <Field label={t('scenarios.compare.picker', { n: i + 1 })}>
-                {(c) => (
-                  <ComboboxField {...c} value={ids[i] ?? ''} onValueChange={(id) => choose(i, id)} disabled={!list.data}
-                    options={(list.data?.items ?? []).filter((s) => s.id === ids[i] || !ids.includes(s.id)).map((s) => ({ value: s.id, label: s.name }))}
-                    searchPlaceholder={t('scenarios.compare.search')} empty={t('scenarios.compare.none')} />
-                )}
-              </Field>
-            </div>
-            {ids[i] ? (
-              <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} aria-label={t('scenarios.compare.remove', { name: nameOf(ids[i]) })}>
-                <X aria-hidden="true" />
-              </Button>
-            ) : null}
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span id={horizonId} className="sr-only">{t('dashboard.projection.horizon')}</span>
-        <Segmented value={horizon} onValueChange={(next) => go({ horizon: next === DEFAULT_HORIZON ? undefined : (next as CompareSearch['horizon']) })}
-          aria-labelledby={horizonId}
-          options={[
-            ...YEARS.map((y) => ({ value: y, label: t('dashboard.projection.horizon_years', { count: Number.parseInt(y, 10) }) })),
-            ...retirements.map((r) => ({ value: `retire:${r.person}`, label: t('dashboard.projection.retire', { name: r.name }) })),
-          ]} />
-        <span id={readingId} className="sr-only">{t('dashboard.projection.reading')}</span>
-        <Segmented value={real ? 'real' : 'nominal'} onValueChange={(next) => setReal(next === 'real')} aria-labelledby={readingId}
-          options={[{ value: 'real', label: t('dashboard.projection.real') }, { value: 'nominal', label: t('dashboard.projection.nominal') }]} />
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterRow label={t('common.filters')}>
+          {Array.from({ length: pickers }, (_, i) => (
+            <FilterField key={i} label={t('scenarios.compare.picker', { n: i + 1 })} className="w-full sm:w-auto">
+              {(labelId, controlId) => (
+                <>
+                  <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
+                    <ComboboxField id={controlId} aria-labelledby={labelId} value={ids[i] ?? ''} onValueChange={(id) => choose(i, id)} disabled={!list.data}
+                      options={(list.data?.items ?? []).filter((s) => s.id === ids[i] || !ids.includes(s.id)).map((s) => ({ value: s.id, label: s.name }))}
+                      searchPlaceholder={t('scenarios.compare.search')} empty={t('scenarios.compare.none')} />
+                  </div>
+                  {ids[i] ? (
+                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} aria-label={t('scenarios.compare.remove', { name: nameOf(ids[i]) })}>
+                      <X aria-hidden="true" />
+                    </Button>
+                  ) : null}
+                </>
+              )}
+            </FilterField>
+          ))}
+          <FilterField label={t('dashboard.projection.horizon')}>
+            {(labelId) => (
+              <Segmented value={horizon} onValueChange={(next) => go({ horizon: next === DEFAULT_HORIZON ? undefined : (next as CompareSearch['horizon']) })}
+                aria-labelledby={labelId}
+                options={[
+                  ...YEARS.map((y) => ({ value: y, label: t('dashboard.projection.horizon_years', { count: Number.parseInt(y, 10) }) })),
+                  ...retirements.map((r) => ({ value: `retire:${r.person}`, label: t('dashboard.projection.retire', { name: r.name }) })),
+                ]} />
+            )}
+          </FilterField>
+          <FilterField label={t('dashboard.projection.reading')}>
+            {(labelId) => (
+              <Segmented value={real ? 'real' : 'nominal'} onValueChange={(next) => setReal(next === 'real')} aria-labelledby={labelId}
+                options={[{ value: 'real', label: t('dashboard.projection.real') }, { value: 'nominal', label: t('dashboard.projection.nominal') }]} />
+            )}
+          </FilterField>
+        </FilterRow>
         {answer.data ? <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} /> : null}
       </div>
       <Result ids={ids} answer={answer} real={real} asTable={asTable} />

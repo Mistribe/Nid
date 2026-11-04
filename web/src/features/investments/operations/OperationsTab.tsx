@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { DateField } from '@/components/form/DateField';
-import { Field } from '@/components/form/Field';
 import { LocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
@@ -48,9 +48,15 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
 
   return (
     <Section title={t('banks.operations.title')} srTitle>
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="w-44"><Field label={t('banks.operations.from')}>{(c) => <DateField {...c} value={from} onChange={setFrom} />}</Field></div>
-        <div className="w-44"><Field label={t('banks.operations.to')}>{(c) => <DateField {...c} value={to} onChange={setTo} />}</Field></div>
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterRow label={t('common.filters')}>
+          <FilterField label={t('banks.operations.from')} labelFor>
+            {(labelId, controlId) => <div className="w-44"><DateField id={controlId} aria-labelledby={labelId} value={from} onChange={setFrom} /></div>}
+          </FilterField>
+          <FilterField label={t('banks.operations.to')} labelFor>
+            {(labelId, controlId) => <div className="w-44"><DateField id={controlId} aria-labelledby={labelId} value={to} onChange={setTo} /></div>}
+          </FilterField>
+        </FilterRow>
         {writable ? (
           <Button ref={importRef} type="button" variant="outline" className="ml-auto" onClick={() => setImporting(true)}>
             {t('banks.import.open')}

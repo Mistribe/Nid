@@ -81,8 +81,8 @@ export function CoverageBand({ coverage }: { coverage: Coverage[] }) {
         <TableBody>
           {coverage.map((c) => (
             <TableRow key={`${c.start}-${c.source}`}>
-              <TableCell><LocalDate value={c.start} /></TableCell>
-              <TableCell><LocalDate value={lastDay(c.endBefore)} /></TableCell>
+              <TableCell><LocalDate style="short" value={c.start} /></TableCell>
+              <TableCell><LocalDate style="short" value={lastDay(c.endBefore)} /></TableCell>
               <TableCell>{sourceText(t, c.source)}</TableCell>
               <TableCell>{c.isProjected ? t('subscription.projected') : t('subscription.past')}</TableCell>
             </TableRow>

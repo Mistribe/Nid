@@ -38,3 +38,9 @@ export function usePageTrail(trail: Trail): void {
     return () => setter?.clear(owner);
   }, [setter, owner, key]);
 }
+
+/** A page's trail without its `PageHeader` (a detail still loading, or refused): the bar keeps its way back. Renders nothing. */
+export function PageTrail(trail: Trail) {
+  usePageTrail(trail);
+  return null;
+}

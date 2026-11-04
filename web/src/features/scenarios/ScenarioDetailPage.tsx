@@ -9,6 +9,7 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -50,8 +51,9 @@ export function ScenarioDetailPage() {
   const open = (which: Editing) => setEditing(which);
   const saved = (message: string) => { setReturnTo(editing); setEditing(null); toast.success(message); };
 
-  if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data) return <div aria-busy="true" aria-label={t('scenarios.detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
+  const crumbs = [{ label: t('scenarios.title'), to: '/scenarios' as const }];
+  if (answer.error) return <><PageTrail crumbs={crumbs} /><ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (!answer.data) return <><PageTrail crumbs={crumbs} /><div aria-busy="true" aria-label={t('scenarios.detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
 
   const scenario = answer.data;
   const { capacity, gap } = scenario.result;
@@ -59,7 +61,7 @@ export function ScenarioDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={[{ label: t('scenarios.title'), to: '/scenarios' }]} title={scenario.name}
+      <PageHeader crumbs={crumbs} title={scenario.name}
         meta={<><span className="text-sm text-muted-foreground">{t(`scenarios.use.${scenario.document.use === 'rental' ? 'rental' : 'primary'}`)}</span>
           <AccessBadge access={scenario.visibility === 'private' ? 'private' : 'shared'} /></>}
         actions={scenario.canWrite ? (

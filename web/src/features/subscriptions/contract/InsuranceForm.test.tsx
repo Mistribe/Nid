@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { pick } from '@/test/controls';
+import { openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { propertyList, propertySummary } from '../../properties/testData';
@@ -26,7 +27,8 @@ function serve(body: Detail, put?: Parameters<typeof http.put>[1], properties = 
 
 const openDialog = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
   await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
-  await user.click(screen.getByRole('button', { name: /^(Ajouter|Modifier) l’assurance$/ }));
+  await openMore(user);
+  await user.click(await screen.findByRole('menuitem', { name: /^(Ajouter|Modifier) l’assurance$/ }));
   return screen.findByRole('form', { name: 'Assurance' });
 };
 

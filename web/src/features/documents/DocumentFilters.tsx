@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Field } from '@/components/form/Field';
 import { SelectField, type Option } from '@/components/form/SelectField';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { SwitchField } from '@/components/page/SwitchField';
 import type { DocumentSummary } from './api';
 import { linkKey, roleText, shownDate } from './format';
@@ -39,19 +39,21 @@ export function DocumentFilters({ rows, filters, onChange, archived, onArchivedC
   const years = [...new Set(rows.map((d) => shownDate(d).slice(0, 4)))].sort().reverse().map((y) => ({ value: y, label: y }));
   const elements = [...new Map(links.map((l) => [linkKey(l), { value: linkKey(l), label: l.label }])).values()].sort(byLabel);
   const select = (key: keyof Filters, label: string, all: string, options: Option[]) => (
-    <div className="w-full sm:w-52">
-      <Field label={label}>
-        {(control) => <SelectField {...control} value={filters[key]} onValueChange={(v) => onChange({ ...filters, [key]: v })}
-          options={[{ value: '', label: all }, ...options]} />}
-      </Field>
-    </div>
+    <FilterField label={label} className="w-full sm:w-auto">
+      {(labelId, controlId) => (
+        <div className="min-w-0 flex-1 sm:w-52 sm:flex-none">
+          <SelectField id={controlId} aria-labelledby={labelId} value={filters[key]} onValueChange={(v) => onChange({ ...filters, [key]: v })}
+            options={[{ value: '', label: all }, ...options]} />
+        </div>
+      )}
+    </FilterField>
   );
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <FilterRow label={t('common.filters')}>
       {select('role', t('documents_page.filter_type'), t('documents_page.filter_type_all'), roles)}
       {select('year', t('documents_page.filter_year'), t('documents_page.filter_year_all'), years)}
       {select('link', t('documents_page.filter_link'), t('documents_page.filter_link_all'), elements)}
-      <div className="pb-2"><SwitchField label={t('documents_page.show_archived')} checked={archived} onCheckedChange={onArchivedChange} /></div>
-    </div>
+      <SwitchField label={t('documents_page.show_archived')} checked={archived} onCheckedChange={onArchivedChange} />
+    </FilterRow>
   );
 }

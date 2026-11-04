@@ -1,5 +1,5 @@
 import { keepPreviousData } from '@tanstack/react-query';
-import { Link, useParams, useSearch } from '@tanstack/react-router';
+import { useParams, useSearch } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -113,9 +114,11 @@ export function IncomeSourceDetailPage() {
   }, [focusId]);
 
   const source = answer.data;
-  const back = <Link to="/income" className="text-sm underline">{t('income_detail.back')}</Link>;
-  if (answer.error) return <article className="space-y-6">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
-  if (!source) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  // No `PageHeader` yet: the bar's trail leads back to the list (no inline link of its own).
+  const crumbs = [{ label: t('nav.income'), to: '/income' as const }];
+  const trail = <PageTrail crumbs={crumbs} />;
+  if (answer.error) return <article className="space-y-6">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+  if (!source) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   // Every write affordance: the header actions, the row menus and the settings.
   const writable = source.canWrite && !source.ended;
@@ -138,7 +141,7 @@ export function IncomeSourceDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={[{ label: t('nav.income'), to: '/income' }]} title={source.displayName} actions={actions}
+      <PageHeader crumbs={crumbs} title={source.displayName} actions={actions}
         meta={(
           <>
             <span className="text-sm text-muted-foreground">{kindText(t, source.kind)}</span>

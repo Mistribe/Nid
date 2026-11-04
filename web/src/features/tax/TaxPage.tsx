@@ -7,12 +7,14 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { TaxSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
-import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
+import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { toPlot } from '../investments/chart/plot';
 import { Section } from '@/components/page/Section';
 import { PERSONS } from '../subscriptions/api';
@@ -22,7 +24,7 @@ import { useTaxAssessments, type TaxAssessment } from './assessments/api';
 import { GapTable } from './assessments/GapTable';
 import { AssessmentView } from './assessments/AssessmentView';
 import { noticeAmount, noticeText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
-import { PerRows, PerSummary, perWarningsInBlock, perWarningTexts } from './PerSection';
+import { PerRows, PerSummary, perWarningsInBlock } from './PerSection';
 import { ProfileForm } from './profile/ProfileForm';
 import { ProfileSubmit } from './profile/ProfileSubmit';
 import { useProfileDraft } from './profile/useProfileDraft';
@@ -34,7 +36,6 @@ import { Rental2044Section } from './Rental2044Section';
 import { WithholdingSection } from './WithholdingSection';
 import '@/locales/tax';
 
-// Five views in the row; the profile and the 2044 are opened from the header, beside the year.
 const TABS = ['detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', '2044'] as const;
 
 /** Past this many years the selector is a list, not a row of buttons. */
@@ -72,36 +73,39 @@ export function TaxPage() {
   const estimate = past ? undefined : answer.data;
   const people = $api.useQuery('get', PERSONS).data ?? [];
   const notices = assessments.filter((a) => String(a.year) === year);
-  // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows Détail.
+  // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows Calcul.
   const tab = rawTab === 'assessment' && !notices.length ? 'detail' : rawTab;
   const noticeViews = <Notices notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
-  const selector = years.length > MAX_SEGMENTS
-    ? <Field label={t('tax.year')} inline>{(control) => <SelectField {...control} value={year} onValueChange={setYear} options={years} />}</Field>
-    : <Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} />;
   // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
   const draft = useProfileDraft(estimate, scope);
 
   return (
     <div className="space-y-6" aria-busy={answer.isPlaceholderData || undefined}>
-      <PageHeader title={t('tax.title')} actions={(
-        <div className="flex flex-wrap items-center gap-3 print:hidden">
-          {selector}
-          {estimate ? (['profile', '2044'] as const).map((id) => (
-            <Button key={id} variant={tab === id ? 'secondary' : 'outline'} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>{t(`tax.tab.${id}`)}</Button>
-          )) : null}
-          <Button asChild><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>
-        </div>
-      )}>
-        {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
-      </PageHeader>
+      <PageHeader title={t('tax.title')} actions={<Button asChild className="print:hidden"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>} />
+      <div className="print:hidden">
+        <FilterRow label={t('common.filters')}>
+          <FilterField label={t('tax.year')}>
+            {(labelId, controlId) => years.length > MAX_SEGMENTS
+              ? <div className="w-28"><SelectField id={controlId} aria-labelledby={labelId} value={year} onValueChange={setYear} options={years} /></div>
+              : <Segmented aria-labelledby={labelId} value={year} onValueChange={setYear} options={years} />}
+          </FilterField>
+        </FilterRow>
+      </div>
+      {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
       {past && awaiting ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
       {past && !awaiting ? noticeViews : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!past && !estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
-      {estimate ? <Notes estimate={estimate} inBlock={tab === 'detail'} printed={tab !== '2044'} /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
-          { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
+          { id: 'detail', label: t('tax.tab.detail'), content: (
+            <>
+              <MoreFigures result={estimate.result} />
+              <Split result={estimate.result} />
+              <Notes estimate={estimate} />
+              <Detail estimate={estimate} onProfile={() => setTab('profile')} />
+            </>
+          ) },
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
           ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
           { id: 'evolution', label: t('tax.tab.evolution'),
@@ -112,9 +116,15 @@ export function TaxPage() {
               <Section title={t('tax.tab.sale')}><SaleTotalSection scope={scope} /></Section>
             </>
           ) },
-          { id: 'profile', trigger: false, label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
+          { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },
-          { id: '2044', trigger: false, label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
+          { id: '2044', label: t('tax.tab.2044'), content: (
+            <>
+              {/* The tab list does not print: the printed 2044 keeps its title. */}
+              <h2 className="hidden text-xl font-semibold print:block">{t('tax.d2044.print_title', { year })}</h2>
+              <Rental2044Section year={Number(year)} scope={scope} />
+            </>
+          ) },
         ]} />
       ) : null}
     </div>
@@ -135,50 +145,53 @@ function Notices({ notices, persons, gaps, adults }: {
 /** The previous year's scale in use: said under the total, where the scale is named every year, rather than among the notes. */
 const CARRIED = 'rules_carried_forward';
 
-/** The three figures that answer « combien, combien il reste, que faire en septembre », then the rest inline and the split. */
+/** The three figures that answer « combien, combien il reste, que faire en septembre ». */
 function Figures({ estimate, onAdjust }: { estimate: TaxEstimate; onAdjust: () => void }) {
   const { t } = useTranslation();
   const r = estimate.result;
   const balance = r.withholding.balance;
   const refund = balance.startsWith('-');
   return (
-    <div className="space-y-6">
-      <dl className="grid gap-6 border-b pb-6 sm:grid-cols-3">
-        <Figure label={t('tax.figure.total_tax')} value={eur(r.totalTax)}
-          hint={<>
-            {/* Both lines show every year, so changing the year does not move the screen. */}
-            <span className="block min-h-5">{r.averageRate ? t('tax.figure.average_rate', { rate: percentText(t, r.averageRate) }) : null}</span>
-            <span className="block">{t(r.warnings.includes(CARRIED) ? 'tax.figure.carried' : 'tax.figure.scale', { year: r.rulesYear })}</span>
-          </>} />
-        <Figure label={t('tax.figure.left_monthly')} value={eur(r.netAfterTaxMonthly)} hint={t('tax.figure.per_year', { amount: eur(r.netAfterTax) })} />
-        <Figure label={t('tax.figure.balance', { year: estimate.year + 1 })}
-          value={ZERO.test(balance) ? t('tax.figure.no_balance') : (
-            <>{eur(refund ? balance.slice(1) : balance)} <span className="text-lg font-medium">{t(refund ? 'tax.figure.refund' : 'tax.figure.to_pay')}</span></>
+    <StatLine items={[
+      { label: t('tax.figure.total_tax'), value: (
+        <>
+          {eur(r.totalTax)}
+          {/* Both lines show every year, so changing the year does not move the screen. */}
+          <Sub className="min-h-5">{r.averageRate ? t('tax.figure.average_rate', { rate: percentText(t, r.averageRate) }) : null}</Sub>
+          <Sub>{t(r.warnings.includes(CARRIED) ? 'tax.figure.carried' : 'tax.figure.scale', { year: r.rulesYear })}</Sub>
+        </>
+      ) },
+      { label: t('tax.figure.left_monthly'), value: <>{eur(r.netAfterTaxMonthly)}<Sub>{t('tax.figure.per_year', { amount: eur(r.netAfterTax) })}</Sub></> },
+      { label: t('tax.figure.balance', { year: estimate.year + 1 }), value: (
+        <>
+          {ZERO.test(balance) ? t('tax.figure.no_balance') : (
+            <>{eur(refund ? balance.slice(1) : balance)} <span className="text-base font-medium">{t(refund ? 'tax.figure.refund' : 'tax.figure.to_pay')}</span></>
           )}
-          hint={<Button variant="link" className="h-auto p-0" onClick={onAdjust}>{t('tax.figure.adjust')}</Button>} />
-      </dl>
-      <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        {[
-          [t('tax.figure.net_taxable'), eur(r.netTaxableIncome)],
-          [t('tax.figure.marginal_rate'), percentText(t, r.marginalRate)],
-          [t('tax.figure.withholding_rate'), percentText(t, r.withholding.rate)],
-          [t('tax.figure.parts'), r.parts],
-        ].map(([label, value]) => (
-          <div key={label} className="flex gap-1.5"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium tabular-nums">{value}</dd></div>
-        ))}
-      </dl>
-      <Split result={r} />
-    </div>
+          <Sub><Button variant="link" className="h-auto p-0" onClick={onAdjust}>{t('tax.figure.adjust')}</Button></Sub>
+        </>
+      ) },
+    ]} />
   );
 }
 
-function Figure({ label, value, hint }: { label: string; value: ReactNode; hint: ReactNode }) {
+function Sub({ className, children }: { className?: string; children: ReactNode }) {
+  return <span className={cn('block text-sm font-normal text-muted-foreground', className)}>{children}</span>;
+}
+
+/** The rest of the year's figures, at the top of « Calcul ». */
+function MoreFigures({ result: r }: { result: TaxEstimate['result'] }) {
+  const { t } = useTranslation();
   return (
-    <div className="space-y-1">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-3xl font-semibold tracking-tight">{value}</dd>
-      {hint ? <dd className="text-sm text-muted-foreground">{hint}</dd> : null}
-    </div>
+    <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+      {[
+        [t('tax.figure.net_taxable'), eur(r.netTaxableIncome)],
+        [t('tax.figure.marginal_rate'), percentText(t, r.marginalRate)],
+        [t('tax.figure.withholding_rate'), percentText(t, r.withholding.rate)],
+        [t('tax.figure.parts'), r.parts],
+      ].map(([label, value]) => (
+        <div key={label} className="flex gap-1.5"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium tabular-nums">{value}</dd></div>
+      ))}
+    </dl>
   );
 }
 
@@ -205,19 +218,19 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
   );
 }
 
-/** The server's warnings and notices, above the tabs: they matter whichever tab is open. */
-function Notes({ estimate, printed, inBlock }: { estimate: TaxEstimate; printed: boolean; /** The Détail tab, whose PER block tells the PER warnings it can. */ inBlock: boolean }) {
+/** The server's warnings and notices, in « Calcul » beside the PER block, which tells the PER warnings it can. */
+function Notes({ estimate }: { estimate: TaxEstimate }) {
   const { t } = useTranslation();
   const notes = [
     ...estimate.result.warnings.filter((w) => w !== CARRIED && !PER_WARNINGS.includes(w)).map((w) => warningText(t, w, estimate.result.rulesYear)),
-    // The server names a PER warning once per declarant it concerns; perWarningTexts already tells one sentence per declarant.
-    ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !(inBlock && perWarningsInBlock(estimate.result).has(w)))
-      .flatMap((w) => perWarningTexts(t, estimate.result, w, estimate.year)),
+    // The server names a PER warning once per declarant it concerns: one generic sentence for those the PER block cannot tell.
+    ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !perWarningsInBlock(estimate.result).has(w))
+      .map((w) => t(w === 'per_over_ceiling' ? 'tax.warning.per_over_ceiling' : 'tax.warning.per_ceiling_estimated')),
     ...estimate.notices.map((n) => noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur))),
   ];
   if (!notes.length) return null;
   return (
-    <div className={`flex gap-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-4${printed ? '' : ' print:hidden'}`}>
+    <div className="flex gap-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-4">
       <AlertTriangle aria-hidden="true" className="mt-1 size-4 shrink-0 text-status-warning" />
       <Section title={t('tax.notes')}>
         <ul className="list-disc space-y-1 pl-5 text-sm">{notes.map((n, i) => <li key={`${i}-${n}`}>{n}</li>)}</ul>

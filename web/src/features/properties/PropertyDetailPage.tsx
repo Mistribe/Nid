@@ -9,6 +9,7 @@ import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -56,13 +57,15 @@ export function PropertyDetailPage() {
     setFocusEstimate(false);
   }, [focusEstimate]);
   const property = answer.data;
-  const back = <Link to="/properties" className="text-sm underline">{t('property_detail.back')}</Link>;
+  // No `PageHeader` yet: the bar's trail leads back to the list (no inline link of its own).
+  const crumbs = [{ label: t('nav.properties'), to: '/properties' as const }];
+  const trail = <PageTrail crumbs={crumbs} />;
 
   if (answer.error) {
     // An unknown property and another adult's private one both answer 404: « Cet élément est introuvable. ».
-    return <article className="space-y-6">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+    return <article className="space-y-6">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
   }
-  if (!property) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!property) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const rented = property.type === 'rental' || property.tenancies.length > 0;
   const shown = (tab === 'settings' && !property.canWrite) || ((tab === 'rental' || tab === 'return') && !rented) ? 'overview' : tab;
@@ -79,7 +82,7 @@ export function PropertyDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={[{ label: t('nav.properties'), to: '/properties' }]} title={property.name} actions={actions}
+      <PageHeader crumbs={crumbs} title={property.name} actions={actions}
         meta={(
           <>
             <span className="text-sm text-muted-foreground">{typeText(t, property.type)}</span>

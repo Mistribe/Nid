@@ -1,12 +1,12 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import type { RootSearch, RoutineSearch } from '@/app/router';
-import { Field } from '@/components/form/Field';
 import { DateField } from '@/components/form/DateField';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
@@ -42,6 +42,7 @@ export function RoutinePage() {
     .filter((a) => a.envelopeId && a.autoApplyBalance && a.synced && !a.ignored && a.lastBalanceOn).map((a) => [a.envelopeId!, a.lastBalanceOn!])), [accounts]);
   // What is typed in the date field until it is a day the routine can open (a past one).
   const [typed, setTyped] = useState<string | null>(null);
+  const errorId = useId();
   const [saved, setSaved] = useState<{ recap: RoutineRecap; values: RoutineValues } | null>(null);
 
   const [restored, setRestored] = useState<RoutineValues | null>(null);
@@ -55,19 +56,23 @@ export function RoutinePage() {
     <div className="space-y-6">
       <PageHeader title={t('routine.title', { month: monthText })} actions={<ToLinkLink />} />
       <PendingLine />
-      <div className="max-w-xs">
-        <Field label={t('routine.date')} error={typed ? t('routine.date_invalid') : undefined}>
-          {(c) => (
-            <DateField {...c} value={typed ?? on} max={today} onChange={(v) => {
-              if (!ISO_DATE.test(v) || v > today) { setTyped(v); return; }
-              setTyped(null);
-              setSaved(null); setRestored(null); setUndone(false);
-              void navigate({ to: '/routine', replace: true, resetScroll: false,
-                search: (prev: RootSearch & RoutineSearch) => ({ ...prev, on: v === defaultRoutineDate(today) ? undefined : v }) });
-            }} />
+      <FilterRow label={t('common.filters')}>
+        <FilterField label={t('routine.date')} labelFor>
+          {(labelId, controlId) => (
+            <div className="w-44">
+              <DateField id={controlId} aria-labelledby={labelId} {...(typed ? { 'aria-invalid': true, 'aria-describedby': errorId } as const : {})}
+                value={typed ?? on} max={today} onChange={(v) => {
+                  if (!ISO_DATE.test(v) || v > today) { setTyped(v); return; }
+                  setTyped(null);
+                  setSaved(null); setRestored(null); setUndone(false);
+                  void navigate({ to: '/routine', replace: true, resetScroll: false,
+                    search: (prev: RootSearch & RoutineSearch) => ({ ...prev, on: v === defaultRoutineDate(today) ? undefined : v }) });
+                }} />
+            </div>
           )}
-        </Field>
-      </div>
+        </FilterField>
+      </FilterRow>
+      {typed ? <p id={errorId} className="text-sm text-destructive">{t('routine.date_invalid')}</p> : null}
       {envelopes ? (
         <>
           {answer.error && !answer.data ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}

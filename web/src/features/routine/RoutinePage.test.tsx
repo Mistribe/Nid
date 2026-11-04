@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { RoutineView } from './api';
@@ -192,6 +193,15 @@ describe('the routine', () => {
     expect(await screen.findByText('Tout est à jour pour septembre 2025.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Autres enveloppes' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', { name: 'Enregistrer les placements' })).toBeDisabled();
+  });
+
+  it('puts its date in the filter row, the label before the field', async () => {
+    serve(routine(lines()));
+    await renderApp('/routine');
+    const date = await screen.findByLabelText('Valeurs au');
+    const row = screen.getByRole('group', { name: 'Filtres' });
+    expectLabelBefore(within(row).getByText('Valeurs au'), date);
+    expect(within(row).getByRole('button', { name: 'Choisir une date : Valeurs au' })).toBeInTheDocument();
   });
 
   it('keeps the chosen date in the URL', async () => {

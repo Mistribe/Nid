@@ -1,4 +1,3 @@
-import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useState } from 'react';
@@ -6,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { eventLabel } from '@/features/security/eventLabel';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
@@ -35,16 +35,18 @@ export function SecurityJournalPage() {
 
   return (
     <AdminFrame title={title}>
-      <div className="max-w-xs">
-        <Field label={t('admin.security.filter')}>
-          {(c) => (
-            <SelectField {...c} value={event} onValueChange={setEvent} options={[
-              { value: '', label: t('admin.security.all') },
-              ...JOURNAL_EVENTS.map((name) => ({ value: name, label: eventLabel(t, name) })),
-            ]} />
+      <FilterRow label={t('common.filters')}>
+        <FilterField label={t('admin.security.filter')} className="w-full sm:w-auto">
+          {(labelId, controlId) => (
+            <div className="min-w-0 flex-1 sm:w-64 sm:flex-none">
+              <SelectField id={controlId} aria-labelledby={labelId} value={event} onValueChange={setEvent} options={[
+                { value: '', label: t('admin.security.all') },
+                ...JOURNAL_EVENTS.map((name) => ({ value: name, label: eventLabel(t, name) })),
+              ]} />
+            </div>
           )}
-        </Field>
-      </div>
+        </FilterField>
+      </FilterRow>
       {!journal.data || !adults.data ? <AdminSkeleton /> : journal.data.entries.length === 0 ? (
         <EmptyState title={t('admin.security.empty')} body="" />
       ) : (

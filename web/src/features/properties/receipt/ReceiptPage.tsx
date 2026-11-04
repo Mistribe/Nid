@@ -4,14 +4,16 @@ import { useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
-import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { formatLocalDate } from '@/components/LocalDate';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { money } from '../../loans/format';
 import { todayIso } from '../../subscriptions/today';
+import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_RECEIPTS } from '../api';
 import { monthText } from '../format';
 import '@/locales/properties';
@@ -38,10 +40,12 @@ export function ReceiptPage() {
   useEffect(() => {
     if (stale) void navigate({ to: '/properties/$id/receipt', params: { id }, search: {}, replace: true });
   }, [stale, navigate, id]);
-  const back = <Link to="/properties/$id" params={{ id }} className="text-sm underline print:hidden">{t('property_receipt.back')}</Link>;
+  // No `PageHeader` yet: the bar's trail leads back to the property (no inline link of its own).
+  const crumbs = usePropertyTrail(id);
+  const trail = <PageTrail crumbs={crumbs} />;
 
-  if (answer.error && !stale) return <div className="space-y-4">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
-  if (!view) return <div className="space-y-4">{back}<div aria-busy="true" aria-label={t('property_receipt.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></div>;
+  if (answer.error && !stale) return <div className="space-y-4">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
+  if (!view) return <div className="space-y-4">{trail}<div aria-busy="true" aria-label={t('property_receipt.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></div>;
 
   const missingText = (field: string) => {
     switch (field) {
@@ -62,16 +66,18 @@ export function ReceiptPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-4 print:hidden">
-        <PageHeader crumbs={[{ label: view.propertyName, to: '/properties/$id', params: { id } }]} title={t('property_receipt.link')}
+        <PageHeader crumbs={[{ label: t('nav.properties'), to: '/properties' }, { label: view.propertyName, to: '/properties/$id', params: { id } }]} title={t('property_receipt.link')}
           actions={view.kind === 'unpaid' ? null : <Button type="button" variant="outline" onClick={() => window.print()}><Printer aria-hidden="true" />{t('property_receipt.print')}</Button>} />
-        <div className="w-60">
-          <Field label={t('property_receipt.month')}>
-            {(control) => (
-              <SelectField {...control} value={view.month} options={view.months.map((m) => ({ value: m, label: monthText(m) }))}
-                onValueChange={(next) => void navigate({ to: '/properties/$id/receipt', params: { id }, search: { month: next } })} />
+        <FilterRow label={t('common.filters')}>
+          <FilterField label={t('property_receipt.month')} className="w-full sm:w-auto">
+            {(labelId, controlId) => (
+              <div className="min-w-0 flex-1 sm:w-60 sm:flex-none">
+                <SelectField id={controlId} aria-labelledby={labelId} value={view.month} options={view.months.map((m) => ({ value: m, label: monthText(m) }))}
+                  onValueChange={(next) => void navigate({ to: '/properties/$id/receipt', params: { id }, search: { month: next } })} />
+              </div>
             )}
-          </Field>
-        </div>
+          </FilterField>
+        </FilterRow>
         {view.missing.length > 0 ? (
           <div role="alert" className="flex gap-2 rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm text-status-warning-text">
             <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />

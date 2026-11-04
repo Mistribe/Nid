@@ -1,9 +1,11 @@
 import { link, list, summary } from '../documents/testData';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
@@ -28,6 +30,19 @@ const withFigures = (over: Partial<PropertyDetail['figures']>) => propertyDetail
 describe('PropertyDetailPage', () => {
   // The lazy route chunk loaded cold inside the first test races its timeouts under load.
   beforeAll(async () => { await import('./PropertyDetailPage'); }, 30_000);
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/realestate/properties/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/properties/${PROPERTY}`);
+    expect(await screen.findByLabelText('Chargement du bien')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Biens', '/properties'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/properties/${PROPERTY}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Biens', '/properties'));
+  });
 
   it('overview shows value, net value, latent gain and real cost inline, the real cost’s lines in its order', async () => {
     serve();
@@ -266,7 +281,6 @@ describe('PropertyDetailPage', () => {
     await renderApp(`/properties/${PROPERTY}`);
 
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Retour aux biens' })).toHaveAttribute('href', '/properties');
   });
 
   it('has a documents tab before the settings, listing the documents anchored on the property', async () => {

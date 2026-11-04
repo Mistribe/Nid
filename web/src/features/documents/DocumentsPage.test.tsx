@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { expectLabelBefore } from '@/test/filters';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -93,6 +94,17 @@ describe('DocumentsPage', () => {
     await waitFor(async () => expect((await rows()).map((r) => r.querySelector('td')?.textContent)).toEqual(['Bail 2024', 'Facture box']));
 
     expect(seen).toHaveLength(asked);
+  });
+
+  it('the document filters sit in one row, each labelled before its control', async () => {
+    serve(three());
+    await renderApp('/documents');
+    await rows();
+    const row = screen.getByRole('group', { name: 'Filtres' });
+    for (const name of ['Type', 'Année', 'Élément lié']) {
+      expectLabelBefore(within(row).getByText(name), within(row).getByRole('combobox', { name }));
+    }
+    expect(within(row).getByRole('switch', { name: 'Afficher les archivés' })).toBeInTheDocument();
   });
 
   it('« Afficher les archivés » asks for the archived documents', async () => {

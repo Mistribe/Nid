@@ -1,4 +1,4 @@
-import { Link, useParams } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
@@ -69,7 +70,9 @@ export function EnvelopeDetailPage() {
   const bank = useBankAccounts(id)?.[0];
   const bankingOn = useBankingStatus().data?.enabled === true;
   const [tab, setTab] = useDetailTab(TABS);
-  const back = <Link to="/investments" className="text-sm underline">{t('envelope.back')}</Link>;
+  // No `PageHeader` yet: the bar's trail leads back to the list (no inline link of its own).
+  const crumbs = [{ label: t('nav.investments'), to: '/investments' as const }];
+  const trail = <PageTrail crumbs={crumbs} />;
   // The dialogs: a new value or flow (`{}`), the correction of a row, or a new flow on « Versements antérieurs ».
   const [valueDialog, setValueDialog] = useState<{ editing?: Valuation } | null>(null);
   const [flowDialog, setFlowDialog] = useState<{ editing?: Flow; opening?: boolean } | null>(null);
@@ -150,8 +153,8 @@ export function EnvelopeDetailPage() {
     else if (landOn === 'enter' && isClosed === false) { (enterRef.current ?? bannerRef.current)?.focus(); setLandOn(null); }
   }, [landOn, isClosed]);
 
-  if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
-  if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (answer.error) return <>{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (!answer.data) return <>{trail}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   const detail = answer.data;
   const figures = detail.figures;
@@ -185,7 +188,7 @@ export function EnvelopeDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={[{ label: t('nav.investments'), to: '/investments' }]} title={detail.displayName} actions={actions}
+      <PageHeader crumbs={crumbs} title={detail.displayName} actions={actions}
         meta={<><span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span><AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} /></>}>
         <section aria-label={t('envelope.figures')} data-guide="investments.figures" className="space-y-2">
           <StatLine items={[

@@ -6,12 +6,15 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { Segmented } from '@/components/form/Segmented';
 import { formatLocalDate } from '@/components/LocalDate';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { money } from '../../loans/format';
 import { todayIso } from '../../subscriptions/today';
+import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_ARREARS } from '../api';
 import { monthText } from '../format';
 import '@/locales/properties';
@@ -41,17 +44,18 @@ export function ArrearsLetterPage() {
   const { days = DEFAULT_DELAY } = useSearch({ from: '/properties/$id/arrears-letter' });
   const navigate = useNavigate();
   const titleId = useId();
-  const delayId = useId();
   const answer = $api.useQuery('get', PROPERTY_ARREARS, { params: { path: { id } } });
   const view = answer.data;
-  const back = <Link to="/properties/$id" params={{ id }} className="text-sm underline print:hidden">{t('property_arrears.back')}</Link>;
+  // No `PageHeader` yet: the bar's trail leads back to the property (no inline link of its own).
+  const crumbs = usePropertyTrail(id);
+  const trail = <PageTrail crumbs={crumbs} />;
 
-  if (answer.error) return <div className="space-y-4">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
-  if (!view) return <div className="space-y-4">{back}<div aria-busy="true" aria-label={t('property_arrears.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></div>;
+  if (answer.error) return <div className="space-y-4">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
+  if (!view) return <div className="space-y-4">{trail}<div aria-busy="true" aria-label={t('property_arrears.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></div>;
 
   const letter = view.letter;
   const header = (
-    <PageHeader crumbs={[{ label: view.propertyName, to: '/properties/$id', params: { id } }]} title={t('property_arrears.letter')}
+    <PageHeader crumbs={[{ label: t('nav.properties'), to: '/properties' }, { label: view.propertyName, to: '/properties/$id', params: { id } }]} title={t('property_arrears.letter')}
       actions={letter ? <Button type="button" variant="outline" onClick={() => window.print()}><Printer aria-hidden="true" />{t('property_arrears.print')}</Button> : null} />
   );
   if (!letter) return <div className="space-y-4 print:hidden">{header}<p className="text-muted-foreground">{t('property_arrears.none')}</p></div>;
@@ -74,12 +78,15 @@ export function ArrearsLetterPage() {
     <div className="space-y-6">
       <div className="space-y-4 print:hidden">
         {header}
-        <div className="space-y-1">
-          <span id={delayId} className="block text-sm">{t('property_arrears.days')}</span>
-          <Segmented aria-labelledby={delayId} value={String(days)}
-            options={DELAYS.map((n) => ({ value: String(n), label: t('property_arrears.days_option', { count: n }) }))}
-            onValueChange={(next) => void navigate({ to: '/properties/$id/arrears-letter', params: { id }, search: { days: Number(next) } })} />
-        </div>
+        <FilterRow label={t('common.filters')}>
+          <FilterField label={t('property_arrears.days')}>
+            {(labelId) => (
+              <Segmented aria-labelledby={labelId} value={String(days)}
+                options={DELAYS.map((n) => ({ value: String(n), label: t('property_arrears.days_option', { count: n }) }))}
+                onValueChange={(next) => void navigate({ to: '/properties/$id/arrears-letter', params: { id }, search: { days: Number(next) } })} />
+            )}
+          </FilterField>
+        </FilterRow>
         {letter.formerTenant ? <p className="text-sm text-muted-foreground">{t('property_arrears.former_tenant')}</p> : null}
         {letter.leavesOutEarlierTenant ? <p className="text-sm text-muted-foreground">{t('property_arrears.earlier_tenant')}</p> : null}
         {letter.missing.length > 0 ? (

@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { expectLabelBefore } from '@/test/filters';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -60,6 +61,21 @@ describe('Income overview', () => {
     await waitFor(() => expect(seen.at(-1)!.get('person')).toBe(ALICE));
     await pick(user, 'Type', 'Loyers');
     await waitFor(() => expect(seen.at(-1)!.get('kind')).toBe('rent'));
+  });
+
+  it('the income filters sit in one row, each labelled before its control', async () => {
+    serve();
+    await renderApp('/income');
+
+    const row = await screen.findByRole('group', { name: 'Filtres' });
+    expect(within(row).getByRole('radiogroup', { name: 'Période' })).toBeInTheDocument();
+    expect(within(row).getByRole('radiogroup', { name: 'Personne' })).toBeInTheDocument();
+    expect(within(row).getByRole('combobox', { name: 'Type' })).toBeInTheDocument();
+    for (const [label, role] of [['Période', 'radiogroup'], ['Personne', 'radiogroup'], ['Type', 'combobox']] as const) {
+      expectLabelBefore(within(row).getByText(label), within(row).getByRole(role, { name: label }));
+    }
+    const figures = await screen.findByText('6 420,00 €');
+    expect(row.compareDocumentPosition(figures.closest('dl')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('isolates a source from the split bar and clears it on a second click', async () => {

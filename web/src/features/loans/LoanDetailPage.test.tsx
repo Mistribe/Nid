@@ -1,9 +1,11 @@
 import { link, list, summary } from '../documents/testData';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import type { LoanDetail, LoanSchedule } from './api';
@@ -34,6 +36,19 @@ describe('LoanDetailPage', () => {
   // Today's payment and the open year read the browser's today: pinned to 2026-10-12.
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 9, 12, 12)); });
   afterEach(() => { vi.useRealTimers(); });
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/realestate/loans/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/loans/${LOAN}`);
+    expect(await screen.findByLabelText('Chargement du crédit')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Crédits', '/loans'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/realestate/loans/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/loans/${LOAN}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Crédits', '/loans'));
+  });
 
   it('overview answers where the loan stands', async () => {
     serve();

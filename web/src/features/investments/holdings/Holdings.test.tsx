@@ -1,9 +1,12 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import type { CostReport, Holding, HoldingBreakdown, HoldingsView, Movement, Snapshot } from '../api';
 import { detail, eur, PEA } from '../testData';
@@ -196,6 +199,21 @@ describe('the « Supports » tab', () => {
     expect(dialog.queryByRole('switch', { name: 'Cours automatique' })).not.toBeInTheDocument();
   });
 
+  it('lines its filters up in one row, the search first, each label before its control', async () => {
+    const closed = holding({ id: 'closed', name: 'Ancien fonds', closedOn: '2024-06-30', line: null, figures: null });
+    serve(view({ holdings: [holding(), euroFund, closed] }));
+    await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    await screen.findByRole('table', { name: 'Supports de l’enveloppe' });
+    const row = screen.getByRole('group', { name: 'Filtres' });
+    const search = within(row).getByRole('searchbox', { name: 'Rechercher un support' });
+    const kind = within(row).getByRole('combobox', { name: 'Type' });
+    expectLabelBefore(within(row).getByText('Rechercher un support'), search);
+    expectLabelBefore(within(row).getByText('Type'), kind);
+    expect(search.compareDocumentPosition(kind) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(row).getByRole('switch', { name: 'Afficher les supports clôturés' })).toBeInTheDocument();
+  });
+
   it('filters the holdings by name or ISIN and by type, the closed ones on demand', async () => {
     const closed = holding({ id: 'closed', name: 'Ancien fonds', closedOn: '2024-06-30', line: null, figures: null });
     serve(view({ holdings: [holding(), euroFund, closed] }));
@@ -313,6 +331,21 @@ describe('a switch of several legs', () => {
 
 describe('a holding’s page', () => {
   beforeAll(async () => { await import('./HoldingPage'); }, 30_000);
+
+  it('loading and refused states show no inline back link: the bar leads back to the envelope once read', async () => {
+    server.use(http.get('*/api/v1/investments/envelopes/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+    expect(await screen.findByLabelText('Chargement des supports')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Placements', '/investments'));
+    cleanup();
+
+    // The envelope is read, the holding is not in it.
+    serve(view({ holdings: [] }));
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('PEA', `/investments/${PEA}`));
+    expectTrailBack('Placements', '/investments');
+  });
 
   const report = (over: Partial<CostReport> = {}): CostReport => ({
     envelopeId: PEA, holdingId: FUND, year: 2024, grossReturnPct: 8, totalFeesPct: 2.5, netReturnPct: 5.5, contractFeesPct: null, supportFeesPct: null,

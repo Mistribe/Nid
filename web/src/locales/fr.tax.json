@@ -163,6 +163,7 @@
       "ceiling_estimated_warning": "Plafond de {{name}} estimé sur les revenus {{year}} : saisissez celui de votre avis pour un chiffre exact."
     },
     "d2044": {
+      "print_title": "Déclaration 2044 — revenus {{year}}",
       "csv": "Exporter en CSV",
       "print": "Imprimer",
       "provisional": "Provisoire : l’année n’est pas terminée.",

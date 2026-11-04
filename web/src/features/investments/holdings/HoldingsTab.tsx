@@ -6,11 +6,11 @@ import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
-import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { RowMenu } from '@/components/page/RowMenu';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
@@ -125,24 +125,24 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
             ) : null}
           </div>
           {view.complete === false ? <p className="text-sm text-muted-foreground">{t('holdings.partial')}</p> : null}
-          <div className="flex flex-wrap items-end gap-3">
-            <Field label={t('holdings.search')}>
-              {(control) => <Input {...control} type="search" value={query} onChange={(e) => setQuery(e.target.value)} />}
-            </Field>
+          <FilterRow label={t('common.filters')}>
+            <FilterField label={t('holdings.search')} labelFor className="w-full sm:w-auto">
+              {(labelId, controlId) => <Input id={controlId} aria-labelledby={labelId} type="search" className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={query} onChange={(e) => setQuery(e.target.value)} />}
+            </FilterField>
             {kinds.length > 1 ? (
-              <div className="w-48">
-                <Field label={t('holdings.kind_label')}>
-                  {(control) => (
-                    <SelectField {...control} value={kind} onValueChange={setKind}
+              <FilterField label={t('holdings.kind_label')} className="w-full sm:w-auto">
+                {(labelId, controlId) => (
+                  <div className="min-w-0 flex-1 sm:w-48 sm:flex-none">
+                    <SelectField id={controlId} aria-labelledby={labelId} value={kind} onValueChange={setKind}
                       options={[{ value: '', label: t('holdings.kind_all') }, ...kinds.map((k) => ({ value: k, label: holdingKindText(t, k) }))]} />
-                  )}
-                </Field>
-              </div>
+                  </div>
+                )}
+              </FilterField>
             ) : null}
             {openHoldings.length < holdings.length ? (
-              <div className="pb-2"><SwitchField label={t('holdings.show_closed')} checked={showClosed} onCheckedChange={setShowClosed} /></div>
+              <SwitchField label={t('holdings.show_closed')} checked={showClosed} onCheckedChange={setShowClosed} />
             ) : null}
-          </div>
+          </FilterRow>
           {shown.length === 0 ? <p className="text-sm text-muted-foreground">{t('holdings.no_match')}</p> : (
             <SortableTable caption={t('holdings.table')} rows={shown} rowKey={(h) => h.id} initialSort={{ id: 'value', desc: true }}
               columns={[

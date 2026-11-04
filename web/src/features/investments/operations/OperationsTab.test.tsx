@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { EnvelopeDetail } from '../api';
@@ -62,6 +63,17 @@ describe('« Opérations »', () => {
     expect(table).toHaveTextContent('PRLV SEPA EDF');
     expect(asked.map((q) => q.get('page'))).toEqual(['1', '2']);
     expect(screen.queryByRole('button', { name: 'Plus' })).toBeNull();
+  });
+
+  it('puts its period in the filter row, each label before its date', async () => {
+    serve([[line()]]);
+    await renderApp(`/investments/${PEA}?tab=operations`);
+
+    await screen.findByRole('table', { name: 'Opérations' });
+    const row = screen.getByRole('group', { name: 'Filtres' });
+    expectLabelBefore(within(row).getByText('Du'), within(row).getByRole('textbox', { name: 'Du' }));
+    expectLabelBefore(within(row).getByText('Au'), within(row).getByRole('textbox', { name: 'Au' }));
+    expect(within(row).getByRole('button', { name: 'Choisir une date : Du' })).toBeInTheDocument();
   });
 
   it('filters on a period', async () => {

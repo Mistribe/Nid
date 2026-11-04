@@ -50,7 +50,9 @@
   },
   "subscription": {
     "included": "Inclut",
-    "back": "Retour aux abonnements",
+    "tab": { "overview": "Vue d’ensemble", "history": "Historique", "settings": "Réglages" },
+    "show_all": "Tout afficher ({{count}})",
+    "show_less": "Afficher moins",
     "next_charge": "Prochaine échéance",
     "expires": "Expiration",
     "col_grants": "Temps accordé",

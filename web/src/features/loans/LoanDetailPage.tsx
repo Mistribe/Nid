@@ -9,6 +9,7 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { LocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -69,13 +70,15 @@ export function LoanDetailPage() {
     record(handed);
     setTab('operations');
   }, [handed, loan]); // eslint-disable-line react-hooks/exhaustive-deps -- once the loan is read; `record` and `setTab` are recreated every render
-  const back = <Link to="/loans" className="text-sm underline">{t('loan_detail.back')}</Link>;
+  // No `PageHeader` yet: the bar's trail leads back to the list (no inline link of its own).
+  const crumbs = [{ label: t('nav.loans'), to: '/loans' as const }];
+  const trail = <PageTrail crumbs={crumbs} />;
 
   if (answer.error) {
     // An unknown loan and another adult's private one both answer 404: « Cet élément est introuvable. ».
-    return <article className="space-y-6">{back}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+    return <article className="space-y-6">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
   }
-  if (!loan) return <article className="space-y-6">{back}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!loan) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const actions = (
     <>
@@ -88,7 +91,7 @@ export function LoanDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={[{ label: t('nav.loans'), to: '/loans' }]} title={loan.name} actions={actions}
+      <PageHeader crumbs={crumbs} title={loan.name} actions={actions}
         meta={(
           <>
             {loan.lender ? <span className="text-sm text-muted-foreground">{loan.lender}</span> : null}

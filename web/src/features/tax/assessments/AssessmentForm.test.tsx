@@ -1,11 +1,12 @@
 import { File as NodeFile } from 'node:buffer';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { delay } from 'msw/utils/delay';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { list as documentList, summary } from '../../documents/testData';
 import { ALICE as SESSION_PERSON, BOB as SESSION_BOB } from '../../subscriptions/testData';
@@ -60,6 +61,19 @@ beforeAll(async () => {
 afterAll(() => { vi.unstubAllGlobals(); });
 
 describe('AssessmentForm', () => {
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/tax/assessments/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/tax/assessments/${NOTICE}/edit`);
+    expect(await screen.findByLabelText('Chargement de l’avis')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Impôts', '/tax'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/tax/assessments/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/tax/assessments/${NOTICE}/edit`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Impôts', '/tax'));
+  });
   it('Creates_a_joint_notice_in_five_steps', async () => {
     const sent = serve(household);
     const { user, router } = await renderApp('/tax/assessments/new');

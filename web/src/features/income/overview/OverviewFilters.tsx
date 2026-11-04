@@ -2,9 +2,9 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import type { IncomeSearch, RootSearch } from '@/app/router';
-import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
+import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PERSONS } from '@/features/subscriptions/api';
 import { kindText } from '../format';
 import { useOverview } from './useOverview';
@@ -25,25 +25,33 @@ export function OverviewFilters() {
   const kindLabel = (k: string) => (k === 'rent' ? t('income.overview.kind_rent') : kindText(t, k));
 
   return (
-    <div className="flex flex-wrap items-end gap-4">
-      <Segmented aria-label={t('income.overview.period_label')} value={search.period ?? 'year'}
-        onValueChange={(v) => set({ period: v === 'year' ? undefined : (v as '12m' | '3y') })}
-        options={[
-          { value: '12m', label: t('income.overview.period_12m') },
-          { value: 'year', label: t('income.overview.period_year') },
-          { value: '3y', label: t('income.overview.period_3y') },
-        ]} />
-      <Segmented aria-label={t('income.overview.person_label')} value={search.person ?? ''}
-        onValueChange={(v) => set({ person: v || undefined })}
-        options={[{ value: '', label: t('income.overview.person_all') }, ...persons.map((p) => ({ value: p.id, label: p.displayName }))]} />
-      <div className="w-48">
-        <Field label={t('income.overview.kind_label')}>
-          {(control) => (
-            <SelectField {...control} value={search.kind ?? ''} onValueChange={(v) => set({ kind: v || undefined })}
+    <FilterRow label={t('common.filters')}>
+      <FilterField label={t('income.overview.period_label')}>
+        {(labelId) => (
+          <Segmented aria-labelledby={labelId} value={search.period ?? 'year'}
+            onValueChange={(v) => set({ period: v === 'year' ? undefined : (v as '12m' | '3y') })}
+            options={[
+              { value: '12m', label: t('income.overview.period_12m') },
+              { value: 'year', label: t('income.overview.period_year') },
+              { value: '3y', label: t('income.overview.period_3y') },
+            ]} />
+        )}
+      </FilterField>
+      <FilterField label={t('income.overview.person_label')}>
+        {(labelId) => (
+          <Segmented aria-labelledby={labelId} value={search.person ?? ''}
+            onValueChange={(v) => set({ person: v || undefined })}
+            options={[{ value: '', label: t('income.overview.person_all') }, ...persons.map((p) => ({ value: p.id, label: p.displayName }))]} />
+        )}
+      </FilterField>
+      <FilterField label={t('income.overview.kind_label')} className="w-full sm:w-auto">
+        {(labelId, controlId) => (
+          <div className="min-w-0 flex-1 sm:w-48 sm:flex-none">
+            <SelectField id={controlId} aria-labelledby={labelId} value={search.kind ?? ''} onValueChange={(v) => set({ kind: v || undefined })}
               options={[{ value: '', label: t('income.overview.kind_all') }, ...kinds.map((k) => ({ value: k, label: kindLabel(k) }))]} />
-          )}
-        </Field>
-      </div>
-    </div>
+          </div>
+        )}
+      </FilterField>
+    </FilterRow>
   );
 }

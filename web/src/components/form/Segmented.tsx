@@ -32,7 +32,7 @@ export function Segmented({ value, onValueChange, options, ...aria }: {
   const [root, pill] = usePill(value);
   return (
     <RadioGroup.Root ref={root} value={value} onValueChange={onValueChange} {...aria}
-      className="relative inline-flex max-w-full flex-wrap rounded-full border border-input bg-muted p-0.5">
+      className="relative inline-flex max-w-full flex-wrap rounded-[1.125rem] border border-input bg-muted p-0.5">
       {pill ? (
         <span aria-hidden="true" style={{ left: pill.left, top: pill.top, width: pill.width, height: pill.height }}
           className={`absolute rounded-full bg-background shadow-xs ${pill.moved ? 'transition-[left,top,width,height] duration-300 ease-emphasized' : ''}`} />

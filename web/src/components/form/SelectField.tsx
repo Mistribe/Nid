@@ -4,7 +4,7 @@ import { NONE, type Option } from './options';
 
 export type { Option } from './options';
 
-export type SelectFieldProps = FieldControl & {
+export type SelectFieldProps = Partial<FieldControl> & {
   value: string; onValueChange: (v: string) => void; options: readonly Option[]; placeholder?: string; disabled?: boolean;
 };
 

@@ -1,7 +1,9 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import type { Scenario, ScenarioDefaults } from './api';
 
@@ -72,6 +74,19 @@ const figures = () => screen.getByRole('region', { name: 'Chiffres clés' });
 
 describe('ScenarioDetailPage', () => {
   beforeAll(async () => { await import('./ScenarioDetailPage'); }, 30_000);
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get(`*/api/v1/scenarios/${ID}`, async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/scenarios/${ID}`);
+    expect(await screen.findByLabelText('Chargement du scénario')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
+    cleanup();
+
+    server.use(http.get(`*/api/v1/scenarios/${ID}`, () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/scenarios/${ID}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
+  });
 
   it('shows the server figures in the stat line and the capacity tab by default', async () => {
     serve();

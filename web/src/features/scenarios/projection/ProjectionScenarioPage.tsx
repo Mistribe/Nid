@@ -13,6 +13,7 @@ import { LocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail, type Crumb } from '@/components/page/trail';
 import { RowMenu } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
@@ -51,20 +52,26 @@ export function ProjectionScenarioPage() {
   const { $api } = useApi();
   const { id } = useParams({ from: '/scenarios/projection/$id' });
   const answer = $api.useQuery('get', PROJECTION_SCENARIO, { params: { path: { id } } });
+  const crumbs = [{ label: t('scenarios.title'), to: '/scenarios' as const }];
   return (
     <article className="space-y-6">
       {answer.error ? (
         <>
-          <PageHeader crumbs={[{ label: t('scenarios.title'), to: '/scenarios' }]} title={t('scenarios.projection.detail.unavailable')} />
+          <PageHeader crumbs={crumbs} title={t('scenarios.projection.detail.unavailable')} />
           <ProblemMessage problem={present(toProblem(answer.error))} />
         </>
-      ) : answer.data ? <ScenarioView scenario={answer.data} />
-        : <Skeleton role="status" aria-busy="true" aria-label={t('scenarios.projection.detail.loading')} className="h-40 w-full rounded-md" />}
+      ) : answer.data ? <ScenarioView scenario={answer.data} crumbs={crumbs} />
+        : (
+          <>
+            <PageTrail crumbs={crumbs} />
+            <Skeleton role="status" aria-busy="true" aria-label={t('scenarios.projection.detail.loading')} className="h-40 w-full rounded-md" />
+          </>
+        )}
     </article>
   );
 }
 
-function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
+function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crumbs: Crumb[] }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -128,7 +135,7 @@ function ScenarioView({ scenario }: { scenario: ProjectionScenario }) {
 
   return (
     <>
-      <PageHeader crumbs={[{ label: t('scenarios.title'), to: '/scenarios' }]} title={scenario.name}
+      <PageHeader crumbs={crumbs} title={scenario.name}
         meta={<AccessBadge access={scenario.visibility === 'private' ? 'private' : 'shared'} />}
         actions={(
           <>

@@ -13,6 +13,7 @@ import { knownConflictMessage } from '../subscriptions/fieldErrors';
 import { formatInstantDay } from '@/features/admin/format';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { presentConflict } from '../investments/entries/entries';
@@ -67,8 +68,9 @@ function Proposal({ id }: { id: string }) {
   // Keyed on the shown proposal, not the h1's mount: a cached next proposal keeps the same h1.
   useEffect(() => focusHeading(heading.current), [shown]);
 
-  if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data) return null;
+  const crumbs = [{ label: t('nav.proposals'), to: '/proposals' as const }];
+  if (answer.error) return <><PageTrail crumbs={crumbs} /><ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (!answer.data) return <PageTrail crumbs={crumbs} />;
   const { proposal: p, preview, canDecide } = answer.data;
   const kind = kindOf(p.kind);
   const order = groupBySource(pending ?? []).flatMap((g) => g.items);
@@ -85,7 +87,7 @@ function Proposal({ id }: { id: string }) {
 
   const title = kind ? t(kind.label) : route ? routeLabel(t, p.kind) : t('proposal.unknown_kind', { kind: p.kind });
   const head = (actions: ReactNode) => (
-    <PageHeader crumbs={[{ label: t('nav.proposals'), to: '/proposals' }]} title={title} titleRef={heading} actions={actions}
+    <PageHeader crumbs={crumbs} title={title} titleRef={heading} actions={actions}
       meta={p.sourceLabel ? <span className="text-sm text-muted-foreground">{p.sourceLabel}</span> : undefined} />
   );
   const body = (

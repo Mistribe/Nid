@@ -52,7 +52,6 @@
       "bulk_skip": "Écarter", "bulk_send": "Envoyer", "bulk_already": "Ce mois a déjà un bulletin", "bulk_done": "Envoyé",
       "bulk_no_month": "Aucun versement ce mois-là", "bulk_hint": "Chaque fichier est rattaché au mois choisi."
     },
-    "back": "Retour aux revenus",
     "tab": { "overview": "Vue d’ensemble", "history": "Historique", "oneoffs": "Exceptionnels", "settings": "Réglages" },
     "phase_menu": "Actions de la période {{label}} du {{date}}",
     "loading": "Chargement du revenu",

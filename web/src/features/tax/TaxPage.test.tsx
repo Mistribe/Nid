@@ -2,6 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { expectLabelBefore } from '@/test/filters';
+import { expectHeaderActionRule } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
@@ -428,7 +430,7 @@ describe('TaxPage', () => {
     await user.clear(home);
     await user.type(home, '9000');
     await user.click(screen.getByRole('tab', { name: 'Calcul' }));
-    await user.click(screen.getByRole('button', { name: 'Profil fiscal' }));
+    await user.click(screen.getByRole('tab', { name: 'Profil fiscal' }));
 
     expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('9000');
     expect(screen.getByText('1 modification non enregistrée')).toBeInTheDocument();
@@ -548,8 +550,8 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     );
     const { user } = await renderApp('/tax');
 
-    await user.click(await screen.findByRole('button', { name: 'Déclaration 2044' }));
-    expect(screen.getByRole('button', { name: 'Déclaration 2044', current: 'page' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('tab', { name: 'Déclaration 2044' }));
+    expect(screen.getByRole('tab', { name: 'Déclaration 2044', selected: true })).toBeInTheDocument();
     expect(screen.queryByLabelText('Calcul de l’impôt')).not.toBeInTheDocument();
     release();
     expect(await screen.findByRole('region', { name: 'Studio' })).toBeInTheDocument();
@@ -719,7 +721,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(screen.queryByRole('table', { name: 'Écarts entre l’avis et l’estimation' })).not.toBeInTheDocument();
     });
 
-    it('falls back to Détail when the year switched to has no notice', async () => {
+    it('falls back to Calcul when the year switched to has no notice', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025&tab=assessment');
 
@@ -761,5 +763,106 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
       expect(await screen.findByRole('link', { name: 'Ajouter un avis' })).toHaveAttribute('href', '/tax/assessments/new');
     });
+  });
+});
+
+describe('TaxPage, page grammar', () => {
+  beforeAll(async () => { await import('./TaxPage'); }, 30_000);
+
+  const follows = (a: Element, b: Element) => expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const figures = () => screen.getByText('Impôt total', { selector: 'dt' }).closest('dl')!;
+  const notices = (...items: ReturnType<typeof jointAssessment>[]) => http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items }));
+  const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(estimate()));
+
+  it('the header holds « Ajouter un avis » alone', async () => {
+    server.use(tax());
+    const { container } = await renderApp('/tax');
+    await screen.findByText('Net fiscal');
+
+    expectHeaderActionRule(container);
+    const header = container.querySelector<HTMLElement>('header[data-page-header]')!;
+    expect([...header.querySelectorAll('[data-page-actions] :is(button, a[href])')].map((el) => el.textContent)).toEqual(['Ajouter un avis']);
+    expect(within(header).queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(within(header).queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
+  it('the year is the filter row, above the figures and the tabs', async () => {
+    server.use(tax());
+    const { container } = await renderApp('/tax');
+    await screen.findByText('Net fiscal');
+
+    const row = screen.getByRole('group', { name: 'Filtres' });
+    expectLabelBefore(within(row).getByText('Année des revenus'), within(row).getByRole('radiogroup', { name: 'Année des revenus' }));
+    follows(screen.getByRole('heading', { level: 1 }), row);
+    follows(row, figures());
+    follows(figures(), screen.getByRole('tablist'));
+    expect(container.querySelector('.text-3xl')).toBeNull();
+  });
+
+  it('the year is a list in the filter row past six years', async () => {
+    server.use(tax(), notices(...[2019, 2020, 2021, 2022, 2023].map((year) => soloAssessment({ id: `0192f0aa-0000-7000-8000-00000000${year}`, year }))));
+    await renderApp('/tax');
+
+    const row = await screen.findByRole('group', { name: 'Filtres' });
+    const year = await within(row).findByRole('combobox', { name: 'Année des revenus' });
+    expectLabelBefore(within(row).getByText('Année des revenus'), year);
+  });
+
+  it('profile and 2044 are ordinary tabs', async () => {
+    server.use(tax(), notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    const { user } = await renderApp('/tax?year=2025');
+
+    await screen.findByRole('tab', { name: 'Avis' });
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent))
+      .toEqual(['Calcul', 'Prélèvement', 'Avis', 'Évolution', 'Simuler', 'Profil fiscal', 'Déclaration 2044']);
+    await user.click(screen.getByRole('tab', { name: 'Profil fiscal' }));
+    expect(await screen.findByRole('form', { name: 'Profil fiscal' })).toBeInTheDocument();
+  });
+
+  it.each([['profile', 'Profil fiscal'], ['2044', 'Déclaration 2044']])('?tab=%s still opens that tab', async (id, label) => {
+    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    await renderApp(`/tax?tab=${id}`);
+
+    expect(await screen.findByRole('tab', { name: label, selected: true })).toBeInTheDocument();
+  });
+
+  it('the second line of figures and the notes are in « Calcul »', async () => {
+    server.use(tax());
+    await renderApp('/tax');
+
+    const panel = await screen.findByRole('tabpanel', { name: 'Calcul' });
+    expect(within(panel).getByText('Net fiscal')).toBeInTheDocument();
+    expect(within(panel).getByRole('img', { name: /^Reste / })).toBeInTheDocument();
+    expect(within(panel).getByText(/Prime : pas de brut renseigné/)).toBeInTheDocument();
+    follows(screen.getByRole('tablist'), screen.getByText('Net fiscal'));
+  });
+
+  it('a past year shows its notices, with the year row and no tabs', async () => {
+    server.use(notices(jointAssessment({ year: 2023 })));
+    await renderApp('/tax?year=2023');
+
+    expect(await screen.findByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Filtres' })).getByRole('radio', { name: '2023', checked: true })).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
+  it('printing the 2044 hides the figures and the notes', async () => {
+    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    await renderApp('/tax?tab=2044');
+
+    await screen.findByRole('region', { name: 'Studio' });
+    expect(figures().parentElement).toHaveClass('print:hidden');
+    expect(screen.getByRole('group', { name: 'Filtres' }).parentElement).toHaveClass('print:hidden');
+    expect(screen.getByRole('heading', { level: 2, name: 'Déclaration 2044 — revenus 2025', hidden: true })).toHaveClass('print:block');
+    // The notes live in « Calcul »: not rendered, so not printed, with the 2044.
+    expect(screen.queryByText(/Prime : pas de brut renseigné/)).not.toBeInTheDocument();
+  });
+
+  it('prints the figures with the estimate', async () => {
+    server.use(tax());
+    await renderApp('/tax');
+
+    await screen.findByText('Net fiscal');
+    expect(figures().parentElement).not.toHaveClass('print:hidden');
   });
 });

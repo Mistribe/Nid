@@ -1,12 +1,15 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
-import { PROPERTY } from '../testData';
+import { PROPERTY, propertyDetail } from '../testData';
 
 type View = components['schemas']['RentReceiptView'];
 const view = (over: Partial<View> = {}): View => ({
@@ -28,7 +31,29 @@ const PAGE = `/properties/${PROPERTY}/receipt`;
 
 describe('receipt page', () => {
   beforeAll(async () => { await import('./ReceiptPage'); }, 30_000);
+
   afterEach(() => { vi.restoreAllMocks(); });
+
+  it('loading and error states show no inline back link: the bar leads back to the property, « Bien » until it is read', async () => {
+    server.use(http.get('*/api/v1/realestate/properties/:id/receipts', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(PAGE);
+    expect(await screen.findByLabelText('Chargement de la quittance')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Bien', `/properties/${PROPERTY}`));
+    expectTrailBack('Biens', '/properties');
+    cleanup();
+
+    // Coming from the property, its name is already in the cache: no request names it.
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
+      http.get('*/api/v1/realestate/properties/:id/receipts', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })),
+    );
+    const { router } = await renderApp(`/properties/${PROPERTY}`);
+    await screen.findByRole('heading', { level: 1, name: 'Maison de Nantes' });
+    await router.navigate({ to: '/properties/$id/receipt', params: { id: PROPERTY } });
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Maison de Nantes', `/properties/${PROPERTY}`));
+    expectTrailBack('Biens', '/properties');
+  });
 
   it('shows the quittance: parties, address, period, figures, payment date and the statement', async () => {
     serve(view());
@@ -121,6 +146,17 @@ describe('receipt page', () => {
     expect(warning).toHaveTextContent('nom du locataire');
     expect(within(warning).getByRole('link', { name: 'Compléter le bail' })).toHaveAttribute('href', `/properties/${PROPERTY}?tab=rental`);
     expect(within(warning).getByRole('link', { name: 'Compléter le bien' })).toHaveAttribute('href', `/properties/${PROPERTY}?tab=settings`);
+  });
+
+  it('puts the month in the filter row, the label before it, under a trail through the properties', async () => {
+    serve(view());
+    await renderApp(PAGE);
+
+    const month = await screen.findByRole('combobox', { name: 'Mois' });
+    expectLabelBefore(within(screen.getByRole('group', { name: 'Filtres' })).getByText('Mois'), month);
+    const trail = screen.getByRole('navigation', { name: 'Fil d’Ariane' });
+    expect(within(trail).getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/properties');
+    expect(within(trail).getByRole('link', { name: view().propertyName })).toHaveAttribute('href', `/properties/${PROPERTY}`);
   });
 
   it('asks for the month picked, in French, from the months offered', async () => {

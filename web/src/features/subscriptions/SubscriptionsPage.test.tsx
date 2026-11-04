@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { ListResponse, Summary } from './api';
@@ -61,6 +62,26 @@ describe('Abonnements › liste', () => {
     expect(within(totals).getByText('18,50 €')).toBeInTheDocument();
     expect(screen.queryByText(/compte une seule fois/)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('the list filters sit in one row, search first', async () => {
+    serveLabels();
+    serve(two);
+    await renderApp('/subscriptions?tab=list');
+    await rows();
+
+    const row = screen.getByRole('group', { name: 'Filtres' });
+    const search = within(row).getByRole('searchbox', { name: 'Rechercher par nom' });
+    const status = within(row).getByRole('radiogroup', { name: 'État' });
+    const group = within(row).getByRole('radiogroup', { name: 'Grouper par' });
+    const labels = await within(row).findByRole('button', { name: /^Libellés/ });
+    expectLabelBefore(within(row).getByText('Rechercher par nom'), search);
+    expectLabelBefore(within(row).getByText('État'), status);
+    expectLabelBefore(within(row).getByText('Grouper par'), group);
+    const order = [search, status, group, labels];
+    order.slice(1).forEach((el, i) => expect(order[i]!.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy());
+    const totals = screen.getByRole('region', { name: 'Total du foyer' });
+    expect(row.compareDocumentPosition(totals) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('sorts by the cost of the month', async () => {

@@ -1,6 +1,7 @@
 {
   "childcare_list": {
     "title": "Garde",
+    "item_fallback": "Cette garde",
     "add": "Nouvelle garde",
     "loading": "Chargement des gardes",
     "list": "Liste des gardes",

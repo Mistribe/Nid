@@ -67,7 +67,6 @@
     "ends_after_start": "La fin vient après le début."
   },
   "loan_detail": {
-    "back": "Retour aux crédits",
     "loading": "Chargement du crédit",
     "read_only": "Vous pouvez consulter ce crédit, pas le modifier.",
     "property": "Bien financé :",

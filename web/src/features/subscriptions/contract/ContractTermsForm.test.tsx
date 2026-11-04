@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { pick } from '@/test/controls';
+import { openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { Detail } from '../api';
@@ -23,15 +24,17 @@ function serve(body: Detail, patch?: Parameters<typeof http.patch>[1]) {
 
 const openDialog = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
   await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
-  await user.click(screen.getByRole('button', { name: 'Conditions du contrat' }));
+  await openMore(user);
+  await user.click(await screen.findByRole('menuitem', { name: 'Conditions du contrat' }));
   return screen.findByRole('form', { name: 'Conditions du contrat' });
 };
 
 describe('Abonnements › conditions du contrat', () => {
-  it('hides the button without write access', async () => {
+  it('hides the action without write access', async () => {
     serve(detail({ canWrite: false }));
     await renderApp(`/subscriptions/${SUB}`);
     await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Conditions du contrat' })).not.toBeInTheDocument();
   });
 

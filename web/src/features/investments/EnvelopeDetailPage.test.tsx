@@ -1,9 +1,11 @@
 import { link, list, summary } from '../documents/testData';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import type { EnvelopeDetail } from './api';
@@ -16,6 +18,19 @@ const serve = (body: EnvelopeDetail) => server.use(http.get('*/api/v1/investment
 describe('EnvelopeDetailPage', () => {
   // The lazy route chunk loaded cold inside the first test races its timeouts under load.
   beforeAll(async () => { await import('./EnvelopeDetailPage'); }, 30_000);
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/investments/envelopes/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/investments/${PEA}`);
+    expect(await screen.findByLabelText('Chargement de l’enveloppe')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Placements', '/investments'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/investments/${PEA}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Placements', '/investments'));
+  });
 
   it('shows the figures, before tax, and the two tables newest first', async () => {
     serve(detail());

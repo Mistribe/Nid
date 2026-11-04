@@ -50,9 +50,10 @@ describe('surfaces', () => {
     expect(classes).not.toContain('rounded-md');
   });
 
+  // The track's radius is half a row's height: a capsule on one row, a rounded rectangle once its options wrap.
   it('a segmented control is a capsule', () => {
     render(<Segmented value="a" onValueChange={() => {}} aria-label="s" options={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }]} />);
-    expect(screen.getByRole('radiogroup')).toHaveClass('rounded-full');
+    expect(screen.getByRole('radiogroup')).toHaveClass('rounded-[1.125rem]');
     expect(screen.getByRole('radio', { name: 'A' })).toHaveClass('rounded-full');
   });
 });

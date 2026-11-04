@@ -11,6 +11,7 @@ import { Money } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
@@ -45,7 +46,7 @@ export function GoalDetailPage() {
   const reopen = useReopenGoal();
   const crumbs = [{ label: t('goals_list.title'), to: '/goals' as const }];
   if (answer.error) return <><PageHeader crumbs={crumbs} title={t('goals_list.title')} /><ProblemMessage problem={present(toProblem(answer.error))} /></>;
-  if (!answer.data) return <div aria-busy="true" aria-label={t('goals_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
+  if (!answer.data) return <><PageTrail crumbs={crumbs} /><div aria-busy="true" aria-label={t('goals_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   const detail = answer.data;
   const goal = detail.goal;

@@ -1,9 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectHeaderActionRule, openMore } from '@/test/headerActions';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import type { ProjectionScenario } from '../api';
 import type { ProjectionDocument } from './api';
@@ -49,6 +51,19 @@ const table = () => screen.getByRole('table', { name: 'Patrimoine en fin d’ann
 
 describe('ProjectionScenarioPage', () => {
   beforeAll(async () => { await import('./ProjectionScenarioPage'); }, 30_000);
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/scenarios/projection/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/scenarios/projection/${ID}`);
+    expect(await screen.findByLabelText('Chargement du scénario')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/scenarios/projection/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/scenarios/projection/${ID}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
+  });
 
   it('« Comparer » opens the compare page with this scenario, also for a reader who cannot write', async () => {
     serve(view({ canWrite: false }));

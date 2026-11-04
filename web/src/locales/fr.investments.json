@@ -25,7 +25,6 @@
     "note_too_long": "2000 caractères au plus."
   },
   "envelope": {
-    "back": "Retour aux placements",
     "loading": "Chargement de l’enveloppe",
     "figures": "Valeur et gain",
     "evolution": "Évolution",

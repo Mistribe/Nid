@@ -1,10 +1,10 @@
 import { createContext, useContext, useId, type ReactNode } from 'react';
 
 /** The label text of the surrounding Field, for a control that names a part of itself after it (DateField's calendar button). */
-const FieldLabel = createContext('');
+export const FieldLabel = createContext('');
 export const useFieldLabel = () => useContext(FieldLabel);
 
-export type FieldControl = { id: string; 'aria-invalid'?: true; 'aria-describedby'?: string };
+export type FieldControl = { id: string; 'aria-invalid'?: true; 'aria-describedby'?: string; 'aria-labelledby'?: string };
 
 /** A label, its control, its hint and its error, tied together for assistive technology (aria-describedby, aria-invalid). */
 /** `badge` sits beside the label, outside it: a form's box number (`7DB`) that the field's name does not carry. */

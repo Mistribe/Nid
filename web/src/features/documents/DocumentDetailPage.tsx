@@ -1,4 +1,4 @@
-import { Link, Navigate, useParams } from '@tanstack/react-router';
+import { Navigate, useParams } from '@tanstack/react-router';
 import { Download, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { present, toProblem } from '@/api/errors';
 import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import { LocalDate } from '@/components/LocalDate';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail } from '@/components/page/trail';
 import { RowMenu } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
@@ -36,10 +37,12 @@ export function DocumentDetailPage() {
   const editRef = useRef<HTMLButtonElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
-  const back = <Link to="/documents" className="text-sm underline">{t('documents_page.detail.back')}</Link>;
+  // No `PageHeader` yet: the bar's trail leads back to the list (no inline link of its own).
+  const crumbs = [{ label: t('documents_page.title'), to: '/documents' as const }];
+  const trail = <PageTrail crumbs={crumbs} />;
 
-  if (!answer.data && answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
-  if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('documents_page.detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (!answer.data && answer.error) return <>{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (!answer.data) return <>{trail}<div aria-busy="true" aria-label={t('documents_page.detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   // A refetch that failed under data on screen: a 404 means the actor no longer reads the document (its last link was theirs).
   if (answer.error && toProblem(answer.error).status === 404) return <Navigate to="/documents" replace />;
@@ -67,7 +70,7 @@ export function DocumentDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={[{ label: t('documents_page.title'), to: '/documents' }]} title={doc.title} actions={actions}
+      <PageHeader crumbs={crumbs} title={doc.title} actions={actions}
         meta={doc.archived ? <Badge variant="secondary">{t('documents_page.archived')}</Badge> : null}>
         <section aria-label={t('documents_page.detail.figures')}>
           <StatLine items={[

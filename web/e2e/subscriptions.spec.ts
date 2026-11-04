@@ -55,7 +55,7 @@ test('alice records a free trial followed by a monthly price', async ({ browser 
   // The free trial covers one month from 2026-01-01: the monthly price's first charge follows it, on 2026-02-01
   // (final review, finding 3; 1E2b1 design §5). "Prochaine échéance" moves on with today's date, so the covered
   // periods table (a historical record) is what shows this first charge, not that paragraph.
-  await expect(alice.getByRole('row', { name: /^1 février 2026.*Payé/ })).toBeVisible();
+  await expect(alice.getByRole('row', { name: /^1 févr\. 2026.*Payé/ })).toBeVisible();
 });
 
 // 1E2b2: the label `other` comes with the migrations, so the journey needs no catalog sync and no other journey's data.

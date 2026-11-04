@@ -1,8 +1,10 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { resetFocus } from './focus';
@@ -12,6 +14,20 @@ import { serve } from './testServe';
 describe('Une proposition', () => {
   beforeEach(resetFocus);
   beforeAll(async () => { await import('./ProposalDetailPage'); await import('./ProposalsPage'); });
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    const p = proposal();
+    server.use(http.get('*/api/v1/core/proposals/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/proposals/${p.id}`);
+    await waitFor(() => expectTrailBack('À valider', '/proposals'));
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    cleanup();
+
+    server.use(http.get('*/api/v1/core/proposals/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/proposals/${p.id}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('À valider', '/proposals'));
+  });
 
   it('shows the comparison and approves it unchanged, then opens the next one', async () => {
     const first = proposal();

@@ -26,16 +26,6 @@ export function perWarningsInBlock(result: TaxResult): Set<string> {
   return codes;
 }
 
-/** One PER warning as sentences (one per declarant), or the generic notice when no declarant's figures can tell it. */
-export function perWarningTexts(t: TFunction, result: TaxResult, code: string, year: number): string[] {
-  if (code === 'per_over_ceiling') {
-    const named = overCeiling(result);
-    return named.length ? named.map((d) => overText(t, d)) : [t('tax.warning.per_over_ceiling')];
-  }
-  const named = estimatedCeiling(result);
-  return named.length ? named.map((d) => estimatedText(t, d, year)) : [t('tax.warning.per_ceiling_estimated')];
-}
-
 /** The ceiling's source when every declarant shown shares it, else none: each cell then tells its own. */
 const sharedSource = (per: NonNullable<Declarant['per']>[]) => (per.every((p) => p.source === per[0]!.source) ? per[0]!.source : undefined);
 const ceilingLabel = (t: TFunction, source: string | undefined) => (source === undefined ? t('tax.per.ceiling') : t(source === 'notice' ? 'tax.per.ceiling_notice' : 'tax.per.ceiling_estimated'));

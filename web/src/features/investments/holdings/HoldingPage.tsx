@@ -9,6 +9,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
+import { PageTrail, type Crumb } from '@/components/page/trail';
 import { RowMenu } from '@/components/page/RowMenu';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -56,11 +57,15 @@ export function HoldingPage() {
   const open = (next: Dialog) => setDialog(next);
   const done = (message: string) => { setDialog(null); toast.success(message); };
 
+  // The envelope's crumb as soon as it is read: a refusal or a missing holding still leads back to it.
+  const crumbs: Crumb[] = [{ label: t('nav.investments'), to: '/investments' },
+    ...(envelope.data ? [{ label: envelope.data.displayName, to: '/investments/$id', params: { id } } as const] : [])];
+  const trail = <PageTrail crumbs={crumbs} />;
   const error = envelope.error ?? holdings.error;
-  if (error) return <ProblemMessage problem={present(toProblem(error))} />;
-  if (!envelope.data || !holdings.data) return <div aria-busy="true" aria-label={t('holdings.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
+  if (error) return <>{trail}<ProblemMessage problem={present(toProblem(error))} /></>;
+  if (!envelope.data || !holdings.data) return <>{trail}<div aria-busy="true" aria-label={t('holdings.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
   const holding = holdings.data.holdings.find((h) => h.id === holdingId);
-  if (!holding) return <ProblemMessage problem={{ kind: 'not_found' }} />;
+  if (!holding) return <>{trail}<ProblemMessage problem={{ kind: 'not_found' }} /></>;
 
   const detail = envelope.data;
   const figures = holding.figures;
@@ -81,8 +86,7 @@ export function HoldingPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader title={holding.name} actions={actions}
-        crumbs={[{ label: t('nav.investments'), to: '/investments' }, { label: detail.displayName, to: '/investments/$id', params: { id } }]}
+      <PageHeader title={holding.name} actions={actions} crumbs={crumbs}
         meta={<Meta holding={holding} />}>
         <section aria-label={t('holdings.figures')} className="space-y-2">
           <StatLine items={[

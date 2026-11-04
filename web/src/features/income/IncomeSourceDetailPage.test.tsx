@@ -1,10 +1,12 @@
 import { link, list, summary } from '../documents/testData';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { reduceMotion } from '@/test/motion';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { todayIso } from '../subscriptions/today';
@@ -35,6 +37,19 @@ describe('IncomeSourceDetailPage', () => {
   reduceMotion();
   // The lazy route chunk loaded cold inside the first test races its timeouts under load.
   beforeAll(async () => { await import('./IncomeSourceDetailPage'); }, 30_000);
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/income/sources/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/income/${SALARY}`);
+    expect(await screen.findByLabelText('Chargement du revenu')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Revenus', '/income'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/income/${SALARY}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Revenus', '/income'));
+  });
 
   it('shows the figures, the chart and the latest payments first', async () => {
     serve(detail());

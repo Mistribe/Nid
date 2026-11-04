@@ -1,11 +1,13 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { use } from 'react';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { dashboard, todoItem } from '@/features/dashboard/testData';
 import { detail, overview, SALARY, sourceRow } from '@/features/income/testData';
 import { detail as envelope, PEA } from '@/features/investments/testData';
 import { expectNoAxeViolations } from '@/test/axe';
-import { adminCapabilities } from '@/test/fixtures';
+import { createAppRouter } from '@/app/router';
+import { adminCapabilities, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -441,15 +443,18 @@ describe('the top bar trail', () => {
     expect(within(trail()).getByText('Placements')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('while a page loads, the bar shows its module', async () => {
-    let release: () => void = () => {};
-    const held = new Promise<void>((resolve) => { release = resolve; });
-    server.use(http.get('*/api/v1/investments/envelopes/:id', async () => { await held; return HttpResponse.json(envelope()); }));
-    await renderApp(`/investments/${PEA}`);
-    expect(within(trail()).queryByRole('link', { name: 'Placements' })).toBeNull();
-    expect(within(trail()).getByText('Placements')).toHaveAttribute('aria-current', 'page');
-    release();
-    await screen.findByRole('heading', { level: 1, name: 'PEA' });
+  it('while a page suspends, the bar shows the module of its route', async () => {
+    // A page that suspends for good registers no trail of its own. The route tree is shared by the worker's files
+    // (isolate: false) and its lazy component keeps the first module it loaded, so a vi.mock of the page would leak
+    // into the page's own tests, or miss once they loaded it: swap the route's component for this test only.
+    const route = createAppRouter({ capabilities: allCapabilities }).routesById['/childcare/$id/statements/$month'];
+    const component = route.options.component;
+    const never = new Promise<never>(() => {});
+    route.options.component = function Suspended() { return use(never); };
+    onTestFinished(() => { route.options.component = component; });
+    await renderApp('/childcare/0192f0aa-0000-7000-8000-00000000c001/statements/2025-09');
+    await waitFor(() => expect(within(trail()).getByText('Garde')).toHaveAttribute('aria-current', 'page'));
+    expect(within(trail()).queryByRole('link', { name: 'Garde' })).toBeNull();
   });
 
   it('moving to another page replaces the trail', async () => {

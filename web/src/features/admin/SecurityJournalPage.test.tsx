@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
@@ -53,6 +54,17 @@ describe('Administration › Journal de sécurité', () => {
     const list = await screen.findByRole('listbox');
     expect(within(list).getByRole('option', { name: 'Commande de secours' })).toBeInTheDocument();
     expect(within(list).getByRole('option', { name: 'Identité rattachée' })).toBeInTheDocument();
+  });
+
+  it('puts its event filter in the filter row, the label before it', async () => {
+    server.use(
+      http.get('*/api/v1/admin/users', () => HttpResponse.json(adults)),
+      http.get('*/api/v1/admin/security-journal', () => HttpResponse.json({ entries: [], next: null })),
+    );
+    await renderApp('/admin/security', { capabilities: adminCapabilities });
+
+    const event = await screen.findByRole('combobox', { name: 'Événement' });
+    expectLabelBefore(within(screen.getByRole('group', { name: 'Filtres' })).getByText('Événement'), event);
   });
 
   it('filters by event', async () => {

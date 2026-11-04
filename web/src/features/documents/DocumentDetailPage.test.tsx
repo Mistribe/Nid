@@ -1,9 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectHeaderActionRule, openMore } from '@/test/headerActions';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { stubLocalDay } from '@/test/timeZone';
 import { serveDocument } from './serveDocument';
@@ -13,6 +15,19 @@ const PATH = `/documents/${DOC}`;
 
 describe('DocumentDetailPage', () => {
   beforeAll(async () => { await import('./DocumentDetailPage'); }, 30_000);
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/documents/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(PATH);
+    expect(await screen.findByLabelText('Chargement du document')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Documents', '/documents'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(PATH);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Documents', '/documents'));
+  });
 
   it('goes back to the list when a refetch answers 404 (the actor lost the last link that let them read it)', async () => {
     const api = serveDocument();
@@ -151,6 +166,5 @@ describe('DocumentDetailPage', () => {
     server.use(http.get(`*/api/v1/documents/${DOC}`, () => HttpResponse.json({ status: 404, title: 'Not found.' }, { status: 404 })));
     await renderApp(PATH);
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Retour aux documents' })).toHaveAttribute('href', '/documents');
   });
 });

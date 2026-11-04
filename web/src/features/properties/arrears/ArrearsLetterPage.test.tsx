@@ -1,11 +1,14 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import type { PropertyArrears } from '../api';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
-import { arrears, PROPERTY } from '../testData';
+import { arrears, PROPERTY, propertyDetail } from '../testData';
 
 const serve = (v: PropertyArrears) => server.use(http.get('*/api/v1/realestate/properties/:id/arrears', () => HttpResponse.json(v)));
 const PAGE = `/properties/${PROPERTY}/arrears-letter`;
@@ -14,7 +17,29 @@ const inDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n)
 
 describe('arrears letter page', () => {
   beforeAll(async () => { await import('./ArrearsLetterPage'); }, 30_000);
+
   afterEach(() => { vi.restoreAllMocks(); });
+
+  it('loading and error states show no inline back link: the bar leads back to the property, « Bien » until it is read', async () => {
+    server.use(http.get('*/api/v1/realestate/properties/:id/arrears', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(PAGE);
+    expect(await screen.findByLabelText('Chargement du courrier')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Bien', `/properties/${PROPERTY}`));
+    expectTrailBack('Biens', '/properties');
+    cleanup();
+
+    // Coming from the property, its name is already in the cache: no request names it.
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
+      http.get('*/api/v1/realestate/properties/:id/arrears', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })),
+    );
+    const { router } = await renderApp(`/properties/${PROPERTY}`);
+    await screen.findByRole('heading', { level: 1, name: 'Maison de Nantes' });
+    await router.navigate({ to: '/properties/$id/arrears-letter', params: { id: PROPERTY } });
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Maison de Nantes', `/properties/${PROPERTY}`));
+    expectTrailBack('Biens', '/properties');
+  });
 
   it('writes the fixed letter: identity, the months of the letter, the total, the default deadline', async () => {
     serve(arrears());
@@ -60,6 +85,17 @@ describe('arrears letter page', () => {
     await renderApp(PAGE);
     await screen.findByRole('article');
     expect(screen.queryByText(/ancien locataire/)).not.toBeInTheDocument();
+  });
+
+  it('puts the delay in the filter row, the label before it, under a trail through the properties', async () => {
+    serve(arrears());
+    await renderApp(PAGE);
+
+    const days = await screen.findByRole('radiogroup', { name: 'Délai de paiement' });
+    expectLabelBefore(within(screen.getByRole('group', { name: 'Filtres' })).getByText('Délai de paiement'), days);
+    const trail = screen.getByRole('navigation', { name: 'Fil d’Ariane' });
+    expect(within(trail).getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/properties');
+    expect(within(trail).getByRole('link', { name: arrears().propertyName })).toHaveAttribute('href', `/properties/${PROPERTY}`);
   });
 
   it('moves the deadline and the URL with the delay picked', async () => {

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
+import { openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { Detail } from '../api';
@@ -24,8 +25,8 @@ function serve(body: Detail, onDelete?: () => void) {
   );
 }
 
-const open = async () => {
-  const app = await renderApp(`/subscriptions/${SUB}`);
+const open = async (tab?: 'documents') => {
+  const app = await renderApp(`/subscriptions/${SUB}${tab ? `?tab=${tab}` : ''}`);
   await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
   return app;
 };
@@ -61,17 +62,19 @@ describe('InsuranceSection', () => {
     expect(within(region).getByText('La maison et son garage')).toBeInTheDocument();
   });
 
-  it('labels the header button by what it does', async () => {
+  it('labels the ⋯ entry by what it does', async () => {
     serve(detail({ insurance: POLICY }));
-    await open();
-    expect(await screen.findByRole('button', { name: 'Modifier l’assurance' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Ajouter l’assurance' })).not.toBeInTheDocument();
+    const { user } = await open();
+    await openMore(user);
+    expect(await screen.findByRole('menuitem', { name: 'Modifier l’assurance' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Ajouter l’assurance' })).not.toBeInTheDocument();
   });
 
   it('offers to add one without insurance', async () => {
     serve(detail());
-    await open();
-    expect(screen.getByRole('button', { name: 'Ajouter l’assurance' })).toBeInTheDocument();
+    const { user } = await open();
+    await openMore(user);
+    expect(await screen.findByRole('menuitem', { name: 'Ajouter l’assurance' })).toBeInTheDocument();
   });
 
   it('hides the actions without write access', async () => {
@@ -79,7 +82,7 @@ describe('InsuranceSection', () => {
     await open();
     await screen.findByRole('region', { name: 'Assurance' });
     expect(screen.queryByRole('button', { name: 'Retirer l’assurance' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^(Ajouter|Modifier) l’assurance$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
   });
 
   it('asks before removing the insurance', async () => {
@@ -91,6 +94,8 @@ describe('InsuranceSection', () => {
     expect(removed).toBe(0);
     await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(removed).toBe(1));
+    // The removed section held the button: the focus lands on the header's ⋯, where the insurance is added again.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Autres actions' })).toHaveFocus());
   });
 });
 
@@ -109,6 +114,7 @@ describe('Documents de l’abonnement', () => {
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Assurance' })).not.toBeInTheDocument());
 
+    await user.click(screen.getByRole('tab', { name: 'Documents' }));
     await user.click(await screen.findByRole('button', { name: /Déposer/ }));
     const role = within(await screen.findByRole('dialog')).getByRole('combobox', { name: 'Type' });
     expect(role).toHaveTextContent('Facture');
@@ -116,7 +122,7 @@ describe('Documents de l’abonnement', () => {
 
   const roleOf = async (body: Detail) => {
     serve(body);
-    const { user } = await open();
+    const { user } = await open('documents');
     await user.click(await screen.findByRole('button', { name: /Déposer/ }));
     const dialog = await screen.findByRole('dialog');
     return within(dialog).getByRole('combobox', { name: 'Type' });

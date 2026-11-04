@@ -10,9 +10,13 @@ import { createQueryClient } from '@/app/bootstrap';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { server } from '@/test/server';
 import { expectNoAxeViolations } from '@/test/axe';
+import { expectLabelBefore } from '@/test/filters';
 import { OwnerChips } from '../OwnerChips';
+import { Segmented } from '../form/Segmented';
+import { SelectField } from '../form/SelectField';
 import { DetailTabs, useDetailTab } from './DetailTabs';
 import { FormActions, FormPage } from './FormPage';
+import { FilterField, FilterRow } from './FilterRow';
 import { PageHeader } from './PageHeader';
 import { RowMenu } from './RowMenu';
 import { Section } from './Section';
@@ -219,5 +223,35 @@ describe('page grammar', () => {
     render(<StatLine items={[{ label: 'Valeur', value: '1 000 €' }]} />);
     expect(screen.getByText('1 000 €')).toHaveClass('text-figure');
     expect(screen.getByText('Valeur')).toHaveClass('text-label');
+  });
+
+  it('FilterRow is one labelled group of controls on a wrapping line', () => {
+    render(<FilterRow label="Filtres"><button type="button">A</button></FilterRow>);
+    expect(screen.getByRole('group', { name: 'Filtres' })).toHaveClass('flex', 'flex-wrap', 'items-center');
+  });
+
+  it('FilterField puts its label before its control, not above', () => {
+    render(<FilterField label="Période">{(id) => <div role="radiogroup" aria-labelledby={id} />}</FilterField>);
+    const control = screen.getByRole('radiogroup', { name: 'Période' });
+    const label = screen.getByText('Période');
+    expectLabelBefore(label, control);
+  });
+
+  it('clicking a FilterField label focuses its control', async () => {
+    render(<FilterField label="Recherche" labelFor>{(labelId, controlId) => <input id={controlId} aria-labelledby={labelId} />}</FilterField>);
+    await userEvent.click(screen.getByText('Recherche'));
+    expect(screen.getByRole('textbox', { name: 'Recherche' })).toHaveFocus();
+  });
+
+  // A Radix select would open on a label click (its pointer type starts as touch), a segmented control has no element to label.
+  it('a FilterField without labelFor names its control by aria-labelledby only', () => {
+    render(<>
+      <FilterField label="Type">{(labelId) => <SelectField aria-labelledby={labelId} value="" onValueChange={() => {}} options={[{ value: '', label: 'Tous' }]} />}</FilterField>
+      <FilterField label="Période">{(labelId) => <Segmented aria-labelledby={labelId} value="a" onValueChange={() => {}} options={[{ value: 'a', label: 'A' }]} />}</FilterField>
+    </>);
+    expect(screen.getByRole('combobox', { name: 'Type' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Période' })).toBeInTheDocument();
+    expect(screen.getByText('Type')).not.toHaveAttribute('for');
+    expect(screen.getByText('Période')).not.toHaveAttribute('for');
   });
 });

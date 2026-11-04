@@ -21,8 +21,9 @@ function serve(body: Detail, extra: Parameters<typeof server.use> = []) {
   return { set: (next: Detail) => { current = next; } };
 }
 
-const open = async () => {
-  const utils = await renderApp(`/subscriptions/${SUB}`);
+// Most of these tests write the settings, in their own tab; the purchases live under « Historique ».
+const open = async (tab: 'settings' | 'history' = 'settings') => {
+  const utils = await renderApp(`/subscriptions/${SUB}?tab=${tab}`);
   await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
   return utils;
 };
@@ -158,7 +159,7 @@ describe('Abonnements › modifications', () => {
       deleted.push(String(params.purchaseId));
       return HttpResponse.json({ id: params.purchaseId });
     })]);
-    const { user } = await open();
+    const { user } = await open('history');
 
     await user.click(screen.getByRole('button', { name: 'Actions de l’achat Carte cadeau 3 mois' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
@@ -172,7 +173,7 @@ describe('Abonnements › modifications', () => {
 
   it('shows no action and says who can write when the reader may not', async () => {
     serve(detail({ canWrite: false }));
-    const { container } = await open();
+    const { container } = await open('history');
 
     expect(container.querySelector('form')).toBeNull();
     expect(screen.queryByRole('button', { name: /Actions de l’achat/ })).not.toBeInTheDocument();

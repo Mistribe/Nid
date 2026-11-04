@@ -196,26 +196,19 @@ describe('TaxPage, PER', () => {
     expect(await screen.findByText('Un plafond PER est estimé : saisissez celui de votre avis pour un chiffre exact.')).toBeInTheDocument();
   });
 
-  it('shows the over-ceiling warning in the top notes on the Profil tab', async () => {
-    const loaded = estimate();
-    loaded.result = withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ excess: '100.00' }));
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    await renderApp('/tax?tab=profile');
-
-    expect(await screen.findByText(/Alice : 100,00 € versés ne sont pas déduits/)).toBeInTheDocument();
-  });
-
-  it('tells each declarant’s PER warning once in the top notes, with two declarants', async () => {
+  it('the block tells each warning once, with no second copy in the notes', async () => {
     const loaded = estimate();
     const [alice, bob] = [declarantPer({ excess: '100.00' }), declarantPer({ excess: '200.00', source: 'estimated' })];
     loaded.result = withPer({ warnings: ['per_over_ceiling', 'per_over_ceiling', 'per_ceiling_estimated', 'per_ceiling_estimated'] }, alice);
     loaded.result.declarants = [{ ...loaded.result.declarants[0]!, per: alice }, { ...loaded.result.declarants[0]!, name: 'Bob', person: 'b', per: bob }];
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    await renderApp('/tax?tab=profile');
+    await renderApp('/tax');
 
     expect(await screen.findAllByText(/versés ne sont pas déduits/)).toHaveLength(2);
     expect(screen.getAllByText(/Plafond de Bob estimé/)).toHaveLength(1);
+    const notes = screen.getByRole('region', { name: 'À savoir' });
+    expect(within(notes).queryByText(/versés ne sont pas déduits|Plafond de Bob estimé|plafond PER/i)).not.toBeInTheDocument();
     expect(errors.mock.calls.flat().join(' ')).not.toContain('same key');
     errors.mockRestore();
   });

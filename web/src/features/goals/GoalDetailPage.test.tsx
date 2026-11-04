@@ -1,8 +1,10 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import type { GoalDetail } from './api';
 import { detail, ENVELOPE, eur, funding, GOAL } from './testData';
@@ -13,6 +15,19 @@ const stat = (label: string) => screen.getByText(label, { selector: 'dt' }).pare
 
 describe('GoalDetailPage', () => {
   beforeAll(async () => { await import('./GoalDetailPage'); }, 30_000);
+
+  it('loading and error states show no inline back link: the bar leads back to the list', async () => {
+    server.use(http.get('*/api/v1/goals/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
+    await renderApp(`/goals/${GOAL}`);
+    expect(await screen.findByLabelText('Chargement de l’objectif')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Objectifs', '/goals'));
+    cleanup();
+
+    server.use(http.get('*/api/v1/goals/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    await renderApp(`/goals/${GOAL}`);
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    await waitFor(() => expectTrailBack('Objectifs', '/goals'));
+  });
 
   it('renders the stat line from the server figures', async () => {
     serve(detail());

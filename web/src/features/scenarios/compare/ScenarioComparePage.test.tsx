@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { projection, projectionPoint } from '@/features/dashboard/testData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
+import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { ScenarioCompare } from '../api';
@@ -72,6 +73,18 @@ describe('ScenarioComparePage', () => {
     expect(within(legend).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Base', 'Mi-temps']);
     expect(seen.at(-1)).toContain(`ids=${HALF}`);
     expect(seen.at(-1)).toContain('scope=household');
+  });
+
+  it('lines the pickers, the horizon and the reading up in one filter row, each picker’s label before it', async () => {
+    serve();
+    await renderApp(`/scenarios/compare?ids=${HALF}`);
+
+    const second = await screen.findByRole('combobox', { name: 'Scénario 2' });
+    const row = screen.getByRole('group', { name: 'Filtres' });
+    expectLabelBefore(within(row).getByText('Scénario 1'), within(row).getByRole('combobox', { name: 'Scénario 1' }));
+    expectLabelBefore(within(row).getByText('Scénario 2'), second);
+    expectLabelBefore(within(row).getByText('Horizon de la projection'), within(row).getByRole('radiogroup', { name: 'Horizon de la projection' }));
+    expectLabelBefore(within(row).getByText('Lecture de la projection'), within(row).getByRole('radiogroup', { name: 'Lecture de la projection' }));
   });
 
   it('the second picker does not offer the scenario chosen in the first', async () => {
