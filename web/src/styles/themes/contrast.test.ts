@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { differenceEuclidean, formatHex, parse, rgb, wcagContrast } from 'culori';
+import { differenceEuclidean, formatHex, interpolate, parse, rgb, wcagContrast } from 'culori';
 import { describe, expect, it } from 'vitest';
+import { PALETTE } from '@/lib/labelColour';
 import { themes } from './index';
 
 // frontend/design-system.md §7.7, with `input` for a field's outline (plan Task 6 ruling) and four more pairs.
@@ -83,6 +84,9 @@ const GLOSS = Number(/before:from-white\/(\d+)/.exec(tileSource)![1]) / 100;
 const GLOSS_END = Number(/before:to-(\d+)%/.exec(tileSource)?.[1] ?? 100);
 const GLOSS_AT_GLYPH = GLOSS * Math.max(0, 1 - GLYPH_TOP / GLOSS_END);
 
+// The share of the slot colour in a monogram chip, read from ProviderIcon.tsx (`color-mix(in oklab, … N%, …)`).
+const CHIP_TINT = Number(/color-mix\(in oklab, \$\{[^}]+\} (\d+)%/.exec(readFileSync(join(THEMES_DIR, '..', '..', 'components', 'ProviderIcon.tsx'), 'utf8'))![1]) / 100;
+
 it('over() blends in sRGB', () => {
   expect(differenceEuclidean('rgb')(over('#ffffff', 0.5, '#000000'), '#808080')).toBeLessThan(0.01);
 });
@@ -112,6 +116,18 @@ describe.each(themes.map((t) => t.id))('theme %s', (id) => {
     it.each(['tile-1', 'tile-2', 'tile-3', 'tile-4', 'tile-5', 'tile-6', 'tile-7', 'tile-8', 'tile-neutral'])('a white glyph on %s reaches 3:1', (tile) => {
       expect(wcagContrast('#ffffff', over('#ffffff', GLOSS_AT_GLYPH, formatHex(resolve(tile))!))).toBeGreaterThanOrEqual(3);
     });
+
+    // A monogram chip (ProviderIcon): its slot colour at CHIP_TINT over the card, the initials in the text colour.
+    it.each([1, 2, 3, 4, 5, 6, 7, 8, 'neutral'])('foreground on a %s chip reaches 4.5:1', (slot) => {
+      // `color-mix(in oklab, …)`: the blend is in OKLab, not sRGB.
+      const chip = formatHex(interpolate([formatHex(vars['card'])!, formatHex(vars[slot === 'neutral' ? 'muted-foreground' : `chart-${slot}`])!], 'oklab')(CHIP_TINT));
+      expect(wcagContrast(formatHex(vars['foreground'])!, chip)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    if (mode === 'light')
+      it('labelColour keeps the light --chart-1…8 palette', () => {
+        expect(PALETTE).toEqual([1, 2, 3, 4, 5, 6, 7, 8].map((n) => formatHex(vars[`chart-${n}`])));
+      });
 
     it('defines an opaque --glass and four halos', () => {
       expect(parse(vars['glass']!), '--glass').toBeDefined();

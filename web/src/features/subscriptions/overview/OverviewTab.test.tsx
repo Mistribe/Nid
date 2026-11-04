@@ -81,6 +81,8 @@ describe('Abonnements › vue d’ensemble', () => {
     const labels = await region('Par libellé');
     const rows = within(labels).getAllByRole('listitem');
     expect(rows[0]).toHaveTextContent(/Vidéo.*20,00 €/);
+    // One tone for the bars (dataviz §2): the label's colour is not painted.
+    expect(rows[0]!.querySelector<HTMLElement>('.bg-primary')!.style.background).toBe('');
     expect(rows[1]).toHaveTextContent(/Sans libellé.*5,00 €/);
     const link = within(labels).getByRole('link', { name: 'Voir la liste' });
     expect(link).toHaveAttribute('href', '/subscriptions?tab=list&group=label&status=all');

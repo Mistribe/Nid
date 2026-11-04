@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
+import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { toPlot } from '../../investments/chart/plot';
 import type { LoanScheduleYear } from '../api';
 import { money } from '../format';
@@ -17,8 +18,8 @@ type Row = {
 export function ScheduleChart({ years, currency, summaryId }: { years: LoanScheduleYear[]; currency: string; summaryId: string }) {
   const { t } = useTranslation();
   const config = {
-    interest: { label: t('loan_detail.chart.interest'), color: 'var(--chart-1)' },
-    principal: { label: t('loan_detail.chart.principal'), color: 'var(--chart-2)' },
+    interest: { label: t('loan_detail.chart.interest'), color: NEUTRAL_COLOR },
+    principal: { label: t('loan_detail.chart.principal'), color: 'var(--primary)' },
     balance: { label: t('loan_detail.chart.balance'), color: 'var(--chart-3)' },
   } satisfies ChartConfig;
   const rows: Row[] = years.map((y) => ({

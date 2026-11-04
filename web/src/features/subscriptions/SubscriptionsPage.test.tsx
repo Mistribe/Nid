@@ -163,6 +163,18 @@ describe('Abonnements › liste', () => {
     return screen.findByRole('menu');
   };
 
+  it('draws a label dot in its nearest chart colour', async () => {
+    serveLabels();
+    serve(labelled, []);
+    const { user } = await renderApp('/subscriptions?tab=list');
+    const menu = await openLabels(user);
+
+    // VIDEO #E50914 is a red (slot 8), VPN #6D4AFF a blue-violet (slot 1).
+    const dot = (name: string) => within(menu).getByRole('menuitemcheckbox', { name }).querySelector<HTMLElement>('span[aria-hidden="true"].rounded-full');
+    expect(dot('Video')).toHaveStyle({ backgroundColor: 'var(--chart-8)' });
+    expect(dot('VPN')).toHaveStyle({ backgroundColor: 'var(--chart-1)' });
+  });
+
   it('offers every label in a multi-select menu, writes the ones on into the address and the request, and clears them', async () => {
     serveLabels();
     const seen: string[] = [];

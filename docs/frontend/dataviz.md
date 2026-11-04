@@ -29,7 +29,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Abonnements, 12 mois : barres empilées | Barres empilées : mensuels puis annuels, étiquette des deux chaînes du serveur au-dessus des mois à annuels, tableau masqué | Catégories 1 et 2 |
 | Coûts réel et amorti | Paires de barres | 2 tons |
 | Couverture d'un abonnement | **Bande temporelle en SVG** | 5 catégories fixes, libellé direct sur chaque période |
-| Crédit : capital et intérêts par mois | Barres empilées | 2 catégories |
+| Crédit : capital et intérêts par mois | Barres empilées | Capital primaire, intérêts gris neutre (#9E9E9E, comme Biens) |
 | Crédit : capital restant dû | Courbe, **graphique séparé** | 1 série |
 | Crédits : capital restant dû du foyer jusqu’à la fin | Aires empilées, séparations de 2 px, libellé dans chaque aire assez haute, événements en traits pointillés, bascule en tableau | Catégorielle, une couleur par crédit dans l’ordre du restant dû (slots 1 à 8, ton neutre au-delà) |
 | Crédits : durée et phases | **Frise** (blocs positionnés en pourcentage de l’axe), écoulé plein, à venir atténué, différé hachuré, phases nommées, tableau pour les technologies d’assistance | Couleur du crédit |
@@ -114,7 +114,6 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 | | Autres (PER, CTO, immobilier net…) | gris neutre |
 | Enveloppes (Placements, vue détaillée) | PER | 5 |
 | | CTO | 6 |
-| | Immobilier (valeur nette) | 7 |
 | | Tontine (juste avant « Autre ») | gris neutre |
 | Biens, par type (page Biens) | Résidence principale | 1 |
 | | Bien locatif | 2 |
@@ -130,6 +129,34 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 - Sur une **même vue**, deux dimensions n'utilisent pas les mêmes teintes : le tableau de bord réserve 1 à 4 aux enveloppes et 5 à 7 aux personnes. Sur la page Placements, les types d'enveloppe prennent 1 à 6 : les personnes y sont en ton neutre. Sur la page Biens, les types de bien prennent 1 à 4 : les personnes et les crédits y sont en ton neutre.
 - **Bande de couverture** : chaque période porte un **libellé direct** (« 24 mois payés », « 6 mois offerts »). Au-delà de quatre catégories affichées, les libellés directs sont obligatoires.
 - Le gris « Autres » regroupe le reste ; le détail est dans la vue en tableau.
+
+### Créneaux par domaine
+
+Un créneau peut avoir un sens différent selon le domaine, jamais deux séries sur un même graphique ou une même légende. Un repère à côté de son nom (point de libellé, monogramme, tuile) peut partager un créneau : ce n'est pas une série.
+
+| Domaine | Créneau : sens |
+|---|---|
+| Enveloppes | 1 assurance-vie, 2 PEA, 3 livrets, 4 comptes courants, 5 PER, 6 CTO ; le reste (tontine, autre) en neutre |
+| Types de bien | 1 résidence principale, 2 locatif, 3 résidence secondaire, 4 parking |
+| Personnes | 5, 6, 7 dans l'ordre de création |
+| Charges du foyer (mois) | 1 abonnements, 2 crédits, 3 charges des biens, 4 impôts, 5 garde d'enfants, 6 reste |
+| Revenus passifs | 1 dividendes, 2 loyers nets, 3 intérêts, 7 distributions |
+| Classes d'actifs (panneau du patrimoine, `classColor`) | 1 monétaire, 2 actions, 3 fonds en euros et garantis, 4 immobilier, 5 obligations, 6 liquidités, 7 diversifié ; le reste en neutre |
+| Exposition, régions | 1 Amérique du Nord, 2 Europe hors France, 3 France, 4 Japon, 5 Asie-Pacifique hors Japon, 6 Émergents ; le reste en neutre |
+| Exposition, secteurs | 1 technologies, 2 santé, 3 finance, 4 industrie, 5 consommation discrétionnaire, 6 consommation de base, 7 énergie, 8 matériaux ; le reste en neutre |
+| Types de ligne (Placements) | 1 ETF, 2 actions, 3 fonds en euros, 4 produits structurés, 5 obligations, 7 fonds ; le reste en neutre |
+| Disponibilité (patrimoine) | 1 tout de suite, 3 sous quelques jours, 7 bloqué |
+| Sources de couverture | 1 payée, 2 bonus, 3 incluse, 4 essai, 5 cadeau ; toute autre source : 8 (bande de couverture) |
+| Crédits | par rang du restant dû : 1 à 8, neutre au-delà |
+| Crédit (échéancier) | capital `--primary`, intérêts neutre (`NEUTRAL_COLOR`), capital restant dû 3 |
+| Agenda | 1 abonnements, 2 crédits, 3 biens, 4 impôts, revenus `--primary` |
+| Revenus, répartition (`SplitBar`) | par rang des parts colorées : 1 à 6, puis on reboucle ; « Autres » en neutre |
+| Revenus, fiche d'une source (`SourceChart`) | séries 1, 2, 3, 5, 7 dans l'ordre ; ponctuels 4 |
+| Revenus, mois (`MonthsChart`) | récurrents 1, ponctuels 4 |
+| Tuiles de module | 1 à 8 : voir ci-dessous |
+| Libellés d'abonnement | la couleur enregistrée prend le créneau le plus proche (`labelColour.ts`) ; peu saturée, elle reste neutre |
+
+**Deux neutres.** Les repères de libellé (point, monogramme) utilisent `var(--muted-foreground)`, qui suit le contraste renforcé. Les graphiques utilisent `NEUTRAL_COLOR`, `#9E9E9E`.
 
 ### Tuiles de module
 

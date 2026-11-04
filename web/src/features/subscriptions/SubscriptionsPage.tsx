@@ -23,6 +23,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { labelColour } from '@/lib/labelColour';
 import type { components } from '@/api/schema';
 import { LABELS, LIST, PERSONS, type ListResponse, type Summary } from './api';
 import { labelParam, labelsOf } from './filter';
@@ -170,7 +171,7 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
               {offered.map((label) => (
                 <DropdownMenuCheckboxItem key={label.key} checked={active.includes(label.key)}
                   onCheckedChange={() => toggle(label.key)} onSelect={(e) => e.preventDefault()}>
-                  <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
+                  <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: labelColour(label.color) }} />
                   {label.name}
                 </DropdownMenuCheckboxItem>
               ))}
@@ -266,7 +267,7 @@ function Labels({ row }: { row: Row }) {
     <span className="inline-flex flex-wrap gap-x-3 gap-y-1 text-sm">
       {labels.map((label) => (
         <span key={label.key} className="inline-flex items-center gap-1.5">
-          <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: label.color }} />
+          <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: labelColour(label.color) }} />
           {label.name}
         </span>
       ))}

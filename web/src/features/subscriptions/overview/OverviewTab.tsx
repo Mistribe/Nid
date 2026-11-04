@@ -133,7 +133,7 @@ function Labels({ d }: { d: Overview }) {
           </div>
           <div aria-hidden="true" className="h-1.5 rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary"
-              style={{ width: `${max > 0 && l.amortized ? (toPlot(l.amortized.amount) / max) * 100 : 0}%`, background: l.color ?? undefined }} />
+              style={{ width: `${max > 0 && l.amortized ? (toPlot(l.amortized.amount) / max) * 100 : 0}%` }} />
           </div>
         </li>
       ))}

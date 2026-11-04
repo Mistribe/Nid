@@ -33,3 +33,19 @@ describe('palette colours', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// A colour is a theme token or a palette slot (`labelColour`): a literal in features/ bypasses the themes.
+// Write `#` followed by a hex-looking word, or an issue number in a string, another way.
+const literal = /#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})\b|\brgba?\(|\bhsla?\(|\b(?:ok)?l(?:ab|ch)\(|\bhwb\(/i;
+// Comments go, string literals stay (a `'/*'` or `'://'` is not a comment).
+const STRIP = /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/.*$/gm;
+
+describe('colour literals', () => {
+  it('are used nowhere in features/', () => {
+    const offenders = sources(join(root, 'features'))
+      .map((path) => relative(root, path))
+      .filter((path) => /\.tsx?$/.test(path) && !/\.test\.tsx?$/.test(path))
+      .filter((path) => literal.test(readFileSync(join(root, path), 'utf8').replace(STRIP, '$1')));
+    expect(offenders).toEqual([]);
+  });
+});

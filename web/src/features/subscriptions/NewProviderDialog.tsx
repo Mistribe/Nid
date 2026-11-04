@@ -13,6 +13,7 @@ import { LABELS, PROVIDERS } from './api';
 import { Field } from '@/components/form/Field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { labelColour } from '@/lib/labelColour';
 import '@/locales/forms';
 
 /** The server's bounds (`CatalogLimits`, `ProviderRules`): the server checks them again. */
@@ -104,7 +105,7 @@ export function NewProviderDialog({ onCreated, onClose }: {
                       <Checkbox checked={field.value.includes(label.key)}
                         onCheckedChange={(on) => field.onChange(on === true
                           ? [...field.value, label.key] : field.value.filter((key) => key !== label.key))} />
-                      <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
+                      <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: labelColour(label.color) }} />
                       {label.name}
                     </label>
                   ))}
