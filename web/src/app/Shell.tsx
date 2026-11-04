@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { Bird, Ellipsis, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import { Ellipsis, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ModuleTile } from '@/components/ModuleTile';
+import { Wordmark } from '@/components/Logo';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Guides } from '@/features/guides/Guides';
 import { PendingBadge } from '@/features/proposals/PendingBadge';
@@ -72,7 +74,7 @@ export function Shell() {
   const sideLink = (item: NavItem) => {
     const anchor = (
       <Link to={item.to} className={rail ? RAIL : LINK} activeProps={{ 'aria-current': 'page', className: ACTIVE }}>
-        <item.icon aria-hidden="true" className="size-4.5 shrink-0" />
+        <ModuleTile icon={item.icon} tile={item.tile} />
         <span className={rail ? 'sr-only' : 'truncate'}>{t(item.label)}</span>
         {badge(item, rail)}
       </Link>
@@ -105,10 +107,9 @@ export function Shell() {
         className="hidden print:hidden md:sticky md:top-0 md:block md:h-dvh md:p-2">
         <div data-pane="sidebar" className="glass rounded-pane flex h-full flex-col overflow-hidden text-sidebar-foreground">
           {/* As tall as the top bar's row, so the brand and the search line up. */}
-          <p className={`flex h-14 shrink-0 items-center gap-2 font-semibold ${rail ? 'justify-center' : 'px-5 text-lg'}`}>
-            <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-card"><Bird className="size-4" /></span>
-            <span className={rail ? 'sr-only' : undefined}>{t('app.name')}</span>
-          </p>
+          <div className={`flex h-14 shrink-0 items-center ${rail ? 'justify-center' : 'px-5'}`}>
+            <Wordmark markOnly={rail} className="h-7" />
+          </div>
           <div className={`flex-1 overflow-x-hidden overflow-y-auto ${rail ? 'p-1' : 'p-3'}`}>
             {groups.map(({ group, entries }, index) => (
               <div key={group} className={index === 0 ? undefined : rail ? 'mt-2 border-t pt-2' : 'mt-5'}>

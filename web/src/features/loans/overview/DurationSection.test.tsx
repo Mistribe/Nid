@@ -92,6 +92,7 @@ describe('Crédits › durée et mensualité du foyer', () => {
 
     const section = await region('Part de chacun');
     const alice = await within(section).findByRole('region', { name: 'Alice' });
+    expect(within(alice).getByRole('heading', { level: 3, name: 'Alice' })).toBeInTheDocument();
     expect(alice).toHaveTextContent('Restant dû102 782,12 €');
     expect(alice).toHaveTextContent('Mensualité1 579,96 €');
     expect(alice).toHaveTextContent('Prêt maison · 50 %96 782,12 €');

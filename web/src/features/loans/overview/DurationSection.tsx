@@ -277,7 +277,7 @@ function Persons({ d }: { d: LoansOverview }) {
           const slot = ranked.findIndex((p) => p.id === share.personId);
           const name = ranked[slot]?.displayName ?? t('loans_overview.unknown_person', { n: index + 1 });
           return (
-            <SectionCard key={share.personId} title={name}
+            <SectionCard key={share.personId} title={name} level={3}
               note={<span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: personColor(slot) }} />}>
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <div><dt className="text-muted-foreground">{t('loans_overview.person_balance')}</dt><dd className="font-semibold tabular-nums">{text(share.balance)}</dd></div>

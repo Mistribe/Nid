@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { EnvelopeList } from './api';
-import { eur, figures, list, summary, unknownFigures } from './testData';
+import { eur, figures, household, list, summary, unknownFigures } from './testData';
 
 function serve(body: EnvelopeList, seen: string[] = []) {
   server.use(http.get('*/api/v1/investments/envelopes', ({ request }) => {
@@ -243,5 +243,14 @@ describe('EnvelopesPage, closed envelopes', () => {
     expect(items[2]).toHaveTextContent('Bob');
     expect(items[2]).toHaveTextContent('60 % / 40 %');
     await expectNoAxeViolations(container);
+  });
+
+  it('the overview outline has one h1 and level-2 sections', async () => {
+    server.use(http.get('*/api/v1/investments/overview', () => HttpResponse.json(household())));
+    await renderApp('/investments');
+
+    await screen.findByRole('heading', { level: 2, name: 'Répartition par type' });
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(0);
   });
 });

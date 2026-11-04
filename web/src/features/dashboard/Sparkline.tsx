@@ -24,12 +24,12 @@ export function Sparkline({ scope }: { scope: 'me' | 'household' }) {
     <svg aria-hidden="true" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-14 w-full max-w-56 overflow-visible">
       <defs>
         <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="var(--chart-1)" stopOpacity={0.3} />
-          <stop offset="1" stopColor="var(--chart-1)" stopOpacity={0} />
+          <stop offset="0" stopColor="var(--primary)" stopOpacity={0.3} />
+          <stop offset="1" stopColor="var(--primary)" stopOpacity={0} />
         </linearGradient>
       </defs>
       <path d={`${line} L${W} ${H} L0 ${H} Z`} fill={`url(#${gradient})`} className="animate-enter [animation-delay:300ms]" />
-      <path d={line} fill="none" stroke="var(--chart-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"
+      <path d={line} fill="none" stroke="var(--primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"
         vectorEffect="non-scaling-stroke" pathLength={1} className="animate-draw" />
     </svg>
   );

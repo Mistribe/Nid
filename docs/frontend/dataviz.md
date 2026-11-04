@@ -131,6 +131,25 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 - **Bande de couverture** : chaque période porte un **libellé direct** (« 24 mois payés », « 6 mois offerts »). Au-delà de quatre catégories affichées, les libellés directs sont obligatoires.
 - Le gris « Autres » regroupe le reste ; le détail est dans la vue en tableau.
 
+### Tuiles de module
+
+Une **tuile** (`ModuleTile`) est le pictogramme d'un module (blanc, sauf la tuile `primary` : `--primary-foreground`, car l'accent d'un thème sombre est clair) sur sa couleur : un repère à côté du libellé, jamais une donnée. Elle peut donc partager sa teinte avec une série de la même page, et son pictogramme atteint **3:1** sur la tuile (WCAG 1.4.11), dans chaque mode. Les jetons `--tile-N` valent `--chart-N`, sauf un slot dont le pictogramme blanc n'atteint pas 3:1 : il prend une teinte plus sombre de la même couleur (luminosité seule). Aucun thème ne les redéfinit.
+
+| Tuile | Entrées |
+|---|---|
+| accent du thème (`primary`) | Accueil, Routine, À valider |
+| 1 | Placements |
+| 2 | Crédits |
+| 3 | Biens |
+| 4 | Objectifs |
+| 5 | Garde d'enfants |
+| 6 | Revenus |
+| 7 | Simulations |
+| 8 | Abonnements |
+| gris neutre (`--tile-neutral`) | Documents, Impôts, Import, Export, Sécurité, Réglages, Administration |
+
+Slots assombris, mode clair : 3 (`#37ad7d` → `oklch(0.645 0.127 162.1)`), 4 (`#e8a332` → `oklch(0.67 0.146 74.7)`), 5 (`#e280a4` → `oklch(0.675 0.127 357.4)`). Mode sombre : aucun.
+
 ## 6. Règles de tracé
 
 - **Un seul axe vertical**, jamais deux.

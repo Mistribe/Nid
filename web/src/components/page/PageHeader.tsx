@@ -23,7 +23,7 @@ export function PageHeader({ crumbs, title, titleRef, meta, actions, children }:
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className="text-2xl font-semibold tracking-tight outline-none">{title}</h1>
+          <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className="text-large-title break-words outline-none">{title}</h1>
           {meta}
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}

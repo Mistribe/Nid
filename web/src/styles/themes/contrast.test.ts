@@ -75,6 +75,14 @@ function variables(id: string) {
   };
 }
 
+// The tile's top light, read from ModuleTile.tsx (`before:from-white/N`, `before:to-S%`): its opacity where the glyph
+// starts, 19 % down (a 62 % glyph, centred), the gradient fading linearly to its transparent stop.
+const tileSource = readFileSync(join(THEMES_DIR, '..', '..', 'components', 'ModuleTile.tsx'), 'utf8');
+const GLYPH_TOP = 19;
+const GLOSS = Number(/before:from-white\/(\d+)/.exec(tileSource)![1]) / 100;
+const GLOSS_END = Number(/before:to-(\d+)%/.exec(tileSource)?.[1] ?? 100);
+const GLOSS_AT_GLYPH = GLOSS * Math.max(0, 1 - GLYPH_TOP / GLOSS_END);
+
 it('over() blends in sRGB', () => {
   expect(differenceEuclidean('rgb')(over('#ffffff', 0.5, '#000000'), '#808080')).toBeLessThan(0.01);
 });
@@ -98,6 +106,12 @@ describe.each(themes.map((t) => t.id))('theme %s', (id) => {
       const ref = /^var\(--([\w-]+)\)$/.exec(value);
       return ref ? vars[ref[1]!]! : value;
     };
+
+    // A module tile's white glyph under the tile's top light, where the glyph starts (the `primary` tile takes
+    // --primary-foreground: see PAIRS) (WCAG 1.4.11, visual identity spec §3.6).
+    it.each(['tile-1', 'tile-2', 'tile-3', 'tile-4', 'tile-5', 'tile-6', 'tile-7', 'tile-8', 'tile-neutral'])('a white glyph on %s reaches 3:1', (tile) => {
+      expect(wcagContrast('#ffffff', over('#ffffff', GLOSS_AT_GLYPH, formatHex(resolve(tile))!))).toBeGreaterThanOrEqual(3);
+    });
 
     it('defines an opaque --glass and four halos', () => {
       expect(parse(vars['glass']!), '--glass').toBeDefined();

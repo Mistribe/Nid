@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
 import { cn } from '@/lib/utils';
 import { Direction } from '../investments/Figures';
-import { directionOf } from '../investments/format';
 import type { DashboardFigure, DashboardView } from './api';
 import { percent } from './format';
 import { Sparkline } from './Sparkline';
@@ -11,28 +10,27 @@ import { Sparkline } from './Sparkline';
 export type Panel = 'net_worth' | 'income' | 'commitments' | 'margin';
 
 /** The figure, or « Inconnu » with its reason (a missing rate names its currency). */
-export function Value({ figure, unknown, unknownRate = 'dashboard.unknown_rate', className = 'text-2xl' }: {
+export function Value({ figure, unknown, unknownRate = 'dashboard.unknown_rate', className = 'text-2xl font-semibold tracking-tight' }: {
   figure: DashboardFigure; unknown: string; unknownRate?: 'dashboard.unknown_rate' | 'dashboard.change_unknown_rate'; className?: string;
 }) {
   const { t } = useTranslation();
-  if (figure.total) return <span className={cn('font-semibold tracking-tight', className)}>{formatMoney(figure.total)}</span>;
+  if (figure.total) return <span className={className}>{formatMoney(figure.total)}</span>;
   return <span className="text-sm text-muted-foreground">{figure.missingCurrency ? t(unknownRate, { code: figure.missingCurrency }) : unknown}</span>;
 }
 
 function Tile({ label, panel, onOpen, className, children }: { label: string; panel: Panel; onOpen: (p: Panel) => void; className?: string; children: ReactNode }) {
   return (
     <button type="button" onClick={() => onOpen(panel)}
-      className={cn('flex min-w-0 flex-col items-start gap-1 rounded-xl border bg-card p-3 text-left shadow-card outline-none transition-[translate,box-shadow,border-color] duration-200 ease-emphasized hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-raised focus-visible:ring-[3px] focus-visible:ring-ring/50', className)}>
-      <span className="text-sm text-muted-foreground">{label}</span>
+      className={cn('flex min-w-0 flex-col items-start gap-1 rounded-xl border material p-3 text-left shadow-card outline-none transition-[translate,box-shadow,border-color] duration-200 ease-emphasized hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-raised focus-visible:ring-[3px] focus-visible:ring-ring/50', className)}>
+      <span className="text-label text-muted-foreground">{label}</span>
       {children}
     </button>
   );
 }
 
-const CHANGE_TONE = { up: 'bg-status-good/10', down: 'bg-status-critical/10', flat: 'bg-muted' } as const;
-
 /**
  * Spec §4.1: the net worth first and large, with its 12-month line, then three compact figures; each opens its panel.
+ * No period control (1M, 6M, 1A, Max): it would need data the server does not give (spec non-goal: no new data).
  * On a phone: net worth alone, then income and margin side by side, then commitments.
  */
 export function KeyFigures({ d, onOpen, scope }: { d: DashboardView; onOpen: (panel: Panel) => void; scope: 'me' | 'household' }) {
@@ -42,14 +40,14 @@ export function KeyFigures({ d, onOpen, scope }: { d: DashboardView; onOpen: (pa
   return (
     <div data-guide="dashboard.tiles" className="stagger grid grid-cols-2 gap-3 md:grid-cols-3">
       <Tile label={t('dashboard.key.net_worth')} panel="net_worth" onOpen={onOpen}
-        className="relative col-span-2 gap-2 bg-linear-to-br from-primary/10 via-card to-card p-5 sm:pr-72 md:col-span-3">
+        className="relative col-span-2 gap-2 p-5 sm:pr-72 md:col-span-3">
         <span>
-          <Value figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} className="text-3xl tracking-tight md:text-4xl" />
+          <Value figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} className="text-hero tabular-nums" />
           {d.netWorth.total && d.estimatedEnvelopes > 0 ? <span className="text-sm text-muted-foreground"> {t('dashboard.estimated_total')}</span> : null}
         </span>
         {change ? (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className={cn('rounded-full px-3 py-1 text-sm font-medium', CHANGE_TONE[directionOf(change.amount)])}>
+            <span className="text-sm font-medium">
               <Direction amount={change}>
                 {/* The percent apart from the amount: a rule between them, and set back in the secondary colour. */}
                 {d.changePct != null ? (

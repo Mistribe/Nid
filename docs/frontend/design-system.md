@@ -20,7 +20,7 @@
 | Contours | `border`, `input`, `ring` |
 | Barre latérale | `sidebar`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring` |
 | Forme | `--radius` (les autres rayons en dérivent) ; `rounded-pane` : le rayon d'un volet flottant (barre latérale, barre du haut, onglets) |
-| Couches | `--material-opacity`, `--glass-opacity`, `--glass-regular-opacity` : l'opacité des surfaces ; `--backdrop-*` : le flou de ce qu'elles recouvrent ; `--glass-edge` : leur liseré ; `--elevation-glass` : leur relief ; `--halo` : les halos colorés fixes du fond. Utilitaires `content-pane` (la fenêtre de contenu, sans flou), `material` (cartes givrées), `glass` (volets flottants), `glass-regular` (menus, fenêtres), `scroll-edge` (le fondu sous la barre du haut). Tout passe à 100 % et sans flou avec « Réduire la transparence », `prefers-contrast: more` et `forced-colors` |
+| Couches | `--material-opacity`, `--glass-opacity`, `--glass-regular-opacity` : l'opacité des surfaces ; `--backdrop-*` : le flou de ce qu'elles recouvrent ; `--glass-edge` : leur liseré ; `--elevation-glass` : leur relief ; `--halo` : les halos colorés fixes du fond. Utilitaires `content-pane` (la fenêtre de contenu, sans flou), `material` (cartes givrées), `glass` (volets flottants), `glass-regular` (menus, fenêtres), `scroll-edge` (le fondu sous la barre du haut). Les quatre premiers posent une couleur de fond : `cn()` les remplace par un `bg-…` placé après (et l'inverse). Tout passe à 100 % et sans flou avec « Réduire la transparence », `prefers-contrast: more` et `forced-colors` |
 | Relief | `--elevation-card` (`shadow-card`) : une carte posée un cran au-dessus de la page ; `--elevation-raised` (`shadow-raised`) : une carte cliquable survolée. En mode sombre, un liseré clair en haut remplace l'ombre, qui ne se voit pas sur un fond sombre ; en mode clair, un liseré clair en haut aussi (`--elevation-card`). Communs à tous les thèmes |
 | Mouvement | Dans `@theme` : `ease-emphasized` (décélération), `animate-enter` (fondu et 6 px vers le haut, 400 ms), `animate-shimmer`, `animate-draw` (une ligne qui se trace), `animate-grow` (une barre qui se remplit) ; utilitaires `stagger` et `shimmer` |
 | Graphiques | `--chart-1` à `--chart-8` : palette **fixe**, indépendante du thème (`dataviz.md` §3) |
@@ -33,7 +33,8 @@ Les jetons de graphiques et de statuts ne sont **jamais redéfinis par un thème
 | Sujet | Décision |
 |---|---|
 | Police | **Inter**, variable en graisse et en taille optique (`@fontsource-variable/inter`, `opsz.css`), servie depuis notre origine (`font-src 'self'`) : la taille optique resserre les grands chiffres et ouvre le petit texte. Chaque sous-ensemble porte son `unicode-range` : une page en français ne charge que le fichier latin (73 kB, hors budget JS). Pile système en attendant (`font-display: swap`) et en secours. Refonte du 2026-10-23 (passe « typographie ») |
-| Chiffres | Proportionnels pour les grands montants (`StatLine`, chiffres de l'accueil : `text-xl` à `text-4xl`, `tracking-tight`) ; `tabular-nums` seulement dans les colonnes et sur les axes |
+| Échelle typographique | Cinq jetons dans `globals.css` (`@theme`), avec leur graisse et leur interlignage (et leur approche pour `large-title`, `hero` et `figure`), et une valeur réduite sous 48 rem : `text-large-title` (titre de page, 2 rem, 800), `text-title` (titre de section, 1,125 rem, 650), `text-hero` (grand chiffre de l'accueil, 2,5 rem, 700 ; le jeton ne fixe pas `tabular-nums`, c'est la classe ajoutée par le hero), `text-figure` (valeur de `StatLine`, 1,25 rem, 650), `text-label` (légende, 0,8125 rem, 500). `cn()` les connaît (`tailwind-merge`). `text-body`, `text-caption` et `text-overline` attendent leur premier usage. Inter seule dans l'interface ; Fraunces 600 (licence SIL OFL 1.1) ne sert qu'au mot « Nid », en tracés SVG (`public/wordmark.svg`, peint en masque dans la couleur du texte par `Wordmark`), sans fichier de police |
+| Chiffres | Proportionnels pour les grands montants de `StatLine` (`text-figure`) ; le grand chiffre de l'accueil (`text-hero`) ajoute la classe `tabular-nums` pour ne pas bouger quand la valeur change ; `tabular-nums` ailleurs seulement dans les colonnes et sur les axes |
 | Montants | `Intl` en `fr-FR` (`formatCurrency`, `components/Money.tsx`) : espace insécable pour les milliers (U+00A0 et non l’espace fine U+202F que donne `Intl`, qu’Inter dessine à 2 px : « 1 000,00 € » se lisait « 1000,00 € »), virgule décimale, « € » après le montant |
 | Dates | Jour et mois en toutes lettres selon la locale, via un utilitaire en UTC (`architecture.md` §11) |
 | Icônes | Lucide, 16 à 20 px dans le texte |
@@ -65,11 +66,14 @@ Communs à tous les modules, dans `components/`.
 | `<AccessBadge>` | Privé, Partagé, Enfant : **icône et texte** |
 | `<StaleValue>` | Signale une valeur périmée avec son ancienneté (pas encore construit : chaque écran l'affiche lui-même, icône et texte) |
 | `<ProvenanceBadge>` | Source d'une donnée : manuel, document, API bancaire, import ; ouvre le document d'origine (pas encore construit) |
+| `Logo` (`components/Logo.tsx`) | La marque (le nid : deux arcs et un œuf) ; arcs en `currentColor`, œuf en `--primary` (ou en `currentColor` avec `onTile`). Icônes `favicon.svg`, `apple-touch-icon.png`, `icon-192/512.png` et `icon-maskable-512.png` générées par `web/scripts/render-icons.mjs` |
+| `Wordmark` | La marque suivie de « Nid » (lettres tracées d'après Fraunces 600) ; `markOnly` pour le rail replié ; la hauteur vient de `className` |
+| `ModuleTile` | Le pictogramme d'un module sur sa tuile de couleur (`tile` dans `app/nav.ts`, `--tile-*`, `dataviz.md` §5) ; sidebar et menu de commandes, pas la barre d'onglets du téléphone |
 | `<EmptyState>` | Titre, phrase, action |
 | `<ProblemMessage>` | Présente une erreur convertie (`architecture.md` §5) |
 | `<ScopeSwitch>` | Foyer / Moi |
 | `Section` (`components/page/`) | Région titrée d'une fiche, sans carte : titre `h2`, focus facultatif |
-| `SectionCard` (`components/page/`) | Cadre titré d'une vue d'ensemble (graphique, courte liste) : titre, note, actions dans l'en-tête, dont « Afficher en tableau » pour un graphique |
+| `SectionCard` (`components/page/`) | Cadre titré d'une vue d'ensemble (graphique, courte liste) : titre, note, actions dans l'en-tête, dont « Afficher en tableau » pour un graphique ; `level={3}` sous le titre d'une `Section` |
 | `PageHeader` (`components/page/`) | Titre, retour, chiffres clés en ligne, actions de la page : l'en-tête commun des listes et des fiches |
 | `StatLine` | Ligne de chiffres sous le titre ; seulement quand le serveur donne les totaux (abonnements) |
 | `SortableTable` | Tableau dense triable, colonne « Propriétaires » (`OwnerChips`, initiales) ; base de toutes les listes |

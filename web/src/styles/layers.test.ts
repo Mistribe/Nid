@@ -50,4 +50,11 @@ describe('layers', () => {
     expect(b).toContain('border-color: var(--glass-edge)');
     expect(b).not.toMatch(/border:/);
   });
+
+  // tailwind-merge files them as background colours (lib/utils.ts): the shorthand would also reset a `bg-linear-…` image.
+  it.each(['material', 'glass', 'glass-regular', 'content-pane'])('%s sets the background colour only', (layer) => {
+    const b = block(`@utility ${layer}`);
+    expect(b).toContain('background-color: color-mix(');
+    expect(b).not.toMatch(/background:/);
+  });
 });

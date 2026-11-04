@@ -9,7 +9,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { DashboardView } from './api';
 import { eur, overview, SALARY } from '../income/testData';
-import { dashboard, emptyDashboard, figure, todoItem } from './testData';
+import { curvePoint, dashboard, emptyDashboard, figure, netWorth, todoItem } from './testData';
 
 function serve(body: DashboardView, seen: string[] = []) {
   server.use(http.get('*/api/v1/dashboard', ({ request }) => { seen.push(new URL(request.url).search); return HttpResponse.json(body); }));
@@ -348,5 +348,58 @@ describe('DashboardPage', () => {
     await tile('Patrimoine net');
     expect(router.state.location.pathname).toBe('/dashboard');
     expect(screen.getAllByRole('link', { name: 'Accueil' }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('the dashboard hero', () => {
+  it('the net worth is the hero figure', async () => {
+    serve(dashboard());
+    await renderApp('/dashboard');
+    const worth = await tile('Patrimoine net');
+    const figureEl = within(worth).getByText('12 900,00 €');
+    expect(figureEl).toHaveClass('text-hero', 'tabular-nums');
+    expect(within(worth).getByText('Patrimoine net')).toHaveClass('text-label');
+  });
+
+  it('an unknown net worth keeps its reason small', async () => {
+    serve(dashboard({ netWorth: figure(null) }));
+    await renderApp('/dashboard');
+    const reason = within(await tile('Patrimoine net')).getByText('Inconnu : aucune valeur saisie');
+    expect(reason).toHaveClass('text-sm');
+    expect(reason).not.toHaveClass('text-hero');
+  });
+
+  it('the change is a line of text with its arrow, not a pill', async () => {
+    serve(dashboard());
+    await renderApp('/dashboard');
+    const worth = await tile('Patrimoine net');
+    const word = within(worth).getByText('en hausse');
+    expect(word.closest('.rounded-full')).toBeNull();
+    expect(worth.querySelector('.bg-status-good\\/10, .bg-status-critical\\/10, .rounded-full')).toBeNull();
+    expect(worth).toHaveTextContent(/en hausse.*depuis le 1er janvier/);
+  });
+
+  it('the sparkline draws in the accent', async () => {
+    server.use(http.get('*/api/v1/dashboard/net-worth', () => HttpResponse.json(netWorth([curvePoint({ on: '2025-08-31' }), curvePoint({ on: '2025-09-30', value: eur('1200.00') })]))));
+    serve(dashboard());
+    await renderApp('/dashboard');
+    const worth = await tile('Patrimoine net');
+    await waitFor(() => expect(worth.querySelector('svg[preserveAspectRatio]')).not.toBeNull());
+    const svg = worth.querySelector('svg[preserveAspectRatio]')!;
+    expect(svg.querySelector('path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
+    svg.querySelectorAll('stop').forEach((stop) => expect(stop).toHaveAttribute('stop-color', 'var(--primary)'));
+    expect(svg.innerHTML).not.toContain('--chart-1');
+  });
+
+  it('the key figure tiles are frosted material', async () => {
+    serve(dashboard());
+    await renderApp('/dashboard');
+    const worth = await tile('Patrimoine net');
+    for (const name of ['Patrimoine net', 'Revenus nets / mois', 'Reste à vivre', 'Engagements / mois']) {
+      const el = await tile(name);
+      expect(el).toHaveClass('material');
+      expect(el).not.toHaveClass('bg-card');
+    }
+    expect(worth.className).not.toContain('from-primary/10');
   });
 });

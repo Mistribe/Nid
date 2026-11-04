@@ -7,7 +7,7 @@ export function Section({ id: anchor, title, headingRef, guide, srTitle, childre
   const id = useId();
   return (
     <section id={anchor} aria-labelledby={id} data-guide={guide} className="space-y-2">
-      <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className={srTitle ? 'sr-only' : 'text-lg font-semibold'}>{title}</h2>
+      <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className={srTitle ? 'sr-only' : 'text-title'}>{title}</h2>
       {children}
     </section>
   );

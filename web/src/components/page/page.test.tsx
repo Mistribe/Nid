@@ -12,7 +12,11 @@ import { server } from '@/test/server';
 import { expectNoAxeViolations } from '@/test/axe';
 import { OwnerChips } from '../OwnerChips';
 import { DetailTabs, useDetailTab } from './DetailTabs';
+import { PageHeader } from './PageHeader';
 import { RowMenu } from './RowMenu';
+import { Section } from './Section';
+import { SectionCard } from './SectionCard';
+import { StatLine } from './StatLine';
 import { SortableTable } from './SortableTable';
 import { StepForm } from './StepForm';
 
@@ -157,5 +161,35 @@ describe('page grammar', () => {
     expect(await screen.findByText('Alice 60 %')).toHaveClass('sr-only');
     expect(screen.getByText('Bob 40 %')).toHaveClass('sr-only');
     await expectNoAxeViolations(container);
+  });
+
+  it('PageHeader titles in the large title style', () => {
+    render(<PageHeader title="Placements" />);
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Placements' });
+    expect(h1).toHaveClass('text-large-title', 'break-words');
+    expect(h1).not.toHaveClass('text-2xl');
+  });
+
+  it.each([['Section', Section], ['SectionCard', SectionCard]] as const)('%s titles are level-2 headings in the title style', (_name, Component) => {
+    render(<Component title="Répartition par type">contenu</Component>);
+    const heading = screen.getByRole('heading', { level: 2, name: 'Répartition par type' });
+    expect(heading).toHaveClass('text-title');
+    expect(screen.getByRole('region', { name: 'Répartition par type' })).toBeInTheDocument();
+  });
+
+  it('a SectionCard nested in a Section titles at level 3', () => {
+    render(<SectionCard title="Alice" level={3}>contenu</SectionCard>);
+    expect(screen.getByRole('heading', { level: 3, name: 'Alice' })).toHaveClass('text-title');
+  });
+
+  it('StatLine keeps the figure style on a toned figure', () => {
+    render(<StatLine items={[{ label: 'Gain', value: '+5 €', tone: 'up' }]} />);
+    expect(screen.getByText('+5 €')).toHaveClass('text-figure', 'text-status-good-text');
+  });
+
+  it('StatLine figures and labels use the scale', () => {
+    render(<StatLine items={[{ label: 'Valeur', value: '1 000 €' }]} />);
+    expect(screen.getByText('1 000 €')).toHaveClass('text-figure');
+    expect(screen.getByText('Valeur')).toHaveClass('text-label');
   });
 });

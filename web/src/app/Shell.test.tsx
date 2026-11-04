@@ -20,6 +20,20 @@ describe('the shell', () => {
     expect(links).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
   });
 
+  it('each sidebar entry shows its tile, also on the rail', async () => {
+    const { user } = await renderApp('/subscriptions');
+    const everyLinkHasOneTile = () => {
+      for (const link of within(sidebar()).getAllByRole('link')) expect(link.querySelectorAll('[data-tile]'), link.textContent).toHaveLength(1);
+    };
+    everyLinkHasOneTile();
+    expect(tabs().querySelector('[data-tile]')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Replier le menu' }));
+    everyLinkHasOneTile();
+    const link = within(sidebar()).getByRole('link', { name: 'Placements' });
+    expect(link.querySelector('.sr-only')).toHaveTextContent('Placements');
+    expect(link.querySelector('[data-tile] svg')).not.toHaveClass('text-primary');
+  });
+
   it('the sidebar, the top bar and the phone tabs are floating glass panes', async () => {
     const { container } = await renderApp('/subscriptions');
     for (const pane of ['sidebar', 'toolbar', 'tabs']) {
@@ -332,6 +346,16 @@ describe('the shell', () => {
     expect(within(sidebar()).queryByRole('link', { name: 'Plus' })).not.toBeInTheDocument();
   });
   describe('the rail', () => {
+    it('the sidebar shows the wordmark, the rail only the mark', async () => {
+      const { user } = await renderApp('/subscriptions');
+      const brand = () => sidebar().querySelector('.h-14')!;
+      expect(brand().querySelector('[data-wordmark]')).not.toBeNull();
+      expect(sidebar().querySelector('svg.lucide-bird')).toBeNull();
+      await user.click(toggle('Replier le menu'));
+      expect(brand().querySelector('[data-wordmark]')).toBeNull();
+      expect(brand().querySelector('ellipse')).not.toBeNull();
+    });
+
     const toggle = (name: string) => screen.getByRole('button', { name });
 
     it('folds the sidebar into a rail and remembers it on this device', async () => {

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Wordmark } from '@/components/Logo';
 import { buttonVariants } from '@/components/ui/button';
 import { loginUrl } from './session';
 
@@ -15,6 +16,7 @@ export function SignedOutPage({ identityProvider }: { identityProvider: string |
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center p-4">
       {/* Text never sits on the bare halo: the page is one content window, as in the shell. */}
       <div className="content-pane rounded-pane flex flex-col gap-4 p-6 shadow-card">
+        <Wordmark className="h-8" />
         <h1 className="text-2xl font-semibold">{t('signed_out.title')}</h1>
         <p>{t('signed_out.sso_open')}</p>
         {isWebAddress(identityProvider) ? (

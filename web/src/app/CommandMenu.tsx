@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ModuleTile } from '@/components/ModuleTile';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { visibleNav } from './nav';
 import { useSession } from './Providers';
@@ -37,7 +38,7 @@ export function CommandMenu({ open, onOpenChange }: { open: boolean; onOpenChang
         <CommandGroup heading={t('palette.go')}>
           {visibleNav(capabilities).map((item) => (
             <CommandItem key={item.to} value={t(item.label)} onSelect={() => go(item.to)}>
-              <item.icon aria-hidden="true" />
+              <ModuleTile icon={item.icon} tile={item.tile} />
               {t(item.label)}
             </CommandItem>
           ))}

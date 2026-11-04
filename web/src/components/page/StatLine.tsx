@@ -11,8 +11,8 @@ export function StatLine({ items }: { items: { label: string; value: ReactNode; 
     <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
-          <dt className="text-sm text-muted-foreground">{item.label}</dt>
-          <dd className={cn('text-lg font-semibold tracking-tight break-words sm:text-xl', item.tone === 'up' && 'text-status-good-text', item.tone === 'down' && 'text-destructive')}>
+          <dt className="text-label text-muted-foreground">{item.label}</dt>
+          <dd className={cn('text-figure break-words', item.tone === 'up' && 'text-status-good-text', item.tone === 'down' && 'text-destructive')}>
             {item.value}
           </dd>
         </div>
