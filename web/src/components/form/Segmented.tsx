@@ -25,13 +25,13 @@ function usePill(value: string) {
   return [root, pill] as const;
 }
 
-export function Segmented({ value, onValueChange, options, ...aria }: {
-  value: string; onValueChange: (v: string) => void; options: readonly Option[];
+export function Segmented({ value, onValueChange, options, disabled, ...aria }: {
+  value: string; disabled?: boolean; onValueChange: (v: string) => void; options: readonly Option[];
   'aria-labelledby'?: string; 'aria-label'?: string; 'aria-describedby'?: string; 'aria-invalid'?: true;
 }) {
   const [root, pill] = usePill(value);
   return (
-    <RadioGroup.Root ref={root} value={value} onValueChange={onValueChange} {...aria}
+    <RadioGroup.Root ref={root} value={value} onValueChange={onValueChange} disabled={disabled} {...aria}
       className="relative inline-flex max-w-full flex-wrap rounded-[1.125rem] border border-transparent bg-fill p-0.5 contrast-more:border-input forced-colors:border-[CanvasText]">
       {pill ? (
         <span aria-hidden="true" style={{ left: pill.left, top: pill.top, width: pill.width, height: pill.height }}

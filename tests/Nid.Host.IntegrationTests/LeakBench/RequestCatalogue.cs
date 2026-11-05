@@ -137,7 +137,7 @@ public static class RequestCatalogue
     /// </summary>
     /// <summary>A childminder's terms from <paramref name="from"/>: 4 € net, Mondays 08:00–17:30, 46 weeks.</summary>
     public static TermsInput BenchChildcareTerms(LocalDate from)
-        => new(from, 4m, null, 0.1m, 4m, null, 46, [new WeekdaySlot(IsoDayOfWeek.Monday, new LocalTime(8, 0), new LocalTime(17, 30), false)]);
+        => new(from, 4m, null, 0.1m, 4m, null, [new WeekType("Semaine type", 46, [new WeekdaySlot(IsoDayOfWeek.Monday, new LocalTime(8, 0), new LocalTime(17, 30), false)])]);
 
     public static IReadOnlyList<Type> Discover()
         => Declared.Union(Registered).OrderBy(t => t.FullName, StringComparer.Ordinal).ToList();
@@ -529,6 +529,7 @@ public static class RequestCatalogue
             BenchChildcareTerms(new LocalDate(2025, 9, 1)), 1)),
         new(typeof(ReviseChildcareCommand), true, (_, item) => new ReviseChildcareCommand(item, BenchChildcareTerms(new LocalDate(2026, 1, 1)))),
         new(typeof(ReplaceGapsCommand), true, (_, item) => new ReplaceGapsCommand(item, [])),
+        new(typeof(SetWeekOverrideCommand), true, (_, item) => new SetWeekOverrideCommand(item, new LocalDate(2025, 9, 1), 0)),
         new(typeof(CloseChildcareCommand), true, (_, item) => new CloseChildcareCommand(item, new LocalDate(2030, 1, 1))),
         new(typeof(ReopenChildcareCommand), true, (_, item) => new ReopenChildcareCommand(item)),
         new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),

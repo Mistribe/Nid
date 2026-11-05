@@ -27,17 +27,33 @@ public sealed record ChildcareList(IReadOnlyList<ChildcareSummary> Items) : IExp
 /// <summary>One day of the template: ISO day (1 = Monday), times as <c>HH:mm</c>.</summary>
 public sealed record WeekdaySlotView(int Day, string Arrival, string Departure, bool Meal);
 
-/// <summary>One revision with its figures; rates as entered (decimal strings), <c>OvertimePct</c> in percent, the base pay computed.</summary>
+/// <summary>One template week: its name, weeks in the contract, slots and hours per week (<c>"39.00"</c>).</summary>
+public sealed record WeekTypeView(string Name, int Weeks, IReadOnlyList<WeekdaySlotView> Schedule, string WeeklyHours);
+
+/// <summary>
+/// One revision with its figures; rates as entered (decimal strings), <c>OvertimePct</c> in percent, the base pay and
+/// <c>MonthlyHours</c> (annual hours over 12, <c>"143.96"</c>) computed.
+/// </summary>
 public sealed record ChildcareTermsView(
     LocalDate From, LocalDate? To, string NetHourlyRate, string? GrossHourlyRate, string OvertimePct, string UpkeepPer9h, string? MealPrice,
-    int ProgrammedWeeks, IReadOnlyList<WeekdaySlotView> Schedule, ChildcareMoneyView MonthlyBasePay, string WeeklyHours, int NormalHours);
+    IReadOnlyList<WeekTypeView> WeekTypes, int ProgrammedWeeks, ChildcareMoneyView MonthlyBasePay, string MonthlyHours, int NormalHours);
 
 public sealed record CareGapView(LocalDate Monday, int Weeks, LocalDate Sunday);
 
-/// <summary>An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, and the paid-leave days accrued (decision 16).</summary>
+/// <summary>A week of the contract year: its Monday, the rank of its week type, whether an exception sets it, whether care is off.</summary>
+public sealed record ContractWeekView(LocalDate Monday, int WeekType, bool Overridden, bool Gap);
+
+/// <summary>The weeks with care allocated to a week type against the weeks it has in the contract (a mark, not a limit).</summary>
+public sealed record WeekTypeCountView(string Name, int Allocated, int Contract);
+
+/// <summary>
+/// An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, and the paid-leave days accrued (decision 16).
+/// <c>Weeks</c> and <c>Allocation</c>: the contract year in progress, under the revision in force.
+/// </summary>
 public sealed record ChildcareDetail(
     ChildcareSummary Summary, string? CarerPajemploi, string? CarerApproval, IReadOnlyList<ChildcareTermsView> Terms, IReadOnlyList<CareGapView> Gaps,
-    int GapWeeksToPlace, int LeaveDaysAccrued, uint Version, ChildcareMoneyView? CmgEstimate = null) : IExposesItems
+    int GapWeeksToPlace, int LeaveDaysAccrued, uint Version, IReadOnlyList<ContractWeekView> Weeks, IReadOnlyList<WeekTypeCountView> Allocation,
+    ChildcareMoneyView? CmgEstimate = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Summary.Id)];
 }
@@ -54,7 +70,7 @@ public sealed record ChildcareStatementList(Guid Id, IReadOnlyList<ChildcareStat
 /// <summary>A day of the statement; times <c>HH:mm</c>, the template's beside them; <c>Changed</c>: differs from the template's day.</summary>
 public sealed record StatementDayView(
     LocalDate Date, bool Planned, bool Present, string? Arrival, string? Departure, bool Meal, string? Absence, string? TemplateArrival,
-    string? TemplateDeparture, bool Changed);
+    string? TemplateDeparture, bool Changed, string? WeekType = null);
 
 /// <summary>Spec §3: the Pajemploi fields, hours as <c>"1.50"</c>, amounts as <c>"598.02"</c>.</summary>
 public sealed record DeclarationView(

@@ -55,18 +55,22 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         var wanted = ids.Select(i => i.Value).ToList();
         var rows = await db.Terms.AsNoTracking().Where(t => wanted.Contains(t.ItemId)).OrderBy(t => t.ItemId).ThenBy(t => t.From).ToListAsync(ct);
         var days = (await db.Weekdays.AsNoTracking().Where(w => wanted.Contains(w.ItemId)).ToListAsync(ct))
+            .ToLookup(w => (w.ItemId, w.TermsFrom, w.WeekType));
+        var types = (await db.WeekTypes.AsNoTracking().Where(w => wanted.Contains(w.ItemId)).OrderBy(w => w.Rank).ToListAsync(ct))
             .ToLookup(w => (w.ItemId, w.TermsFrom));
         return rows.Select(r => new Terms(new ItemId(r.ItemId), r.From, r.To, r.NetHourlyRate, r.GrossHourlyRate, r.OvertimeRate, r.UpkeepPer9h,
-            r.MealPrice, r.ProgrammedWeeks,
-            days[(r.ItemId, r.From)].OrderBy(w => w.Day).Select(w => new WeekdaySlot((IsoDayOfWeek)w.Day, w.Arrival, w.Departure, w.Meal)).ToList())).ToList();
+            r.MealPrice,
+            types[(r.ItemId, r.From)].Select(w => new WeekType(w.Name, w.Weeks,
+                days[(r.ItemId, r.From, w.Rank)].OrderBy(d => d.Day).Select(d => new WeekdaySlot((IsoDayOfWeek)d.Day, d.Arrival, d.Departure, d.Meal)).ToList())).ToList())).ToList();
     }
 
     public async Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct)
     {
         var row = await db.Terms.SingleAsync(t => t.ItemId == terms.ItemId.Value && t.From == terms.From, ct);
         Apply(row, terms);
-        db.Weekdays.RemoveRange(await db.Weekdays.Where(w => w.ItemId == terms.ItemId.Value && w.TermsFrom == terms.From).ToListAsync(ct));
-        AddSchedule(terms);
+        db.WeekTypes.RemoveRange(await db.WeekTypes.Where(w => w.ItemId == terms.ItemId.Value && w.TermsFrom == terms.From).ToListAsync(ct));
+        await db.SaveChangesAsync(ct);
+        AddWeekTypes(terms);
         await db.SaveChangesAsync(ct);
     }
 
@@ -90,6 +94,30 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
     {
         db.Gaps.RemoveRange(await db.Gaps.Where(g => g.ItemId == id.Value).ToListAsync(ct));
         db.Gaps.AddRange(gaps.Select(g => new GapRow { ItemId = id.Value, Monday = g.Monday, Weeks = g.Weeks }));
+        await TouchAsync(id, ct);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<(ItemId Item, WeekOverride Override)>> OverridesOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var wanted = ids.Select(i => i.Value).ToList();
+        var rows = await db.WeekOverrides.AsNoTracking().Where(o => wanted.Contains(o.ItemId)).OrderBy(o => o.ItemId).ThenBy(o => o.Monday).ToListAsync(ct);
+        return rows.Select(r => (new ItemId(r.ItemId), new WeekOverride(r.Monday, r.WeekType))).ToList();
+    }
+
+    public async Task SetOverrideAsync(ItemId id, LocalDate monday, int? weekType, CancellationToken ct)
+    {
+        var row = await db.WeekOverrides.SingleOrDefaultAsync(o => o.ItemId == id.Value && o.Monday == monday, ct);
+        if (weekType is not { } rank)
+        {
+            if (row is null)
+                return;
+            db.WeekOverrides.Remove(row);
+        }
+        else if (row is null)
+            db.WeekOverrides.Add(new WeekOverrideRow { ItemId = id.Value, Monday = monday, WeekType = (short)rank });
+        else
+            row.WeekType = (short)rank;
         await TouchAsync(id, ct);
         await db.SaveChangesAsync(ct);
     }
@@ -257,19 +285,20 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             .ToDictionary(r => new ItemId(r.ItemId), r => new ImportMark(r.ImportRef!, r.ImportHash!.Trim(), new PersonId(r.ImportedBy!.Value)));
     }
 
-    public async Task ReplaceImportedAsync(Arrangement arrangement, IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, ImportMark import, CancellationToken ct)
+    public async Task ReplaceImportedAsync(Arrangement arrangement, IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, IReadOnlyList<WeekOverride> overrides, ImportMark import, CancellationToken ct)
     {
         var id = arrangement.ItemId.Value;
         var row = await db.Arrangements.SingleAsync(a => a.ItemId == id, ct);
         Apply(row, arrangement);
         Mark(row, import);
-        db.Weekdays.RemoveRange(await db.Weekdays.Where(w => w.ItemId == id).ToListAsync(ct));
+        db.WeekOverrides.RemoveRange(await db.WeekOverrides.Where(o => o.ItemId == id).ToListAsync(ct));
         db.Terms.RemoveRange(await db.Terms.Where(t => t.ItemId == id).ToListAsync(ct));
         db.Gaps.RemoveRange(await db.Gaps.Where(g => g.ItemId == id).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
         foreach (var terms in revisions)
             AddTerms(terms);
         db.Gaps.AddRange(gaps.Select(g => new GapRow { ItemId = id, Monday = g.Monday, Weeks = g.Weeks }));
+        db.WeekOverrides.AddRange(overrides.Select(o => new WeekOverrideRow { ItemId = id, Monday = o.Monday, WeekType = (short)o.WeekType }));
         await db.SaveChangesAsync(ct);
     }
 
@@ -310,14 +339,20 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         var row = new TermsRow { ItemId = terms.ItemId.Value, From = terms.From, To = terms.To };
         Apply(row, terms);
         db.Terms.Add(row);
-        AddSchedule(terms);
+        AddWeekTypes(terms);
     }
 
-    private void AddSchedule(Terms terms)
-        => db.Weekdays.AddRange(terms.Schedule.Select(s => new WeekdayRow
+    private void AddWeekTypes(Terms terms)
+    {
+        foreach (var (type, rank) in terms.WeekTypes.Select((t, i) => (t, (short)i)))
         {
-            ItemId = terms.ItemId.Value, TermsFrom = terms.From, Day = (short)s.Day, Arrival = s.Arrival, Departure = s.Departure, Meal = s.Meal,
-        }));
+            db.WeekTypes.Add(new WeekTypeRow { ItemId = terms.ItemId.Value, TermsFrom = terms.From, Rank = rank, Name = type.Name, Weeks = type.Weeks });
+            db.Weekdays.AddRange(type.Schedule.Select(s => new WeekdayRow
+            {
+                ItemId = terms.ItemId.Value, TermsFrom = terms.From, WeekType = rank, Day = (short)s.Day, Arrival = s.Arrival, Departure = s.Departure, Meal = s.Meal,
+            }));
+        }
+    }
 
     private static void Apply(ArrangementRow row, Arrangement a)
     {
@@ -334,7 +369,6 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.OvertimeRate = t.OvertimeRate;
         row.UpkeepPer9h = t.UpkeepPer9h;
         row.MealPrice = t.MealPrice;
-        row.ProgrammedWeeks = t.ProgrammedWeeks;
     }
 
     private static Arrangement ToArrangement(ArrangementRow r)

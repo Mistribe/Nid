@@ -21,6 +21,7 @@ public sealed record ArrangementRecord
     public required CarerRecord Carer { get; init; }
     public required IReadOnlyList<TermsRecord> Terms { get; init; }
     public IReadOnlyList<GapRecord> Gaps { get; set; } = [];
+    public IReadOnlyList<WeekOverrideRecord>? WeekOverrides { get; set; }
     public string Visibility { get; set; } = "shared";
 
     /// <summary>#294: <c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>
@@ -60,8 +61,30 @@ public sealed record TermsRecord
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public decimal? MealPrice { get; set; }
 
-    public required int ProgrammedWeeks { get; init; }
+    /// <summary>The old form, one template week: read, never written. Either it and <c>schedule</c>, or <c>week_types</c>.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ProgrammedWeeks { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<SlotRecord>? Schedule { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<WeekTypeRecord>? WeekTypes { get; set; }
+}
+
+/// <summary>A template week of a revision: its name, its weeks of the year and its schedule.</summary>
+public sealed record WeekTypeRecord
+{
+    public required string Name { get; init; }
+    public required int Weeks { get; init; }
     public required IReadOnlyList<SlotRecord> Schedule { get; init; }
+}
+
+/// <summary>An exception: the week of this Monday uses the week type of this rank (0-based).</summary>
+public sealed record WeekOverrideRecord
+{
+    public required string Monday { get; init; }
+    public required int WeekType { get; init; }
 }
 
 /// <summary>ISO day (1 = Monday), times <c>HH:mm</c>.</summary>

@@ -12,7 +12,11 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
 
     public DbSet<TermsRow> Terms => Set<TermsRow>();
 
+    public DbSet<WeekTypeRow> WeekTypes => Set<WeekTypeRow>();
+
     public DbSet<WeekdayRow> Weekdays => Set<WeekdayRow>();
+
+    public DbSet<WeekOverrideRow> WeekOverrides => Set<WeekOverrideRow>();
 
     public DbSet<GapRow> Gaps => Set<GapRow>();
 
@@ -42,7 +46,6 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
         {
             e.ToTable("terms", t =>
             {
-                t.HasCheckConstraint("ck_terms_weeks", "programmed_weeks between 1 and 46");
                 t.HasCheckConstraint("ck_terms_dates", "\"to\" is null or \"to\" >= \"from\"");
                 t.HasCheckConstraint("ck_terms_amounts",
                     "net_hourly_rate > 0 and overtime_rate >= 0 and upkeep_per9h >= 0 and (meal_price is null or meal_price >= 0) and (gross_hourly_rate is null or gross_hourly_rate > 0)");
@@ -56,6 +59,14 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<WeekTypeRow>(e =>
+        {
+            e.ToTable("week_type", t => t.HasCheckConstraint("ck_week_type_weeks", "weeks >= 1"));
+            e.HasKey(x => new { x.ItemId, x.TermsFrom, x.Rank });
+            e.Property(x => x.Name).HasMaxLength(40);
+            e.HasOne<TermsRow>().WithMany().HasForeignKey(x => new { x.ItemId, x.TermsFrom }).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<WeekdayRow>(e =>
         {
             e.ToTable("weekday", t =>
@@ -63,8 +74,15 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
                 t.HasCheckConstraint("ck_weekday_day", "day between 1 and 7");
                 t.HasCheckConstraint("ck_weekday_hours", "departure > arrival");
             });
-            e.HasKey(x => new { x.ItemId, x.TermsFrom, x.Day });
-            e.HasOne<TermsRow>().WithMany().HasForeignKey(x => new { x.ItemId, x.TermsFrom }).OnDelete(DeleteBehavior.Cascade);
+            e.HasKey(x => new { x.ItemId, x.TermsFrom, x.WeekType, x.Day });
+            e.HasOne<WeekTypeRow>().WithMany().HasForeignKey(x => new { x.ItemId, x.TermsFrom, x.WeekType }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WeekOverrideRow>(e =>
+        {
+            e.ToTable("week_override");
+            e.HasKey(x => new { x.ItemId, x.Monday });
+            e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<GapRow>(e =>

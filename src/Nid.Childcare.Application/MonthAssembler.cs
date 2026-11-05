@@ -5,12 +5,16 @@ using NodaTime;
 namespace Nid.Childcare.Application;
 
 /// <summary>Decision 12: a month's revision of the arrangement and the contract it is computed under (the arrangement's own dates).</summary>
-public sealed record MonthTerms(IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, YearMonth Month, Terms Chosen, ContractTerms Contract)
+public sealed record MonthTerms(
+    IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, IReadOnlyList<WeekOverride> Overrides, YearMonth Month, Terms Chosen, ContractTerms Contract)
 {
-    public static MonthTerms For(IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, YearMonth month)
+    /// <summary>The chosen revision's week types over the contract's rotation and exceptions; a getter, so <c>with { Chosen = … }</c> keeps it right.</summary>
+    public WeekPlan Plan => TermsPlan.Of(Chosen, Revisions[0].From, Overrides);
+
+    public static MonthTerms For(IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, IReadOnlyList<WeekOverride> overrides, YearMonth month)
     {
         var chosen = revisions[StatementContext.TermsIndexFor(month, revisions[0].From, revisions.Select(r => (r.From, r.To)).ToList())];
-        return new(revisions, gaps, month, chosen,
+        return new(revisions, gaps, overrides, month, chosen,
             new ContractTerms(revisions[0].From, revisions[^1].To, chosen.NetHourlyRate, chosen.OvertimeRate, chosen.UpkeepPer9h, chosen.MealPrice));
     }
 }
@@ -22,10 +26,10 @@ public sealed record MonthTerms(IReadOnlyList<Terms> Revisions, IReadOnlyList<Ca
 public static class MonthAssembler
 {
     public static IReadOnlyList<StatementDay> Prepared(MonthTerms terms, YearMonth? month = null)
-        => StatementPreparation.Prepare(month ?? terms.Month, terms.Chosen.Schedule, terms.Gaps, terms.Contract);
+        => StatementPreparation.Prepare(month ?? terms.Month, terms.Plan, terms.Gaps, terms.Contract);
 
     public static IReadOnlyList<StatementDay> Replanned(MonthTerms terms, IReadOnlyList<StatementDay> days)
-        => days.Select(d => d with { Planned = StatementPreparation.IsPlanned(d.Date, terms.Chosen.Schedule, terms.Gaps, terms.Contract) }).ToList();
+        => days.Select(d => d with { Planned = StatementPreparation.IsPlanned(d.Date, terms.Plan, terms.Gaps, terms.Contract) }).ToList();
 
     /// <summary>Decision 14: a draft keeps only its corrections; every other day follows the template, a correction whose plan changed is stale.</summary>
     public static (IReadOnlyList<StatementDay> Days, IReadOnlyList<(string Field, string Code)> Stale) Overlay(
@@ -66,7 +70,7 @@ public static class MonthAssembler
         if (problems.Count > 0 || missing.Count > 0)
             return new MonthEvaluation(null, problems, missing);
 
-        var input = new MonthInput(terms.Month, terms.Contract, terms.Chosen.Schedule, terms.Gaps, terms.Chosen.ProgrammedWeeks, days,
+        var input = new MonthInput(terms.Month, terms.Contract, terms.Plan, terms.Gaps, days,
             Neighbours(terms, previous), StatementContext.ChildSickUsedBefore(terms.Contract.Start, terms.Month,
                 validated.Select(s => (s.Month, s.Figures!.ChildSickDeducted)).ToList()),
             mileage, cmg ?? 0m, june);
@@ -81,7 +85,7 @@ public static class MonthAssembler
     {
         var month = terms.Month.PlusMonths(-1);
         var before = Prepared(terms, month);
-        var sameTerms = MonthTerms.For(terms.Revisions, terms.Gaps, month).Chosen.From == terms.Chosen.From;
+        var sameTerms = MonthTerms.For(terms.Revisions, terms.Gaps, terms.Overrides, month).Chosen.From == terms.Chosen.From;
         if (sameTerms && previous is { } p && p.Month == month)
         {
             var days = p.Validated ? Replanned(terms, p.Days) : Overlay(terms, month, p.Days).Days;

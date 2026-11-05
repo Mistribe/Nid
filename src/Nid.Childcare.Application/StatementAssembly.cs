@@ -12,12 +12,12 @@ namespace Nid.Childcare.Application;
 
 /// <summary>What a month's statement is read and written against (decisions 12–16).</summary>
 public sealed record MonthContext(
-    Arrangement Arrangement, ItemAccess Item, IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, IReadOnlyList<Statement> Stored,
+    Arrangement Arrangement, ItemAccess Item, IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, IReadOnlyList<WeekOverride> Overrides, IReadOnlyList<Statement> Stored,
     LocalDate Today, YearMonth Month, Terms Chosen, ContractTerms Contract)
 {
     public Statement? StoredMonth => Stored.FirstOrDefault(s => s.Month == Month);
 
-    public MonthTerms Terms => new(Revisions, Gaps, Month, Chosen, Contract);
+    public MonthTerms Terms => new(Revisions, Gaps, Overrides, Month, Chosen, Contract);
 }
 
 /// <summary>A month's figures, or why there are none.</summary>
@@ -50,8 +50,9 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var (arrangement, item, revisions, stored, today) = found;
         if (!StatementContext.Months(revisions[0].From, revisions[^1].To, today).Contains(month))
             return Result.Failure<MonthContext>(new NotFoundFailure("childcare.statement", Format(month)));
-        var terms = MonthTerms.For(revisions, (await store.GapsOfAsync([id], ct)).Select(g => g.Gap).ToList(), month);
-        return Result.Success(new MonthContext(arrangement, item, revisions, terms.Gaps, stored, today, month, terms.Chosen, terms.Contract));
+        var overrides = (await store.OverridesOfAsync([id], ct)).Select(o => o.Override).ToList();
+        var terms = MonthTerms.For(revisions, (await store.GapsOfAsync([id], ct)).Select(g => g.Gap).ToList(), overrides, month);
+        return Result.Success(new MonthContext(arrangement, item, revisions, terms.Gaps, terms.Overrides, stored, today, month, terms.Chosen, terms.Contract));
     }
 
     /// <summary>
@@ -94,10 +95,11 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
             : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, ct);
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);
+        var plan = context.Terms.Plan;
         return new ChildcareStatementView(
             context.Arrangement.ItemId.Value, context.Item.DisplayName, Format(context.Month),
             stored is null ? "none" : stored.Validated ? "validated" : "draft",
-            days.Select((d, i) => DayView(d, context.Chosen, i < prepared.Count ? prepared[i] : null)).ToList(),
+            days.Select((d, i) => DayView(d, plan, i < prepared.Count ? prepared[i] : null)).ToList(),
             Amount(stored?.Mileage ?? 0m), stored?.Cmg is { } c ? Amount(c) : null,
             evaluation.Figures is { } f ? FiguresView(f, currency, stored?.Cmg is null) : null,
             evaluation.Problems.Select(p => new FieldProblemView(p.Field, p.Code)).ToList(),
@@ -126,14 +128,16 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         ChildcareCodes.AbsenceRequired => "An absent planned day needs a reason.",
         ChildcareCodes.AbsenceNotAllowed => "A reason goes on an absent planned day only.",
         ChildcareCodes.DayReplanned => "The template or the weeks without care changed this day since it was saved.",
-        _ => code,
+        _ => ChildcareCheck.Message(code),
     };
 
-    private static StatementDayView DayView(StatementDay d, Terms terms, StatementDay? prepared)
+    /// <summary><c>WeekType</c>: the week's name, only with several week types and on Mondays and the month's first day.</summary>
+    private static StatementDayView DayView(StatementDay d, WeekPlan plan, StatementDay? prepared)
     {
-        var slot = d.Planned ? terms.Schedule.FirstOrDefault(s => s.Day == d.Date.DayOfWeek) : null;
+        var slot = d.Planned ? plan.SlotOn(d.Date) : null;
+        var name = plan.Types.Count > 1 && (d.Date.DayOfWeek == IsoDayOfWeek.Monday || d.Date.Day == 1) ? plan.Types[plan.TypeOf(d.Date)].Name : null;
         return new StatementDayView(d.Date, d.Planned, d.Present, Time(d.Arrival), Time(d.Departure), d.Meal,
-            d.Absence is { } a ? AbsenceCodes.Of(a) : null, Time(slot?.Arrival), Time(slot?.Departure), prepared is not null && prepared != d);
+            d.Absence is { } a ? AbsenceCodes.Of(a) : null, Time(slot?.Arrival), Time(slot?.Departure), prepared is not null && prepared != d, name);
     }
 
     private static string? Time(LocalTime? t) => t is { } v ? ChildcareReader.Time.Format(v) : null;

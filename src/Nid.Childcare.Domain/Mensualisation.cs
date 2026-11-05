@@ -13,9 +13,14 @@ public static class Mensualisation
 
     public static decimal WeeklyHours(IReadOnlyList<WeekdaySlot> schedule) => schedule.Sum(s => Hours(s.Arrival, s.Departure));
 
-    public static decimal BasePay(decimal netHourlyRate, decimal weeklyHours, int programmedWeeks)
-        => Round(netHourlyRate * weeklyHours * programmedWeeks / 12m);
+    /// <summary>The year's hours: each week type's weekly hours times its weeks.</summary>
+    public static decimal AnnualHours(IReadOnlyList<WeekType> types) => types.Sum(t => WeeklyHours(t.Schedule) * t.Weeks);
 
-    public static int NormalHours(decimal weeklyHours, int programmedWeeks)
-        => (int)Math.Round(weeklyHours * programmedWeeks / 12m, MidpointRounding.AwayFromZero);
+    public static decimal BasePay(decimal netHourlyRate, decimal annualHours) => Round(netHourlyRate * annualHours / 12m);
+
+    public static int NormalHours(decimal annualHours) => (int)Math.Round(annualHours / 12m, MidpointRounding.AwayFromZero);
+
+    /// <summary>The Pajemploi activity days of a month: the year's days over twelve.</summary>
+    public static int ActivityDays(IReadOnlyList<WeekType> types)
+        => (int)Math.Ceiling(types.Sum(t => t.Schedule.Count * t.Weeks) / 12m);
 }

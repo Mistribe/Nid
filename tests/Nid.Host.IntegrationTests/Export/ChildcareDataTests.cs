@@ -23,7 +23,7 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
             terms = new
             {
                 from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", mealPrice = "3.50",
-                programmedWeeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", meal = true }).ToArray(),
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", meal = true }).ToArray() } },
             },
             gaps = Array.Empty<object>(), visibility, owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
         });
@@ -294,5 +294,108 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
             Arrangement("""[{"from":"2025-09-01","net_hourly_rate":"4","overtime_pct":"10","upkeep_per_9h":"4","programmed_weeks":46,"schedule":[null]}]"""));
         Assert.NotEqual(HttpStatusCode.InternalServerError, batch.StatusCode);
         Assert.Contains("childcare_arrangements[0].terms[0].schedule", await batch.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    private const string Slots = """[{"day":1,"arrival":"08:00","departure":"17:30","meal":false}]""";
+    private const string Common = "\"net_hourly_rate\":\"4\",\"overtime_pct\":\"10\",\"upkeep_per_9h\":\"4\"";
+
+    private static string TwoTypes(string overrides) => $$"""
+        [{"id":"cc-1","name":"Garde de Léa","child":"dependent-1","carer":{"name":"Martine"},"ownership":[{"person":"adult-1","share_bp":10000}],
+          "terms":[{"from":"2025-09-01",{{Common}},"week_types":[{"name":"A","weeks":20,"schedule":{{Slots}}},{"name":"B","weeks":20,"schedule":{{Slots}}}]}],
+          "week_overrides":{{overrides}}}]
+        """;
+
+    private async Task<string> ImportedOverridesAsync(NidApp app)
+        => (await ExportAsync(app))["childcare_arrangements"][0].GetProperty("week_overrides").ToString();
+
+    [Fact]
+    public async Task Week_types_and_overrides_round_trip_and_a_reimport_replaces_the_overrides()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RoundTripTests.PrepareAsync(app, "Personne B");
+        var file = new Dictionary<string, string> { ["persons"] = Persons, ["childcare_arrangements"] = TwoTypes("""[{"monday":"2025-09-08","week_type":1}]""") };
+        await RoundTripTests.CommitAsync(app, app.AdultA, file);
+        var exported = (await ExportAsync(app))["childcare_arrangements"][0];
+        var term = exported.GetProperty("terms")[0];
+        Assert.Equal(["A", "B"], term.GetProperty("week_types").EnumerateArray().Select(w => w.GetProperty("name").GetString()));
+        Assert.False(term.TryGetProperty("programmed_weeks", out _) || term.TryGetProperty("schedule", out _));
+        Assert.Equal("""[{"monday":"2025-09-08","week_type":1}]""", exported.GetProperty("week_overrides").ToString());
+
+        file["childcare_arrangements"] = TwoTypes("""[{"monday":"2025-09-15","week_type":0},{"monday":"2025-09-22","week_type":1}]""");
+        var client = new ImportClient(app);
+        var validated = await client.RunAsync(app.AdultA, Adults(app), file, replace: true);
+        Assert.Empty(Errors(validated));
+        var committed = await client.CommitRawAsync(app.AdultA, validated.Id, replace: true);
+        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("""[{"monday":"2025-09-15","week_type":0},{"monday":"2025-09-22","week_type":1}]""", await ImportedOverridesAsync(app));
+    }
+
+    [Fact]
+    public async Task The_old_terms_form_is_read_as_one_week_type()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RoundTripTests.PrepareAsync(app, "Personne B");
+        await RoundTripTests.CommitAsync(app, app.AdultA, new Dictionary<string, string>
+        {
+            ["persons"] = Persons,
+            ["childcare_arrangements"] = Arrangement($$"""[{"from":"2025-09-01",{{Common}},"programmed_weeks":40,"schedule":{{Slots}}}]"""),
+        });
+        var term = (await ExportAsync(app))["childcare_arrangements"][0].GetProperty("terms")[0];
+        var type = Assert.Single(term.GetProperty("week_types").EnumerateArray());
+        Assert.Equal(("Semaine type", 40), (type.GetProperty("name").GetString(), type.GetProperty("weeks").GetInt32()));
+    }
+
+    [Theory]
+    [InlineData("""[{"from":"2025-09-01",COMMON,"programmed_weeks":40,"schedule":SLOTS,"week_types":[{"name":"A","weeks":40,"schedule":SLOTS}]}]""",
+        "childcare.terms_both_formats", "childcare_arrangements[0].terms[0]")]
+    [InlineData("""[{"from":"2025-09-01",COMMON}]""", "import.invalid_value", "childcare_arrangements[0].terms[0]")]
+    public async Task A_terms_record_with_both_forms_or_neither_is_refused(string terms, string code, string path)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutRawAsync(app.AdultA, session.Id, "childcare_arrangements", 0, Arrangement(terms.Replace("COMMON", Common).Replace("SLOTS", Slots)));
+        var body = await batch.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains(code, body);
+        Assert.Contains(path, body);
+    }
+
+    [Fact]
+    public async Task An_override_on_a_tuesday_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutRawAsync(app.AdultA, session.Id, "childcare_arrangements", 0, TwoTypes("""[{"monday":"2025-09-09","week_type":1}]"""));
+        var body = await batch.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("childcare.override_invalid_monday", body);
+        Assert.Contains("childcare_arrangements[0].week_overrides[0].monday", body);
+    }
+
+    [Fact]
+    public async Task An_override_listed_twice_is_an_issue_not_a_crash()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutRawAsync(app.AdultA, session.Id, "childcare_arrangements", 0,
+            TwoTypes("""[{"monday":"2025-09-08","week_type":1},{"monday":"2025-09-08","week_type":0}]"""));
+        Assert.NotEqual(HttpStatusCode.InternalServerError, batch.StatusCode);
+        var body = await batch.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("childcare.override_invalid_monday", body);
+        Assert.Contains("childcare_arrangements[0].week_overrides[1].monday", body);
+    }
+
+    [Fact]
+    public async Task A_week_type_name_is_trimmed()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RoundTripTests.PrepareAsync(app, "Personne B");
+        await RoundTripTests.CommitAsync(app, app.AdultA, new Dictionary<string, string>
+        {
+            ["persons"] = Persons, ["childcare_arrangements"] = TwoTypes("[]").Replace("\"name\":\"A\"", "\"name\":\" Longue \""),
+        });
+        var types = (await ExportAsync(app))["childcare_arrangements"][0].GetProperty("terms")[0].GetProperty("week_types");
+        Assert.Equal(["Longue", "B"], types.EnumerateArray().Select(w => w.GetProperty("name").GetString()));
     }
 }

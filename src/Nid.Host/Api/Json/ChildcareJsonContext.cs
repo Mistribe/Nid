@@ -14,6 +14,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ChildcareEndpoints.ReviseChildcareBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.GapsBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.CloseChildcareBody))]
+[JsonSerializable(typeof(ChildcareEndpoints.WeekOverrideBody))]
 [JsonSerializable(typeof(ChildcareStatementList))]
 [JsonSerializable(typeof(ChildcareStatementView))]
 [JsonSerializable(typeof(ChildcareYearView))]

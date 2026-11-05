@@ -8,10 +8,10 @@ public sealed record PaidLeaveInput(int MonthsWithCare, decimal ReferenceNetPay)
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
-/// share a week with it; <c>ProgrammedWeeks</c>: the contract's (spec §1.10); <c>Cmg</c>: read from the Pajemploi summary.
+/// share a week with it; <c>Cmg</c>: read from the Pajemploi summary.
 /// </summary>
 public sealed record MonthInput(
-    YearMonth Month, ContractTerms Terms, IReadOnlyList<WeekdaySlot> Schedule, IReadOnlyList<CareGap> Gaps, int ProgrammedWeeks,
+    YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
     decimal Mileage, decimal Cmg, PaidLeaveInput? June);
 
@@ -21,29 +21,29 @@ public static class ChildcareMonth
     public static MonthFigures Compute(MonthInput input)
     {
         Validate(input);
-        var weeklyHours = Mensualisation.WeeklyHours(input.Schedule);
-        var weeks = input.ProgrammedWeeks;
-        var fullPay = Mensualisation.BasePay(input.Terms.NetHourlyRate, weeklyHours, weeks);
+        var annualHours = Mensualisation.AnnualHours(input.Plan.Types);
+        var fullPay = Mensualisation.BasePay(input.Terms.NetHourlyRate, annualHours);
 
         // A month the contract enters or leaves pays its share of the template hours (the deduction's own ratio, art. 111).
-        decimal TemplateHours(StatementDay d) => input.Schedule.FirstOrDefault(s => s.Day == d.Date.DayOfWeek) is { } s ? Mensualisation.Hours(s.Arrival, s.Departure) : 0m;
         var inContract = input.Days.Where(d => StatementPreparation.InContract(d.Date, input.Terms)).ToList();
         var partial = inContract.Count < input.Days.Count;
-        var basePay = partial ? Mensualisation.Round(fullPay * inContract.Sum(TemplateHours) / input.Days.Sum(TemplateHours)) : fullPay;
+        var basePay = partial ? Mensualisation.Round(fullPay * inContract.Sum(d => input.Plan.HoursOn(d.Date)) / input.Days.Sum(d => input.Plan.HoursOn(d.Date))) : fullPay;
 
-        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Schedule, input.ChildSickUsedBefore);
-        var (complementary, overtime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Schedule);
+        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Plan, input.ChildSickUsedBefore);
+        var (complementary, overtime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan);
         var extraPay = ExtraHours.Pay(complementary, overtime, input.Terms.NetHourlyRate, input.Terms.OvertimeRate);
         var (upkeep, meals) = Upkeep.Month(input.Days, input.Terms);
 
         int? leaveDays = input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : null;
+        // The contract's average week over its template weeks (38,389 h for 23 × 39 h + 22 × 37,75 h).
+        var weeklyHours = annualHours / input.Plan.ProgrammedWeeks;
         var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
 
         var netPay = basePay - deduction + extraPay + leavePay;
         // The mensualised days, absences or not, as the household declares them (spec §9). A partial month declares its
         // planned days less the deducted ones instead.
-        var activityDays = partial ? Math.Max(0, input.Days.Count(d => d.Planned) - deductedDays) : (int)Math.Ceiling(input.Schedule.Count * weeks / 12m);
-        var declaration = new PajemploiDeclaration(Mensualisation.NormalHours(weeklyHours, weeks), activityDays, leaveDays,
+        var activityDays = partial ? Math.Max(0, input.Days.Count(d => d.Planned) - deductedDays) : Mensualisation.ActivityDays(input.Plan.Types);
+        var declaration = new PajemploiDeclaration(Mensualisation.NormalHours(annualHours), activityDays, leaveDays,
             complementary, overtime, netPay, upkeep, meals, input.Mileage);
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
             netPay + upkeep + meals + input.Mileage - input.Cmg, netPay + upkeep - input.Cmg, childSick);
@@ -65,7 +65,7 @@ public static class ChildcareMonth
         {
             if (day.Present && (day.Arrival is not { } a || day.Departure is not { } d || d <= a))
                 throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a present day needs an arrival before its departure.", nameof(input));
-            if (day.Planned != StatementPreparation.IsPlanned(day.Date, input.Schedule, input.Gaps, input.Terms))
+            if (day.Planned != StatementPreparation.IsPlanned(day.Date, input.Plan, input.Gaps, input.Terms))
                 throw new ArgumentException($"{day.Date:uuuu-MM-dd}: planned does not match the template, the gaps and the contract dates.", nameof(input));
             if ((day.Absence is not null) != (day.Planned && !day.Present))
                 throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a reason goes on an absent planned day, and only there.", nameof(input));

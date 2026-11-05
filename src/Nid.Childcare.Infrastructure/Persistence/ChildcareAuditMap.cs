@@ -9,7 +9,9 @@ public sealed class ChildcareAuditMap : IAuditMap
     {
         [typeof(ArrangementRow)] = new(e => AuditItems.Of(e, nameof(ArrangementRow.ItemId))),
         [typeof(TermsRow)] = new(e => AuditItems.Of(e, nameof(TermsRow.ItemId))),
+        [typeof(WeekTypeRow)] = new(e => AuditItems.Of(e, nameof(WeekTypeRow.ItemId))),
         [typeof(WeekdayRow)] = new(e => AuditItems.Of(e, nameof(WeekdayRow.ItemId))),
+        [typeof(WeekOverrideRow)] = new(e => AuditItems.Of(e, nameof(WeekOverrideRow.ItemId))),
         [typeof(GapRow)] = new(e => AuditItems.Of(e, nameof(GapRow.ItemId))),
         [typeof(StatementRow)] = new(e => AuditItems.Of(e, nameof(StatementRow.ItemId))),
         [typeof(StatementDayRow)] = new(e => AuditItems.Of(e, nameof(StatementDayRow.ItemId))),

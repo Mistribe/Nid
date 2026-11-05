@@ -7,6 +7,12 @@ public static class ChildcareCodes
     public const string ScheduleDuplicateDay = "childcare.schedule_duplicate_day";
     public const string DepartureBeforeArrival = "childcare.departure_before_arrival";
     public const string WeeksOutOfRange = "childcare.programmed_weeks_out_of_range";
+    public const string WeekTypesEmpty = "childcare.week_types_empty";
+    public const string WeekTypeWeeksOutOfRange = "childcare.week_type_weeks_out_of_range";
+    public const string WeekTypeNameInvalid = "childcare.week_type_name_invalid";
+    public const string OverrideInvalidMonday = "childcare.override_invalid_monday";
+    public const string OverrideUnknownWeekType = "childcare.override_unknown_week_type";
+    public const string TermsBothFormats = "childcare.terms_both_formats";
     public const string GapNotMonday = "childcare.gap_not_monday";
     public const string GapWeeksOutOfRange = "childcare.gap_weeks_out_of_range";
     public const string GapOverlap = "childcare.gap_overlap";

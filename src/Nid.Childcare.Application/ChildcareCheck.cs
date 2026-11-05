@@ -55,22 +55,32 @@ public static class ChildcareCheck
         Positive(terms.OvertimeRate, "overtimePct", zero: true);
         Positive(terms.UpkeepPer9h, "upkeepPer9h", zero: true);
         Positive(terms.MealPrice, "mealPrice", zero: true);
-        errors.AddRange(ContractCheck.Schedule(terms.Schedule).Concat(ContractCheck.Weeks(terms.ProgrammedWeeks))
-            .Select(p => new FieldError($"terms.{p.Field}", p.Code, Message(p.Code))));
+        errors.AddRange(ContractCheck.WeekTypes(terms.WeekTypes).Select(p => new FieldError($"terms.{p.Field}", p.Code, Message(p.Code))));
         return errors;
     }
+
+    /// <summary>The exceptions against the revisions as they will be after a write.</summary>
+    public static List<FieldError> Overrides(IReadOnlyList<WeekOverride> overrides, IReadOnlyList<Terms> revisions)
+        => ContractCheck.Overrides(overrides, revisions[0].From, revisions[^1].To, [.. revisions.Select(r => (r.From, r.WeekTypes.Count))])
+            .Select(p => new FieldError(p.Field, p.Code, Message(p.Code))).ToList();
 
     public static List<FieldError> Gaps(NodaTime.LocalDate start, int weeks, IReadOnlyList<CareGap> gaps, NodaTime.LocalDate? since = null)
         => ContractCheck.Gaps(start, weeks, gaps, since).Select(p => new FieldError(p.Field, p.Code, Message(p.Code))).ToList();
 
     public static Result Fail(List<FieldError> errors) => errors.Count == 0 ? Result.Success() : Result.Failure(FieldErrors.Shape(errors));
 
-    private static string Message(string code) => code switch
+    public static string Message(string code) => code switch
     {
         ChildcareCodes.ScheduleEmpty => "At least one day of care a week.",
         ChildcareCodes.ScheduleDuplicateDay => "One slot per day.",
         ChildcareCodes.DepartureBeforeArrival => "The departure comes after the arrival.",
         ChildcareCodes.WeeksOutOfRange => "1 to 46 programmed weeks: beyond, the year is complete.",
+        ChildcareCodes.WeekTypesEmpty => "At least one week type.",
+        ChildcareCodes.WeekTypeWeeksOutOfRange => "At least one week.",
+        ChildcareCodes.WeekTypeNameInvalid => "A name of 1 to 40 characters, different from the other week types'.",
+        ChildcareCodes.OverrideInvalidMonday => "A Monday within the arrangement's dates.",
+        ChildcareCodes.OverrideUnknownWeekType => "This week type does not exist in the terms in force that week.",
+        ChildcareCodes.TermsBothFormats => "Write week_types, or programmed_weeks with schedule, not both.",
         ChildcareCodes.GapNotMonday => "A week without care starts on a Monday.",
         ChildcareCodes.GapWeeksOutOfRange => "1 to 52 weeks.",
         ChildcareCodes.GapOverlap => "These weeks are already without care.",

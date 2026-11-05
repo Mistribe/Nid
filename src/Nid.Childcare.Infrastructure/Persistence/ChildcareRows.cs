@@ -25,17 +25,33 @@ public sealed class TermsRow
     public decimal OvertimeRate { get; set; }
     public decimal UpkeepPer9h { get; set; }
     public decimal? MealPrice { get; set; }
-    public int ProgrammedWeeks { get; set; }
+}
+
+public sealed class WeekTypeRow
+{
+    public Guid ItemId { get; set; }
+    public LocalDate TermsFrom { get; set; }
+    public short Rank { get; set; }
+    public string Name { get; set; } = "";
+    public int Weeks { get; set; }
 }
 
 public sealed class WeekdayRow
 {
     public Guid ItemId { get; set; }
     public LocalDate TermsFrom { get; set; }
+    public short WeekType { get; set; }
     public short Day { get; set; }
     public LocalTime Arrival { get; set; }
     public LocalTime Departure { get; set; }
     public bool Meal { get; set; }
+}
+
+public sealed class WeekOverrideRow
+{
+    public Guid ItemId { get; set; }
+    public LocalDate Monday { get; set; }
+    public short WeekType { get; set; }
 }
 
 public sealed class GapRow

@@ -10,14 +10,14 @@ namespace Nid.Childcare.Domain;
 public static class ExtraHours
 {
     /// <summary><paramref name="days"/> covers every ISO week touching <paramref name="month"/>.</summary>
-    public static (decimal Complementary, decimal Overtime) Compute(YearMonth month, IReadOnlyList<StatementDay> days, IReadOnlyList<WeekdaySlot> schedule)
+    public static (decimal Complementary, decimal Overtime) Compute(YearMonth month, IReadOnlyList<StatementDay> days, WeekPlan plan)
     {
         decimal complementary = 0m, overtime = 0m;
         foreach (var week in days.GroupBy(d => d.Date.PlusDays(1 - (int)d.Date.DayOfWeek)))
         {
             if (YearMonth(week.Key.PlusDays(3)) != month) continue;
-            // The week's own plan, not the template's 38 h: a paid absence stays planned, a deducted one and a gap week do not.
-            var planned = week.Where(d => d.Planned && d.Absence is not (AbsenceReason.CarerAbsent or AbsenceReason.ChildSick)).Select(d => schedule.First(s => s.Day == d.Date.DayOfWeek)).Sum(s => Mensualisation.Hours(s.Arrival, s.Departure));
+            // The week's own plan, not a template's fixed hours: a paid absence stays planned, a deducted one and a gap week do not.
+            var planned = week.Where(d => d.Planned && d.Absence is not (AbsenceReason.CarerAbsent or AbsenceReason.ChildSick)).Sum(d => plan.HoursOn(d.Date));
             var actual = week.Where(d => d.Present).Sum(d => Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value));
             var extra = Math.Max(0m, actual - planned);
             var under = Math.Min(extra, Math.Max(0m, ChildcareRules.OvertimeThresholdHours - planned));

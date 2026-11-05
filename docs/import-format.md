@@ -304,8 +304,10 @@ du fichier (`target_ref`).
 | `name` | string | 1 à 120 caractères |
 | `child` | string | `ref` d'une personne de `persons` de genre `dependent` (`childcare.child_not_dependent`) |
 | `carer` | objet | `{ name, pajemploi?, approval? }` |
-| `terms` | tableau | Les révisions, la plus ancienne d'abord : `{ from, to?, net_hourly_rate, gross_hourly_rate?, overtime_pct, upkeep_per_9h, meal_price?, programmed_weeks, schedule }` ; chacune finit la veille de la suivante, seule la dernière peut rester ouverte ; `overtime_pct` en pour cent (10 = 10 %) ; `programmed_weeks` de 1 à 46 |
-| `terms[].schedule` | tableau | `{ day, arrival, departure, meal }` : `day` de 1 (lundi) à 7, heures `HH:mm`, un jour au plus une fois |
+| `terms` | tableau | Les révisions, la plus ancienne d'abord : `{ from, to?, net_hourly_rate, gross_hourly_rate?, overtime_pct, upkeep_per_9h, meal_price?, week_types }` ; chacune finit la veille de la suivante, seule la dernière peut rester ouverte ; `overtime_pct` en pour cent (10 = 10 %) ; la somme des `weeks` des semaines types va de 1 à 46 |
+| `terms[].week_types` | tableau | Les semaines types de la révision, au moins une : `{ name, weeks, schedule }` ; `name` de 1 à 40 caractères, unique sans tenir compte de la casse ; `weeks` d'au moins 1. L'ancienne forme `programmed_weeks` + `schedule` (une seule semaine) est encore lue, comme une semaine type « Semaine type » ; l'export n'écrit que `week_types`. Les deux formes ensemble sont refusées (`childcare.terms_both_formats`), aucune aussi (`import.invalid_value`) |
+| `terms[].week_types[].schedule` | tableau | `{ day, arrival, departure, meal }` : `day` de 1 (lundi) à 7, heures `HH:mm`, un jour au plus une fois |
+| `week_overrides` | tableau | Les exceptions `{ monday, week_type }` : la semaine de ce lundi suit la semaine type de ce rang (à partir de 0) dans la révision en vigueur cette semaine-là (`childcare.override_invalid_monday`, `childcare.override_unknown_week_type`). Absent, il vaut `[]` ; un import qui remplace remplace aussi les exceptions |
 | `gaps` | tableau | Semaines sans accueil `{ monday, weeks }`, contrôlées par année de contrat comme dans l'interface |
 | `visibility`, `share_level`, `ownership`, `closed` | | Comme `goals` |
 

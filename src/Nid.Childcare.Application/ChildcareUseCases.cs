@@ -11,10 +11,14 @@ namespace Nid.Childcare.Application;
 public sealed record CarerInput(string Name, string? Pajemploi, string? Approval);
 
 public sealed record TermsInput(
-    LocalDate From, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? MealPrice, int ProgrammedWeeks,
-    IReadOnlyList<WeekdaySlot> Schedule)
+    LocalDate From, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? MealPrice,
+    IReadOnlyList<WeekType> WeekTypes)
 {
-    public Terms For(ItemId id) => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, MealPrice, ProgrammedWeeks, Schedule);
+    /// <summary>Week type names are stored trimmed.</summary>
+    public Terms For(ItemId id)
+        => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, MealPrice, [.. WeekTypes.Select(w => w with { Name = w.Name.Trim() })]);
+
+    public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
 }
 
 public sealed record CreateChildcareCommand(
@@ -29,6 +33,12 @@ public sealed record EditChildcareCommand(ItemId ItemId, string Name, CarerInput
 
 /// <summary>Spec §1.8: a new revision from <c>Terms.From</c>, after the current one's start; the current one ends the day before.</summary>
 public sealed record ReviseChildcareCommand(ItemId ItemId, TermsInput Terms) : ICommand<ItemId>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>The week of <paramref name="Monday"/> follows the week type of this rank; the rank the rotation gives removes the exception.</summary>
+public sealed record SetWeekOverrideCommand(ItemId ItemId, LocalDate Monday, int WeekType) : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -96,7 +106,11 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         errors.AddRange(ChildcareCheck.Carer(command.Carer));
         errors.AddRange(ChildcareCheck.Terms(terms));
         if (errors.Count == 0)
+        {
             errors.AddRange(ChildcareCheck.Gaps(revisions[0].From, terms.ProgrammedWeeks, (await store.GapsOfAsync([command.ItemId], ct)).Select(g => g.Gap).ToList(), terms.From));
+            errors.AddRange(ChildcareCheck.Overrides((await store.OverridesOfAsync([command.ItemId], ct)).Select(o => o.Override).ToList(),
+                [.. revisions.SkipLast(1), terms.For(command.ItemId)]));
+        }
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
@@ -136,7 +150,11 @@ public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore 
         if (command.Terms.From <= revisions[^1].From)
             errors.Add(new("terms.from", ChildcareCodes.RevisionNotAfter, "A revision starts after the current terms' start."));
         if (errors.Count == 0)
+        {
             errors.AddRange(ChildcareCheck.Gaps(revisions[0].From, command.Terms.ProgrammedWeeks, (await store.GapsOfAsync([command.ItemId], ct)).Select(g => g.Gap).ToList(), command.Terms.From));
+            errors.AddRange(ChildcareCheck.Overrides((await store.OverridesOfAsync([command.ItemId], ct)).Select(o => o.Override).ToList(),
+                [.. revisions, command.Terms.For(command.ItemId)]));
+        }
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
@@ -168,6 +186,39 @@ public sealed class ReplaceGapsHandler(IItemRegistry items, IChildcareStore stor
     }
 }
 
+[RequestHandler<SetWeekOverrideCommand, ItemId>]
+public sealed class SetWeekOverrideHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<SetWeekOverrideCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(SetWeekOverrideCommand command, CancellationToken ct = default)
+    {
+        var loaded = await ChildcareCheck.LoadAsync(store, items, command.ItemId, ct);
+        if (loaded.TryGetFailure(out var failure))
+            return Result.Failure<ItemId>(failure!);
+        loaded.TryGetValue(out var found);
+        var (_, item, revisions) = found;
+        if (ChildcareCheck.RequireOpen(item).TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+        // The check names the paths of a list; a single exception's are the command's fields.
+        var errors = ChildcareCheck.Overrides([new WeekOverride(command.Monday, command.WeekType)], revisions)
+            .Select(e => e with { Path = e.Path.Replace("weekOverrides[0].", "") }).ToList();
+        if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+
+        // A validated month's declaration is made: none of the week's days may lie in one.
+        var sunday = command.Monday.PlusDays(6);
+        if ((await store.StatementsOfAsync(command.ItemId, ct)).Any(st => st.Validated && (st.Month == new YearMonth(command.Monday.Year, command.Monday.Month) || st.Month == new YearMonth(sunday.Year, sunday.Month))))
+            return Result.Failure<ItemId>(FieldErrors.Shape([new("monday", ChildcareCodes.StatementValidated, "A day of this week is in a validated month: reopen it first.")]));
+
+        // The revision in force that week: the last one starting by its Sunday, else the first (as the check reads it).
+        var inForce = revisions.LastOrDefault(r => r.From <= command.Monday.PlusDays(6)) ?? revisions[0];
+        var rotation = TermsPlan.Of(inForce, revisions[0].From, []).RotationOf(command.Monday);
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        await store.SetOverrideAsync(command.ItemId, command.Monday, command.WeekType == rotation ? null : command.WeekType, ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(command.ItemId);
+    }
+}
+
 [RequestHandler<CloseChildcareCommand, ItemId>]
 public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork, IClock clock)
     : IRequestHandler<CloseChildcareCommand, ItemId>
@@ -189,6 +240,9 @@ public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore s
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.SetEndAsync(command.ItemId, command.On, ct);
+        // An exception after the end would be refused on import: it goes with the end.
+        foreach (var (_, late) in (await store.OverridesOfAsync([command.ItemId], ct)).Where(x => x.Override.Monday > command.On))
+            await store.SetOverrideAsync(command.ItemId, late.Monday, null, ct);
         var archived = await items.ArchiveAsync(command.ItemId, clock.GetCurrentInstant(), ct);
         if (archived.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);

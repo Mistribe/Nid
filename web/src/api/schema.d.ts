@@ -11303,6 +11303,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/childcare/{id}/week-overrides/{monday}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    monday: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WeekOverrideBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/childcare/{id}/close": {
         parameters: {
             query?: never;
@@ -26086,6 +26182,8 @@ export interface components {
             leaveDaysAccrued: number;
             /** Format: uint32 */
             version: number;
+            weeks: components["schemas"]["ContractWeekView"][];
+            allocation: components["schemas"]["WeekTypeCountView"][];
             cmgEstimate?: null | components["schemas"]["ChildcareMoneyView"];
         };
         ChildcareList: {
@@ -26154,11 +26252,11 @@ export interface components {
             overtimePct: string;
             upkeepPer9h: string;
             mealPrice?: null | string;
+            weekTypes: components["schemas"]["WeekTypeView"][];
             /** Format: int32 */
             programmedWeeks: number;
-            schedule: components["schemas"]["WeekdaySlotView"][];
             monthlyBasePay: components["schemas"]["ChildcareMoneyView"];
-            weeklyHours: string;
+            monthlyHours: string;
             /** Format: int32 */
             normalHours: number;
         };
@@ -26238,6 +26336,14 @@ export interface components {
             commitmentEndsOn?: null | string;
             /** Format: date */
             cancellableFrom?: null | string;
+        };
+        ContractWeekView: {
+            /** Format: date */
+            monday: string;
+            /** Format: int32 */
+            weekType: number;
+            overridden: boolean;
+            gap: boolean;
         };
         CorrectTaxAssessmentBody: {
             /** Format: int32 */
@@ -30505,6 +30611,7 @@ export interface components {
             templateArrival?: null | string;
             templateDeparture?: null | string;
             changed: boolean;
+            weekType?: null | string;
         };
         StatementFiguresView: {
             declaration: components["schemas"]["DeclarationView"];
@@ -31102,9 +31209,7 @@ export interface components {
             overtimePct?: null | string;
             upkeepPer9h?: null | string;
             mealPrice?: null | string;
-            /** Format: int32 */
-            programmedWeeks?: null | number;
-            schedule?: null | components["schemas"]["WeekdaySlotBody"][];
+            weekTypes?: null | components["schemas"]["WeekTypeBody"][];
         };
         TestChannelBody: {
             channel?: null | string;
@@ -31237,6 +31342,33 @@ export interface components {
             arrival: string;
             departure: string;
             meal: boolean;
+        };
+        WeekOverrideBody: {
+            /**
+             * Format: int32
+             * @description Rank of the week type in the revision, 0 for the first.
+             */
+            weekType?: null | number;
+        };
+        WeekTypeBody: {
+            name?: null | string;
+            /** Format: int32 */
+            weeks?: null | number;
+            schedule?: null | components["schemas"]["WeekdaySlotBody"][];
+        };
+        WeekTypeCountView: {
+            name: string;
+            /** Format: int32 */
+            allocated: number;
+            /** Format: int32 */
+            contract: number;
+        };
+        WeekTypeView: {
+            name: string;
+            /** Format: int32 */
+            weeks: number;
+            schedule: components["schemas"]["WeekdaySlotView"][];
+            weeklyHours: string;
         };
         WithholdingCutView: {
             rate: string;

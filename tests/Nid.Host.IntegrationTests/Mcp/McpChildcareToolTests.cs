@@ -17,7 +17,7 @@ public class McpChildcareToolTests(PostgresFixture fixture) : IClassFixture<Post
             terms = new
             {
                 from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", mealPrice = (string?)null,
-                programmedWeeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", meal = false } },
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", meal = false } } } },
             },
             gaps = Array.Empty<object>(), visibility = "shared", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
         });
@@ -42,7 +42,9 @@ public class McpChildcareToolTests(PostgresFixture fixture) : IClassFixture<Post
         await using var client = await McpHarness.ClientAsync(app, (await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read)).Secret);
 
         SameJson(await app.GetRawAsync(app.AdultA, "/api/v1/childcare?scope=household&closed=false"), (await CallAsync(client, "list_childcare", new { scope = "household" })).Text);
-        SameJson(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{id}"), (await CallAsync(client, "get_childcare", new { id })).Text);
+        var detail = (await CallAsync(client, "get_childcare", new { id })).Text;
+        SameJson(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{id}"), detail);
+        Assert.Equal("Semaine type", JsonDocument.Parse(detail).RootElement.GetProperty("terms")[0].GetProperty("weekTypes")[0].GetProperty("name").GetString());
         SameJson(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{id}/statements"), (await CallAsync(client, "get_childcare_statements", new { id })).Text);
         SameJson(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{id}/statements/2025-09"),
             (await CallAsync(client, "get_childcare_statement", new { id, month = "2025-09" })).Text);

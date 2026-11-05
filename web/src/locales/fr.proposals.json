@@ -167,6 +167,7 @@
       "edit_childcare": "Correction d’une garde",
       "revise_childcare": "Révision d’une garde",
       "replace_childcare_gaps": "Semaines sans accueil d’une garde",
+      "set_childcare_week_override": "Semaine type d’une semaine de garde",
       "close_childcare": "Fin d’une garde",
       "reopen_childcare": "Réouverture d’une garde",
       "save_childcare_statement": "Écarts d’un relevé de garde",
@@ -459,6 +460,8 @@
       "value": "Valeur",
       "visibility": "Visibilité",
       "website": "Site web",
+      "weekType": "Semaine type",
+      "weekTypes": "Semaines types",
       "weeks": "Semaines",
       "withholding": "Prélèvement à la source",
       "year": "Année"
@@ -485,7 +488,8 @@
       "roles": "Rôle",
       "schedule": "Jour du planning",
       "to": "Support d’arrivée",
-      "users": "Utilisateur"
+      "users": "Utilisateur",
+      "weekTypes": "Semaine type"
     },
     "value": {
       "visibility": {"shared": "Partagé", "private": "Privé"},

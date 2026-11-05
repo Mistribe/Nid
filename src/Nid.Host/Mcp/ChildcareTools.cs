@@ -21,7 +21,7 @@ public sealed class ChildcareTools
         => McpCalls.RunAsync(services, () => new ListChildcareQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
 
     [McpServerTool(Name = "get_childcare", ReadOnly = true)]
-    [Description("One arrangement: its revisions with their weekly schedule, its weeks without care, the paid-leave days accrued, the estimated CMG and its version. " + McpSetup.Untrusted)]
+    [Description("One arrangement: its revisions with their week types (named weekly schedules and the weeks each covers), the weeks of the contract year (the week type each follows), its weeks without care, the paid-leave days accrued, the estimated CMG and its version. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetChildcare(IServiceProvider services, [Description("The arrangement's id.")] Guid id, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetChildcareQuery(new ItemId(id)), ct);
 

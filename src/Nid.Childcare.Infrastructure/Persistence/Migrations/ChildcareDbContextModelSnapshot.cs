@@ -19,7 +19,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("childcare")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -288,10 +288,6 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(9,4)")
                         .HasColumnName("overtime_rate");
 
-                    b.Property<int>("ProgrammedWeeks")
-                        .HasColumnType("integer")
-                        .HasColumnName("programmed_weeks");
-
                     b.Property<LocalDate?>("To")
                         .HasColumnType("date")
                         .HasColumnName("to");
@@ -308,8 +304,59 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_terms_amounts", "net_hourly_rate > 0 and overtime_rate >= 0 and upkeep_per9h >= 0 and (meal_price is null or meal_price >= 0) and (gross_hourly_rate is null or gross_hourly_rate > 0)");
 
                             t.HasCheckConstraint("ck_terms_dates", "\"to\" is null or \"to\" >= \"from\"");
+                        });
+                });
 
-                            t.HasCheckConstraint("ck_terms_weeks", "programmed_weeks between 1 and 46");
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.WeekOverrideRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<LocalDate>("Monday")
+                        .HasColumnType("date")
+                        .HasColumnName("monday");
+
+                    b.Property<short>("WeekType")
+                        .HasColumnType("smallint")
+                        .HasColumnName("week_type");
+
+                    b.HasKey("ItemId", "Monday")
+                        .HasName("pk_week_override");
+
+                    b.ToTable("week_override", "childcare");
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.WeekTypeRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<LocalDate>("TermsFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("terms_from");
+
+                    b.Property<short>("Rank")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rank");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Weeks")
+                        .HasColumnType("integer")
+                        .HasColumnName("weeks");
+
+                    b.HasKey("ItemId", "TermsFrom", "Rank")
+                        .HasName("pk_week_type");
+
+                    b.ToTable("week_type", "childcare", t =>
+                        {
+                            t.HasCheckConstraint("ck_week_type_weeks", "weeks >= 1");
                         });
                 });
 
@@ -322,6 +369,10 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate>("TermsFrom")
                         .HasColumnType("date")
                         .HasColumnName("terms_from");
+
+                    b.Property<short>("WeekType")
+                        .HasColumnType("smallint")
+                        .HasColumnName("week_type");
 
                     b.Property<short>("Day")
                         .HasColumnType("smallint")
@@ -339,7 +390,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("meal");
 
-                    b.HasKey("ItemId", "TermsFrom", "Day")
+                    b.HasKey("ItemId", "TermsFrom", "WeekType", "Day")
                         .HasName("pk_weekday");
 
                     b.ToTable("weekday", "childcare", t =>
@@ -495,14 +546,34 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_terms_arrangement_item_id");
                 });
 
-            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.WeekdayRow", b =>
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.WeekOverrideRow", b =>
+                {
+                    b.HasOne("Nid.Childcare.Infrastructure.Persistence.ArrangementRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_week_override_arrangement_item_id");
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.WeekTypeRow", b =>
                 {
                     b.HasOne("Nid.Childcare.Infrastructure.Persistence.TermsRow", null)
                         .WithMany()
                         .HasForeignKey("ItemId", "TermsFrom")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_weekday_terms_item_id_terms_from");
+                        .HasConstraintName("fk_week_type_terms_item_id_terms_from");
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.WeekdayRow", b =>
+                {
+                    b.HasOne("Nid.Childcare.Infrastructure.Persistence.WeekTypeRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId", "TermsFrom", "WeekType")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_weekday_week_type_item_id_terms_from_week_type");
                 });
 #pragma warning restore 612, 618
         }

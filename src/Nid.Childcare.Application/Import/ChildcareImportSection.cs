@@ -28,7 +28,7 @@ public sealed class ChildcareImportSection(
     private enum Mode { Created, Unchanged, Replaced }
 
     private sealed record Parsed(
-        PersonId Child, PersonKind ChildKind, Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, ShareLevel ShareLevel = ShareLevel.View);
+        PersonId Child, PersonKind ChildKind, Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, IReadOnlyList<WeekOverride> Overrides, ShareLevel ShareLevel = ShareLevel.View);
 
     private sealed class Plan(StagedEntity entity, ArrangementRecord record, Parsed parsed, string path)
     {
@@ -199,7 +199,7 @@ public sealed class ChildcareImportSection(
         foreach (var plan in plans.Where(p => byArrangement.Contains(p.Record.Id) || p.Mode == Mode.Replaced))
         {
             var group = byArrangement[plan.Record.Id];
-            var (revisions, gaps) = (plan.Parsed.Revisions, plan.Parsed.Gaps);
+            var (revisions, gaps, overrides) = (plan.Parsed.Revisions, plan.Parsed.Gaps, plan.Parsed.Overrides);
             var start = revisions[0].From;
             var possible = StatementContext.Months(start, revisions[^1].To, today);
             var stored = plan.Mode == Mode.Created ? [] : (await store.StatementsOfAsync(plan.Id, ct)).Where(s => s.Validated).ToList();
@@ -218,7 +218,7 @@ public sealed class ChildcareImportSection(
                     issues.Add(ImportIssue.Error(ChildcareCodes.PreviousNotValidated, "The previous month's statement comes first (decision 13).", path + ".month"));
                     continue;
                 }
-                var terms = MonthTerms.For(revisions, gaps, month);
+                var terms = MonthTerms.For(revisions, gaps, overrides, month);
                 var days = MonthAssembler.Replanned(terms, fileDays);
                 var previous = known.FirstOrDefault(s => s.Month == month.PlusMonths(-1));
                 if (previous is { Days.Count: 0 })
@@ -288,7 +288,7 @@ public sealed class ChildcareImportSection(
             if (!inFile.Contains(month.Month))
             {
                 var full = (await store.FindStatementAsync(plan.Id, month.Month, ct))!;
-                var terms = MonthTerms.For(plan.Parsed.Revisions, plan.Parsed.Gaps, month.Month);
+                var terms = MonthTerms.For(plan.Parsed.Revisions, plan.Parsed.Gaps, plan.Parsed.Overrides, month.Month);
                 var evaluation = MonthAssembler.Evaluate(terms, MonthAssembler.Replanned(terms, full.Days), [], known,
                     known.LastOrDefault(s => s.Month == month.Month.PlusMonths(-1)), full.Mileage, full.Cmg);
                 if (evaluation.Figures is not { } figures || !Same(full.Figures!, FiguresOf(figures)))
@@ -328,13 +328,15 @@ public sealed class ChildcareImportSection(
                 if (revisions[^1].To is { } end)
                     await store.SetEndAsync(id, end, ct);
                 await store.ReplaceGapsAsync(id, parsed.Gaps, ct);
+                foreach (var o in parsed.Overrides)
+                    await store.SetOverrideAsync(id, o.Monday, o.WeekType, ct);
             }
             else
             {
                 var item = await items.ReplaceAsync(plan.Id, plan.Record.Name, parsed.Visibility, owners, ct, parsed.ShareLevel);
                 if (item.TryGetFailure(out var failure))
                     return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
-                await store.ReplaceImportedAsync(ArrangementOf(plan, plan.Id, plan.Stored!.Version), parsed.Revisions, parsed.Gaps, mark, ct);
+                await store.ReplaceImportedAsync(ArrangementOf(plan, plan.Id, plan.Stored!.Version), parsed.Revisions, parsed.Gaps, parsed.Overrides, mark, ct);
             }
 
             var archive = (plan.WasClosed, plan.Record.Closed) switch
@@ -367,6 +369,7 @@ public sealed class ChildcareImportSection(
             marks.GetValueOrDefault(a.ItemId)?.ImportedBy)).ToList(), context.Reader);
         var terms = (await store.TermsOfAsync(exported.Select(a => a.ItemId).ToList(), ct)).ToLookup(t => t.ItemId);
         var gaps = (await store.GapsOfAsync(exported.Select(a => a.ItemId).ToList(), ct)).ToLookup(g => g.Item, g => g.Gap);
+        var overrides = (await store.OverridesOfAsync(exported.Select(a => a.ItemId).ToList(), ct)).ToLookup(o => o.Item, o => o.Override);
 
         var arrangements = new List<ArrangementRecord>();
         var statements = new List<StatementRecord>();
@@ -384,10 +387,15 @@ public sealed class ChildcareImportSection(
                 {
                     From = LocalDatePattern.Iso.Format(t.From), To = t.To is { } to ? LocalDatePattern.Iso.Format(to) : null,
                     NetHourlyRate = Exact(t.NetHourlyRate), GrossHourlyRate = t.GrossHourlyRate is { } g ? Exact(g) : null, OvertimePct = Exact(t.OvertimeRate * 100m),
-                    UpkeepPer9h = Exact(t.UpkeepPer9h), MealPrice = t.MealPrice is { } m ? Exact(m) : null, ProgrammedWeeks = t.ProgrammedWeeks,
-                    Schedule = t.Schedule.Select(s => new SlotRecord { Day = (int)s.Day, Arrival = Time.Format(s.Arrival), Departure = Time.Format(s.Departure), Meal = s.Meal }).ToList(),
+                    UpkeepPer9h = Exact(t.UpkeepPer9h), MealPrice = t.MealPrice is { } m ? Exact(m) : null,
+                    WeekTypes = t.WeekTypes.Select(w => new WeekTypeRecord
+                    {
+                        Name = w.Name, Weeks = w.Weeks,
+                        Schedule = w.Schedule.Select(s => new SlotRecord { Day = (int)s.Day, Arrival = Time.Format(s.Arrival), Departure = Time.Format(s.Departure), Meal = s.Meal }).ToList(),
+                    }).ToList(),
                 }).ToList(),
                 Gaps = gaps[a.ItemId].Select(g => new GapRecord { Monday = LocalDatePattern.Iso.Format(g.Monday), Weeks = g.Weeks }).ToList(),
+                WeekOverrides = overrides[a.ItemId].Select(o => new WeekOverrideRecord { Monday = LocalDatePattern.Iso.Format(o.Monday), WeekType = o.WeekType }).ToList(),
                 Visibility = head.Visibility == Visibility.Private ? "private" : "shared",
                 ShareLevel = ImportSectionKit.ShareLevelText(head),
                 Ownership = head.Owners.Select(w => new ShareRecord { Person = context.PersonRef(w.PersonId), ShareBp = w.ShareBp })
@@ -470,7 +478,13 @@ public sealed class ChildcareImportSection(
         => ImportSectionKit.NoNulls(record.Ownership, path + ".ownership", issues)
            & ImportSectionKit.NoNulls(record.Terms, path + ".terms", issues)
            & ImportSectionKit.NoNulls(record.Gaps, path + ".gaps", issues)
-           & record.Terms.Select((t, j) => t is null || ImportSectionKit.NoNulls(t.Schedule, $"{path}.terms[{j}].schedule", issues)).Aggregate(true, (a, b) => a & b);
+           & ImportSectionKit.NoNulls(record.WeekOverrides ?? [], path + ".week_overrides", issues)
+           & record.Terms.Select((t, j) => t is null || NoNulls(t, $"{path}.terms[{j}]", issues)).Aggregate(true, (a, b) => a & b);
+
+    private static bool NoNulls(TermsRecord t, string at, List<ImportIssue> issues)
+        => ImportSectionKit.NoNulls(t.Schedule ?? [], at + ".schedule", issues)
+           & ImportSectionKit.NoNulls(t.WeekTypes ?? [], at + ".week_types", issues)
+           & (t.WeekTypes ?? []).Select((w, k) => w is null || ImportSectionKit.NoNulls(w.Schedule, $"{at}.week_types[{k}].schedule", issues)).Aggregate(true, (a, b) => a & b);
 
     /// <summary>The file's arrangement as the API's checks see it (<see cref="ChildcareCheck"/>, <see cref="ContractCheck"/>), at the file's paths.</summary>
     private static bool TryParse(ArrangementRecord r, string path, Func<string, ResolvedPerson?> person, List<ImportIssue> issues, out Parsed parsed)
@@ -503,18 +517,18 @@ public sealed class ChildcareImportSection(
             var at = $"{path}.terms[{j}]";
             var from = Date(t.From, at + ".from", issues, ref ok);
             LocalDate? to = t.To is null ? null : Date(t.To, at + ".to", issues, ref ok);
-            var schedule = new List<WeekdaySlot>();
-            for (var k = 0; k < t.Schedule.Count; k++)
-            {
-                var slot = t.Schedule[k];
-                var arrival = Time.Parse(slot.Arrival);
-                var departure = Time.Parse(slot.Departure);
-                if (slot.Day is < 1 or > 7) Error(ImportCodes.InvalidValue, "A day is 1 (Monday) to 7 (Sunday).", $"{at}.schedule[{k}].day");
-                else if (!arrival.Success || !departure.Success) Error(ImportCodes.InvalidValue, "A time is written HH:mm.", $"{at}.schedule[{k}]");
-                else schedule.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day, arrival.Value, departure.Value, slot.Meal));
-            }
-            foreach (var (field, code) in ContractCheck.Schedule(schedule).Concat(ContractCheck.Weeks(t.ProgrammedWeeks)))
-                Error(code, StatementAssembly.Message(code), $"{at}.{Snake(field)}");
+            var legacy = t.ProgrammedWeeks is not null || t.Schedule is not null;
+            var types = new List<WeekType>();
+            if (legacy && t.WeekTypes is not null) Error(ChildcareCodes.TermsBothFormats, ChildcareCheck.Message(ChildcareCodes.TermsBothFormats), at);
+            else if (legacy && (t.ProgrammedWeeks is null || t.Schedule is null)) Error(ImportCodes.InvalidValue, "programmed_weeks and schedule go together.", at);
+            else if (legacy) types.Add(new WeekType("Semaine type", t.ProgrammedWeeks!.Value, Slots(t.Schedule!, at + ".schedule", Error)));
+            else if (t.WeekTypes is null) Error(ImportCodes.InvalidValue, "A revision has week_types, or programmed_weeks with schedule.", at);
+            else
+                for (var k = 0; k < t.WeekTypes.Count; k++)
+                    types.Add(new WeekType(t.WeekTypes[k].Name?.Trim() ?? "", t.WeekTypes[k].Weeks, Slots(t.WeekTypes[k].Schedule, $"{at}.week_types[{k}].schedule", Error)));
+            if (types.Count > 0 || t.WeekTypes is { Count: 0 })
+                foreach (var (field, code) in ContractCheck.WeekTypes(types))
+                    Error(code, StatementAssembly.Message(code), $"{at}.{Snake(field)}");
             if (t.NetHourlyRate <= 0 || t.OvertimePct < 0 || t.UpkeepPer9h < 0 || t.MealPrice < 0 || t.GrossHourlyRate <= 0)
                 Error(ImportCodes.InvalidValue, "Rates are positive, the upkeep and the meal zero or more.", at);
             if (from is { } f)
@@ -523,7 +537,7 @@ public sealed class ChildcareImportSection(
                     Error(ImportCodes.InvalidValue, "Each revision ends the day before the next one starts.", $"{path}.terms[{j - 1}].to");
                 if (to is { } end && end < f) Error(ImportCodes.InvalidValue, "A revision ends on or after its start.", at + ".to");
                 revisions.Add(new Terms(new ItemId(Guid.Empty), f, to, t.NetHourlyRate, t.GrossHourlyRate, t.OvertimePct / 100m, t.UpkeepPer9h, t.MealPrice,
-                    t.ProgrammedWeeks, schedule));
+                    types));
             }
         }
         if (revisions.Count > 0 && revisions.Take(revisions.Count - 1).Any(t => t.To is null))
@@ -538,8 +552,16 @@ public sealed class ChildcareImportSection(
             foreach (var (field, code) in ContractCheck.Gaps(revisions[0].From, revisions[^1].ProgrammedWeeks, gaps, revisions[^1].From))
                 Error(code, StatementAssembly.Message(code), $"{path}.{field}");
 
+        var overrides = new List<WeekOverride>();
+        for (var j = 0; j < (r.WeekOverrides?.Count ?? 0); j++)
+            if (Date(r.WeekOverrides![j].Monday, $"{path}.week_overrides[{j}].monday", issues, ref ok) is { } monday)
+                overrides.Add(new WeekOverride(monday, r.WeekOverrides[j].WeekType));
+        if (ok && revisions.Count == r.Terms.Count)
+            foreach (var (field, code) in ContractCheck.Overrides(overrides, revisions[0].From, revisions[^1].To, [.. revisions.Select(t => (t.From, t.WeekTypes.Count))]))
+                Error(code, StatementAssembly.Message(code), $"{path}.{Snake(field)}");
+
         if (ok)
-            parsed = new Parsed(child!.Id, child.Kind, visibility!.Value, owners, revisions, gaps, level);
+            parsed = new Parsed(child!.Id, child.Kind, visibility!.Value, owners, revisions, gaps, overrides, level);
         return ok;
     }
 
@@ -582,7 +604,24 @@ public sealed class ChildcareImportSection(
         return null;
     }
 
-    private static string Snake(string field) => field.Replace("programmedWeeks", "programmed_weeks");
+    private static string Snake(string field)
+        => field.Replace("programmedWeeks", "programmed_weeks").Replace("weekTypes", "week_types").Replace("weekOverrides", "week_overrides").Replace("weekType", "week_type");
+
+    /// <summary>A schedule's slots; a bad day or time is reported and skipped.</summary>
+    private static List<WeekdaySlot> Slots(IReadOnlyList<SlotRecord> records, string at, Action<string, string, string> error)
+    {
+        var slots = new List<WeekdaySlot>();
+        for (var k = 0; k < records.Count; k++)
+        {
+            var slot = records[k];
+            var arrival = Time.Parse(slot.Arrival);
+            var departure = Time.Parse(slot.Departure);
+            if (slot.Day is < 1 or > 7) error(ImportCodes.InvalidValue, "A day is 1 (Monday) to 7 (Sunday).", $"{at}[{k}].day");
+            else if (!arrival.Success || !departure.Success) error(ImportCodes.InvalidValue, "A time is written HH:mm.", $"{at}[{k}]");
+            else slots.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day, arrival.Value, departure.Value, slot.Meal));
+        }
+        return slots;
+    }
 
     private static Arrangement ArrangementOf(Plan plan, ItemId id, uint version)
         => new(id, plan.Parsed.Child, plan.Record.Carer.Name.Trim(), Blank(plan.Record.Carer.Pajemploi), Blank(plan.Record.Carer.Approval), version);

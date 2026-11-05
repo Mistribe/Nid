@@ -12075,6 +12075,114 @@
         }
       }
     },
+    "/api/v1/childcare/{id}/week-overrides/{monday}": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "monday",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeekOverrideBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/childcare/{id}/close": {
       "post": {
         "tags": [
@@ -28907,7 +29015,9 @@
           "gaps",
           "gapWeeksToPlace",
           "leaveDaysAccrued",
-          "version"
+          "version",
+          "weeks",
+          "allocation"
         ],
         "type": "object",
         "properties": {
@@ -28949,6 +29059,18 @@
           "version": {
             "type": "integer",
             "format": "uint32"
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContractWeekView"
+            }
+          },
+          "allocation": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeekTypeCountView"
+            }
           },
           "cmgEstimate": {
             "oneOf": [
@@ -29198,10 +29320,10 @@
           "netHourlyRate",
           "overtimePct",
           "upkeepPer9h",
+          "weekTypes",
           "programmedWeeks",
-          "schedule",
           "monthlyBasePay",
-          "weeklyHours",
+          "monthlyHours",
           "normalHours"
         ],
         "type": "object",
@@ -29238,20 +29360,20 @@
               "string"
             ]
           },
+          "weekTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeekTypeView"
+            }
+          },
           "programmedWeeks": {
             "type": "integer",
             "format": "int32"
           },
-          "schedule": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WeekdaySlotView"
-            }
-          },
           "monthlyBasePay": {
             "$ref": "#/components/schemas/ChildcareMoneyView"
           },
-          "weeklyHours": {
+          "monthlyHours": {
             "type": "string"
           },
           "normalHours": {
@@ -29566,6 +29688,31 @@
               "string"
             ],
             "format": "date"
+          }
+        }
+      },
+      "ContractWeekView": {
+        "required": [
+          "monday",
+          "weekType",
+          "overridden",
+          "gap"
+        ],
+        "type": "object",
+        "properties": {
+          "monday": {
+            "type": "string",
+            "format": "date"
+          },
+          "weekType": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "overridden": {
+            "type": "boolean"
+          },
+          "gap": {
+            "type": "boolean"
           }
         }
       },
@@ -48251,6 +48398,12 @@
           },
           "changed": {
             "type": "boolean"
+          },
+          "weekType": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -51066,20 +51219,13 @@
               "string"
             ]
           },
-          "programmedWeeks": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "format": "int32"
-          },
-          "schedule": {
+          "weekTypes": {
             "type": [
               "null",
               "array"
             ],
             "items": {
-              "$ref": "#/components/schemas/WeekdaySlotBody"
+              "$ref": "#/components/schemas/WeekTypeBody"
             }
           }
         }
@@ -51628,6 +51774,94 @@
           },
           "meal": {
             "type": "boolean"
+          }
+        }
+      },
+      "WeekOverrideBody": {
+        "type": "object",
+        "properties": {
+          "weekType": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "Rank of the week type in the revision, 0 for the first.",
+            "format": "int32"
+          }
+        }
+      },
+      "WeekTypeBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "weeks": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "schedule": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WeekdaySlotBody"
+            }
+          }
+        }
+      },
+      "WeekTypeCountView": {
+        "required": [
+          "name",
+          "allocated",
+          "contract"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "allocated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "contract": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WeekTypeView": {
+        "required": [
+          "name",
+          "weeks",
+          "schedule",
+          "weeklyHours"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "weeks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "schedule": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeekdaySlotView"
+            }
+          },
+          "weeklyHours": {
+            "type": "string"
           }
         }
       },

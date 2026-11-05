@@ -16,6 +16,11 @@ public static class ContractCheck
         public const string ScheduleDuplicateDay = "childcare.schedule_duplicate_day";
         public const string DepartureBeforeArrival = "childcare.departure_before_arrival";
         public const string WeeksOutOfRange = "childcare.programmed_weeks_out_of_range";
+        public const string WeekTypesEmpty = "childcare.week_types_empty";
+        public const string WeekTypeWeeksOutOfRange = "childcare.week_type_weeks_out_of_range";
+        public const string WeekTypeNameInvalid = "childcare.week_type_name_invalid";
+        public const string OverrideInvalidMonday = "childcare.override_invalid_monday";
+        public const string OverrideUnknownWeekType = "childcare.override_unknown_week_type";
         public const string GapNotMonday = "childcare.gap_not_monday";
         public const string GapWeeksOutOfRange = "childcare.gap_weeks_out_of_range";
         public const string GapOverlap = "childcare.gap_overlap";
@@ -37,8 +42,58 @@ public static class ContractCheck
         return problems;
     }
 
-    public static IReadOnlyList<(string Field, string Code)> Weeks(int programmedWeeks)
-        => programmedWeeks is >= 1 and <= ChildcareRules.MaxProgrammedWeeks ? [] : [("programmedWeeks", Codes.WeeksOutOfRange)];
+    /// <summary>The template weeks: a name of 1 to 40 characters, unique ignoring case, at least one week, a valid schedule each, 1 to 46 programmed weeks in all.</summary>
+    public static IReadOnlyList<(string Field, string Code)> WeekTypes(IReadOnlyList<WeekType> types)
+    {
+        if (types.Count == 0) return [("weekTypes", Codes.WeekTypesEmpty)];
+        var problems = new List<(string, string)>();
+        for (var i = 0; i < types.Count; i++)
+        {
+            var name = types[i].Name?.Trim() ?? "";
+            if (name.Length is 0 or > 40 || types.Take(i).Any(t => string.Equals(t.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase)))
+                problems.Add(($"weekTypes[{i}].name", Codes.WeekTypeNameInvalid));
+            if (types[i].Weeks < 1) problems.Add(($"weekTypes[{i}].weeks", Codes.WeekTypeWeeksOutOfRange));
+            problems.AddRange(Schedule(types[i].Schedule).Select(p => ($"weekTypes[{i}].{p.Field}", p.Code)));
+        }
+        // long: a huge Weeks must not overflow the sum.
+        if (types.Sum(t => (long)t.Weeks) is < 1 or > ChildcareRules.MaxProgrammedWeeks) problems.Add(("weekTypes", Codes.WeeksOutOfRange));
+        return problems;
+    }
+
+    /// <summary>
+    /// The exceptions: Mondays inside the contract, pointing at a rank the revision in force that week has (the last one starting
+    /// by the Sunday of that week, else the first); a Monday listed twice is flagged at its later entry.
+    /// </summary>
+    public static IReadOnlyList<(string Field, string Code)> Overrides(IReadOnlyList<WeekOverride> overrides, LocalDate start, LocalDate? end,
+        IReadOnlyList<(LocalDate From, int Types)> revisions)
+    {
+        var problems = new List<(string, string)>();
+        for (var i = 0; i < overrides.Count; i++)
+        {
+            var monday = overrides[i].Monday;
+            if (monday.DayOfWeek != IsoDayOfWeek.Monday || monday < WeekPlan.MondayOf(start) || (end is { } e && monday > e) || overrides.Take(i).Any(o => o.Monday == monday))
+            {
+                problems.Add(($"weekOverrides[{i}].monday", Codes.OverrideInvalidMonday));
+                continue;
+            }
+            var types = revisions.Where(r => r.From <= monday.PlusDays(6)).Select(r => r.Types).DefaultIfEmpty(revisions[0].Types).Last();
+            if (overrides[i].WeekType < 0 || overrides[i].WeekType >= types) problems.Add(($"weekOverrides[{i}].weekType", Codes.OverrideUnknownWeekType));
+        }
+        return problems;
+    }
+
+    /// <summary>The Mondays of the contract year containing <paramref name="today"/> (the first year's includes the Monday of the start week), with their week type, whether an exception sets it, and whether care is off.</summary>
+    public static IReadOnlyList<(LocalDate Monday, int WeekType, bool Overridden, bool Gap)> Year(WeekPlan plan, LocalDate start,
+        IReadOnlyList<CareGap> gaps, LocalDate today)
+    {
+        var year = YearStart(start, today);
+        return [.. Enumerable.Range(0, 54).Select(WeekPlan.MondayOf(year).PlusWeeks).Where(m => YearStart(start, LocalDate.Max(m, start)) == year)
+            .Select(m => (m, plan.TypeOf(m), plan.Overrides.Any(o => o.Monday == m), StatementPreparation.InGap(m, gaps)))];
+    }
+
+    /// <summary>The weeks with care per week type rank, one entry per rank.</summary>
+    public static IReadOnlyList<int> Allocated(IReadOnlyList<(LocalDate Monday, int WeekType, bool Overridden, bool Gap)> year, int types)
+        => [.. Enumerable.Range(0, types).Select(r => year.Count(w => w.WeekType == r && !w.Gap))];
 
     /// <summary>
     /// Per contract year (from each anniversary of <paramref name="start"/>), at most 52 − programmed weeks; a week counts in the

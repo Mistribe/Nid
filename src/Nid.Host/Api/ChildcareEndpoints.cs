@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Nid.Childcare.Application;
 using Nid.Childcare.Contracts;
 using Nid.Core.Contracts;
@@ -58,6 +59,17 @@ public static class ChildcareEndpoints
                 return !reader.Ok
                     ? reader.Problem()
                     : (await invoker.InvokeAsync(new ReplaceGapsCommand(new ItemId(id), gaps), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        api.MapPut("/{id:guid}/week-overrides/{monday}", async (Guid id, string monday, WeekOverrideBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var date = reader.Date(monday, "monday");
+                if (body.WeekType is null) reader.Add("weekType", "request.required", "The week type is required.");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new SetWeekOverrideCommand(new ItemId(id), date!.Value, body.WeekType!.Value), ct)).ToHttp(x => new IdResponse(x.Value));
             })
             .Returns<IdResponse>();
 
@@ -173,8 +185,14 @@ public static class ChildcareEndpoints
 
     /// <summary>Rates as decimal strings; <c>overtimePct</c> in percent (10 = 10 %).</summary>
     public sealed record TermsBody(
-        string? From, string? NetHourlyRate, string? GrossHourlyRate, string? OvertimePct, string? UpkeepPer9h, string? MealPrice, int? ProgrammedWeeks,
-        IReadOnlyList<WeekdaySlotBody>? Schedule);
+        string? From, string? NetHourlyRate, string? GrossHourlyRate, string? OvertimePct, string? UpkeepPer9h, string? MealPrice,
+        IReadOnlyList<WeekTypeBody>? WeekTypes);
+
+    /// <summary>A named weekly pattern and the number of weeks of the contract year it covers.</summary>
+    public sealed record WeekTypeBody(string? Name, int? Weeks, IReadOnlyList<WeekdaySlotBody>? Schedule);
+
+    /// <summary>The week type (its 0-based rank in the revision) a week follows instead of the rotation's.</summary>
+    public sealed record WeekOverrideBody([property: Description("Rank of the week type in the revision, 0 for the first.")] int? WeekType);
 
     public sealed record CareGapBody(string? Monday, int? Weeks);
 
@@ -246,21 +264,29 @@ public static class ChildcareEndpoints
             var overtime = Number(body.OvertimePct, "terms.overtimePct", true) / 100m;
             var upkeep = Number(body.UpkeepPer9h, "terms.upkeepPer9h", true);
             var meal = Number(body.MealPrice, "terms.mealPrice", false);
-            if (body.ProgrammedWeeks is null) reader.Add("terms.programmedWeeks", "request.required", "The programmed weeks are required.");
-            var schedule = new List<WeekdaySlot>();
-            foreach (var (slot, i) in (body.Schedule ?? []).Select((s, i) => (s, i)))
+            var types = new List<WeekType>();
+            if (body.WeekTypes is null) reader.Add("terms.weekTypes", "request.required", "The week types are required.");
+            foreach (var (type, i) in (body.WeekTypes ?? []).Select((t, i) => (t, i)))
             {
                 // Nullable annotations stop at collection elements: a null in the array binds as such.
-                if (slot?.Day is not (>= 1 and <= 7) || slot is null)
+                var path = $"terms.weekTypes[{i}]";
+                if (type?.Name is null) reader.Add($"{path}.name", "request.required", "The name is required.");
+                if (type?.Weeks is null) reader.Add($"{path}.weeks", "request.required", "The number of weeks is required.");
+                var schedule = new List<WeekdaySlot>();
+                foreach (var (slot, k) in (type?.Schedule ?? []).Select((s, k) => (s, k)))
                 {
-                    reader.Add($"terms.schedule[{i}].day", "request.invalid", "A day is 1 (Monday) to 7 (Sunday).");
-                    continue;
+                    if (slot?.Day is not (>= 1 and <= 7) || slot is null)
+                    {
+                        reader.Add($"{path}.schedule[{k}].day", "request.invalid", "A day is 1 (Monday) to 7 (Sunday).");
+                        continue;
+                    }
+                    var arrival = reader.Time(slot.Arrival, $"{path}.schedule[{k}].arrival");
+                    var departure = reader.Time(slot.Departure, $"{path}.schedule[{k}].departure");
+                    if (arrival is { } a && departure is { } d) schedule.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day.Value, a, d, slot.Meal ?? false));
                 }
-                var arrival = reader.Time(slot.Arrival, $"terms.schedule[{i}].arrival");
-                var departure = reader.Time(slot.Departure, $"terms.schedule[{i}].departure");
-                if (arrival is { } a && departure is { } d) schedule.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day.Value, a, d, slot.Meal ?? false));
+                if (type?.Name is { } name && type.Weeks is { } weeks) types.Add(new WeekType(name, weeks, schedule));
             }
-            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, meal, body.ProgrammedWeeks!.Value, schedule) : null;
+            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, meal, types) : null;
         }
 
         public static IReadOnlyList<CareGap> Gaps(FieldReader reader, IReadOnlyList<CareGapBody>? body)

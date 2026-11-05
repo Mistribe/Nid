@@ -11,7 +11,10 @@ public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName
 /// <summary>Spec §1.8, §2: the figures of one revision, in force from <c>From</c> to <c>To</c> (open while current).</summary>
 public sealed record Terms(
     ItemId ItemId, LocalDate From, LocalDate? To, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h,
-    decimal? MealPrice, int ProgrammedWeeks, IReadOnlyList<WeekdaySlot> Schedule);
+    decimal? MealPrice, IReadOnlyList<WeekType> WeekTypes)
+{
+    public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
+}
 
 /// <summary>
 /// Spec §2, decisions 13–14: a month's statement. A draft has its corrected days and no figures; a validated one has every day and its figures, frozen.
@@ -37,7 +40,7 @@ public interface IChildcareStore
     /// <summary>Every revision of these arrangements, by item then <c>From</c>.</summary>
     Task<IReadOnlyList<Terms>> TermsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
-    /// <summary>Corrects the current revision in place: the row with the same <c>From</c>, its schedule replaced.</summary>
+    /// <summary>Corrects the current revision in place: the row with the same <c>From</c>, its week types replaced.</summary>
     Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct);
 
     /// <summary>A revision: the current one ends the day before <paramref name="terms"/> starts, in the same save.</summary>
@@ -46,6 +49,12 @@ public interface IChildcareStore
     Task<IReadOnlyList<(ItemId Item, CareGap Gap)>> GapsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
     Task ReplaceGapsAsync(ItemId id, IReadOnlyList<CareGap> gaps, CancellationToken ct);
+
+    /// <summary>The exceptions of these arrangements, by item then Monday.</summary>
+    Task<IReadOnlyList<(ItemId Item, WeekOverride Override)>> OverridesOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
+    /// <summary>Sets the week type of a Monday; <c>null</c> removes the exception, and does nothing when there is none.</summary>
+    Task SetOverrideAsync(ItemId id, LocalDate monday, int? weekType, CancellationToken ct);
 
     /// <summary>Sets or clears the current revision's end.</summary>
     Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct);
@@ -76,8 +85,8 @@ public interface IChildcareStore
     /// <summary>The import marks of these arrangements, for the export's file ids.</summary>
     Task<IReadOnlyDictionary<ItemId, ImportMark>> ImportMarksAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
-    /// <summary>An import replacing an arrangement: its child and carer, every revision and its weeks without care, and its mark.</summary>
-    Task ReplaceImportedAsync(Arrangement arrangement, IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, ImportMark import, CancellationToken ct);
+    /// <summary>An import replacing an arrangement: its child and carer, every revision, its weeks without care and its exceptions, and its mark.</summary>
+    Task ReplaceImportedAsync(Arrangement arrangement, IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, IReadOnlyList<WeekOverride> overrides, ImportMark import, CancellationToken ct);
 
     /// <summary>An imported validated month, its days and frozen figures, inserted or replacing the stored one.</summary>
     Task PutValidatedAsync(Statement statement, CancellationToken ct);

@@ -216,7 +216,7 @@ public static class RouteActions
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
             "Record a childminder's contract (assistante maternelle, année incomplète): childId is a dependent (list_persons); carer name, "
             + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, "
-            + "the meal price, programmedWeeks (1 to 46) and the weekly schedule (day 1 = Monday, arrival and departure HH:mm, meal); "
+            + "the meal price, weekTypes (each a name, its weeks and its weekly schedule: day 1 = Monday, arrival and departure HH:mm, meal; together 1 to 46 weeks); "
             + "gaps are weeks without care, each from a Monday. " + Owners + Amounts),
         new("edit_childcare", "PUT", "/api/v1/childcare/{id:guid}", typeof(EditChildcareBody),
             "Correct an arrangement's name, carer and current terms in place (terms.from stays the current one's; a change from a date is propose_revise_childcare). "
@@ -225,6 +225,9 @@ public static class RouteActions
             "Revise an arrangement from a date after its current terms' start: the current terms end the day before. " + Ids + Amounts),
         new("replace_childcare_gaps", "PUT", "/api/v1/childcare/{id:guid}/gaps", typeof(GapsBody),
             "Replace an arrangement's weeks without care (each from a Monday, 1 to 52 weeks; send them all). " + Ids + Amounts),
+        new("set_childcare_week_override", "PUT", "/api/v1/childcare/{id:guid}/week-overrides/{monday}", typeof(WeekOverrideBody),
+            "Make one week (monday yyyy-MM-dd, a Monday of the contract) follow another week type: weekType is the rank in get_childcare's "
+            + "weekTypes, 0 for the first; the rank the rotation gives removes the exception. " + Ids),
         new("close_childcare", "POST", "/api/v1/childcare/{id:guid}/close", typeof(CloseChildcareBody),
             "End an arrangement on its last day (on). " + Ids + Amounts),
         new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,

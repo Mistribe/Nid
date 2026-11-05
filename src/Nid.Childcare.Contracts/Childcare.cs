@@ -8,6 +8,12 @@ public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday }
 /// <summary>One day of the weekly template: the child's arrival and departure, and whether the carer gives the meal.</summary>
 public sealed record WeekdaySlot(IsoDayOfWeek Day, LocalTime Arrival, LocalTime Departure, bool Meal);
 
+/// <summary>A template week and the number of weeks of the year it covers; the rotation follows the list order.</summary>
+public sealed record WeekType(string Name, int Weeks, IReadOnlyList<WeekdaySlot> Schedule);
+
+/// <summary>The week from this Monday follows the given week type (index) instead of the rotation.</summary>
+public sealed record WeekOverride(LocalDate Monday, int WeekType);
+
 /// <summary>Whole weeks without care, from a Monday.</summary>
 public sealed record CareGap(LocalDate Monday, int Weeks);
 
