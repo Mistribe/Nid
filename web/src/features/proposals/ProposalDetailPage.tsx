@@ -11,6 +11,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { knownConflictMessage } from '../subscriptions/fieldErrors';
 import { formatInstantDay } from '@/features/admin/format';
+import { ErrorPage } from '@/components/ErrorPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
@@ -69,7 +70,7 @@ function Proposal({ id }: { id: string }) {
   useEffect(() => focusHeading(heading.current), [shown]);
 
   const crumbs = [{ label: t('nav.proposals'), to: '/proposals' as const }];
-  if (answer.error) return <><PageTrail crumbs={crumbs} /><ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return <PageTrail crumbs={crumbs} />;
   const { proposal: p, preview, canDecide } = answer.data;
   const kind = kindOf(p.kind);

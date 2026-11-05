@@ -40,7 +40,7 @@ describe('PropertyDetailPage', () => {
 
     server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/properties/${PROPERTY}`);
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Biens', '/properties'));
   });
 
@@ -281,7 +281,7 @@ describe('PropertyDetailPage', () => {
     server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/properties/${PROPERTY}`);
 
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
   });
 
   it('has a documents tab before the settings, listing the documents anchored on the property', async () => {

@@ -11,6 +11,7 @@ import { PageTrail } from '@/components/page/trail';
 import { RowMenu, shownOr } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
+import { ErrorPage } from '@/components/ErrorPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ export function DocumentDetailPage() {
   const crumbs = [{ label: t('documents_page.title'), to: '/documents' as const }];
   const trail = <PageTrail crumbs={crumbs} />;
 
-  if (!answer.data && answer.error) return <>{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (!answer.data && answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return <>{trail}<div aria-busy="true" aria-label={t('documents_page.detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   // A refetch that failed under data on screen: a 404 means the actor no longer reads the document (its last link was theirs).

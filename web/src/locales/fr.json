@@ -322,6 +322,14 @@
     "no_email": "Le fournisseur d'identité n'a transmis aucune adresse email : demandez à la personne qui l'administre d'en ajouter une à votre compte.",
     "sign_in_again": "Se reconnecter"
   },
+  "error_page": {
+    "not_found": { "title": "Page introuvable", "body": "Le lien est peut-être ancien, ou ce qu’il montrait n’existe plus ou ne vous est pas ouvert." },
+    "forbidden": { "title": "Accès réservé", "body": "Cette page n’est pas ouverte à votre compte. Si vous en avez besoin, demandez à la personne qui administre Nid." },
+    "unexpected": { "title": "Nid n’a pas pu afficher cette page", "body": "Une erreur est survenue de notre côté. Réessayez dans un instant." },
+    "back": "Ouvrir {{module}}",
+    "home": "Accueil",
+    "retry": "Réessayer"
+  },
   "login_unavailable": {
     "title": "La connexion ne répond pas",
     "body": "Nid n'arrive pas à joindre le fournisseur d'identité : il est peut-être arrêté ou en train de redémarrer. Réessayez dans un instant ; si cela dure, prévenez la personne qui l'administre.",

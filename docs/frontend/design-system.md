@@ -79,6 +79,7 @@ Communs à tous les modules, dans `components/`.
 | `Wordmark` | La marque suivie de « Nid » (lettres tracées d'après Fraunces 600) ; `markOnly` pour le rail replié ; la hauteur vient de `className` |
 | `ModuleTile` | Le pictogramme d'un module sur sa tuile de couleur (`tile` dans `app/nav.ts`, `--tile-*`, `dataviz.md` §5) ; sidebar, menu de commandes et états vides, pas la barre d'onglets du téléphone |
 | `<EmptyState>` | Tuile du module (48 px) sur les arcs du nid, titre `h2` (`level={3}` sous un `h2`) `text-title`, phrase, actions en capsules ; le module vient de la table de navigation (`tileOf`, `PLACES` pour les pages hors menu) |
+| `<ErrorPage>` | Page qui ne peut pas s'afficher, bâtie comme `EmptyState` : tuile du module (tirée de l'adresse, `moduleOf`) ou ton neutre, titre `h1`, phrase, issues. 404 « Page introuvable » (ne dit jamais si l'élément manque ou vous est caché), 403 « Accès réservé », le reste « Nid n'a pas pu afficher cette page » avec « Réessayer » et l'identifiant pour le support. Le fil garde celui de la page (`crumbs`) ou nomme le module, jamais l'erreur ; « Retour » reste à la barre du haut. Route inconnue (`notFoundComponent`), `/forbidden`, erreur de rendu (`defaultErrorComponent`) et erreur de la requête principale d'une fiche |
 | `<ProblemMessage>` | Présente une erreur convertie (`architecture.md` §5) |
 | `<ScopeSwitch>` | Foyer / Moi |
 | `Section` (`components/page/`) | Région titrée d'une fiche, sans carte : titre `h2`, focus facultatif ; ses `actions` au bout de la ligne du titre, jamais dessous |
@@ -129,6 +130,7 @@ Cible **WCAG 2.2 AA**, et les règles d'Apple du §8.2 (réglages de la personne
 - **Fiche** : chiffres clés en ligne dans l'en-tête (ils décrivent l'élément, quel que soit l'onglet), onglets (`?tab=`), saisies en dialogues, actions de ligne dans un `RowMenu`. La vue d'ensemble tient dans environ 1 350 px de haut à 1440×900.
 - **Formulaire** : page à part dans `FormPage` (colonne de 3xl alignée à gauche, comme les autres pages, sans carte, ses boutons dans `FormActions` au pied, séparés par un filet), grille de champs ; `StepForm` pour un crédit, un revenu, un bien et l’assistant d’abonnement, avec un indicateur d’étapes (pastille numérotée, coche une fois passée) ; champs rares repliés, devises cherchables.
 - **État vide** (`EmptyState`) : la tuile du module en grand (48 px) sur les arcs du nid, estompés ; dessous, le titre (`h2`, `text-title`), une phrase, puis les actions en capsules, l'action en `outline` quand l'en-tête porte le `primary` (un seul `primary` par vue, `expectOnePrimary`). Le module vient de la table de navigation (`tileOf`), comme la barre latérale. Une invitation, pas une excuse (`screens.md` §10).
+- **Page d'erreur** (`ErrorPage`) : même construction que l'état vide, avec un `h1` puisqu'elle remplace la page ; une fiche dont la requête échoue l'affiche à la place de l'encadré rouge, qui reste aux erreurs d'un bloc ou d'une action.
 - **Panneau latéral** : un chiffre de l'accueil s'ouvre dans un panneau (`?panel=`), sans quitter la page.
 
 ## 7. Thèmes

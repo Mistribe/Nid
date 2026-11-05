@@ -9,7 +9,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
-import { ProblemMessage } from '@/components/ProblemMessage';
+import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { money } from '../../loans/format';
@@ -50,7 +50,7 @@ export function ArrearsLetterPage() {
   const crumbs = usePropertyTrail(id);
   const trail = <PageTrail crumbs={crumbs} />;
 
-  if (answer.error) return <div className="space-y-4">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!view) return <div className="space-y-4">{trail}<div aria-busy="true" aria-label={t('property_arrears.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></div>;
 
   const letter = view.letter;

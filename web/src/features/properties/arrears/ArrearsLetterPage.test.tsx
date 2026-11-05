@@ -36,7 +36,7 @@ describe('arrears letter page', () => {
     const { router } = await renderApp(`/properties/${PROPERTY}`);
     await screen.findByRole('heading', { level: 1, name: 'Maison de Nantes' });
     await router.navigate({ to: '/properties/$id/arrears-letter', params: { id: PROPERTY } });
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Maison de Nantes', `/properties/${PROPERTY}`));
     expectTrailBack('Biens', '/properties');
   });

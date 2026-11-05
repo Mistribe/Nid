@@ -28,7 +28,7 @@ describe('EnvelopeDetailPage', () => {
 
     server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/investments/${PEA}`);
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Placements', '/investments'));
   });
 
@@ -136,8 +136,31 @@ describe('EnvelopeDetailPage', () => {
     server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/investments/${PEA}`);
 
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Page introuvable' });
+    // Issue 362: the module's tile on the nest, the way to its list; the trail still leads back to it.
+    const page = heading.closest('section')!;
+    expect(page.querySelector('[data-tile="1"]')).not.toBeNull();
+    expect(within(page).getByRole('link', { name: 'Ouvrir Placements' })).toHaveAttribute('href', '/investments');
+    expectTrailBack('Placements', '/investments');
+    await expectNoAxeViolations(page);
   });
+
+  it('says a server error plainly, with the request id, and tries again on « Réessayer »', async () => {
+    let calls = 0;
+    server.use(http.get('*/api/v1/investments/envelopes/:id', () => {
+      calls += 1;
+      return HttpResponse.json({ status: 500, title: 'Boom', traceId: 'req-42' }, { status: 500 });
+    }));
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    // A 5xx is retried twice with backoff before the error shows (createQueryClient).
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Nid n’a pas pu afficher cette page' }, { timeout: 10_000 });
+    const page = within(heading.closest('section')!);
+    expect(page.getByText('Identifiant pour le support : req-42')).toBeInTheDocument();
+    const before = calls;
+    await user.click(page.getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(calls).toBeGreaterThan(before));
+  }, 20_000);
   it('shows the key figures inline', async () => {
     serve(detail());
     server.use(http.get('*/api/v1/investments/envelopes/:id/performance', () => HttpResponse.json({ from: '2025-01-01', to: '2025-10-18', performance: eur('439.0000') })));

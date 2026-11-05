@@ -15,7 +15,7 @@ import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
-import { ProblemMessage } from '@/components/ProblemMessage';
+import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
@@ -154,7 +154,7 @@ export function EnvelopeDetailPage() {
     else if (landOn === 'enter' && isClosed === false) { (enterRef.current ?? bannerRef.current)?.focus(); setLandOn(null); }
   }, [landOn, isClosed]);
 
-  if (answer.error) return <>{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return <>{trail}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   const detail = answer.data;

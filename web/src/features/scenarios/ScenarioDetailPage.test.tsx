@@ -84,7 +84,7 @@ describe('ScenarioDetailPage', () => {
 
     server.use(http.get(`*/api/v1/scenarios/${ID}`, () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/scenarios/${ID}`);
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
   });
 

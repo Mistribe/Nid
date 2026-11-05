@@ -47,7 +47,7 @@ describe('IncomeSourceDetailPage', () => {
 
     server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/income/${SALARY}`);
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Revenus', '/income'));
   });
 
@@ -334,7 +334,7 @@ describe('IncomeSourceDetailPage', () => {
     server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/income/${SALARY}`);
 
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
   });
 
   it('changes a component’s amount from its row menu', async () => {

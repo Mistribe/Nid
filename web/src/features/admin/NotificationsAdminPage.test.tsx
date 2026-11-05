@@ -17,7 +17,7 @@ const serve = (view: object) => server.use(http.get('*/api/v1/admin/notification
 describe('Administration › Notifications', () => {
   it('sends a non-admin to the forbidden page', async () => {
     await renderApp('/admin/notifications', { capabilities: allCapabilities });
-    expect(await screen.findByRole('heading', { name: "Vous n'avez pas le droit de faire cette action." })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Accès réservé' })).toBeInTheDocument();
   });
 
   it('is a section of the admin navigation, marked current', async () => {

@@ -15,6 +15,7 @@ import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
+import { ErrorPage } from '@/components/ErrorPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,7 @@ export function GoalDetailPage() {
   const close = useCloseGoal();
   const reopen = useReopenGoal();
   const crumbs = [{ label: t('goals_list.title'), to: '/goals' as const }];
-  if (answer.error) return <><PageHeader crumbs={crumbs} title={t('goals_list.title')} /><ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return <><PageTrail crumbs={crumbs} /><div aria-busy="true" aria-label={t('goals_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   const detail = answer.data;

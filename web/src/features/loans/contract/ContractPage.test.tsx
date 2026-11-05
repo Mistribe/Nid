@@ -206,11 +206,10 @@ describe('ContractPage', () => {
     server.use(http.get('*/api/v1/realestate/loans/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(PAGE);
 
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
-    // The form page's header still mounts: « Crédits » is its ancestor link, the form title the current item.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
+    // The error page keeps the page's trail: « Crédits » alone, never the error sentence.
     const trail = within(within(document.querySelector<HTMLElement>('[data-pane="toolbar"]')!).getByRole('navigation', { name: 'Fil d’Ariane' }));
-    expect(trail.getByRole('link', { name: 'Crédits' })).not.toHaveAttribute('aria-current');
+    expect(trail.getByRole('link', { name: 'Crédits' })).toHaveAttribute('href', '/loans');
     expect(trail.getAllByRole('link')).toHaveLength(1);
-    expect(trail.getByText('Contrat du crédit')).toHaveAttribute('aria-current', 'page');
   });
 });

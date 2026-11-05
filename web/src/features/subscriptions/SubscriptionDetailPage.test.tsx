@@ -215,7 +215,7 @@ describe('Abonnements › détail', () => {
 
     serveDetail(null);
     await renderApp(`/subscriptions/${SUB}`);
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(leadsBack);
   });
 
@@ -280,7 +280,7 @@ describe('Abonnements › détail', () => {
     serveDetail(null);
     await renderApp(`/subscriptions/${SUB}`);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Cet élément est introuvable.');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 

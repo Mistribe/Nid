@@ -25,7 +25,7 @@ describe('DocumentDetailPage', () => {
 
     server.use(http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(PATH);
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Documents', '/documents'));
   });
 
@@ -166,6 +166,6 @@ describe('DocumentDetailPage', () => {
     serveDocument();
     server.use(http.get(`*/api/v1/documents/${DOC}`, () => HttpResponse.json({ status: 404, title: 'Not found.' }, { status: 404 })));
     await renderApp(PATH);
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
   });
 });

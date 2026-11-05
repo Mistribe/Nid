@@ -25,7 +25,7 @@ describe('GoalDetailPage', () => {
 
     server.use(http.get('*/api/v1/goals/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
     await renderApp(`/goals/${GOAL}`);
-    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Objectifs', '/goals'));
   });
 

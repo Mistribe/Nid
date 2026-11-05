@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { formatLocalDate } from '@/components/LocalDate';
+import { ErrorPage } from '@/components/ErrorPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { FormActions, FormPage } from '@/components/page/FormPage';
@@ -33,8 +34,8 @@ export function ContractPage() {
   const crumbs = (name?: string) => [{ label: t('nav.loans'), to: '/loans' as const }, ...(name ? [{ label: name, to: '/loans/$id' as const, params: { id } }] : [])];
   const page = (name: string | undefined, children: ReactNode, title = t('loan_contract.form')) => <FormPage crumbs={crumbs(name)} title={title} width="max-w-2xl">{children}</FormPage>;
 
-  // An unknown loan and another adult's private one both answer 404: « Cet élément est introuvable. ».
-  if (answer.error) return page(undefined, <ProblemMessage problem={present(toProblem(answer.error))} />);
+  // An unknown loan and another adult's private one both answer 404: the same « Page introuvable », under « Crédits ».
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs()} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return page(undefined, <div aria-busy="true" aria-label={t('loan_contract.loading')} className="h-40 shimmer rounded-md border bg-muted" />);
 
   const loan = answer.data;

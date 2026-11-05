@@ -1,15 +1,6 @@
-import { Link } from '@tanstack/react-router';
-import { useTranslation } from 'react-i18next';
-import { PageHeader } from '@/components/page/PageHeader';
-import { buttonVariants } from '@/components/ui/button';
+import { ErrorPage } from '@/components/ErrorPage';
 
-/** Never says whether the thing is absent or hidden from you (architecture.md §5). */
+/** An unknown address inside the shell (issue 362). */
 export function NotFoundPage() {
-  const { t } = useTranslation();
-  return (
-    <div className="space-y-4">
-      <PageHeader title={t('problem.not_found')} />
-      <Link to="/" className={buttonVariants({ variant: 'outline' })}>{t('nav.home')}</Link>
-    </div>
-  );
+  return <ErrorPage problem={{ kind: 'not_found' }} />;
 }

@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
+import { ErrorPage } from '@/components/ErrorPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { SOURCE, SOURCE_OVERVIEW } from './api';
@@ -117,7 +118,7 @@ export function IncomeSourceDetailPage() {
   // No `PageHeader` yet: the bar's trail leads back to the list (no inline link of its own).
   const crumbs = [{ label: t('nav.income'), to: '/income' as const }];
   const trail = <PageTrail crumbs={crumbs} />;
-  if (answer.error) return <article className="space-y-6">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!source) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   // Every write affordance: the header actions, the row menus and the settings.

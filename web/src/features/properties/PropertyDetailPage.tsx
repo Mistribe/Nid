@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
-import { ProblemMessage } from '@/components/ProblemMessage';
+import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Section } from '@/components/page/Section';
 import { PROPERTY } from './api';
@@ -62,8 +62,8 @@ export function PropertyDetailPage() {
   const trail = <PageTrail crumbs={crumbs} />;
 
   if (answer.error) {
-    // An unknown property and another adult's private one both answer 404: « Cet élément est introuvable. ».
-    return <article className="space-y-6">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+    // An unknown property and another adult's private one both answer 404: the same « Page introuvable ».
+    return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   }
   if (!property) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 

@@ -17,7 +17,7 @@ import { PageTrail } from '@/components/page/trail';
 import { SharingBadges } from '@/components/ownership/SharingBadges';
 import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { StatLine } from '@/components/page/StatLine';
-import { ProblemMessage } from '@/components/ProblemMessage';
+import { ErrorPage } from '@/components/ErrorPage';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -93,7 +93,7 @@ export function SubscriptionDetailPage() {
   // No `PageHeader` yet: the bar's trail still leads back to the list (no inline link of its own).
   const crumbs = [{ label: t('nav.subscriptions'), to: '/subscriptions' as const }];
   const trail = <PageTrail crumbs={crumbs} />;
-  if (answer.error) return <article className="space-y-6">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('subscription.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const detail = answer.data;

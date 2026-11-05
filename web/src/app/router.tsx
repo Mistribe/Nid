@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
+import { ErrorPage } from '@/components/ErrorPage';
 import { ForbiddenPage } from './ForbiddenPage';
 import { NotFoundPage } from './NotFoundPage';
 import { useSession, type Capabilities } from './Providers';
@@ -581,7 +582,11 @@ export const routeTree = rootRoute.addChildren([
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {
-  return createRouter({ routeTree, context, ...(history ? { history } : {}), defaultPreload: 'intent' });
+  return createRouter({
+    routeTree, context, ...(history ? { history } : {}), defaultPreload: 'intent',
+    // A page that throws while rendering (a lazy chunk that fails to load, a bug): the error page in the shell, with « Réessayer ».
+    defaultErrorComponent: ({ reset }) => <ErrorPage problem={{ kind: 'unexpected' }} onRetry={reset} />,
+  });
 }
 
 declare module '@tanstack/react-router' {

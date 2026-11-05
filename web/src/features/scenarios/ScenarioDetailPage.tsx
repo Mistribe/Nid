@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
-import { ProblemMessage } from '@/components/ProblemMessage';
+import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { percent } from '@/features/dashboard/format';
 import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNames';
@@ -52,7 +52,7 @@ export function ScenarioDetailPage() {
   const saved = (message: string) => { setReturnTo(editing); setEditing(null); toast.success(message); };
 
   const crumbs = [{ label: t('scenarios.title'), to: '/scenarios' as const }];
-  if (answer.error) return <><PageTrail crumbs={crumbs} /><ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return <><PageTrail crumbs={crumbs} /><div aria-busy="true" aria-label={t('scenarios.detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
 
   const scenario = answer.data;

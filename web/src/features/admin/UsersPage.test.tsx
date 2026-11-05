@@ -115,7 +115,7 @@ describe('Administration › Utilisateurs', () => {
   it('a non-admin is sent to the forbidden page and sees no admin entry', async () => {
     await renderApp('/admin/users', { capabilities: allCapabilities });
 
-    expect(await screen.findByRole('heading', { name: "Vous n'avez pas le droit de faire cette action." })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Accès réservé' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
   });
 

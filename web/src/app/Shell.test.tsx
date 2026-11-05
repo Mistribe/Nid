@@ -282,8 +282,20 @@ describe('the shell', () => {
 
   it('shows the not-found page for an unknown path', async () => {
     await renderApp('/nowhere');
-    const heading = await screen.findByRole('heading', { name: 'Cet élément est introuvable.' });
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Page introuvable' });
     expect(heading.closest('[data-pane="content"]')).toHaveClass('content-pane');
+    // Issue 362: built like an empty state, the way home offered; the trail never reads the error sentence.
+    expect(heading.closest('section')!.querySelector('[data-tile]')).not.toBeNull();
+    expect(within(heading.closest('section')!).getByRole('link', { name: 'Accueil' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('navigation', { name: 'Fil d’Ariane' })?.textContent ?? '').not.toContain('introuvable');
+  });
+
+  it('shows a module’s not-found page under its tile, with a way to its list', async () => {
+    await renderApp('/investments/a/b');
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Page introuvable' });
+    const page = heading.closest('section')!;
+    expect(page.querySelector('[data-tile="1"]')).not.toBeNull();
+    expect(within(page).getByRole('link', { name: 'Ouvrir Placements' })).toHaveAttribute('href', '/investments');
   });
 
   it('signs out with the CSRF token and says what stays open', async () => {
