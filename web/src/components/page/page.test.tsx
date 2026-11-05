@@ -210,6 +210,15 @@ describe('page grammar', () => {
     expect(h1).not.toHaveClass('text-2xl');
   });
 
+  it('PageHeader keeps its actions on the title line from sm up: the title and its badges wrap, the actions never', () => {
+    render(<PageHeader title="Vita Patrimoine" meta={<span>PEA</span>} actions={<button type="button">Saisir</button>} />);
+    const title = screen.getByRole('heading', { level: 1 }).parentElement!;
+    const actions = screen.getByRole('button', { name: 'Saisir' }).parentElement!;
+    expect(title.parentElement).toHaveClass('sm:flex-nowrap');
+    expect(title).toHaveClass('min-w-0', 'sm:flex-1', 'flex-wrap');
+    expect(actions).toHaveClass('sm:shrink-0');
+  });
+
   it.each([['Section', Section], ['SectionCard', SectionCard]] as const)('%s titles are level-2 headings in the title style', (_name, Component) => {
     render(<Component title="Répartition par type">contenu</Component>);
     const heading = screen.getByRole('heading', { level: 2, name: 'Répartition par type' });

@@ -36,7 +36,8 @@ export function Gain({ figures }: { figures: Figures }) {
     <Direction amount={figures.gain}>
       {figures.gainPct === null || figures.gainPct === undefined
         ? <><span aria-hidden="true">{t('investments.dash')}</span><span className="sr-only">{t('investments.pct_undefined')}</span></>
-        : <span className="tabular-nums">{t('investments.pct', { value: pct(figures.gainPct) })}</span>}
+        // Secondary to the amount, as in HeroChange; when the column is narrow it moves to the next line whole.
+        : <span className="tabular-nums whitespace-nowrap font-normal text-muted-foreground">{t('investments.pct', { value: pct(figures.gainPct) })}</span>}
     </Direction>
   );
 }

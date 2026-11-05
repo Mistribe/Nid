@@ -9,12 +9,13 @@ export function PageHeader({ crumbs, crumbLabel, title, titleRef, meta, actions,
   usePageTrail({ crumbs, current: crumbLabel ?? (typeof title === 'string' ? title : undefined) });
   return (
     <header data-page-header className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      {/* From sm up the actions keep the title line (design-system.md §6.1): the title and its badges wrap first. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:flex-nowrap sm:items-start">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-1">
           <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className="text-large-title break-words outline-none">{title}</h1>
           {meta}
         </div>
-        {actions ? <div data-page-actions className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div data-page-actions className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div> : null}
       </div>
       {children}
     </header>
