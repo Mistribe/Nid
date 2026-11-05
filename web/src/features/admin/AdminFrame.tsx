@@ -22,12 +22,12 @@ const SECTIONS = [
   { to: '/admin/security', label: 'admin.nav.security' },
 ] as const;
 
-/** Every admin screen: the section links, the title, the content. */
-export function AdminFrame({ title, children }: { title: string; children: ReactNode }) {
+/** Every admin screen: the title and its actions, the section links, the content. */
+export function AdminFrame({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
   return (
     <div className="space-y-6">
-      <PageHeader title={title} />
+      <PageHeader title={title} actions={actions} />
       <nav aria-label={t('admin.nav.label')} className={cn(tabsListVariants({ variant: 'line' }), 'h-auto max-w-full justify-start overflow-x-auto overflow-y-hidden border-b pb-[5px]')}>
         {SECTIONS.map((section) => (
           <Link

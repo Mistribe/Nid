@@ -737,6 +737,7 @@
       "copied": "Jeton copié.",
       "done": "J’ai copié le jeton",
       "revoke": "Révoquer",
+      "menu": "Actions du jeton {{name}}",
       "revoke_confirm": "Ce jeton cessera de fonctionner immédiatement.",
       "revoked": "Jeton révoqué.",
       "limit_reached": "Vous avez déjà 10 jetons actifs : révoquez-en un avant d’en créer un autre.",

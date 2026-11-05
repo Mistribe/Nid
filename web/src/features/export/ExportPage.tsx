@@ -5,7 +5,7 @@ import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { runExport } from './assemble';
 import { downloadBlob } from './download';
 import '@/locales/export';
@@ -64,9 +64,12 @@ export function ExportPage() {
 
   const sectionName = (name: string) => t(`export.sections.${name}`, { defaultValue: name });
 
+  // One control per step, the header's primary (design-system.md §6.1); the body says where the export stands.
+  let action;
   let body;
   if (state.kind === 'running') {
     const percent = state.total === 0 ? 0 : Math.round((state.received / state.total) * 100);
+    action = <Button ref={primary} variant="outline" onClick={cancel}>{t('export.cancel')}</Button>;
     body = (
       <div className="space-y-3">
         <div role="progressbar" aria-label={t('export.progress_label')} aria-valuemin={0}
@@ -74,57 +77,48 @@ export function ExportPage() {
           <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
         </div>
         <p>{t('export.progress', { received: state.received, total: state.total })}</p>
-        <Button ref={primary} variant="outline" onClick={cancel}>{t('export.cancel')}</Button>
       </div>
     );
   } else if (state.kind === 'done') {
-    body = (
-      <div className="space-y-3">
-        <p role="status">{t('export.done', { count: state.count })}</p>
-        <Button ref={primary} onClick={() => void start()}>{t('export.again')}</Button>
-      </div>
-    );
+    action = <Button ref={primary} onClick={() => void start()}>{t('export.again')}</Button>;
+    body = <p role="status">{t('export.done', { count: state.count })}</p>;
   } else if (state.kind === 'changed') {
-    body = (
-      <div className="space-y-3">
-        <p role="alert" className="rounded-md border border-destructive p-3">{t('export.changed')}</p>
-        <Button ref={primary} onClick={() => void start()}>{t('export.restart')}</Button>
-      </div>
-    );
+    action = <Button ref={primary} onClick={() => void start()}>{t('export.restart')}</Button>;
+    body = <p role="alert" className="rounded-md border border-destructive p-3">{t('export.changed')}</p>;
   } else if (state.kind === 'error') {
-    body = (
-      <div className="space-y-3">
-        <ProblemMessage problem={state.problem} />
-        <Button ref={primary} onClick={() => void start()}>{t('export.retry')}</Button>
-      </div>
-    );
+    action = <Button ref={primary} onClick={() => void start()}>{t('export.retry')}</Button>;
+    body = <ProblemMessage problem={state.problem} />;
   } else if (manifest.error) {
     body = <ProblemMessage problem={present(toProblem(manifest.error))} />;
   } else if (!manifest.data) {
     body = <p>{t('export.loading')}</p>;
   } else {
     const filled = manifest.data.sections.filter((section) => section.count > 0);
-    body = (
-      <div className="space-y-3">
-        {filled.length === 0
-          ? <p>{t('export.empty')}</p>
-          : (
-            <ul aria-label={t('export.contents')} className="list-disc space-y-1 pl-5">
-              {filled.map((section) => (
-                <li key={section.name}>{t('export.section_count', { name: sectionName(section.name), count: section.count })}</li>
-              ))}
-            </ul>
-          )}
-        <Button ref={primary} onClick={() => void start()}>{t('export.start')}</Button>
-      </div>
-    );
+    action = <Button ref={primary} onClick={() => void start()}>{t('export.start')}</Button>;
+    body = filled.length === 0
+      ? <p>{t('export.empty')}</p>
+      : (
+        <Table aria-label={t('export.contents')}>
+          <TableHeader>
+            <TableRow><TableHead>{t('export.section')}</TableHead><TableHead className="text-right">{t('export.count')}</TableHead></TableRow>
+          </TableHeader>
+          <TableBody>
+            {filled.map((section) => (
+              <TableRow key={section.name}>
+                <TableCell>{sectionName(section.name)}</TableCell>
+                <TableCell className="text-right tabular-nums">{section.count}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      );
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('export.title')} />
+      <PageHeader title={t('export.title')} actions={action} />
       <p>{t('export.rule')}</p>
-      <Card><CardContent>{body}</CardContent></Card>
+      {body}
     </div>
   );
 }

@@ -1,11 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
-import { ConfirmAction } from '@/components/ConfirmAction';
+import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { RowMenu } from '@/components/page/RowMenu';
+import { Section } from '@/components/page/Section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,6 +21,9 @@ export function TokensSection() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
+  const [revoking, setRevoking] = useState<string | null>(null);
+  // Each row's ⋯, where the focus goes back when the confirmation closes.
+  const menus = useRef<Record<string, HTMLButtonElement | null>>({});
   const tokens = $api.useQuery('get', TOKENS);
   const revoke = $api.useMutation('delete', TOKEN, {
     onSuccess: () => {
@@ -28,10 +33,8 @@ export function TokensSection() {
   });
 
   return (
-    <section className="space-y-3" aria-labelledby="tokens-title">
-      <h2 id="tokens-title" className="text-xl font-semibold">{t('security.tokens.title')}</h2>
+    <Section title={t('security.tokens.title')} actions={<Button onClick={() => setCreating(true)}>{t('security.tokens.create')}</Button>}>
       <p>{t('security.tokens.intro')}</p>
-      <Button onClick={() => setCreating(true)}>{t('security.tokens.create')}</Button>
       {creating ? <NewTokenDialog onClose={() => setCreating(false)} /> : null}
       {tokens.error ? <ProblemMessage problem={present(toProblem(tokens.error))} /> : null}
       {revoke.error ? <ProblemMessage problem={present(toProblem(revoke.error))} /> : null}
@@ -45,7 +48,7 @@ export function TokensSection() {
               <TableHead>{t('security.tokens.expires')}</TableHead>
               <TableHead>{t('security.tokens.last_used')}</TableHead>
               <TableHead>{t('security.tokens.status_label')}</TableHead>
-              <TableHead><span className="sr-only">{t('security.tokens.revoke')}</span></TableHead>
+              <TableHead><span className="sr-only">{t('page.more_actions')}</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -56,10 +59,10 @@ export function TokensSection() {
                 <TableCell>{formatInstant(token.expiresAt)}</TableCell>
                 <TableCell>{token.lastUsedAt ? formatInstant(token.lastUsedAt) : t('security.tokens.never_used')}</TableCell>
                 <TableCell><Badge variant={token.status === 'active' ? 'secondary' : 'outline'}>{t(`security.tokens.status.${token.status as 'active'}`)}</Badge></TableCell>
-                <TableCell>
+                <TableCell className="text-right">
                   {token.status === 'active' ? (
-                    <ConfirmAction label={t('security.tokens.revoke')} confirmation={t('security.tokens.revoke_confirm')}
-                      pending={revoke.isPending} onConfirm={() => revoke.mutate({ params: { path: { id: token.id } } })} />
+                    <RowMenu label={t('security.tokens.menu', { name: token.name })} triggerRef={(node) => { menus.current[token.id] = node; }}
+                      items={[{ label: t('security.tokens.revoke'), destructive: true, onSelect: () => setRevoking(token.id) }]} />
                   ) : null}
                 </TableCell>
               </TableRow>
@@ -67,6 +70,11 @@ export function TokensSection() {
           </TableBody>
         </Table>
       ) : null}
-    </section>
+      {revoking ? (
+        <ConfirmFromMenu label={t('security.tokens.revoke')} confirmation={t('security.tokens.revoke_confirm')} pending={revoke.isPending}
+          returnFocus={{ current: menus.current[revoking] ?? null }} onClose={() => setRevoking(null)}
+          onConfirm={() => revoke.mutate({ params: { path: { id: revoking } } })} />
+      ) : null}
+    </Section>
   );
 }

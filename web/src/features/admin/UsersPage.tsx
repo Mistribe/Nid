@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ export function UsersPage() {
   const queryClient = useQueryClient();
   const { session } = useSession();
   const [adding, setAdding] = useState(false);
+  const [capNotice, setCapNotice] = useState(false);
   const [problem, setProblem] = useState<Presentation | null>(null);
   const adults = $api.useQuery('get', USERS);
   const household = $api.useQuery('get', HOUSEHOLD);
@@ -82,12 +84,15 @@ export function UsersPage() {
   };
 
   return (
-    <AdminFrame title={title}>
+    // Never a disabled button (design-system.md §6): at the cap, the click says why and where to raise it.
+    <AdminFrame title={title} actions={<Button onClick={() => (capReached ? setCapNotice(true) : setAdding(true))}>{t('admin.users.add_title')}</Button>}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={capReached} onClick={() => setAdding(true)}>{t('admin.users.add_title')}</Button>
-        {capReached ? <p className="text-sm text-muted-foreground">{t('admin.users.cap_reached', { max: household.data.maxAdults })}</p> : null}
-      </div>
+      {capNotice && capReached ? (
+        <p role="status" className="text-sm">
+          {t('admin.users.cap_reached', { max: household.data.maxAdults })}{' '}
+          <Link to="/admin/household" className="font-medium underline underline-offset-4">{t('admin.nav.household')}</Link>
+        </p>
+      ) : null}
       {adding ? <AddAdultDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); toast.success(message); }} /> : null}
       <Table>
         <TableHeader>

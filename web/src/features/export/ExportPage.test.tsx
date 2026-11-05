@@ -4,6 +4,8 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { fakeExportServer } from '@/test/exportServer';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { SECTIONS } from '@/features/import/prepare';
+import fr from '@/locales/fr.export.json';
 import { downloadBlob } from './download';
 
 vi.mock('./download', () => ({ downloadBlob: vi.fn() }));
@@ -23,6 +25,10 @@ function hold() {
   return { held, release: () => release() };
 }
 
+/** The contents table, one « name : count » per row. */
+const contents = async () => within(await screen.findByRole('table', { name: "Contenu de l'export" }))
+  .getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell').map((cell) => cell.textContent).join(' : '));
+
 // Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
 beforeAll(async () => { await import('./ExportPage'); }, 30_000);
 
@@ -34,8 +40,9 @@ describe('Export', () => {
     const { container } = await renderApp('/export');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Export' })).toBeInTheDocument();
-    const contents = await screen.findByRole('list', { name: "Contenu de l'export" });
-    expect(within(contents).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Personnes : 2', 'Abonnements : 3']);
+    expect(await contents()).toEqual(['Personnes : 2', 'Abonnements : 3']);
+    // The step's control is the header's primary, not a button under the list.
+    expect(within(document.querySelector('[data-page-actions]') as HTMLElement).getByRole('button', { name: 'Exporter' })).toBeInTheDocument();
     expect(screen.getByText(/Les éléments privés de l'autre adulte n'y sont pas/)).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
@@ -45,15 +52,18 @@ describe('Export', () => {
     server.use(...fakeExportServer({ ...pages(), mortgages: [[{ id: 'm1' }]] }).handlers);
     await renderApp('/export');
 
-    expect(await screen.findByText('mortgages : 1')).toBeInTheDocument();
+    expect(await contents()).toContain('mortgages : 1');
+  });
+
+  it('labels every section the file format has', () => {
+    expect(SECTIONS.filter((name) => !(name in fr.export.sections))).toEqual([]);
   });
 
   it('labels the investments sections', async () => {
     server.use(...fakeExportServer({ ...pages(), envelopes: [[{ id: 'e1' }]], valuations: [[{ id: 'v1' }, { id: 'v2' }]], flows: [[{ id: 'f1' }]] }).handlers);
     await renderApp('/export');
 
-    const contents = await screen.findByRole('list', { name: "Contenu de l'export" });
-    const items = within(contents).getAllByRole('listitem').map((li) => li.textContent);
+    const items = await contents();
     expect(items).toEqual(expect.arrayContaining(['Enveloppes : 1', 'Valeurs : 2', 'Flux : 1']));
   });
 
@@ -61,8 +71,7 @@ describe('Export', () => {
     server.use(...fakeExportServer({ ...pages(), properties: [[{ id: 'p1' }]], loans: [[{ id: 'l1' }, { id: 'l2' }]], loan_events: [[{ id: 'e1' }]] }).handlers);
     await renderApp('/export');
 
-    const contents = await screen.findByRole('list', { name: "Contenu de l'export" });
-    const items = within(contents).getAllByRole('listitem').map((li) => li.textContent);
+    const items = await contents();
     expect(items).toEqual(expect.arrayContaining(['Biens : 1', 'Crédits : 2', 'Remboursements anticipés : 1']));
   });
 

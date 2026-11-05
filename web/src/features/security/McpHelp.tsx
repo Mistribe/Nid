@@ -25,7 +25,7 @@ export function McpHelp() {
 
   return (
     <section className="space-y-3" aria-labelledby="mcp-title">
-      <h2 id="mcp-title" className="text-xl font-semibold">{t('security.mcp.title')}</h2>
+      <h2 id="mcp-title" className="text-title">{t('security.mcp.title')}</h2>
       <p>{t('security.mcp.intro')}</p>
       <p className="flex flex-wrap gap-2">
         {t('security.mcp.address')}

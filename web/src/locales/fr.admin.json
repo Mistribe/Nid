@@ -22,7 +22,7 @@
       "add_hint": "Cette adresse email sera rattachée à cet adulte à sa première connexion, ce qui permet de lui attribuer des éléments avant (un import, par exemple). Son accès à Nid se règle dans le fournisseur d'identité.",
       "add": "Ajouter",
       "added": "Adulte ajouté.",
-      "cap_reached": "Le foyer est limité à {{max}} adultes : relevez le plafond dans Foyer pour en ajouter."
+      "cap_reached": "Le foyer est limité à {{max}} adultes. Pour en ajouter un, relevez le plafond dans"
     },
     "household": {
       "title": "Foyer",

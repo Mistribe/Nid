@@ -24,7 +24,7 @@ describe('Mes jetons', () => {
     expect(row).toHaveTextContent('Lecture + propositions');
     expect(row).toHaveTextContent('Actif');
     expect(row).toHaveTextContent('Jamais');
-    expect(within(screen.getByRole('row', { name: /Ancien/ })).queryByRole('button', { name: 'Révoquer' })).toBeNull();
+    expect(within(screen.getByRole('row', { name: /Ancien/ })).queryByRole('button')).toBeNull();
     await expectNoAxeViolations(container);
   });
 
@@ -126,7 +126,9 @@ describe('Mes jetons', () => {
     const { user } = await renderApp('/security');
 
     const row = await screen.findByRole('row', { name: /Claude sur mon laptop/ });
-    await user.click(within(row).getByRole('button', { name: 'Révoquer' }));
+    const menu = within(row).getByRole('button', { name: 'Actions du jeton Claude sur mon laptop' });
+    await user.click(menu);
+    await user.click(await screen.findByRole('menuitem', { name: 'Révoquer' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toBe('t1'));

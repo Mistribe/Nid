@@ -56,12 +56,19 @@ describe('Administration › Utilisateurs', () => {
     await waitFor(() => expect(toasts()).toHaveTextContent('Adulte ajouté.'));
   });
 
-  it('disables the add button, with the reason, when the cap is reached', async () => {
+  it('keeps the add button in the header and enabled at the cap, and answers the click with the reason', async () => {
     serve([alice, bob], 2);
-    await renderApp('/admin/users', { capabilities: adminCapabilities });
+    const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
 
-    expect(await screen.findByRole('button', { name: 'Ajouter un adulte' })).toBeDisabled();
-    expect(screen.getByText(/limité à 2 adultes/)).toBeInTheDocument();
+    const add = await screen.findByRole('button', { name: 'Ajouter un adulte' });
+    expect(add).toBeEnabled();
+    expect(add.closest('[data-page-actions]')).not.toBeNull();
+    expect(screen.queryByText(/limité à 2 adultes/)).not.toBeInTheDocument();
+
+    await user.click(add);
+    expect(screen.getByRole('status')).toHaveTextContent('Le foyer est limité à 2 adultes. Pour en ajouter un, relevez le plafond dans Foyer');
+    expect(within(screen.getByRole('status')).getByRole('link', { name: 'Foyer' })).toHaveAttribute('href', '/admin/household');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('leaves the admin role to the identity provider: no button promotes or demotes, and the page says where it comes from', async () => {

@@ -1,8 +1,9 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { formatInstant } from '@/features/admin/format';
 import { expectNoAxeViolations } from '@/test/axe';
+import { expectOnePrimary } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -27,6 +28,17 @@ describe('Sécurité', () => {
     expect(granted).toHaveTextContent('Ligne de commande'); // 1F4: the recovery CLI's origin, named in French
     expect(screen.getByText(/ne ferme pas votre session auprès du fournisseur d'identité/)).toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('puts each section’s action on its title line, with one primary on the page', async () => {
+    server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json(events)));
+    const { container } = await renderApp('/security');
+
+    const sessions = await screen.findByRole('region', { name: 'Mes sessions' });
+    expect(within(sessions.querySelector('[data-section-actions]') as HTMLElement).getByRole('button', { name: 'Déconnecter partout' })).toBeInTheDocument();
+    const tokens = screen.getByRole('region', { name: 'Mes jetons' });
+    expect(within(tokens.querySelector('[data-section-actions]') as HTMLElement).getByRole('button', { name: 'Créer un jeton' })).toBeInTheDocument();
+    expectOnePrimary(container);
   });
 
   // A reload would go through login, which the identity provider's own session answers at once: the adult would be
@@ -56,7 +68,7 @@ describe('Sécurité', () => {
     );
     const { user, location } = await renderApp('/security');
 
-    await user.click(await screen.findByRole('checkbox', { name: 'Révoquer aussi mes jetons d’accès' }));
+    await user.click(await screen.findByRole('switch', { name: 'Révoquer aussi mes jetons d’accès' }));
     await user.click(screen.getByRole('button', { name: 'Déconnecter partout' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
