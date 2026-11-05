@@ -40,9 +40,9 @@ public static class ChildcareMonth
         var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
 
         var netPay = basePay - deduction + extraPay + leavePay;
-        // Mensualised days less the deducted ones: the guides' reading of the field, no official text found (spec §9).
-        // A partial month declares its planned days instead.
-        var activityDays = Math.Max(0, (partial ? input.Days.Count(d => d.Planned) : (int)Math.Ceiling(input.Schedule.Count * weeks / 12m)) - deductedDays);
+        // The mensualised days, absences or not, as the household declares them (spec §9). A partial month declares its
+        // planned days less the deducted ones instead.
+        var activityDays = partial ? Math.Max(0, input.Days.Count(d => d.Planned) - deductedDays) : (int)Math.Ceiling(input.Schedule.Count * weeks / 12m);
         var declaration = new PajemploiDeclaration(Mensualisation.NormalHours(weeklyHours, weeks), activityDays, leaveDays,
             complementary, overtime, netPay, upkeep, meals, input.Mileage);
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
