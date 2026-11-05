@@ -44,6 +44,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/holdings/{holdingId:guid}/breakdown",
         // #294: who may edit an item is its owners' click in the web app, never a proposal.
         "PUT /api/v1/core/items/{id:guid}/sharing",
+        // Property return (#313, spec §1 « Hors périmètre ») : its what-if assumptions are set in the web app, no assistant tool.
+        "/api/v1/realestate/properties/{id:guid}/return-assumptions",
     ];
 
     /// <summary>A route that is a prefix of covered ones: the web's upload form.</summary>

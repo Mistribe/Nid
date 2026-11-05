@@ -37,9 +37,13 @@ public sealed record ReturnBreakdownLineView(string Line, string Realized, strin
 
 public sealed record ReturnScenarioView(ReturnOutcomeView Outcome, string PriceSource, string SavingsEffort, IReadOnlyList<ReturnBreakdownLineView> Breakdown);
 
+/// <summary>A <c>loan_excluded</c> warning names a loan: the output guard checks it like any other item the response carries.</summary>
 public sealed record PropertyReturnView(
     ReturnAssumptionsView Assumptions, ReturnScenarioView? Scenario, IReadOnlyList<ReturnOutcomeView> Sensitivity, LocalDate? PinelEnd,
-    IReadOnlyList<PropertyWarning> Warnings);
+    IReadOnlyList<PropertyWarning> Warnings) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => Warnings.Where(w => w.LoanId is not null).Select(w => w.LoanId!.Value);
+}
 
 /// <summary>Property return spec §4.3 and §5: the property as the tax rules read it.</summary>
 public static class ReturnSale

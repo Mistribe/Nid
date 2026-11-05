@@ -662,6 +662,10 @@ public static class RequestCatalogue
         new(typeof(AcceptRentRevisionCommand), true, (_, item) => new AcceptRentRevisionCommand(item, Guid.NewGuid(), new LocalDate(2025, 9, 1))),
         new(typeof(UndoRentRevisionCommand), true, (_, item) => new UndoRentRevisionCommand(item, Guid.NewGuid())),
         new(typeof(GetPropertyArrearsQuery), true, (_, item) => new GetPropertyArrearsQuery(item)),
+        // Property return (#313): the assumptions are stored per property, read and written through its route only.
+        new(typeof(GetPropertyReturnQuery), true, (_, item) => new GetPropertyReturnQuery(item)),
+        new(typeof(SavePropertyReturnAssumptionsCommand), true, (_, item) => new SavePropertyReturnAssumptionsCommand(item, new ReturnAssumptions(VacancyMonths: 1))),
+        new(typeof(ClearPropertyReturnAssumptionsCommand), true, (_, item) => new ClearPropertyReturnAssumptionsCommand(item)),
         new(typeof(GetRentArrearsQuery), false, (_, _) => new GetRentArrearsQuery(VisibilityScope.Me)),
         new(typeof(GetRentRevisionsQuery), false, (_, _) => new GetRentRevisionsQuery(VisibilityScope.Me)),
     ];

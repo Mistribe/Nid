@@ -25,7 +25,10 @@ public sealed partial class PropertyStore(RealEstateDbContext db) : IPropertySto
     public async Task SaveReturnAssumptionsAsync(ItemId item, ReturnAssumptions? assumptions, CancellationToken ct)
     {
         var json = assumptions is null ? null : JsonSerializer.Serialize(new ReturnDocument(1, assumptions), ReturnJson.Default.ReturnDocument);
-        await db.Properties.Where(p => p.ItemId == item.Value).ExecuteUpdateAsync(s => s.SetProperty(p => p.ReturnAssumptions, json), ct);
+        // Tracked, as every other write here: the write log reads the change tracker, which a bulk update would skip.
+        var row = await db.Properties.SingleAsync(p => p.ItemId == item.Value, ct);
+        row.ReturnAssumptions = json;
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task CreateAsync(ItemId item, PropertyDetails details, CancellationToken ct)
