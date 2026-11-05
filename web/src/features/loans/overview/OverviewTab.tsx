@@ -2,12 +2,14 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { tileOf } from '@/app/nav';
 import { present, toProblem } from '@/api/errors';
 import type { LoansSearch, RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
+import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { Hero, HeroUnknown } from '@/components/page/Hero';
 import { SectionCard } from '@/components/page/SectionCard';
 import { SortableTable } from '@/components/page/SortableTable';
@@ -60,9 +62,9 @@ export function OverviewTab({ scope }: { scope: Scope }) {
       <BalanceHero d={d} />
       <Figures d={d} />
       <SectionCard title={t('loans_overview.progress_title')}><Advance d={d} /></SectionCard>
-      <SectionCard title={t('loans_overview.chart_title')}><BalanceChart d={d} /></SectionCard>
+      <BalanceChart d={d} />
       <DurationSection d={d} />
-      <div className="md:order-last"><SectionCard title={t('loans_overview.upcoming')}><Upcoming d={d} /></SectionCard></div>
+      <div className="md:order-last"><Upcoming d={d} /></div>
       <SectionCard title={t('loans_overview.running')}><Running d={d} /></SectionCard>
     </div>
     </TooltipProvider>
@@ -199,30 +201,29 @@ function Running({ d }: { d: LoansOverview }) {
 
 const UPCOMING_SHOWN = 3;
 
+/** Loans dashboard §3.4: the next payment, then the coming events, as the dashboard's agenda (`GroupedList`). */
 function Upcoming({ d }: { d: LoansOverview }) {
   const { t } = useTranslation();
   const { nameOf } = useLoanNames(d);
   const amount = (m?: MoneyValue | null) => (m ? formatMoney(m) : t('loans_overview.unknown'));
+  const tile = tileOf('/loans');
   return (
-    <ul className="space-y-2 text-sm">
-      {d.nextPaymentOn ? (
-        <li className="flex flex-wrap items-center gap-x-3">
-          <span className="w-24 shrink-0 text-muted-foreground"><LocalDate value={d.nextPaymentOn} style="short" /></span>
-          <span>{t('loans_overview.next_payment')}</span>
-          <span className="ml-auto tabular-nums">{amount(d.nextPaymentTotal)}</span>
-        </li>
-      ) : null}
-      {d.events.slice(0, UPCOMING_SHOWN).map((e) => (
-        <li key={`${e.date}/${e.loanId}/${e.code}`} className="flex items-start gap-x-3">
-          <span className="w-24 shrink-0 text-muted-foreground"><LocalDate value={e.date} style="short" /></span>
-          <Link to="/loans/$id" params={{ id: e.loanId }} className="hover:underline">
-            {e.code === 'realestate.phase_ends'
-              ? t('loans_overview.event_phase_ends', { n: e.phaseSeq, name: nameOf(e.loanId), amount: amount(e.monthlyPaymentAfter) })
-              : t('loans_overview.event_loan_ends', { name: nameOf(e.loanId), amount: amount(e.monthlyPaymentAfter) })}
-          </Link>
-        </li>
-      ))}
-      {d.events.length === 0 ? <li className="text-muted-foreground">{t('loans_overview.upcoming_none')}</li> : null}
-    </ul>
+    <SectionCard title={t('loans_overview.upcoming')}>
+      {!d.nextPaymentOn && d.events.length === 0 ? <p className="text-sm text-muted-foreground">{t('loans_overview.upcoming_none')}</p> : (
+        <GroupedList>
+          {d.nextPaymentOn ? (
+            <GroupedRow link={{ to: '/loans', search: (prev: RootSearch & LoansSearch) => ({ ...prev, tab: 'list' as const }) }} tile={tile}
+              title={t('loans_overview.next_payment')} detail={<LocalDate value={d.nextPaymentOn} style="short" />} trailing={amount(d.nextPaymentTotal)} />
+          ) : null}
+          {d.events.slice(0, UPCOMING_SHOWN).map((e) => (
+            <GroupedRow key={`${e.date}/${e.loanId}/${e.code}`} link={{ to: '/loans/$id', params: { id: e.loanId } }} tile={tile}
+              title={e.code === 'realestate.phase_ends'
+                ? t('loans_overview.event_phase_ends', { n: e.phaseSeq, name: nameOf(e.loanId), amount: amount(e.monthlyPaymentAfter) })
+                : t('loans_overview.event_loan_ends', { name: nameOf(e.loanId), amount: amount(e.monthlyPaymentAfter) })}
+              detail={<LocalDate value={e.date} style="short" />} />
+          ))}
+        </GroupedList>
+      )}
+    </SectionCard>
   );
 }

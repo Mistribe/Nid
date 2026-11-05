@@ -662,7 +662,12 @@
     "loading": "Chargement des propositions",
     "unknown_summary": "{{kind}} — {{target}}",
     "tab": { "pending": "En attente", "approved": "Approuvées", "rejected": "Rejetées" },
-    "empty": { "pending": "Rien à valider pour l’instant.", "approved": "Aucune proposition approuvée.", "rejected": "Aucune proposition rejetée." },
+    "empty": { "pending": "Rien à valider pour l’instant", "approved": "Aucune proposition approuvée", "rejected": "Aucune proposition rejetée" },
+    "empty_body": {
+      "pending": "Ce que l’assistant ou un import propose arrive ici : vous l’approuvez ou le rejetez avant qu’il ne change vos données.",
+      "approved": "Les propositions que vous approuvez restent ici, avec le relevé d’où elles viennent.",
+      "rejected": "Les propositions que vous rejetez restent ici : rien n’a été changé."
+    },
     "no_source": "Sans relevé",
     "badge": "{{count}} en attente",
     "line_one": "1 proposition à valider",

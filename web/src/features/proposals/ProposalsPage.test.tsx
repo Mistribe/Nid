@@ -59,13 +59,16 @@ describe('À valider', () => {
     serve({ approved: [proposal({ status: 'approved', decidedAt: '2026-10-16T09:00:00+00:00' })] });
     const { user } = await renderApp('/proposals');
 
-    expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
+    // The EmptyState of every module (issue 349): the À valider tile on the nest, a title, a sentence.
+    const empty = await screen.findByRole('heading', { level: 2, name: 'Rien à valider pour l’instant' });
+    expect(empty.closest('section')!.querySelector('[data-tile="primary"]')).not.toBeNull();
+    expect(screen.getByText(/arrive ici : vous l’approuvez ou le rejetez/)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'En attente' })).toHaveAttribute('aria-selected', 'true');
     await user.click(screen.getByRole('tab', { name: 'Approuvées' }));
     expect((await inTable()).getByText(/Approuvée le/)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Approuvées' })).toHaveAttribute('aria-selected', 'true');
     await user.click(screen.getByRole('tab', { name: 'Rejetées' }));
-    expect(await screen.findByText('Aucune proposition rejetée.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Aucune proposition rejetée' })).toBeInTheDocument();
   });
 
   // Review Focus 1.
@@ -116,7 +119,7 @@ describe('À valider', () => {
     serve({ pending: [] });
     await renderApp('/proposals');
 
-    expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Rien à valider pour l’instant' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     expect(within(nav).getByRole('link', { name: 'À valider' })).toBeInTheDocument();
     expect(within(nav).queryByText('0')).toBeNull();

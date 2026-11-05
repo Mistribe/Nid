@@ -8,6 +8,7 @@ import { monthLabel } from '../../income/expected/months';
 import { toPlot } from '../../investments/chart/plot';
 import type { LoansOverview } from '../api';
 import { loanColor } from './colors';
+import { SectionCard } from '@/components/page/SectionCard';
 import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/loans';
 
@@ -46,11 +47,9 @@ export function BalanceChart({ d }: { d: LoansOverview }) {
       ? t('loans_overview.event_short_phase_ends', { n: e.phaseSeq, name: nameOf(e.loanId) })
       : t('loans_overview.event_short_loan_ends', { name: nameOf(e.loanId) }),
   }));
+  // Its own card, so « Afficher en tableau » sits in the card's header as on every other chart (dataviz.md §6).
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
-      </div>
+    <SectionCard title={t('loans_overview.chart_title')} className="space-y-3" actions={<TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />}>
       {asTable ? <MonthsTable d={d} /> : <Chart d={d} />}
       {events.length > 0 ? (
         <ul className="space-y-1 text-sm text-muted-foreground">
@@ -63,7 +62,7 @@ export function BalanceChart({ d }: { d: LoansOverview }) {
       ) : null}
       {missing ? <p className="text-sm text-muted-foreground">{t('loans_overview.months_missing')}</p> : null}
       {d.convertedIsEstimate ? <p className="text-sm text-muted-foreground">{t('loans_overview.estimate')}</p> : null}
-    </div>
+    </SectionCard>
   );
 }
 

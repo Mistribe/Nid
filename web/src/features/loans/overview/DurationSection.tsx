@@ -7,10 +7,9 @@ import type { LoansSearch, RootSearch } from '@/app/router';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { Segmented } from '@/components/form/Segmented';
-import { Section } from '@/components/page/Section';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { personColor } from '@/features/dashboard/colors';
+import { personColor, personSlot } from '@/features/dashboard/colors';
 import { percent as sharePercent } from '@/features/dashboard/format';
 import { toPlot } from '@/features/investments/chart/plot';
 import { PERSONS } from '@/features/subscriptions/api';
@@ -262,28 +261,28 @@ function SpansTable({ d }: { d: LoansOverview }) {
   );
 }
 
-/** D5: one card a person, in the dashboard's colour rank (adults by creation, then dependents), as the owner chips. */
+/** D5: each person's share in one card, as on Placements and Biens, in the dashboard's colour for the person (the owner chips'). */
 function Persons({ d }: { d: LoansOverview }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const { nameOf } = useLoanNames(d);
   const people = $api.useQuery('get', PERSONS);
   if (d.byPerson.length === 0) return null;
-  const ranked = [...(people.data ?? [])].sort((a, b) => Number(a.kind !== 'adult') - Number(b.kind !== 'adult'));
   return (
-    <Section title={t('loans_overview.persons_title')}>
-      <div className="grid gap-4 md:grid-cols-2">
+    <SectionCard title={t('loans_overview.persons_title')}>
+      <ul className="grid gap-x-8 gap-y-4 md:grid-cols-2">
         {d.byPerson.map((share, index) => {
-          const slot = ranked.findIndex((p) => p.id === share.personId);
-          const name = ranked[slot]?.displayName ?? t('loans_overview.unknown_person', { n: index + 1 });
+          const name = people.data?.find((p) => p.id === share.personId)?.displayName ?? t('loans_overview.unknown_person', { n: index + 1 });
           return (
-            <SectionCard key={share.personId} title={name} level={3}
-              note={<span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: personColor(slot) }} />}>
-              <dl className="grid grid-cols-2 gap-2 text-sm">
-                <div><dt className="text-muted-foreground">{t('loans_overview.person_balance')}</dt><dd className="font-semibold tabular-nums">{text(share.balance)}</dd></div>
-                <div><dt className="text-muted-foreground">{t('loans_overview.person_monthly')}</dt><dd className="font-semibold tabular-nums">{text(share.monthlyPayment)}</dd></div>
+            <li key={share.personId} className="space-y-2 text-sm">
+              <div className="flex items-center gap-2 font-medium">
+                <span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: personColor(personSlot(people.data, share.personId)) }} />{name}
+              </div>
+              <dl className="grid grid-cols-2 gap-2">
+                <div><dt className="text-label text-muted-foreground">{t('loans_overview.person_balance')}</dt><dd className="font-semibold tabular-nums">{text(share.balance)}</dd></div>
+                <div><dt className="text-label text-muted-foreground">{t('loans_overview.person_monthly')}</dt><dd className="font-semibold tabular-nums">{text(share.monthlyPayment)}</dd></div>
               </dl>
-              <ul className="mt-3 space-y-1 text-sm">
+              <ul className="space-y-1">
                 {share.loans.map((l) => (
                   <li key={l.loanId} className="flex justify-between gap-2">
                     <span>{nameOf(l.loanId)} · {t('owner.pct', { value: sharePercent(l.shareBp / 100) })}</span>
@@ -291,11 +290,11 @@ function Persons({ d }: { d: LoansOverview }) {
                   </li>
                 ))}
               </ul>
-            </SectionCard>
+            </li>
           );
         })}
-      </div>
-    </Section>
+      </ul>
+    </SectionCard>
   );
 }
 

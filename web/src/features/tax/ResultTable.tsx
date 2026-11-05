@@ -67,7 +67,7 @@ export function ResultTable({ columns, label, declarants = true }: {
   const folded = groups.flatMap((g) => g.rows).filter(zero).length;
 
   return (
-    <div className="max-w-3xl space-y-2">
+    <div className="space-y-2">
       <Table aria-label={label}>
         <TableHeader>
           <TableRow>
@@ -162,7 +162,7 @@ export function DeclarantTable({ result, detail = [], adults = [], children }: {
   const columnKey = (d: TaxResult['declarants'][number], i: number) => d.person ?? `${i}`;
   const paymentsOf = (d: TaxResult['declarants'][number]) => (d.person && adults.some((a) => a.id === d.person) ? detail.filter((p) => p.person === d.person) : []);
   return (
-    <div className="max-w-3xl">
+    <div>
       <Table aria-label={t('tax.declarant.title')}>
         <TableHeader>
           <TableRow>

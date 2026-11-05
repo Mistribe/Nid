@@ -91,12 +91,14 @@ describe('Crédits › durée et mensualité du foyer', () => {
     await renderApp('/loans');
 
     const section = await region('Part de chacun');
-    const alice = await within(section).findByRole('region', { name: 'Alice' });
-    expect(within(alice).getByRole('heading', { level: 3, name: 'Alice' })).toBeInTheDocument();
+    // One card, as on Placements and Biens: a list item a person, not a card each.
+    expect(within(section).queryAllByRole('region')).toEqual([]);
+    const alice = (await within(section).findByText('Alice')).closest('li')!;
+    expect(alice.querySelector<HTMLElement>('[aria-hidden="true"]')!.style.background).toBe('var(--chart-5)');
     expect(alice).toHaveTextContent('Restant dû102 782,12 €');
     expect(alice).toHaveTextContent('Mensualité1 579,96 €');
     expect(alice).toHaveTextContent('Prêt maison · 50 %96 782,12 €');
     expect(alice).toHaveTextContent('Prêt auto · 100 %6 000,00 €');
-    expect(within(section).getByRole('region', { name: 'Bob' })).toHaveTextContent('Prêt maison · 50 %96 782,11 €');
+    expect(within(section).getByText('Bob').closest('li')).toHaveTextContent('Prêt maison · 50 %96 782,11 €');
   });
 });

@@ -2,10 +2,12 @@ import { Link } from '@tanstack/react-router';
 import { lazy, Suspense, useId, type ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { tileOf } from '@/app/nav';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money, type MoneyValue } from '@/components/Money';
+import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
@@ -176,29 +178,25 @@ function Watch({ d, scope }: { d: Overview; scope: Scope }) {
   const byId = new Map((items.data?.items ?? []).map((item) => [item.id, item]));
   const date = (iso?: string | null) => (iso ? formatLocalDate(iso) : '—');
 
+  // design-system.md §6.1, « Listes groupées »: a row per alert, as on Placements and Biens; an alert says so after its sentence.
   return (
-    <ul className="space-y-2 text-sm">
+    <GroupedList>
       {d.watch.map((w) => {
         const first = byId.get(w.itemIds[0] ?? '');
         const provider = first?.provider?.name ?? t('overview.unknown_provider');
-        const link = w.code === 'subscriptions.same_provider'
-          ? <Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'list', group: 'provider' })} className="hover:underline">
-              {t('overview.watch_same_provider', { count: w.itemIds.length, provider, amount: text(w.amount) })}
-            </Link>
-          : <Link to="/subscriptions/$id" params={{ id: w.itemIds[0] ?? '' }} className="hover:underline">
-              {t(w.code === ALERT ? 'overview.watch_ends' : 'overview.watch_long_cycle',
-                { name: first?.displayName ?? t('overview.unknown_item'), date: date(w.date), amount: text(w.amount) })}
-            </Link>;
+        const alert = w.code === ALERT;
         return (
-          <li key={`${w.code}/${w.itemIds.join()}`} className="flex items-start gap-2">
-            <span data-tone={w.code === ALERT ? 'alert' : 'info'} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 text-xs">
-              <span aria-hidden="true" className={cn('size-2 rounded-full', w.code === ALERT ? 'bg-status-warning' : 'bg-primary')} />
-              {t(w.code === ALERT ? 'overview.tone_alert' : 'overview.tone_info')}
-            </span>
-            {link}
-          </li>
+          <GroupedRow key={`${w.code}/${w.itemIds.join()}`} tile={tileOf('/subscriptions')}
+            link={w.code === 'subscriptions.same_provider'
+              ? { to: '/subscriptions', search: { scope: scope === 'me' ? 'me' as const : undefined, tab: 'list', group: 'provider' as const } }
+              : { to: '/subscriptions/$id', params: { id: w.itemIds[0] ?? '' } }}
+            title={w.code === 'subscriptions.same_provider'
+              ? t('overview.watch_same_provider', { count: w.itemIds.length, provider, amount: text(w.amount) })
+              : t(alert ? 'overview.watch_ends' : 'overview.watch_long_cycle',
+                { name: first?.displayName ?? t('overview.unknown_item'), date: date(w.date), amount: text(w.amount) })}
+            trailing={alert ? <span data-tone="alert" className="text-xs font-medium text-status-warning-text">{t('overview.tone_alert')}</span> : undefined} />
         );
       })}
-    </ul>
+    </GroupedList>
   );
 }

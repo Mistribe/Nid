@@ -835,6 +835,9 @@ describe('TaxPage, page grammar', () => {
     expect(within(panel).getByRole('img', { name: /^Reste / })).toBeInTheDocument();
     expect(within(panel).getByText(/Prime : pas de brut renseigné/)).toBeInTheDocument();
     follows(screen.getByRole('tablist'), screen.getByText('Net fiscal'));
+    // Issue 355: the tables fill the column, as every other table; no reading width of their own.
+    const capped = (el: Element | null): boolean => !!el && el !== panel && (/\bmax-w-(?!full\b)/.test(el.className) || capped(el.parentElement));
+    expect(within(panel).getAllByRole('table').filter(capped).map((table) => table.getAttribute('aria-label'))).toEqual([]);
   });
 
   it('a past year shows its notices, with the year row and no tabs', async () => {

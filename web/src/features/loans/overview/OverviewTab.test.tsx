@@ -75,8 +75,11 @@ describe('Crédits › vue d’ensemble', () => {
     const upcoming = await region('À venir');
     expect(upcoming).toHaveTextContent('Prochaine échéance');
     expect(upcoming).toHaveTextContent('2 159,92 €');
-    expect(within(upcoming).getByRole('link', { name: /^Dernière échéance de « Prêt auto » : la mensualité du foyer passe à 1\s159,92\s€$/ }))
+    // A grouped list, as the dashboard's agenda: one link a row, the event then its date.
+    expect(within(upcoming).getByRole('link', { name: /^Dernière échéance de « Prêt auto » : la mensualité du foyer passe à 1\s159,92\s€ \S/ }))
       .toHaveAttribute('href', `/loans/${CAR}`);
+    expect(within(upcoming).getByRole('link', { name: /^Prochaine échéance/ })).toHaveAttribute('href', expect.stringContaining('tab=list'));
+    expect(upcoming.querySelectorAll('li[data-tile]').length).toBeGreaterThan(1);
     // Under the chart too, as a date and what ends.
     expect(await region('Capital restant dû jusqu’à la fin')).toHaveTextContent('janvier 2027 : fin de « Prêt auto »');
   });

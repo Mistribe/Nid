@@ -145,7 +145,7 @@ describe('Une proposition', () => {
 
     await waitFor(() => expect(sent.reject).toEqual({ version: 1, note: 'Doublon' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/proposals'));
-    expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Rien à valider pour l’instant' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     await waitFor(() => expect(within(nav).getByRole('link', { name: /À valider/ })).not.toHaveAccessibleName(/en attente/));
     await waitFor(() => expect(toasts()).toHaveTextContent('Proposition rejetée.'));

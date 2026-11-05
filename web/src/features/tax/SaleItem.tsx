@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { StatLine } from '@/components/page/StatLine';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Terms } from '../loans/detail/Terms';
 import { PERSONS } from '../subscriptions/api';
 import type { SaleItemView } from './api';
 import { ZERO, percentText } from './format';
@@ -16,6 +18,7 @@ export function SaleItem({ item, carriedForward, canWrite = false }: { item: Sal
   const { t } = useTranslation();
   const { property, envelope } = item;
   const figures = [
+    [item.valueOn ? t('tax.sale.value_label_on', { date: formatLocalDate(item.valueOn, 'short') }) : t('tax.sale.value_label'), item.value],
     [t('tax.sale.gain'), item.gain], [t('tax.sale.income_tax'), item.incomeTax], [t('tax.sale.social_tax'), item.socialTax],
     ...(item.surtax && !ZERO.test(item.surtax) ? [[t('tax.sale.surtax'), item.surtax]] : []), [t('tax.sale.net'), item.net],
   ].flatMap(([label, amount]) => (amount ? [{ label: label!, value: eur(amount) }] : []));
@@ -23,18 +26,18 @@ export function SaleItem({ item, carriedForward, canWrite = false }: { item: Sal
     property && [t('tax.sale.cost_price'), eur(property.costPrice)],
     property && [t('tax.sale.fees'), feesMethodText(t, property.feesMethod)],
     property && [t('tax.sale.works'), worksMethodText(t, property.worksMethod)],
-    item.yearsHeld != null && [t('tax.sale.years_held'), item.yearsHeld],
+    item.yearsHeld != null && [t('tax.sale.years_held'), String(item.yearsHeld)],
     property && [t('tax.sale.allowances'), t('tax.sale.allowances_value', { income: percentText(t, property.incomeAllowancePct), social: percentText(t, property.socialAllowancePct) })],
     envelope && [t('tax.sale.remaining_capital'), eur(envelope.remainingCapital)],
     envelope?.gainBefore2017 && !ZERO.test(envelope.gainBefore2017) && [t('tax.sale.gain_before_2017'), eur(envelope.gainBefore2017)],
     envelope?.gainReduced && !ZERO.test(envelope.gainReduced) && [t('tax.sale.gain_reduced'), eur(envelope.gainReduced)],
     envelope?.gainFull && !ZERO.test(envelope.gainFull) && [t('tax.sale.gain_full'), eur(envelope.gainFull)],
     envelope?.allowanceUsed && !ZERO.test(envelope.allowanceUsed) && [t('tax.sale.allowance_used'), eur(envelope.allowanceUsed)],
-  ].filter((d): d is [string, string | number] => Array.isArray(d));
+  ].filter((d): d is [string, string] => Array.isArray(d));
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">{[t('tax.sale.estimate'), ...saleFlagsText(t, item), carriedForward ? t('tax.sale.carried') : null].filter(Boolean).join(' · ')}</p>
+      <p className="text-sm text-muted-foreground first-letter:uppercase">{[t('tax.sale.estimate'), ...saleFlagsText(t, item), carriedForward ? t('tax.sale.carried') : null].filter(Boolean).join(' · ')}</p>
       {item.finding ? (
         <p className="text-sm">
           {saleFindingText(t, item.finding)}
@@ -44,21 +47,10 @@ export function SaleItem({ item, carriedForward, canWrite = false }: { item: Sal
         </p>
       ) : (
         <>
-          <p className="text-sm font-medium">{saleStatusText(t, item.status)}</p>
-          {item.value ? (
-            <p className="text-sm">{item.valueOn ? t('tax.sale.value_on', { amount: eur(item.value), date: formatLocalDate(item.valueOn, 'short') }) : t('tax.sale.value', { amount: eur(item.value) })}</p>
-          ) : null}
+          {/* The figures as every StatLine, the details as the label/amount rows of « Coût réel » (design-system.md §6.1). */}
+          <Badge variant="secondary">{saleStatusText(t, item.status)}</Badge>
           {figures.length ? <StatLine items={figures} /> : null}
-          {details.length ? (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-              {details.map(([label, value]) => (
-                <div key={label} className="col-span-2 grid grid-cols-subgrid">
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="tabular-nums">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
+          {details.length ? <Terms items={details} /> : null}
           {property && property.owners.length > 1 ? <Owners owners={property.owners} /> : null}
         </>
       )}

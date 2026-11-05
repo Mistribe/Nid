@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { ProposalsSearch, RootSearch } from '@/app/router';
+import { EmptyState } from '@/components/EmptyState';
 import { DetailTabs } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { SortableTable } from '@/components/page/SortableTable';
@@ -36,7 +37,7 @@ export function ProposalsPage() {
     <div>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
-      {answer.data && answer.data.items.length === 0 ? <p>{t(`proposals.empty.${status}`)}</p> : null}
+      {answer.data && answer.data.items.length === 0 ? <EmptyState module="/proposals" title={t(`proposals.empty.${status}`)} body={t(`proposals.empty_body.${status}`)} /> : null}
       {answer.data && answer.data.items.length > 0 ? (
         <SortableTable<ProposalView> caption={t('proposals.list')} rows={answer.data.items} rowKey={(p) => p.id}
           initialSort={{ id: 'received', desc: true }}

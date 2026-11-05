@@ -150,14 +150,16 @@ describe('Abonnements › vue d’ensemble', () => {
     const { container } = await renderApp('/subscriptions');
 
     const watch = await region('À surveiller');
-    const ends = await within(watch).findByRole('link', { name: 'Spotify se termine le 31 décembre 2026 sans renouvellement' });
+    // A grouped list, as on Placements and Biens: a link a row; an alert says so after its sentence.
+    const ends = await within(watch).findByRole('link', { name: 'Spotify se termine le 31 décembre 2026 sans renouvellement Alerte' });
     expect(ends).toHaveAttribute('href', `/subscriptions/${SPOTIFY}`);
     expect(within(watch).getByRole('link', { name: /^Amazon Prime : 69,90\s€ prélevés le 15 novembre 2026$/ }))
       .toHaveAttribute('href', `/subscriptions/${PRIME}`);
     expect(within(watch).getByRole('link', { name: /^2 abonnements chez Anthropic : 40,00\s€ par mois$/ }))
       .toHaveAttribute('href', '/subscriptions?tab=list&group=provider');
-    expect(within(watch).getAllByRole('listitem').map((li) => li.querySelector('[data-tone]')?.textContent))
-      .toEqual(['Alerte', 'Info', 'Info']);
+    expect(within(watch).getAllByRole('listitem').map((li) => li.querySelector('[data-tone]')?.textContent ?? null))
+      .toEqual(['Alerte', null, null]);
+    expect(watch.querySelectorAll('li[data-tile]')).toHaveLength(3);
     await expectNoAxeViolations(container);
   });
 
@@ -171,7 +173,7 @@ describe('Abonnements › vue d’ensemble', () => {
 
     const watch = await region('À surveiller');
     // A 5xx is retried twice with backoff before the error shows (createQueryClient).
-    expect(await within(watch).findByRole('link', { name: 'Un abonnement se termine le 31 décembre 2026 sans renouvellement' }))
+    expect(await within(watch).findByRole('link', { name: 'Un abonnement se termine le 31 décembre 2026 sans renouvellement Alerte' }))
       .toHaveAttribute('href', `/subscriptions/${SPOTIFY}`);
     expect(within(watch).getByRole('link', { name: /^2 abonnements chez un même fournisseur : 40,00\s€ par mois$/ })).toBeInTheDocument();
   });

@@ -147,7 +147,8 @@ describe('PropertyDetailPage', () => {
 
     const section = await screen.findByRole('region', { name: 'Crédits liés' });
     const [home, chf, usd] = within(section).getAllByRole('listitem');
-    expect(within(home!).getByRole('link', { name: 'Prêt maison' })).toHaveAttribute('href', `/loans/${LOAN}`);
+    // A grouped list: the row is one link, its name first.
+    expect(within(home!).getByRole('link', { name: /^Prêt maison / })).toHaveAttribute('href', `/loans/${LOAN}`);
     expect(home).toHaveTextContent('Capital restant dû 193 564,23 €');
     expect(home).not.toHaveTextContent('soit');
     expect(chf).toHaveTextContent('Capital restant dû 50 000,00 CHF');

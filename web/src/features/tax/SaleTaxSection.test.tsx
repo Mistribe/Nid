@@ -43,8 +43,10 @@ describe('SaleTaxSection', () => {
     const { container } = await renderApp(`/properties/${PROPERTY}`);
 
     const s = within(await section());
-    expect(s.getByText('estimation')).toBeInTheDocument();
-    expect(s.getByText('Imposable')).toBeInTheDocument();
+    expect(s.getByText('estimation')).toHaveClass('first-letter:uppercase');
+    // Issue 352: the status is a badge, the value a figure of the StatLine, the details the rows of « Coût réel ».
+    expect(s.getByText('Imposable')).toHaveAttribute('data-slot', 'badge');
+    expect(s.getByText(/^Valeur/, { selector: 'dt' }).closest('dl')).toBe(s.getByText('Net', { selector: 'dt' }).closest('dl'));
     expect(s.getByText('Plus-value', { selector: 'dt' }).nextElementSibling).toHaveTextContent('9 000,00 €');
     expect(s.getByText('Impôt', { selector: 'dt' }).nextElementSibling).toHaveTextContent('1 710,00 €');
     expect(s.getByText('Prélèvements sociaux', { selector: 'dt' }).nextElementSibling).toHaveTextContent('1 548,00 €');
