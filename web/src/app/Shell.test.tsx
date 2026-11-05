@@ -11,7 +11,7 @@ import { adminCapabilities, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
-// The menu is a lazy chunk: its real trigger (aria-expanded) replaces the plain name once loaded.
+// The menu is a lazy chunk: its real trigger (aria-expanded) replaces the plain initials once loaded.
 const openerReady = () => screen.findByRole('button', { name: 'Alice Dev', expanded: false });
 const sidebar = () => screen.getByRole('navigation', { name: 'Navigation principale' });
 const tabs = () => screen.getByRole('navigation', { name: 'Onglets' });
@@ -111,12 +111,12 @@ describe('the shell', () => {
     expect(groups).toEqual([['Accueil', 'Routine', 'À valider', 'Documents'], ['Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations'], ['Revenus', 'Impôts', 'Abonnements', 'Garde']]);
   });
 
-  it('shows the API version when hovering the web version', async () => {
+  it('shows the API version beside the web version, in the person menu', async () => {
     server.use(http.get('*/api/v1/platform/version', () => HttpResponse.json({ version: '1.2.3' })));
     const { user } = await renderApp('/subscriptions');
-    await user.hover(await within(sidebar()).findByRole('button', { name: 'Version dev' }));
-    // The tooltip opens on « API : … » while the version is still loading.
-    await waitFor(async () => expect(await screen.findByRole('tooltip')).toHaveTextContent('API : 1.2.3'));
+    await user.click(await openerReady());
+    // The line reads « API : … » while the version is still loading.
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: /^Version dev/ })).toHaveTextContent('API : 1.2.3'));
   });
 
   it('lists what changed in each version on a click on the version', async () => {
@@ -125,7 +125,8 @@ describe('the shell', () => {
       { version: '0.18.0', date: '2026-10-20', changes: [{ en: 'The tax page keeps its scroll.', fr: 'La page Impôts garde sa position.' }] },
     ])));
     const { user } = await renderApp('/subscriptions');
-    await user.click(await within(sidebar()).findByRole('button', { name: 'Version dev' }));
+    await user.click(await openerReady());
+    await user.click(await screen.findByRole('menuitem', { name: /^Version dev/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Nouveautés' });
     expect(await within(dialog).findAllByRole('heading', { level: 3 })).toHaveLength(2);
     expect(within(dialog).getAllByRole('heading', { level: 3 })[0]).toHaveTextContent('Version 0.19.0');
@@ -140,7 +141,8 @@ describe('the shell', () => {
   it('says there is nothing to show without a changelog (a dev server)', async () => {
     server.use(http.get('*/changelog.json', () => new HttpResponse('<!doctype html>', { headers: { 'Content-Type': 'text/html' } })));
     const { user } = await renderApp('/subscriptions');
-    await user.click(await within(sidebar()).findByRole('button', { name: 'Version dev' }));
+    await user.click(await openerReady());
+    await user.click(await screen.findByRole('menuitem', { name: /^Version dev/ }));
     expect(await screen.findByText('Aucune nouveauté à afficher.')).toBeInTheDocument();
   });
 
@@ -148,7 +150,23 @@ describe('the shell', () => {
     const { user } = await renderApp('/subscriptions');
     await user.click(await openerReady());
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Import', 'Export', 'Sécurité', 'Réglages', 'Se déconnecter']);
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Import', 'Export', 'Sécurité', 'Réglages', 'Se déconnecter', 'Version devAPI : …']);
+    // The name heads the menu.
+    expect(menu.firstElementChild).toHaveTextContent('Alice Dev');
+  });
+
+  // Issue 374: the menu sat at the sidebar's foot, a bare initials disc on the rail and nowhere on a phone.
+  it('ends the top bar with the person menu, the sidebar with its toggle only', async () => {
+    const { user, container } = await renderApp('/subscriptions');
+    const row = container.querySelector<HTMLElement>('[data-pane="toolbar"] > div')!;
+    const opener = await openerReady();
+    expect(opener).toHaveTextContent('AD');
+    expect(row.lastElementChild!.lastElementChild).toBe(opener);
+    expect(within(sidebar()).queryByRole('button', { name: 'Alice Dev' })).not.toBeInTheDocument();
+    expect(within(sidebar()).queryByText(/^Version/)).not.toBeInTheDocument();
+    opener.focus();
+    await user.keyboard('{Enter}');
+    expect(await screen.findByRole('menu')).toBeInTheDocument();
   });
 
   it('adds Administration to the person menu for an admin', async () => {

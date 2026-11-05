@@ -15,14 +15,12 @@ import { TopBarTrail } from './TopBarTrail';
 import { TrailProvider } from '@/components/page/trail';
 import { section, TAB_ORDER, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
-import { initials, useSidebar } from './sidebar';
+import { AVATAR, initials, useSidebar } from './sidebar';
 
-// The menu's Radix code stays out of the initial bundle (200 kB budget); the name shows meanwhile.
+// The menu's Radix code stays out of the initial bundle (200 kB budget); the initials show meanwhile.
 const PersonMenu = lazy(() => import('./PersonMenu').then((m) => ({ default: m.PersonMenu })));
-const VersionInfo = lazy(() => import('./VersionInfo').then((m) => ({ default: m.VersionInfo })));
 // The rail's tooltips load with the first rail (200 kB budget); the bare link shows meanwhile.
 const RailTip = lazy(() => import('./RailTip').then((m) => ({ default: m.RailTip })));
-const VERSION = import.meta.env.VITE_NID_VERSION ?? 'dev';
 // cmdk and the dialog load on the first ⌘K (200 kB budget).
 // sonner loads after the shell (200 kB budget); a toast fired before it mounts is replayed when it does.
 const Toaster = lazy(() => import('@/components/ui/sonner').then((m) => ({ default: m.Toaster })));
@@ -122,20 +120,8 @@ export function Shell() {
               </div>
             ))}
           </div>
-          <div className={`shrink-0 border-t ${rail ? 'p-0.5' : 'p-3'}`}>
-            <Suspense fallback={rail
-              ? <p className="mx-auto flex size-10 items-center justify-center"><span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-foreground">{initials(session.person.name)}</span><span className="sr-only">{session.person.name}</span></p>
-              : <p className="truncate px-3 py-2 text-sm font-medium">{session.person.name}</p>}>
-              <PersonMenu rail={rail} />
-            </Suspense>
-            {rail ? null : (
-              <Suspense fallback={<p className="px-3 pt-1 text-xs text-muted-foreground">{t('app.version', { version: VERSION })}</p>}>
-                <VersionInfo version={VERSION} />
-              </Suspense>
-            )}
-          </div>
           {/* Bottom left in both states, 14 px from the window's edge: folding or unfolding leaves it under the pointer (issue 373). */}
-          <div className="shrink-0 p-1.5">
+          <div className="shrink-0 border-t p-1.5">
             <button type="button" onClick={toggle} aria-label={toggleLabel} aria-keyshortcuts={MAC ? 'Meta+B' : 'Control+B'} title={`${toggleLabel} (${toggleShortcut})`}
               className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
               {rail ? <PanelLeftOpen aria-hidden="true" className="size-4.5" /> : <PanelLeftClose aria-hidden="true" className="size-4.5" />}
@@ -150,7 +136,7 @@ export function Shell() {
           {/* The fade sits behind the pane: a mask or backdrop-filter on an ancestor would cut the pane's own blur. */}
           <div aria-hidden="true" data-fade className="scroll-edge pointer-events-none absolute inset-0 -z-10" />
           <div data-pane="toolbar" className="glass rounded-pane pointer-events-auto">
-            <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-1 px-3 md:gap-4 md:px-4">
+            <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-1 px-3 max-[22rem]:gap-0.5 max-[22rem]:px-1.5 md:gap-4 md:px-4">
               <TopBarTrail />
               <button type="button" onClick={() => setPalette(true)} aria-label={t('command.open')} aria-keyshortcuts={MAC ? 'Meta+K' : 'Control+K'}
                 className="flex h-9 items-center gap-2 rounded-md border bg-card px-2.5 text-sm text-muted-foreground shadow-xs transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:w-full md:min-w-9 md:max-w-sm md:overflow-hidden md:shrink-[10]">
@@ -158,7 +144,13 @@ export function Shell() {
                 <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{t('command.open')}</span>
                 <kbd aria-hidden="true" className="hidden rounded border bg-muted px-1.5 font-sans text-xs whitespace-nowrap xl:inline">{t(MAC ? 'command.shortcut_mac' : 'command.shortcut')}</kbd>
               </button>
-              <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2"><NotificationBell /><ScopeSwitch /><Guides /></div>
+              {/* A 320 px phone: the person menu and « Foyer / Moi » fit on the row with 2 px between the icons (issue 374). */}
+              <div className="ml-auto flex shrink-0 items-center gap-1 max-[22rem]:gap-0.5 md:gap-2">
+                <NotificationBell /><ScopeSwitch /><Guides />
+                <Suspense fallback={<p className="flex size-9 items-center justify-center"><span aria-hidden="true" className={AVATAR}>{initials(session.person.name)}</span><span className="sr-only">{session.person.name}</span></p>}>
+                  <PersonMenu />
+                </Suspense>
+              </div>
             </div>
           </div>
         </header>

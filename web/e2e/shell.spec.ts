@@ -10,6 +10,11 @@ for (const width of [320, 375, 414]) {
     for (const name of ['Accueil', 'Placements', 'Abonnements', 'Routine', 'Plus'])
       await expect(tabs.getByRole('link', { name })).toBeInViewport({ ratio: 1 });
     expect(await alice.evaluate('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
+    // Issue 374: the person menu sits in the top bar on a phone too, on the bar's one row.
+    const avatar = alice.getByRole('banner').getByRole('button', { name: 'Alice Dev' });
+    await expect(avatar).toBeInViewport({ ratio: 1 });
+    const [box, bar] = await Promise.all([avatar.boundingBox(), alice.locator('[data-pane="toolbar"]').boundingBox()]);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(bar!.x + bar!.width);
 
     await tabs.getByRole('link', { name: 'Plus' }).click();
     await expect(alice.getByRole('heading', { name: 'Plus', level: 1 })).toBeVisible();
@@ -18,14 +23,15 @@ for (const width of [320, 375, 414]) {
   });
 }
 
-// Account pages live in the person menu at the bottom of the sidebar (a lazy chunk: wait for it to open).
+// Account pages live in the person menu at the end of the top bar (a lazy chunk: wait for it to open).
 test('the person menu leads to the account pages', async ({ browser }) => {
   const alice = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await signIn(alice, 'alice', '/dashboard');
   for (const [item, heading] of [['Sécurité', 'Sécurité'], ['Import', 'Import']]) {
-    const trigger = alice.locator('[aria-haspopup="menu"]').filter({ hasText: 'Alice Dev' });
+    const trigger = alice.getByRole('banner').getByRole('button', { name: 'Alice Dev' });
     await trigger.click();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    // The open menu is modal: the bar behind it, trigger included, leaves the accessibility tree.
+    await expect(alice.getByRole('menu')).toBeVisible();
     await alice.getByRole('menuitem', { name: item }).click();
     await expect(alice.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
   }

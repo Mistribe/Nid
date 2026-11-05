@@ -7,7 +7,10 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { useTrail, type Crumb } from '@/components/page/trail';
 import { moduleOf } from './nav';
 
-/** The page's trail in the top bar; on a phone, « ‹ Parent » or the wordmark. No ellipsis: no page has more than two ancestors. */
+/**
+ * The page's trail in the top bar; on a phone, « ‹ Parent » or the wordmark, its mark alone under 400 px where the person menu,
+ * the bell and « Foyer / Moi » leave it no room (issue 374). No ellipsis: no page has more than two ancestors.
+ */
 export function TopBarTrail() {
   const { t } = useTranslation();
   const trail = useTrail();
@@ -41,7 +44,7 @@ export function TopBarTrail() {
       </Breadcrumb>
       {parent
         ? <Link to={parent.to} params={parent.params} search={parent.search} activeOptions={{ exact: true }} aria-label={t('common.back_to', { label: parent.label })} className="flex h-9 min-w-0 items-center gap-0.5 rounded-md px-1 text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 pointer-coarse:h-11 md:hidden"><ChevronLeft aria-hidden="true" className="size-4 shrink-0" /><span aria-hidden="true" className="truncate">{parent.label}</span></Link>
-        : <Wordmark className="h-6 md:hidden" />}
+        : <Wordmark className="h-6 md:hidden max-[25rem]:[&_[data-wordmark]]:hidden" />}
     </>
   );
 }

@@ -1,40 +1,54 @@
+import { lazy, Suspense, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ChevronsUpDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { visibleNav } from './nav';
 import { useSession } from './Providers';
-import { initials } from './sidebar';
+import { AVATAR, initials } from './sidebar';
 
-/** The account pages and « Se déconnecter », behind the signed-in person's name (their initials on the rail). */
-export function PersonMenu({ rail = false }: { rail?: boolean }) {
+const Changelog = lazy(() => import('./Changelog').then((m) => ({ default: m.Changelog })));
+const VERSION = import.meta.env.VITE_NID_VERSION ?? 'dev';
+
+/**
+ * The signed-in person's menu, at the end of the top bar (screens.md §1): their name, the account pages, « Se déconnecter »,
+ * then the version; opening it asks the API for its own, a click on the version lists what changed in each.
+ */
+export function PersonMenu() {
   const { t } = useTranslation();
+  const { $api } = useApi();
   const { session, capabilities, signOut } = useSession();
+  const [open, setOpen] = useState(false);
+  const [changelog, setChangelog] = useState(false);
+  const api = $api.useQuery('get', '/api/v1/platform/version', {}, { enabled: open, staleTime: Infinity });
   const name = session.person.name;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {rail ? (
-          <Button variant="ghost" size="icon" aria-label={name} className="mx-auto flex size-10 rounded-full">
-            <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-foreground">{initials(name)}</span>
+    <>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={name} className="rounded-full">
+            <span aria-hidden="true" className={AVATAR}>{initials(name)}</span>
           </Button>
-        ) : (
-          <Button variant="ghost" className="w-full justify-between">
-            <span className="truncate">{name}</span>
-            <ChevronsUpDown aria-hidden="true" className="size-4 shrink-0" />
-          </Button>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={rail ? 'end' : 'start'} side={rail ? 'right' : 'bottom'} sideOffset={rail ? 16 : 4} className="w-56">
-        {visibleNav(capabilities).filter((item) => item.group === 'account').map((item) => (
-          <DropdownMenuItem key={item.to} asChild>
-            <Link to={item.to}><item.icon aria-hidden="true" />{t(item.label)}</Link>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="truncate">{name}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {visibleNav(capabilities).filter((item) => item.group === 'account').map((item) => (
+            <DropdownMenuItem key={item.to} asChild>
+              <Link to={item.to}><item.icon aria-hidden="true" />{t(item.label)}</Link>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => void signOut()}>{t('shell.sign_out')}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem aria-haspopup="dialog" onSelect={() => setChangelog(true)} className="justify-between text-xs text-muted-foreground">
+            <span>{t('app.version', { version: VERSION })}</span>
+            <span>{t('app.api_version', { version: api.data?.version ?? (api.isError ? t('app.api_version_unknown') : '…') })}</span>
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void signOut()}>{t('shell.sign_out')}</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {changelog ? <Suspense fallback={null}><Changelog onClose={() => setChangelog(false)} /></Suspense> : null}
+    </>
   );
 }

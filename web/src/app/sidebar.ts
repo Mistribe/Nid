@@ -38,5 +38,8 @@ export function useSidebar() {
   return { rail, toggle };
 }
 
-/** « Alice Dev » → « AD »: the rail's stand-in for the signed-in person's name. */
+/** « Alice Dev » → « AD »: the top bar's stand-in for the signed-in person's name. */
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
+
+/** The initials disc; the Shell draws it too while the menu's chunk loads. */
+export const AVATAR = 'flex size-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-foreground';
