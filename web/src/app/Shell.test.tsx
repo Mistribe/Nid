@@ -411,6 +411,17 @@ describe('the shell', () => {
       expect(localStorage.getItem('nid.sidebar')).toBe('full');
     });
 
+    // Issue 373: in the top bar's centred row it drifted away from the rail on a wide screen.
+    it('keeps its toggle at the sidebar foot, in both states', async () => {
+      const { user, container } = await renderApp('/subscriptions');
+      const toolbar = container.querySelector<HTMLElement>('[data-pane="toolbar"]')!;
+      expect(within(toolbar).queryByRole('button', { name: 'Replier le menu' })).not.toBeInTheDocument();
+      const button = within(sidebar()).getByRole('button', { name: 'Replier le menu' });
+      expect(sidebar().querySelector('[data-pane="sidebar"]')!.lastElementChild).toContainElement(button);
+      await user.click(button);
+      expect(sidebar().querySelector('[data-pane="sidebar"]')!.lastElementChild).toContainElement(within(sidebar()).getByRole('button', { name: 'Déplier le menu' }));
+    });
+
     it('toggles with Ctrl B', async () => {
       const { user } = await renderApp('/subscriptions');
       await user.keyboard('{Control>}b{/Control}');

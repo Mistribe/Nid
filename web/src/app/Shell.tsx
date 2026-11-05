@@ -134,6 +134,13 @@ export function Shell() {
               </Suspense>
             )}
           </div>
+          {/* Bottom left in both states, 14 px from the window's edge: folding or unfolding leaves it under the pointer (issue 373). */}
+          <div className="shrink-0 p-1.5">
+            <button type="button" onClick={toggle} aria-label={toggleLabel} aria-keyshortcuts={MAC ? 'Meta+B' : 'Control+B'} title={`${toggleLabel} (${toggleShortcut})`}
+              className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
+              {rail ? <PanelLeftOpen aria-hidden="true" className="size-4.5" /> : <PanelLeftClose aria-hidden="true" className="size-4.5" />}
+            </button>
+          </div>
         </div>
       </nav>
       <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
@@ -144,10 +151,6 @@ export function Shell() {
           <div aria-hidden="true" data-fade className="scroll-edge pointer-events-none absolute inset-0 -z-10" />
           <div data-pane="toolbar" className="glass rounded-pane pointer-events-auto">
             <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-1 px-3 md:gap-4 md:px-4">
-              <button type="button" onClick={toggle} aria-label={toggleLabel} aria-controls="sidebar" aria-keyshortcuts={MAC ? 'Meta+B' : 'Control+B'} title={`${toggleLabel} (${toggleShortcut})`}
-                className="hidden size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:-ml-2 md:inline-flex">
-                {rail ? <PanelLeftOpen aria-hidden="true" className="size-4.5" /> : <PanelLeftClose aria-hidden="true" className="size-4.5" />}
-              </button>
               <TopBarTrail />
               <button type="button" onClick={() => setPalette(true)} aria-label={t('command.open')} aria-keyshortcuts={MAC ? 'Meta+K' : 'Control+K'}
                 className="flex h-9 items-center gap-2 rounded-md border bg-card px-2.5 text-sm text-muted-foreground shadow-xs transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:w-full md:min-w-9 md:max-w-sm md:overflow-hidden md:shrink-[10]">
