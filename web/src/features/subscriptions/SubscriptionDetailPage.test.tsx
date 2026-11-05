@@ -386,4 +386,26 @@ describe('Abonnements › détail', () => {
     const section = await screen.findByRole('tabpanel', { name: 'Documents' });
     expect((await within(section).findAllByText('Facture janvier')).length).toBeGreaterThan(0);
   });
+
+  it('Shows_what_it_has_spent_and_what_its_end_has_saved', async () => {
+    serveDetail(detail({
+      spent: { since: '2014-03-02', total: eur('1250.00'), last12Months: eur('120.00'), partial: true },
+      saved: { since: '2025-04-01', total: eur('90.00'), lastPrice: eur('15.00'), every: { count: 1, unit: 'month' }, partial: false },
+    }));
+    await renderApp(`/subscriptions/${SUB}`);
+
+    expect((await screen.findByText('Dépensé depuis le 2 mars 2014')).nextElementSibling).toHaveTextContent(/^1\s250,00\s€\s*partiel$/);
+    expect(screen.getByText('dont 12 derniers mois').nextElementSibling).toHaveTextContent('120,00 €');
+    expect(screen.getByText('Économisé depuis le 1 avril 2025').nextElementSibling)
+      .toHaveTextContent(/^90,00\s€au dernier prix : 15,00\s€ pour 1 mois$/);
+  });
+
+  it('Shows_no_spent_before_the_first_charge', async () => {
+    serveDetail(detail());
+    await renderApp(`/subscriptions/${SUB}`);
+
+    await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+    expect(screen.queryByText(/Dépensé depuis/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Économisé depuis/)).not.toBeInTheDocument();
+  });
 });

@@ -27,7 +27,7 @@ public sealed record ProjectionResult(
 /// <summary>Property purchase scenario spec §4: pure, everything is read and converted beforehand.</summary>
 public static partial class ScenarioCalculator
 {
-    public const decimal HcsfRatio = 0.35m;
+    public const decimal HcsfRatio = DebtRatio.Ceiling;
     public const decimal RentInRatio = 0.7m;
 
     private static YearMonth Of(LocalDate d) => new(d.Year, d.Month);
@@ -68,8 +68,8 @@ public static partial class ScenarioCalculator
         var income = facts.MonthlyIncome ?? 0m;
         var hasIncome = income > 0m;
         var ratioBase = income + (rental ? RentInRatio * doc.ExpectedRent : 0m);
-        decimal? before = hasIncome ? loansToday / income : null;
-        decimal? after = hasIncome ? (loansRetained + newPayment) / ratioBase : null;
+        var before = DebtRatio.Of(loansToday, income);
+        var after = hasIncome ? DebtRatio.Of(loansRetained + newPayment, ratioBase) : null;
 
         var leftBefore = income - facts.Subscriptions - loansToday - facts.PropertyCosts;
         var leftAfter = leftBefore - newPayment - doc.MonthlyCharges + Rent(doc) - facts.MonthlyTaxIncrease + (loansToday - loansRetained);

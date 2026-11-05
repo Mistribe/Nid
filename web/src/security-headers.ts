@@ -7,6 +7,7 @@ export const contentSecurityPolicy = [
   "font-src 'self'",
   "connect-src 'self'",
   "worker-src 'self'",
+  "frame-src 'self'", // the browser's own viewer shows a document's PDF in the page (issue #413)
   "manifest-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'none'",

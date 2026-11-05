@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { messageFor } from '../subscriptions/fieldErrors';
+import { directionOf } from '../investments/format';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -137,6 +138,11 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
             <p className="text-sm text-muted-foreground">
               {line.lastValue && line.lastAsOf ? t('routine.last', { amount: formatMoney(line.lastValue), date: formatLocalDate(line.lastAsOf) }) : t('routine.no_last')}
             </p>
+            {line.ceilingRoom ? (
+              <p className="text-sm text-muted-foreground">
+                {directionOf(line.ceilingRoom.amount) === 'flat' ? t('routine.ceiling_reached') : t('routine.ceiling_room', { amount: formatMoney(line.ceilingRoom) })}
+              </p>
+            ) : null}
           </div>
           {banked[line.id] ? (
             <p className="text-sm text-muted-foreground md:pb-2">{t('banks.routine_balance', { date: dayMonth(banked[line.id]!) })}</p>

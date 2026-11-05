@@ -5,7 +5,7 @@ describe('security headers', () => {
   it('is the reference policy of frontend/architecture.md §9, word for word', () =>
     expect(contentSecurityPolicy).toBe(
       "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
-      "font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; " +
+      "font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src 'self'; manifest-src 'self'; frame-ancestors 'none'; " +
       "base-uri 'none'; form-action 'self'; object-src 'none'"));
 
   it('sends the other headers with or without the CSP', () => {

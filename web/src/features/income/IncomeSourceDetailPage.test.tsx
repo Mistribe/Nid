@@ -68,6 +68,10 @@ describe('IncomeSourceDetailPage', () => {
     expect(text(figures)).toContain('Prochain versement1 novembre 2026 · 2 300,00 €Salaire de base');
     expect(text(figures)).toContain('+4,5 %');
     expect(text(figures)).toContain('depuis le début : +11,4 %');
+    expect(text(figures)).toContain('soit +2,5 % après inflation');
+    expect(text(figures)).toContain('Inflation supposée : 2 % par an, selon vos hypothèses de projection');
+    // No tax estimate in use: no withholding line.
+    expect(text(figures)).not.toContain('Prélèvement à la source');
     expect(text(figures)).toContain(`Perçu en ${todayIso().slice(0, 4)}23 400,00 €dont 400,00 € d’exceptionnels`);
 
     const chart = screen.getByRole('region', { name: 'Évolution' });
@@ -106,6 +110,19 @@ describe('IncomeSourceDetailPage', () => {
     await waitFor(() => expect(seen).toContain('?period=3y'));
     await user.click(within(chart).getByRole('radio', { name: '12 mois' }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('period'));
+  });
+
+  it('sets the owner’s withholding rate against the real rate, with what it withholds too much each month', async () => {
+    serve(detail(), sourceOverview({
+      withholding: [{ person: 'p-alice', name: 'Alice', rate: 7.5, realRate: 3.1, monthlyGap: eur('480.00') }],
+    }));
+    await renderApp(`/income/${SALARY}`);
+
+    const figures = await screen.findByRole('region', { name: 'Chiffres clés' });
+    expect(await within(figures).findByText('Prélèvement à la source 7,5 % · taux réel estimé 3,1 %')).toBeInTheDocument();
+    expect(text(figures)).toContain('Alice : environ 480,00 € par mois prélevés en trop sur ses salaires, rendus après la déclaration');
+    expect(text(figures)).toContain('Estimation indicative');
+    expect(within(figures).getByRole('link', { name: 'Ajuster le taux de prélèvement' })).toHaveAttribute('href', '/tax?tab=withholding');
   });
 
   it('a raise appears in the timeline with its previous amount and percent', async () => {

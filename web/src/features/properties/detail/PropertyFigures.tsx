@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { StatLine } from '@/components/page/StatLine';
+import { monthLabel } from '@/features/income/expected/months';
 import { Terms } from '../../loans/detail/Terms';
 import { money, signedMoney } from '../../loans/format';
 import type { PropertyDetail } from '../api';
@@ -21,7 +22,7 @@ export function PropertyStats({ property }: { property: PropertyDetail }) {
   return (
     <StatLine items={[
       { label: t('property_detail.value'), value },
-      { label: t('property_detail.net_value'), value: f.netValue ? m(f.netValue) : unknown },
+      { label: t('property_detail.net_value'), value: f.netValue ? <>{m(f.netValue)}<NetValueTurn property={property} /></> : unknown },
       { label: t('property_detail.latent_gain'), value: f.latentGain ? signedMoney(property.currency, f.latentGain) : unknown },
       { label: t('property_detail.real_cost'), value: m(f.realCost) },
       ...(rent ? [
@@ -30,6 +31,21 @@ export function PropertyStats({ property }: { property: PropertyDetail }) {
         { label: t('property_rental.net_yield'), value: rent.net },
       ] : []),
     ]} />
+  );
+}
+
+/** Issue #406: since when a negative net value is so, and the month the server found it turns positive, the value held flat. */
+function NetValueTurn({ property }: { property: PropertyDetail }) {
+  const { t } = useTranslation();
+  const turn = property.figures.netValueTurn;
+  if (!turn) return null;
+  const [year, month] = (turn.positiveOn ?? '').split('-').map(Number);
+  return (
+    <span className="block text-sm font-normal text-muted-foreground">
+      {t('property_detail.net_negative_since', { date: formatLocalDate(turn.negativeSince) })}
+      {' · '}
+      {turn.positiveOn ? t('property_detail.net_positive_on', { month: monthLabel(year ?? 0, month ?? 1) }) : t('property_detail.net_positive_beyond')}
+    </span>
   );
 }
 

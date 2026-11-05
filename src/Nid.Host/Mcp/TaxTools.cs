@@ -19,6 +19,16 @@ public sealed class TaxTools
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetTaxEstimateQuery(year, SubscriptionEndpoints.ParseScope(scope)), ct);
 
+    /// <summary>Issue #410: the same view as <c>GET /api/v1/tax/changes</c>.</summary>
+    [McpServerTool(Name = "get_tax_changes", ReadOnly = true)]
+    [Description("What changed in the income tax since the year before, line by line (salaries, rental income and deficit, PER deduction, " +
+                 "shares, decote, reductions, credits, flat tax): last year's value (the notice's when fromNotice), this year's, and the indicative " +
+                 "effect of the change on this year's tax, sorted by effect; remainder is what the lines do not explain. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetTaxChanges(IServiceProvider services,
+        [Description("The revenue year compared with the year before (default: this year).")] int? year = null,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetTaxChangesQuery(year, SubscriptionEndpoints.ParseScope(scope)), ct);
+
     /// <summary>Rental 2044 spec §7: the same view as <c>GET /api/v1/tax/2044</c>.</summary>
     [McpServerTool(Name = "get_rental_2044", ReadOnly = true)]
     [Description("The 2044 rental income form of a revenue year: each rented property's lines (211 to 263, whole euros), the household's " +

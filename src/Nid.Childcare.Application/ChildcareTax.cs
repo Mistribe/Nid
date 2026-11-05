@@ -18,8 +18,8 @@ public sealed class ChildcareTax(IVisibleItems visible, IItemRegistry items, ICh
         {
             if (!registered.TryGetValue(arrangement.ItemId, out var item))
                 continue;
-            lines.AddRange((await store.StatementsOfAsync(arrangement.ItemId, ct))
-                .Where(s => s.Validated && s.Month.Year == year && s.Figures is not null)
+            // #411: the year summary sums the same statements (ChildcareYear.Counted).
+            lines.AddRange(ChildcareYear.Counted(await store.StatementsOfAsync(arrangement.ItemId, ct), year)
                 .Select(s => new TaxLine(TaxLineCodes.ChildcareOutsideHome, arrangement.ItemId, item.DisplayName, null, s.Figures!.TaxBase)));
         }
         return Result.Success<IReadOnlyList<TaxLine>>(lines);

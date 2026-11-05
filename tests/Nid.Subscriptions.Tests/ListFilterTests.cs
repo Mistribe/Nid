@@ -45,4 +45,13 @@ public class ListFilterTests
     [Fact]
     public void None_matches_everything()
         => Assert.True(ListFilter.None.Matches("x", null, Today.PlusDays(-9), Today));
+
+    [Fact]
+    public void Provider_keeps_that_providers_subscriptions_only()
+    {
+        var filter = new ListFilter(null, ListStatus.All, [], "p");
+        Assert.True(filter.Matches("x", Provider(), null, Today));
+        Assert.False(filter.Matches("x", null, null, Today));
+        Assert.False(new ListFilter(null, ListStatus.All, [], "q").Matches("x", Provider(), null, Today));
+    }
 }

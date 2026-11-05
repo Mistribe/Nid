@@ -19,6 +19,7 @@ import { KeyFigures, type Panel } from './KeyFigures';
 const NetWorthCurve = lazy(() => import('./NetWorthCurve').then((m) => ({ default: m.NetWorthCurve })));
 const ProjectionCurve = lazy(() => import('./ProjectionCurve').then((m) => ({ default: m.ProjectionCurve })));
 const GoalsCard = lazy(() => import('./GoalsCard').then((m) => ({ default: m.GoalsCard })));
+const MonthChanges = lazy(() => import('./MonthChanges').then((m) => ({ default: m.MonthChanges })));
 const FigurePanel = lazy(() => import('./panels/FigurePanel').then((m) => ({ default: m.FigurePanel })));
 
 /** Spec §4.1: the home page — figures the server computed for the Foyer / Moi scope. */
@@ -63,6 +64,7 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
         <Notice d={data} />
         <KeyFigures d={data} onOpen={open} scope={scope} />
       </div>
+      <div className="md:col-span-3 empty:hidden"><Suspense fallback={null}><MonthChanges scope={scope} /></Suspense></div>
       <div className="md:col-span-3"><HouseholdMonth d={data} scope={scope} /></div>
       <div className={data.envelopes > 0 ? 'md:order-2' : 'md:col-span-3'}><Upcoming d={data} /></div>
       {/* DOM order is the phone order (À venir before the curve); desktop: curve left, À venir right. */}

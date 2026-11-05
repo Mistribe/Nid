@@ -100,6 +100,23 @@ describe('Crédits › vue d’ensemble', () => {
     expect(screen.queryByRole('table', { name: 'Capital restant dû, mois par mois' })).not.toBeInTheDocument();
   });
 
+  it('shows the household debt ratio against the 35 % ceiling, with the room left', async () => {
+    serve(household({ debtRatio: { ratio: '0.2783', ceiling: '0.3500', payments: { amount: '2159.92', currency: 'EUR' },
+      income: { amount: '7761.00', currency: 'EUR' }, room: { amount: '556.43', currency: 'EUR' }, unknown: null } }));
+    await renderApp('/loans');
+
+    const figures = (await screen.findByText('Taux d’endettement', { selector: 'dt' })).closest('div')!;
+    expect(figures).toHaveTextContent('Taux d’endettement27,83 %seuil courant 35 %marge : 556,43 € / mois');
+  });
+
+  it('says the debt ratio is unknown without a declared income', async () => {
+    serve(household({ debtRatio: { ratio: null, ceiling: '0.3500', payments: { amount: '2159.92', currency: 'EUR' }, income: null, room: null, unknown: 'no_income' } }));
+    await renderApp('/loans');
+
+    const figures = (await screen.findByText('Taux d’endettement', { selector: 'dt' })).closest('div')!;
+    expect(figures).toHaveTextContent('Taux d’endettementInconnuaucun revenu déclaré');
+  });
+
   it('says « Inconnu » and why when a rate is missing, and that the curve skips those months', async () => {
     serve(household({
       balance: null, monthlyPayment: null,

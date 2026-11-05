@@ -17,7 +17,7 @@ public class NotificationTemplatesTests
         ("subscriptions.ends_without_renewal", "subscriptions"),
         ("tenancy_end", "properties"), ("property_cost_due", "properties"), ("rent_arrears", "properties"),
         ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),
-        ("valuation_stale", "properties"),
+        ("valuation_stale", "properties"), ("property_tax_due", "properties"),
         ("loan_phase_end", "loans"), ("loan_end", "loans"),
         ("holding_maturity", "investments"), ("stale_value", "investments"), ("uc_share_below_floor", "investments"),
         ("income_phase_end", "income"), ("income_gap_soon", "income"),
@@ -84,6 +84,35 @@ public class NotificationTemplatesTests
 
         Assert.Equal(("Un taux de change manque", "Devise USD", "/dashboard"), (rate.Title, rate.Body, rate.Link));
         Assert.Equal(("La routine du mois est à faire", "Des valeurs sont à mettre à jour", "/routine"), (routine.Title, routine.Body, routine.Link));
+    }
+
+    [Fact]
+    public void The_month_changes_name_directions_and_causes_never_an_amount()
+    {
+        var record = Record("month_changes", key: "month_changes:2027-03") with
+        {
+            ItemIds = [],
+            Params = new Dictionary<string, string> { ["income"] = "down", ["net_worth"] = "up|investments.value+|real_estate.paid_in+", ["commitments"] = "up|subscriptions+|unknown-" },
+        };
+
+        var rendered = NotificationTemplates.Render(record, KindOf("month_changes", "core"), new Dictionary<ItemId, string>());
+
+        Assert.Equal(("Ce qui a changé depuis le mois dernier",
+            "Patrimoine en hausse — valeur des placements ↑, capital remboursé ↑ · Engagements en hausse — abonnements ↑, autres ↓ · Revenus en baisse",
+            "/dashboard"), (rendered.Title, rendered.Body, rendered.Link));
+    }
+
+    [Fact]
+    public void The_tax_calendar_opens_the_tax_page_and_names_the_day()
+    {
+        RenderedNotification Tax(string kind, Dictionary<string, string> parameters) => NotificationTemplates.Render(
+            Record(kind, new LocalDate(2026, 5, 21), $"{kind}:2026-05-21") with { ItemIds = [], Params = parameters }, KindOf(kind, "core"), new Dictionary<ItemId, string>());
+
+        Assert.Equal(("La déclaration de revenus est à faire", "En ligne avant le 21 mai 2026", "/tax"),
+            (Tax("tax_filing_deadline", []).Title, Tax("tax_filing_deadline", []).Body, Tax("tax_filing_deadline", []).Link));
+        Assert.Equal("En ligne avant le 21 mai 2026, la date la plus tôt : département non renseigné",
+            Tax("tax_filing_deadline", new() { ["note"] = "department_unknown" }).Body);
+        Assert.Equal(("À partir du 21 mai 2026", "/tax"), (Tax("tax_balance_due", []).Body, Tax("tax_new_rate", []).Link));
     }
 
     [Fact]

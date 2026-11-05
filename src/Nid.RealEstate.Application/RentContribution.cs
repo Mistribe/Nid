@@ -39,6 +39,8 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
         return Result.Success<IReadOnlyList<RentSource>>(sources);
     }
 
+    public string Module => "rents";
+
     /// <summary>
     /// Home income: the monthly rent (without charges) of each open visible property whose lease covers today or starts later;
     /// such a property puts an entry (0 before its lease starts) in its currency's sum, as <c>IncomeSourcesIncome</c> does.
@@ -48,6 +50,7 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
         var found = await properties.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct);
         var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
         var sums = new Dictionary<Currency, decimal>();
+        var mine = new Dictionary<Currency, decimal>();
         var count = 0;
         foreach (var property in found)
         {
@@ -56,9 +59,11 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
                 continue;
             count++;
             var currency = LoanViews.CurrencyOf(item);
-            sums[currency] = sums.GetValueOrDefault(currency) + PropertyMath.MonthlyRentAt(tenancies, today);
+            var amount = PropertyMath.MonthlyRentAt(tenancies, today);
+            sums[currency] = sums.GetValueOrDefault(currency) + amount;
+            mine[currency] = mine.GetValueOrDefault(currency) + amount * item.ShareOf(reader) / 10_000m;
         }
-        return Result.Success(new IncomePart(count, sums));
+        return Result.Success(new IncomePart(count, sums, mine));
     }
 
     /// <summary>

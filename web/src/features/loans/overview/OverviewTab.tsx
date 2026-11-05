@@ -109,7 +109,25 @@ function Figures({ d }: { d: LoansOverview }) {
       { label: t('loans_overview.monthly'), value: <>{figure(d.monthlyPayment, (amount) => t('loans_overview.monthly_value', { amount }))}<Sub>{t('loans_overview.monthly_note')}</Sub></> },
       { label: t('loans_overview.cost'), value: <>{figure(d.costRemaining)}{d.costPaid ? <Sub>{t('loans_overview.cost_paid', { amount: formatMoney(d.costPaid) })}</Sub> : null}</> },
       ...(d.freeOn ? [{ label: t('loans_overview.free'), value: <>{monthText(d.freeOn.slice(0, 7))}<Sub>{left > 0 ? t('loans_overview.free_in', { span }) : t('loans_overview.free_this_month')}</Sub></> }] : []),
+      ...(d.debtRatio ? [{ label: t('loans_overview.debt_ratio'), value: <DebtRatio d={d} ratio={d.debtRatio} /> }] : []),
     ]} />
+  );
+}
+
+/** Issue #402: the server's ratio, the ceiling it is read against and the room left under it; « Inconnu » and why otherwise. */
+function DebtRatio({ d, ratio }: { d: LoansOverview; ratio: NonNullable<LoansOverview['debtRatio']> }) {
+  const { t } = useTranslation();
+  const figure = useFigure(d);
+  if (!ratio.ratio)
+    return ratio.unknown === 'no_income'
+      ? <span>{t('loans_overview.unknown')}<Sub>{t('loans_overview.debt_ratio_no_income')}</Sub></span>
+      : figure(null);
+  return (
+    <>
+      {percent(t, ratio.ratio)}
+      <Sub>{t('loans_overview.debt_ratio_ceiling', { ceiling: percent(t, ratio.ceiling) })}</Sub>
+      {ratio.room ? <Sub>{t('loans_overview.debt_ratio_room', { amount: formatMoney(ratio.room) })}</Sub> : null}
+    </>
   );
 }
 

@@ -18,6 +18,8 @@ public sealed class EnvelopesNetWorth(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdingStore,
     EnvelopeEstimator estimator, IHouseholdCalendar calendar) : INetWorthContribution
 {
+    public string Module => "investments";
+
     public async Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
         var ids = await visible.ForAsync(reader, scope, ct);
@@ -167,17 +169,41 @@ public sealed class EnvelopesNetWorth(
 
 /// <summary>
 /// Issue #34 §2.7: an open holding of a visible open envelope maturing in the window (60 days, a letter must reach the insurer to choose where
-/// the proceeds go). <c>Label</c> is the holding's name.
+/// the proceeds go). <c>Label</c> is the holding's name. Issue #400: with the tax dates of the open envelopes in the window.
 /// </summary>
-public sealed class InvestmentsUpcoming(IVisibleItems visible, IItemRegistry items, IHoldingStore holdings) : IUpcomingEvents
+public sealed class InvestmentsUpcoming(
+    IVisibleItems visible, IItemRegistry items, IHoldingStore holdings, IEnvelopeStore envelopes, EnvelopePerformance performance, IPersonRegistry persons)
+    : IUpcomingEvents
 {
     public async Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
     {
-        var maturing = await holdings.MaturingAsync((await visible.ForAsync(reader, scope, ct)).ToList(), today, until, ct);
+        var visibleIds = (await visible.ForAsync(reader, scope, ct)).ToList();
+        var events = await MaturitiesAsync(visibleIds, today, until, ct);
+
+        // Issue #400: the tax dates in the window, the label the milestone's code (« À surveiller » looks MilestoneDays ahead on its own).
+        var found = (await envelopes.FindManyAsync(visibleIds, ct))
+            .Where(e => e.Kind is EnvelopeKind.LifeInsurance or EnvelopeKind.Pea or EnvelopeKind.Per).ToList();
+        if (found.Count == 0) return Result.Success<IReadOnlyList<UpcomingEvent>>(events);
+        var facts = await performance.FactsManyAsync(found, await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct), ct)
+            ?? new Dictionary<ItemId, EnvelopePerformance.Facts>();
+        var people = await persons.ListAsync(ct);
+        foreach (var f in facts.Values.Where(f => f.Item.ArchivedAt is null))
+            if (EnvelopeInsights.Milestone(f, people, today) is { } m && m.On <= until)
+                events.Add(new UpcomingEvent(m.On, UpcomingKinds.TaxMilestone, f.Item.Id, "investments", f.Item.DisplayName, m.Code, null));
+        return Result.Success<IReadOnlyList<UpcomingEvent>>(events);
+    }
+
+    /// <summary>The maturities alone, without reading every envelope's facts for the tax dates: what the notification source keeps.</summary>
+    public async Task<IReadOnlyList<UpcomingEvent>> MaturitiesAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
+        => await MaturitiesAsync((await visible.ForAsync(reader, scope, ct)).ToList(), today, until, ct);
+
+    private async Task<List<UpcomingEvent>> MaturitiesAsync(IReadOnlyList<ItemId> visibleIds, LocalDate today, LocalDate until, CancellationToken ct)
+    {
+        var maturing = await holdings.MaturingAsync(visibleIds, today, until, ct);
         var accesses = await items.FindManyAsync(maturing.Select(m => m.Envelope).Distinct().ToList(), ct);
-        return Result.Success<IReadOnlyList<UpcomingEvent>>(maturing
+        return maturing
             .Where(m => accesses.ContainsKey(m.Envelope))
             .Select(m => new UpcomingEvent(m.MaturesOn, UpcomingKinds.HoldingMaturity, m.Envelope, "investments", accesses[m.Envelope].DisplayName, m.Name, null))
-            .ToList());
+            .ToList();
     }
 }

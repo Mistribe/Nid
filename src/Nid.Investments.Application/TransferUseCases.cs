@@ -37,7 +37,8 @@ public sealed record GetPeriodPerformanceQuery(ItemId ItemId, LocalDate From, Lo
 
 [RequestHandler<TransferCommand, Guid>]
 public sealed class TransferHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IFlows flows, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
+    IEnvelopeStore envelopes, IItemRegistry items, IFlows flows, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork,
+    EnvelopePerformance performance)
     : IRequestHandler<TransferCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(TransferCommand command, CancellationToken ct = default)
@@ -72,13 +73,18 @@ public sealed class TransferHandler(
         if (sourceZero!.Currency != destZero!.Currency)
             return Fail(InvestmentsCodes.TransferCurrencyMismatch, "Both envelopes of a transfer are in the same currency.");
 
+        // Issue #399: the destination's leg is a deposit, a livret's ceiling bounds it.
+        var deposit = new NewFlow(command.To, command.OccurredOn, FlowKind.Contribution, command.Amount, FlowCategories.Transfer, null, command.Note);
+        if ((await OpenEnvelope.AboveCeilingAsync(performance, deposit, null, ct)) is { } above)
+            return Result.Failure<Guid>(above);
+
         var transfer = Guid.CreateVersion7();
         var reference = $"transfer:{transfer}";
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var withdrawal = await flows.RecordAsync(new NewFlow(command.ItemId, command.OccurredOn, FlowKind.Withdrawal, command.Amount, FlowCategories.Transfer, reference, command.Note), ct);
         if (withdrawal.TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
-        var contribution = await flows.RecordAsync(new NewFlow(command.To, command.OccurredOn, FlowKind.Contribution, command.Amount, FlowCategories.Transfer, reference, command.Note), ct);
+        var contribution = await flows.RecordAsync(deposit with { ExternalRef = reference }, ct);
         if (contribution.TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
         await transaction.CommitAsync(ct);

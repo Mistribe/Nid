@@ -174,9 +174,10 @@ internal static class LoanViews
 
     public static string Wire(Visibility visibility) => visibility == Visibility.Private ? "private" : "shared";
 
-    private static LoanContractView ContractOf(StoredLoan loan)
+    /// <summary>The stored contract, or <paramref name="prepared"/> in its place (a simulation's, issues #403–#404), with the loan's version.</summary>
+    public static LoanContractView ContractOf(StoredLoan loan, LoanContract? prepared = null)
     {
-        var c = loan.Contract;
+        var c = prepared ?? loan.Contract;
         return new LoanContractView(Amount(c.Principal), c.DisbursedOn, c.FirstPaymentDate, c.TotalPayments, LoanWire.Of(c.Rounding),
             LoanWire.Of(c.FirstPeriod),
             c.Phases.OrderBy(p => p.Phase.Seq).Select(p => new LoanPhaseView(p.Phase.Seq, LoanWire.Of(p.Phase.Mode), Rate(p.Phase.AnnualRate),

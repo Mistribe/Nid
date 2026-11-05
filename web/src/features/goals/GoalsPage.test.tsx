@@ -124,6 +124,9 @@ describe('GoalsPage', () => {
     const { container } = await renderApp('/goals');
     expect(await screen.findByRole('heading', { name: 'Aucun objectif' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Nouvel objectif' })).toHaveLength(2);
+    // Issue #412: the emergency fund, kind and months chosen, next to the header's primary, not a second one.
+    const emergency = screen.getByRole('link', { name: 'Épargne de précaution (3 mois)' });
+    expect(emergency.getAttribute('href')).toMatch(/^\/goals\/new\?(?=.*kind=emergency_fund)(?=.*months=3)/);
     expectOnePrimary(container);
   });
 });

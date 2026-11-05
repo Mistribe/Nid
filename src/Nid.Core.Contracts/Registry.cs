@@ -21,6 +21,9 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
 {
     public IReadOnlyList<ItemOwnerView> OwnerViews() => Owners.Select(o => new ItemOwnerView(o.PersonId.Value, o.ShareBp)).ToList();
 
+    /// <summary>The person's share of the item in basis points, 0 when they own none of it.</summary>
+    public int ShareOf(PersonId person) => Owners.FirstOrDefault(o => o.PersonId == person)?.ShareBp ?? 0;
+
     /// <summary>#294: <see cref="ShareLevel.View"/> for a private item.</summary>
     public ShareLevel ShareLevel { get; init; }
 

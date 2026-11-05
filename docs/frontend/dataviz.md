@@ -27,6 +27,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Engagements mensuels | Barre empilée par catégorie | Catégorielle fixe |
 | Coût mensuel par libellé d'abonnement | Barres horizontales triées **et tableau** | Un seul ton : au-delà de 7 classes, pas de couleurs supplémentaires |
 | Abonnements, 12 mois : barres empilées | Barres empilées : mensuels puis annuels, étiquette des deux chaînes du serveur au-dessus des mois à annuels, tableau masqué | Catégories 1 et 2 |
+| Abonnements : coût par an | Barres empilées, une par année civile, l’à-venir de l’année en cours au-dessus en plus pâle (opacité 0,4), « Par libellé / Total », bascule en tableau | Total : slot 1 ; par libellé : créneau le plus proche de la couleur du libellé, à-venir en ton neutre |
 | Coûts réel et amorti | Paires de barres | 2 tons |
 | Couverture d'un abonnement | **Bande temporelle en SVG** | 5 catégories fixes, libellé direct sur chaque période |
 | Crédit : capital et intérêts par mois | Barres empilées | Capital primaire, intérêts gris neutre (#9E9E9E, comme Biens) |

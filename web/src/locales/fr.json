@@ -28,6 +28,8 @@
     "create_envelope": "Créer une enveloppe",
     "last": "{{amount}} au {{date}}",
     "no_last": "Pas encore de valeur",
+    "ceiling_room": "Plafond : encore {{amount}} versables",
+    "ceiling_reached": "Au plafond : plus de versement possible",
     "value": "Valeur de {{name}}",
     "contribution": "Versements du mois sur {{name}}",
     "skip": "Passer {{name}}",
@@ -172,6 +174,8 @@
     "notice_other": "{{count}} choses à faire",
     "notice_income_gap_one": "Renseigner la suite de {{count}} revenu",
     "notice_income_gap_other": "Renseigner la suite de {{count}} revenus",
+    "notice_expected_documents_one": "{{count}} document attendu",
+    "notice_expected_documents_other": "{{count}} documents attendus",
     "empty_title": "Bienvenue dans Nid",
     "empty_body": "Commencez par ajouter une enveloppe, un bien, un abonnement ou un revenu : les chiffres du foyer apparaîtront ici.",
     "add_envelope": "Ajouter une enveloppe",
@@ -303,9 +307,39 @@
       "valuation_due": "Estimation à refaire",
       "tenancy_end": "Fin du bail « {{label}} »",
       "holding_maturity": "Échéance de « {{label}} » : vérifier où ira le capital",
+      "tax_milestone": {
+        "life_insurance_8y": "8 ans du contrat : la fiscalité des retraits change",
+        "pea_5y": "5 ans du PEA : la fiscalité des retraits change",
+        "per_retirement": "Âge de la retraite : le PER peut être débloqué"
+      },
       "per_deadline": "PER : reste à verser avant le 31 décembre pour utiliser le plafond",
       "per_ceiling_expiring": "PER : minimum à verser avant le 31 décembre pour ne rien perdre",
-      "per_household": "Foyer (plafonds mutualisés)"
+      "per_household": "Foyer (plafonds mutualisés)",
+      "tax_filing_deadline": "Impôt : date limite de la déclaration en ligne",
+      "tax_department_unknown": "Date la plus tôt : renseignez le département dans le profil fiscal",
+      "tax_new_rate": "Impôt : le nouveau taux de prélèvement s’applique",
+      "tax_balance_due": "Impôt : prélèvement du solde",
+      "property_tax_due": "Taxe foncière à payer"
+    },
+    "changes": {
+      "title": "Depuis le mois dernier",
+      "since": "depuis le {{date}}",
+      "netWorth": "Patrimoine net",
+      "commitments": "Engagements / mois",
+      "income": "Revenus nets / mois",
+      "cause_line": "{{amount}} {{cause}}",
+      "cause": {
+        "investments": { "paid_in": "de versements sur les placements", "value": "sur la valeur des placements" },
+        "real_estate": { "paid_in": "de capital remboursé", "value": "sur l’immobilier" },
+        "subscriptions": "d’abonnements",
+        "loans": "de crédits",
+        "property_costs": "de charges des biens",
+        "tax": "d’impôts",
+        "childcare": "de garde d’enfants",
+        "income": "de sources de revenu",
+        "rents": "de loyers",
+        "other": "d’autres postes"
+      }
     }
   },
   "shell": { "sign_out": "Se déconnecter", "guide_help": "Guide de cette page" },
@@ -377,6 +411,9 @@
     "per_month": "Par mois",
     "per_year": "Par an",
     "cash_month": "Décaissé du mois",
+    "spent_total": "Dépensé au total",
+    "provider_filter": "Fournisseur : {{name}}",
+    "provider_clear": "Retirer le filtre {{name}}",
     "expand": "Déplier {{name}}"
   },
   "units": {
@@ -461,6 +498,7 @@
     "direction": { "up": "en hausse", "down": "en baisse", "flat": "stable" },
     "kind": { "checking": "Compte courant", "savings": "Livret", "pea": "PEA", "life_insurance": "Assurance-vie", "per": "PER", "brokerage": "Compte-titres", "tontine": "Tontine", "other": "Autre" },
     "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "manual": "À la demande" },
+    "regulated": { "none": "Aucun (livret bancaire)", "livret_a": "Livret A", "ldds": "LDDS", "lep": "LEP", "livret_jeune": "Livret jeune" },
     "flow_kind": { "contribution": "Versement", "withdrawal": "Retrait", "expense": "Frais", "income": "Revenu", "opening": "Versements antérieurs", "transfer": "Virement" },
     "flow_nature": { "dividend": "Dividende", "interest": "Intérêts", "distribution": "Distribution" }
   },
@@ -468,7 +506,9 @@
     "overview": {
       "period_label": "Période", "period_12m": "12 mois", "period_year": "Année", "period_3y": "3 ans",
       "person_label": "Personne", "person_all": "Tous", "kind_label": "Type", "kind_all": "Tous types", "kind_rent": "Loyers",
-      "per_month": "Revenu / mois", "over_1y": "sur 1 an", "total_year": "Total {{year}} (projeté)", "total_period": "Total sur la période",
+      "per_month": "Revenu / mois", "over_1y": "sur 1 an",
+      "real_change": "soit {{value}} % après inflation", "inflation": "Inflation supposée : {{value}} % par an, selon", "inflation_source": "vos hypothèses de projection",
+      "total_year": "Total {{year}} (projeté)", "total_period": "Total sur la période",
       "elapsed": "{{amount}} déjà perçus", "vs_previous": "Contre la période précédente", "last_3y": "Sur 3 ans", "yearly": "≈ {{amount}} / an",
       "pct": "{{value}} %", "up": "hausse", "down": "baisse", "no_history": "Pas assez d’historique pour ce chiffre.",
       "split": "Répartition des revenus", "one_off": "Exceptionnels", "other": "Autres",
@@ -609,6 +649,9 @@
     "latent_gain": "Plus-value latente",
     "linked_balance": "Capital restant dû des crédits",
     "net_value": "Valeur nette",
+    "net_negative_since": "Valeur nette négative depuis le {{date}}",
+    "net_positive_on": "positive vers {{month}}, à valeur constante",
+    "net_positive_beyond": "positive au-delà de la fin des crédits, à valeur constante",
     "real_cost": "Coût réel",
     "net_cost_of_rents": "Coût réel, loyers déduits",
     "real_cost_lines": "Détail du coût réel",

@@ -4,7 +4,7 @@ import { checkOwnership, ownershipShape, ownershipToWire, type OwnershipValues }
 import { CURRENCY, ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
 import { todayIso } from '../subscriptions/today';
 import { POSITIVE_AMOUNT, SIGNED_AMOUNT } from './entries/entries';
-import { CADENCES, KINDS } from './format';
+import { CADENCES, KINDS, REGULATED } from './format';
 import '@/locales/investments';
 import '@/locales/forms';
 
@@ -17,6 +17,7 @@ export function newEnvelopeSchema(t: TFunction) {
     institution: z.string().max(100, t('investments_form.institution_too_long')),
     accountHint: z.string().max(4, t('investments_form.account_hint_too_long')),
     valuationCadence: z.enum(CADENCES),
+    regulated: z.enum(REGULATED),
     ...ownershipShape(t),
     withOpening: z.boolean(),
     openingOn: z.string(),
@@ -44,7 +45,7 @@ export type NewEnvelopeValues = z.infer<ReturnType<typeof newEnvelopeSchema>> & 
 /** A server body path (1E2a design §2.1) to the field that owns it, for `useSubmitErrors`. */
 export const NEW_ENVELOPE_PATHS: Record<string, string> = {
   displayName: 'displayName', kind: 'kind', currency: 'currency', institution: 'institution', accountHint: 'accountHint',
-  valuationCadence: 'valuationCadence',
+  valuationCadence: 'valuationCadence', regulated: 'regulated',
   'opening.occurredOn': 'openingOn', 'opening.amount': 'openingAmount',
   'firstValuation.asOf': 'firstValueOn', 'firstValuation.amount': 'firstValueAmount',
 };
@@ -54,6 +55,7 @@ export function toCreateBody(v: NewEnvelopeValues) {
   return {
     displayName: v.displayName, kind: v.kind, currency: v.currency, valuationCadence: v.valuationCadence,
     institution: v.institution.trim() || undefined, accountHint: v.accountHint.trim() || undefined,
+    regulated: v.kind === 'savings' && v.regulated !== 'none' ? v.regulated : undefined,
     ...ownershipToWire(v),
     ...(v.withOpening ? { opening: { occurredOn: v.openingOn, amount: money(v.openingAmount) } } : {}),
     ...(v.withFirstValue ? { firstValuation: { asOf: v.firstValueOn, amount: money(v.firstValueAmount) } } : {}),

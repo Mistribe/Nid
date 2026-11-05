@@ -24,6 +24,11 @@ public sealed class DashboardTools
         [Description(Scope)] string? scope = null, [Description("'12m' (default), '3y' or 'all'.")] string? period = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetNetWorthHistoryQuery(SubscriptionEndpoints.ParseScope(scope), DashboardEndpoints.ParsePeriod(period)), ct);
 
+    [McpServerTool(Name = "get_month_changes", ReadOnly = true)]
+    [Description("What changed since a month ago: net worth, commitments and income, each with its change and its three largest causes. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetMonthChanges(IServiceProvider services, [Description(Scope)] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetMonthChangesQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+
     [McpServerTool(Name = "get_routine", ReadOnly = true)]
     [Description("The monthly routine for investments and income: what is left to record this month (envelope values, income to confirm). " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetRoutine(IServiceProvider services,

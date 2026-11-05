@@ -108,12 +108,57 @@ public class SourceOverviewEndpointTests(PostgresFixture fixture) : IClassFixtur
 
         var figures = overview.GetProperty("figures");
         Assert.Equal(JsonValueKind.Null, figures.GetProperty("change1y").ValueKind);
+        Assert.Equal(JsonValueKind.Null, figures.GetProperty("realChange1y").ValueKind);
         Assert.Equal(5.0m, figures.GetProperty("changeSinceStart").GetDecimal());
         var changes = overview.GetProperty("changes").EnumerateArray().ToList();
         Assert.Equal([("change", "2025-06-01"), ("start", "2025-01-01")],
             changes.Select(c => (c.GetProperty("kind").GetString(), c.GetProperty("on").GetString())));
         Assert.Equal((2000m, 2100m, 5.0m), (Number(changes[0].GetProperty("before")), Number(changes[0].GetProperty("after")),
             changes[0].GetProperty("percent").GetDecimal()));
+    }
+
+    [Fact]
+    public async Task The_change_over_one_year_is_also_given_after_the_households_inflation()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var assumptions = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/core/projection-assumptions"));
+        var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = assumptions.GetProperty("classRates"), inflation = "3", savingsClass = "cash", freedPaymentsToSavings = true,
+        });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var id = await NewSourceAsync(app, Phase("Salaire", "2024-01-01", "2000"));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phase-changes",
+            new { label = "Salaire", effectiveOn = "2025-06-01", netAmount = new { amount = "2100", currency = "EUR" } }));
+
+        var figures = (await OverviewAsync(app, id)).GetProperty("figures");
+
+        // 1.05 / 1.03 − 1 = 1.94 %.
+        Assert.Equal((5.0m, 1.9m, 3m), (figures.GetProperty("change1y").GetDecimal(), figures.GetProperty("realChange1y").GetDecimal(),
+            figures.GetProperty("inflation").GetDecimal()));
+    }
+
+    [Fact]
+    public async Task A_salary_shows_its_owners_withholding_against_the_real_rate_once_the_tax_estimate_is_used()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase("Salaire", "2025-01-01", "8000"));
+
+        // No tax profile: the household does not use the tax estimate.
+        Assert.Empty((await OverviewAsync(app, id)).GetProperty("withholding").EnumerateArray());
+
+        var profile = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new { childrenUnder6 = 0, donations = "1000" });
+        Assert.Equal(HttpStatusCode.OK, profile.StatusCode);
+        var withholding = (await OverviewAsync(app, id)).GetProperty("withholding").EnumerateArray().Single();
+        var estimate = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?year=2025&scope=household"));
+
+        Assert.Equal(app.AdultA.Value, withholding.GetProperty("person").GetGuid());
+        var rate = withholding.GetProperty("rate").GetDecimal();
+        Assert.Equal(decimal.Parse(estimate.GetProperty("result").GetProperty("withholding").GetProperty("rate").GetString()!,
+            System.Globalization.CultureInfo.InvariantCulture), rate);
+        // The donation's reduction is outside the rate: the household lends the State the difference until the declaration.
+        Assert.True(withholding.GetProperty("realRate").GetDecimal() < rate);
+        Assert.True(Number(withholding.GetProperty("monthlyGap")) > 0m);
     }
 
     [Fact]

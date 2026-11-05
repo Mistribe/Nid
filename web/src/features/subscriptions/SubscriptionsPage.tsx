@@ -1,6 +1,6 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { ChevronDownIcon } from 'lucide-react';
+import { ChevronDownIcon, XIcon } from 'lucide-react';
 import { lazy, Suspense, useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -33,9 +33,12 @@ type Group = components['schemas']['GroupView'];
 type GroupBy = NonNullable<SubscriptionsSearch['group']>;
 
 /** One line of the list: a subscription, or a group of several (its subtotal from the server, its subscriptions under it). */
-type Row = { key: string; name: string; subtitle?: string; items: Summary[]; monthly?: MoneyValue | null; annual?: MoneyValue | null; children?: Row[] };
+type Row = {
+  key: string; name: string; subtitle?: string; items: Summary[]; monthly?: MoneyValue | null; annual?: MoneyValue | null; spent?: MoneyValue | null;
+  children?: Row[];
+};
 
-const itemRow = (item: Summary, key = item.id, figures: Pick<Row, 'monthly' | 'annual'> = { monthly: item.amortizedCostConverted, annual: item.annualCostConverted }): Row =>
+const itemRow = (item: Summary, key = item.id, figures: Pick<Row, 'monthly' | 'annual' | 'spent'> = { monthly: item.amortizedCostConverted, annual: item.annualCostConverted, spent: item.spent?.total }): Row =>
   ({ key, name: item.displayName, items: [item], ...figures });
 
 /** Subscriptions dashboard design §3.3: a group of one reads as its subscription (with the group's figures), groups as the server sorts them. */
@@ -46,7 +49,7 @@ function rowsOf(data: ListResponse, nameOf: (g: Group) => string, groupBy: Group
     // Each child carries the figures the group counts: the person's share under a person, the full amount otherwise.
     const members = g.items.flatMap((gi) => {
       const item = byId.get(gi.id);
-      return item ? [{ item, figures: { monthly: gi.amortizedCostConverted, annual: gi.annualCostConverted } }] : [];
+      return item ? [{ item, figures: { monthly: gi.amortizedCostConverted, annual: gi.annualCostConverted, spent: gi.spentTotal } }] : [];
     });
     const items = members.map((m) => m.item);
     // A subscription shared by two persons sits under both: its key carries the group's.
@@ -56,7 +59,7 @@ function rowsOf(data: ListResponse, nameOf: (g: Group) => string, groupBy: Group
       return groupBy === 'person' ? { ...row, name: nameOf(g), subtitle: row.name } : row;
     }
     return {
-      key: g.key, name: nameOf(g), items, monthly: g.amortizedCostConverted, annual: g.annualCostConverted,
+      key: g.key, name: nameOf(g), items, monthly: g.amortizedCostConverted, annual: g.annualCostConverted, spent: g.spentTotal,
       children: members.map((m) => itemRow(m.item, `${g.key}/${m.item.id}`, m.figures)),
     };
   });
@@ -101,11 +104,14 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
   // Until the labels are read, the address is sent as it is; then an unknown key is dropped.
   const active = labelsOf(search.label).filter((key) => !labels.data || offered.some((label) => label.key === key));
   const answer = $api.useQuery('get', LIST, {
-    params: { query: { scope, status, group: groupBy, ...(search.q ? { q: search.q } : {}), ...(active.length > 0 ? { label: labelParam(active) } : {}) } },
+    params: { query: {
+      scope, status, group: groupBy, ...(search.q ? { q: search.q } : {}), ...(active.length > 0 ? { label: labelParam(active) } : {}),
+      ...(search.provider ? { provider: search.provider } : {}),
+    } },
   }, { placeholderData: keepPreviousData });
   const persons = $api.useQuery('get', PERSONS);
   // An empty answer with no filter of the person's: are there ended subscriptions, or none at all?
-  const bare = !search.q && active.length === 0 && !search.status;
+  const bare = !search.q && active.length === 0 && !search.status && !search.provider;
   const everything = $api.useQuery('get', LIST, { params: { query: { scope, status: 'all' } } },
     { enabled: bare && answer.data?.items.length === 0 });
 
@@ -182,6 +188,10 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
           ) : null}
         </div>
       ) : null}
+      {search.provider ? (
+        <ProviderChip name={data?.items.find((i) => i.provider?.key === search.provider)?.provider?.name ?? search.provider}
+          onClear={() => setSearch({ provider: undefined })} />
+      ) : null}
     </FilterRow>
   );
 
@@ -218,6 +228,8 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
         { id: 'next', header: t('lists.col.next_payment'), sort: (r) => nextOf(r) ?? expiryOf(r) ?? Number.NaN, cell: (r) => <Next row={r} /> },
         { id: 'monthly', header: t('subscriptions.per_month'), align: 'end', sort: (r) => amountKey(r.monthly?.amount), cell: (r) => <Amount value={r.monthly} /> },
         { id: 'annual', header: t('subscriptions.per_year'), align: 'end', sort: (r) => amountKey(r.annual?.amount), cell: (r) => <Amount value={r.annual} /> },
+        // #395: what a provider has cost since its first charge, ended subscriptions included under « Tous ».
+        ...(groupBy === 'provider' ? [{ id: 'spent', header: t('subscriptions.spent_total'), align: 'end' as const, sort: (r: Row) => amountKey(r.spent?.amount), cell: (r: Row) => <Amount value={r.spent} /> }] : []),
       ]}
       mobile={(r) => (
         <div className="flex items-center justify-between gap-2">
@@ -226,6 +238,17 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
         </div>
       )} />
   ));
+}
+
+/** #395: the provider the overview opened the list on, removable. */
+function ProviderChip({ name, onClear }: { name: string; onClear: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Button type="button" size="sm" variant="outline" aria-label={t('subscriptions.provider_clear', { name })} onClick={onClear}>
+      {t('subscriptions.provider_filter', { name })}
+      <XIcon aria-hidden="true" />
+    </Button>
+  );
 }
 
 /** The nearest next charge of the row's subscriptions: a date, chosen in the browser (no amount involved). */

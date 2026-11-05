@@ -24,17 +24,17 @@ type Row = { key: number; file: File; state?: 'done' | Problem };
  * Files linked to the item at once, sent one after the other as on the documents page, with one type. A lone file can carry
  * a date (past only); several go without. A sent file stays listed and is not sent again; a failed one goes again on « Déposer ».
  * However many files, the list alone scrolls: the type, the date and the buttons stay in view. A file already in Nid (#297) waits:
- * the existing document linked with the chosen type, or the file added anyway.
+ * the existing document linked with the chosen type, or the file added anyway. `targetKind` links to a person instead (#414: the tax notice).
  */
-export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
-  itemId: string; defaultRole: string; onClose: () => void; onDone: (message: string) => void;
+export function ItemUploadDialog({ itemId, targetKind = 'core.item', defaultRole, defaultDate = '', onClose, onDone }: {
+  itemId: string; targetKind?: string; defaultRole: string; defaultDate?: string; onClose: () => void; onDone: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { fetchClient } = useApi();
   const queryClient = useQueryClient();
   const [rows, setRows] = useState<Row[]>([]);
   const [role, setRole] = useState(defaultRole);
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(defaultDate);
   const [dateError, setDateError] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
   const next = useRef(0);
@@ -57,7 +57,7 @@ export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
     let failed = false;
     for (const row of queued) {
       try {
-        await uploadDocument(fetchClient, row.file, { targetKind: 'core.item', targetId: itemId, role, date: dated || undefined, warnDuplicate: 'true' });
+        await uploadDocument(fetchClient, row.file, { targetKind, targetId: itemId, role, date: dated || undefined, warnDuplicate: 'true' });
         update(row.key, 'done');
       } catch (error) {
         failed = true;
@@ -110,8 +110,8 @@ export function ItemUploadDialog({ itemId, defaultRole, onClose, onDone }: {
                       <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                       {duplicate ? (
                         <DuplicateNotice name={file.name} document={duplicate} keep={t('documents_page.upload.link_existing')} disabled={sending}
-                          onKeep={() => void settle(key, () => linkDocument(fetchClient, duplicate.id, 'core.item', itemId, role))}
-                          onAdd={() => void settle(key, () => uploadDocument(fetchClient, file, { targetKind: 'core.item', targetId: itemId, role, date: dated || undefined }))} />
+                          onKeep={() => void settle(key, () => linkDocument(fetchClient, duplicate.id, targetKind, itemId, role))}
+                          onAdd={() => void settle(key, () => uploadDocument(fetchClient, file, { targetKind, targetId: itemId, role, date: dated || undefined }))} />
                       ) : typeof state === 'object'
                         ? <p role="alert" className="min-w-0 flex-1 wrap-anywhere text-destructive">{t(`documents_page.upload.${refusal(state)}`, { name: file.name })}</p>
                         : (

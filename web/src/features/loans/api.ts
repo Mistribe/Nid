@@ -21,6 +21,10 @@ export type BalanceMonth = components['schemas']['BalanceMonthView'];
 export type LoanEvent = components['schemas']['LoanEventView'];
 export type LoansSimulation = components['schemas']['LoansSimulation'];
 export type SimulatedLoan = components['schemas']['SimulatedLoanView'];
+export type LoanContractView = components['schemas']['LoanContractView'];
+export type LoanRenegotiation = components['schemas']['LoanRenegotiationView'];
+export type RenegotiationSide = components['schemas']['RenegotiationSideView'];
+export type LoanInsuranceComparison = components['schemas']['LoanInsuranceComparisonView'];
 
 export const LOANS = '/api/v1/realestate/loans' as const;
 export const OVERVIEW = '/api/v1/realestate/loans/overview' as const;
@@ -33,6 +37,8 @@ export const FEE = '/api/v1/realestate/loans/{id}/fees/{feeId}' as const;
 export const REPAYMENTS = '/api/v1/realestate/loans/{id}/repayments' as const;
 export const REPAYMENT = '/api/v1/realestate/loans/{id}/repayments/{eventId}' as const;
 export const SIMULATIONS = '/api/v1/realestate/loans/{id}/simulations' as const;
+export const RENEGOTIATION = '/api/v1/realestate/loans/{id}/simulations/renegotiation' as const;
+export const INSURANCE_QUOTE = '/api/v1/realestate/loans/{id}/simulations/insurance' as const;
 export const BANK_SCHEDULE = '/api/v1/realestate/loans/{id}/bank-schedule' as const;
 export const BANK_PREVIEW = '/api/v1/realestate/loans/{id}/bank-schedule/preview' as const;
 

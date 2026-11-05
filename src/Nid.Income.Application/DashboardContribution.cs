@@ -13,12 +13,15 @@ namespace Nid.Income.Application;
 /// </summary>
 public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry items, ISourceStore sources, IPhaseStore phases) : IIncomeContribution
 {
+    public string Module => "income";
+
     public async Task<Result<IncomePart>> IncomeAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
         var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
         var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
         var accesses = await items.FindManyAsync(found.Select(s => s.ItemId).ToList(), ct); // batched reads spec §3
         var sums = new Dictionary<Currency, decimal>();
+        var mine = new Dictionary<Currency, decimal>();
         var count = 0;
         foreach (var source in found)
         {
@@ -26,9 +29,11 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
                 continue;
             count++;
             var currency = SourceCheck.CurrencyOf(item);
-            sums[currency] = sums.GetValueOrDefault(currency) + IncomeMath.MonthlyEquivalent(bySource[source.ItemId], today);
+            var amount = IncomeMath.MonthlyEquivalent(bySource[source.ItemId], today);
+            sums[currency] = sums.GetValueOrDefault(currency) + amount;
+            mine[currency] = mine.GetValueOrDefault(currency) + amount * item.ShareOf(reader) / 10_000m;
         }
-        return Result.Success(new IncomePart(count, sums));
+        return Result.Success(new IncomePart(count, sums, mine));
     }
 
     /// <summary>

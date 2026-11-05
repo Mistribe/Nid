@@ -51,29 +51,67 @@ public sealed class GoalReader(
         }
 
         // D5: the commitments, read once, only for an emergency fund.
-        var parts = new List<CommitmentsPart>();
+        IReadOnlyList<CommitmentsPart> parts = [];
         if (found.Any(f => f.Goal.Kind == GoalKinds.EmergencyFund))
-            foreach (var contribution in commitments)
-            {
-                var part = await contribution.CommitmentsAsync(reader, scope, today, ct);
-                if (part.TryGetFailure(out var failure))
-                    return Result.Failure<IReadOnlyList<GoalDetail>>(failure!);
-                part.TryGetValue(out var value);
-                parts.Add(value!);
-            }
+        {
+            var read = await PartsAsync(reader, scope, today, ct);
+            if (!read.TryGetValue(out var value))
+                return Result.Failure<IReadOnlyList<GoalDetail>>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+            parts = value!;
+        }
 
         // D6: everything in the reference currency, at today's rate, as the dashboard.
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = seen.Values.SelectMany(f => f.Value is { } v ? [v.Currency, f.NetContributions12Months.Currency] : new[] { f.NetContributions12Months.Currency })
             .Concat(parts.SelectMany(p => p.Amortized.Keys)).Where(c => c != reference).Distinct().ToList();
-        // The reference's own quote is needed too: rates are per USD (RateTable converts through it).
-        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
+        var rates = await RatesAsync(foreign, reference, today, ct);
 
         var sources = Sources(parts, reference, rates, today);
         return Result.Success<IReadOnlyList<GoalDetail>>(found
             .Select(f => Detail(f.Goal, f.Item, writable.Contains(f.Goal.ItemId), links[f.Goal.ItemId].ToList(), entries[f.Goal.ItemId].ToList(), seen, shares, sources, reference, rates, today))
             .ToList());
     }
+
+    /// <summary>
+    /// Issue #412, D5, D6: an emergency fund's target before it exists, <paramref name="months"/> of the commitments the reader sees in
+    /// the scope, computed as a goal's.
+    /// </summary>
+    public async Task<Result<EmergencyTargetView>> EmergencyTargetAsync(PersonId reader, VisibilityScope scope, int months, CancellationToken ct)
+    {
+        var today = await calendar.TodayAsync(ct);
+        var read = await PartsAsync(reader, scope, today, ct);
+        if (!read.TryGetValue(out var parts))
+            return Result.Failure<EmergencyTargetView>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var rates = await RatesAsync(parts!.SelectMany(p => p.Amortized.Keys).Where(c => c != reference).Distinct().ToList(), reference, today, ct);
+        var sources = Sources(parts!, reference, rates, today);
+        List<string> flags = sources.Count == 0 ? [GoalFlags.NoCommitments] : [];
+        if (sources.Any(s => s.View.MissingCurrency is not null))
+            flags.Add(GoalFlags.MissingCurrency);
+        var target = EmergencyTarget(months, sources);
+        return Result.Success(new EmergencyTargetView(months, target is { } t ? GoalMoneyView.Of(t, reference) : null, sources.Select(s => s.View).ToList(), flags));
+    }
+
+    private async Task<Result<IReadOnlyList<CommitmentsPart>>> PartsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    {
+        var parts = new List<CommitmentsPart>();
+        foreach (var contribution in commitments)
+        {
+            var part = await contribution.CommitmentsAsync(reader, scope, today, ct);
+            if (part.TryGetFailure(out var failure))
+                return Result.Failure<IReadOnlyList<CommitmentsPart>>(failure!);
+            part.TryGetValue(out var value);
+            parts.Add(value!);
+        }
+        return Result.Success<IReadOnlyList<CommitmentsPart>>(parts);
+    }
+
+    // The reference's own quote is needed too: rates are per USD (RateTable converts through it).
+    private async Task<RateTable> RatesAsync(IReadOnlyList<Currency> foreign, Currency reference, LocalDate today, CancellationToken ct)
+        => foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
+
+    private static decimal? EmergencyTarget(int months, IReadOnlyList<(GoalCommitmentView View, decimal Monthly)> sources)
+        => sources.Count == 0 ? null : Math.Round(GoalMath.EmergencyTarget(months, sources.Sum(s => s.Monthly)), 2, MidpointRounding.AwayFromZero);
 
     /// <summary>Spec §5 list order: past due, then behind, then by target date (none last), then by name.</summary>
     public static IReadOnlyList<GoalSummary> Ordered(IEnumerable<GoalSummary> goals)
@@ -129,9 +167,7 @@ public sealed class GoalReader(
                 flags.Add(GoalFlags.NoCommitments);
             else if (sources.Any(s => s.View.MissingCurrency is not null) && !flags.Contains(GoalFlags.MissingCurrency))
                 flags.Add(GoalFlags.MissingCurrency);
-            target = sources.Count == 0
-                ? null
-                : Math.Round(GoalMath.EmergencyTarget(goal.Months ?? GoalCheck.DefaultMonths, sources.Sum(s => s.Monthly)), 2, MidpointRounding.AwayFromZero);
+            target = EmergencyTarget(goal.Months ?? GoalCheck.DefaultMonths, sources);
         }
 
         var progress = entries.Select(e => new ProgressEntry(e.On, e.Amount)).ToList();

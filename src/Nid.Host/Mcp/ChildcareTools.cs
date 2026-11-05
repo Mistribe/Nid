@@ -38,4 +38,11 @@ public sealed class ChildcareTools
         => Month.Parse(month) is { Success: true } parsed
             ? McpCalls.RunAsync(services, () => new GetStatementQuery(new ItemId(id), parsed.Value), ct)
             : Task.FromResult(McpCalls.Error("month: a month is yyyy-MM."));
+
+    [McpServerTool(Name = "get_childcare_year", ReadOnly = true)]
+    [Description("An arrangement's year for the tax return, from its validated months (the figures the tax estimate uses): net pay, CMG, upkeep, "
+        + "meals, the cost kept for the childcare tax credit and the 2042 box to write it in (7GA, 7GB, 7GC), the months not validated. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetChildcareYear(IServiceProvider services, [Description("The arrangement's id.")] Guid id,
+        [Description("The year; the year just ended when omitted.")] int? year = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetChildcareYearQuery(new ItemId(id), year), ct);
 }

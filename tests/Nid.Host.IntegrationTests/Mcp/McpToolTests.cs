@@ -13,9 +13,10 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 {
     private static readonly string[] Expected =
     [
-        "get_childcare", "get_childcare_statement", "get_childcare_statements", "list_childcare", "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
-        "get_net_worth_history", "get_passive_income", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "get_tax", "list_envelopes",
-        "list_bank_transactions", "list_expected_charges", "propose_bank_link", "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_providers", "list_subscriptions", "list_tax_years", "get_projection", "delete_proposal", "get_proposal", "list_proposals", "simulate_projection", "propose_amortization", "propose_breakdown", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment", "upload_document", "request_document_upload",
+        "get_childcare", "get_childcare_statement", "get_childcare_statements", "get_childcare_year", "list_childcare", "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
+        "get_net_worth_history", "get_passive_income", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "get_tax", "get_tax_changes", "list_envelopes",
+        "list_bank_transactions", "list_expected_charges", "propose_bank_link", "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_providers", "list_subscriptions", "list_tax_years", "get_projection", "delete_proposal", "get_proposal", "list_proposals", "simulate_projection", "simulate_property_sale", "propose_amortization", "propose_breakdown", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment", "simulate_loan_renegotiation", "compare_loan_insurance", "upload_document", "request_document_upload",
+        "get_month_changes",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
@@ -93,6 +94,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             SameJson(await app.GetRawAsync(a, "/api/v1/realestate/routine"), await CallAsync(client, "get_property_routine"));
             SameJson(await app.GetRawAsync(a, "/api/v1/tax?year=2025&scope=me"), await CallAsync(client, "get_tax", new { year = 2025, scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/tax"), await CallAsync(client, "get_tax"));
+            SameJson(await app.GetRawAsync(a, "/api/v1/tax/changes?year=2026&scope=me"), await CallAsync(client, "get_tax_changes", new { year = 2026, scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/tax/2044?year=2025&scope=me"), await CallAsync(client, "get_rental_2044", new { year = 2025, scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/tax/sale?scope=me"), await CallAsync(client, "get_sale_tax_estimate", new { scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/subscriptions?scope=me"), await CallAsync(client, "list_subscriptions", new { scope = "me" }));
@@ -148,6 +150,20 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
             var rest = await app.RawAsync(a, HttpMethod.Post, $"/api/v1/realestate/loans/{loan}/simulations", new { on = "2026-01-15", amount = "10000.00" });
             SameJson(await rest.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), await CallAsync(client, "simulate_early_repayment", new { id = loan, on = "2026-01-15", amount = "10000.00" }));
+
+            var renegotiation = new { on = "2026-01-15", annualRate = "0.02", penalty = "500.00" };
+            var restRenegotiation = await app.RawAsync(a, HttpMethod.Post, $"/api/v1/realestate/loans/{loan}/simulations/renegotiation", renegotiation);
+            SameJson(await restRenegotiation.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+                await CallAsync(client, "simulate_loan_renegotiation", new { id = loan, renegotiation.on, renegotiation.annualRate, renegotiation.penalty }));
+            var insured = LoanApi.Contract();
+            insured["insurances"] = new[] { new { mode = "fixed_monthly", monthlyAmount = "30", startsOn = "2020-11-15" } };
+            insured["version"] = await LoanApi.ContractVersionAsync(app, loan);
+            Assert.True((await app.RawAsync(a, HttpMethod.Put, $"/api/v1/realestate/loans/{loan}/contract", insured)).IsSuccessStatusCode);
+            var quote = new { on = "2026-01-15", quotes = new[] { new { insurance = 0, mode = "rate_on_initial", annualRate = "0.001" } } };
+            var restQuote = await app.RawAsync(a, HttpMethod.Post, $"/api/v1/realestate/loans/{loan}/simulations/insurance", quote);
+            Assert.True(restQuote.IsSuccessStatusCode, await restQuote.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            SameJson(await restQuote.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+                await CallAsync(client, "compare_loan_insurance", new { id = loan, quote.on, quote.quotes }));
 
             SameJson(await app.GetRawAsync(a, "/api/v1/realestate/loans/overview"), await CallAsync(client, "get_loans_overview"));
             var household = new { on = "2026-01-15", amount = "10000.00", split = "chosen", loanId = loan, effect = "reduce_term", penalties = new[] { new { loanId = loan, amount = "300.00" } } };

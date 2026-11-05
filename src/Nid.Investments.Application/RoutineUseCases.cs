@@ -19,7 +19,7 @@ public sealed record GetRoutineQuery(LocalDate? On) : IQuery<RoutineView>;
 /// </summary>
 public sealed record RoutineLineView(
     ItemId Id, string Name, string Currency, string Cadence, AmountView? LastValue, LocalDate? LastAsOf, bool Due,
-    decimal? UcShareFloorPct, decimal? UcSharePct, bool UcShareBelowFloor);
+    decimal? UcShareFloorPct, decimal? UcSharePct, bool UcShareBelowFloor, AmountView? CeilingRoom = null);
 
 public sealed record RoutineView(LocalDate On, IReadOnlyList<RoutineLineView> Lines) : IExposesItems
 {
@@ -57,7 +57,8 @@ public sealed class GetRoutineHandler(
             var share = envelope.UcShareFloorPct is null ? null : await UcShareAsync(envelope.ItemId, on, ct);
             lines.Add(new RoutineLineView(envelope.ItemId, f.Item.DisplayName, f.Currency.Code, EnvelopeWire.Of(envelope.Cadence),
                 last is null ? null : AmountView.From(last.Value), last?.AsOf,
-                RoutineMath.IsDue(envelope.Cadence, f.Values.Select(v => v.AsOf), on), envelope.UcShareFloorPct, share, share < envelope.UcShareFloorPct));
+                RoutineMath.IsDue(envelope.Cadence, f.Values.Select(v => v.AsOf), on), envelope.UcShareFloorPct, share, share < envelope.UcShareFloorPct,
+                EnvelopeInsights.Ceiling(f, on)?.Room));
         }
         return Result.Success(new RoutineView(on, lines
             .OrderBy(l => l.Due ? 0 : 1).ThenBy(l => l.Name, Routine.French).ThenBy(l => l.Id.Value).ToList()));
@@ -133,6 +134,8 @@ public sealed class RecordRoutineHandler(
             foreach (var (money, field) in new[] { (line.Value, "value"), (line.Contribution, "contribution") })
                 if (money is { } m && m.Currency != f.Currency)
                     return Fail(CoreFactCodes.CurrencyMismatch, "Amounts are in the envelope's currency.", $"lines[{i}].{field}");
+            if (line.Contribution is { } paid && EnvelopeInsights.AboveCeiling(f, command.On, paid.Amount, $"lines[{i}].contribution") is { } above)
+                return Result.Failure<RoutineRecap>(above);
             if (line.Value is not null && f.Values.Any(v => v.AsOf == command.On))
                 return Fail(InvestmentsCodes.RoutineValueExists, "This envelope already has a value at this date: correct it from its page.", $"lines[{i}].value");
             var previous = f.Values.Where(v => v.AsOf <= command.On).OrderByDescending(v => v.AsOf).FirstOrDefault();

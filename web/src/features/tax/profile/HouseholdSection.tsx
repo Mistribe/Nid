@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { errorText, type SectionProps } from './fields';
 import '@/locales/tax';
 
-/** The household: the dependents the declaration counts. */
+/** The household: the dependents the declaration counts, and the department that dates the filing deadline (#409). */
 export function HouseholdSection({ estimate, draft }: SectionProps) {
   const { t } = useTranslation();
   const d = draft.value;
@@ -17,6 +17,9 @@ export function HouseholdSection({ estimate, draft }: SectionProps) {
         </Field>
         <Field label={t('tax.profile.under6')} error={errorText(t, draft.errors, 'under6')}>
           {(c) => <Input inputMode="numeric" {...c} value={d.under6} onChange={(e) => draft.set({ under6: e.target.value })} />}
+        </Field>
+        <Field label={t('tax.profile.department')} hint={t('tax.profile.department_hint')} error={errorText(t, draft.errors, 'department')}>
+          {(c) => <Input {...c} autoComplete="off" maxLength={3} value={d.department} onChange={(e) => draft.set({ department: e.target.value })} />}
         </Field>
       </div>
     </Section>

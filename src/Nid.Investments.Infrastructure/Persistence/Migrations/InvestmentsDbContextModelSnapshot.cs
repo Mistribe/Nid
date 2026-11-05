@@ -71,6 +71,10 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("premiums_before_2017");
 
+                    b.Property<string>("Regulated")
+                        .HasColumnType("text")
+                        .HasColumnName("regulated");
+
                     b.Property<int?>("StaleAfterDays")
                         .HasColumnType("integer")
                         .HasColumnName("stale_after_days");
@@ -109,6 +113,8 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other','tontine')");
 
                             t.HasCheckConstraint("ck_envelope_premiums_before_2017", "premiums_before_2017 is null or premiums_before_2017 >= 0");
+
+                            t.HasCheckConstraint("ck_envelope_regulated", "regulated is null or (kind = 'savings' and regulated in ('livret_a','ldds','lep','livret_jeune'))");
 
                             t.HasCheckConstraint("ck_envelope_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
 

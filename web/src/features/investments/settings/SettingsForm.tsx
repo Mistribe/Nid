@@ -21,7 +21,7 @@ import { knownConflictMessage } from '../../subscriptions/fieldErrors';
 import { todayIso } from '../../subscriptions/today';
 import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '../api';
 import { placeFieldError, presentConflict } from '../entries/entries';
-import { CADENCES, hasPremiumsBefore2017, KINDS } from '../format';
+import { CADENCES, hasPremiumsBefore2017, KINDS, REGULATED, regulatedOptions } from '../format';
 import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './settingsBody';
 import '@/locales/investments';
 import '@/locales/forms';
@@ -49,6 +49,7 @@ const schema = (t: TFunction) => z.object({
   }, t('envelope.settings.uc_floor_range')),
   openedOn: z.string().refine((v) => v === '' || ISO_DATE.test(v), t('envelope.settings.opened_on_format')),
   premiumsBefore2017: z.string(),
+  regulated: z.enum(REGULATED),
   note: z.string().max(2000, t('investments_form.note_too_long')),
 }).superRefine((v, ctx) => {
   // A hidden field (another kind picked) never blocks a save.
@@ -81,6 +82,7 @@ function applied(before: EnvelopeDetail, values: SettingsValues): EnvelopeDetail
     // A count of days, not an amount.
     staleAfterDays: days === '' ? null : Number(days),
     ucShareFloorPct: floor === '' ? null : Number(floor),
+    regulated: values.kind === 'savings' && values.regulated !== 'none' ? values.regulated : null,
   };
 }
 
@@ -101,6 +103,7 @@ export function SettingsForm({ envelope, onDone }: {
     staleAfterDays: envelope.staleAfterDays == null ? '' : String(envelope.staleAfterDays), note: envelope.note ?? '',
     ucShareFloorPct: envelope.ucShareFloorPct == null ? '' : String(envelope.ucShareFloorPct),
     openedOn: envelope.openedOn ?? '', premiumsBefore2017: envelope.premiumsBefore2017?.amount ?? '',
+    regulated: REGULATED.find((r) => r === envelope.regulated) ?? 'none',
   };
   const form = useForm({ resolver: zodResolver(schema(t)), defaultValues: defaults });
   // What the form started from (and, after a save, what it saved): a save is diffed against this, never against the
@@ -179,6 +182,13 @@ export function SettingsForm({ envelope, onDone }: {
             {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
           </Field>
         )} />
+        {form.watch('kind') === 'savings' ? (
+          <Controller control={form.control} name="regulated" render={({ field }) => (
+            <Field label={t('envelope.settings.regulated')} hint={t('envelope.settings.regulated_help')}>
+              {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange} options={regulatedOptions(t)} />}
+            </Field>
+          )} />
+        ) : null}
         {/* The kind as the person is editing it: the field disappears as soon as another kind is picked. */}
         {hasPremiumsBefore2017(envelope.kind) && form.watch('kind') === envelope.kind ? (
           <Field label={t('envelope.settings.premiums_before_2017')} hint={t('envelope.settings.premiums_before_2017_help')} error={e.premiumsBefore2017?.message}>

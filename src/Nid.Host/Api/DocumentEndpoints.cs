@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Net.Http.Headers;
 using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
@@ -130,6 +131,17 @@ public static class DocumentEndpoints
                 => (await invoker.InvokeAsync(new ListDocumentTargetsQuery(), ct)).ToHttp(list => list))
             .Returns<DocumentTargetList>();
 
+        // Issue #414: the documents still missing on the items the actor writes (itemId: one item), and the actor's tax notice without one.
+        api.MapGet("/expected", async (Guid? itemId, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListExpectedDocumentsQuery(itemId), ct)).ToHttp(list => list))
+            .Returns<ExpectedDocumentList>();
+
+        // Issue #414: « Pas disponible »: that document is no longer asked for.
+        api.MapPost("/expected/dismissals", async (DismissExpectedBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new DismissExpectedDocumentCommand(new DocumentTarget(body.TargetKind ?? "", body.TargetId), body.Role ?? "", body.Period), ct))
+                    .ToHttp(x => new IdResponse(x)))
+            .Returns<IdResponse>();
+
         // The readers a link would add, refused exactly as the link; targetKind=core.household needs no targetId.
         api.MapGet("/{id:guid}/links/preview", async (Guid id, string? targetKind, Guid? targetId, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new PreviewDocumentLinkQuery(id, new DocumentTarget(targetKind ?? "", targetId ?? TargetKinds.Household)), ct))
@@ -156,7 +168,7 @@ public static class DocumentEndpoints
                 => (await invoker.InvokeAsync(new GetDocumentQuery(id), ct)).ToHttp(d => d))
             .Returns<DocumentDetail>();
 
-        api.MapGet("/{id:guid}/content", async (Guid id, HttpContext http, IInvoker invoker, CancellationToken ct) =>
+        api.MapGet("/{id:guid}/content", async (Guid id, bool? inline, HttpContext http, IInvoker invoker, CancellationToken ct) =>
             {
                 var result = await invoker.InvokeAsync(new GetDocumentContentQuery(id), ct);
                 if (!result.TryGetValue(out var content))
@@ -164,6 +176,12 @@ public static class DocumentEndpoints
 
                 http.Response.Headers.XContentTypeOptions = "nosniff";
                 http.Response.Headers.CacheControl = "private, no-store";
+                // Issue #413: the in-app preview shows a PDF or an image inline; a mail is always a download.
+                if (inline == true && InlineMediaTypes.Contains(content.MediaType))
+                {
+                    http.Response.Headers.ContentDisposition = new ContentDispositionHeaderValue("inline") { FileNameStar = content.FileName }.ToString();
+                    return Results.Stream(content.Content, content.MediaType);
+                }
                 // The framework writes Content-Disposition: attachment, the name quoted and RFC 5987-encoded (filename*).
                 return Results.Stream(content.Content, content.MediaType, fileDownloadName: content.FileName);
             })
@@ -249,6 +267,9 @@ public static class DocumentEndpoints
     /// <summary>Room for the form's other parts and boundaries on top of the file.</summary>
     private const long FormSlack = 64 * 1024;
 
+    /// <summary>What a browser shows by itself (issue #413): a PDF and an image.</summary>
+    private static readonly HashSet<string> InlineMediaTypes = ["application/pdf", "image/png", "image/jpeg"];
+
     /// <summary>The upload form, for the OpenAPI document only: the route reads the form itself.</summary>
     public sealed record UploadDocumentForm(
         IFormFile File, string? Title, string? Date, string? Note, string? TargetKind, Guid? TargetId, string? Role, bool? WarnDuplicate);
@@ -256,6 +277,9 @@ public static class DocumentEndpoints
     public sealed record LinkDocumentBody(string? TargetKind, Guid? TargetId, string? Role);
 
     public sealed record SetLinkRoleBody(string? Role);
+
+    /// <summary>Issue #414: a line of the expected documents; <c>period</c> 0 for a document expected once.</summary>
+    public sealed record DismissExpectedBody(string? TargetKind, Guid TargetId, string? Role, int Period);
 
     /// <summary>Replaces the title, the date and the note; a missing title is refused by the handler.</summary>
     public sealed record EditDocumentBody(string? Title, string? DocumentDate, string? Note);

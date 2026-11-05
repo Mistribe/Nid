@@ -78,7 +78,7 @@ public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> ContributionRates, IReadOnlyDictionary<Guid, string> ActualExpenses,
     IReadOnlyDictionary<Guid, string> PerUnusedCeilings, string RentalDeficitCarried,
     IReadOnlyDictionary<Guid, string> PerCeilings, IReadOnlyDictionary<Guid, string> PerCeilingsExpiring, bool PerPooling,
-    IReadOnlyDictionary<Guid, string> ExemptIncomes, string DonationsAidLate, string RentalEnergyWorks)
+    IReadOnlyDictionary<Guid, string> ExemptIncomes, string DonationsAidLate, string RentalEnergyWorks, string? Department)
 {
     public static TaxProfileView Of(TaxProfile p) => new(
         p.Statuses, p.Dependents, p.ChildrenUnder6, p.RentalRegime, p.Pinel,
@@ -89,7 +89,7 @@ public sealed record TaxProfileView(
         (p.PerCeilings ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
         (p.PerCeilingsExpiring ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), p.PerPooling,
         (p.ExemptIncomes ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
-        Amount(p.DonationsAidLate), Amount(p.RentalEnergyWorks));
+        Amount(p.DonationsAidLate), Amount(p.RentalEnergyWorks), p.Department);
 }
 
 /// <summary>
@@ -227,4 +227,21 @@ public sealed record TaxGapsView(Guid Assessment, IReadOnlyList<TaxGapLineView> 
         assessment,
         g.Lines.Select(l => new TaxGapLineView(l.Code, Amount(l.Notice), l.Nid is { } n ? Amount(n) : null, l.Gap is { } d ? Amount(d) : null)).ToList(),
         g.Declarants.Select(d => new TaxDeclarantGapView(d.Person, Amount(d.Notice), Amount(d.Nid), Amount(d.Gap))).ToList());
+}
+
+/// <summary>Issue #410: a line of « Ce qui a changé » (<see cref="TaxChangeLine"/>), amounts in euros; <c>shares</c> counts shares.</summary>
+public sealed record TaxChangeLineView(string Code, Guid? Person, string Before, string Now, string Effect, bool FromNotice);
+
+/// <summary>
+/// Issue #410: <c>Year</c> against <c>Year − 1</c> (<see cref="TaxChangesResult"/>); no line and no <c>TaxBefore</c> when last year has
+/// neither an estimate nor a notice.
+/// </summary>
+public sealed record TaxChangesView(
+    int Year, string? TaxBefore, bool TaxBeforeFromNotice, string? TaxNow, string? Remainder, IReadOnlyList<TaxChangeLineView> Lines)
+{
+    public static TaxChangesView Of(int year, TaxChangesResult? r) => r is null
+        ? new TaxChangesView(year, null, false, null, null, [])
+        : new TaxChangesView(year, r.TaxBefore is { } b ? Amount(b) : null, r.TaxBeforeFromNotice, Amount(r.TaxNow),
+            r.Remainder is { } rest ? Amount(rest) : null,
+            r.Lines.Select(l => new TaxChangeLineView(l.Code, l.Person, Amount(l.Before), Amount(l.Now), Amount(l.Effect), l.FromNotice)).ToList());
 }

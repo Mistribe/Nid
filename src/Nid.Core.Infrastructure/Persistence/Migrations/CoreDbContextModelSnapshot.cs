@@ -738,7 +738,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.ToTable("scenario", "core", t =>
                         {
-                            t.HasCheckConstraint("ck_scenario_kind", "kind in ('property_purchase','projection')");
+                            t.HasCheckConstraint("ck_scenario_kind", "kind in ('property_purchase','projection','property_sale')");
 
                             t.HasCheckConstraint("ck_scenario_scope", "scope in ('me','household')");
                         });

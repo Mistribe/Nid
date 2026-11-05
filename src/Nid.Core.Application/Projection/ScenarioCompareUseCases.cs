@@ -8,7 +8,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Core.Application.Projection;
 
 /// <summary>
-/// Spec §14: the base and 1 to 3 saved scenarios (projections or purchases) on the request's grid and scope; each scenario's stored
+/// Spec §14: the base and 1 to 3 saved scenarios (projections, purchases or sales) on the request's grid and scope; each scenario's stored
 /// horizon and scope are ignored.
 /// </summary>
 public sealed record CompareScenariosQuery(VisibilityScope Scope, ProjectionHorizon Horizon, IReadOnlyList<ItemId> Ids) : IQuery<ProjectionCompareView>;
@@ -28,8 +28,8 @@ public sealed record ProjectionCompareView(ProjectionView Base, IReadOnlyList<Co
 
 [RequestHandler<CompareScenariosQuery, ProjectionCompareView>]
 public sealed class CompareScenariosHandler(
-    IVisibleItems visible, IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, IHouseholdCalendar calendar,
-    IActorAccessor actor)
+    IVisibleItems visible, IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, SaleScenarioReader sales,
+    IHouseholdCalendar calendar, IActorAccessor actor)
     : IRequestHandler<CompareScenariosQuery, ProjectionCompareView>
 {
     public const int MaxScenarios = 3;
@@ -60,8 +60,8 @@ public sealed class CompareScenariosHandler(
         // ponytail: the base's facts are read again for each scenario (at most 3); share one read if the limit grows.
         foreach (var (item, stored) in found)
         {
-            var document = stored.Kind == ScenarioKinds.Projection
-                ? stored.Projection! with { Horizon = horizon }
+            var document = stored.Kind == ScenarioKinds.Projection ? stored.Projection! with { Horizon = horizon }
+                : stored.Kind == ScenarioKinds.PropertySale ? await sales.ProjectionAsync(stored.Sale!, query.Scope, horizon, ct)
                 : new ProjectionScenario(1, horizon, new ProjectionOverrides(null, null, null, null, null),
                 [
                     new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.PropertyPurchase, new EventDate(today, null, null), null, null, null,

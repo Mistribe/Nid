@@ -49,5 +49,30 @@
     "more": "+{{count}}",
     "more_label_one": "+{{count}} autre prélèvement",
     "more_label_other": "+{{count}} autres prélèvements"
+  },
+  "partial": "partiel",
+  "years": {
+    "title": "Coût par an",
+    "view": "Affichage",
+    "by_label": "Par libellé",
+    "total": "Total",
+    "year": "Année",
+    "paid": "Payé",
+    "upcoming": "À venir"
+  },
+  "providers": {
+    "title": "Fournisseurs qui ont le plus coûté"
+  },
+  "savings": {
+    "title": "Économisé grâce aux résiliations",
+    "total": "<amount>{{amount}}</amount> depuis 12 mois",
+    "ended": "Fini le {{date}}"
+  },
+  "rises": {
+    "title": "Hausses de prix",
+    "total": "+{{amount}} par an sur 12 mois",
+    "change": "{{old}} → {{new}} le {{date}}",
+    "yearly": "+{{amount}} par an",
+    "promo_ended": "Fin d’offre de lancement"
   }
 }

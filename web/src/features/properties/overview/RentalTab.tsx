@@ -1,15 +1,12 @@
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { useId, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
-import type { PropertiesSearch, RootSearch } from '@/app/router';
-import { SelectField } from '@/components/form/SelectField';
-import { Segmented } from '@/components/form/Segmented';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney, Money, type MoneyValue } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
@@ -27,12 +24,11 @@ import { monthLabel } from '@/features/income/expected/months';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PROPERTIES_RENTAL, type PropertiesRental, type RentalMonth, type RentalRow } from '../api';
 import { TableToggle } from '@/components/page/TableToggle';
+import { PropertyFilter } from './PropertyFilter';
 import '@/locales/properties';
 
 type Scope = 'household' | 'me';
 
-/** Beyond this many let properties, the filter is a select rather than buttons (spec §4.3). */
-const BUTTONS = 3;
 /** A lease ending this close is named under the timeline (spec §4.3). */
 const ENDING_DAYS = 60;
 const DAY = 86_400_000;
@@ -105,27 +101,13 @@ function Figures({ d }: { d: PropertiesRental }) {
 function MonthsCard({ d, scope, property }: { d: PropertiesRental; scope: Scope; property?: string }) {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const navigate = useNavigate();
-  const filterId = useId();
   const [asTable, setAsTable] = useState(false);
   const one = $api.useQuery('get', PROPERTIES_RENTAL, { params: { query: { scope, property } } }, { enabled: !!property });
   const months = property ? one.data?.months : d.months;
-  const choose = (next: string) =>
-    void navigate({ to: '/properties', replace: true, resetScroll: false, search: (prev: RootSearch & PropertiesSearch) => ({ ...prev, property: next || undefined }) });
-  const options = [{ value: '', label: t('properties_rental.all') }, ...d.properties.map((p) => ({ value: p.id, label: p.name }))];
   return (
     <SectionCard title={t('properties_rental.chart_title')} actions={
       <>
-        {d.properties.length > 1 ? (
-          d.properties.length <= BUTTONS ? (
-            <>
-              <span id={filterId} className="sr-only">{t('properties_rental.filter')}</span>
-              <Segmented value={property ?? ''} onValueChange={choose} aria-labelledby={filterId} options={options} />
-            </>
-          ) : (
-            <div className="w-56"><SelectField id={`${filterId}-select`} aria-label={t('properties_rental.filter')} value={property ?? ''} onValueChange={choose} options={options} /></div>
-          )
-        ) : null}
+        <PropertyFilter properties={d.properties} property={property} />
         <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </>
     }>

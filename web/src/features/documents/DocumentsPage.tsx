@@ -14,6 +14,8 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { contentUrl, useArchiveDocument, useDocuments, useUnarchiveDocument, type DocumentSummary, type Scope } from './api';
+import { previewable, usePreview } from './preview';
+import { ExpectedDocuments } from './ExpectedDocuments';
 import { applyFilters, DocumentFilters, keepOffered, NO_FILTER } from './DocumentFilters';
 import { FileDocumentsDialog, type Filed } from './FileDocumentsDialog';
 import { UploadList, UploadPicker, UploadZone, useUploads } from './DocumentUpload';
@@ -39,6 +41,7 @@ export function DocumentsPage() {
       <PageHeader title={t('documents_page.title')} actions={<UploadPicker onFiles={send} />} />
       <UploadZone onFiles={send} onRefused={refuse} />
       <UploadList uploads={uploads} onKeep={keep} onAddAnyway={addAnyway} />
+      <ExpectedDocuments />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'all', label: t('documents_page.tab_all'), content: list(false) },
         { id: 'inbox', label: t('documents_page.tab_inbox'), content: list(true) },
@@ -154,6 +157,7 @@ function Actions({ doc }: { doc: DocumentSummary }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [asking, setAsking] = useState(false);
+  const preview = usePreview();
   const archive = useArchiveDocument();
   const unarchive = useUnarchiveDocument();
   const error = archive.error ?? unarchive.error;
@@ -170,7 +174,9 @@ function Actions({ doc }: { doc: DocumentSummary }) {
   return (
     <span className="flex flex-wrap items-center justify-end gap-2">
       <RowMenu label={t('documents_page.row_menu', { title: doc.title })}
-        items={[{ label: t('documents_page.download'), href: contentUrl(doc.id) }, ...writes]} />
+        items={[...(previewable(doc.mediaType) ? [{ label: t('documents_page.preview'), onSelect: () => preview.show(doc) }] : []),
+          { label: t('documents_page.download'), href: contentUrl(doc.id) }, ...writes]} />
+      {preview.dialog}
       {asking ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}

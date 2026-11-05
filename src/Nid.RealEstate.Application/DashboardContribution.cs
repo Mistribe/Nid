@@ -16,6 +16,8 @@ namespace Nid.RealEstate.Application;
 public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations)
     : INetWorthContribution
 {
+    public string Module => "real_estate";
+
     public async Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
         var ids = await visible.ForAsync(reader, scope, ct);
@@ -303,6 +305,11 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
             foreach (var tenancy in RentRevisions.LastLinks(property).Select(t => t.Tenancy))
                 if (tenancy.EndsOn is { } ends && Within(ends))
                     events.Add(new UpcomingEvent(ends, UpcomingKinds.TenancyEnd, property.ItemId, "properties", item.DisplayName, tenancy.Label, null));
+            // Issue #409: a « taxe foncière » charge running that day dates the property's tax on the calendar's deadline.
+            for (var year = today.Year; year <= until.Year; year++)
+                if (TaxCalendar.For(year).PropertyTax is var due && Within(due)
+                    && property.Costs.Any(c => c.Cost.Category == "property_tax" && c.Cost.StartsOn <= due && (c.Cost.EndsOn is not { } end || end > due)))
+                    events.Add(new UpcomingEvent(due, UpcomingKinds.PropertyTaxDue, property.ItemId, "properties", item.DisplayName, null, null));
         }
         return Result.Success<IReadOnlyList<UpcomingEvent>>(events);
     }

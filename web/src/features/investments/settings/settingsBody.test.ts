@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { detail, eur } from '../testData';
 import { toEditBody, toWireBody } from './settingsBody';
 
-const values = (over = {}) => ({ displayName: 'PEA', kind: 'pea', institution: 'Banque', accountHint: '4521', valuationCadence: 'monthly', staleAfterDays: '', ucShareFloorPct: '', note: '', openedOn: '', premiumsBefore2017: '', ...over });
+const values = (over = {}) => ({ displayName: 'PEA', kind: 'pea', institution: 'Banque', accountHint: '4521', valuationCadence: 'monthly', staleAfterDays: '', ucShareFloorPct: '', note: '', openedOn: '', premiumsBefore2017: '', regulated: 'none', ...over });
 
 describe('toEditBody', () => {
   it('sends nothing when nothing changed', () => expect(toEditBody(detail(), values())).toBeNull());
@@ -47,6 +47,17 @@ describe('premiums before 2017', () => {
     expect(toEditBody(detail(), values({ openedOn: '2015-03-02' }))).toEqual({ openedOn: '2015-03-02' });
     expect(toEditBody(detail({ openedOn: '2015-03-02' }), values())).toEqual({ clearOpenedOn: true });
   });
+});
+
+describe('a regulated livret', () => {
+  const livret = (over = {}) => detail({ kind: 'savings', ...over });
+  it('is set, changed and cleared on a savings envelope', () => {
+    expect(toEditBody(livret(), values({ kind: 'savings', regulated: 'livret_a' }))).toEqual({ regulated: 'livret_a' });
+    expect(toEditBody(livret({ regulated: 'livret_a' }), values({ kind: 'savings', regulated: 'livret_a' }))).toBeNull();
+    expect(toEditBody(livret({ regulated: 'livret_a' }), values({ kind: 'savings', regulated: 'none' }))).toEqual({ clearRegulated: true });
+  });
+  it('is never sent off savings: the server drops it', () =>
+    expect(toEditBody(livret({ regulated: 'ldds' }), values({ kind: 'checking', regulated: 'ldds' }))).toEqual({ kind: 'checking' }));
 });
 
 describe('toWireBody', () => {

@@ -167,7 +167,9 @@ function HorizonTable({ data, real }: { data: ScenarioCompare; real: boolean }) 
             <TableHead scope="row" className="font-normal">
               {s.kind === 'projection'
                 ? <Link to="/scenarios/projection/$id" params={{ id: s.id }} className="underline-offset-4 hover:underline">{s.name}</Link>
-                : <Link to="/scenarios/$id" params={{ id: s.id }} className="underline-offset-4 hover:underline">{s.name}</Link>}
+                : s.kind === 'property_sale'
+                  ? <Link to="/scenarios/sale/$id" params={{ id: s.id }} className="underline-offset-4 hover:underline">{s.name}</Link>
+                  : <Link to="/scenarios/$id" params={{ id: s.id }} className="underline-offset-4 hover:underline">{s.name}</Link>}
             </TableHead>
             <TableCell className="text-right tabular-nums">{at(s.result.points)}</TableCell>
             <TableCell className="text-right tabular-nums">{money(real ? s.gapReal : s.gapNominal)}</TableCell>

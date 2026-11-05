@@ -75,12 +75,17 @@ public static class CommitmentSources
 /// <summary>
 /// 2D1 spec §4: the monthly equivalent of the phases running today, per currency. A contribution counting a source in
 /// <c>Sources</c> puts an entry (0 when nothing runs) in that source's currency, so a declared source never reads « aucun revenu déclaré ».
+/// <c>ReaderShare</c> is the reader's part of it by each source's shares (issue #402: the « Moi » debt ratio); null when not given.
 /// </summary>
-public sealed record IncomePart(int Sources, IReadOnlyDictionary<Currency, decimal> MonthlyEquivalent);
+public sealed record IncomePart(
+    int Sources, IReadOnlyDictionary<Currency, decimal> MonthlyEquivalent, IReadOnlyDictionary<Currency, decimal>? ReaderShare = null);
 
 /// <summary>A module holding part of the net worth; the dashboard sums every registered one (stage 3 adds real estate).</summary>
 public interface INetWorthContribution
 {
+    /// <summary>Issue #415: the module this part is, as the causes of a month's change name it.</summary>
+    string Module => "other";
+
     Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
 
     /// <summary>2D2b spec §4: one point per date of <paramref name="dates"/>, over the visible holdings, closed ones included until their closing.</summary>
@@ -104,6 +109,9 @@ public interface ICommitmentsContribution
 
 public interface IIncomeContribution
 {
+    /// <summary>Issue #415: the module this part is, as the causes of a month's change name it.</summary>
+    string Module => "other";
+
     Task<Result<IncomePart>> IncomeAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
 
     /// <summary>
@@ -140,9 +148,18 @@ public static class UpcomingKinds
     // Issue #34 §2.7.
     public const string HoldingMaturity = "holding_maturity";
 
+    // Issue #400: an envelope's next tax date (8 years of a life insurance, 5 of a PEA, a PER's retirement); the label is its code.
+    public const string TaxMilestone = "tax_milestone";
+
     // Tax-per spec §4.6: on 31 December, the PER ceiling left to pay in (a person's, or the household's under pooling) and the part lost.
     public const string PerDeadline = "per_deadline";
     public const string PerCeilingExpiring = "per_ceiling_expiring";
+
+    // Issue #409, the yearly tax calendar (TaxCalendar): the household's events, then a property's with a « taxe foncière » charge.
+    public const string TaxFilingDeadline = "tax_filing_deadline";
+    public const string TaxNewRate = "tax_new_rate";
+    public const string TaxBalanceDue = "tax_balance_due";
+    public const string PropertyTaxDue = "property_tax_due";
 }
 
 /// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>

@@ -1,6 +1,7 @@
 import { flushSync } from 'react-dom';
 import { useId, useImperativeHandle, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 /**
  * A modal dialog (shadcn `Dialog`) open while mounted, never taller than the screen: it scrolls, unless its content (a form
@@ -9,8 +10,10 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
  * dialog close itself before handing back (« Nouveau fournisseur »): the page then owns the focus (the close is
  * committed at once, so the focus the page moves is no longer trapped, and Radix does not return it).
  */
-export function ModalDialog({ title, onClose, dialogRef, children }: {
+export function ModalDialog({ title, onClose, dialogRef, className, children }: {
   title: string;
+  /** Widens the dialog (`sm:max-w-5xl` for a document's preview). */
+  className?: string;
   onClose: () => void;
   dialogRef?: RefObject<{ close: () => void } | null>;
   children: (titleId: string) => ReactNode;
@@ -23,7 +26,7 @@ export function ModalDialog({ title, onClose, dialogRef, children }: {
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent showCloseButton={false} aria-labelledby={titleId} aria-describedby={undefined} className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-y-auto"
+      <DialogContent showCloseButton={false} aria-labelledby={titleId} aria-describedby={undefined} className={cn('flex max-h-[calc(100dvh-2rem)] flex-col overflow-y-auto', className)}
         onCloseAutoFocus={(event) => { if (handedBack.current) event.preventDefault(); }}>
         <DialogTitle id={titleId}>{title}</DialogTitle>
         {children(titleId)}

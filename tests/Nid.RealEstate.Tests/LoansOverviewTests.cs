@@ -245,6 +245,59 @@ public class LoansOverviewTests
         Assert.Equal(LoanViews.Summary(bank.Item, bank.Loan, Today, true).RemainingBalance, overview.Balance!.Amount);
         Assert.Equal("1189.92", overview.MonthlyPayment!.Amount); // the bank's insurance
     }
+
+    private static LoansOverview WithIncome(VisibilityScope scope, IncomePart income, params OverviewLoan[] loans)
+        => LoansOverviewMath.Build(loans, Currency.Eur, Rates, Today, null, new OverviewIncome(income, scope, Alice));
+
+    private static IReadOnlyDictionary<Currency, decimal> Eur(decimal amount) => new Dictionary<Currency, decimal> { [Currency.Eur] = amount };
+
+    [Fact]
+    public void The_debt_ratio_is_this_months_payments_over_the_income_with_the_room_under_35_percent()
+    {
+        var overview = WithIncome(VisibilityScope.Household, new IncomePart(2, Eur(5_000m), Eur(3_000m)), Home(), Car(), Ended());
+
+        var ratio = overview.DebtRatio!;
+        var payments = D(overview.MonthlyPayment);
+        Assert.Equal((payments, 5_000m), (D(ratio.Payments), D(ratio.Income)));
+        // The scenarios' rule, one implementation.
+        Assert.Equal(Math.Round(DebtRatio.Of(payments, 5_000m)!.Value, 4).ToString("0.0000", CultureInfo.InvariantCulture), ratio.Ratio);
+        Assert.Equal(("0.3500", 1_750m - payments, (string?)null), (ratio.Ceiling, D(ratio.Room), ratio.Unknown));
+    }
+
+    [Fact]
+    public void Moi_reads_the_readers_shares_of_the_payments_and_of_the_income()
+    {
+        // Alice holds half of the golden case (1 159,92 a month) and the whole car.
+        var overview = WithIncome(VisibilityScope.Me, new IncomePart(2, Eur(5_000m), Eur(2_000m)), Home(), Car());
+
+        var ratio = overview.DebtRatio!;
+        var car = D(overview.Loans.Single(l => l.Name == "Voiture").MonthlyPayment!);
+        Assert.Equal((579.96m + car, 2_000m), (D(ratio.Payments), D(ratio.Income)));
+        Assert.Equal(Math.Round((579.96m + car) / 2_000m, 4).ToString("0.0000", CultureInfo.InvariantCulture), ratio.Ratio);
+        Assert.Equal(700m - 579.96m - car, D(ratio.Room));
+    }
+
+    [Theory]
+    [InlineData(0)] // no source declared
+    [InlineData(1)] // a source with nothing running today
+    public void Without_income_the_ratio_is_unknown(int sources)
+    {
+        var overview = WithIncome(VisibilityScope.Household, new IncomePart(sources, sources == 0 ? new Dictionary<Currency, decimal>() : Eur(0m)), Home());
+
+        var ratio = overview.DebtRatio!;
+        Assert.Equal((null, null, "no_income"), (ratio.Ratio, ratio.Room, ratio.Unknown));
+        Assert.Equal(1_159.92m, D(ratio.Payments));
+    }
+
+    [Fact]
+    public void An_income_without_a_rate_leaves_the_ratio_unknown()
+    {
+        var gbp = Currency.TryCreate("GBP", out var c) ? c : throw new InvalidOperationException();
+        var overview = WithIncome(VisibilityScope.Household, new IncomePart(1, new Dictionary<Currency, decimal> { [gbp] = 4_000m }), Home());
+
+        Assert.Equal((null, "fx_rate_missing"), (overview.DebtRatio!.Ratio, overview.DebtRatio.Unknown));
+        Assert.Contains(overview.Findings, f => f.Code == FxCodes.RateMissing);
+    }
 }
 
 /// <summary>Loans dashboard spec §4.3: the timeline's spans, the household's payment in steps, each person's share.</summary>

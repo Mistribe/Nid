@@ -10,7 +10,7 @@ import '@/locales/tax';
 /** What every section of the profile tab reads: the estimate, and the page's draft. */
 export type SectionProps = { estimate: TaxEstimate; draft: Draft };
 
-const FORMATS = { amount: 'tax.amount_format', rate: 'tax.rate_format', count: 'tax.count_format' } as const;
+const FORMATS = { amount: 'tax.amount_format', rate: 'tax.rate_format', count: 'tax.count_format', department: 'tax.department_format' } as const;
 /** The message under a field the API would refuse. */
 export function errorText(t: TFunction, errors: DraftErrors, field: DraftField): string | undefined {
   const kind = errors[field];

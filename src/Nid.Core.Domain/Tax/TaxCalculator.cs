@@ -17,7 +17,7 @@ public enum RentalRegime { Micro, Real }
 public sealed record TaxDeclarant(
     string Name, decimal SalaryGross, EmploymentStatus Status, decimal OtherTaxable, decimal PerContributions,
     decimal? ContributionRate = null, decimal? ActualExpenses = null, decimal PerUnusedCeiling = 0m, decimal SalaryTaxable = 0m,
-    decimal? PerCeiling = null, decimal PreviousYearIncome = 0m, decimal PerExpiring = 0m, decimal ExemptIncome = 0m)
+    decimal? PerCeiling = null, decimal PreviousYearIncome = 0m, decimal PerExpiring = 0m, decimal ExemptIncome = 0m, Guid? Person = null)
 {
     public decimal EffectiveContributionRate => ContributionRate ?? TaxRules.ContributionRate(Status);
 }
@@ -60,7 +60,7 @@ public sealed record PerDeclarant(
 /// </summary>
 public sealed record DeclarantResult(
     string Name, decimal NetSalary, decimal NetTaxableIncome, decimal Allowance, decimal Taxable, decimal PerDeducted,
-    SalaryMethod Method = SalaryMethod.None, PerDeclarant? Per = null, decimal ExemptNet = 0m);
+    SalaryMethod Method = SalaryMethod.None, PerDeclarant? Per = null, decimal ExemptNet = 0m, Guid? Person = null);
 
 /// <summary>
 /// Spec §4.3, the household's PER: <c>Remaining</c> the free ceiling left, <c>TaxSaved</c> the income tax without any PER deduction
@@ -94,7 +94,7 @@ public sealed record Withholding(
     decimal RentalDeclared, decimal RentalMonthly, decimal Annual, decimal LeftOut, decimal Balance, WithholdingCut? Cut = null);
 
 /// <summary>A declarant's salaries to declare (net taxable, before the 10 % allowance) and the monthly amount withheld at the household rate.</summary>
-public sealed record DeclarantWithholding(string Name, decimal Salaries, decimal Monthly);
+public sealed record DeclarantWithholding(string Name, decimal Salaries, decimal Monthly, Guid? Person = null);
 
 /// <summary>
 /// Spec §4bis, the « baisse sans risque »: the salaries to enter (<c>Declarants[i].Salaries</c>) for the rate <c>Rate</c>, and the
@@ -163,7 +163,7 @@ public static class TaxCalculator
             return null;
         var annual = Euros(rate / 100 * w.Income);
         return new WithholdingCut(
-            rate, w.Declarants.Select((d, i) => new DeclarantWithholding(d.Name, final[i], Euros(rate / 100 * d.Salaries / 12))).ToList(),
+            rate, w.Declarants.Select((d, i) => new DeclarantWithholding(d.Name, final[i], Euros(rate / 100 * d.Salaries / 12), d.Person)).ToList(),
             Euros((rate / 100 + TaxRules.For(inputs.Year).RentalSocialRate) * w.RentalDeclared / 12), annual, w.Annual - annual, result.IncomeTax - annual);
     }
 
@@ -216,11 +216,7 @@ public static class TaxCalculator
 
         var baseParts = inputs.Declarants.Count;
         var parts = baseParts + ChildParts(inputs.Dependents);
-        var withShares = Scale(rules, taxable / parts) * parts;
-        var withoutChildren = Scale(rules, taxable / baseParts) * baseParts;
-        var cap = rules.FamilyCapPerHalfShare * (parts - baseParts) * 2;
-        var familyCapped = withoutChildren - withShares > cap;
-        var grossTax = familyCapped ? withoutChildren - cap : withShares;
+        var (grossTax, familyCapped) = GrossTax(rules, taxable, baseParts, parts);
 
         var (threshold, decoteBase) = baseParts == 2
             ? (rules.DecoteCoupleThreshold, rules.DecoteCoupleBase)
@@ -345,8 +341,31 @@ public static class TaxCalculator
         var annual = Euros(rate / 100 * income);
         return new Withholding(
             rate, taxBase, income,
-            declarants.Select(d => new DeclarantWithholding(d.Name, d.NetTaxableIncome, Euros(rate / 100 * d.NetTaxableIncome / 12))).ToList(),
+            declarants.Select(d => new DeclarantWithholding(d.Name, d.NetTaxableIncome, Euros(rate / 100 * d.NetTaxableIncome / 12), d.Person)).ToList(),
             Euros(rentalTaxable), Euros((rate / 100 + rules.RentalSocialRate) * rentalTaxable / 12), annual, Euros(leftOut), incomeTax - annual);
+    }
+
+    /// <summary>
+    /// Income #408: the rate the year's income tax (after reductions and credits, 0 at least) gives on the income within the
+    /// withholding, in percent to the tenth; null without that income. The withholding rate leaves the reductions and credits out.
+    /// </summary>
+    public static decimal? RealRate(TaxResult r)
+        => r.Withholding.Income == 0m ? null : Math.Round(Math.Max(0m, r.IncomeTax) / r.Withholding.Income * 100, 1, MidpointRounding.AwayFromZero);
+
+    /// <summary>Income #408: what the household rate withholds each month on the declarant's salaries beyond the real rate (negative: short).</summary>
+    public static decimal MonthlyGap(TaxResult r, DeclarantWithholding d)
+        => r.Withholding.Income == 0m ? 0m : Euros(d.Monthly - Math.Max(0m, r.IncomeTax) * d.Salaries / r.Withholding.Income / 12);
+
+    /// <summary>
+    /// The scale on the net taxable income over <paramref name="parts"/>, the children's half-shares capped by the family quotient
+    /// (<paramref name="baseParts"/>: the declarants' own shares).
+    /// </summary>
+    public static (decimal Tax, bool FamilyCapped) GrossTax(TaxRules rules, decimal taxable, decimal baseParts, decimal parts)
+    {
+        var withShares = Scale(rules, taxable / parts) * parts;
+        var withoutChildren = Scale(rules, taxable / baseParts) * baseParts;
+        var cap = rules.FamilyCapPerHalfShare * (parts - baseParts) * 2;
+        return withoutChildren - withShares > cap ? (withoutChildren - cap, true) : (withShares, false);
     }
 
     /// <summary>2 shares for a couple; half a share for each of the first two children, a whole one from the third.</summary>
@@ -402,7 +421,7 @@ public static class TaxCalculator
         var allowance = Allowance(d, rules, income);
         var taxable = income - allowance;
         // The PER deduction comes after, from the household step (PerDeductions).
-        return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), 0m, method, ExemptNet: Euros(ExemptNet(d, rules)));
+        return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), 0m, method, ExemptNet: Euros(ExemptNet(d, rules)), Person: d.Person);
     }
 
     private static decimal Euros(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);

@@ -28,4 +28,5 @@ public static class InvestmentsCodes
     public const string InvalidFeeReferences = "investments.invalid_fee_references";
     public const string InvalidIncomeCategory = "investments.invalid_income_category";
     public const string TransferLeg = "investments.transfer_leg";
+    public const string AboveCeiling = "investments.above_ceiling";
 }

@@ -80,7 +80,7 @@ describe('PayslipCell', () => {
     expect(within(cell).queryByRole('button', { name: 'Joindre' })).not.toBeInTheDocument();
     await user.click(within(cell).getByRole('button', { name: MENU }));
     const items = (await screen.findAllByRole('menuitem')).map((i) => i.textContent);
-    expect(items).toEqual(['Télécharger', 'Voir le document', 'Remplacer', 'Retirer']);
+    expect(items).toEqual(['Voir', 'Télécharger', 'Voir le document', 'Remplacer', 'Retirer']);
     await user.keyboard('{Escape}');
     await expectNoAxeViolations(container);
   });
@@ -107,7 +107,7 @@ describe('PayslipCell', () => {
     const { user } = await renderApp(HISTORY);
 
     await user.click(await within(await month('août 2026')).findByRole('button', { name: MENU }));
-    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Télécharger', 'Voir le document']);
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Voir', 'Télécharger', 'Voir le document']);
   });
 
   it('says a past month has no payslip, in muted text, and offers to attach one', async () => {
@@ -135,7 +135,7 @@ describe('PayslipCell', () => {
     expect(await within(await month('septembre 2026')).findByText('Pas de bulletin')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Joindre' })).not.toBeInTheDocument();
     await user.click(within(await month('août 2026')).getByRole('button', { name: MENU }));
-    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Télécharger', 'Voir le document']);
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Voir', 'Télécharger', 'Voir le document']);
   });
 
   it('attaches a file to the month’s payment', async () => {

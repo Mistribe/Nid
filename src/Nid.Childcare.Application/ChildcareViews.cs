@@ -79,3 +79,17 @@ public sealed record ChildcareStatementView(
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }
+
+/// <summary>
+/// #411 « Récapitulatif {année} »: the year's validated months summed, as the tax estimate counts them. <c>Retained</c> is the
+/// « reste à charge retenu pour le crédit d'impôt » (net pay + upkeep − CMG), to write in <c>Box</c> (7GA, 7GB or 7GC; null past the
+/// third child). <c>NotValidated</c>: the year's months, <c>yyyy-MM</c>, left out because they are not validated. <c>Years</c>: those the
+/// arrangement has months in, newest first.
+/// </summary>
+public sealed record ChildcareYearView(
+    Guid Id, string Name, string ChildName, string CarerName, int Year, IReadOnlyList<int> Years, string? Box, ChildcareMoneyView NetPay,
+    ChildcareMoneyView Cmg, ChildcareMoneyView Upkeep, ChildcareMoneyView Meals, ChildcareMoneyView Retained, IReadOnlyList<string> ValidatedMonths,
+    IReadOnlyList<string> NotValidated) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
+}

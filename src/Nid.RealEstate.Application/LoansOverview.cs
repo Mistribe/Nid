@@ -55,6 +55,22 @@ public sealed record PersonLoanView(ItemId LoanId, int ShareBp, LoanMoneyView? B
 public sealed record PersonLoanShareView(Guid PersonId, LoanMoneyView? Balance, LoanMoneyView? MonthlyPayment, IReadOnlyList<PersonLoanView> Loans);
 
 /// <summary>
+/// Issue #402: the debt ratio (<see cref="DebtRatio"/>, the scenarios' rule) of this month's loan payments, insurance included,
+/// over the net monthly income, and the room left under the ceiling; in « Moi », the reader's shares of both. <c>Unknown</c> says
+/// why the ratio is null: <c>no_income</c> (none declared, or none running) or <c>fx_rate_missing</c> (a finding names the rate).
+/// </summary>
+public sealed record LoanDebtRatioView(string? Ratio, string Ceiling, LoanMoneyView? Payments, LoanMoneyView? Income, LoanMoneyView? Room, string? Unknown);
+
+public static class LoanDebtRatioReasons
+{
+    public const string NoIncome = "no_income";
+    public const string RateMissing = "fx_rate_missing";
+}
+
+/// <summary>The household's income as the dashboard reads it (every <see cref="IIncomeContribution"/> merged), for the reader in a scope.</summary>
+internal sealed record OverviewIncome(IncomePart Part, VisibilityScope Scope, PersonId Reader);
+
+/// <summary>
 /// Spec §3.2 and §4.1. Every household figure is in <c>Currency</c>, null when a rate is missing (then a finding names it); a
 /// future point of a loan in another currency is converted at today's rate and flags <c>ConvertedIsEstimate</c> (D4).
 /// </summary>
@@ -64,7 +80,7 @@ public sealed record LoansOverview(
     LoanMoneyView? CostRemaining, LocalDate? FreeOn, LocalDate? NextPaymentOn, LoanMoneyView? NextPaymentTotal,
     IReadOnlyList<LoanOverviewRow> Loans, IReadOnlyList<BalanceMonthView> Months, IReadOnlyList<LoanEventView> Events,
     IReadOnlyList<LoanSpanView> Spans, IReadOnlyList<PaymentStepView> Steps, IReadOnlyList<PersonLoanShareView> ByPerson,
-    IReadOnlyList<LoanFindingView> Findings) : IExposesItems
+    IReadOnlyList<LoanFindingView> Findings, LoanDebtRatioView? DebtRatio = null) : IExposesItems
 {
     // The months and events name the same loans as the rows.
     public IEnumerable<ItemId> ExposedItems() => Loans.Select(l => l.Id);
@@ -82,7 +98,7 @@ internal sealed record OverviewLoan(ItemAccess Item, StoredLoan Loan, string? Pr
 [RequestHandler<GetLoansOverviewQuery, LoansOverview>]
 public sealed class GetLoansOverviewHandler(
     IVisibleItems visible, IItemRegistry items, ILoanStore loans, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
-    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, IEnumerable<IIncomeContribution> income)
     : IRequestHandler<GetLoansOverviewQuery, LoansOverview>
 {
     public async ValueTask<Result<LoansOverview>> HandleAsync(GetLoansOverviewQuery query, CancellationToken ct = default)
@@ -102,11 +118,26 @@ public sealed class GetLoansOverviewHandler(
                 l.PropertyId is { } property && properties.TryGetValue(property, out var linked) ? linked.DisplayName : null))
             .ToList();
 
+        // Issue #402: the income the scenarios read (every contribution, as the dashboard), merged.
+        var sources = 0;
+        var monthly = new Dictionary<Currency, decimal>();
+        var mine = new Dictionary<Currency, decimal>();
+        foreach (var contribution in income)
+        {
+            var read = await contribution.IncomeAsync(person, query.Scope, today, ct);
+            if (read.TryGetFailure(out var failure)) return Result.Failure<LoansOverview>(failure!);
+            read.TryGetValue(out var part);
+            sources += part!.Sources;
+            foreach (var (currency, amount) in part.MonthlyEquivalent) monthly[currency] = monthly.GetValueOrDefault(currency) + amount;
+            foreach (var (currency, amount) in part.ReaderShare ?? new Dictionary<Currency, decimal>()) mine[currency] = mine.GetValueOrDefault(currency) + amount;
+        }
+
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = set.Select(l => LoanViews.CurrencyOf(l.Item)).Where(c => c != reference).Distinct().ToList();
+        var foreign = set.Select(l => LoanViews.CurrencyOf(l.Item)).Concat(monthly.Keys).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. D4: every figure at today's rate.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
-        return Result.Success(LoansOverviewMath.Build(set, reference, rates, today, await persons.ListAsync(ct)));
+        return Result.Success(LoansOverviewMath.Build(set, reference, rates, today, await persons.ListAsync(ct),
+            new OverviewIncome(new IncomePart(sources, monthly, mine), query.Scope, person)));
     }
 }
 
@@ -165,7 +196,8 @@ internal static partial class LoansOverviewMath
 
     /// <param name="persons">The household in creation order (the registry's), for the order of <c>ByPerson</c>.</param>
     public static LoansOverview Build(
-        IReadOnlyList<OverviewLoan> set, Currency reference, RateTable rates, LocalDate today, IReadOnlyList<PersonInfo>? persons = null)
+        IReadOnlyList<OverviewLoan> set, Currency reference, RateTable rates, LocalDate today, IReadOnlyList<PersonInfo>? persons = null,
+        OverviewIncome? income = null)
     {
         var convert = new Converter(reference, rates, today);
         var read = set.Select(l => new Reading(l, today)).ToList();
@@ -222,6 +254,7 @@ internal static partial class LoansOverviewMath
                     steps.Add(new PaymentStepView(text, text, amount));
             }
 
+        var ratio = income is null ? null : Ratio(running, income, thisMonth, convert);
         return new LoansOverview(reference.Code, estimate, running.Count, read.Count - running.Count,
             convert.View(Household(r => r.Figures.Balance)), convert.View(principal), convert.View(repaid),
             principal is { } of && of != 0m && repaid is { } done ? Fraction(done / of) : null,
@@ -230,7 +263,35 @@ internal static partial class LoansOverviewMath
             rows, months, events, running.Select(Span).ToList(), steps,
             People(running, persons, r => convert.Of(r.Figures.Balance, r.Currency),
                 r => convert.Of(r.Payments.GetValueOrDefault(thisMonth), r.Currency), convert),
-            convert.Missing);
+            convert.Missing, ratio);
+    }
+
+    /// <summary>
+    /// Issue #402: this month's payments (D3, insurance included) over the income, by <see cref="DebtRatio"/>. In « Moi », the
+    /// reader's part of each loan's payment as <see cref="People"/> splits it, over their part of the income.
+    /// </summary>
+    private static LoanDebtRatioView Ratio(IReadOnlyList<Reading> running, OverviewIncome income, YearMonth month, Converter convert)
+    {
+        var mine = income.Scope == VisibilityScope.Me;
+        var payments = SumOrNull(running.Select(r =>
+        {
+            var payment = convert.Of(r.Payments.GetValueOrDefault(month), r.Currency);
+            if (!mine) return payment;
+            var owners = r.Source.Item.Owners;
+            var k = owners.ToList().FindIndex(o => o.PersonId == income.Reader);
+            return k < 0 ? 0m : Split(payment, owners)[k];
+        }));
+        var earned = SumOrNull(((mine ? income.Part.ReaderShare : income.Part.MonthlyEquivalent) ?? new Dictionary<Currency, decimal>())
+            .Select(x => convert.Of(x.Value, x.Key)));
+        string? unknown = income.Part.Sources == 0 || earned is <= 0m ? LoanDebtRatioReasons.NoIncome
+            : payments is null || earned is null ? LoanDebtRatioReasons.RateMissing
+            : null;
+        var known = unknown is null;
+        return new LoanDebtRatioView(
+            known ? Fraction(DebtRatio.Of(payments!.Value, earned!.Value)!.Value) : null, Fraction(DebtRatio.Ceiling),
+            convert.View(payments), convert.View(earned),
+            known ? convert.View(Math.Round(DebtRatio.Room(payments!.Value, earned!.Value)!.Value, 2, MidpointRounding.AwayFromZero)) : null,
+            unknown);
     }
 
     /// <summary>Spec §4.1: the loan's phases as its rows run through them; a phase's mode is the contract's (annuity past the last one, the engine's projection).</summary>

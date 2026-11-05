@@ -1,3 +1,4 @@
+using Nid.Documents.Contracts;
 using Nid.Platform.Infrastructure.Audit;
 
 namespace Nid.Documents.Infrastructure.Persistence;
@@ -9,6 +10,9 @@ public sealed class DocumentsAuditMap : IAuditMap
     {
         [typeof(DocumentRow)] = AuditRule.NoItem,
         [typeof(DocumentLinkRow)] = new(e => AuditItems.Of(e, nameof(DocumentLinkRow.AnchorItemId))),
+        [typeof(ExpectedDismissalRow)] = new(e => (string)e.Property(nameof(ExpectedDismissalRow.TargetKind)).CurrentValue! == TargetKinds.CoreItem
+            ? AuditItems.Of(e, nameof(ExpectedDismissalRow.TargetId))
+            : []),
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(UploadTicketRow) };

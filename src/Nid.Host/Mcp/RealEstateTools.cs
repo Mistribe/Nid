@@ -77,6 +77,37 @@ public sealed class RealEstateTools
             : await McpCalls.RunAsync(services, () => query, ct);
     }
 
+    [McpServerTool(Name = "simulate_loan_renegotiation", ReadOnly = true)]
+    [Description("Simulates renegotiating a loan at a new rate without recording it: the loan as it runs and renegotiated side by side (payment, end, interest left, total cost with fees) and the payment from which the renegotiation pays for itself, null when it never does. " + McpSetup.Untrusted)]
+    public static async Task<CallToolResult> SimulateLoanRenegotiation(IServiceProvider services, [Description("The loan's id.")] Guid id,
+        [Description("ISO date: the new rate applies from the first payment after it.")] string on,
+        [Description("The new annual rate as a decimal fraction string (e.g. '0.025' for 2.5 %).")] string annualRate,
+        [Description("Payments left after the date; omitted, the same as now.")] int? payments = null,
+        [Description("Bank fees, a decimal string; default 0.")] string? bankFees = null,
+        [Description("Guarantee fees, a decimal string; default 0.")] string? guaranteeFees = null,
+        [Description("Early repayment penalty as the bank states it, a decimal string; default 0.")] string? penalty = null, CancellationToken ct = default)
+    {
+        var reader = new FieldReader();
+        var query = new RealEstateEndpoints.LoanRenegotiationBody(on, annualRate, payments, bankFees, guaranteeFees, penalty).ToQuery(new ItemId(id), reader);
+        return query is null
+            ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
+            : await McpCalls.RunAsync(services, () => query, ct);
+    }
+
+    [McpServerTool(Name = "compare_loan_insurance", ReadOnly = true)]
+    [Description("Compares a loan's borrower insurance with quotes without recording anything: per insured person (insurance line), what is left to pay on the payments after the date (one due on it counts as made, as for a renegotiation) with the current contract and with the quote. " + McpSetup.Untrusted)]
+    public static async Task<CallToolResult> CompareLoanInsurance(IServiceProvider services, [Description("The loan's id.")] Guid id,
+        [Description("ISO date of the change: the quote takes over from the first payment after it.")] string on,
+        [Description("Quotes: { insurance (the index of the line in get_loan's contract.insurances), mode ('fixed_monthly', 'rate_on_initial' or 'rate_on_remaining'), monthlyAmount? (decimal string, fixed_monthly), annualRate? (decimal fraction string, the rated modes) }.")]
+        IReadOnlyList<RealEstateEndpoints.InsuranceQuoteBody> quotes, CancellationToken ct = default)
+    {
+        var reader = new FieldReader();
+        var query = new RealEstateEndpoints.LoanInsuranceComparisonBody(on, quotes).ToQuery(new ItemId(id), reader);
+        return query is null
+            ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
+            : await McpCalls.RunAsync(services, () => query, ct);
+    }
+
     [McpServerTool(Name = "simulate_household_early_repayment", ReadOnly = true)]
     [Description("Simulates an early repayment split across the household's loans without recording it: what goes to each loan and the interest saved. " + McpSetup.Untrusted)]
     public static async Task<CallToolResult> SimulateHouseholdEarlyRepayment(IServiceProvider services,

@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { percent } from '@/features/dashboard/format';
 import { presentConflict } from '../investments/entries/entries';
-import { PROJECTION_SCENARIO, PROJECTION_SCENARIOS, SCENARIO, SCENARIOS, type ScenarioListItem } from './api';
+import { PROJECTION_SCENARIO, PROJECTION_SCENARIOS, SALE_SCENARIO, SALE_SCENARIOS, SCENARIO, SCENARIOS, type ScenarioListItem } from './api';
 import '@/locales/forms';
 import '@/locales/scenarios';
 
@@ -63,15 +63,18 @@ function AddMenu({ variant }: { variant?: 'outline' }) {
       <DropdownMenuContent align="end">
         <DropdownMenuItem asChild><Link to="/scenarios/new">{t('scenarios.add_menu.property_purchase')}</Link></DropdownMenuItem>
         <DropdownMenuItem asChild><Link to="/scenarios/new" search={{ kind: 'projection' }}>{t('scenarios.add_menu.projection')}</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link to="/scenarios/new" search={{ kind: 'sale' }}>{t('scenarios.add_menu.property_sale')}</Link></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
 const isProjection = (r: ScenarioListItem) => r.kind === 'projection';
-const kindText = (t: TFunction, r: ScenarioListItem) => (isProjection(r) ? t('scenarios.kind.projection') : t('scenarios.kind.property_purchase'));
+const isSale = (r: ScenarioListItem) => r.kind === 'property_sale';
+const kindText = (t: TFunction, r: ScenarioListItem) =>
+  t(isProjection(r) ? 'scenarios.kind.projection' : isSale(r) ? 'scenarios.kind.property_sale' : 'scenarios.kind.property_purchase');
 
-// A projection scenario has no use, price nor payment: dashes; its gap is the server's nominal gap at the horizon.
+// A projection scenario has no use, price nor payment, a sale no use nor payment: dashes; its gap is the server's nominal gap at the horizon.
 const usageText = (t: TFunction, use: string | null | undefined) =>
   use == null ? t('scenarios.dash') : use === 'rental' ? t('scenarios.use.rental') : t('scenarios.use.primary');
 
@@ -85,7 +88,8 @@ function List({ items }: { items: ScenarioListItem[] }) {
   const ratio = (r: ScenarioListItem) => r.debtRatioAfter == null ? t('scenarios.dash') : t('scenarios.percent', { value: percent(r.debtRatioAfter) });
   return (
     <SortableTable<ScenarioListItem> caption={t('scenarios.list')} rows={items} rowKey={(r) => r.id}
-      rowLink={(r) => (isProjection(r) ? { to: '/scenarios/projection/$id', params: { id: r.id } } : { to: '/scenarios/$id', params: { id: r.id } })}
+      rowLink={(r) => (isProjection(r) ? { to: '/scenarios/projection/$id', params: { id: r.id } }
+        : isSale(r) ? { to: '/scenarios/sale/$id', params: { id: r.id } } : { to: '/scenarios/$id', params: { id: r.id } })}
       columns={[
         { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: (r) => <span className="font-medium">{r.name}</span> },
         { id: 'kind', header: t('scenarios.col.kind'), sort: (r) => kindText(t, r), cell: (r) => kindText(t, r) },
@@ -102,7 +106,9 @@ function List({ items }: { items: ScenarioListItem[] }) {
           <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.name}</span><OwnerChips owners={r.owners} /></div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span>{kindText(t, r)}</span>
-            {isProjection(r) ? <MaybeMoney value={r.gap} /> : <><span>{usageText(t, r.use)}</span><MaybeMoney value={r.price} /><MaybeMoney value={r.newPayment} /></>}
+            {isProjection(r) ? <MaybeMoney value={r.gap} />
+              : isSale(r) ? <><MaybeMoney value={r.price} /><MaybeMoney value={r.gap} /></>
+              : <><span>{usageText(t, r.use)}</span><MaybeMoney value={r.price} /><MaybeMoney value={r.newPayment} /></>}
           </div>
         </div>
       )} />
@@ -119,11 +125,13 @@ function Actions({ item }: { item: ScenarioListItem }) {
   // The list item carries no document: read the scenario, then create a copy of it.
   const duplicate = $api.useMutation('post', SCENARIOS, { onSuccess: () => void invalidate() });
   const duplicateProjection = $api.useMutation('post', PROJECTION_SCENARIOS, { onSuccess: () => void invalidate() });
+  const duplicateSale = $api.useMutation('post', SALE_SCENARIOS, { onSuccess: () => void invalidate() });
   const [copyError, setCopyError] = useState<unknown>(null);
   const copy = async () => {
     setCopyError(null);
     duplicate.reset();
     duplicateProjection.reset();
+    duplicateSale.reset();
     const name = t('scenarios.copy_suffix', { name: item.name });
     try {
       if (isProjection(item)) {
@@ -132,12 +140,18 @@ function Actions({ item }: { item: ScenarioListItem }) {
         duplicateProjection.mutate({ body: { name, document: data.result.document, visibility: data.visibility, scope: data.scope, owners: item.owners } });
         return;
       }
+      if (isSale(item)) {
+        const { data, error } = await fetchClient.GET(SALE_SCENARIO, { params: { path: { id: item.id } } });
+        if (!data) { setCopyError(error ?? new Error('copy failed')); return; }
+        duplicateSale.mutate({ body: { name, document: data.document, visibility: data.visibility, scope: data.scope, owners: item.owners } });
+        return;
+      }
       const { data, error } = await fetchClient.GET(SCENARIO, { params: { path: { id: item.id } } });
       if (!data) { setCopyError(error ?? new Error('copy failed')); return; }
       duplicate.mutate({ body: { name, document: data.document, visibility: data.visibility, scope: data.scope, owners: item.owners } });
     } catch (e) { setCopyError(e); }
   };
-  const failure = copyError ?? duplicate.error ?? duplicateProjection.error;
+  const failure = copyError ?? duplicate.error ?? duplicateProjection.error ?? duplicateSale.error;
   return (
     <>
       <RowActions menuId={`scenario-menu-${item.id}`} menuLabel={t('scenarios.row_menu', { name: item.name })}

@@ -17,8 +17,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toPlot } from '@/features/investments/chart/plot';
 import { monthLabel } from '@/features/income/expected/months';
 import { money } from '@/features/loans/format';
+import { fractionToPercent } from '@/features/loans/rate';
 import { PROPERTIES_COSTS, type CostDue, type CostRow, type PropertiesCosts } from '../api';
 import { categoryText } from '../format';
+import { PropertyFilter } from './PropertyFilter';
 import '@/locales/properties';
 
 type Scope = 'household' | 'me';
@@ -27,7 +29,7 @@ type Scope = 'household' | 'me';
 const DUES_SHOWN = 8;
 
 /** Properties dashboard §5.3: what the properties cost, paid and planned, and their real cost since purchase; nothing computed here. */
-export function CostsTab({ scope }: { scope: Scope }) {
+export function CostsTab({ scope, property }: { scope: Scope; property?: string }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', PROPERTIES_COSTS, { params: { query: { scope } } });
@@ -42,6 +44,7 @@ export function CostsTab({ scope }: { scope: Scope }) {
         <Categories d={d} />
         <Dues d={d} />
       </div>
+      <Years d={d} scope={scope} property={d.properties.some((p) => p.id === property) ? property : undefined} />
       <Rows d={d} />
       <RealCost d={d} />
     </div>
@@ -172,6 +175,53 @@ function Dues({ d }: { d: PropertiesCosts }) {
         </>
       )}
       <p className="text-sm text-muted-foreground">{t('properties_costs.dues_note')}</p>
+    </SectionCard>
+  );
+}
+
+/** Issue #405: the expenses paid per category and calendar year, of every property or one; the server's sums and changes. */
+function Years({ d, scope, property }: { d: PropertiesCosts; scope: Scope; property?: string }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const one = $api.useQuery('get', PROPERTIES_COSTS, { params: { query: { scope, property } } }, { enabled: !!property });
+  const years = property ? one.data?.byYear : d.byYear;
+  const dash = <span aria-hidden="true">{t('properties_costs.dash')}</span>;
+  const change = (c: string) => t('properties_costs.change', { rate: `${c.startsWith('-') ? '' : '+'}${fractionToPercent(c)}` });
+  return (
+    <SectionCard title={t('properties_costs.years_title')} actions={<PropertyFilter properties={d.properties} property={property} />}>
+      {one.error ? <ProblemMessage problem={present(toProblem(one.error))} />
+        : !years ? <Skeleton className="h-40 w-full" />
+          : years.categories.length === 0 ? <p className="text-sm text-muted-foreground">{t('properties_costs.years_empty')}</p> : (
+            <Table aria-label={t('properties_costs.years_table')}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">{t('properties_costs.col_category')}</TableHead>
+                  {years.years.map((y, i) => (
+                    <TableHead key={y.year} scope="col" className="text-right">
+                      {y.year}
+                      {y.complete ? null : <span className="block text-xs font-normal text-muted-foreground">
+                        {t(i === years.years.length - 1 ? 'properties_costs.year_current' : 'properties_costs.year_partial')}
+                      </span>}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {years.categories.map((c) => (
+                  <TableRow key={c.category}>
+                    <TableHead scope="row" className="font-normal text-foreground">{categoryText(t, c.category)}</TableHead>
+                    {c.cells.map((cell, i) => (
+                      <TableCell key={years.years[i]?.year ?? i} className="text-right align-top tabular-nums">
+                        {cell.paid ? formatMoney(cell.paid) : dash}
+                        {cell.change ? <span className="block text-xs text-muted-foreground">{change(cell.change)}</span> : null}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+      <p className="text-sm text-muted-foreground">{t('properties_costs.years_note')}</p>
     </SectionCard>
   );
 }

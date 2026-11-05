@@ -184,6 +184,9 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         var figures = overview.GetProperty("figures");
         Assert.Equal("1800.00", Amount(figures.GetProperty("monthlyNow")));
         Assert.Equal(0m, figures.GetProperty("change3y").GetDecimal());
+        // #407: flat over a year is a loss after the default 2 % inflation.
+        Assert.Equal((0m, -2.0m, 2m), (figures.GetProperty("monthlyChange1y").GetDecimal(),
+            figures.GetProperty("monthlyRealChange1y").GetDecimal(), figures.GetProperty("inflation").GetDecimal()));
     }
 
     [Fact]

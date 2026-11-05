@@ -136,6 +136,22 @@ describe('ItemDocuments', () => {
     expect(screen.queryByRole('button', { name: 'Relier un document', hidden: true })).not.toBeInTheDocument();
   });
 
+  it('« Voir » opens the document in a dialog that keeps the download link and closes on Escape (#413)', async () => {
+    serve();
+    const { user } = await renderItem({ canWrite: false });
+    const menu = await openMenu(user, 'Relevé août');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Voir' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Relevé août' });
+    expect(within(dialog).getByTitle('Relevé août')).toHaveAttribute('src', `/api/v1/documents/${D6}/content?inline=true`);
+    const download = within(dialog).getByRole('link', { name: 'Télécharger' });
+    expect(download).toHaveAttribute('href', `/api/v1/documents/${D6}/content`);
+    await user.tab();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   describe('Déposer', () => {
     it('preselects the type of the page', async () => {
       serve();

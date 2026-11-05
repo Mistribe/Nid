@@ -13,11 +13,14 @@ namespace Nid.Core.Application.Projection;
 /// Spec §4 and §6: the base (<see cref="ProjectionFactsReader"/>, household assumptions, no event) and the scenario's engine inputs, on
 /// the same grid. <c>VisibleDocument</c> is the document without the events on items the reader cannot see; <c>ExtraWarnings</c> the
 /// scenario's own (spec §3.4 order); <c>EventMilestones</c> one per event applied within the grid; <c>SavingsOrigin</c> is the scenario's
-/// S₀ origin (<c>"scenario"</c> when it sets its own).
+/// S₀ origin (<c>"scenario"</c> when it sets its own). <c>Sales</c> are the outcomes of the sales applied within the grid.
 /// </summary>
 public sealed record ProjectionScenarioReading(
     ProjectionReading Base, ProjectionInputs Scenario, ProjectionScenario VisibleDocument, IReadOnlyList<ProjectionWarningView> ExtraWarnings,
-    IReadOnlyList<ProjectionMilestone> EventMilestones, string SavingsOrigin);
+    IReadOnlyList<ProjectionMilestone> EventMilestones, string SavingsOrigin)
+{
+    public IReadOnlyList<SaleOutcome> Sales { get; init; } = [];
+}
 
 /// <summary>
 /// Spec §4: turns a projection scenario's events into engine inputs, every read through the reader's visible items in the scope (spec §6).
@@ -323,7 +326,7 @@ public sealed class ProjectionScenarioReader(
         };
         return Result.Success(new ProjectionScenarioReading(
             based, inputs, doc with { Events = kept }, warnings, milestones,
-            doc.Assumptions.MonthlySavings is null ? based.SavingsOrigin : ScenarioSavings));
+            doc.Assumptions.MonthlySavings is null ? based.SavingsOrigin : ScenarioSavings) { Sales = realEstate.Sales });
 
         PersonInfo? Person(PersonId id) => people.GetValueOrDefault(id);
 

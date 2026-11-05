@@ -65,6 +65,22 @@ public static class ScenarioRules
         return errors;
     }
 
+    /// <summary>
+    /// Issue #416: every refusal of a sale document; empty when valid. A sale date in the past is not refused (it is taken today and
+    /// warned about); one past the horizon is, the projection would not see it.
+    /// </summary>
+    public static IReadOnlyList<(string Field, string Message)> Check(SaleScenario doc, LocalDate today)
+    {
+        var errors = new List<(string, string)>();
+        if (doc.Price <= 0m) errors.Add(("price", "Must be greater than zero."));
+        if (doc.AgencyFees < 0m) errors.Add(("agencyFees", "Must not be negative."));
+        else if (doc.AgencyFees >= doc.Price && doc.Price > 0m) errors.Add(("agencyFees", "Must be below the price."));
+        if (doc.Penalties < 0m) errors.Add(("penalties", "Must not be negative."));
+        if (doc.HorizonYears is < 1 or > 30) errors.Add(("horizonYears", "Must be from 1 to 30."));
+        else if (doc.SaleOn > today.PlusYears(doc.HorizonYears)) errors.Add(("saleOn", "Must fall within the horizon."));
+        return errors;
+    }
+
     /// <summary>(price + acquisition fees + loan fees) − (funding + loans); <c>null</c> when within 1 €.</summary>
     public static decimal? FundingGap(PropertyPurchase doc)
     {

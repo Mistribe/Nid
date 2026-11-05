@@ -46,6 +46,7 @@ public class RealEstateUpcomingTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(
             new[]
             {
+                "2025-10-15 property_tax_due properties Maison - -", // #409: the calendar's deadline, today
                 "2025-10-20 property_cost_due properties Maison property_tax 1200.00",
                 "2025-10-26 valuation_due properties Maison - -",
                 "2025-11-15 loan_end loans Prêt travaux - -",

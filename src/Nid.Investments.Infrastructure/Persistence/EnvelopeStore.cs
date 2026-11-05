@@ -23,6 +23,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
             Note = envelope.Note,
             ClosedOn = envelope.ClosedOn,
             PremiumsBefore2017 = envelope.PremiumsBefore2017,
+            Regulated = envelope.Regulated is { } regulated ? EnvelopeWire.Of(regulated) : null,
         };
         Mark(row, import);
         db.Envelopes.Add(row);
@@ -41,6 +42,8 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         row.Note = envelope.Note;
         row.ClosedOn = envelope.ClosedOn;
         row.PremiumsBefore2017 = envelope.PremiumsBefore2017;
+        // The file carries no regulated livret: the one set in Nid stays, unless the envelope is no longer a savings account.
+        if (envelope.Kind != EnvelopeKind.Savings) row.Regulated = null;
         Mark(row, import);
         await db.SaveChangesAsync(ct);
     }
@@ -101,6 +104,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (change.ClearNote) row.Note = null; else if (change.Note is { } note) row.Note = note;
         if (change.ClearUcShareFloorPct) row.UcShareFloorPct = null; else if (change.UcShareFloorPct is { } floor) row.UcShareFloorPct = floor;
         if (change.ClearPremiumsBefore2017) row.PremiumsBefore2017 = null; else if (change.PremiumsBefore2017 is { } premiums) row.PremiumsBefore2017 = premiums;
+        if (change.ClearRegulated) row.Regulated = null; else if (change.Regulated is { } regulated) row.Regulated = EnvelopeWire.Of(regulated);
         await db.SaveChangesAsync(ct);
     }
 
@@ -108,6 +112,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
     {
         if (!EnvelopeWire.TryKind(row.Kind, out var kind) || !EnvelopeWire.TryCadence(row.ValuationCadence, out var cadence))
             throw new InvalidOperationException($"Envelope {row.ItemId} has a stored kind or cadence this code does not know.");
-        return new Envelope(new ItemId(row.ItemId), kind, row.Institution, row.AccountHint, row.OpenedOn, cadence, row.StaleAfterDays, row.Note, row.ClosedOn, row.UcShareFloorPct, row.PremiumsBefore2017);
+        return new Envelope(new ItemId(row.ItemId), kind, row.Institution, row.AccountHint, row.OpenedOn, cadence, row.StaleAfterDays, row.Note, row.ClosedOn, row.UcShareFloorPct, row.PremiumsBefore2017,
+            EnvelopeWire.TryRegulated(row.Regulated, out var regulated) ? regulated : (RegulatedKind?)null);
     }
 }

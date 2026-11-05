@@ -10,9 +10,11 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { contentUrl, useAnchoredDocuments, useUnlinkDocument, type DocumentLink, type DocumentSummary } from './api';
+import { ExpectedDocuments } from './ExpectedDocuments';
 import { linkKey, roleText, shownDate } from './format';
 import { ItemLinkDialog } from './ItemLinkDialog';
 import { ItemUploadDialog } from './ItemUploadDialog';
+import { previewable, usePreview } from './preview';
 import '@/locales/documents';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
@@ -22,7 +24,7 @@ type Row = { doc: DocumentSummary; link: DocumentLink };
 /**
  * The documents anchored on an item, one row per link on it: the item itself (« Cette fiche ») or a row of a module
  * anchored on it (a phase, a one-off), named by the server. « Déposer » and « Relier un document » for an actor who
- * writes the item; « Retirer » unlinks that row's link only. The page's tab or `Section` gives the title.
+ * writes the item; « Retirer » unlinks that row's link only, and the documents still expected on it (#414). The page's tab or `Section` gives the title.
  */
 export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: string; canWrite: boolean; defaultRole: string }) {
   const { t } = useTranslation();
@@ -31,6 +33,7 @@ export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: strin
   const unlink = useUnlinkDocument();
   const [dialog, setDialog] = useState<'upload' | 'link' | null>(null);
   const [removing, setRemoving] = useState<Row | null>(null);
+  const preview = usePreview();
   const uploadRef = useRef<HTMLButtonElement>(null);
   const linkRef = useRef<HTMLButtonElement>(null);
   const done = (ref: typeof uploadRef) => (message: string) => { setDialog(null); toast.success(message); ref.current?.focus(); };
@@ -44,6 +47,7 @@ export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: strin
   const title = ({ doc }: Row) => <Link to="/documents/$id" params={{ id: doc.id }} className="font-medium underline-offset-4 hover:underline">{doc.title}</Link>;
   const menu = (row: Row) => (
     <RowMenu label={t('documents_item.menu', { title: row.doc.title })} items={[
+      ...(previewable(row.doc.mediaType) ? [{ label: t('documents_item.preview'), onSelect: () => preview.show(row.doc) }] : []),
       { label: t('documents_item.download'), href: contentUrl(row.doc.id) },
       { label: t('documents_item.open'), onSelect: () => void navigate({ to: '/documents/$id', params: { id: row.doc.id } }) },
       ...(row.doc.canEdit && row.link.canWrite ? [{ label: t('documents_item.remove'), destructive: true, onSelect: () => setRemoving(row) }] : []),
@@ -67,6 +71,7 @@ export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: strin
           </Button>
         </div>
       ) : null}
+      {canWrite ? <ExpectedDocuments itemId={itemId} /> : null}
       {error ? <ProblemMessage problem={present(toProblem(error))} /> : null}
       {!answer.data ? (answer.error ? null : <div role="status" aria-busy="true" aria-label={t('documents_page.loading')} className="h-24 shimmer rounded-md border bg-muted" />)
         : rows.length === 0 ? <p className="text-muted-foreground">{t('documents_item.empty')}</p>
@@ -94,6 +99,7 @@ export function ItemDocuments({ itemId, canWrite, defaultRole }: { itemId: strin
         </Suspense>
       ) : null}
       {dialog === 'upload' ? <ItemUploadDialog itemId={itemId} defaultRole={defaultRole} onClose={() => setDialog(null)} onDone={done(uploadRef)} /> : null}
+      {preview.dialog}
       {dialog === 'link' ? <ItemLinkDialog itemId={itemId} defaultRole={defaultRole} onClose={() => setDialog(null)} onDone={done(linkRef)} /> : null}
     </div>
   );

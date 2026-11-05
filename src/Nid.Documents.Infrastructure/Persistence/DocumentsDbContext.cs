@@ -17,6 +17,8 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
 
     public DbSet<UploadTicketRow> UploadTickets => Set<UploadTicketRow>();
 
+    public DbSet<ExpectedDismissalRow> ExpectedDismissals => Set<ExpectedDismissalRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -49,6 +51,12 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
             e.Property(x => x.Title).HasMaxLength(255);
             e.Property(x => x.Note).HasMaxLength(2000);
             e.Property(x => x.SourceRef).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<ExpectedDismissalRow>(e =>
+        {
+            e.ToTable("expected_dismissal");
+            e.HasKey(x => new { x.TargetKind, x.TargetId, x.Role, x.Period });
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

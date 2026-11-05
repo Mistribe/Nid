@@ -47,7 +47,7 @@ describe('Abonnements › liste', () => {
 
     const table = await screen.findByRole('table', { name: 'Liste des abonnements' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
-      .toEqual(['Fournisseur', 'Propriétaire', 'Libellés', 'Prochaine échéance', 'Par mois', 'Par an']);
+      .toEqual(['Fournisseur', 'Propriétaire', 'Libellés', 'Prochaine échéance', 'Par mois', 'Par an', 'Dépensé au total']);
     const shown = await rows();
     expect(shown).toHaveLength(2);
     expect(within(shown[0]!).getByText('Netflix')).toBeInTheDocument();
@@ -229,7 +229,7 @@ const group = (key: string, items: Summary[], over: Partial<ListResponse['groups
   key, name: key, itemIds: items.map((i) => i.id),
   items: items.map((i) => ({ id: i.id, amortizedCostConverted: i.amortizedCostConverted, annualCostConverted: i.annualCostConverted })),
   amortizedCostConverted: eur('40.00'), annualCostConverted: eur('480.00'),
-  convertedIsEstimate: false, ...over,
+  convertedIsEstimate: false, spentPartial: false, ...over,
 });
 const grouped = list([claude, api, netflix], { groups: [group('Anthropic', [claude, api]), group('Netflix', [netflix])] });
 
@@ -399,5 +399,32 @@ describe('Abonnements › liste groupée', () => {
     const cells = within(row!).getAllByRole('cell');
     expect(cells[4]).toHaveTextContent('—');
     expect(cells[5]).toHaveTextContent('—');
+  });
+
+  it('Provider_groups_show_and_sort_by_what_they_spent', async () => {
+    serve(list([claude, api, netflix], { groups: [
+      group('Anthropic', [claude, api], { spentTotal: eur('100.00') }),
+      group('Netflix', [netflix], { spentTotal: eur('900.00'), items: [{ id: netflix.id, spentTotal: eur('900.00') }] }),
+    ] }));
+    const { user } = await renderApp('/subscriptions?tab=list');
+
+    const table = await screen.findByRole('table', { name: 'Liste des abonnements' });
+    const firstNames = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/Anthropic|Netflix/)?.[0]);
+    expect(await firstNames()).toEqual(['Anthropic', 'Netflix']);
+    expect((await rows())[0]).toHaveTextContent('100,00 €');
+    await user.click(within(table).getByRole('button', { name: 'Dépensé au total' }));
+    await user.click(within(table).getByRole('button', { name: 'Dépensé au total' }));
+    expect(await firstNames()).toEqual(['Netflix', 'Anthropic']);
+  });
+
+  it('The_provider_filter_goes_to_the_server_and_can_be_removed', async () => {
+    const seen: string[] = [];
+    serve(list([claude]), seen);
+    const { user, router } = await renderApp('/subscriptions?tab=list&status=all&provider=anthropic');
+
+    await rows();
+    expect(param(seen, 'provider')).toBe('anthropic');
+    await user.click(screen.getByRole('button', { name: 'Retirer le filtre Anthropic' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('provider'));
   });
 });

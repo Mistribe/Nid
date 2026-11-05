@@ -136,6 +136,38 @@ namespace Nid.Documents.Infrastructure.Persistence.Migrations
                     b.ToTable("document", "documents");
                 });
 
+            modelBuilder.Entity("Nid.Documents.Infrastructure.Persistence.ExpectedDismissalRow", b =>
+                {
+                    b.Property<string>("TargetKind")
+                        .HasColumnType("text")
+                        .HasColumnName("target_kind");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_id");
+
+                    b.Property<string>("Role")
+                        .HasColumnType("text")
+                        .HasColumnName("role");
+
+                    b.Property<int>("Period")
+                        .HasColumnType("integer")
+                        .HasColumnName("period");
+
+                    b.Property<Instant>("DismissedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dismissed_at");
+
+                    b.Property<Guid>("DismissedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dismissed_by_person_id");
+
+                    b.HasKey("TargetKind", "TargetId", "Role", "Period")
+                        .HasName("pk_expected_dismissal");
+
+                    b.ToTable("expected_dismissal", "documents");
+                });
+
             modelBuilder.Entity("Nid.Documents.Infrastructure.Persistence.UploadTicketRow", b =>
                 {
                     b.Property<string>("TokenHash")

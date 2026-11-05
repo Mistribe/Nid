@@ -66,6 +66,17 @@ describe('the routine', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('says what a livret can still take, or that it is at its ceiling (issue 399)', async () => {
+    serve(routine([
+      line({ id: LIVRET, name: 'Livret A', ceilingRoom: { amount: '3600.0000', currency: 'EUR' } }),
+      line({ id: PEA, name: 'LDDS', ceilingRoom: { amount: '0', currency: 'EUR' } }),
+    ]));
+    await renderApp('/routine');
+    const due = await screen.findByRole('region', { name: 'À relever' });
+    expect(within(due).getByText('Plafond : encore 3 600,00 € versables')).toBeInTheDocument();
+    expect(within(due).getByText('Au plafond : plus de versement possible')).toBeInTheDocument();
+  });
+
   it('sends the proposed values, the contributions and skips « Passer »', async () => {
     const posted: unknown[] = [];
     serve(routine(lines()), posted);

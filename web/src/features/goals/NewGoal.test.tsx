@@ -8,8 +8,13 @@ import { list as envelopeList, summary as envelope, PEA } from '../investments/t
 import { persons } from '../subscriptions/testData';
 import { GOAL } from './testData';
 
-function serve(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: GOAL }, { status: 201 })) {
+function serve(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: GOAL }, { status: 201 }), targets: string[] = []) {
   server.use(
+    http.get('*/api/v1/goals/emergency-target', ({ request }) => {
+      const months = new URL(request.url).searchParams.get('months')!;
+      targets.push(months);
+      return HttpResponse.json({ months: Number(months), target: { amount: `${months}00.00`, currency: 'EUR' }, commitments: [], flags: [] });
+    }),
     http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
     http.get('*/api/v1/investments/envelopes', () => HttpResponse.json(envelopeList([envelope({ displayName: 'PEA Alice' }), envelope({ id: 'other', displayName: 'Autre' }), envelope({ id: 'closed', displayName: 'Vieux PEL', closed: true })]))),
     http.post('*/api/v1/goals', async ({ request }) => { bodies.push(await request.json()); return answer(); }),
@@ -75,6 +80,29 @@ describe('NewGoal', () => {
     await waitFor(() => expect(bodies).toHaveLength(1));
     expect(bodies[0]).toMatchObject({ name: 'Précaution', kind: 'emergency_fund', months: 6, funding: [] });
     expect(bodies[0]).not.toHaveProperty('targetAmount');
+  });
+
+  it('opens as a three-month emergency fund from the empty state and shows the server\'s target', async () => {
+    const bodies: unknown[] = [];
+    const targets: string[] = [];
+    serve(bodies, undefined, targets);
+    const { user } = await renderApp('/goals/new?kind=emergency_fund&months=3');
+
+    expect(await screen.findByLabelText('Nom')).toHaveValue('Épargne de précaution');
+    expect(screen.getByRole('radio', { name: 'Épargne de précaution' })).toBeChecked();
+    expect(screen.getByLabelText('Mois de dépenses')).toHaveValue('3');
+    expect(await screen.findByText('300,00 €')).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Mois de dépenses'));
+    await user.type(screen.getByLabelText('Mois de dépenses'), '4');
+    expect(await screen.findByText('400,00 €')).toBeInTheDocument();
+    expect(targets).toEqual(['3', '4']);
+
+    await next(user);
+    await user.click(screen.getByRole('radio', { name: 'Libre' }));
+    await next(user);
+    await submit(user);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ name: 'Épargne de précaution', kind: 'emergency_fund', months: 4 });
   });
 
   it('sends an empty funding for a free goal', async () => {

@@ -46,6 +46,7 @@ public class McpChildcareToolTests(PostgresFixture fixture) : IClassFixture<Post
         SameJson(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{id}/statements"), (await CallAsync(client, "get_childcare_statements", new { id })).Text);
         SameJson(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{id}/statements/2025-09"),
             (await CallAsync(client, "get_childcare_statement", new { id, month = "2025-09" })).Text);
+        SameJson(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{id}/summary?year=2025"), (await CallAsync(client, "get_childcare_year", new { id, year = 2025 })).Text);
     }
 
     [Fact]

@@ -150,7 +150,8 @@ export const householdRental = (): PropertiesRental => propertiesRental({
 /** Nothing paid nor planned: what the page reads by default. */
 export const propertiesCosts = (over: Partial<PropertiesCosts> = {}): PropertiesCosts => ({
   currency: 'EUR', from: '2025-10-23', to: '2026-10-22', paid: null, worksPaid: null, planned: null, plannedMonthly: null, byCategory: [],
-  dues: [], properties: [], realCost: null, netCostOfRents: null, findings: [], ...over,
+  dues: [], properties: [], realCost: null, netCostOfRents: null, findings: [],
+  byYear: { years: [2022, 2023, 2024, 2025, 2026].map((year) => ({ year, complete: year < 2026 })), categories: [] }, ...over,
 });
 
 const costRow = (id: string, name: string, over: Partial<CostRow>): CostRow => ({
@@ -183,6 +184,20 @@ export const householdCosts = (): PropertiesCosts => propertiesCosts({
     }),
   ],
   realCost: eur('482523.35'), netCostOfRents: eur('456783.35'),
+  // The rental bought in 2023 makes that year partial.
+  byYear: {
+    years: [2022, 2023, 2024, 2025, 2026].map((year) => ({ year, complete: year !== 2023 && year < 2026 })),
+    categories: [
+      { category: 'property_tax', cells: [
+        { paid: eur('1400.00'), change: null }, { paid: eur('1450.00'), change: null }, { paid: eur('2900.00'), change: null },
+        { paid: eur('3045.00'), change: '0.0500' }, { paid: eur('1600.00'), change: null },
+      ] },
+      { category: 'insurance', cells: [
+        { paid: null, change: null }, { paid: null, change: null }, { paid: eur('400.00'), change: null },
+        { paid: eur('380.00'), change: '-0.0500' }, { paid: null, change: null },
+      ] },
+    ],
+  },
 });
 
 /** One overdue month and one still running, with the letter the server would build for the overdue one. */

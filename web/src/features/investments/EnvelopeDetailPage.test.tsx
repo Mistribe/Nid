@@ -54,6 +54,35 @@ describe('EnvelopeDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows a livret\'s ceiling and the year\'s interest as estimates (issues 399, 401)', async () => {
+    serve(detail({
+      kind: 'savings', regulated: 'livret_a',
+      ceiling: { ceiling: eur('22950'), room: eur('3600.0000'), reached: false, since: '2013-01-01', source: 'Banque de France' },
+      interest: { year: 2025, toDate: eur('173.33'), expected: eur('215.83'), ratePct: 1.7, source: 'Banque de France' },
+    }));
+    const { container } = await renderApp(`/investments/${PEA}`);
+    const figuresBlock = await screen.findByRole('region', { name: 'Valeur et gain' });
+    expect(figuresBlock).toHaveTextContent('22 950,00 € · encore 3 600,00 € versables');
+    expect(figuresBlock).toHaveTextContent('Intérêts estimés à ce jour173,33 €');
+    expect(figuresBlock).toHaveTextContent('attendus au 31 décembre : 215,83 €');
+    expect(figuresBlock).toHaveTextContent('Estimation au taux réglementé (1,7 % aujourd’hui)');
+    await expectNoAxeViolations(container);
+    cleanup();
+
+    serve(detail({ kind: 'savings', regulated: 'livret_a', ceiling: { ceiling: eur('22950'), room: eur('0'), reached: true, since: '2013-01-01', source: 'Banque de France' } }));
+    await renderApp(`/investments/${PEA}`);
+    expect(await screen.findByRole('region', { name: 'Valeur et gain' })).toHaveTextContent('22 950,00 € · atteint');
+  });
+
+  it('announces the next tax date and leads to the tax on a sale (issue 400)', async () => {
+    serve(detail({ kind: 'life_insurance', milestone: { code: 'life_insurance_8y', on: '2028-10-15' } }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=values`);
+    const figuresBlock = await screen.findByRole('region', { name: 'Valeur et gain' });
+    expect(figuresBlock).toHaveTextContent('8 ans le 15 oct. 2028');
+    await user.click(within(figuresBlock).getByRole('button', { name: 'Impôt si vente aujourd’hui' }));
+    expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('shows the source document next to a value or a flow that has one, and none otherwise', async () => {
     const base = detail();
     serve({ ...base, valuations: [{ ...base.valuations[0]!, documentId: 'd1' }, base.valuations[1]!], flows: [{ ...base.flows[0]!, documentId: 'd2' }, base.flows[1]!] });

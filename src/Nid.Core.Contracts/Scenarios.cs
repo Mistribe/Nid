@@ -10,6 +10,9 @@ public static class ScenarioKinds
 
     /// <summary>Net worth projection spec §6: a projection scenario, stored beside the purchases.</summary>
     public const string Projection = "projection";
+
+    /// <summary>Issue #416: the sale of a property, stored beside the purchases.</summary>
+    public const string PropertySale = "property_sale";
 }
 
 public enum PurchaseUse { Primary, Rental }
@@ -37,6 +40,12 @@ public sealed record PropertyPurchase(
     int Version, PurchaseUse Use, LocalDate PurchaseOn, decimal Price, decimal NotaryFees, decimal AgencyFees, decimal OtherCosts,
     decimal MonthlyCharges, decimal CurrentRent, decimal ExpectedRent, int VacancyMonths, string? RentalRegime,
     IReadOnlyList<FundingLine> Funding, IReadOnlyList<ScenarioLoan> Loans, ScenarioAssumptions Assumptions);
+
+/// <summary>
+/// Issue #416: the document of a sale scenario, amounts in the reference currency. <c>Penalties</c> are the early repayment penalties
+/// of the property's loans, as the person types them; the net worth is projected <c>HorizonYears</c> on the household's assumptions.
+/// </summary>
+public sealed record SaleScenario(int Version, ItemId Property, LocalDate SaleOn, decimal Price, decimal AgencyFees, decimal Penalties, int HorizonYears);
 
 public sealed record SimulatedPayment(int Number, LocalDate DueDate, decimal Payment, decimal Interest, decimal Principal, decimal Insurance, decimal Balance);
 
@@ -74,10 +83,16 @@ public sealed record RealEstateEvents(IReadOnlyList<ProjectedRepayment> Repaymen
 }
 
 /// <summary>
-/// A sale at grid month <c>Month</c>: <c>Proceeds</c> = price − costs − the settled balance of its loans (negative possible);
-/// <c>MonthlyNet</c> = its monthly recurring costs − its monthly rent today, which stop with the sale. Reference currency.
+/// A sale at grid month <c>Month</c>: <c>Proceeds</c> = price − costs − <c>Settled</c>, the balance its loans were settled by (negative
+/// possible); <c>MonthlyNet</c> = its monthly recurring costs − its monthly rent today, which stop with the sale; <c>LoanPayments</c>,
+/// the settled loans' payments (insurance included) of the month after the sale, which stop too. Reference currency.
 /// </summary>
-public sealed record SaleOutcome(Guid Event, int Month, decimal Proceeds, decimal MonthlyNet);
+public sealed record SaleOutcome(Guid Event, int Month, decimal Proceeds, decimal MonthlyNet)
+{
+    public decimal Settled { get; init; }
+
+    public decimal LoanPayments { get; init; }
+}
 
 /// <summary>A repayment at grid month <c>Month</c>: <c>Applied</c> is what the eligible loans took, at most the amount asked (capped at their balance).</summary>
 public sealed record RepaymentOutcome(Guid Event, int Month, decimal Applied);
@@ -114,9 +129,11 @@ public interface IRealEstateProjection
 
 /// <summary>
 /// Spec §5: a scenario's document, stored as a JSON row keyed by its registry item. <c>Scope</c> is what it is computed on.
-/// <c>Document</c> is set for a purchase, <c>Projection</c> for a projection scenario (projection spec §6), by <c>Kind</c>.
+/// <c>Document</c> is set for a purchase, <c>Projection</c> for a projection scenario (projection spec §6), <c>Sale</c> for a sale
+/// (issue #416), by <c>Kind</c>.
 /// </summary>
-public sealed record StoredScenario(ItemId Item, string Kind, VisibilityScope Scope, PropertyPurchase? Document, ProjectionScenario? Projection = null);
+public sealed record StoredScenario(
+    ItemId Item, string Kind, VisibilityScope Scope, PropertyPurchase? Document, ProjectionScenario? Projection = null, SaleScenario? Sale = null);
 
 public interface IScenarioStore
 {

@@ -402,12 +402,14 @@ public static class RequestCatalogue
         new(typeof(GetIncomeOverviewQuery), false, (_, _) => new GetIncomeOverviewQuery(VisibilityScope.Me, OverviewPeriod.Year, null, null, null, true)),
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
+        new(typeof(GetMonthChangesQuery), false, (_, _) => new GetMonthChangesQuery(VisibilityScope.Me)),
         new(typeof(GetPassiveIncomeQuery), false, (_, _) => new GetPassiveIncomeQuery(VisibilityScope.Me)),
         new(typeof(SaveAllocationTargetCommand), false, (_, _) => new SaveAllocationTargetCommand(new Dictionary<string, decimal>())),
         new(typeof(GetProjectionAssumptionsQuery), false, (_, _) => new GetProjectionAssumptionsQuery()),
         new(typeof(SaveProjectionAssumptionsCommand), false, (_, _) => new SaveProjectionAssumptionsCommand(ProjectionDefaults.Assumptions)),
         new(typeof(GetProjectionQuery), false, (_, _) => new GetProjectionQuery(VisibilityScope.Me, ProjectionHorizon.Default)),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
+        new(typeof(GetTaxChangesQuery), false, (_, _) => new GetTaxChangesQuery(2026, VisibilityScope.Me)),
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),
         new(typeof(GetSaleTaxQuery), true, (_, item) => new GetSaleTaxQuery(VisibilityScope.Me, item)),
         new(typeof(SaveTaxProfileCommand), false, (_, _) => new SaveTaxProfileCommand(2025, TaxProfile.Empty, VisibilityScope.Me)),
@@ -450,6 +452,19 @@ public static class RequestCatalogue
                 target, "bench", d.VisibilityOf(target), VisibilityScope.Me, BenchProjection(PurchaseEvent(d.PurchaseTwinOf(other))))),
             SecondItemAccess = AccessKind.Read,
         },
+        // Issue #416: the sale requests run against the sale twins, each selling its row's property twin; a replace may name another
+        // property, which the actor only has to read. The simulation sells P-A's property twin, which B must not see exposed.
+        new(typeof(SimulateSaleScenarioQuery), false, (d, _) => new SimulateSaleScenarioQuery(VisibilityScope.Me, BenchSale(d.Properties["P-A"]))),
+        new(typeof(CreateSaleScenarioCommand), false, (d, _) => new CreateSaleScenarioCommand("bench", Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], VisibilityScope.Me, BenchSale(d.Properties["S-A"]))),
+        new(typeof(GetSaleScenarioQuery), true, (_, item) => new GetSaleScenarioQuery(item)),
+        new(typeof(ReplaceSaleScenarioCommand), true, (d, item) => new ReplaceSaleScenarioCommand(
+            item, "bench", d.VisibilityOf(item), VisibilityScope.Me, BenchSale(d.PropertyTwinOfSale(item))))
+        {
+            BuildNamingAnother = (d, target, other) => Task.FromResult<object>(new ReplaceSaleScenarioCommand(
+                target, "bench", d.VisibilityOf(target), VisibilityScope.Me, BenchSale(d.PropertyTwinOfSale(other)))),
+            SecondItemAccess = AccessKind.Read,
+        },
         // Spec §14: J-AB's projection twin (B's event on B's private loan, which A must not see) beside S-A's purchase twin, compared by
         // both adults; the scans check what the answer exposes. The 404s (unknown, deleted, private of the other adult, private outside
         // the scope) are ProjectionScenarioEndpointTests.Compare_*'s.
@@ -484,6 +499,7 @@ public static class RequestCatalogue
 
         new(typeof(ListGoalsQuery), false, (_, _) => new ListGoalsQuery(VisibilityScope.Me, true)),
         new(typeof(GetGoalQuery), true, (_, item) => new GetGoalQuery(item, VisibilityScope.Me)),
+        new(typeof(EmergencyTargetQuery), false, (_, _) => new EmergencyTargetQuery(3, VisibilityScope.Me)),
         new(typeof(CreateGoalCommand), false, (d, _) => new CreateGoalCommand("bench", GoalKinds.Savings, 1000m, null, null, null, [],
             Visibility.Shared, [new OwnerShare(d.App.AdultA, 10_000)])),
         // Version 1 is never a row's xmin: an allowed writer meets goals.conflict, never an access refusal.
@@ -517,6 +533,7 @@ public static class RequestCatalogue
         new(typeof(ReopenChildcareCommand), true, (_, item) => new ReopenChildcareCommand(item)),
         new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),
         new(typeof(GetStatementQuery), true, (_, item) => new GetStatementQuery(item, new YearMonth(2025, 9))),
+        new(typeof(GetChildcareYearQuery), true, (_, item) => new GetChildcareYearQuery(item, 2025)),
         // No days: an allowed writer meets the 422 on days, never an access refusal; version 1 is never stored.
         new(typeof(SaveStatementCommand), true, (_, item) => new SaveStatementCommand(item, new YearMonth(2025, 9), [], 0m, null, 1)),
         new(typeof(ValidateStatementCommand), true, (_, item) => new ValidateStatementCommand(item, new YearMonth(2025, 9), 1)),
@@ -586,6 +603,11 @@ public static class RequestCatalogue
         // no longer reads (« document » not found, not « item »); no other entry meets an unlinked document.
         new(typeof(UnlinkDocumentCommand), true, (d, item) => new UnlinkDocumentCommand(d.UnlinkDocuments[item],
             new DocumentTarget(TargetKinds.CoreItem, item.Value))),
+        // Issue #414: the documents an item the actor writes still lacks; a reader of the item is refused, as for a write.
+        new(typeof(ListExpectedDocumentsQuery), true, (_, item) => new ListExpectedDocumentsQuery(item.Value)),
+        // A deed on any item: an allowed writer meets « expected document » not found unless the item is a property lacking one.
+        new(typeof(DismissExpectedDocumentCommand), true, (_, item) => new DismissExpectedDocumentCommand(
+            new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Deed, 0)),
 
         new(typeof(ListLoansQuery), false, (_, _) => new ListLoansQuery(VisibilityScope.Me, true)),
         new(typeof(GetLoansOverviewQuery), false, (_, _) => new GetLoansOverviewQuery(VisibilityScope.Me)),
@@ -595,6 +617,9 @@ public static class RequestCatalogue
         new(typeof(GetLoanQuery), true, (_, item) => new GetLoanQuery(item)),
         new(typeof(GetLoanScheduleQuery), true, (_, item) => new GetLoanScheduleQuery(item)),
         new(typeof(SimulateLoanRepaymentQuery), true, (_, item) => new SimulateLoanRepaymentQuery(item, new LocalDate(2025, 1, 15), 1_000m, null, 0m)),
+        new(typeof(SimulateLoanRenegotiationQuery), true, (_, item) => new SimulateLoanRenegotiationQuery(item, new LocalDate(2025, 1, 15), 0.02m, null, 0m, 0m, 0m)),
+        new(typeof(CompareLoanInsuranceQuery), true, (_, item) => new CompareLoanInsuranceQuery(item, new LocalDate(2025, 1, 15),
+            [new InsuranceQuote(0, Nid.RealEstate.Contracts.InsuranceMode.FixedMonthly, 10m, null)])),
         new(typeof(CreateLoanCommand), false, (d, _) => new CreateLoanCommand("bench", Currency.Eur, Visibility.Shared,
             [new OwnerShare(d.App.AdultA, 10_000)], null, null, BenchContract)),
         new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench")))
@@ -669,6 +694,9 @@ public static class RequestCatalogue
         new(typeof(GetRentArrearsQuery), false, (_, _) => new GetRentArrearsQuery(VisibilityScope.Me)),
         new(typeof(GetRentRevisionsQuery), false, (_, _) => new GetRentRevisionsQuery(VisibilityScope.Me)),
     ];
+
+    /// <summary>The sale of <paramref name="property"/> in eight months, its net worth over 10 years.</summary>
+    internal static SaleScenario BenchSale(ItemId property) => new(1, property, new LocalDate(2026, 6, 1), 300_000m, 10_000m, 0m, 10);
 
     /// <summary>A projection scenario over 10 years on the household's assumptions.</summary>
     internal static ProjectionScenario BenchProjection(params ProjectionEvent[] events)

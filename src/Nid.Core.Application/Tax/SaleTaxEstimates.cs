@@ -64,6 +64,22 @@ public sealed class SaleTaxEstimates(IEnumerable<ISaleContribution> contribution
         return Result.Success(new SaleTaxView("EUR", rules.RulesYear, rules.CarriedForward, item is null, items, totals, notes));
     }
 
+    /// <summary>
+    /// Issue #416: <paramref name="item"/>'s page as if sold on <paramref name="on"/> for <paramref name="price"/>, already net of the
+    /// seller's agency fees (art. 150 VA CGI), on that year's rules; not found when the reader does not see the property.
+    /// </summary>
+    public async Task<Result<SaleItemView>> PropertyAsync(
+        PersonId reader, ItemId item, LocalDate today, LocalDate on, decimal price, CancellationToken ct)
+    {
+        var collected = await Contributions.CollectAsync(contributions, c => c.SaleAssetsAsync(reader, VisibilityScope.Me, today, ct));
+        if (collected.TryGetFailure(out var failure)) return Result.Failure<SaleItemView>(failure!);
+        collected.TryGetValue(out var parts);
+        if (parts!.SelectMany(p => p.Properties).FirstOrDefault(p => p.Item == item) is not { } property)
+            return Result.Failure<SaleItemView>(new NotFoundFailure("item", item.Value.ToString()));
+        var page = new Sale([], SaleTaxRules.For(on.Year), 0m, on).Property(property with { Value = price, ValueOn = on, Stale = false });
+        return Result.Success(page with { Notes = page.Notes.Select(n => n == "sale_costs_not_deducted" ? "agency_fees_deducted" : n).ToList() });
+    }
+
     private sealed class Sale
     {
         private const string LifeInsurance = "life_insurance";

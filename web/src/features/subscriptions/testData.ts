@@ -71,5 +71,6 @@ export const list = (items: Summary[], over: Partial<ListResponse> = {}): ListRe
 export const overview = (over: Partial<Overview> = {}): Overview => ({
   currency: 'EUR', convertedIsEstimate: false, monthlyAmortized: eur('0.00'), annualAmortized: eur('0.00'),
   monthCash: eur('0.00'), monthCashRemaining: eur('0.00'), activeCount: 0, endedCount: 0,
-  months: [], byPerson: [], byLabel: [], upcoming: [], watch: [], findings: [], ...over,
+  months: [], byPerson: [], byLabel: [], upcoming: [], watch: [], findings: [], years: [], topProviders: [],
+  savings: { last12Months: eur('0.00'), partial: false, items: [] }, priceRises: { yearlyTotal: null, items: [] }, ...over,
 });

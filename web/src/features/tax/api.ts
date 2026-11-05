@@ -11,6 +11,8 @@ export const TAX = '/api/v1/tax' as const;
 export const FIRST_ESTIMATE_YEAR = 2025;
 export const TAX_PROFILE = '/api/v1/tax/profile/{year}' as const;
 export const TAX_SIMULATE = '/api/v1/tax/simulate' as const;
+/** Issue #410: what changed since the year before, line by line. */
+export const TAX_CHANGES = '/api/v1/tax/changes' as const;
 
 export const STATUSES = ['non_executive', 'executive', 'public'] as const;
 

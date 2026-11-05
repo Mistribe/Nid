@@ -19,4 +19,6 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(DocumentEndpoints.FileDocumentsBody))]
 [JsonSerializable(typeof(DocumentEndpoints.LinkDocumentBody))]
 [JsonSerializable(typeof(DocumentEndpoints.SetLinkRoleBody))]
+[JsonSerializable(typeof(ExpectedDocumentList))]
+[JsonSerializable(typeof(DocumentEndpoints.DismissExpectedBody))]
 internal sealed partial class DocumentsJsonContext : JsonSerializerContext;

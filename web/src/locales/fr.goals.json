@@ -2,6 +2,7 @@
   "goals_list": {
     "title": "Objectifs",
     "add": "Nouvel objectif",
+    "add_emergency": "Épargne de précaution (3 mois)",
     "loading": "Chargement des objectifs",
     "list": "Liste des objectifs",
     "tab_open": "En cours",
@@ -119,6 +120,8 @@
     "amount": "Montant cible",
     "months": "Mois de dépenses",
     "months_hint": "Entre 1 et 24 mois ; la cible suit vos dépenses.",
+    "computed_target": "Cible calculée :",
+    "computed_target_partial": "(hors dépenses sans taux de change)",
     "target_date": "Date cible",
     "note": "Note",
     "more": "Plus d’options",

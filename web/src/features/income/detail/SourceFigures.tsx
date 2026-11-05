@@ -5,16 +5,17 @@ import { StatLine } from '@/components/page/StatLine';
 import { percent } from '@/features/dashboard/format';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeSourceOverview } from '../api';
-import { Change, Sub } from '../overview/OverviewFigures';
+import { Change, RealChange, Sub } from '../overview/OverviewFigures';
+import { Withholding } from './Withholding';
 import '@/locales/income';
 
 /**
  * Income dashboard §4: the source's key figures as the server computed them — the smoothed monthly income and each
  * running component's part, the next payment, the change over a year and since the start, the cash received this year.
  */
-export function SourceFigures({ figures }: { figures: IncomeSourceOverview['figures'] }) {
+export function SourceFigures({ figures, withholding = [] }: { figures: IncomeSourceOverview['figures']; withholding?: IncomeSourceOverview['withholding'] }) {
   const { t } = useTranslation();
-  const { monthlyNow, monthlyParts, nextOn, nextAmount, nextLabel, change1y, changeSinceStart, receivedThisYear, oneOffsThisYear } = figures;
+  const { monthlyNow, monthlyParts, nextOn, nextAmount, nextLabel, change1y, realChange1y, inflation, changeSinceStart, receivedThisYear, oneOffsThisYear } = figures;
   return (
     <section aria-label={t('income_detail.figures')}>
       <StatLine items={[
@@ -43,6 +44,7 @@ export function SourceFigures({ figures }: { figures: IncomeSourceOverview['figu
           value: (
             <>
               {change1y != null ? <Change value={change1y} /> : '—'}
+              <RealChange value={realChange1y} inflation={inflation} />
               {changeSinceStart != null ? <Sub>{t('income_detail.since_start', { value: percent(changeSinceStart, true) })}</Sub> : null}
             </>
           ),
@@ -52,6 +54,7 @@ export function SourceFigures({ figures }: { figures: IncomeSourceOverview['figu
           value: <>{formatMoney(receivedThisYear)}<Sub>{t('income_detail.received_one_offs', { amount: formatMoney(oneOffsThisYear) })}</Sub></>,
         },
       ]} />
+      <Withholding items={withholding} />
     </section>
   );
 }

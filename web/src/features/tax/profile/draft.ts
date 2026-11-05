@@ -6,6 +6,8 @@ import { ZERO } from '../format';
 /** A Pinel commitment as one choice: the initial years, then the total after the extensions. */
 export const ENGAGEMENTS = ['6-6', '9-9', '6-9', '6-12', '9-12'] as const;
 const COUNT = /^\d{1,2}$/;
+/** A department code, as the server checks it (`TaxCalendar.IsDepartment`): 01 to 95 but 20, 2A, 2B, 971 to 976. */
+const DEPARTMENT = /^(0[1-9]|1\d|2[1-9AB]|[3-8]\d|9[0-5]|97[1-6])$/i;
 /** A percent as typed (`23,5`): empty keeps the status's rate. */
 export const RATE = /^\d{1,2}([.,]\d{1,2})?$/;
 
@@ -16,12 +18,12 @@ type PerAdult = keyof typeof PER_ADULT;
 
 /** The profile as typed: every amount, rate and count is the text in its field. */
 export type ProfileDraft = {
-  statuses: Record<string, string>; dependents: string; under6: string; regime: string;
+  statuses: Record<string, string>; dependents: string; under6: string; regime: string; department: string;
   amounts: Record<(typeof AMOUNT_KEYS)[number], string>; pinel: PinelCommitment[]; pooling: boolean;
 } & Record<PerAdult, Record<string, string>>;
 
-export type DraftField = 'dependents' | 'under6' | `amounts.${string}` | `${PerAdult}.${string}`;
-export type DraftErrors = Partial<Record<DraftField, 'amount' | 'rate' | 'count'>>;
+export type DraftField = 'dependents' | 'under6' | 'department' | `amounts.${string}` | `${PerAdult}.${string}`;
+export type DraftErrors = Partial<Record<DraftField, 'amount' | 'rate' | 'count' | 'department'>>;
 export type ProfileBody = components['schemas']['TaxProfileBody'];
 
 /**
@@ -40,7 +42,7 @@ export function initialDraft(estimate: TaxEstimate): ProfileDraft {
   return {
     statuses: Object.fromEntries(estimate.adults.map((a) => [a.id, p.statuses[a.id] ?? 'non_executive'])),
     dependents: p.dependents === null || p.dependents === undefined ? '' : String(p.dependents),
-    under6: String(p.childrenUnder6), regime: p.rentalRegime ?? 'auto',
+    under6: String(p.childrenUnder6), regime: p.rentalRegime ?? 'auto', department: p.department ?? '',
     amounts: { ...Object.fromEntries(AMOUNT_KEYS.map((k) => [k, p[k]])), rentalDeficitCarried: suggestedDeficit(estimate) ?? p.rentalDeficitCarried } as ProfileDraft['amounts'],
     pinel: p.pinel, pooling: p.perPooling,
     rates: p.contributionRates, expenses: p.actualExpenses, unused: p.perUnusedCeilings, ceilings: p.perCeilings,
@@ -56,7 +58,7 @@ const filled = (values: Record<string, string>) =>
 export function profileBody(d: ProfileDraft): ProfileBody {
   return {
     statuses: d.statuses, dependents: d.dependents === '' ? null : Number(d.dependents), childrenUnder6: Number(d.under6),
-    rentalRegime: d.regime === 'auto' ? null : d.regime, pinel: d.pinel, contributionRates: filled(d.rates),
+    rentalRegime: d.regime === 'auto' ? null : d.regime, department: d.department.trim() || null, pinel: d.pinel, contributionRates: filled(d.rates),
     actualExpenses: filled(d.expenses), perUnusedCeilings: filled(d.unused), perCeilings: filled(d.ceilings),
     perCeilingsExpiring: filled(d.expiring), perPooling: d.pooling, exemptIncomes: filled(d.exempt),
     rentalDeficitCarried: toWireAmount(d.amounts.rentalDeficitCarried),
@@ -71,6 +73,7 @@ export function draftErrors(d: ProfileDraft): DraftErrors {
   const errors: DraftErrors = {};
   if (d.dependents !== '' && !COUNT.test(d.dependents)) errors.dependents = 'count';
   if (!COUNT.test(d.under6)) errors.under6 = 'count';
+  if (d.department.trim() !== '' && !DEPARTMENT.test(d.department.trim())) errors.department = 'department';
   for (const k of AMOUNT_KEYS) if (!AMOUNT.test(d.amounts[k].trim())) errors[`amounts.${k}`] = 'amount';
   for (const map of Object.keys(PER_ADULT) as PerAdult[]) {
     for (const [id, v] of Object.entries(d[map])) {
@@ -89,7 +92,7 @@ export function countChanges(d: ProfileDraft, initial: ProfileDraft): number {
   const properties = new Set([...d.pinel, ...initial.pinel].map((c) => c.property));
   return diff(d.statuses, initial.statuses)
     + Number(text(d.dependents) !== text(initial.dependents)) + Number(text(d.under6) !== text(initial.under6))
-    + Number(d.regime !== initial.regime) + Number(d.pooling !== initial.pooling)
+    + Number(d.regime !== initial.regime) + Number(d.pooling !== initial.pooling) + Number(text(d.department) !== text(initial.department))
     + diff(d.amounts, initial.amounts)
     + (Object.keys(PER_ADULT) as PerAdult[]).reduce((n, map) => n + diff(d[map], initial[map]), 0)
     + [...properties].filter((p) => pinelKey(d.pinel.find((c) => c.property === p)) !== pinelKey(initial.pinel.find((c) => c.property === p))).length;

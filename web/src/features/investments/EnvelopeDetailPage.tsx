@@ -48,6 +48,8 @@ const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));
 const OperationsTab = lazy(() => import('./operations/OperationsTab'));
 
 const TABS = ['overview', 'values', 'flows', 'holdings', 'operations', 'documents', 'settings'] as const;
+const MILESTONES = ['life_insurance_8y', 'pea_5y', 'per_retirement'] as const;
+const SALE_TAX = 'impot-si-vente';
 const newestFirst = <T,>(rows: T[], date: (row: T) => string) =>
   [...rows].sort((a, b) => (date(a) < date(b) ? 1 : date(a) > date(b) ? -1 : 0));
 
@@ -173,6 +175,12 @@ export function EnvelopeDetailPage() {
   const columns = (writable ? 1 : 0) + 3;
   const operations = bankingOn && ASSOCIABLE.includes(detail.kind);
   const shown = (tab === 'settings' && !writable) || (tab === 'operations' && !operations) ? 'overview' : tab;
+  const milestone = MILESTONES.find((m) => m === detail.milestone?.code);
+  // « Impôt si vente aujourd'hui » lives in the overview tab: open it, then bring the section into view once rendered.
+  const showSaleTax = () => {
+    setTab('overview');
+    requestAnimationFrame(() => document.getElementById(SALE_TAX)?.scrollIntoView({ block: 'start' }));
+  };
 
   const actions = writable ? (
     <>
@@ -220,8 +228,30 @@ export function EnvelopeDetailPage() {
             ) }] : []),
             ...(holdings.data?.explicitFees && directionOf(holdings.data.explicitFees.amount) !== 'flat'
               ? [{ label: t('holdings.fees_taken'), value: <Money value={holdings.data.explicitFees} tabular /> }] : []),
+            ...(detail.ceiling ? [{ label: t('envelope.regulated.ceiling'), value: detail.ceiling.reached
+              ? t('envelope.regulated.reached', { ceiling: formatMoney(detail.ceiling.ceiling) })
+              : t('envelope.regulated.room', { ceiling: formatMoney(detail.ceiling.ceiling), amount: formatMoney(detail.ceiling.room) }) }] : []),
+            ...(detail.interest ? [{ label: t('envelope.regulated.interest_to_date'), value: (
+              <>
+                <Money value={detail.interest.toDate} tabular />
+                <span className="ml-2 text-sm font-normal text-muted-foreground">{t('envelope.regulated.interest_expected', { amount: formatMoney(detail.interest.expected) })}</span>
+              </>
+            ) }] : []),
           ]} />
           <p className="text-sm text-muted-foreground">{t('envelope.before_tax')}</p>
+          {detail.ceiling ? <p className="text-sm text-muted-foreground">{t('envelope.regulated.ceiling_source', { source: detail.ceiling.source })}</p> : null}
+          {detail.interest ? (
+            <p className="text-sm text-muted-foreground">
+              {t('envelope.regulated.interest_note', { rate: percent(detail.interest.ratePct), source: detail.interest.source })}
+            </p>
+          ) : null}
+          {milestone && detail.milestone ? (
+            <p className="text-sm">
+              {t(`envelope.milestone.${milestone}`, { date: formatLocalDate(detail.milestone.on, 'short') })}
+              {' · '}
+              <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={showSaleTax}>{t('envelope.milestone.sale_link')}</Button>
+            </p>
+          ) : null}
           {bank ? (
             <p className="text-sm text-muted-foreground">
               {bank.lastBalanceOn ? t('banks.envelope_note.last', { name: bank.name, date: dayMonth(bank.lastBalanceOn) }) : t('banks.envelope_note.linked', { name: bank.name })}
@@ -292,7 +322,7 @@ export function EnvelopeDetailPage() {
                   <PeriodPerformance envelopeId={detail.id} />
                 </Section>
               </div>
-              <SaleTaxSection item={detail.id} canWrite={detail.canWrite} />
+              <SaleTaxSection id={SALE_TAX} item={detail.id} canWrite={detail.canWrite} />
             </>
           ),
         },

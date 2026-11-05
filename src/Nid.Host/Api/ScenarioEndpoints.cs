@@ -8,7 +8,7 @@ namespace Nid.Host.Api;
 
 public static class ScenarioEndpoints
 {
-    /// <summary>Property purchase scenario spec §6.</summary>
+    /// <summary>Property purchase scenario spec §6, and the sale scenarios (issue #416).</summary>
     public static IEndpointRouteBuilder MapScenarioEndpoints(this IEndpointRouteBuilder routes)
     {
         var api = routes.MapGroup("/api/v1/scenarios").RequireAuthorization()
@@ -69,7 +69,78 @@ public static class ScenarioEndpoints
             })
             .ReturnsNoContent();
 
+        MapSaleScenarioEndpoints(routes);
         return routes;
+    }
+
+    /// <summary>Issue #416: the sale scenarios' own routes; the list, the deletion and « Comparer » are the purchases'.</summary>
+    private static void MapSaleScenarioEndpoints(IEndpointRouteBuilder routes)
+    {
+        var api = routes.MapGroup("/api/v1/scenarios/sale").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+
+        api.MapPost("/simulate", async (SimulateSaleBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var document = ReadSale(body.Document, reader);
+                return document is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new SimulateSaleScenarioQuery(ParseScope(body.Scope), document), ct)).ToHttp(view => view);
+            })
+            .Returns<SaleResultView>();
+
+        api.MapPost("", async (SaleScenarioBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var (name, visibility, document) = body.Fields(reader);
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new CreateSaleScenarioCommand(name!, visibility, (body.Owners ?? [])
+                        .Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(), ParseScope(body.Scope), document!), ct))
+                        .ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetSaleScenarioQuery(new ItemId(id)), ct)).ToHttp(view => view))
+            .Returns<SaleScenarioView>();
+
+        api.MapPut("/{id:guid}", async (Guid id, SaleScenarioBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var (name, visibility, document) = body.Fields(reader);
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new ReplaceSaleScenarioCommand(new ItemId(id), name!, visibility, ParseScope(body.Scope), document!), ct))
+                        .ToHttp(view => view);
+            })
+            .Returns<SaleScenarioView>();
+    }
+
+    public sealed record SimulateSaleBody(string? Scope, SaleScenarioDocView? Document);
+
+    /// <summary>The document is the shape the reads answer with (<see cref="SaleScenarioDocView"/>); owners are read on creation only.</summary>
+    public sealed record SaleScenarioBody(string? Name, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Scope, SaleScenarioDocView? Document)
+    {
+        internal (string? Name, Visibility Visibility, SaleScenario? Document) Fields(FieldReader reader)
+        {
+            var name = reader.Text(Name, "name");
+            var visibility = reader.Visibility(Visibility ?? "shared", "visibility");
+            var document = ReadSale(Document, reader);
+            return (name, visibility ?? default, document);
+        }
+    }
+
+    private static SaleScenario? ReadSale(SaleScenarioDocView? body, FieldReader reader)
+    {
+        if (body is null) { reader.Add("document", "request.required", "A document is required."); return null; }
+        if (body.Property is null) reader.Add("property", "request.required", "A property is required.");
+        // A missing date binds to the default LocalDate; an unreadable one never gets here (the binder answers 400).
+        if (body.SaleOn == default) reader.Add("saleOn", "request.required", "A sale date is required.");
+        var document = new SaleScenario(
+            body.Version, body.Property ?? default, body.SaleOn, Amount(reader, body.Price, "price"), Amount(reader, body.AgencyFees, "agencyFees"),
+            Amount(reader, body.Penalties, "penalties"), body.HorizonYears);
+        return reader.Ok ? document : null;
     }
 
     /// <summary>Spec §14.1: comma-separated ids, in order; a part that is no id is a bad request (the count is the handler's rule).</summary>

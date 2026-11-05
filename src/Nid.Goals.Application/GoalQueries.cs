@@ -1,6 +1,8 @@
 using Nid.Core.Contracts;
+using Nid.Goals.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Goals.Application;
@@ -12,6 +14,19 @@ public sealed record ListGoalsQuery(VisibilityScope Scope, bool Closed) : IQuery
 public sealed record GetGoalQuery(ItemId ItemId, VisibilityScope Scope) : IQuery<GoalDetail>, IItemScoped
 {
     public AccessKind Access => AccessKind.Read;
+}
+
+/// <summary>Issue #412: the target an emergency fund of <paramref name="Months"/> would have, before it is created.</summary>
+public sealed record EmergencyTargetQuery(int Months, VisibilityScope Scope) : IQuery<EmergencyTargetView>;
+
+[RequestHandler<EmergencyTargetQuery, EmergencyTargetView>]
+public sealed class EmergencyTargetHandler(GoalReader reader, IActorAccessor actor) : IRequestHandler<EmergencyTargetQuery, EmergencyTargetView>
+{
+    public async ValueTask<Result<EmergencyTargetView>> HandleAsync(EmergencyTargetQuery query, CancellationToken ct = default)
+        => query.Months is < 1 or > 24
+            ? Result.Failure<EmergencyTargetView>(new Failure(GoalsCodes.InvalidMonths, "An emergency fund covers 1 to 24 months.",
+                new Dictionary<string, object?> { ["field"] = "months" }))
+            : await reader.EmergencyTargetAsync(actor.Current!.PersonId!.Value, query.Scope, query.Months, ct);
 }
 
 [RequestHandler<ListGoalsQuery, GoalList>]

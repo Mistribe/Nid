@@ -675,6 +675,35 @@ public class TaxCalculatorTests
     }
 
     [Fact]
+    public void The_real_rate_is_the_income_tax_over_the_withheld_income_and_the_gap_is_what_is_lent_each_month()
+    {
+        // 9 300 withheld at 15.5 % for an income tax of 8 644 (a 656 € refund): 14.4 %, 54.67 a month too many.
+        var result = TaxCalculator.Compute(Inputs([Other(60_000m)]) with { Donations = 1_000m });
+
+        Assert.Equal(14.4m, TaxCalculator.RealRate(result));
+        Assert.Equal(54.67m, TaxCalculator.MonthlyGap(result, result.Withholding.Declarants[0]));
+    }
+
+    [Fact]
+    public void The_couples_monthly_gaps_add_up_to_the_refund()
+    {
+        var result = TaxCalculator.Compute(YoungCouple());
+
+        var gaps = result.Withholding.Declarants.Sum(d => TaxCalculator.MonthlyGap(result, d));
+        Assert.InRange(gaps, -result.Withholding.Balance / 12 - 0.02m, -result.Withholding.Balance / 12 + 0.02m); // each monthly figure is to the cent
+        Assert.True(TaxCalculator.RealRate(result) < result.Withholding.Rate);
+    }
+
+    [Fact]
+    public void Without_income_there_is_no_real_rate_and_no_gap()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(0m)]));
+
+        Assert.Null(TaxCalculator.RealRate(result));
+        Assert.Equal(0m, TaxCalculator.MonthlyGap(result, result.Withholding.Declarants[0]));
+    }
+
+    [Fact]
     public void Without_reductions_or_credits_there_is_no_cut()
         => Assert.Null(TaxCalculator.Compute(Inputs([Other(60_000m), Other(30_000m)])).Withholding.Cut);
 

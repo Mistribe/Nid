@@ -18,6 +18,11 @@ public static class GoalEndpoints
             => (await invoker.InvokeAsync(new ListGoalsQuery(ParseScope(scope), closed ?? false), ct)).ToHttp(list => list))
             .Returns<GoalList>();
 
+        // Issue #412: the creation form shows an emergency fund's target before it is saved.
+        api.MapGet("/emergency-target", async (int? months, string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new EmergencyTargetQuery(months ?? 6, ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<EmergencyTargetView>();
+
         api.MapGet("/{id:guid}", async (Guid id, string? scope, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetGoalQuery(new ItemId(id), ParseScope(scope)), ct)).ToHttp(detail => detail))
             .Returns<GoalDetail>();

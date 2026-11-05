@@ -6,6 +6,9 @@ namespace Nid.Investments.Contracts;
 public enum EnvelopeKind { Checking, Savings, Pea, LifeInsurance, Per, Brokerage, Other, Tontine }
 public enum ValuationCadence { Monthly, Quarterly, Yearly, Manual }
 
+/// <summary>Issue #399: the regulated livret a savings envelope is, which sets its ceiling and rate; none for any other.</summary>
+public enum RegulatedKind { LivretA, Ldds, Lep, LivretJeune }
+
 public static class EnvelopeWire
 {
     public static string Of(EnvelopeKind kind) => kind switch
@@ -21,6 +24,20 @@ public static class EnvelopeWire
         ValuationCadence.Yearly => "yearly", ValuationCadence.Manual => "manual",
         _ => throw new ArgumentOutOfRangeException(nameof(cadence)),
     };
+
+    public static string Of(RegulatedKind kind) => kind switch
+    {
+        RegulatedKind.LivretA => "livret_a", RegulatedKind.Ldds => "ldds", RegulatedKind.Lep => "lep", RegulatedKind.LivretJeune => "livret_jeune",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+    };
+
+    public static bool TryRegulated(string? wire, out RegulatedKind kind)
+    {
+        foreach (var k in Enum.GetValues<RegulatedKind>())
+            if (Of(k) == wire) { kind = k; return true; }
+        kind = default;
+        return false;
+    }
 
     public static bool TryKind(string? wire, out EnvelopeKind kind)
     {
@@ -58,7 +75,8 @@ public static class EnvelopeWire
 /// <summary>The module's attributes of an envelope (spec §3.2); name, owners, visibility and currency are the item's.</summary>
 public sealed record Envelope(
     ItemId ItemId, EnvelopeKind Kind, string? Institution, string? AccountHint, LocalDate? OpenedOn,
-    ValuationCadence Cadence, int? StaleAfterDays, string? Note, LocalDate? ClosedOn = null, decimal? UcShareFloorPct = null, decimal? PremiumsBefore2017 = null);
+    ValuationCadence Cadence, int? StaleAfterDays, string? Note, LocalDate? ClosedOn = null, decimal? UcShareFloorPct = null, decimal? PremiumsBefore2017 = null,
+    RegulatedKind? Regulated = null);
 
 public sealed record ImportedEnvelope(ItemId Item, string Hash, PersonId ImportedBy);
 public sealed record StoredEnvelope(Envelope Envelope, ImportMark? Import);
@@ -69,7 +87,7 @@ public sealed record EnvelopeChange(
     string? AccountHint = null, bool ClearAccountHint = false, LocalDate? OpenedOn = null, bool ClearOpenedOn = false,
     ValuationCadence? Cadence = null, int? StaleAfterDays = null, bool ClearStaleAfterDays = false,
     string? Note = null, bool ClearNote = false, decimal? UcShareFloorPct = null, bool ClearUcShareFloorPct = false,
-    decimal? PremiumsBefore2017 = null, bool ClearPremiumsBefore2017 = false);
+    decimal? PremiumsBefore2017 = null, bool ClearPremiumsBefore2017 = false, RegulatedKind? Regulated = null, bool ClearRegulated = false);
 
 public interface IEnvelopeStore
 {

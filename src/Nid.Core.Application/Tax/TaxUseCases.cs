@@ -27,6 +27,9 @@ public sealed record GetSaleTaxQuery(VisibilityScope Scope, ItemId? ItemId) : IQ
     public AccessKind Access => AccessKind.Read;
 }
 
+/// <summary>Issue #410: what changed since last year in the year's estimate, line by line (this year by default).</summary>
+public sealed record GetTaxChangesQuery(int? Year, VisibilityScope Scope) : IQuery<TaxChangesView>;
+
 public static class TaxCodes
 {
     public const string InvalidYear = "tax.invalid_year";
@@ -44,6 +47,34 @@ public sealed class GetTaxEstimateHandler(TaxEstimates estimates, IHouseholdCale
         return TaxEstimates.CheckYear(year, today) is { } failure
             ? Result.Failure<TaxEstimateView>(failure)
             : await estimates.EstimateAsync(year, query.Scope, today, ct);
+    }
+}
+
+[RequestHandler<GetTaxChangesQuery, TaxChangesView>]
+public sealed class GetTaxChangesHandler(TaxEstimates estimates, ITaxAssessmentStore assessments, IPersonRegistry persons, IActorAccessor actor, IHouseholdCalendar calendar)
+    : IRequestHandler<GetTaxChangesQuery, TaxChangesView>
+{
+    public async ValueTask<Result<TaxChangesView>> HandleAsync(GetTaxChangesQuery query, CancellationToken ct = default)
+    {
+        var today = await calendar.TodayAsync(ct);
+        var year = query.Year ?? today.Year;
+        if (TaxEstimates.CheckYear(year, today) is { } failure)
+            return Result.Failure<TaxChangesView>(failure);
+        var now = await estimates.ComputeAsync(year, query.Scope, today, ct);
+        if (now.TryGetFailure(out failure)) return Result.Failure<TaxChangesView>(failure!);
+        TaxResult? before = null;
+        if (year - 1 >= TaxRules.FirstYear)
+        {
+            var previous = await estimates.ComputeAsync(year - 1, query.Scope, today, ct);
+            if (previous.TryGetFailure(out failure)) return Result.Failure<TaxChangesView>(failure!);
+            previous.TryGetValue(out before);
+        }
+        now.TryGetValue(out var result);
+        var people = await persons.ListAsync(ct);
+        // The notices as the estimate reads them (tax assessments spec §5): the reader's, in Foyer the household's.
+        var notices = (await assessments.ListForAsync(actor.Current!.PersonId!.Value, year - 1, ct))
+            .Where(n => query.Scope != VisibilityScope.Household || TaxAssessmentAccess.InHousehold(n.Assessment, people)).Select(n => n.Assessment);
+        return Result.Success(TaxChangesView.Of(year, TaxChanges.Of(result!, before, notices, TaxEstimates.Adults(people).Select(a => a.Id.Value).ToList())));
     }
 }
 
@@ -302,7 +333,7 @@ public sealed class TaxEstimates(
                 Sum(TaxLineCodes.SalaryTaxable), PerCeiling: profile.PerCeilings?.TryGetValue(adult.Id.Value, out var ceiling) == true ? ceiling : null,
                 PreviousYearIncome: previousYearIncome?.GetValueOrDefault(adult.Id.Value) ?? 0m,
                 PerExpiring: profile.PerCeilingsExpiring?.GetValueOrDefault(adult.Id.Value) ?? 0m,
-                ExemptIncome: profile.ExemptIncomes?.GetValueOrDefault(adult.Id.Value) ?? 0m);
+                ExemptIncome: profile.ExemptIncomes?.GetValueOrDefault(adult.Id.Value) ?? 0m, Person: adult.Id.Value);
             // The profile's rate against the payslips': the notice sits on the first salary holding both figures (the adult is no item).
             if (rate is { } declared && ObservedRate(lines, adult.Id) is { } observed && Math.Abs(declared - observed) > 0.03m
                 && own.FirstOrDefault(l => l.Code == TaxLineCodes.SalaryRateGross) is { } source)
@@ -337,10 +368,11 @@ public sealed class TaxEstimates(
             notices.Add(new TaxNoticeView("per_without_contributions", envelope.Key.Item, envelope.Key.Name, Amount(0m)));
 
         decimal All(string code) => lines.Where(l => l.Code == code).Sum(l => l.Amount);
-        // Childcare decision 21: the validated statements of the year replace the profile's childcare costs.
+        // Childcare decision 21: the validated statements of the year replace the profile's childcare costs; #411: one notice per
+        // arrangement, its year summary a link away.
         var statements = lines.Where(l => l.Code == TaxLineCodes.ChildcareOutsideHome).ToList();
-        if (statements.Count > 0)
-            notices.Add(new TaxNoticeView("childcare_from_statements", statements[0].Item, statements[0].Name, Amount(statements.Sum(l => l.Amount))));
+        foreach (var arrangement in statements.GroupBy(l => (l.Item, l.Name)))
+            notices.Add(new TaxNoticeView("childcare_from_statements", arrangement.Key.Item, arrangement.Key.Name, Amount(arrangement.Sum(l => l.Amount))));
         var rentals = lines.Where(l => l.Code == TaxLineCodes.RentalProperty).ToList();
         var pinel = 0m;
         foreach (var commitment in profile.Pinel)
@@ -396,10 +428,11 @@ public sealed class TaxEstimates(
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.ExemptIncomes?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
+                 && (p.Department is null || TaxCalendar.IsDepartment(p.Department))
                  && (p.PerCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerCeilingsExpiring?.All(e => e.Value is >= 0 and <= 10_000_000m && p.PerCeilings?.TryGetValue(e.Key, out var ceiling) == true && e.Value <= ceiling) ?? true);
         return ok ? null : new Failure(TaxCodes.InvalidProfile,
-            "Statuses are non_executive, executive or public; a contribution rate is between 0 and 60 %; the regime micro or real; a Pinel commitment starts at 6 or 9 years and lasts 6, 9 or 12, once per property; amounts are not negative; the part of a PER ceiling lost on 31 December comes with that ceiling and does not exceed it.", null);
+            "Statuses are non_executive, executive or public; a contribution rate is between 0 and 60 %; the regime micro or real; a Pinel commitment starts at 6 or 9 years and lasts 6, 9 or 12, once per property; amounts are not negative; the part of a PER ceiling lost on 31 December comes with that ceiling and does not exceed it; a department is a code from 01 to 95, 2A, 2B or 971 to 976.", null);
     }
 
     /// <summary>A payslip's employee contributions: between 0 and 60 % of the gross, as a fraction.</summary>

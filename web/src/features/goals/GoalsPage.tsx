@@ -58,7 +58,11 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
   if (rows.length === 0)
     return closed
       ? <EmptyState module="/goals" title={t('goals_list.empty_closed_title')} body={t('goals_list.empty_closed_body')} />
-      : <EmptyState module="/goals" title={t('goals_list.empty_title')} body={t('goals_list.empty_body')} action={add} />;
+      : <EmptyState module="/goals" title={t('goals_list.empty_title')} body={t('goals_list.empty_body')} action={<>
+        {add}
+        {/* Issue #412: an emergency fund needs no amount, only months; the creation form shows the server's target. */}
+        <Link to="/goals/new" search={{ kind: 'emergency_fund', months: 3 }} className={buttonVariants({ variant: 'outline' })}>{t('goals_list.add_emergency')}</Link>
+      </>} />;
 
   const due = (g: GoalSummary) => g.targetDate ? <LocalDate value={g.targetDate} style="short" /> : <Dash />;
   const monthly = (g: GoalSummary) => g.monthlyNeeded ? <Money value={g.monthlyNeeded} tabular /> : <Dash />;

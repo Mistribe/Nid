@@ -242,7 +242,7 @@ public class OverviewMathTests
 
         var need = FxConversion.Need(OverviewMath.RatePieces(set, Today).Select(p => p with { Currency = Currency.Usd }), Currency.Eur)!;
 
-        // The yearly charge of May 2025 is amortized into this month; the twelfth month's charges are the last ones read.
-        Assert.Equal((new LocalDate(2025, 5, 10), new LocalDate(2026, 10, 5)), (need.From, need.To));
+        // The spent totals and the years read back to the first charge (#395, #396); the twelfth month's charges are the last ones read.
+        Assert.Equal((new LocalDate(2025, 1, 5), new LocalDate(2026, 10, 5)), (need.From, need.To));
     }
 }

@@ -1,26 +1,32 @@
 using System.Globalization;
+using Nid.Core.Contracts;
 
 namespace Nid.Subscriptions.Application;
 
 public enum ListGroup { None, Provider, Label, Person }
 
 /// <summary>
-/// A group of the list with its server subtotals, in the reference currency. <paramref name="Name"/> is the provider's or the
+/// A group of the list with its server subtotals, in the reference currency; <paramref name="SpentTotal"/> (#395) counts a
+/// subscription without any charge yet as nothing, and is partial when one of its members is. <paramref name="Name"/> is the provider's or the
 /// label's; null for a person (the screen already has the names) and for <see cref="ListGrouping.NoneKey"/>.
 /// <paramref name="Items"/> follows <paramref name="ItemIds"/>, with each subscription's figures as the group counts them.
 /// </summary>
 public sealed record GroupView(
     string Key, string? Name, IReadOnlyList<Guid> ItemIds, IReadOnlyList<GroupItemView> Items,
-    MoneyView? AmortizedCostConverted, MoneyView? AnnualCostConverted, bool ConvertedIsEstimate);
+    MoneyView? AmortizedCostConverted, MoneyView? AnnualCostConverted, bool ConvertedIsEstimate,
+    MoneyView? SpentTotal = null, bool SpentPartial = false);
 
 /// <summary>A subscription inside a group: its full converted figures, or the person's share of them under a person group.</summary>
-public sealed record GroupItemView(Guid Id, MoneyView? AmortizedCostConverted, MoneyView? AnnualCostConverted);
+public sealed record GroupItemView(Guid Id, MoneyView? AmortizedCostConverted, MoneyView? AnnualCostConverted, MoneyView? SpentTotal = null);
 
 public static class ListGrouping
 {
     public const string NoneKey = "none";
 
-    public static IReadOnlyList<GroupView> Group(ListGroup by, IReadOnlyList<SubscriptionSummary> items)
+    /// <param name="spentOf">A whole group's spent total from its members' distinct charges (<see cref="SpendingHistory.SpentOf"/>);
+    /// without it, or under a person group (shares), the members' totals are summed.</param>
+    public static IReadOnlyList<GroupView> Group(ListGroup by, IReadOnlyList<SubscriptionSummary> items,
+        Func<IReadOnlyList<ItemId>, (MoneyView? Total, bool Partial)>? spentOf = null)
     {
         if (by == ListGroup.None) return [];
 
@@ -56,13 +62,19 @@ public static class ListGrouping
                 var annual = Sum(b.Group, i => i.AnnualCostConverted);
                 // An item appears once per group (an owner holds one share), so Items and ItemIds line up.
                 var members = b.Group.DistinctBy(m => m.Item.Id).ToList();
+                var spent = spentOf is not null && by != ListGroup.Person
+                    ? spentOf(members.Select(m => m.Item.Id).ToList())
+                    : (Total: Sum(b.Group.Where(m => m.Item.Spent?.Total is not null).ToList(), i => i.Spent!.Total)?.View,
+                        Partial: b.Group.Any(m => m.Item.Spent?.Partial == true));
                 return (b.Key, b.Name, Monthly: monthly, View: new GroupView(
                     b.Key, b.Name, members.Select(m => m.Item.Id.Value).ToList(),
                     members.Select(m => m.Bp == 10_000
-                        ? new GroupItemView(m.Item.Id.Value, m.Item.AmortizedCostConverted, m.Item.AnnualCostConverted)
+                        ? new GroupItemView(m.Item.Id.Value, m.Item.AmortizedCostConverted, m.Item.AnnualCostConverted, m.Item.Spent?.Total)
                         : new GroupItemView(m.Item.Id.Value,
-                            Sum([m], i => i.AmortizedCostConverted)?.View, Sum([m], i => i.AnnualCostConverted)?.View)).ToList(),
-                    monthly?.View, annual?.View, b.Group.Any(m => m.Item.ConvertedIsEstimate)));
+                            Sum([m], i => i.AmortizedCostConverted)?.View, Sum([m], i => i.AnnualCostConverted)?.View,
+                            Sum([m], i => i.Spent?.Total)?.View)).ToList(),
+                    monthly?.View, annual?.View, b.Group.Any(m => m.Item.ConvertedIsEstimate),
+                    spent.Total, spent.Partial));
             })
             .OrderByDescending(g => g.Monthly is not null).ThenByDescending(g => g.Monthly?.Total ?? 0m)
             .ThenBy(g => g.Name ?? g.Key, StringComparer.Ordinal)

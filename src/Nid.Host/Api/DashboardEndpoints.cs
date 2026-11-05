@@ -20,6 +20,11 @@ public static class DashboardEndpoints
             => (await invoker.InvokeAsync(new GetNetWorthHistoryQuery(ParseScope(scope), ParsePeriod(period)), ct)).ToHttp(view => view))
             .Returns<NetWorthHistoryView>();
 
+        // Issue #415: « Depuis le mois dernier ».
+        api.MapGet("/dashboard/changes", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetMonthChangesQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<MonthChangesView>();
+
         // Issue #104: any adult sets the household's target allocation, as the tax profile.
         api.MapPut("/dashboard/allocation-target", async (AllocationTargetBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SaveAllocationTargetCommand(body.Target ?? new Dictionary<string, decimal>()), ct)).ToHttp(target => new AllocationTargetBody(target)))

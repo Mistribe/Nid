@@ -2,6 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Nid.Core.Application.Projection;
+using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional.Failures;
@@ -54,6 +55,32 @@ public sealed class ProjectionTools
             return failure is NotFoundFailure or UnauthorizedFailure ? McpCalls.Error(McpCalls.NotFound) : McpCalls.Error(Fields(failure!));
         result.TryGetValue(out var view);
         return McpCalls.Answer(services, Trim(view!));
+    }
+
+    [McpServerTool(Name = "simulate_property_sale", ReadOnly = true)]
+    [Description("What selling a property would leave the household, without saving anything: the net seller amount (price − agency fees − the capital gains tax as get_sale_tax_estimate computes it, sold on that date − the property's loans repaid at their balance − the early repayment penalties given), the monthly loan payments and charges less rent that stop, and the net worth without and with the sale at year ends on the household's assumptions. With scenarioId, a saved sale scenario instead. Indicative. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> SimulatePropertySale(IServiceProvider services,
+        [Description("'household' (default) or 'me'. Ignored with scenarioId.")] string? scope = null,
+        [Description("The property's id (list_properties).")] Guid? property = null,
+        [Description("The sale date, yyyy-mm-dd.")] string? saleOn = null,
+        [Description("The sale price, a decimal string.")] string? price = null,
+        [Description("The agency fees the seller pays, a decimal string (default 0).")] string? agencyFees = null,
+        [Description("The early repayment penalties of the property's loans, a decimal string (default 0): never guess them.")] string? penalties = null,
+        [Description("The net worth's horizon in years, 1 to 30 (default 10).")] int? horizonYears = null,
+        [Description("A saved sale scenario's id; the other parameters are then ignored.")] Guid? scenarioId = null,
+        CancellationToken ct = default)
+    {
+        if (scenarioId is { } id)
+            return McpCalls.RunAsync(services, () => new GetSaleScenarioQuery(new ItemId(id)), view => view.Result, ct);
+        static decimal Amount(string? value, string name)
+            => value is null ? 0m
+                : decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var d) && d >= 0m ? d
+                : throw new BadHttpRequestException($"{name} is not a decimal string.");
+        return McpCalls.RunAsync(services, () => new SimulateSaleScenarioQuery(SubscriptionEndpoints.ParseScope(scope), new SaleScenario(
+            1, new ItemId(property ?? throw new BadHttpRequestException("property is required.")),
+            NodaTime.Text.LocalDatePattern.Iso.Parse(saleOn ?? "").TryGetValue(default, out var on) ? on : throw new BadHttpRequestException("saleOn is not a yyyy-mm-dd date."),
+            Amount(price ?? throw new BadHttpRequestException("price is required."), "price"), Amount(agencyFees, "agencyFees"), Amount(penalties, "penalties"),
+            horizonYears ?? 10)), ct);
     }
 
     /// <summary>The refused fields, each named (<c>events[0].amount: …</c>); a refusal without fields, its code and message.</summary>

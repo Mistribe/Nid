@@ -46,6 +46,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "PUT /api/v1/core/items/{id:guid}/sharing",
         // Property return (#313, spec §1 « Hors périmètre ») : its what-if assumptions are set in the web app, no assistant tool.
         "/api/v1/realestate/properties/{id:guid}/return-assumptions",
+        // #414: « Pas disponible » on an expected document is the person's own answer, a click in the web app.
+        "POST /api/v1/documents/expected/dismissals",
     ];
 
     /// <summary>A route that is a prefix of covered ones: the web's upload form.</summary>
@@ -230,6 +232,32 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var (badScope, scopeText) = await CallAsync(client, "simulate_projection", new { scope = "everyone", events = Array.Empty<object>() });
         Assert.True(badScope);
         Assert.Contains("'everyone' is not a scope", scopeText);
+    }
+
+    /// <summary>Issue #416: the sale simulation answers as its route does; a missing price or an unreadable date is a tool error.</summary>
+    [Fact]
+    public async Task Simulate_property_sale_returns_the_simulate_route_answer()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+        var home = await PropertyApi.NewPropertyAsync(app, PropertyApi.Home(app));
+
+        var rest = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/scenarios/sale/simulate", new
+        {
+            document = new { version = 1, property = home, saleOn = "2026-06-01", price = "300000", agencyFees = "9000", penalties = "0", horizonYears = 10 },
+        })).Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+        var mcp = await AnswerAsync(client, "simulate_property_sale", new { property = home, saleOn = "2026-06-01", price = "300000", agencyFees = "9000" });
+
+        Assert.Equal(rest.GetProperty("sale").GetProperty("netSeller").GetProperty("amount").GetString(),
+            mcp.GetProperty("sale").GetProperty("netSeller").GetProperty("amount").GetString());
+        Assert.Equal(rest.GetProperty("gap").GetProperty("amount").GetString(), mcp.GetProperty("gap").GetProperty("amount").GetString());
+
+        var (noPrice, priceText) = await CallAsync(client, "simulate_property_sale", new { property = home, saleOn = "2026-06-01" });
+        Assert.True(noPrice);
+        Assert.Contains("price", priceText);
+        var (badDate, dateText) = await CallAsync(client, "simulate_property_sale", new { property = home, saleOn = "soon", price = "1" });
+        Assert.True(badDate);
+        Assert.Contains("saleOn", dateText);
     }
 
     /// <summary>« À valider » names each action from <c>proposals.action</c> of the web's locale.</summary>

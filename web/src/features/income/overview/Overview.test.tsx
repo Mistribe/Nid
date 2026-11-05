@@ -53,6 +53,24 @@ describe('Income overview', () => {
     expect(screen.getByRole('button', { name: /Pas assez d’historique/ })).toHaveTextContent('—');
   });
 
+  it('gives the change over a year after the household’s inflation, and where that assumption comes from', async () => {
+    serve();
+    await renderApp('/income');
+
+    expect(await screen.findByText('soit +2,1 % après inflation')).toBeInTheDocument();
+    expect(screen.getByText(/Inflation supposée : 2 % par an/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'vos hypothèses de projection' })).toHaveAttribute('href', '/settings/projection');
+  });
+
+  it('says nothing of inflation when the change over a year is unknown', async () => {
+    serve(overview({ figures: { ...overview().figures, monthlyChange1y: null, monthlyRealChange1y: null } }));
+    await renderApp('/income');
+
+    await screen.findByText('6 420,00 €');
+    expect(screen.queryByText(/après inflation/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Inflation supposée/)).not.toBeInTheDocument();
+  });
+
   it('filters by person and type', async () => {
     const seen = serve();
     const { user } = await renderApp('/income');

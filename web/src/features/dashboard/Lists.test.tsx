@@ -104,6 +104,34 @@ describe('dashboard lists', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('announces an envelope\'s tax date, linked to the envelope (issue 400)', async () => {
+    serve(dashboard({ upcoming: [event({ on: '2025-12-01', kind: 'tax_milestone', module: 'investments', id: 'e1', name: 'Vita', label: 'life_insurance_8y', amount: null })] }));
+    await renderApp('/dashboard');
+    const item = within(await section('À venir')).getAllByRole('listitem')[0] as HTMLElement;
+    expect(item).toHaveTextContent('8 ans du contrat : la fiscalité des retraits change');
+    expect(within(item).getByRole('link')).toHaveAttribute('href', '/investments/e1');
+  });
+
+  it('shows the tax calendar: the household’s dates on the tax page, the property tax on its property', async () => {
+    const tax = { module: 'tax', id: null, name: '', label: null, amount: null };
+    serve(dashboard({
+      upcoming: [
+        event({ ...tax, on: '2026-05-21', kind: 'tax_filing_deadline', label: 'department_unknown' }),
+        event({ ...tax, on: '2026-09-25', kind: 'tax_balance_due', amount: { amount: '512.00', currency: 'EUR' } }),
+        event({ on: '2026-10-15', kind: 'property_tax_due', module: 'properties', id: 'p1', name: 'Maison', label: null, amount: null }),
+      ],
+    }));
+    const { container } = await renderApp('/dashboard');
+
+    const items = within(await section('À venir')).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Impôt : date limite de la déclaration en ligne');
+    expect(items[0]).toHaveTextContent('renseignez le département dans le profil fiscal');
+    expect(within(items[0] as HTMLElement).getByRole('link')).toHaveAttribute('href', '/tax');
+    expect(items[1]).toHaveTextContent('512,00 €');
+    expect(within(items[2] as HTMLElement).getByRole('link', { name: /Taxe foncière à payer Maison/ })).toHaveAttribute('href', '/properties/p1');
+    await expectNoAxeViolations(container);
+  });
+
   it('names today and tomorrow rather than their dates', async () => {
     const today = todayIso();
     const [y, m, d] = today.split('-').map(Number) as [number, number, number];

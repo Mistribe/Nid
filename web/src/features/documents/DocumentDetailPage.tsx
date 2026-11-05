@@ -20,6 +20,8 @@ import { contentUrl, useArchiveDocument, useDocument, useDocumentTargets, useUna
 import { DocumentLinks } from './DocumentLinks';
 import { EditDocumentDialog } from './EditDocumentDialog';
 import { fileSize, localDay } from './format';
+import { DocumentViewer } from './DocumentViewer';
+import { previewable } from './preview';
 import '@/locales/documents';
 
 /**
@@ -94,6 +96,8 @@ export function DocumentDetailPage() {
           </Button>
         ) : null}
       </Section>
+      {/* Issue #413: a PDF or an image is shown in the page, under its links, after the header's « Télécharger » in the tab order. */}
+      {previewable(doc.mediaType) ? <Section title={t('documents_page.detail.preview')}><DocumentViewer doc={doc} /></Section> : null}
       {archiving ? (
         <ConfirmFromMenu label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}
           returnFocus={moreRef} onClose={() => setArchiving(false)}

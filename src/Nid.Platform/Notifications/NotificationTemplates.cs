@@ -38,6 +38,11 @@ public static class NotificationTemplates
         ["childcare_statement_due"] = "Un relevé de garde est à valider",
         ["fx_rate_missing"] = "Un taux de change manque",
         ["routine_due"] = "La routine du mois est à faire",
+        ["month_changes"] = "Ce qui a changé depuis le mois dernier",
+        ["tax_filing_deadline"] = "La déclaration de revenus est à faire",
+        ["tax_new_rate"] = "Le nouveau taux de prélèvement s'applique",
+        ["tax_balance_due"] = "Le solde de l'impôt est prélevé",
+        ["property_tax_due"] = "La taxe foncière est à payer",
         ["access_violation"] = "Une réponse a été bloquée par la garde d'accès",
         ["token_expiring"] = "Un jeton d'accès expire bientôt",
         ["proposal_pending"] = "Une proposition attend votre décision",
@@ -67,6 +72,7 @@ public static class NotificationTemplates
         ["irl_missing"] = "rental",
         ["tenancy_end"] = "rental",
         ["property_cost_due"] = "expenses",
+        ["property_tax_due"] = "expenses",
         ["valuation_stale"] = "valuations",
     };
 
@@ -137,8 +143,46 @@ public static class NotificationTemplates
     {
         "fx_rate_missing" when n.Params.TryGetValue("currency", out var currency) && currency.Length > 0 => $"Devise {currency}",
         "routine_due" => "Des valeurs sont à mettre à jour",
+        "month_changes" => MonthChanges(n.Params),
+        "tax_filing_deadline" when n.DueOn is { } on => n.Params.GetValueOrDefault("note") == "department_unknown"
+            ? $"En ligne avant le {Day(on)}, la date la plus tôt : département non renseigné" : $"En ligne avant le {Day(on)}",
+        "tax_new_rate" when n.DueOn is { } on => $"À partir du {Day(on)}",
+        "tax_balance_due" when n.DueOn is { } on => $"À partir du {Day(on)}",
         _ => "",
     };
+
+    private static readonly (string Param, string Name)[] MonthFigures = [("net_worth", "Patrimoine"), ("commitments", "Engagements"), ("income", "Revenus")];
+
+    /// <summary>Issue #415: the causes of a month's change, named as on the dashboard (web/src/locales/fr.json, dashboard.changes.cause).</summary>
+    private static readonly Dictionary<string, string> MonthCauses = new()
+    {
+        ["investments.paid_in"] = "versements sur les placements",
+        ["investments.value"] = "valeur des placements",
+        ["real_estate.paid_in"] = "capital remboursé",
+        ["real_estate.value"] = "valeur de l'immobilier",
+        ["subscriptions"] = "abonnements",
+        ["loans"] = "crédits",
+        ["property_costs"] = "charges des biens",
+        ["tax"] = "impôts",
+        ["childcare"] = "garde d'enfants",
+        ["income"] = "sources de revenu",
+        ["rents"] = "loyers",
+    };
+
+    /// <summary>
+    /// Issue #415: « Patrimoine en hausse — valeur des placements ↑, capital remboursé ↑ · Engagements en baisse — abonnements ↓ »; the
+    /// figures stay on the dashboard (N6). Params: « up|key+|key- » per figure that moved.
+    /// </summary>
+    private static string MonthChanges(IReadOnlyDictionary<string, string> p)
+        => string.Join(" · ", MonthFigures.Where(f => p.ContainsKey(f.Param)).Select(f =>
+        {
+            var parts = p[f.Param].Split('|');
+            var causes = parts.Skip(1).Where(c => c.Length > 1)
+                .Select(c => $"{MonthCauses.GetValueOrDefault(c[..^1], "autres")} {(c[^1] == '+' ? "↑" : "↓")}")
+                .ToList();
+            var line = $"{f.Name} en {(parts[0] == "up" ? "hausse" : "baisse")}";
+            return causes.Count == 0 ? line : $"{line} — {string.Join(", ", causes)}";
+        }));
 
     private static string Suffix(NotificationRecord n) => n.Kind switch
     {
@@ -167,7 +211,7 @@ public static class NotificationTemplates
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" => "/dashboard", "routine_due" => "/routine", _ => "/" };
+            return n.Kind switch { "fx_rate_missing" or "month_changes" => "/dashboard", "routine_due" => "/routine", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch

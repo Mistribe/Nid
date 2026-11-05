@@ -79,6 +79,15 @@ public static class ChildcareEndpoints
             => (await invoker.InvokeAsync(new ListStatementsQuery(new ItemId(id)), ct)).ToHttp(list => list))
             .Returns<ChildcareStatementList>();
 
+        // #411: the year's validated months for the tax return; no year is the year just ended.
+        api.MapGet("/{id:guid}/summary", async (Guid id, int? year, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (year is < 2000 or > 2200) reader.Add("year", "request.invalid", "A year is 2000 to 2200.");
+                return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new GetChildcareYearQuery(new ItemId(id), year), ct)).ToHttp(view => view);
+            })
+            .Returns<ChildcareYearView>();
+
         api.MapGet("/{id:guid}/statements/{month}", async (Guid id, string month, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();

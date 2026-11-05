@@ -1,4 +1,4 @@
-import type { Allocation, AllocationLine, DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, HouseholdPoint, NetWorthHistory, NetWorthPointView, Projection } from './api';
+import type { Allocation, AllocationLine, DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, HouseholdPoint, MonthChanges, MonthFigure, NetWorthHistory, NetWorthPointView, Projection } from './api';
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -49,6 +49,16 @@ export const curvePoint = (over: Partial<NetWorthPointView> = {}): NetWorthPoint
 });
 
 export const netWorth = (points: NetWorthPointView[], period = '12m'): NetWorthHistory => ({ currency: 'EUR', period, points });
+
+export const monthFigure = (before: string, now: string, change: string, causes: [string, string][] = []): MonthFigure => ({
+  before: eur(before), now: eur(now), change: eur(change), causes: causes.map(([key, amount]) => ({ key, change: eur(amount) })),
+});
+
+export const monthChanges = (over: Partial<MonthChanges> = {}): MonthChanges => ({
+  currency: 'EUR', since: '2025-09-15', netWorth: null, commitments: null, income: null, isEmpty: false, ...over,
+});
+
+export const emptyMonthChanges = monthChanges({ isEmpty: true });
 
 export const allocationLine = (key: string, amount: string, pct: number, over: Partial<AllocationLine> = {}): AllocationLine => ({
   key, amount: eur(amount), pct, targetPct: null, gapPct: null, gap: null, ...over,

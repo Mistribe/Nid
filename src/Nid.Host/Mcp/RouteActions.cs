@@ -49,7 +49,7 @@ public sealed record RouteAction(
 /// Spec 4D3: what the assistant can propose beyond the documents of 4D1, nearly every write of the web. Left out: the admin
 /// area, tokens and sessions, preferences, the import, the FX and catalog syncs (admin or browser-only), the reads sent as
 /// POST (simulations, the bank table's preview), the bank table (<c>propose_amortization</c>), and the tax profile and the
-/// target allocation (issue #104): household settings replaced whole, which the assistant does not change; the purchase scenarios (#122),
+/// target allocation (issue #104): household settings replaced whole, which the assistant does not change; the purchase and sale scenarios (#122, #416),
 /// hypothetical and read by no tool either; the stored documents' archive and unlink (the assistant reads, links and, since
 /// #305, edits them through proposals; its uploads are `upload_document` and `request_document_upload`, no proposal: they change no figure); and the bank connections, sync and statement import, which need the person's browser.
 /// </summary>
@@ -130,10 +130,10 @@ public static class RouteActions
 
         // Investments.
         new("create_envelope", "POST", "/api/v1/investments/envelopes", typeof(CreateEnvelopeBody),
-            "Create an investment envelope (PEA, life insurance, savings account), with its opening and first valuation when known. "
-            + Owners + Amounts),
+            "Create an investment envelope (PEA, life insurance, savings account), with its opening and first valuation when known. A savings "
+            + "account that is a regulated livret says which in 'regulated': 'livret_a', 'ldds', 'lep' or 'livret_jeune'. " + Owners + Amounts),
         new("edit_envelope", "PATCH", "/api/v1/investments/envelopes/{id:guid}", typeof(EditEnvelopeBody),
-            "Edit an envelope's details; only the fields given change. " + Ids),
+            "Edit an envelope's details; only the fields given change ('regulated' for a savings account's livret, 'clearRegulated' to remove it). " + Ids),
         new("add_valuation", "POST", "/api/v1/investments/envelopes/{id:guid}/valuations", typeof(ValuationBody),
             "Record an envelope's value on a date. " + Ids + Amounts),
         new("delete_valuation", "DELETE", "/api/v1/investments/envelopes/{id:guid}/valuations/{valuationId:guid}", null,
@@ -147,7 +147,8 @@ public static class RouteActions
         new("record_transfer", "POST", "/api/v1/investments/transfers", typeof(TransferBody),
             "Move money between two envelopes: a withdrawal from one and a contribution to the other. " + Ids + Amounts),
         new("record_routine", "POST", "/api/v1/investments/routine", typeof(RoutineBody),
-            "The monthly investment routine (get_routine): values and contributions of several envelopes on one date. " + Ids + Amounts),
+            "The monthly investment routine (get_routine): values and contributions of several envelopes on one date. A contribution beyond a "
+            + "livret's ceiling (ceilingRoom in get_routine) is refused. " + Ids + Amounts),
         new("undo_routine", "POST", "/api/v1/investments/routine/undo", typeof(RoutineUndoBody),
             "Undo the facts an investment routine recorded. " + Ids, Destructive: true),
         new("close_envelope", "POST", "/api/v1/investments/envelopes/{id:guid}/close", typeof(CloseBody),

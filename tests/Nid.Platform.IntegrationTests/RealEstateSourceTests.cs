@@ -181,6 +181,7 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
         [
             new NotificationKind("tenancy_end", "due_date", NotificationLevel.Action, "properties", 90),
             new NotificationKind("property_cost_due", "due_date", NotificationLevel.Info, "properties", 7),
+            new NotificationKind("property_tax_due", "due_date", NotificationLevel.Action, "properties", 14),
             new NotificationKind("loan_phase_end", "due_date", NotificationLevel.Info, "loans", 30),
             new NotificationKind("loan_end", "due_date", NotificationLevel.Info, "loans", 30),
             new NotificationKind("rent_arrears", "finding", NotificationLevel.Action, "properties", null),

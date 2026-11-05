@@ -60,6 +60,16 @@ internal static class OpenEnvelope
         => FlowCategories.Refusal(envelope.Kind, flow.Kind, flow.Category) is { } message
             ? new Failure(InvestmentsCodes.InvalidIncomeCategory, message, new Dictionary<string, object?> { ["field"] = "category" })
             : null;
+
+    /// <summary>Issue #399: a deposit beyond a livret's ceiling, against its balance without the flow it corrects (<paramref name="replaced"/>).</summary>
+    public static async Task<Failure?> AboveCeilingAsync(EnvelopePerformance performance, NewFlow flow, Guid? replaced, CancellationToken ct)
+    {
+        if (flow.Kind is not (FlowKind.Opening or FlowKind.Contribution)) return null;
+        var facts = await performance.FactsAsync(flow.Item, ct);
+        if (facts.TryGetFailure(out var failure)) return failure;
+        facts.TryGetValue(out var f);
+        return EnvelopeInsights.AboveCeiling(f! with { Flows = f.Flows.Where(x => x.Id != replaced).ToList() }, flow.OccurredOn, flow.Amount.Amount, "amount");
+    }
 }
 
 [RequestHandler<RecordValuationCommand, Guid>]
@@ -90,7 +100,7 @@ public sealed class VoidValuationHandler(IEnvelopeStore envelopes, IItemRegistry
 }
 
 [RequestHandler<RecordFlowCommand, Guid>]
-public sealed class RecordFlowHandler(IEnvelopeStore envelopes, IItemRegistry items, IFlows flows)
+public sealed class RecordFlowHandler(IEnvelopeStore envelopes, IItemRegistry items, IFlows flows, EnvelopePerformance performance)
     : IRequestHandler<RecordFlowCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(RecordFlowCommand command, CancellationToken ct = default)
@@ -104,6 +114,8 @@ public sealed class RecordFlowHandler(IEnvelopeStore envelopes, IItemRegistry it
             return Result.Failure<Guid>(draft.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
         if (OpenEnvelope.RefuseIncomeCategory(envelope!, flow!) is { } refused)
             return Result.Failure<Guid>(refused);
+        if ((await OpenEnvelope.AboveCeilingAsync(performance, flow!, null, ct)) is { } above)
+            return Result.Failure<Guid>(above);
         var recorded = await flows.RecordAsync(flow!, ct);
         return recorded.TryGetValue(out var saved) ? Result.Success(saved!.Id)
             : Result.Failure<Guid>(recorded.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
@@ -111,7 +123,7 @@ public sealed class RecordFlowHandler(IEnvelopeStore envelopes, IItemRegistry it
 }
 
 [RequestHandler<CorrectFlowCommand, Guid>]
-public sealed class CorrectFlowHandler(IEnvelopeStore envelopes, IItemRegistry items, IFlows flows)
+public sealed class CorrectFlowHandler(IEnvelopeStore envelopes, IItemRegistry items, IFlows flows, EnvelopePerformance performance)
     : IRequestHandler<CorrectFlowCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(CorrectFlowCommand command, CancellationToken ct = default)
@@ -130,6 +142,8 @@ public sealed class CorrectFlowHandler(IEnvelopeStore envelopes, IItemRegistry i
                 new Dictionary<string, object?> { ["field"] = "category" }));
         if (OpenEnvelope.RefuseIncomeCategory(envelope!, flow!) is { } refused)
             return Result.Failure<Guid>(refused);
+        if ((await OpenEnvelope.AboveCeilingAsync(performance, flow!, command.FlowId, ct)) is { } above)
+            return Result.Failure<Guid>(above);
         var corrected = await flows.SupersedeAsync(command.ItemId, command.FlowId, flow!, ct);
         return corrected.TryGetValue(out var saved) ? Result.Success(saved!.Id)
             : Result.Failure<Guid>(corrected.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());

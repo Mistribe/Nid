@@ -15,10 +15,11 @@ public sealed record FirstValuationDraft(LocalDate AsOf, Money Amount);
 public sealed record CreateEnvelopeCommand(
     string DisplayName, string Kind, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
-    OpeningDraft? Opening, FirstValuationDraft? FirstValuation, decimal? PremiumsBefore2017 = null, ShareLevel ShareLevel = ShareLevel.View)
+    OpeningDraft? Opening, FirstValuationDraft? FirstValuation, decimal? PremiumsBefore2017 = null, ShareLevel ShareLevel = ShareLevel.View,
+    string? Regulated = null)
     : ICommand<ItemId>, ICreatesItem;
 
-public sealed record EditEnvelopeCommand(ItemId ItemId, string? DisplayName, string? Kind, EnvelopeChange Change, string? ValuationCadence)
+public sealed record EditEnvelopeCommand(ItemId ItemId, string? DisplayName, string? Kind, EnvelopeChange Change, string? ValuationCadence, string? Regulated = null)
     : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -47,6 +48,8 @@ public sealed class CreateEnvelopeHandler(
         kind.TryGetValue(out var k);
         if (EnvelopeRules.PremiumsBefore2017(command.PremiumsBefore2017, k).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
+        if (EnvelopeRules.Regulated(command.Regulated, k).TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
         cadence.TryGetValue(out var c);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -55,7 +58,7 @@ public sealed class CreateEnvelopeHandler(
         if (!created.TryGetValue(out var id))
             return created;
         await envelopes.CreateAsync(new Envelope(id, k, command.Institution, command.AccountHint, command.OpenedOn, c,
-            command.StaleAfterDays, command.Note, PremiumsBefore2017: command.PremiumsBefore2017), ct);
+            command.StaleAfterDays, command.Note, PremiumsBefore2017: command.PremiumsBefore2017, Regulated: EnvelopeRules.ParseRegulated(command.Regulated)), ct);
 
         if (command.Opening is { } opening)
         {
@@ -113,6 +116,16 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
         // Off a life insurance or a tontine, premiums before 2017 mean nothing: the ones kept are dropped, the ones sent still refused.
         if (kind is { } changed && changed is not (EnvelopeKind.LifeInsurance or EnvelopeKind.Tontine) && change.PremiumsBefore2017 is null)
             change = change with { ClearPremiumsBefore2017 = true };
+        // Issue #399: likewise, off a savings envelope its regulated livret goes.
+        var finalKind = kind ?? envelope.Envelope.Kind;
+        if (command.Regulated is not null)
+        {
+            if (EnvelopeRules.Regulated(command.Regulated, finalKind, command.Change.ClearRegulated).TryGetFailure(out failure))
+                return Result.Failure<ItemId>(failure!);
+            change = change with { Regulated = EnvelopeRules.ParseRegulated(command.Regulated) };
+        }
+        else if (finalKind != EnvelopeKind.Savings)
+            change = change with { ClearRegulated = true };
         if (EnvelopeRules.Check(change.Institution, change.AccountHint, change.StaleAfterDays, change.Note).TryGetFailure(out failure)
             || EnvelopeRules.UcShareFloor(change.UcShareFloorPct).TryGetFailure(out failure)
             || EnvelopeRules.PremiumsBefore2017(
@@ -137,7 +150,7 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
 
 [RequestHandler<GetEnvelopeQuery, EnvelopeDetail>]
 public sealed class GetEnvelopeHandler(
-    EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor)
+    EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor, IPersonRegistry persons)
     : IRequestHandler<GetEnvelopeQuery, EnvelopeDetail>
 {
     public async ValueTask<Result<EnvelopeDetail>> HandleAsync(GetEnvelopeQuery query, CancellationToken ct = default)
@@ -153,6 +166,7 @@ public sealed class GetEnvelopeHandler(
             figures = figures with { StaleDays = null };
         var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
         var e = f.Envelope;
+        var open = f.Item.ArchivedAt is null;
 
         return Result.Success(new EnvelopeDetail(
             query.ItemId, f.Item.DisplayName, EnvelopeWire.Of(e.Kind), f.Currency.Code,
@@ -161,7 +175,11 @@ public sealed class GetEnvelopeHandler(
             e.PremiumsBefore2017 is { } premiums && Money.Create(premiums, f.Currency).TryGetValue(out var money) ? AmountView.From(money) : null,
             FiguresView.From(figures),
             f.Values.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, AmountView.From(v.Value), v.Note, v.DocumentId)).ToList(),
-            f.Flows.Select(x => new FlowView(x.Id, x.OccurredOn, EnvelopeWire.FlowWire(x.Kind), AmountView.From(x.Amount), x.Category, x.ExternalRef, x.Note, x.DocumentId)).ToList()));
+            f.Flows.Select(x => new FlowView(x.Id, x.OccurredOn, EnvelopeWire.FlowWire(x.Kind), AmountView.From(x.Amount), x.Category, x.ExternalRef, x.Note, x.DocumentId)).ToList(),
+            e.Regulated is { } regulated ? EnvelopeWire.Of(regulated) : null,
+            open ? EnvelopeInsights.Ceiling(f, today) : null,
+            open ? EnvelopeInsights.Interest(f, today) : null,
+            open && EnvelopeInsights.Milestone(f, await persons.ListAsync(ct), today) is { } m ? new TaxMilestoneView(m.Code, m.On) : null));
     }
 }
 

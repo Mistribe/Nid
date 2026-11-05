@@ -170,6 +170,17 @@ describe('TaxPage', () => {
     expect(await screen.findByText('Alice : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins (22,85 %).')).toBeInTheDocument();
   });
 
+  it('links each childcare arrangement counted to its year summary', async () => {
+    const loaded = estimate();
+    loaded.notices = [{ code: 'childcare_from_statements', item: 'c1', name: 'Garde de Léa', amount: '1728.81' }];
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    await renderApp('/tax');
+
+    expect(await screen.findByText(/Frais de garde de « Garde de Léa » : 1 728,81 € d’après ses relevés validés/)).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: `Récapitulatif ${loaded.year} à recopier` });
+    expect(link).toHaveAttribute('href', expect.stringMatching(new RegExp(`^/childcare/c1\\?tab=summary&year=.*${loaded.year}`)));
+  });
+
   it('offers the rate seen on the payslips and shows the status’s rate as the default', async () => {
     const loaded = estimate();
     loaded.observedRates = { [ADULT]: '22.85' };
@@ -675,6 +686,31 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(current).toHaveTextContent(/^202664 407,00 €247,00 €\+ 120,00 € de prélèvement forfaitaire.*0,38 %.*Estimation/);
       expect(current).toHaveAttribute('aria-current', 'true');
       expect(years).not.toContain('2025');
+      await expectNoAxeViolations(container);
+    });
+
+    it('says what changed since last year, line by line, sorted by the server', async () => {
+      let asked: string | null = null;
+      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())), http.get('*/api/v1/tax/changes', ({ request }) => {
+        asked = new URL(request.url).searchParams.get('year');
+        return HttpResponse.json({
+          year: 2026, taxBefore: '2500.00', taxBeforeFromNotice: true, taxNow: '6604.00', remainder: '-396.00',
+          lines: [
+            { code: 'salaries', person: ADULT, before: '30000.00', now: '45000.00', effect: '4500.00', fromNotice: true },
+            { code: 'shares', person: null, before: '1.00', now: '1.50', effect: '-1807.00', fromNotice: false },
+          ],
+        });
+      }));
+      const { container } = await renderApp('/tax?tab=evolution');
+
+      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
+      const rows = within(table).getAllByRole('row');
+      expect(rows[1]).toHaveTextContent(/^Salaires nets — Alice30 000,00 €avis45 000,00 €\+4 500,00 €$/);
+      expect(rows[2]).toHaveTextContent(/^Parts11,5-1 807,00 €$/);
+      expect(rows[3]).toHaveTextContent(/barème, plafonds, arrondis-396,00 €$/);
+      expect(rows[4]).toHaveTextContent(/2 500,00 €avis6 604,00 €$/);
+      expect(screen.getByText(/^Indicatif/)).toBeInTheDocument();
+      expect(asked).toBe('2026');
       await expectNoAxeViolations(container);
     });
 

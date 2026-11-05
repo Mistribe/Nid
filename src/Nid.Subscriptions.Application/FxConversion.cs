@@ -27,7 +27,8 @@ public static class FxConversion
         return new RateNeed(quotes, foreign.Min(p => p.ChargeDate), foreign.Max(p => p.ChargeDate));
     }
 
-    public static ConvertedTotal Convert(IEnumerable<CostPiece> pieces, RateTable rates, Currency reference)
+    /// <param name="partial">#395: a total of what converts even when a rate is missing (the missing ones still listed), instead of none.</param>
+    public static ConvertedTotal Convert(IEnumerable<CostPiece> pieces, RateTable rates, Currency reference, bool partial = false)
     {
         var total = 0m;
         var estimate = false;
@@ -47,11 +48,11 @@ public static class FxConversion
             estimate |= piece.IsProjected && piece.Currency != reference;
         }
 
-        if (missing.Count > 0)
+        if (missing.Count > 0 && !partial)
             return new ConvertedTotal(null, false, missing.Values.ToList());
 
         return Money.Create(decimal.Round(total, Money.MaxDecimals), reference).TryGetValue(out var money)
-            ? new ConvertedTotal(money, estimate, [])
+            ? new ConvertedTotal(money, estimate, missing.Values.ToList())
             : ConvertedTotal.None;
     }
 }

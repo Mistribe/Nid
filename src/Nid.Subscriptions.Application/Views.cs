@@ -26,6 +26,7 @@ public sealed record CoverageView(LocalDate Start, LocalDate EndBefore, string S
 
 public sealed record ChargeView(LocalDate Date, MoneyView Price, bool IsProjected, Guid? PurchaseId);
 
+/// <param name="Spent">#395: what it has cost since its first charge; null before any charge.</param>
 /// <param name="AnnualCostConverted">
 /// The 12 months from the 1st of the current month, converted; charges past the walk horizon (<c>?horizon=</c>) are not
 /// projected, so a horizon under 12 months understates it.
@@ -47,7 +48,8 @@ public sealed record SubscriptionSummary(
     int FreeDays,
     IReadOnlyList<FindingView> Findings,
     IReadOnlyList<ItemOwnerView> Owners,
-    MoneyView? AnnualCostConverted);
+    MoneyView? AnnualCostConverted,
+    SpentView? Spent = null);
 
 /// <summary>
 /// The household totals are NOT the sum of the rows: a purchase granting to several subscriptions shows in
@@ -103,7 +105,9 @@ public sealed record SubscriptionDetail(
     bool CanWrite,
     ContractTermsView? ContractTerms,
     CancellationView Cancellation,
-    InsuranceView? Insurance = null) : IExposesItems
+    InsuranceView? Insurance = null,
+    SpentView? Spent = null,
+    SavedView? Saved = null) : IExposesItems
 {
     // Every item the detail names: the output guard then proves each grant target and the insured property are the reader's to see.
     public IEnumerable<ItemId> ExposedItems() => [Id, ..Purchases.SelectMany(p => p.Grants).Select(g => new ItemId(g.SubscriptionId)),

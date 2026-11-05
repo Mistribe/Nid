@@ -18,6 +18,7 @@
     "col_actions": "Actions",
     "archived": "Archivé",
     "row_menu": "Actions pour {{title}}",
+    "preview": "Voir",
     "download": "Télécharger",
     "edit": "Modifier",
     "archive": "Archiver",
@@ -80,6 +81,7 @@
       "size": "Taille",
       "uploaded_on": "Déposé le",
       "uploaded_by": "Par",
+      "preview": "Aperçu",
       "note": "Note",
       "status_archived": "Document archivé.",
       "status_unarchived": "Document désarchivé."
@@ -173,8 +175,22 @@
     "remove_all": "Tout retirer",
     "remove_confirm": "Retirer ce lien ? Le document reste dans Documents.",
     "removed": "Lien retiré.",
+    "preview": "Voir",
     "download": "Télécharger",
     "open": "Voir le document",
     "menu": "Actions du document {{title}}"
+  },
+  "documents_expected": {
+    "title": "Documents attendus",
+    "subject": {
+      "life_insurance": "Relevé annuel {{year}}",
+      "tax_year": "Avis d’imposition {{year}}",
+      "loan": "Tableau d’amortissement de la banque",
+      "property": "Acte d’achat"
+    },
+    "upload": "Déposer : {{what}}",
+    "dismiss": "Pas disponible",
+    "dismiss_label": "Pas disponible : {{what}}",
+    "dismissed": "Ce document ne sera plus demandé."
   }
 }

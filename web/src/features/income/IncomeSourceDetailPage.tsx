@@ -151,7 +151,7 @@ export function IncomeSourceDetailPage() {
             <AccessBadge access={source.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
           </>
         )}>
-        {overview.data ? <SourceFigures figures={overview.data.figures} />
+        {overview.data ? <SourceFigures figures={overview.data.figures} withholding={overview.data.withholding} />
           : overview.error ? null : <div aria-busy="true" aria-label={t('income_detail.figures_loading')} className="h-16 shimmer rounded-md bg-muted" />}
       </PageHeader>
       {source.canWrite ? null : <p>{t('income_detail.read_only')}</p>}

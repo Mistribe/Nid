@@ -24,7 +24,7 @@ import { fieldErrorsOf, messageFor } from '../subscriptions/fieldErrors';
 import { PERSONS } from '../subscriptions/api';
 import { todayIso } from '../subscriptions/today';
 import { ENVELOPES, invalidateInvestments } from './api';
-import { CADENCES, KINDS } from './format';
+import { CADENCES, KINDS, regulatedOptions } from './format';
 import { newEnvelopeSchema, NEW_ENVELOPE_PATHS, toCreateBody, type NewEnvelopeValues } from './newEnvelopeSchema';
 import '@/locales/investments';
 
@@ -55,7 +55,7 @@ export function NewEnvelope() {
   const form = useForm<NewEnvelopeValues>({
     resolver: zodResolver(newEnvelopeSchema(t)),
     defaultValues: {
-      displayName: '', kind: 'savings', currency: 'EUR', institution: '', accountHint: '', valuationCadence: 'monthly',
+      displayName: '', kind: 'savings', currency: 'EUR', institution: '', accountHint: '', valuationCadence: 'monthly', regulated: 'none',
       visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }],
       withOpening: false, openingOn: '', openingAmount: '',
       withFirstValue: false, firstValueOn: todayIso(), firstValueAmount: '',
@@ -101,6 +101,13 @@ export function NewEnvelope() {
                 options={KINDS.map((k) => ({ value: k, label: t(`investments.kind.${k}`) }))} />}
             </Field>
           )} />
+          {form.watch('kind') === 'savings' ? (
+            <Controller control={form.control} name="regulated" render={({ field }) => (
+              <Field label={t('envelope.settings.regulated')} hint={t('envelope.settings.regulated_help')} error={e.regulated?.message}>
+                {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange} options={regulatedOptions(t)} />}
+              </Field>
+            )} />
+          ) : null}
           <Field label={t('investments_form.institution')} error={e.institution?.message}>
             {(c) => <Input {...c} {...form.register('institution')} />}
           </Field>

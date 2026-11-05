@@ -135,6 +135,13 @@ public static class OverviewMath
     public static decimal? ChangePct(decimal? now, decimal? then)
         => now is { } n && then is { } t && t != 0m ? Percent((n - t) / t) : null;
 
+    /// <summary>
+    /// A one-year change in percent (<see cref="ChangePct"/>) after <paramref name="inflation"/>, an annual fraction: (1 + change) ÷
+    /// (1 + inflation) − 1, 1 decimal; null when the change is unknown. Read from the rounded change, so both figures shown agree.
+    /// </summary>
+    public static decimal? RealChangePct(decimal? changePct, decimal inflation)
+        => changePct is { } c ? Percent((1m + c / 100m) / (1m + inflation) - 1m) : null;
+
     private static decimal? YearlyRate(decimal? now, decimal? then)
         => now is { } n && then is { } t && t > 0m && n >= 0m
             ? Math.Round((decimal)(Math.Pow((double)(n / t), 1.0 / 3.0) - 1.0) * 100m, 1, MidpointRounding.AwayFromZero)

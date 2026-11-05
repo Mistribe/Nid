@@ -42,6 +42,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
                 t.HasCheckConstraint("ck_envelope_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
                 t.HasCheckConstraint("ck_envelope_uc_share_floor_pct", "uc_share_floor_pct is null or uc_share_floor_pct between 0 and 100");
                 t.HasCheckConstraint("ck_envelope_premiums_before_2017", "premiums_before_2017 is null or premiums_before_2017 >= 0");
+                t.HasCheckConstraint("ck_envelope_regulated", "regulated is null or (kind = 'savings' and regulated in ('livret_a','ldds','lep','livret_jeune'))");
                 t.HasCheckConstraint("ck_envelope_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
             });
             e.HasKey(x => x.ItemId);

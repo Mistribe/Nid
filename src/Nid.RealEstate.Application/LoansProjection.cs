@@ -12,11 +12,12 @@ internal sealed record LoanRepaymentEvent(Guid Event, int Month, LocalDate On, d
 internal sealed record LoanSaleEvent(Guid Event, int Month, LocalDate On, ItemId Property);
 
 /// <summary>
-/// The loans' months, ends, the repayments' outcomes and, per sale, the balance (reference currency) its loans were settled by.
+/// The loans' months, ends, the repayments' outcomes and, per sale, the balance (reference currency) its loans were settled by and
+/// their payments of the month after the sale, which stop with it.
 /// </summary>
 internal sealed record ProjectedLoans(
     IReadOnlyList<(decimal? Debt, decimal? Payments)> Months, IReadOnlyList<LoanEnd> Ends,
-    IReadOnlyList<Nid.Core.Contracts.RepaymentOutcome> Repayments, IReadOnlyDictionary<Guid, decimal> Settled);
+    IReadOnlyList<Nid.Core.Contracts.RepaymentOutcome> Repayments, IReadOnlyDictionary<Guid, (decimal Balance, decimal Payments)> Settled);
 
 internal static partial class LoansOverviewMath
 {
@@ -42,7 +43,7 @@ internal static partial class LoansOverviewMath
         var touched = new HashSet<int>();
         var sold = new Dictionary<int, LoanSaleEvent>();
         var outcomes = new Nid.Core.Contracts.RepaymentOutcome[repayments.Count];
-        var settled = new Dictionary<Guid, decimal>();
+        var settled = new Dictionary<Guid, (decimal Balance, decimal Payments)>();
 
         var events = repayments.Select((e, i) => (e.On, Order: 0, Index: i))
             .Concat(sales.Select((e, i) => (e.On, Order: 1, Index: i)))
@@ -85,17 +86,20 @@ internal static partial class LoansOverviewMath
 
         void Settle(LoanSaleEvent e)
         {
-            var balance = 0m;
+            decimal balance = 0m, payments = 0m;
+            var next = e.On.ToYearMonth().PlusMonths(1);
             for (var i = 0; i < running.Count; i++)
             {
                 var r = running[i];
                 if (r.Source.Loan.PropertyId != e.Property || sold.ContainsKey(i) || LoanReading.EndOf(r.Terms, r.Schedule) <= e.On)
                     continue;
                 sold[i] = e;
-                if (!missing.Contains(r.Currency))
-                    balance += convert.Of(LoanMath.At(r.Terms, r.Schedule, e.On).Balance, r.Currency) ?? 0m;
+                if (missing.Contains(r.Currency))
+                    continue;
+                balance += convert.Of(LoanMath.At(r.Terms, r.Schedule, e.On).Balance, r.Currency) ?? 0m;
+                payments += convert.Of(r.Payments.GetValueOrDefault(next), r.Currency) ?? 0m;
             }
-            settled[e.Event] = balance;
+            settled[e.Event] = (balance, payments);
         }
 
         var thisMonth = today.ToYearMonth();

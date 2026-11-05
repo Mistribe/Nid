@@ -156,15 +156,18 @@ public sealed record ProjectionComparisonView(
     public IEnumerable<ItemId> ExposedItems() => Base.ExposedItems().Concat(Scenario.ExposedItems()).Concat(Document.Targets()).Distinct();
 
     internal static ProjectionComparisonView From(ProjectionScenarioReading reading)
+        => TryFrom(reading) ?? throw new InvalidOperationException("The scenario's grid differs from the base's, or is empty.");
+
+    /// <summary>Null when the grids diverged or are empty, for a reader that answers without the comparison.</summary>
+    public static ProjectionComparisonView? TryFrom(ProjectionScenarioReading reading)
     {
         var horizon = ProjectionHorizon.From(reading.VisibleDocument.Horizon);
         var based = HouseholdProjection.Project(reading.Base.Inputs);
         var scenario = HouseholdProjection.Project(reading.Scenario);
         // Both grids run from today to the same horizon: point i of one is point i of the other. Grids that diverged would make every
         // gap wrong, so they fail rather than being cut to the shorter.
-        if (scenario.Points.Count != based.Points.Count || scenario.Points[^1].On != based.Points[^1].On)
-            throw new InvalidOperationException(
-                $"The scenario's grid ({scenario.Points.Count} points to {scenario.Points[^1].On}) differs from the base's ({based.Points.Count} to {based.Points[^1].On}).");
+        if (based.Points.Count == 0 || scenario.Points.Count != based.Points.Count || scenario.Points[^1].On != based.Points[^1].On)
+            return null;
         var gaps = scenario.Points.Zip(based.Points, (s, b) => new ProjectionGapView(
             s.On, PropertyPurchaseView.Amount(s.Nominal - b.Nominal), PropertyPurchaseView.Amount(s.Real - b.Real))).ToList();
         return new ProjectionComparisonView(

@@ -19,11 +19,13 @@ import i18n from '@/app/i18n';
 import board from '@/locales/fr.subscriptions-board.json';
 import { cn } from '@/lib/utils';
 import { LIST, OVERVIEW, PERSONS, type Overview } from '../api';
+import { durationText } from '../format';
 
 // Loaded with this lazy chunk, not with the initial bundle.
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);
 
 const MonthsChart = lazy(() => import('./MonthsChart').then((m) => ({ default: m.MonthsChart })));
+const YearsChart = lazy(() => import('./YearsChart').then((m) => ({ default: m.YearsChart })));
 
 type Scope = 'household' | 'me';
 
@@ -68,6 +70,14 @@ export function OverviewTab({ scope }: { scope: Scope }) {
           action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'list', group: 'label', status: 'all' })} className="text-sm underline-offset-4 hover:underline">{t('overview.see_list')}</Link>}>
           <Labels d={d} />
         </Panel>
+        {d.years.length > 0 ? (
+          <Panel title={t('years.title')} className="lg:order-6 lg:col-span-3">
+            <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><YearsChart years={d.years} /></Suspense>
+          </Panel>
+        ) : null}
+        {d.topProviders.length > 0 ? <Panel title={t('providers.title')} className="lg:order-7"><TopProviders d={d} /></Panel> : null}
+        {d.savings.items.length > 0 ? <Panel title={t('savings.title')} className="lg:order-8"><Savings d={d} /></Panel> : null}
+        {d.priceRises.items.length > 0 ? <Panel title={t('rises.title')} className="lg:order-9"><PriceRises d={d} /></Panel> : null}
       </div>
     </div>
   );
@@ -198,5 +208,80 @@ function Watch({ d, scope }: { d: Overview; scope: Scope }) {
         );
       })}
     </GroupedList>
+  );
+}
+
+/** A partial total (a rate was missing) says so after the amount; the findings name the rate. */
+function Partial({ partial }: { partial: boolean }) {
+  const { t } = useTranslation('subscriptions-board');
+  return partial ? <span className="ml-1 text-xs text-muted-foreground">{t('partial')}</span> : null;
+}
+
+/** #395: the five providers that cost the most since their first charge, ended subscriptions included; a row opens the list on it. */
+function TopProviders({ d }: { d: Overview }) {
+  return (
+    <ul className="space-y-2 text-sm">
+      {d.topProviders.map((p) => (
+        <li key={p.provider.key} className="flex items-center gap-3">
+          <ProviderIcon name={p.provider.name} iconUrl={p.provider.iconUrl} color={p.provider.labels[0]?.color} />
+          <Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'list', status: 'all' as const, provider: p.provider.key })}
+            className="min-w-0 truncate font-medium hover:underline">{p.provider.name}</Link>
+          <span className="ml-auto whitespace-nowrap"><Amount value={p.spent} /><Partial partial={p.partial} /></span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** #397: what the ended subscriptions without successor would have cost over the last 12 months, and each of them. */
+function Savings({ d }: { d: Overview }) {
+  const { t } = useTranslation('subscriptions-board');
+  return (
+    <>
+      <p className="text-sm"><Trans t={t} i18nKey="savings.total" values={{ amount: text(d.savings.last12Months) }}
+        components={{ amount: <span className="text-figure whitespace-nowrap" /> }} /><Partial partial={d.savings.partial} /></p>
+      <ul className="space-y-2 text-sm">
+        {d.savings.items.map((s) => (
+          <li key={s.itemId} className="flex items-center gap-3">
+            <ProviderIcon name={s.provider?.name ?? s.displayName} iconUrl={s.provider?.iconUrl} color={s.provider?.labels[0]?.color} />
+            <span className="min-w-0">
+              <Link to="/subscriptions/$id" params={{ id: s.itemId }} className="block truncate font-medium hover:underline">{s.displayName}</Link>
+              <span className="text-xs text-muted-foreground">{t('savings.ended', { date: formatLocalDate(s.endedOn) })}</span>
+            </span>
+            <span className="ml-auto whitespace-nowrap"><Amount value={s.last12Months} /></span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** #398: each dearer price of the last 12 months, latest first; a launch offer ending says so and stays out of the total. */
+function PriceRises({ d }: { d: Overview }) {
+  const { t } = useTranslation('subscriptions-board');
+  const { t: tc } = useTranslation();
+  const price = (money: MoneyValue, every: { count: number; unit: string }) => `${formatMoney(money)} / ${durationText(tc, every)}`;
+  return (
+    <>
+      {d.priceRises.yearlyTotal ? <p className="text-sm">{t('rises.total', { amount: text(d.priceRises.yearlyTotal) })}</p> : null}
+      <ul className="space-y-2 text-sm">
+        {d.priceRises.items.map((r) => (
+          <li key={`${r.itemId}/${r.on}`} className="flex items-center gap-3">
+            <ProviderIcon name={r.provider?.name ?? r.displayName} iconUrl={r.provider?.iconUrl} color={r.provider?.labels[0]?.color} />
+            <span className="min-w-0">
+              <Link to="/subscriptions/$id" params={{ id: r.itemId }} search={{ tab: 'history' }} className="block truncate font-medium hover:underline">{r.displayName}</Link>
+              <span className="text-xs text-muted-foreground">
+                {t('rises.change', { old: price(r.oldPrice, r.oldEvery), new: price(r.newPrice, r.newEvery), date: formatLocalDate(r.on) })}
+              </span>
+            </span>
+            <span className="ml-auto whitespace-nowrap text-right">
+              {r.promoEnded
+                ? <span className="text-xs font-medium text-muted-foreground">{t('rises.promo_ended')}</span>
+                : t('rises.yearly', { amount: text(r.yearlyDifference) })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

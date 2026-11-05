@@ -9,7 +9,7 @@ import type { components } from '@/api/schema';
 import { AccessBadge } from '@/components/AccessBadge';
 import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
-import { Money } from '@/components/Money';
+import { formatMoney, Money, type MoneyValue } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { shownOr } from '@/components/page/RowMenu';
@@ -139,6 +139,22 @@ export function SubscriptionDetailPage() {
             { label: t('subscription.cash'), value: detail.cashCost.map((m) => <Money key={m.currency} value={m} tabular />) },
             ...(detail.billedMonthly ? [] : [{ label: t('subscription.amortized'), value: detail.amortizedCost.map((m) => <Money key={m.currency} value={m} tabular />) }]),
             nextCharge,
+            // #395, #397: what it has cost since its first charge; once ended without successor, what stopping it has saved.
+            ...(detail.spent ? [
+              { label: t('subscription.spent_since', { date: formatLocalDate(detail.spent.since) }), value: <Figure value={detail.spent.total} partial={detail.spent.partial} /> },
+              { label: t('subscription.spent_last12'), value: <Figure value={detail.spent.last12Months} partial={detail.spent.partial} /> },
+            ] : []),
+            ...(detail.saved ? [{
+              label: t('subscription.saved_since', { date: formatLocalDate(detail.saved.since) }),
+              value: (
+                <>
+                  <Figure value={detail.saved.total} partial={detail.saved.partial} />
+                  <span className="block text-sm text-muted-foreground">
+                    {t('subscription.saved_rule', { price: formatMoney(detail.saved.lastPrice), every: durationText(t, detail.saved.every) })}
+                  </span>
+                </>
+              ),
+            }] : []),
             ...(detail.cancellation.status === 'deadline' && detail.cancellation.lastDayToCancel
               ? [{ label: t('contract_terms.cancel_deadline'), value: formatLocalDate(detail.cancellation.lastDayToCancel) }] : []),
           ]} />
@@ -290,6 +306,17 @@ export function SubscriptionDetailPage() {
         }] : []),
       ]} />
     </article>
+  );
+}
+
+/** A server total; « — » without one, « partiel » when a rate was missing (the findings name it). */
+function Figure({ value, partial }: { value?: MoneyValue | null; partial: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {value ? <Money value={value} tabular /> : '—'}
+      {partial ? <span className="ml-1 text-sm text-muted-foreground">{t('subscription.partial')}</span> : null}
+    </>
   );
 }
 

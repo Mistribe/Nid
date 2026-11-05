@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from '@tanstack/react-router';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
@@ -23,6 +24,21 @@ export function Change({ value, label }: { value: number; label?: string }) {
 
 export const Sub = ({ children }: { children: ReactNode }) => <span className="block text-sm font-normal text-muted-foreground">{children}</span>;
 
+/** #407: the one-year change after inflation, the household's projection assumption named with a link to it; nothing without a change. */
+export function RealChange({ value, inflation }: { value: number | null | undefined; inflation: number }) {
+  const { t } = useTranslation();
+  if (value == null) return null;
+  return (
+    <>
+      <Sub>{t('income.overview.real_change', { value: percent(value, true) })}</Sub>
+      <Sub>
+        {t('income.overview.inflation', { value: percent(inflation) })}{' '}
+        <Link to="/settings/projection" className="underline">{t('income.overview.inflation_source')}</Link>
+      </Sub>
+    </>
+  );
+}
+
 /** The four key figures as the server computed them; one it could not compute reads « — » and says why on focus. */
 export function OverviewFigures({ figures, missingRates, period, year }: {
   figures: IncomeOverviewFigures; missingRates: string[]; period: 'year' | '12m' | '3y'; year: number;
@@ -36,7 +52,7 @@ export function OverviewFigures({ figures, missingRates, period, year }: {
       <TooltipContent>{why}</TooltipContent>
     </Tooltip>
   );
-  const { monthlyNow, monthlyChange1y, total, elapsed, changeVsPrevious, changeVsPreviousPct, change3y, change3yYearly } = figures;
+  const { monthlyNow, monthlyChange1y, monthlyRealChange1y, inflation, total, elapsed, changeVsPrevious, changeVsPreviousPct, change3y, change3yYearly } = figures;
   const yearly = period === 'year';
 
   return (
@@ -44,7 +60,13 @@ export function OverviewFigures({ figures, missingRates, period, year }: {
       <StatLine items={[
         {
           label: t('income.overview.per_month'),
-          value: monthlyNow ? <>{formatMoney(monthlyNow)}{monthlyChange1y != null ? <Change value={monthlyChange1y} label={t('income.overview.over_1y')} /> : null}</> : dash,
+          value: monthlyNow ? (
+            <>
+              {formatMoney(monthlyNow)}
+              {monthlyChange1y != null ? <Change value={monthlyChange1y} label={t('income.overview.over_1y')} /> : null}
+              <RealChange value={monthlyRealChange1y} inflation={inflation} />
+            </>
+          ) : dash,
         },
         {
           label: yearly ? t('income.overview.total_year', { year }) : t('income.overview.total_period'),

@@ -37,6 +37,7 @@ Une **enveloppe** est un `item` du Core. Son nom, ses propriétaires, sa visibil
 | `stale_after_days` | int? | Remplace le seuil dérivé de la cadence |
 | `note` | text? | |
 | `premiums_before_2017` | numeric(19,4)? | `life_insurance` ou `tontine` seulement, `>= 0` : les primes versées avant le 27/09/2017 restant dans le contrat quand Nid l'a suivi ; sert à estimer l'impôt d'un rachat |
+| `regulated` | text? | `savings` seulement : `livret_a`, `ldds`, `lep` ou `livret_jeune` (#399). Fixe le plafond et le taux, règles datées de `RegulatedSavings` ; un versement au-delà du plafond est refusé (`investments.above_ceiling`) par la routine, le flux saisi ou corrigé sur l'enveloppe et un virement vers elle, jamais un retrait ni un solde passé au-dessus par les intérêts ; quitter `savings` l'efface. Absent du fichier d'import, qui le laisse tel quel |
 
 Colonnes de provenance et d'audit : celles du Core.
 

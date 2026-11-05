@@ -29,6 +29,17 @@ public sealed class DocumentLinkRow
     public Instant LinkedAt { get; set; }
 }
 
+/// <summary>Issue #414: a document marked « pas disponible »: that period of that role on that target is no longer asked for.</summary>
+public sealed class ExpectedDismissalRow
+{
+    public string TargetKind { get; set; } = "";
+    public Guid TargetId { get; set; }
+    public string Role { get; set; } = "";
+    public int Period { get; set; }
+    public Guid DismissedByPersonId { get; set; }
+    public Instant DismissedAt { get; set; }
+}
+
 /// <summary>#305: an upload URL not used yet; no history, it is deleted when claimed or expired.</summary>
 public sealed class UploadTicketRow
 {

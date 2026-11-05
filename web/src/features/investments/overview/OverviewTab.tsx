@@ -237,8 +237,14 @@ function WatchCard({ d }: { d: InvestmentsOverview }) {
   );
 }
 
+const MILESTONES = ['life_insurance_8y', 'pea_5y', 'per_retirement'] as const;
+
 function watchText(t: TFunction, w: Watch): string {
   const date = w.on ? formatLocalDate(w.on, 'short') : '';
+  if (w.code === 'ceiling_reached') return t('investments_overview.watch.ceiling_reached');
+  if (w.code === 'ceiling_room' && w.amount) return t('investments_overview.watch.ceiling_room', { amount: formatMoney(w.amount) });
+  const milestone = MILESTONES.find((m) => m === w.milestone);
+  if (w.code === 'tax_milestone' && milestone) return t(`investments_overview.watch.tax_milestone.${milestone}`, { date });
   const code = WATCH_CODES.find((c) => c === w.code);
   return code ? t(`investments_overview.watch.${code}`, { date }) : t('investments_overview.watch.other');
 }

@@ -96,6 +96,20 @@ describe('PropertyDetailPage', () => {
     expect(detail('Prix de revient')).toHaveTextContent('281 000,00 €');
   });
 
+  it('says since when a negative net value is so and when it turns positive, the value held flat', async () => {
+    serve(withFigures({ netValue: '-58400.00', netValueTurn: { negativeSince: '2025-06-01', positiveOn: '2031-03-15' } }));
+    await renderApp(`/properties/${PROPERTY}`);
+
+    await heading();
+    expect(figure('Valeur nette')).toHaveTextContent('Valeur nette négative depuis le 1 juin 2025 · positive vers mars 2031, à valeur constante');
+    cleanup();
+
+    serve(withFigures({ netValue: '-58400.00', netValueTurn: { negativeSince: '2025-06-01', positiveOn: null } }));
+    await renderApp(`/properties/${PROPERTY}`);
+    await heading();
+    expect(figure('Valeur nette')).toHaveTextContent('positive au-delà de la fin des crédits, à valeur constante');
+  });
+
   it('signs a latent loss, marks a stale value « À réestimer » in words, and reads a line it does not know as its code', async () => {
     serve(withFigures({
       latentGain: '-12000.00', stale: true,

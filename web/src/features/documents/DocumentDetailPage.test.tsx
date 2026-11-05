@@ -76,6 +76,27 @@ describe('DocumentDetailPage', () => {
     expect(await screen.findByRole('link', { name: 'Télécharger' })).toHaveAttribute('href', `/api/v1/documents/${DOC}/content`);
   });
 
+  it('shows a PDF in the page, after the download link, and an image as an image; a mail is a download only (#413)', async () => {
+    serveDocument();
+    await renderApp(PATH);
+    const download = await screen.findByRole('link', { name: 'Télécharger' });
+    const viewer = within(screen.getByRole('region', { name: 'Aperçu' })).getByTitle('Bail 2024');
+    expect(viewer.tagName).toBe('IFRAME');
+    expect(viewer).toHaveAttribute('src', `/api/v1/documents/${DOC}/content?inline=true`);
+    expect(download.compareDocumentPosition(viewer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    cleanup();
+
+    serveDocument({ doc: detail({ mediaType: 'image/jpeg' }) });
+    await renderApp(PATH);
+    expect(await screen.findByRole('img', { name: 'Bail 2024' })).toHaveAttribute('src', `/api/v1/documents/${DOC}/content?inline=true`);
+    cleanup();
+
+    serveDocument({ doc: detail({ mediaType: 'message/rfc822' }) });
+    await renderApp(PATH);
+    await screen.findByRole('link', { name: 'Télécharger' });
+    expect(screen.queryByRole('region', { name: 'Aperçu' })).not.toBeInTheDocument();
+  });
+
   it('archives after a confirmation, then offers « Désarchiver »', async () => {
     const { writes } = serveDocument();
     const { user, container } = await renderApp(PATH);

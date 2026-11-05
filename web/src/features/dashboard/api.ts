@@ -20,6 +20,12 @@ export type NetWorthPointView = components['schemas']['NetWorthPointView'];
 
 export const NET_WORTH = '/api/v1/dashboard/net-worth' as const;
 
+export type MonthChanges = components['schemas']['MonthChangesView'];
+export type MonthFigure = components['schemas']['MonthFigureView'];
+
+/** Issue #415: « Depuis le mois dernier ». */
+export const MONTH_CHANGES = '/api/v1/dashboard/changes' as const;
+
 export type Projection = components['schemas']['ProjectionView'];
 export type HouseholdPoint = components['schemas']['HouseholdPointView'];
 export type ProjectionMilestone = components['schemas']['ProjectionMilestoneView'];

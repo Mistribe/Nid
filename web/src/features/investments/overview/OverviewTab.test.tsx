@@ -96,6 +96,21 @@ describe('Placements › vue d’ensemble', () => {
     expect(within(items[1]!).getByRole('link')).toHaveAttribute('href', `/investments/${PEA}?tab=holdings`);
   });
 
+  it('names a livret at its ceiling, the room on the others and the tax dates (issues 399, 400)', async () => {
+    const base = household();
+    serve({ ...base, watch: [
+      { code: 'ceiling_reached', envelopeId: LIVRET, holdingId: null, on: null },
+      { code: 'ceiling_room', envelopeId: PEA, holdingId: null, on: null, amount: eur('3600.0000') },
+      { code: 'tax_milestone', envelopeId: PEA, holdingId: null, on: '2025-12-01', milestone: 'pea_5y' },
+    ] });
+    await renderApp('/investments');
+
+    const items = within(await region('À surveiller')).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Livret A Au plafond : les versements suivants iront ailleurs');
+    expect(items[1]).toHaveTextContent('PEA Encore 3 600,00 € versables');
+    expect(items[2]).toHaveTextContent('PEA 5 ans le 1 déc. 2025');
+  });
+
   it('keeps the span in the URL and shows the points as a table on demand', async () => {
     const seen: string[] = [];
     serve(household(), seen);

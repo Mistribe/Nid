@@ -3,7 +3,6 @@ using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
-using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Investments.Application;
 
@@ -28,10 +27,7 @@ public sealed class InvestmentsNotificationSource(InvestmentsUpcoming upcoming, 
     {
         var signals = new List<Signal>();
 
-        var events = await upcoming.UpcomingAsync(reader, VisibilityScope.Me, today, horizon, ct);
-        if (!events.TryGetValue(out var list))
-            return Result.Failure<IReadOnlyList<Signal>>(events.TryGetFailure(out var failure) ? failure! : new Failure("investments.unknown", "The upcoming events could not be read.", null));
-        foreach (var e in list!.Where(e => e.Kind == UpcomingKinds.HoldingMaturity))
+        foreach (var e in await upcoming.MaturitiesAsync(reader, VisibilityScope.Me, today, horizon, ct))
             signals.Add(new Signal(SignalKeys.Dated(e.Kind, e.Item, e.On), e.Kind, [e.Item], e.On,
                 e.Label is { Length: > 0 } label ? new Dictionary<string, string> { ["label"] = label } : NoParams));
 

@@ -21,6 +21,11 @@ public static class TaxEndpoints
             => (await invoker.InvokeAsync(new GetTaxEstimateQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<TaxEstimateView>();
 
+        // Issue #410.
+        api.MapGet("/changes", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetTaxChangesQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<TaxChangesView>();
+
         // Rental 2044 spec §5.
         api.MapGet("/2044", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
@@ -140,7 +145,8 @@ public static class TaxEndpoints
         IReadOnlyDictionary<Guid, string>? ContributionRates = null, IReadOnlyDictionary<Guid, string>? ActualExpenses = null,
         IReadOnlyDictionary<Guid, string>? PerUnusedCeilings = null, string? RentalDeficitCarried = null,
         IReadOnlyDictionary<Guid, string>? PerCeilings = null, IReadOnlyDictionary<Guid, string>? PerCeilingsExpiring = null, bool PerPooling = false,
-        IReadOnlyDictionary<Guid, string>? ExemptIncomes = null, string? DonationsAidLate = null, string? RentalEnergyWorks = null)
+        IReadOnlyDictionary<Guid, string>? ExemptIncomes = null, string? DonationsAidLate = null, string? RentalEnergyWorks = null,
+        string? Department = null)
     {
         internal TaxProfile? Read(FieldReader reader)
         {
@@ -159,7 +165,8 @@ public static class TaxEndpoints
             var energy = Amount(reader, RentalEnergyWorks, "rentalEnergyWorks");
             return reader.Ok
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
-                    rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt, aidLate, energy)
+                    rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt, aidLate, energy,
+                    string.IsNullOrWhiteSpace(Department) ? null : Department.Trim().ToUpperInvariant())
                 : null;
         }
     }

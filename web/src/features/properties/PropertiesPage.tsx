@@ -56,7 +56,7 @@ export function PropertiesPage() {
         ...(rented ? [{ id: 'rental' as const, label: t('properties_rental.tab'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><RentalTab scope={scope} property={search.property} /></Suspense> }] : []),
         { id: 'costs', label: t('properties_costs.tab'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><CostsTab scope={scope} /></Suspense> },
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><CostsTab scope={scope} property={search.property} /></Suspense> },
         { id: 'valuation', label: t('properties_valuation.tab'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><ValuationTab scope={scope} /></Suspense> },
         { id: 'list', label: t('properties_overview.tab_list'), content: <ListTab scope={scope} add={add('outline')} /> },

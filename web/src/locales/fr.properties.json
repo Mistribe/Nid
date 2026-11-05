@@ -268,7 +268,14 @@
     "real_note": "Le capital remboursé n’est pas un coût : il reste dans la valeur nette.",
     "col_date": "Date",
     "col_category": "Catégorie",
-    "col_amount": "Montant"
+    "col_amount": "Montant",
+    "years_title": "Par catégorie et par an",
+    "years_table": "Charges payées par catégorie et par année civile",
+    "years_empty": "Aucune charge payée sur ces cinq années.",
+    "years_note": "Charges payées, travaux compris. L’évolution compare deux années complètes ; une année est partielle quand un bien n’était pas encore détenu à son 1er janvier, ou qu’un bien archivé (vendu), absent de ces chiffres, y était encore détenu.",
+    "year_current": "en cours",
+    "year_partial": "partielle",
+    "change": "{{rate}} %"
   },
   "properties_valuation": {
     "tab": "Valorisation",

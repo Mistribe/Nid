@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useForm, type Path, type Resolver } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toProblem } from '@/api/errors';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
+import type { NewGoalSearch } from '@/app/router';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
 import { FormPage } from '@/components/page/FormPage';
 import { StepForm } from '@/components/page/StepForm';
@@ -33,9 +34,14 @@ export function NewGoal() {
   const navigate = useNavigate();
   const people = $api.useQuery('get', PERSONS);
   const options = useEnvelopeOptions();
+  // Issue #412: opened from the empty state as an emergency fund, its kind, months and name already chosen.
+  const search: NewGoalSearch = useSearch({ strict: false });
+  const preset = search.kind === 'emergency_fund'
+    ? { kind: search.kind, name: t('goals_list.kind.emergency_fund'), ...(search.months ? { months: String(search.months) } : {}) }
+    : {};
   const form = useForm<GoalValues>({
     resolver: zodResolver(goalSchema(t, { withOwners: true })) as unknown as Resolver<GoalValues>,
-    defaultValues: { ...goalDefaults(), visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }] },
+    defaultValues: { ...goalDefaults(), ...preset, visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }] },
   });
   const errors = useGoalErrors(form.setError);
   const [reveal, setReveal] = useState<{ step: string } | null>(null);

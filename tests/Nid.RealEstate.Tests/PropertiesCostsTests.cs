@@ -60,7 +60,7 @@ public class PropertiesCostsTests
         new StoredProperty(ChaletItem.Id, Bought(PropertyType.SecondaryResidence, 180_000m, 0m, new LocalDate(2020, 1, 1)), 1, [], []),
         [], [Fact(ChaletItem, new LocalDate(2026, 2, 1), FlowKind.Expense, "energy", 900m, "CHF")], [], []);
 
-    private static PropertiesCosts Build(params OverviewProperty[] set) => PropertiesCostsMath.Build(set, Currency.Eur, RateTable.Empty(Today, 0), Today);
+    private static PropertiesCosts Build(params OverviewProperty[] set) => PropertiesCostsMath.Build(set, Currency.Eur, RateTable.Empty(Today, 0), Today, []);
 
     private static decimal D(string amount) => decimal.Parse(amount, CultureInfo.InvariantCulture);
 
@@ -142,5 +142,113 @@ public class PropertiesCostsTests
     {
         var cost = new RecurringCost("condo_fees", 300m, Loans.Ok(Duration.Create(3, DurationUnit.Month)), new LocalDate(2024, 11, 1), new LocalDate(2027, 3, 1), null);
         Assert.Equal([new LocalDate(2026, 11, 1), new LocalDate(2027, 2, 1)], PropertyMath.DueBetween(cost, Today, Today.PlusMonths(12)));
+    }
+
+    [Fact]
+    public void Paid_per_category_and_calendar_year_with_the_change_between_two_complete_years()
+    {
+        var home = Home();
+        home = home with
+        {
+            Flows =
+            [
+                .. home.Flows,
+                Fact(HomeItem, new LocalDate(2021, 10, 1), FlowKind.Expense, "property_tax", 900m), // before the five years
+                Fact(HomeItem, new LocalDate(2023, 10, 1), FlowKind.Expense, "property_tax", 1_000m),
+                Fact(HomeItem, new LocalDate(2024, 10, 1), FlowKind.Expense, "property_tax", 1_100m),
+                Fact(HomeItem, new LocalDate(2025, 4, 1), FlowKind.Expense, "property_tax", 600m),
+                Fact(HomeItem, new LocalDate(2025, 10, 1), FlowKind.Expense, "property_tax", 610m),
+                Fact(HomeItem, new LocalDate(2026, 10, 1), FlowKind.Expense, "property_tax", 1_300m),
+            ],
+        };
+
+        var years = Build(home).ByYear;
+
+        Assert.Equal([2022, 2023, 2024, 2025, 2026], years.Years.Select(y => y.Year));
+        Assert.Equal([true, true, true, true, false], years.Years.Select(y => y.Complete));
+        Assert.Equal(["property_tax", "maintenance"], years.Categories.Select(c => c.Category));
+        var tax = years.Categories[0].Cells;
+        Assert.Equal([null, "1000.00", "1100.00", "1210.00", "1300.00"], tax.Select(c => c.Paid?.Amount));
+        // No change from a year without payment, nor into the current year.
+        Assert.Equal([null, null, "0.1000", "0.1000", null], tax.Select(c => c.Change));
+    }
+
+    [Fact]
+    public void A_year_a_property_was_bought_in_or_before_is_partial()
+    {
+        var flat = Flat();
+        flat = flat with
+        {
+            Flows =
+            [
+                Fact(FlatItem, new LocalDate(2023, 12, 20), FlowKind.Expense, "insurance", 20m),
+                Fact(FlatItem, new LocalDate(2024, 6, 1), FlowKind.Expense, "insurance", 180m),
+                Fact(FlatItem, new LocalDate(2025, 6, 1), FlowKind.Expense, "insurance", 171m),
+            ],
+        };
+
+        var years = Build(flat, Home()).ByYear;
+
+        // Bought in December 2023: 2022 did not have it, 2023 had it for a month.
+        Assert.Equal([false, false, true, true, false], years.Years.Select(y => y.Complete));
+        var insurance = Assert.Single(years.Categories, c => c.Category == "insurance").Cells;
+        Assert.Equal([null, null, null, "-0.0500", null], insurance.Select(c => c.Change));
+    }
+
+    [Fact]
+    public void A_property_bought_on_1_january_makes_its_year_complete_and_the_one_before_partial()
+    {
+        var home = Home();
+        home = home with
+        {
+            Property = home.Property with { Details = home.Property.Details with { PurchaseDate = new LocalDate(2024, 1, 1) } },
+            Flows =
+            [
+                Fact(HomeItem, new LocalDate(2023, 10, 1), FlowKind.Expense, "property_tax", 1_000m),
+                Fact(HomeItem, new LocalDate(2024, 10, 1), FlowKind.Expense, "property_tax", 1_100m),
+                Fact(HomeItem, new LocalDate(2025, 10, 1), FlowKind.Expense, "property_tax", 1_210m),
+            ],
+        };
+
+        var years = Build(home).ByYear;
+
+        Assert.Equal([false, false, true, true, false], years.Years.Select(y => y.Complete));
+        Assert.Equal([null, null, null, "0.1000", null], Assert.Single(years.Categories).Cells.Select(c => c.Change));
+    }
+
+    [Fact]
+    public void A_year_an_archived_property_was_held_is_partial()
+    {
+        var home = Home();
+        home = home with
+        {
+            Flows =
+            [
+                Fact(HomeItem, new LocalDate(2022, 10, 1), FlowKind.Expense, "property_tax", 1_000m),
+                Fact(HomeItem, new LocalDate(2023, 10, 1), FlowKind.Expense, "property_tax", 1_100m),
+                Fact(HomeItem, new LocalDate(2024, 10, 1), FlowKind.Expense, "property_tax", 1_210m),
+                Fact(HomeItem, new LocalDate(2025, 10, 1), FlowKind.Expense, "property_tax", 1_331m),
+            ],
+        };
+
+        // Spec D7: an archived (sold) property is left out of the costs; its charges are missing from each year it was held,
+        // bought in 2020 and archived on 1 March 2023.
+        var years = PropertiesCostsMath.Build([home], Currency.Eur, RateTable.Empty(Today, 0), Today, [(new LocalDate(2020, 6, 1), new LocalDate(2023, 3, 1))]).ByYear;
+
+        Assert.Equal([false, false, true, true, false], years.Years.Select(y => y.Complete));
+        Assert.Equal([null, null, null, "0.1000", null], Assert.Single(years.Categories).Cells.Select(c => c.Change));
+        // Archived before the first year shown: every past year is whole again.
+        var earlier = PropertiesCostsMath.Build([home], Currency.Eur, RateTable.Empty(Today, 0), Today, [(new LocalDate(2015, 6, 1), new LocalDate(2021, 12, 31))]).ByYear;
+        Assert.Equal([true, true, true, true, false], earlier.Years.Select(y => y.Complete));
+    }
+
+    [Fact]
+    public void A_missing_rate_leaves_the_year_unknown()
+    {
+        var years = Build(Chalet()).ByYear;
+
+        var energy = Assert.Single(years.Categories).Cells;
+        Assert.Null(energy[4].Paid);
+        Assert.Null(energy[3].Paid);
     }
 }

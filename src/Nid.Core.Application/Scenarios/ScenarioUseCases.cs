@@ -110,7 +110,7 @@ internal static class ScenarioResults
 [RequestHandler<ListScenariosQuery, ScenarioList>]
 public sealed class ListScenariosHandler(
     IVisibleItems visible, IItemRegistry items, IScenarioStore store, ScenarioFactsReader facts, ProjectionScenarioReader projections,
-    IActorAccessor actor)
+    SaleScenarioReader sales, IHouseholdSettings household, IActorAccessor actor)
     : IRequestHandler<ListScenariosQuery, ScenarioList>
 {
     public async ValueTask<Result<ScenarioList>> HandleAsync(ListScenariosQuery query, CancellationToken ct = default)
@@ -123,9 +123,12 @@ public sealed class ListScenariosHandler(
         foreach (var scenario in stored)
         {
             var item = accesses[scenario.Item];
-            var row = scenario.Kind == ScenarioKinds.Projection
-                ? await ProjectionRowAsync(item, scenario, ct)
-                : await PurchaseRowAsync(item, scenario, ct);
+            var row = scenario.Kind switch
+            {
+                ScenarioKinds.Projection => await ProjectionRowAsync(item, scenario, ct),
+                ScenarioKinds.PropertySale => await SaleRowAsync(item, scenario, ct),
+                _ => await PurchaseRowAsync(item, scenario, ct),
+            };
             if (row.TryGetFailure(out var failure)) return Result.Failure<ScenarioList>(failure!);
             row.TryGetValue(out var view);
             rows.Add(view!);
@@ -145,6 +148,16 @@ public sealed class ListScenariosHandler(
             result.Gap, item.OwnerViews(), ScenarioResults.Wire(item.Visibility)));
     }
 
+    /// <summary>Issue #416: the sale's price and its gap at the horizon; no gap when its projection fails, as a projection's row.</summary>
+    private async Task<Result<ScenarioListItemView>> SaleRowAsync(ItemAccess item, StoredScenario scenario, CancellationToken ct)
+    {
+        var read = await sales.ReadAsync(scenario.Sale!, scenario.Scope, ct);
+        var gap = read.TryGetValue(out var result) ? result!.Gap : null;
+        return Result.Success(new ScenarioListItemView(
+            item.Id, ScenarioKinds.PropertySale, item.DisplayName, null,
+            CapacityView.Money(scenario.Sale!.Price, await household.ReferenceCurrencyAsync(ct)), null, null, gap, item.OwnerViews(), ScenarioResults.Wire(item.Visibility)));
+    }
+
     /// <summary>
     /// Projection spec §7: the nominal gap at the horizon, as the reader sees the scenario; null when its horizon can no longer be read
     /// (a retirement whose person lost their birth date, or now past) or its projection fails for any reason, so one broken scenario
@@ -153,18 +166,9 @@ public sealed class ListScenariosHandler(
     private async Task<Result<ScenarioListItemView>> ProjectionRowAsync(ItemAccess item, StoredScenario scenario, CancellationToken ct)
     {
         var read = await projections.ReadAsync(scenario.Projection!, scenario.Scope, ct);
-        DashboardMoneyView? gap = null;
-        if (read.TryGetValue(out var reading))
-        {
-            try
-            {
-                gap = new DashboardMoneyView(ProjectionComparisonView.From(reading!).GapNominal, reading!.Base.Reference.Code);
-            }
-            catch (InvalidOperationException)
-            {
-                // grids that diverged: no gap for this row.
-            }
-        }
+        var gap = read.TryGetValue(out var reading) && ProjectionComparisonView.TryFrom(reading!) is { } comparison
+            ? new DashboardMoneyView(comparison.GapNominal, reading!.Base.Reference.Code)
+            : null;
         return Result.Success(new ScenarioListItemView(
             item.Id, ScenarioKinds.Projection, item.DisplayName, null, null, null, null, gap, item.OwnerViews(), ScenarioResults.Wire(item.Visibility)));
     }

@@ -56,11 +56,12 @@ public sealed class MixedDataset
         NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes,
         IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans,
         IReadOnlyDictionary<string, ItemId> properties, IReadOnlyDictionary<string, ItemId> scenarios,
-        IReadOnlyDictionary<string, ItemId> projectionScenarios, IReadOnlyDictionary<string, ItemId> goals, IReadOnlyDictionary<string, ItemId> childcare,
+        IReadOnlyDictionary<string, ItemId> projectionScenarios, IReadOnlyDictionary<string, ItemId> saleScenarios,
+        IReadOnlyDictionary<string, ItemId> goals, IReadOnlyDictionary<string, ItemId> childcare,
         IReadOnlyDictionary<string, IReadOnlyList<Guid>> proposals, IReadOnlyDictionary<ItemId, Guid> documents, IReadOnlyDictionary<ItemId, Guid> unlinkDocuments)
     {
-        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, ProjectionScenarios, Goals, Childcare, Proposals, Documents, UnlinkDocuments) =
-            (app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, goals, childcare, proposals, documents, unlinkDocuments);
+        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, ProjectionScenarios, SaleScenarios, Goals, Childcare, Proposals, Documents, UnlinkDocuments) =
+            (app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, proposals, documents, unlinkDocuments);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
@@ -74,6 +75,8 @@ public sealed class MixedDataset
             names[scenario] = name + " (scenario)";
         foreach (var (name, projection) in projectionScenarios)
             names[projection] = name + " (projection)";
+        foreach (var (name, sale) in saleScenarios)
+            names[sale] = name + " (sale)";
         foreach (var (name, goal) in goals)
             names[goal] = name + " (goal)";
         foreach (var (name, arrangement) in childcare)
@@ -111,6 +114,9 @@ public sealed class MixedDataset
     /// projection scenario requests run against these.
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> ProjectionScenarios { get; }
+
+    /// <summary>The sale scenario twin of each row (issue #416): same §2 name, label, owners and visibility, selling the row's property twin.</summary>
+    public IReadOnlyDictionary<string, ItemId> SaleScenarios { get; }
 
     /// <summary>
     /// The savings goal twin of each row: same §2 name, label, owners and visibility, drawing half of the row's envelope twin; S-A and S-B also
@@ -175,6 +181,7 @@ public sealed class MixedDataset
             : requestType.Assembly == typeof(Nid.RealEstate.Application.ListLoansQuery).Assembly
                 // Every property request carries « Propert » in its name (ListPropertiesQuery, RecordPropertyValuationCommand…).
                 ? (requestType.Name.Contains("Propert", StringComparison.Ordinal) ? Properties : Loans)
+            : requestType.Name.Contains("SaleScenario", StringComparison.Ordinal) ? SaleScenarios
             : requestType.Namespace == typeof(Nid.Core.Application.Scenarios.ListScenariosQuery).Namespace ? Scenarios
             : requestType.Namespace == typeof(Nid.Core.Application.Projection.GetProjectionScenarioQuery).Namespace ? ProjectionScenarios
             : Items;
@@ -191,6 +198,7 @@ public sealed class MixedDataset
         var properties = new Dictionary<string, ItemId>();
         var scenarios = new Dictionary<string, ItemId>();
         var projectionScenarios = new Dictionary<string, ItemId>();
+        var saleScenarios = new Dictionary<string, ItemId>();
         var goals = new Dictionary<string, ItemId>();
         var childcare = new Dictionary<string, ItemId>();
         var documents = new Dictionary<ItemId, Guid>();
@@ -225,13 +233,18 @@ public sealed class MixedDataset
                 RequestCatalogue.BenchProjection()));
             projectionScenarios[row.Name] = (ItemId?)projection
                 ?? throw new InvalidOperationException($"Seeding {row.Name}'s projection scenario failed: {projectionRefused!.Code}");
+            var (sale, saleRefused) = await app.InvokeAsync(creator, new Nid.Core.Application.Scenarios.CreateSaleScenarioCommand(
+                row.Label, row.Visibility, owners.Select(o => new OwnerShare(o.Person, o.ShareBp)).ToList(), VisibilityScope.Me,
+                RequestCatalogue.BenchSale(properties[row.Name])));
+            saleScenarios[row.Name] = (ItemId?)sale ?? throw new InvalidOperationException($"Seeding {row.Name}'s sale scenario failed: {saleRefused!.Code}");
 
             // #294: the row's level on every twin, as its owner's « Partage » dialog would set it.
             if (row.Level == ShareLevel.Edit)
                 await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
                 {
                     Guid[] twins = [items[row.Name].Value, envelopes[row.Name].Value, incomeSources[row.Name].Value, loans[row.Name].Value,
-                        properties[row.Name].Value, goals[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value, childcare[row.Name].Value];
+                        properties[row.Name].Value, goals[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value, saleScenarios[row.Name].Value,
+                        childcare[row.Name].Value];
                     await core.Items.Where(i => twins.Contains(i.Id)).ExecuteUpdateAsync(s => s.SetProperty(i => i.ShareLevel, "edit"));
                 }
 
@@ -441,7 +454,7 @@ public sealed class MixedDataset
             await scope.ServiceProvider.GetRequiredService<IRuleStore>().UpsertAsync(bankAccount, PrivateLabelA + " LIGNE", "subscriptions", items["J-AB"], app.AdultA, default);
         }
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, goals, childcare, proposals, documents, unlinkDocuments)
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, proposals, documents, unlinkDocuments)
         {
             NoticeB = (notice, noticeDocument),
             JointLine = jointLine,
@@ -494,6 +507,10 @@ public sealed class MixedDataset
     public ItemId PurchaseTwinOf(ItemId twin)
         => ProjectionScenarios.Where(kv => kv.Value == twin).Select(kv => (ItemId?)Scenarios[kv.Key]).FirstOrDefault() ?? twin;
 
+    /// <summary>The property twin of a sale twin's row; any other id as it is (an unknown id stays unknown).</summary>
+    public ItemId PropertyTwinOfSale(ItemId sale)
+        => SaleScenarios.Where(kv => kv.Value == sale).Select(kv => (ItemId?)Properties[kv.Key]).FirstOrDefault() ?? sale;
+
     /// <summary>Who uploaded a row's documents, by the row's subscription: its first adult owner, A for D's row.</summary>
     public PersonId UploaderOf(ItemId item)
         => Rows.Single(r => Items[r.Name] == item).Owners.Select(o => PersonOf(App, o)).FirstOrDefault(p => p == App.AdultA || p == App.AdultB, App.AdultA);
@@ -515,7 +532,7 @@ public sealed class MixedDataset
             .SelectMany(r => new[]
             {
                 Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name], Properties[r.Name], Scenarios[r.Name], ProjectionScenarios[r.Name],
-                Goals[r.Name], Childcare[r.Name],
+                SaleScenarios[r.Name], Goals[r.Name], Childcare[r.Name],
             })
             .ToHashSet();
 

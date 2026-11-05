@@ -8,7 +8,7 @@ import { SaleItem } from './SaleItem';
 import '@/locales/tax';
 
 /** « Impôt si vente aujourd'hui » of a property or an envelope: absent when the item has no page (closed, not visible). */
-export function SaleTaxSection({ item, canWrite }: { item: string; canWrite: boolean }) {
+export function SaleTaxSection({ item, canWrite, id }: { item: string; canWrite: boolean; id?: string }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', TAX_SALE, { params: { query: { item } } });
@@ -21,7 +21,7 @@ export function SaleTaxSection({ item, canWrite }: { item: string; canWrite: boo
   if (!view) return <div role="status" aria-busy="true" aria-label={t('tax.loading')} className="h-24 shimmer rounded-md border bg-muted" />;
   if (!first) return null;
   return (
-    <Section title={t('tax.sale.title')}>
+    <Section id={id} title={t('tax.sale.title')}>
       <SaleItem item={first} carriedForward={view.carriedForward} canWrite={canWrite} />
     </Section>
   );

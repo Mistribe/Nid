@@ -1,11 +1,15 @@
+import { useSearch } from '@tanstack/react-router';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import type { RootSearch } from '@/app/router';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
+import { Money } from '@/components/Money';
 import { Segmented } from '@/components/form/Segmented';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Folded } from '../loans/new/Folded';
+import { useEmergencyTarget } from './api';
 import { kindText } from './format';
 import { KINDS, type GoalValues } from './goalSchema';
 import '@/locales/goals';
@@ -38,6 +42,7 @@ export function GoalFields({ form, withKind }: { form: UseFormReturn<GoalValues>
           {(c) => <Input inputMode="numeric" {...c} {...form.register('months')} />}
         </Field>
       )}
+      {withKind && kind === 'emergency_fund' ? <EmergencyTarget months={form.watch('months')} /> : null}
       <Controller control={form.control} name="targetDate" render={({ field }) => (
         <Field label={t('goals_form.target_date')} error={e.targetDate?.message}>
           {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
@@ -49,5 +54,21 @@ export function GoalFields({ form, withKind }: { form: UseFormReturn<GoalValues>
         </Field>
       </Folded>
     </>
+  );
+}
+
+/** Issue #412: before saving, the target the server computes for these months (nothing while the months are not 1 to 24). */
+function EmergencyTarget({ months }: { months: string }) {
+  const { t } = useTranslation();
+  const { scope }: RootSearch = useSearch({ strict: false });
+  const valid = /^\d{1,2}$/.test(months.trim()) && Number(months) >= 1 && Number(months) <= 24;
+  const answer = useEmergencyTarget(valid ? Number(months) : null, scope === 'me' ? 'me' : 'household');
+  const target = valid ? answer.data : undefined;
+  return (
+    <p aria-live="polite" className="text-sm text-muted-foreground">
+      {!target ? null : target.target
+        ? <>{t('goals_form.computed_target')} <Money value={target.target} />{target.flags.includes('missing_currency') ? ` ${t('goals_form.computed_target_partial')}` : ''}</>
+        : t('goals_list.no_commitments')}
+    </p>
   );
 }

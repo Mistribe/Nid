@@ -1,7 +1,10 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 using static Nid.TestSupport.LoanApi;
 using static Nid.TestSupport.PropertyApi;
 
@@ -195,6 +198,15 @@ public class PropertiesCostsEndpointTests(PostgresFixture fixture) : IClassFixtu
         // 250 000 + 19 000 of acquisition, 12 000 of works, 1 500 of tax.
         Assert.Equal(("269000.00", "12000.00", "1500.00", "282500.00"), (S(row, "acquisition"), S(row, "works"), S(row, "otherCharges"), S(row, "realCost")));
         Assert.Equal("282500.00", S(body.GetProperty("realCost"), "amount"));
+        // Issue #405: per category and calendar year, the last five; the works of 2021 first.
+        var byYear = body.GetProperty("byYear");
+        Assert.Equal([2021, 2022, 2023, 2024, 2025], byYear.GetProperty("years").EnumerateArray().Select(y => y.GetProperty("year").GetInt32()));
+        Assert.Equal(["works", "property_tax"], byYear.GetProperty("categories").EnumerateArray().Select(c => S(c, "category")));
+        Assert.Equal("12000.00", S(byYear.GetProperty("categories")[0].GetProperty("cells")[0].GetProperty("paid"), "amount"));
+
+        var one = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Costs}?scope=household&property={home}"));
+        Assert.Single(one.GetProperty("properties").EnumerateArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Costs}?scope=household&property={Guid.NewGuid()}")).StatusCode);
     }
 
     [Fact]
@@ -209,6 +221,29 @@ public class PropertiesCostsEndpointTests(PostgresFixture fixture) : IClassFixtu
         Assert.Empty(body.GetProperty("properties").EnumerateArray());
         Assert.Equal(JsonValueKind.Null, body.GetProperty("paid").ValueKind);
         Assert.DoesNotContain(theirs.ToString(), body.ToString());
+    }
+
+    [Fact]
+    public async Task A_year_an_archived_property_was_held_is_partial()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app));
+        var sold = await NewPropertyAsync(app, Home(app, "Studio vendu"));
+        await PostAsync(app, sold, "flows", new { occurredOn = "2022-09-20", kind = "expense", amount = "800", category = "property_tax" });
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IItemRegistry>()
+                .ArchiveAsync(new ItemId(sold), Instant.FromUtc(2023, 3, 1, 12, 0), TestContext.Current.CancellationToken)).IsSuccess);
+        }
+
+        // Spec D7: the archived studio is left out, so 2021 to 2023, when it was held, miss its charges.
+        static IEnumerable<bool> Complete(JsonElement body) => body.GetProperty("byYear").GetProperty("years").EnumerateArray().Select(y => y.GetProperty("complete").GetBoolean());
+        var all = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Costs}?scope=household"));
+        Assert.DoesNotContain(sold.ToString(), all.ToString());
+        Assert.Equal([false, false, false, true, false], Complete(all));
+        // One property's own years know nothing of the other's.
+        Assert.Equal([true, true, true, true, false], Complete(await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Costs}?scope=household&property={home}"))));
     }
 }
 

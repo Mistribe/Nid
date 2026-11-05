@@ -148,6 +148,7 @@ public sealed record PinelCommitment(Guid Property, int InitialYears, int TotalY
 /// part of it lost on 31 December; <c>PerPooling</c>: the spouses pool their ceilings. <c>ExemptIncomes</c> maps an adult to the
 /// exempt income the reference income counts (overtime, the value-sharing bonus). <c>DonationsAid</c> is box 7UD, <c>DonationsAidLate</c>
 /// 7UQ (the aid donations of 2025 made from 14 October); <c>RentalEnergyWorks</c> the energy renovation works among the rental charges.
+/// Issue #409: <c>Department</c>, the household's department code (<see cref="TaxCalendar.IsDepartment"/>), dates the filing deadline.
 /// </summary>
 public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime,
@@ -155,7 +156,7 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? ContributionRates = null, IReadOnlyDictionary<Guid, decimal>? ActualExpenses = null,
     IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m,
     IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false,
-    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m)
+    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }
@@ -185,4 +186,20 @@ public interface ITaxProfileStore
     Task<StoredTaxProfile?> FindAsync(int year, CancellationToken ct);
 
     Task SaveAsync(int year, TaxProfile profile, CancellationToken ct);
+}
+
+/// <summary>
+/// Income #408: a declarant's withholding against the year's household estimate, rates in percent. <c>Rate</c> is the household's
+/// (individualised rates are not computed), <c>RealRate</c> the income tax over the same income, <c>MonthlyGap</c> what the rate
+/// withholds each month on the declarant's salaries beyond the real rate (negative: short).
+/// </summary>
+public sealed record DeclarantWithholdingRates(PersonId Person, string Name, decimal Rate, decimal RealRate, decimal MonthlyGap);
+
+public interface ITaxWithholdingRates
+{
+    /// <summary>
+    /// The household estimate of <paramref name="today"/>'s year, per declarant with salaries; empty when the household keeps no tax
+    /// profile (the tax module unused) or the year cannot be estimated.
+    /// </summary>
+    Task<IReadOnlyList<DeclarantWithholdingRates>> RatesAsync(LocalDate today, CancellationToken ct);
 }

@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -43,6 +43,22 @@ describe('Biens › charges et coûts', () => {
     const rows = within(card).getAllByRole('row');
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent('Charges de copropriété3 300,00 €');
+  });
+
+  it('shows the paid charges per category and calendar year, then one property\'s', async () => {
+    const seen: string[] = [];
+    serve(householdCosts(), seen);
+    const { user } = await renderApp('/properties?tab=costs');
+
+    const table = await screen.findByRole('table', { name: 'Charges payées par catégorie et par année civile' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(
+      ['Catégorie', '2022', '2023partielle', '2024', '2025', '2026en cours']);
+    const rows = within(table).getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Taxe foncière1 400,00 €1 450,00 €2 900,00 €3 045,00 €+5 %1 600,00 €');
+    expect(rows[2]).toHaveTextContent('Assurance——400,00 €380,00 €-5 %—');
+
+    await user.click(within(await region('Par catégorie et par an')).getByRole('radio', { name: 'T2 Villeurbanne' }));
+    await vi.waitFor(() => expect(seen).toContain(`?scope=household&property=${RENTAL}`));
   });
 
   it('groups the dues by month and lists each property with its real cost', async () => {

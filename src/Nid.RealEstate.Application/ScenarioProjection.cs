@@ -86,7 +86,8 @@ public sealed class RealEstateScenarioProjection(
             var net = PropertyCostCommitments.MonthlyCosts(s.Property, today) - PropertyMath.MonthlyRentAt(s.Property.Tenancies.Select(t => t.Tenancy), today);
             var monthlyNet = !missing.Contains(currency) && rates.TryConvert(net, currency, reference, today, projected: false, out var converted, out _)
                 ? converted : 0m;
-            return new SaleOutcome(s.Event.Event, s.Event.Month, price - s.Sale.Costs - loanMonths.Settled[s.Event.Event], monthlyNet);
+            var (balance, payments) = loanMonths.Settled[s.Event.Event];
+            return new SaleOutcome(s.Event.Event, s.Event.Month, price - s.Sale.Costs - balance, monthlyNet) { Settled = balance, LoanPayments = payments };
         }).ToList();
 
         // Projection spec §3.5: the milestones; a property is free when its last visible loan ends within the projection, before

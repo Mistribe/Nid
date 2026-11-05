@@ -29,6 +29,8 @@ import { ScheduleYearsTable } from './chart/ScheduleYearsTable';
 import { SettingsForm } from './settings/SettingsForm';
 import { TableToggle } from '@/components/page/TableToggle';
 import { SimulationSection } from './simulation/SimulationSection';
+import { InsuranceQuoteSection } from './simulation/InsuranceQuoteSection';
+import { RenegotiationSection } from './simulation/RenegotiationSection';
 import '@/locales/loans';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
@@ -135,6 +137,8 @@ export function LoanDetailPage() {
           content: (
             <>
               {loan.ended ? null : <SimulationSection loan={loan} onRecord={loan.canWrite ? record : undefined} landing={landOnSimulation} onLanded={() => setLandOnSimulation(false)} />}
+              {loan.ended ? null : <RenegotiationSection loan={loan} />}
+              {loan.ended ? null : <InsuranceQuoteSection loan={loan} />}
               <FeesSection loan={loan} />
               <RepaymentsSection loan={loan} prefill={prefill} onConsumed={() => setPrefill(null)} />
             </>

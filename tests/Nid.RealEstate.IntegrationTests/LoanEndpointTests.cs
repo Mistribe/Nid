@@ -285,6 +285,8 @@ public class LoanEndpointTests(PostgresFixture fixture) : IClassFixture<Postgres
             (HttpMethod.Get, $"{Loans}/{id}", null),
             (HttpMethod.Get, $"{Loans}/{id}/schedule", null),
             (HttpMethod.Post, $"{Loans}/{id}/simulations", new { on = "2025-10-15", amount = "1000" }),
+            (HttpMethod.Post, $"{Loans}/{id}/simulations/renegotiation", new { on = "2025-10-15", annualRate = "0.02" }),
+            (HttpMethod.Post, $"{Loans}/{id}/simulations/insurance", new { on = "2025-10-15", quotes = new[] { new { insurance = 0, mode = "fixed_monthly", monthlyAmount = "10" } } }),
             (HttpMethod.Patch, $"{Loans}/{id}", new { note = "x" }),
             (HttpMethod.Put, $"{Loans}/{id}/contract", contract),
             (HttpMethod.Post, $"{Loans}/{id}/fees", new { kind = "file", amount = "100", onDate = "2020-10-15" }),

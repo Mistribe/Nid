@@ -42,7 +42,8 @@ public sealed record KindValueView(string Kind, AmountView? Value);
 public sealed record OverviewPointView(LocalDate On, AmountView? Value, AmountView? NetContributions, IReadOnlyList<KindValueView> ByKind, bool PaidIn);
 
 /// <summary>Spec §3.2: something to look at; the screen writes the sentence from the code.</summary>
-public sealed record EnvelopeWatchView(string Code, ItemId EnvelopeId, Guid? HoldingId, LocalDate? On);
+/// <summary><c>Amount</c>: the room left on a livret (<c>ceiling_room</c>); <c>Milestone</c>: which tax date (<c>tax_milestone</c>).</summary>
+public sealed record EnvelopeWatchView(string Code, ItemId EnvelopeId, Guid? HoldingId, LocalDate? On, AmountView? Amount = null, string? Milestone = null);
 
 /// <summary>
 /// Spec §3.2. Every household figure is in <c>Currency</c>, null when a rate is missing (then a finding names it). Today's figures
@@ -69,6 +70,13 @@ public static class OverviewCodes
     public const string StaleValue = "stale_value";
     public const string NoValue = "no_value";
     public const string MissingOpening = "missing_opening";
+
+    /// <summary>Issue #399: a livret at its ceiling; then the room left on the others.</summary>
+    public const string CeilingReached = "ceiling_reached";
+    public const string CeilingRoom = "ceiling_room";
+
+    /// <summary>Issue #400: a tax date within <see cref="EnvelopeInsights.MilestoneDays"/> days.</summary>
+    public const string TaxMilestone = "tax_milestone";
 }
 
 [RequestHandler<GetInvestmentsOverviewQuery, InvestmentsOverview>]
@@ -112,13 +120,15 @@ public sealed class InvestmentsOverviewReader(
             if ((await holdings.SnapshotsAsync(f.Item.Id, ct)).FirstOrDefault(s => s.AsOf <= today) is { } snapshot
                 && HoldingMath.UcSharePct(snapshot, (await holdings.HoldingsAsync(f.Item.Id, ct)).ToDictionary(h => h.Holding.Id, h => h.Holding.Kind)) < f.Envelope.UcShareFloorPct)
                 watch.Add(new EnvelopeWatchView(HoldingWarnings.UcShareBelowFloor, f.Item.Id, null, snapshot.AsOf));
+        var people = await persons.ListAsync(ct);
+        watch.AddRange(InvestmentsOverviewMath.InsightWatch(open, people, today));
 
         var grid = InvestmentsOverviewMath.Grid(span, today);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], grid[0], today, ct);
-        return InvestmentsOverviewMath.Build(facts, reference, rates, today, grid, span, watch, await persons.ListAsync(ct), estimates);
+        return InvestmentsOverviewMath.Build(facts, reference, rates, today, grid, span, watch, people, estimates);
     }
 }
 
@@ -260,6 +270,23 @@ internal static class InvestmentsOverviewMath
             cash.Add((asOf, final));
         }
         return Xirr.AnnualPercent(cash, valued.Max(v => v.Figures.AsOf!.Value));
+    }
+
+    /// <summary>
+    /// Issue #399: each livret at its ceiling, and then the room left on the others (where the next deposits can go); issue #400: the tax
+    /// dates of the next <see cref="EnvelopeInsights.MilestoneDays"/> days.
+    /// </summary>
+    internal static IEnumerable<EnvelopeWatchView> InsightWatch(IReadOnlyList<EnvelopePerformance.Facts> open, IReadOnlyList<PersonInfo> persons, LocalDate today)
+    {
+        var ceilings = open.Select(f => (f, Ceiling: EnvelopeInsights.Ceiling(f, today))).Where(x => x.Ceiling is not null).ToList();
+        if (ceilings.Any(x => x.Ceiling!.Reached))
+            foreach (var (f, ceiling) in ceilings)
+                yield return ceiling!.Reached
+                    ? new EnvelopeWatchView(OverviewCodes.CeilingReached, f.Item.Id, null, null)
+                    : new EnvelopeWatchView(OverviewCodes.CeilingRoom, f.Item.Id, null, null, ceiling.Room);
+        foreach (var f in open)
+            if (EnvelopeInsights.Milestone(f, persons, today) is { } m && EnvelopeInsights.Soon(m, today))
+                yield return new EnvelopeWatchView(OverviewCodes.TaxMilestone, f.Item.Id, null, m.On, Milestone: m.Code);
     }
 
     /// <summary>Spec §3.2: no value, an old value, or a value without what was paid in before the tracking began.</summary>

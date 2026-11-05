@@ -68,6 +68,38 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(HttpStatusCode.NotFound, (await GetAsync(app, app.AdultB, id, "/content")).StatusCode);
     }
 
+    /// <summary>Issue #413: the preview asks for the PDF inline, under the same name and headers; only its reader gets it.</summary>
+    [Fact]
+    public async Task Serves_a_pdf_inline_for_the_preview()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await UploadedAsync(app, app.AdultA, Pdf, "fileName=Bail%20sign%C3%A9.pdf");
+
+        var response = await GetAsync(app, app.AdultA, id, "/content?inline=true");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(Pdf, await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType!.MediaType);
+        var disposition = response.Content.Headers.ContentDisposition!;
+        Assert.Equal(("inline", "Bail signé.pdf"), (disposition.DispositionType, disposition.FileNameStar));
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal(HttpStatusCode.NotFound, (await GetAsync(app, app.AdultB, id, "/content?inline=true")).StatusCode);
+    }
+
+    /// <summary>Issue #413: a mail is never shown inline, whatever the query asks.</summary>
+    [Fact]
+    public async Task Serves_a_mail_as_an_attachment_even_inline()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await UploadedAsync(app, app.AdultA, Encoding.ASCII.GetBytes("From: a@example.com\r\nDate: Mon, 1 Jan 2024 00:00:00 +0000\r\nSubject: x\r\n\r\nbody\r\n"), "fileName=avis.eml");
+
+        var response = await GetAsync(app, app.AdultA, id, "/content?inline=true");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("message/rfc822", response.Content.Headers.ContentType!.MediaType);
+        Assert.Equal("attachment", response.Content.Headers.ContentDisposition!.DispositionType);
+    }
+
     [Fact]
     public async Task Two_uploads_of_the_same_bytes_make_two_documents_and_one_file()
     {

@@ -47,11 +47,12 @@ public sealed record PropertyCostLineView(string Code, string Amount);
 
 public sealed record PropertyWarningView(string Code, ItemId? LoanId);
 
+/// <summary><c>NetValueTurn</c> (issue #406): null unless the net value is negative today.</summary>
 public sealed record PropertyFiguresView(
     string? Value, LocalDate? ValueOn, bool Stale, string CostPrice, string? LatentGain, string LinkedBalance, string? NetValue,
     string RealCost, IReadOnlyList<PropertyCostLineView> RealCostLines, string NetCostOfRents,
     LocalDate? RentedSince, string ExpectedRent, string RentReceived, string Arrears, int? VacantDays, string? VacancyRate,
-    string? GrossYield, string? NetYieldBeforeTax);
+    string? GrossYield, string? NetYieldBeforeTax, NetValueTurn? NetValueTurn);
 
 /// <summary>
 /// Spec 3C1 §4: shaped like an envelope's detail. <c>ReceiptMonths</c> (<c>yyyy-mm</c>, newest first, 36 at most) are the months a rent
@@ -99,7 +100,9 @@ internal static class PropertyViews
                 Amount(f.NetValue), Amount(f.RealCost), f.RealCostLines.Select(l => new PropertyCostLineView(l.Code, Amount(l.Amount))).ToList(),
                 Amount(f.NetCostOfRents), f.Rental.RentedSince, Amount(f.Rental.ExpectedRent), Amount(f.Rental.RentReceived),
                 Amount(f.Rental.Arrears), f.Rental.VacantDays, Fraction(f.Rental.VacancyRate), Fraction(f.Rental.GrossYield),
-                Fraction(f.Rental.NetYieldBeforeTax)),
+                Fraction(f.Rental.NetYieldBeforeTax),
+                // The loans the figures count: a loan without a rate is left out of the balance (fx_missing).
+                NetValueTurns.Of(d, read.Values, read.Sources.Where(s => s.Rate is not null).Select(s => new TurnLoan(s.Terms, s.Schedule, s.Rate!.Value)).ToList(), today)),
             f.Warnings.Select(w => new PropertyWarningView(w.Code, w.LoanId)).ToList(),
             read.Values.OrderBy(v => v.AsOf).Select(v => new PropertyValuationView(v.Id, v.AsOf, Amount(v.Value.Amount), v.Note, v.DocumentId)).ToList(),
             read.Flows.Select(x => new PropertyFlowView(x.Id, x.OccurredOn, LoanWire.Of(x.Kind), Amount(x.Amount.Amount), x.Category, x.Note, x.DocumentId)).ToList(),

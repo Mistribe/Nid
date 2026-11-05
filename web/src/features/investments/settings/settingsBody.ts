@@ -7,7 +7,7 @@ import { hasPremiumsBefore2017 } from '../format';
 export type SettingsValues = {
   displayName: string; kind: string; institution: string; accountHint: string;
   valuationCadence: string; staleAfterDays: string; ucShareFloorPct: string; note: string;
-  openedOn: string; premiumsBefore2017: string;
+  openedOn: string; premiumsBefore2017: string; regulated: string;
 };
 
 /** Only the fields that changed; an emptied optional field says so with its `clear*` flag. */
@@ -60,6 +60,11 @@ export function toEditBody(before: EnvelopeDetail, values: SettingsValues): Edit
     } else if (premiums !== current) {
       body.premiumsBefore2017 = premiums;
     }
+  }
+
+  // A savings envelope's livret; off savings the server drops it on its own.
+  if (values.kind === 'savings' && values.regulated !== (before.regulated ?? 'none')) {
+    if (values.regulated === 'none') body.clearRegulated = true; else body.regulated = values.regulated;
   }
 
   return Object.keys(body).length === 0 ? null : body;

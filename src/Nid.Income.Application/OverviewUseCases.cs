@@ -32,9 +32,11 @@ public sealed record IncomeOverview(
             .Distinct();
 }
 
+/// <summary><paramref name="MonthlyRealChange1y"/> is <paramref name="MonthlyChange1y"/> after <paramref name="Inflation"/>, the household's projection assumption in percent (#407).</summary>
 public sealed record IncomeOverviewFigures(
     IncomeAmountView? MonthlyNow, decimal? MonthlyChange1y, IncomeAmountView? Total, IncomeAmountView? Elapsed,
-    IncomeAmountView? ChangeVsPrevious, decimal? ChangeVsPreviousPct, decimal? Change3y, decimal? Change3yYearly);
+    IncomeAmountView? ChangeVsPrevious, decimal? ChangeVsPreviousPct, decimal? Change3y, decimal? Change3yYearly,
+    decimal? MonthlyRealChange1y, decimal Inflation);
 
 /// <summary>A share of the split; <c>one_off</c> and <c>other</c> gather several items and carry none (their name is their kind).</summary>
 public sealed record IncomeOverviewShare(ItemId? Item, string Name, string Kind, IncomeAmountView Total, IncomeAmountView PerMonth, decimal Percent);
@@ -170,10 +172,12 @@ public sealed class GetIncomeOverviewHandler(
         var running = entries.Where(e => !e.Ended).ToList();
         var modules = running.ToDictionary(e => e.Input.Item, e => e.Module);
         var f = OverviewMath.Figures(inputs, window, today);
+        var inflation = (await household.ProjectionAssumptionsAsync(ct)).Inflation;
         return Result.Success(new IncomeOverview(
             OverviewPeriods.Of(query.Period), window.From, window.To, reference.Code,
             new IncomeOverviewFigures(Amount(f.MonthlyNow), f.MonthlyChange1y, Amount(f.Total), Amount(f.Elapsed),
-                Amount(f.ChangeVsPrevious), f.ChangeVsPreviousPct, f.Change3y, f.Change3yYearly),
+                Amount(f.ChangeVsPrevious), f.ChangeVsPreviousPct, f.Change3y, f.Change3yYearly,
+                OverviewMath.RealChangePct(f.MonthlyChange1y, inflation), inflation * 100m),
             OverviewMath.Split(inputs, window)
                 .Select(s => new IncomeOverviewShare(s.Item, s.Name, s.Kind, Amount(s.Total)!, Amount(s.PerMonth)!, s.Percent)).ToList(),
             OverviewMath.NowSplit(running.Select(e => e.Input).ToList(), today)

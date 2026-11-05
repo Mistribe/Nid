@@ -39,12 +39,12 @@ public sealed record Converted(ConvertedTotal Cash, ConvertedTotal Amortized)
 public static class SubscriptionViews
 {
     /// <summary>The missing-rate findings of the month totals and of the annual figure, one per rate.</summary>
-    public static IEnumerable<FindingView> FxFindings(Converted converted, ConvertedTotal annual)
-        => converted.Findings.Concat(annual.Missing.Select(FindingView.From)).DistinctBy(f => f.Reference);
+    public static IEnumerable<FindingView> FxFindings(Converted converted, ConvertedTotal annual, IEnumerable<Finding>? more = null)
+        => converted.Findings.Concat(annual.Missing.Concat(more ?? []).Select(FindingView.From)).DistinctBy(f => f.Reference);
 
     public static SubscriptionSummary Summarise(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
-        IReadOnlyList<ItemOwnerView> owners, ConvertedTotal annual)
+        IReadOnlyList<ItemOwnerView> owners, ConvertedTotal annual, (SpentView? View, IReadOnlyList<Finding> Missing) spent = default)
         => new(
             input.Subscription.Id,
             displayName,
@@ -60,13 +60,15 @@ public static class SubscriptionViews
             converted.IsEstimate,
             timeline.IsBilledMonthly(window),
             timeline.FreeDays(window),
-            timeline.Warnings.Select(FindingView.From).Concat(FxFindings(converted, annual)).ToList(),
+            timeline.Warnings.Select(FindingView.From).Concat(FxFindings(converted, annual, spent.Missing)).ToList(),
             owners,
-            annual.Total is { } m ? MoneyView.From(m) : null);
+            annual.Total is { } m ? MoneyView.From(m) : null,
+            spent.View);
 
     public static SubscriptionDetail Detail(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
-        SubscriptionEditing editing, LocalDate today, InsuranceView? insurance = null)
+        SubscriptionEditing editing, LocalDate today, InsuranceView? insurance = null,
+        (SpentView? View, IReadOnlyList<Finding> Missing) spent = default, SavedView? saved = null)
         => new(
             input.Subscription.Id,
             displayName,
@@ -88,11 +90,14 @@ public static class SubscriptionViews
             timeline.Charges.Select(c => new ChargeView(
                 c.Date, MoneyView.From(c.Price), c.IsProjected,
                 c.Origin is ChargeOrigin.FromPurchase p ? p.PurchaseId.Value : null)).ToList(),
-            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList(),
+            timeline.Warnings.Select(FindingView.From)
+                .Concat(converted.Findings.Concat((spent.Missing ?? []).Select(FindingView.From)).DistinctBy(f => f.Reference)).ToList(),
             editing.Visibility, editing.Owners, editing.Users, editing.Note, editing.Phases, editing.Purchases, editing.CanWrite,
             ContractTermsView.From(input.Subscription.Terms),
             CancellationView.From(ContractCancellation.Outlook(input, timeline, today)),
-            insurance);
+            insurance,
+            spent.View,
+            saved);
 }
 
 /// <summary>

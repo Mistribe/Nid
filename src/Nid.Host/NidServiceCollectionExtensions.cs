@@ -98,6 +98,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
         services.AddScoped<Nid.Core.Application.Dashboard.DashboardReader>();
+        services.AddScoped<Nid.Core.Application.Dashboard.MonthChangesReader>();
+        services.AddSingleton<Nid.Core.Application.Dashboard.MonthChangeWords>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Core.Application.Dashboard.CoreNotificationSource>();
         services.AddScoped<FactGate>();
         services.AddScoped<IValuations, Valuations>();
@@ -150,11 +152,14 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
         services.AddScoped<Nid.Core.Application.Tax.SaleTaxEstimates>();
         services.AddScoped<IRentalTaxOutlook, Nid.Core.Application.Tax.RentalTaxOutlookService>();
+        services.AddScoped<ITaxWithholdingRates, Nid.Core.Application.Tax.TaxWithholdingRates>();
         services.AddScoped<ICommitmentsContribution, Nid.Core.Application.Tax.TaxCommitments>();
         services.AddScoped<Nid.Core.Application.Tax.PerDeadline>();
+        services.AddScoped<Nid.Core.Application.Tax.TaxCalendarEvents>();
         services.AddScoped<Nid.Core.Application.Scenarios.ScenarioFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionScenarioReader>();
+        services.AddScoped<Nid.Core.Application.Scenarios.SaleScenarioReader>();
         services.AddScoped<FxCollector>();
 
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.
@@ -289,6 +294,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, Nid.Income.Application.IncomeDocumentTargets>();
         services.AddScoped<DocumentAccess>();
+        services.AddScoped<ExpectedDocuments>();
 
         services.AddDbContext<RealEstateDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
@@ -42,9 +43,25 @@ public class PropertyFiguresTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(("300848.32", "loan_interest", "31848.32"),
             (S(figures, "realCost"), S(figures.GetProperty("realCostLines")[1], "code"), S(figures.GetProperty("realCostLines")[1], "amount")));
         Assert.Empty(detail.GetProperty("warnings").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, figures.GetProperty("netValueTurn").ValueKind);
 
         var row = Assert.Single((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Properties))).GetProperty("items").EnumerateArray());
         Assert.Equal("125746.88", S(row, "netValue"));
+    }
+
+    [Fact]
+    public async Task A_negative_net_value_says_since_when_and_when_the_loan_falls_below_the_estimate()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/valuations", new { asOf = "2025-06-01", amount = "150000" }));
+        await NewAsync(app, LinkedTo(home, Golden(app))); // 162 253.12 owed today
+
+        var turn = (await PropertyAsync(app, home)).GetProperty("figures").GetProperty("netValueTurn");
+
+        // The purchase price held the net value positive until the estimate.
+        Assert.Equal("2025-06-01", S(turn, "negativeSince"));
+        Assert.Equal(JsonValueKind.String, turn.GetProperty("positiveOn").ValueKind);
     }
 
     [Fact]

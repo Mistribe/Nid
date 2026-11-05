@@ -50,3 +50,6 @@ public sealed record GoalDetail(
 {
     public IEnumerable<ItemId> ExposedItems() => Funding.Select(f => new ItemId(f.EnvelopeId)).Prepend(new ItemId(Goal.Id));
 }
+
+/// <summary>Issue #412: an emergency fund's target before it is saved; null with <c>no_commitments</c> when nothing is committed.</summary>
+public sealed record EmergencyTargetView(int Months, GoalMoneyView? Target, IReadOnlyList<GoalCommitmentView> Commitments, IReadOnlyList<string> Flags);

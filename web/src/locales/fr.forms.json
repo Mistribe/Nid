@@ -38,6 +38,7 @@
     "core_currency_mismatch": "Ce montant n’est pas dans la devise de l’enveloppe.",
     "investments_routine_value_exists": "Une valeur existe déjà à cette date : corrigez-la depuis la fiche de l’enveloppe.",
     "investments_routine_invalid_amount": "Montant invalide.",
+    "investments_above_ceiling": "Au-delà du plafond du livret.",
     "investments_routine_empty_line": "Saisissez une valeur ou un versement.",
     "investments_routine_duplicate": "Cette enveloppe apparaît deux fois.",
     "core_amount_not_positive": "Le montant doit être positif.",

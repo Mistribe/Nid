@@ -109,7 +109,7 @@ export function TaxPage() {
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
           ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
           { id: 'evolution', label: t('tax.tab.evolution'),
-            content: <EvolutionSection years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} /> },
+            content: <EvolutionSection years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} adults={estimate.adults} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: (
             <>
               <SimulationForm key={estimate.year} estimate={estimate} />
@@ -221,19 +221,36 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
 /** The server's warnings and notices, in « Calcul » beside the PER block, which tells the PER warnings it can. */
 function Notes({ estimate }: { estimate: TaxEstimate }) {
   const { t } = useTranslation();
-  const notes = [
-    ...estimate.result.warnings.filter((w) => w !== CARRIED && !PER_WARNINGS.includes(w)).map((w) => warningText(t, w, estimate.result.rulesYear)),
+  // #411: an arrangement's childcare costs link to its year summary, the figures to copy into the return.
+  const notes: { text: string; childcare?: string }[] = [
+    ...estimate.result.warnings.filter((w) => w !== CARRIED && !PER_WARNINGS.includes(w)).map((w) => ({ text: warningText(t, w, estimate.result.rulesYear) })),
     // The server names a PER warning once per declarant it concerns: one generic sentence for those the PER block cannot tell.
     ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !perWarningsInBlock(estimate.result).has(w))
-      .map((w) => t(w === 'per_over_ceiling' ? 'tax.warning.per_over_ceiling' : 'tax.warning.per_ceiling_estimated')),
-    ...estimate.notices.map((n) => noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur))),
+      .map((w) => ({ text: t(w === 'per_over_ceiling' ? 'tax.warning.per_over_ceiling' : 'tax.warning.per_ceiling_estimated') })),
+    ...estimate.notices.map((n) => ({
+      text: noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur)), childcare: n.code === 'childcare_from_statements' ? n.item : undefined,
+    })),
   ];
   if (!notes.length) return null;
   return (
     <div className="flex gap-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-4">
       <AlertTriangle aria-hidden="true" className="mt-1 size-4 shrink-0 text-status-warning" />
       <Section title={t('tax.notes')}>
-        <ul className="list-disc space-y-1 pl-5 text-sm">{notes.map((n, i) => <li key={`${i}-${n}`}>{n}</li>)}</ul>
+        <ul className="list-disc space-y-1 pl-5 text-sm">
+          {notes.map((n, i) => (
+            <li key={`${i}-${n.text}`}>
+              {n.text}
+              {n.childcare ? (
+                <>
+                  {' '}
+                  <Link to="/childcare/$id" params={{ id: n.childcare }} search={{ tab: 'summary', year: String(estimate.year) }} className="underline underline-offset-2">
+                    {t('tax.childcare_summary', { year: estimate.year })}
+                  </Link>
+                </>
+              ) : null}
+            </li>
+          ))}
+        </ul>
       </Section>
     </div>
   );

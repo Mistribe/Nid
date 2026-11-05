@@ -49,6 +49,16 @@ internal static class EnvelopeRules
             : premiums is < 0 || Math.Round(premiums.Value, 4) != premiums ? Invalid("premiumsBefore2017", "Premiums before 27/09/2017 are zero or more, with 4 decimals at most.")
             : Result.Success();
 
+    /// <summary>Issue #399: a regulated livret is a savings envelope.</summary>
+    public static Result Regulated(string? wire, EnvelopeKind kind, bool clear = false)
+        => wire is null ? Result.Success()
+            : clear ? Invalid("regulated", "A regulated livret is set or cleared, not both.")
+            : !EnvelopeWire.TryRegulated(wire, out _) ? Invalid("regulated", $"'{wire}' is not a regulated livret.")
+            : kind != EnvelopeKind.Savings ? Invalid("regulated", "Only a savings envelope is a regulated livret.")
+            : Result.Success();
+
+    public static RegulatedKind? ParseRegulated(string? wire) => EnvelopeWire.TryRegulated(wire, out var kind) ? kind : null;
+
     public static Result<EnvelopeKind> Kind(string? wire)
         => EnvelopeWire.TryKind(wire, out var kind) ? Result.Success(kind)
             : Result.Failure<EnvelopeKind>(new Failure(InvestmentsCodes.UnknownKind, $"'{wire}' is not an envelope kind.", null));

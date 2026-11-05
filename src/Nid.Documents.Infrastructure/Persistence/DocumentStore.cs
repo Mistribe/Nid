@@ -46,6 +46,29 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
             .Select(l => new LinkRecord(l.DocumentId, l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, l.LinkedByPersonId, l.LinkedAt)).ToList();
     }
 
+    public async Task<IReadOnlyList<ExpectedDismissal>> DismissalsAsync(CancellationToken ct)
+        => (await db.ExpectedDismissals.AsNoTracking().ToListAsync(ct))
+            .Select(d => new ExpectedDismissal(d.TargetKind, d.TargetId, d.Role, d.Period, d.DismissedByPersonId, d.DismissedAt)).ToList();
+
+    public async Task DismissAsync(ExpectedDismissal dismissal, CancellationToken ct)
+    {
+        var row = new ExpectedDismissalRow
+        {
+            TargetKind = dismissal.TargetKind, TargetId = dismissal.TargetId, Role = dismissal.Role, Period = dismissal.Period,
+            DismissedByPersonId = dismissal.DismissedBy, DismissedAt = dismissal.DismissedAt,
+        };
+        db.ExpectedDismissals.Add(row);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Dismissed by a concurrent request first: the first one stays.
+            db.Entry(row).State = EntityState.Detached;
+        }
+    }
+
     // Tracked row, one property set each: EF writes only what changed, so the other command's field is left alone.
     public async Task AddUploadTicketAsync(UploadTicket ticket, Instant now, CancellationToken ct)
     {
@@ -123,6 +146,8 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
     {
         var rows = await db.Links.Where(l => l.TargetKind == target.Kind && l.TargetId == target.Id).ToListAsync(ct);
         db.Links.RemoveRange(rows);
+        // Issue #414: a deleted target's « pas disponible » go with it.
+        db.ExpectedDismissals.RemoveRange(await db.ExpectedDismissals.Where(d => d.TargetKind == target.Kind && d.TargetId == target.Id).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
         return rows.Count;
     }

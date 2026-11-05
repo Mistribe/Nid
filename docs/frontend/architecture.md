@@ -101,7 +101,7 @@ Les réponses d'erreur sont des Problem Details (RFC 9457) avec un `code` stable
 
 | En-tête | Valeur de référence |
 |---|---|
-| `Content-Security-Policy` | `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` |
+| `Content-Security-Policy` | `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` |
 | `Referrer-Policy` | `no-referrer` |
 | `X-Content-Type-Options` | `nosniff` |
 | `Permissions-Policy` | Caméra, micro, géolocalisation désactivés |
@@ -112,6 +112,7 @@ Les réponses d'erreur sont des Problem Details (RFC 9457) avec un `code` stable
 - Les icônes du catalogue sont servies par l'origine (`../subscription-data-model.md`, « Icons »).
 - Le SPA ne stocke **aucun secret** ; `localStorage` ne garde que des préférences d'interface.
 - **Lint** contre `dangerouslySetInnerHTML` ; les sorties de modèles, notes et libellés importés s'affichent comme du **texte brut**. pdf.js **4.2.67 ou plus**, avec `isEvalSupported: false` et `enableScripting: false` (`../security/application.md` §1).
+- **Aperçu d'un document** (#413) : le lecteur PDF du navigateur dans une `<iframe>` de même origine (`frame-src 'self'`), ou une `<img>`, sur `GET /api/v1/documents/{id}/content?inline=true` ; le serveur ne répond `inline` que pour un PDF, un PNG ou un JPEG, un e-mail reste un téléchargement.
 
 ## 10. Web Workers
 

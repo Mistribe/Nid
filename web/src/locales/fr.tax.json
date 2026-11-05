@@ -7,9 +7,11 @@
     "percent": "{{value}} %",
     "amount_format": "Un montant en euros, par exemple 1200 ou 1200,50.",
     "count_format": "Un nombre entier.",
+    "department_format": "Un numéro de département : 01 à 95, 2A, 2B ou 971 à 976.",
     "rate_format": "Un pourcentage, par exemple 23 ou 23,5.",
     "detail_table": "Calcul de l’impôt étape par étape",
     "notes": "À savoir",
+    "childcare_summary": "Récapitulatif {{year}} à recopier",
     "evolution": {
       "title": "Évolution de l’impôt d’une année à l’autre",
       "intro": "L’impôt sur le revenu de chaque année : celui de l’avis reçu quand il y en a un, sinon l’estimation.",
@@ -20,6 +22,29 @@
       "source": "Source",
       "flat_tax": "+ {{amount}} de prélèvement forfaitaire",
       "from": { "assessment": "Avis", "estimate": "Estimation" }
+    },
+    "changes": {
+      "title": "Ce qui a changé depuis {{year}}",
+      "intro": "Indicatif : l’effet de chaque ligne est estimé seul, sur le barème et les parts de {{year}} ; l’administration seule calcule l’impôt dû.",
+      "none": "Aucune ligne du calcul n’a changé.",
+      "line_head": "Ligne du calcul",
+      "effect": "Effet sur l’impôt",
+      "from_notice": "avis",
+      "remainder": "Autres effets : barème, plafonds, arrondis",
+      "tax": "Impôt sur le revenu et prélèvement forfaitaire",
+      "line": {
+        "salaries": "Salaires nets — {{name}}",
+        "rental_income": "Revenus fonciers nets",
+        "rental_deficit": "Déficit foncier imputé",
+        "per_deduction": "Déduction des versements PER",
+        "shares": "Parts",
+        "decote": "Décote",
+        "pinel": "Réduction Pinel",
+        "donations": "Réduction pour dons",
+        "childcare": "Crédit frais de garde",
+        "home_employment": "Crédit emploi à domicile",
+        "flat_tax": "Prélèvement forfaitaire"
+      }
     },
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
@@ -134,7 +159,7 @@
       "rental_fee_not_counted": "{{name}} : {{amount}} de pénalité de remboursement anticipé ou de frais de prêt non comptés en ligne 250.",
       "contribution_rate_differs": "{{name}} : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins ({{amount}}).",
       "per_without_contributions": "{{name}} : aucun versement enregistré cette année.",
-      "childcare_from_statements": "Frais de garde : {{amount}} d’après les relevés de garde validés, à la place du montant du profil.",
+      "childcare_from_statements": "Frais de garde de « {{name}} » : {{amount}} d’après ses relevés validés, à la place du montant du profil.",
       "rental_to_check": "{{name}} : {{amount}} de dépenses à vérifier (travaux, autres) non comptées — voir Déclaration 2044."
     },
     "per": {
@@ -286,6 +311,8 @@
       "exempt_hint": "Non imposés, mais comptés dans le revenu fiscal de référence. Bulletin de décembre, cumul « heures supplémentaires exonérées » ; plus la prime de partage de la valeur exonérée.",
       "dependents": "Enfants à charge",
       "under6": "Dont enfants de moins de 6 ans au 1er janvier",
+      "department": "Département",
+      "department_hint": "Il date la déclaration en ligne dans « À venir ».",
       "expenses": "Dépenses de l’année",
       "childcareOutsideHome": "Garde hors du domicile",
       "childcare_hint": "Crèche, assistante maternelle : montant payé, aides (CMG) déduites.",
@@ -412,6 +439,7 @@
       },
       "note": {
         "sale_costs_not_deducted": "Les frais de vente (agence, diagnostics) ne sont pas déduits.",
+        "agency_fees_deducted": "Les frais d’agence à la charge du vendeur sont déduits du prix de vente.",
         "rental_works_flat_only": "Bien loué : seul le forfait travaux de 15 % est compté ; vos travaux d’amélioration non déduits des loyers peuvent le remplacer.",
         "land_surtax_not_applied": "Terrain : ni surtaxe ni forfait travaux ; si le terrain n’est pas à bâtir, une surtaxe peut s’ajouter.",
         "free_acquisition_fees_flat_not_allowed": "Si le bien a été reçu par donation ou succession, le forfait de 7,5 % de frais ne s’applique pas.",

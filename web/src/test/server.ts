@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw/http';
 import { setupServer } from 'msw/node';
-import { emptyDashboard, emptyProjection, netWorth } from '@/features/dashboard/testData';
+import { emptyDashboard, emptyMonthChanges, emptyProjection, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
 import { holdings as investmentsHoldings, overview as investmentsOverview, performance as investmentsPerformance } from '@/features/investments/testData';
 import { overview as loansOverview } from '@/features/loans/testData';
@@ -17,6 +17,8 @@ export const handlers = [
   http.get('*/api/v1/core/persons', () => HttpResponse.json([])),
   // The tax page's year selector reads the past notices.
   http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [] })),
+  // ... and its « Évolution » what changed since the year before (#410): nothing to compare.
+  http.get('*/api/v1/tax/changes', () => HttpResponse.json({ year: 2026, taxBefore: null, taxBeforeFromNotice: false, taxNow: null, remainder: null, lines: [] })),
   http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([])),
   // A detail page's badges and `⋯` read the item's sharing (#294): shared, view only, owned by Alice.
   http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json({ visibility: 'shared', shareLevel: 'view', canChange: true, isOwner: true })),
@@ -34,9 +36,13 @@ export const handlers = [
   // ... and the rules they kept (none).
   http.get('*/api/v1/banking/rules', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
+  // The dashboard's notice, the documents page and an item's documents tab read the expected documents (#414): none.
+  http.get('*/api/v1/documents/expected', () => HttpResponse.json({ items: [] })),
   // The home page's goals card reads the open goals (none: it stays absent).
   http.get('*/api/v1/goals', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/dashboard/net-worth', () => HttpResponse.json(netWorth([]))),
+  // ... and « Depuis le mois dernier », hidden in the first month.
+  http.get('*/api/v1/dashboard/changes', () => HttpResponse.json(emptyMonthChanges)),
   // ... and the projection card below it, hidden while the household has nothing.
   http.get('*/api/v1/projection', () => HttpResponse.json(emptyProjection())),
   // The subscriptions list is read by every test that lands on it.

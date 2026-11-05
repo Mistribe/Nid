@@ -5,6 +5,8 @@ using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Platform.IntegrationTests;
 
@@ -65,6 +67,21 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     }
 
     [Fact]
+    public async Task A_value_that_moved_since_last_month_is_the_months_change_without_amount()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var livret = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, livret, "2025-09-01", "100.00");
+        await ValueAsync(app, app.AdultA, livret, "2025-10-01", "90.00");
+
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
+
+        Assert.Equal(("month_changes", "month_changes:2025-10"), (signal.Kind, signal.Key));
+        Assert.Empty(signal.ItemIds);
+        Assert.Equal(new KeyValuePair<string, string>("net_worth", "down|investments.value-"), Assert.Single(signal.Params));
+    }
+
+    [Fact]
     public async Task A_holding_in_a_currency_without_rate_is_a_missing_rate()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -88,6 +105,48 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Empty(await SignalsAsync(app, app.AdultA));
         Assert.Equal("routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultB)).Key);
+    }
+
+    /// <summary>A net worth part whose history is <paramref name="history"/>, counting its reads; nothing on the dashboard.</summary>
+    private sealed class FakeHistory(Func<IReadOnlyList<LocalDate>, Result<IReadOnlyList<NetWorthPoint>>> history, Action read) : INetWorthContribution
+    {
+        public Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+            => Task.FromResult(Result.Success(new NetWorthPart(0, 0, 0, null, new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(),
+                new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(), [], 0)));
+        public Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
+        {
+            read();
+            return Task.FromResult(history(dates));
+        }
+        public Task<Result<IReadOnlyDictionary<Currency, decimal>>> NetContributionsAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
+            => Task.FromResult(Result.Success<IReadOnlyDictionary<Currency, decimal>>(new Dictionary<Currency, decimal>()));
+    }
+
+    [Fact]
+    public async Task A_failing_months_change_drops_only_that_signal()
+    {
+        await using var app = await NidApp.StartAsync(fixture, s => s.AddScoped<INetWorthContribution>(_ => new FakeHistory(
+            _ => Result.Failure<IReadOnlyList<NetWorthPoint>>(new Failure("test.broken", "History unreadable.", null)), () => { })));
+        await app.NewEnvelopeAsync("Livret vide", app.AdultA, Visibility.Shared);
+
+        Assert.Equal("routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultA)).Key);
+    }
+
+    [Fact]
+    public async Task The_months_change_is_compared_once_a_month()
+    {
+        var reads = 0;
+        await using var app = await NidApp.StartAsync(fixture, s => s.AddScoped<INetWorthContribution>(_ => new FakeHistory(
+            dates => Result.Success<IReadOnlyList<NetWorthPoint>>(dates.Select((d, i) => new NetWorthPoint(
+                d, new Dictionary<Currency, decimal> { [Currency.Eur] = 100m - i }, new Dictionary<Currency, decimal>(), 1)).ToList()),
+            () => reads++)));
+
+        var first = Assert.Single(await SignalsAsync(app, app.AdultA));
+        var second = Assert.Single(await SignalsAsync(app, app.AdultA));
+
+        Assert.Equal(("month_changes:2025-10", "month_changes:2025-10"), (first.Key, second.Key));
+        Assert.Equal(first.Params, second.Params);
+        Assert.Equal(1, reads);
     }
 
     private static async Task<Guid> TokenAsync(NidApp app, PersonId owner, int days)
@@ -153,6 +212,10 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             new NotificationKind("fx_rate_missing", "finding", NotificationLevel.Info, "core", null),
             new NotificationKind("routine_due", "finding", NotificationLevel.Action, "core", null),
             new NotificationKind("token_expiring", "security", NotificationLevel.Action, "core", 7),
+            new NotificationKind("month_changes", "finding", NotificationLevel.Info, "core", null),
+            new NotificationKind("tax_filing_deadline", "due_date", NotificationLevel.Action, "core", 14),
+            new NotificationKind("tax_new_rate", "due_date", NotificationLevel.Info, "core", 7),
+            new NotificationKind("tax_balance_due", "due_date", NotificationLevel.Info, "core", 7),
         ], source.Kinds);
     }
 }

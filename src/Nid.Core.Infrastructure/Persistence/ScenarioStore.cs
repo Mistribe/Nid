@@ -7,7 +7,7 @@ using NodaTime.Text;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
-/// <summary>Property purchase scenario spec §5 and projection spec §6: the document as a camelCase JSON row keyed by its registry item.</summary>
+/// <summary>Property purchase scenario spec §5, projection spec §6 and the sale (issue #416): the document as a camelCase JSON row keyed by its registry item.</summary>
 public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
 {
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, Converters =
@@ -17,6 +17,7 @@ public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
     ])]
     [JsonSerializable(typeof(PropertyPurchase))]
     [JsonSerializable(typeof(ProjectionScenario))]
+    [JsonSerializable(typeof(SaleScenario))]
     private sealed partial class ScenarioJson : JsonSerializerContext;
 
     /// <summary>An enum as its camelCase name; one per enum of the document.</summary>
@@ -62,19 +63,24 @@ public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
             db.Scenarios.Add(row = new ScenarioRow { ItemId = scenario.Item.Value });
         row.Kind = scenario.Kind;
         row.Scope = scenario.Scope == VisibilityScope.Me ? "me" : "household";
-        row.Data = scenario.Kind == ScenarioKinds.Projection
-            ? JsonSerializer.Serialize(scenario.Projection!, ScenarioJson.Default.ProjectionScenario)
-            : JsonSerializer.Serialize(scenario.Document!, ScenarioJson.Default.PropertyPurchase);
+        row.Data = scenario.Kind switch
+        {
+            ScenarioKinds.Projection => JsonSerializer.Serialize(scenario.Projection!, ScenarioJson.Default.ProjectionScenario),
+            ScenarioKinds.PropertySale => JsonSerializer.Serialize(scenario.Sale!, ScenarioJson.Default.SaleScenario),
+            _ => JsonSerializer.Serialize(scenario.Document!, ScenarioJson.Default.PropertyPurchase),
+        };
         await db.SaveChangesAsync(ct);
     }
 
     private static StoredScenario ToStored(ScenarioRow row)
     {
         var scope = row.Scope == "me" ? VisibilityScope.Me : VisibilityScope.Household;
-        return row.Kind == ScenarioKinds.Projection
-            ? new StoredScenario(new ItemId(row.ItemId), row.Kind, scope, null,
-                JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.ProjectionScenario)!)
-            : new StoredScenario(new ItemId(row.ItemId), row.Kind, scope,
-                JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.PropertyPurchase)!);
+        var id = new ItemId(row.ItemId);
+        return row.Kind switch
+        {
+            ScenarioKinds.Projection => new StoredScenario(id, row.Kind, scope, null, JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.ProjectionScenario)!),
+            ScenarioKinds.PropertySale => new StoredScenario(id, row.Kind, scope, null, Sale: JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.SaleScenario)!),
+            _ => new StoredScenario(id, row.Kind, scope, JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.PropertyPurchase)!),
+        };
     }
 }

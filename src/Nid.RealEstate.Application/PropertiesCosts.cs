@@ -6,16 +6,36 @@ using Nid.RealEstate.Domain;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.RealEstate.Application.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
-/// <summary>Properties dashboard spec §5.2: what the household's properties cost, paid over the last 12 months and planned for the next.</summary>
-public sealed record GetPropertiesCostsQuery(VisibilityScope Scope) : IQuery<PropertiesCosts>;
+/// <summary>
+/// Properties dashboard spec §5.2: what the household's properties cost, paid over the last 12 months and planned for the next.
+/// <c>Property</c> restricts the answer to one property of the scope (issue #405's « par bien »); another is not found.
+/// </summary>
+public sealed record GetPropertiesCostsQuery(VisibilityScope Scope, ItemId? Property = null) : IQuery<PropertiesCosts>;
 
 /// <summary>A category of expense (README §4): paid over the period, planned over the next 12 months (D14).</summary>
 public sealed record CostCategoryView(string Category, LoanMoneyView? Paid, LoanMoneyView? Planned);
+
+/// <summary>
+/// Issue #405: a calendar year; complete once ended, with every property of the answer held from its 1 January and no archived
+/// (sold) property of the scope held during it: spec D7 leaves those out, so their charges are missing from it.
+/// </summary>
+public sealed record CostYear(int Year, bool Complete);
+
+/// <summary>A category's paid expenses in a year (null with none, or when a rate is missing), and the change from the year before,
+/// a fraction with four decimals, only when both years are complete and both paid something.</summary>
+public sealed record CostYearCell(LoanMoneyView? Paid, string? Change);
+
+/// <summary>A category over <see cref="CostYears.Years"/>, one cell per year, in their order.</summary>
+public sealed record CostCategoryYears(string Category, IReadOnlyList<CostYearCell> Cells);
+
+/// <summary>Issue #405: the expenses paid per category and calendar year, the last five, the current one last.</summary>
+public sealed record CostYears(IReadOnlyList<CostYear> Years, IReadOnlyList<CostCategoryYears> Categories);
 
 /// <summary>A planned cost's occurrence in the next 12 months, in its property's currency and converted.</summary>
 public sealed record CostDueView(LocalDate On, ItemId PropertyId, string Category, string Amount, string Currency, LoanMoneyView? AmountConverted);
@@ -33,7 +53,7 @@ public sealed record CostRow(
 public sealed record PropertiesCosts(
     string Currency, LocalDate From, LocalDate To, LoanMoneyView? Paid, LoanMoneyView? WorksPaid, LoanMoneyView? Planned,
     LoanMoneyView? PlannedMonthly, IReadOnlyList<CostCategoryView> ByCategory, IReadOnlyList<CostDueView> Dues, IReadOnlyList<CostRow> Properties,
-    LoanMoneyView? RealCost, LoanMoneyView? NetCostOfRents, IReadOnlyList<LoanFindingView> Findings) : IExposesItems
+    LoanMoneyView? RealCost, LoanMoneyView? NetCostOfRents, CostYears ByYear, IReadOnlyList<LoanFindingView> Findings) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Properties.Select(p => p.Id);
 }
@@ -54,12 +74,31 @@ public sealed class GetPropertiesCostsHandler(
             return Result.Failure<PropertiesCosts>(failure!);
         read.TryGetValue(out var found);
         var set = found!;
+        if (query.Property is { } only)
+        {
+            set = set.Where(p => p.Item.Id == only).ToList();
+            if (set.Count == 0)
+                return Result.Failure<PropertiesCosts>(new NotFoundFailure("property", only.ToString()));
+        }
 
         var reference = await household.ReferenceCurrencyAsync(ct);
         var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. D4: today's rate, for the period and the year ahead alike.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], today, today, ct);
-        return Result.Success(PropertiesCostsMath.Build(set, reference, rates, today));
+        return Result.Success(PropertiesCostsMath.Build(set, reference, rates, today, query.Property is null ? await ArchivedAsync(reader, query.Scope, ids, ct) : []));
+    }
+
+    /// <summary>The scope's archived properties, from their purchase to their archiving: the years by year cannot be whole while one was held.</summary>
+    private async Task<IReadOnlyList<(LocalDate Bought, LocalDate Archived)>> ArchivedAsync(PersonId reader, VisibilityScope scope, IReadOnlySet<ItemId> active, CancellationToken ct)
+    {
+        var gone = (await visible.ForAsync(reader, scope, includeArchived: true, ct)).Except(active).ToList();
+        if (gone.Count == 0) return [];
+        var found = await properties.FindManyAsync(gone, ct);
+        var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
+        var zone = await calendar.ZoneAsync(ct);
+        return found.Where(p => accesses.TryGetValue(p.ItemId, out var item) && item.ArchivedAt is not null)
+            .Select(p => (p.Details.PurchaseDate, accesses[p.ItemId].ArchivedAt!.Value.InZone(zone).Date))
+            .ToList();
     }
 }
 
@@ -71,7 +110,8 @@ internal static class PropertiesCostsMath
 
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
-    public static PropertiesCosts Build(IReadOnlyList<OverviewProperty> set, Currency reference, RateTable rates, LocalDate today)
+    public static PropertiesCosts Build(
+        IReadOnlyList<OverviewProperty> set, Currency reference, RateTable rates, LocalDate today, IReadOnlyList<(LocalDate Bought, LocalDate Archived)> archived)
     {
         var first = today.PlusMonths(-12).PlusDays(1);
         var until = today.PlusMonths(12);
@@ -140,7 +180,35 @@ internal static class PropertiesCostsMath
             byCategory, dues, rows,
             View(SumOrNull(read.Select(r => Convert(r.Figures.RealCost, r.Currency)))),
             View(SumOrNull(read.Select(r => Convert(r.Figures.NetCostOfRents, r.Currency)))),
+            ByYear(set, archived, today, Convert, View),
             missing.Values.ToList());
+    }
+
+    /// <summary>Issue #405: each expense converted alone (D4), summed per category and calendar year; works too, as « payé ».</summary>
+    private static CostYears ByYear(
+        IReadOnlyList<OverviewProperty> set, IReadOnlyList<(LocalDate Bought, LocalDate Archived)> archived, LocalDate today,
+        Func<decimal, Currency, decimal?> convert, Func<decimal?, LoanMoneyView?> view)
+    {
+        var years = Enumerable.Range(today.Year - 4, 5)
+            // A year counts only when every property was held from its 1 January: before or during a purchase its charges did not run all
+            // year. Nor while an archived property, left out (D7), was held: its charges are missing.
+            .Select(y => new CostYear(y, y < today.Year && set.All(p => p.Property.Details.PurchaseDate <= new LocalDate(y, 1, 1))
+                && !archived.Any(a => a.Bought.Year <= y && a.Archived.Year >= y)))
+            .ToList();
+        var paid = set.SelectMany(p => p.Flows
+                .Where(f => f.Kind == FlowKind.Expense && f.OccurredOn.Year >= years[0].Year && f.OccurredOn <= today)
+                .Select(f => (Category: f.Category ?? "other", f.OccurredOn.Year, Amount: convert(f.Amount.Amount, LoanViews.CurrencyOf(p.Item)))))
+            .ToList();
+        var categories = paid.GroupBy(p => p.Category)
+            .Select(g => (Category: g.Key, Sums: years.Select(y => SumOrNull(g.Where(p => p.Year == y.Year).Select(p => p.Amount))).ToList(),
+                Total: g.Sum(p => p.Amount ?? 0m)))
+            .OrderByDescending(c => c.Total).ThenBy(c => c.Category, StringComparer.Ordinal)
+            .Select(c => new CostCategoryYears(c.Category, years.Select((y, i) => new CostYearCell(view(c.Sums[i]),
+                i > 0 && y.Complete && years[i - 1].Complete && c.Sums[i - 1] is { } before and not 0m && c.Sums[i] is { } now
+                    ? Math.Round((now - before) / before, 4, MidpointRounding.AwayFromZero).ToString("0.0000", CultureInfo.InvariantCulture)
+                    : null)).ToList()))
+            .ToList();
+        return new CostYears(years, categories);
     }
 
     /// <summary>

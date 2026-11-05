@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { contentUrl, type DocumentLink, type DocumentSummary } from '../../documents/api';
 import { ACCEPT, refusal, useDropFiles } from '../../documents/DocumentUpload';
+import { previewable, usePreview } from '../../documents/preview';
 import type { IncomeSourceDetail } from '../api';
 import { linksOnSource, payslipTitle, type MonthKey } from './payslip';
 import { usePayslipWrites, type AttachFields, type PayslipWrites } from './usePayslipWrites';
@@ -63,7 +64,7 @@ export function PayslipLink({ doc }: { doc: DocumentSummary }) {
 }
 
 /**
- * A payslip's `⋯` menu: « Télécharger », « Voir le document », then, for an actor who writes the source, the document
+ * A payslip's `⋯` menu: « Voir » (a PDF or an image), « Télécharger », « Voir le document », then, for an actor who writes the source, the document
  * and every link it would lose, « Remplacer » (a new upload with `replaceWith`) and « Retirer » (unlinks `links` only).
  */
 export function PayslipMenu({ doc, links, replaceWith, writable, writes }: {
@@ -73,17 +74,20 @@ export function PayslipMenu({ doc, links, replaceWith, writable, writes }: {
   const navigate = useNavigate();
   const input = useRef<HTMLInputElement>(null);
   const [asking, setAsking] = useState(false);
+  const preview = usePreview();
   const editable = writable && doc.canEdit && links.length > 0 && links.every((l) => l.canWrite);
   const replace = editable && replaceWith;
   const remove = t('income_detail.payslips.remove');
   return (
     <>
       <RowMenu label={t('income_detail.payslips.menu', { title: doc.title })} items={[
+        ...(previewable(doc.mediaType) ? [{ label: t('documents_item.preview'), onSelect: () => preview.show(doc) }] : []),
         { label: t('income_detail.payslips.download'), href: contentUrl(doc.id) },
         { label: t('income_detail.payslips.open'), onSelect: () => void navigate({ to: '/documents/$id', params: { id: doc.id } }) },
         ...(replace ? [{ label: t('income_detail.payslips.replace'), onSelect: () => input.current?.click() }] : []),
         ...(editable ? [{ label: remove, onSelect: () => setAsking(true), destructive: true }] : []),
       ]} />
+      {preview.dialog}
       {replace ? (
         <FileInput ref={input} label={t('income_detail.payslips.replace')}
           onFile={(file) => void writes.replace(doc, links, file, replace.target, replace.date, replace.title)} />

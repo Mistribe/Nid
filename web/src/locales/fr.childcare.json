@@ -137,7 +137,8 @@
     "col_cost": "Coût du mois",
     "cmg_estimate": "CMG estimé",
     "tab_documents": "Documents",
-    "no_payslip": "Pas de bulletin"
+    "no_payslip": "Pas de bulletin",
+    "tab_summary": "Récapitulatif"
   },
   "childcare_statement": {
     "loading": "Chargement du relevé",
@@ -224,5 +225,40 @@
       "childcare_previous_not_validated": "Validez d'abord le mois précédent : le quota enfant malade et la première semaine de ce mois en dépendent."
     },
     "cmg_estimate": "Estimé d’après les derniers mois : {{amount}}"
+  },
+  "childcare_year": {
+    "title": "Récapitulatif {{year}}",
+    "loading": "Chargement du récapitulatif",
+    "year": "Année",
+    "csv": "Exporter en CSV",
+    "print": "Imprimer",
+    "intro": "Les relevés validés de {{year}}, comptés comme dans l’estimation d’impôt.",
+    "to_tax": "Voir l’estimation d’impôt",
+    "not_validated_one": "Mois non validé, hors du récapitulatif : {{months}}.",
+    "not_validated_other": "Mois non validés, hors du récapitulatif : {{months}}.",
+    "none_validated": "Aucun mois validé en {{year}}.",
+    "net_pay": "Salaire net versé",
+    "contributions": "Cotisations sociales",
+    "contributions_value": "Prises en charge",
+    "cmg": "CMG perçu",
+    "upkeep": "Indemnités d’entretien",
+    "meals": "Indemnités de repas",
+    "retained": "Reste à charge retenu pour le crédit d’impôt",
+    "box": "Déclaration 2042 RICI, case {{box}} (frais de garde des enfants de moins de 6 ans).",
+    "box_none": "Plus de trois enfants gardés : voir la notice de la déclaration 2042 RICI.",
+    "hint": {
+      "net_pay": "Le salaire déclaré chaque mois sur Pajemploi.",
+      "contributions": "Prises en charge par la CMG pour une assistante maternelle agréée : ni payées par le foyer, ni retenues. Pajemploi les détaille sur son attestation fiscale.",
+      "cmg": "Relevé sur le récapitulatif Pajemploi de chaque mois ; déduit des frais retenus.",
+      "upkeep": "Retenues avec le salaire.",
+      "meals": "Non retenues pour le crédit d’impôt.",
+      "retained": "Salaire net + entretien − CMG : le montant que prend l’estimation d’impôt."
+    },
+    "csv_header": {
+      "line": "Ligne",
+      "box": "Case",
+      "amount": "Montant"
+    },
+    "csv_not_validated": "Mois non validés"
   }
 }

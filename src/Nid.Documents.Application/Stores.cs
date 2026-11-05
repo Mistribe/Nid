@@ -41,6 +41,7 @@ public interface IDocumentStore
 
     Task<bool> RemoveLinkAsync(Guid document, DocumentTarget target, CancellationToken ct);
 
+    /// <summary>The links to the target and its « pas disponible » (#414); answers the number of links removed.</summary>
     Task<int> RemoveLinksToAsync(DocumentTarget target, CancellationToken ct);
 
     /// <summary>Re-points the links to <paramref name="from"/> at <paramref name="to"/>; a document already linked to <paramref name="to"/> loses its <paramref name="from"/> link.</summary>
@@ -48,6 +49,12 @@ public interface IDocumentStore
 
     /// <summary>The ids of the documents holding a link to the target, whoever may read it.</summary>
     Task<IReadOnlySet<Guid>> DocumentsLinkedToAsync(DocumentTarget target, CancellationToken ct);
+
+    /// <summary>Issue #414: every « pas disponible » of the household; a few per item, read whole.</summary>
+    Task<IReadOnlyList<ExpectedDismissal>> DismissalsAsync(CancellationToken ct);
+
+    /// <summary>Issue #414: stores the dismissal; one already stored for that target, role and period is kept as it is.</summary>
+    Task DismissAsync(ExpectedDismissal dismissal, CancellationToken ct);
 
     /// <summary>#305: stores the ticket and clears those expired before <paramref name="now"/>.</summary>
     Task AddUploadTicketAsync(UploadTicket ticket, Instant now, CancellationToken ct);

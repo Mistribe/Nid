@@ -2,7 +2,7 @@
   "scenarios": {
     "title": "Simulations",
     "add": "Nouveau scénario",
-    "add_menu": { "property_purchase": "Achat immobilier", "projection": "Projection" },
+    "add_menu": { "property_purchase": "Achat immobilier", "projection": "Projection", "property_sale": "Vente d’un bien" },
     "compare": {
       "title": "Comparer",
       "open": "Comparer",
@@ -20,7 +20,7 @@
       "gap": "Écart avec la base",
       "base": "Base"
     },
-    "kind": { "property_purchase": "Achat", "projection": "Projection" },
+    "kind": { "property_purchase": "Achat", "projection": "Projection", "property_sale": "Vente" },
     "list": "Liste des scénarios",
     "loading": "Chargement des scénarios",
     "empty_title": "Aucun scénario pour l'instant",
@@ -151,6 +151,45 @@
       "assumptions_title": "Modifier les hypothèses",
       "assumptions_saved": "Hypothèses enregistrées.",
       "save": "Enregistrer"
+    },
+    "sale": {
+      "title": "Nouvelle vente",
+      "submit": "Créer le scénario",
+      "loading": "Chargement du scénario",
+      "property": "Bien vendu",
+      "property_search": "Chercher un bien",
+      "property_none": "Aucun bien.",
+      "sale_on": "Date de vente",
+      "price": "Prix de vente",
+      "agency_fees": "Frais d’agence à votre charge",
+      "penalties": "Indemnités de remboursement anticipé",
+      "penalties_hint": "Celles des prêts sur ce bien, d’après leurs contrats ; 0 s’il n’y en a pas.",
+      "horizon": "Horizon de la projection (années)",
+      "figures": "Chiffres clés",
+      "net_seller": "Net vendeur",
+      "tax": "Impôt sur la plus-value",
+      "loans_repaid": "Prêts remboursés",
+      "monthly_change": "Dépenses mensuelles en moins",
+      "gap": "Écart de patrimoine à l’horizon",
+      "tab": { "sale": "Vente", "tax": "Impôt", "projection": "Projection" },
+      "breakdown": "Du prix au net vendeur, au {{date}}",
+      "monthly": "Ce qui s’arrête chaque mois",
+      "loan_payments": "Mensualités des prêts, assurance comprise",
+      "property_net": "Charges du bien, moins le loyer",
+      "monthly_total": "Total",
+      "no_tax": "Impôt non estimé pour ce bien.",
+      "hidden": "Vous ne voyez pas le bien vendu : ses chiffres ne sont pas affichés.",
+      "projection": "Patrimoine net, sans et avec la vente",
+      "without": "Sans la vente",
+      "with": "Avec la vente",
+      "edit": "Modifier le scénario",
+      "saved": "Scénario enregistré.",
+      "save": "Enregistrer",
+      "warning": {
+        "property_hidden": "Le bien vendu n’est plus visible : la vente est écartée du calcul.",
+        "sale_in_past": "Date de vente passée : calculé comme une vente aujourd’hui.",
+        "tax_estimate_unavailable": "Impôt sur la plus-value non estimé : compté à 0."
+      }
     },
     "projection": {
       "form": {

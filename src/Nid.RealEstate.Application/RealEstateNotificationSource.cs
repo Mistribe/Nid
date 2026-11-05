@@ -21,6 +21,7 @@ public sealed class RealEstateNotificationSource(RealEstateUpcoming upcoming, Pr
     [
         new(UpcomingKinds.TenancyEnd, "due_date", NotificationLevel.Action, "properties", 90),
         new(UpcomingKinds.PropertyCostDue, "due_date", NotificationLevel.Info, "properties", 7),
+        new(UpcomingKinds.PropertyTaxDue, "due_date", NotificationLevel.Action, "properties", 14),
         new(UpcomingKinds.LoanPhaseEnd, "due_date", NotificationLevel.Info, "loans", 30),
         new(UpcomingKinds.LoanEnd, "due_date", NotificationLevel.Info, "loans", 30),
         new(PropertyOverviewCodes.RentArrears, "finding", NotificationLevel.Action, "properties", null),

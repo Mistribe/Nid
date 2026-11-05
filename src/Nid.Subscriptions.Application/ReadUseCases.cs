@@ -58,12 +58,14 @@ public sealed class ListSubscriptionsHandler(
         var year = CostWindow.Year(today);
         var householdAnnual = HouseholdCost.AmortizedPieces(timelines, year);
         var rates = await Conversion.LoadAsync(
-            fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized).Concat(householdAnnual), reference, today, ct);
+            fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized).Concat(householdAnnual)
+                .Concat(timelines.SelectMany(SpendingHistory.Past).Select(SpendingHistory.Piece)), reference, today, ct);
 
         var summaries = built.Select(b => SubscriptionViews.Summarise(
             b.Input, b.Timeline, b.DisplayName, b.Provider, window,
             Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners,
-            FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference))).ToList();
+            FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference),
+            SpendingHistory.Spent(b.Timeline, reference, rates, today))).ToList();
 
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
         var householdConverted = Conversion.Of(householdCash, householdAmortized, reference, rates);
@@ -72,7 +74,7 @@ public sealed class ListSubscriptionsHandler(
             summaries, cash, amortized,
             householdConverted.CashView, householdConverted.AmortizedView, householdConverted.IsEstimate,
             shared,
-            ListGrouping.Group(query.Group, summaries),
+            ListGrouping.Group(query.Group, summaries, SpendingHistory.SpentOf(built, reference, rates)),
             HouseholdCost.Divergences(shared).Select(FindingView.From).Concat(SubscriptionViews.FxFindings(householdConverted, annual)).ToList(),
             annual.Total is { } t ? MoneyView.From(t) : null));
     }
@@ -130,7 +132,7 @@ public sealed class GetSubscriptionChargesHandler(
 
 [RequestHandler<GetSubscriptionQuery, SubscriptionDetail>]
 public sealed class GetSubscriptionHandler(
-    ISubscriptionStore store, IItemRegistry items, IHouseholdCalendar calendar, IFxRates fx, IHouseholdSettings household, IProviderStore providers,
+    SubscriptionSet set, ISubscriptionStore store, IItemRegistry items, IHouseholdCalendar calendar, IFxRates fx, IHouseholdSettings household, IProviderStore providers,
     IVisibleItems visible, IAccessPolicy policy, IActorAccessor actor)
     : IRequestHandler<GetSubscriptionQuery, SubscriptionDetail>
 {
@@ -151,17 +153,25 @@ public sealed class GetSubscriptionHandler(
                     ? failure!
                     : new Failure("subscriptions.unknown", "The subscription could not be read.", null));
 
-        var reference = await household.ReferenceCurrencyAsync(ct);
-        var cashPieces = timeline!.CashCostPieces(window);
-        var amortizedPieces = timeline.AmortizedCostPieces(window);
-        var rates = await Conversion.LoadAsync(fx, cashPieces.Concat(amortizedPieces), reference, today, ct);
-
         var item = await items.FindAsync(query.ItemId, ct);
         if (item is null)
             return Result.Failure<SubscriptionDetail>(new NotFoundFailure("subscription", query.ItemId.ToString()));
         var provider = (await ProviderLookup.ForAsync(store, providers, [query.ItemId], ct)).GetValueOrDefault(query.ItemId);
 
         var reader = actor.Current!.PersonId!.Value;
+        // #397: an ended subscription saves nothing when another one of its provider, among those the reader sees, took over.
+        var self = new BuiltSubscription(input, timeline!, item.DisplayName, [], provider);
+        var others = provider is not null && timeline!.ExpiresOn() is { } end && end < today
+            ? await set.LoadAsync(reader, VisibilityScope.Me, today, today, ct)
+            : [];
+        var forgone = SpendingHistory.Forgone(self, others, today)?.Pieces ?? [];
+
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var cashPieces = timeline!.CashCostPieces(window);
+        var amortizedPieces = timeline.AmortizedCostPieces(window);
+        var rates = await Conversion.LoadAsync(
+            fx, cashPieces.Concat(amortizedPieces).Concat(SpendingHistory.Past(timeline).Select(SpendingHistory.Piece)).Concat(forgone),
+            reference, today, ct);
         var rows = await store.ReadAllAsync([query.ItemId], ct);
         var stored = rows.Subscriptions.Single();
         var visibleItems = await visible.ForAsync(reader, VisibilityScope.Me, ct);
@@ -188,7 +198,7 @@ public sealed class GetSubscriptionHandler(
             : null;
         return Result.Success(SubscriptionViews.Detail(
             input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing, today,
-            insurance));
+            insurance, SpendingHistory.Spent(timeline, reference, rates, today), SpendingHistory.Saved(self, others, reference, rates, today)));
     }
 
     private async Task<InsuredPropertyView?> InsuredPropertyAsync(ItemId? property, IReadOnlySet<ItemId> visibleItems, CancellationToken ct)

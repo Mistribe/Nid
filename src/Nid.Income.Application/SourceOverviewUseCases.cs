@@ -19,19 +19,29 @@ public sealed record GetIncomeSourceOverviewQuery(ItemId ItemId, string Period) 
 public sealed record IncomeSourceOverview(
     ItemId Id, LocalDate From, LocalDate To, string Currency, IncomeSourceFigures Figures,
     IReadOnlyList<IncomeSourceMonth> Months, IReadOnlyList<IncomeChangeView> Changes,
-    IReadOnlyList<IncomeOccurrenceView> LastPayments, IReadOnlyList<IncomeOneOffView> LastOneOffs) : IExposesItems
+    IReadOnlyList<IncomeOccurrenceView> LastPayments, IReadOnlyList<IncomeOneOffView> LastOneOffs,
+    IReadOnlyList<IncomeWithholdingView> Withholding) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }
 
 /// <summary>
+/// #408: an open salary's owner as a declarant of the household's tax estimate this year: the withholding rate against the real rate
+/// (percents) and what the rate withholds each month on all of that person's salaries beyond the real rate (negative: short).
+/// </summary>
+public sealed record IncomeWithholdingView(Guid Person, string Name, decimal Rate, decimal RealRate, IncomeMoneyView MonthlyGap);
+
+/// <summary>
 /// <paramref name="MonthlyNow"/>, its <paramref name="MonthlyParts"/> (one per running label) and the changes are smoothed;
 /// <paramref name="ReceivedThisYear"/> is cash from 1 January to today, one-offs included (<paramref name="OneOffsThisYear"/>).
+/// <paramref name="RealChange1y"/> is <paramref name="Change1y"/> after <paramref name="Inflation"/>, the household's projection
+/// assumption in percent (#407).
 /// </summary>
 public sealed record IncomeSourceFigures(
     IncomeAmountView MonthlyNow, IReadOnlyList<IncomeOverviewPart> MonthlyParts,
     LocalDate? NextOn, IncomeMoneyView? NextAmount, string? NextLabel,
-    decimal? Change1y, decimal? ChangeSinceStart, IncomeMoneyView ReceivedThisYear, IncomeMoneyView OneOffsThisYear);
+    decimal? Change1y, decimal? ChangeSinceStart, IncomeMoneyView ReceivedThisYear, IncomeMoneyView OneOffsThisYear,
+    decimal? RealChange1y, decimal Inflation);
 
 public sealed record IncomeLabelAmount(string Label, IncomeMoneyView Amount);
 
@@ -43,7 +53,8 @@ public sealed record IncomeChangeView(
 
 [RequestHandler<GetIncomeSourceOverviewQuery, IncomeSourceOverview>]
 public sealed class GetIncomeSourceOverviewHandler(
-    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables, IHouseholdCalendar calendar)
+    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables, IHouseholdCalendar calendar,
+    IHouseholdSettings household, ITaxWithholdingRates withholding)
     : IRequestHandler<GetIncomeSourceOverviewQuery, IncomeSourceOverview>
 {
     public const int UpcomingMonths = 3;
@@ -86,6 +97,8 @@ public sealed class GetIncomeSourceOverviewHandler(
         var monthlyNow = IncomeMath.MonthlyEquivalent(list, today);
         var next = IncomeMath.Next(list, today);
         var yearStart = new LocalDate(today.Year, 1, 1);
+        var inflation = (await household.ProjectionAssumptionsAsync(ct)).Inflation;
+        var change1y = OverviewMath.ChangePct(monthlyNow, IncomeMath.MonthlyEquivalent(list, today.PlusYears(-1)));
         var paid = list.SelectMany(p => IncomeMath.Occurrences(p, LocalDate.MinIsoValue, today.PlusDays(1))).ToList();
         var oneOffsThisYear = oneOffs!.Where(f => f.OccurredOn >= yearStart && f.OccurredOn <= today).Select(f => f.Amount.Amount).ToList();
         var figures = new IncomeSourceFigures(
@@ -95,10 +108,18 @@ public sealed class GetIncomeSourceOverviewHandler(
                 .ToList(),
             next.Count == 0 ? null : next[0].On, next.Count == 0 ? null : Sum(next.Select(o => o.Amount.Amount)),
             next.Count == 0 ? null : string.Join(" + ", next.Select(o => o.Label).Distinct()),
-            OverviewMath.ChangePct(monthlyNow, IncomeMath.MonthlyEquivalent(list, today.PlusYears(-1))),
+            change1y,
             list.Count == 0 ? null : OverviewMath.ChangePct(monthlyNow, IncomeMath.MonthlyEquivalent(list, list.Min(p => p.StartsOn))),
             Sum(paid.Where(o => o.On >= yearStart).Select(o => o.Amount.Amount).Concat(oneOffsThisYear)),
-            Sum(oneOffsThisYear));
+            Sum(oneOffsThisYear), OverviewMath.RealChangePct(change1y, inflation), inflation * 100m);
+
+        // The estimate counts open salaries in euros only (TaxLineCodes.InEuros).
+        var rates = source.Source.Kind == IncomeKind.Salary && source.Item.ArchivedAt is null && currency == Currency.Eur
+            ? (await withholding.RatesAsync(today, ct)).Where(r => source.Item.Owners.Any(o => o.PersonId == r.Person))
+                .Select(r => new IncomeWithholdingView(r.Person.Value, r.Name, r.Rate, r.RealRate,
+                    IncomeMoneyView.From(Money.Create(r.MonthlyGap, Currency.Eur).TryGetValue(out var gap) ? gap : throw new InvalidOperationException())))
+                .ToList()
+            : [];
 
         return Result.Success(new IncomeSourceOverview(
             query.ItemId, from, to, currency.Code, figures,
@@ -112,6 +133,6 @@ public sealed class GetIncomeSourceOverviewHandler(
                 c.Percent, c.Upcoming)).ToList(),
             paid.OrderByDescending(o => o.On).ThenBy(o => o.Label, StringComparer.Ordinal).Take(Last)
                 .Select(o => new IncomeOccurrenceView(o.PhaseId, o.Label, o.On, IncomeMoneyView.From(o.Amount))).ToList(),
-            lastOneOffs.Select(f => IncomeOneOffView.Of(f, taxable)).ToList()));
+            lastOneOffs.Select(f => IncomeOneOffView.Of(f, taxable)).ToList(), rates));
     }
 }

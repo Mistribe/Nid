@@ -27,7 +27,7 @@ public sealed class GetDashboardHandler(DashboardReader dashboard, IActorAccesso
 public sealed class DashboardReader(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
     IEnumerable<IIncomeContribution> income, IEnumerable<IUpcomingEvents> upcoming, PerDeadline perDeadline,
-    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, TaxCalendarEvents taxCalendar)
 {
     public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
@@ -47,6 +47,7 @@ public sealed class DashboardReader(
         earned.TryGetValue(out var e);
         dated.TryGetValue(out var d);
         per.TryGetValue(out var p);
+        var taxDates = await taxCalendar.EventsAsync(reader, scope, today, until, ct);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = DashboardMath.Currencies(w!, c!, e!).Where(x => x != reference).ToList();
@@ -56,7 +57,7 @@ public sealed class DashboardReader(
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
         var target = await household.AllocationTargetAsync(ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, p));
+        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
     }
 }
 

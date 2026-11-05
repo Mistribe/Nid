@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '../investments/chart/plot';
-import { FIRST_ESTIMATE_YEAR, TAX } from './api';
+import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from './api';
+import { ChangesSection } from './ChangesSection';
 import type { TaxAssessment } from './assessments/api';
 import { percentText, ZERO } from './format';
 import { eur } from './ResultTable';
@@ -16,8 +17,8 @@ type Row = { year: string; source: 'assessment' | 'estimate'; netTaxable?: strin
  * « impôt net » holds the flat tax on capital income; the estimate's income tax does not, so its flat tax is shown beside it
  * rather than added here. The bars are sized with `toPlot`; every figure read is the server's.
  */
-export function EvolutionSection({ years, assessments, scope, current }: {
-  years: string[]; assessments: TaxAssessment[]; scope: 'me' | 'household'; current: string;
+export function EvolutionSection({ years, assessments, scope, current, adults }: {
+  years: string[]; assessments: TaxAssessment[]; scope: 'me' | 'household'; current: string; adults: TaxEstimate['adults'];
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -69,6 +70,7 @@ export function EvolutionSection({ years, assessments, scope, current }: {
           ))}
         </TableBody>
       </Table>
+      <ChangesSection year={current} scope={scope} adults={adults} />
     </>
   );
 }

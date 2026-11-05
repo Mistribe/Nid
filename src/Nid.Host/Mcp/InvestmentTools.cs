@@ -18,7 +18,9 @@ public sealed class InvestmentTools
         => McpCalls.RunAsync(services, () => new ListEnvelopesQuery(SubscriptionEndpoints.ParseScope(scope), archived), ct);
 
     [McpServerTool(Name = "get_envelope", ReadOnly = true)]
-    [Description("One envelope: its values, contributions and gain. " + McpSetup.Untrusted)]
+    [Description("One envelope: its values, contributions and gain. A regulated livret also has its ceiling and the room left (from dated "
+        + "rules, with their source) and the year's interest estimated at the regulated rates (fortnight rule), an estimate, not a value; a life "
+        + "insurance, PEA or PER has its next tax date (milestone: 8 years, 5 years, retirement), the date only. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetEnvelope(IServiceProvider services, [Description("The envelope's id.")] Guid id, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetEnvelopeQuery(new ItemId(id)), ct);
 

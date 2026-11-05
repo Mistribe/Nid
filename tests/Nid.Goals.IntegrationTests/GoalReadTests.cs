@@ -295,6 +295,27 @@ public class GoalReadTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal(("subscriptions", 2, 75m), (source.GetProperty("source").GetString(), source.GetProperty("count").GetInt32(), Amount(source, "monthly")));
     }
 
+    /// <summary>Issue #412: the target shown before an emergency fund is saved is the one the saved goal reads.</summary>
+    [Fact]
+    public async Task Emergency_target_before_saving_is_the_saved_goal_s()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var none = await GetAsync(app, app.AdultA, $"{Goals}/emergency-target?months=3&scope=household");
+        Assert.Equal(JsonValueKind.Null, none.GetProperty("target").ValueKind);
+        Assert.Contains(GoalFlags.NoCommitments, Flags(none));
+
+        await app.NewMonthlyAsync(app.AdultA, 50m);
+        var preview = await GetAsync(app, app.AdultA, $"{Goals}/emergency-target?months=3&scope=household");
+        var goal = await GoalAsync(app, app.AdultA, "Précaution", GoalKinds.EmergencyFund, targetAmount: null, months: 3);
+
+        Assert.Equal((3, 150m), (preview.GetProperty("months").GetInt32(), Amount(preview, "target")));
+        Assert.Equal(Amount((await DetailAsync(app, app.AdultA, goal, "household")).GetProperty("goal"), "target"), Amount(preview, "target"));
+        Assert.Equal("subscriptions", Assert.Single(preview.GetProperty("commitments").EnumerateArray()).GetProperty("source").GetString());
+        Assert.Empty(Flags(preview));
+        foreach (var months in new[] { 0, 25 })
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Goals}/emergency-target?months={months}")).StatusCode);
+    }
+
     [Fact]
     public async Task Emergency_fund_without_commitments_has_no_target()
     {

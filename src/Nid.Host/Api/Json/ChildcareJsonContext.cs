@@ -16,6 +16,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ChildcareEndpoints.CloseChildcareBody))]
 [JsonSerializable(typeof(ChildcareStatementList))]
 [JsonSerializable(typeof(ChildcareStatementView))]
+[JsonSerializable(typeof(ChildcareYearView))]
 [JsonSerializable(typeof(ChildcareEndpoints.StatementBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.VersionBody))]
 internal sealed partial class ChildcareJsonContext : JsonSerializerContext;

@@ -134,8 +134,25 @@
       "reopened": "Enveloppe rouverte.",
       "too_early": "La clôture ne peut pas précéder la dernière valeur ou le dernier flux."
     },
+    "regulated": {
+      "ceiling": "Plafond",
+      "reached": "{{ceiling}} · atteint",
+      "room": "{{ceiling}} · encore {{amount}} versables",
+      "ceiling_source": "Plafond des versements, hors intérêts. Source : {{source}}",
+      "interest_to_date": "Intérêts estimés à ce jour",
+      "interest_expected": "attendus au 31 décembre : {{amount}}",
+      "interest_note": "Estimation au taux réglementé ({{rate}} % aujourd’hui) et par quinzaines ; la valeur reste celle du relevé. Source : {{source}}"
+    },
+    "milestone": {
+      "life_insurance_8y": "8 ans le {{date}}",
+      "pea_5y": "5 ans le {{date}}",
+      "per_retirement": "Retraite le {{date}}",
+      "sale_link": "Impôt si vente aujourd’hui"
+    },
     "settings": {
       "title": "Réglages",
+      "regulated": "Livret réglementé",
+      "regulated_help": "Fixe le plafond et le taux du livret.",
       "opened_on": "Date d’ouverture",
       "opened_on_help": "Pour un PEA ou une assurance-vie transférés, la date d’ouverture du contrat d'origine : elle compte pour la fiscalité.",
       "opened_on_format": "Une date au format jj/mm/aaaa, ou vide.",
@@ -212,6 +229,13 @@
       "missing_opening": "Versements antérieurs manquants : le gain est trompeur",
       "holding_maturity": "Un support arrive à échéance le {{date}}",
       "uc_share_below_floor": "Part en unités de compte sous le plancher (relevé du {{date}})",
+      "ceiling_reached": "Au plafond : les versements suivants iront ailleurs",
+      "ceiling_room": "Encore {{amount}} versables",
+      "tax_milestone": {
+        "life_insurance_8y": "8 ans le {{date}}",
+        "pea_5y": "5 ans le {{date}}",
+        "per_retirement": "Retraite le {{date}}"
+      },
       "other": "À vérifier"
     },
     "envelopes_title": "Enveloppes",

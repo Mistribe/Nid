@@ -333,7 +333,7 @@ describe('one-off income', () => {
       const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
       await user.click(await within((await rows())[0]!).findByRole('button', { name: 'Actions du bulletin Avis de prime' }));
-      expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Télécharger', 'Voir le document']);
+      expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Voir', 'Télécharger', 'Voir le document']);
     });
   });
 });

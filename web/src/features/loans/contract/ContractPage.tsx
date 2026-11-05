@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useLocation, useNavigate, useParams } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,7 @@ import { FormActions, FormPage } from '@/components/page/FormPage';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
-import { CONTRACT, invalidateLoans, LOAN, type LoanDetail } from '../api';
+import { CONTRACT, invalidateLoans, LOAN, type LoanContractView, type LoanDetail } from '../api';
 import { money } from '../format';
 import { ContractFields } from '../new/ContractFields';
 import { contractPath, contractSchema, toContractBody, type ContractValues } from '../new/loanForm';
@@ -30,6 +30,9 @@ export function ContractPage() {
   const answer = $api.useQuery('get', LOAN, { params: { path: { id } } });
   // « Recharger » remounts the form on the contract read again; a background refetch never resets what is being typed.
   const [generation, setGeneration] = useState(0);
+  // Issues #403–#404: a simulation's « Enregistrer » opens the form on the contract it prepared, with the version it read;
+  // « Recharger » drops it for the stored contract.
+  const handed = useLocation({ select: (l) => l.state.loanContract });
   // The loan's crumb waits for its name.
   const crumbs = (name?: string) => [{ label: t('nav.loans'), to: '/loans' as const }, ...(name ? [{ label: name, to: '/loans/$id' as const, params: { id } }] : [])];
   const page = (name: string | undefined, children: ReactNode, title = t('loan_contract.form')) => <FormPage crumbs={crumbs(name)} title={title} width="max-w-2xl">{children}</FormPage>;
@@ -40,18 +43,19 @@ export function ContractPage() {
 
   const loan = answer.data;
   return page(loan.name, loan.canWrite
-    ? <ContractForm key={generation} loan={loan} onReload={() => answer.refetch().then(() => setGeneration((g) => g + 1))} />
+    ? <ContractForm key={generation} loan={loan} prepared={generation === 0 ? handed : undefined} onReload={() => answer.refetch().then(() => setGeneration((g) => g + 1))} />
     : <p>{t('loan_detail.read_only')}</p>, t('loan_contract.title', { name: loan.name }));
 }
 
-function ContractForm({ loan, onReload }: { loan: LoanDetail; onReload: () => Promise<void> }) {
+function ContractForm({ loan, prepared, onReload }: { loan: LoanDetail; prepared?: LoanContractView; onReload: () => Promise<void> }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   // The loan the form opened on: the version it sends and the repayments a refusal's rank names, whatever a refetch brings.
   const [opened] = useState(loan);
-  const form = useForm<ContractValues>({ resolver: zodResolver(contractSchema(t)), defaultValues: contractValuesOf(opened.contract) });
+  const contract = prepared ?? opened.contract;
+  const form = useForm<ContractValues>({ resolver: zodResolver(contractSchema(t)), defaultValues: contractValuesOf(contract) });
   const errors = useSubmitErrors(form.setError, contractPath);
   const [impossible, setImpossible] = useState<string | null>(null);
   const save = $api.useMutation('put', CONTRACT, {
@@ -76,8 +80,9 @@ function ContractForm({ loan, onReload }: { loan: LoanDetail; onReload: () => Pr
         onSubmit={(ev) => void form.handleSubmit((values) => {
           errors.clear();
           setImpossible(null);
-          save.mutate({ params: { path: { id: opened.id } }, body: { version: opened.contract.version, ...toContractBody(values) } });
+          save.mutate({ params: { path: { id: opened.id } }, body: { version: contract.version, ...toContractBody(values) } });
         })(ev)}>
+        {prepared ? <p className="text-sm text-muted-foreground">{t('loan_contract.prepared')}</p> : null}
         {impossible ? <ProblemMessage problem={{ kind: 'validation', detail: impossible }} /> : null}
         {problem ? (
           <>
@@ -90,7 +95,7 @@ function ContractForm({ loan, onReload }: { loan: LoanDetail; onReload: () => Pr
             ) : null}
           </>
         ) : null}
-        <ContractFields stored startListed={!isPlain(opened.contract)} />
+        <ContractFields stored startListed={!isPlain(contract)} />
         <FormActions><Button type="submit" disabled={save.isPending}>{t('loan_contract.submit')}</Button></FormActions>
       </form>
     </FormProvider>

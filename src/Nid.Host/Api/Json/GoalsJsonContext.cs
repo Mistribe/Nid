@@ -8,6 +8,7 @@ namespace Nid.Host.Api.Json;
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
     Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
 [JsonSerializable(typeof(GoalDetail))]
+[JsonSerializable(typeof(EmergencyTargetView))]
 [JsonSerializable(typeof(GoalList))]
 [JsonSerializable(typeof(GoalEndpoints.CreateGoalBody))]
 [JsonSerializable(typeof(GoalEndpoints.EditGoalBody))]

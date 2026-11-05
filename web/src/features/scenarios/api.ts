@@ -20,3 +20,10 @@ export const PROJECTION_SIMULATE = '/api/v1/scenarios/projection/simulate' as co
 
 export type ScenarioCompare = components['schemas']['ProjectionCompareView'];
 export const SCENARIO_COMPARE = '/api/v1/scenarios/compare' as const;
+
+export type SaleScenario = components['schemas']['SaleScenarioView'];
+export type SaleResult = components['schemas']['SaleResultView'];
+export type SaleDocument = components['schemas']['SaleScenarioDocView'];
+
+export const SALE_SCENARIOS = '/api/v1/scenarios/sale' as const;
+export const SALE_SCENARIO = '/api/v1/scenarios/sale/{id}' as const;

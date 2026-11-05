@@ -247,6 +247,8 @@ public class RealEstateProjectionTests(PostgresFixture fixture) : IClassFixture<
         var sale = Assert.Single(projection.Sales);
         Assert.Equal((events.Sales[0].Event, 12), (sale.Event, sale.Month));
         Assert.Equal(310_000m - D(balance, "balance"), sale.Proceeds);
+        // Issue #416: the balance settled, and the payment that stops (the annuity's, as September's).
+        Assert.Equal((D(balance, "balance"), projection.Months[11].LoanPayments), (sale.Settled, sale.LoanPayments));
         Assert.Equal(D(balance, "balance"), projection.Months[11].Debt);
         Assert.Equal(300_000m, projection.Months[11].PropertyValue);
         Assert.True(projection.Months[11].LoanPayments > 0m);

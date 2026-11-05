@@ -72,6 +72,22 @@ public static class RealEstateEndpoints
             })
             .Returns<LoanSimulationView>();
 
+        api.MapPost("/loans/{id:guid}/simulations/renegotiation", async (Guid id, LoanRenegotiationBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var query = body.ToQuery(new ItemId(id), reader);
+                return query is null ? reader.Problem() : (await invoker.InvokeAsync(query, ct)).ToHttp(simulation => simulation);
+            })
+            .Returns<LoanRenegotiationView>();
+
+        api.MapPost("/loans/{id:guid}/simulations/insurance", async (Guid id, LoanInsuranceComparisonBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var query = body.ToQuery(new ItemId(id), reader);
+                return query is null ? reader.Problem() : (await invoker.InvokeAsync(query, ct)).ToHttp(comparison => comparison);
+            })
+            .Returns<LoanInsuranceComparisonView>();
+
         api.MapPost("/loans", async (CreateLoanBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
@@ -209,8 +225,8 @@ public static class RealEstateEndpoints
                 .ToHttp(rental => rental))
             .Returns<PropertiesRental>();
 
-        api.MapGet("/properties/overview/costs", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPropertiesCostsQuery(ParseScope(scope)), ct)).ToHttp(costs => costs))
+        api.MapGet("/properties/overview/costs", async (string? scope, Guid? property, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPropertiesCostsQuery(ParseScope(scope), property is { } id ? new ItemId(id) : null), ct)).ToHttp(costs => costs))
             .Returns<PropertiesCosts>();
 
         api.MapGet("/properties/overview/valuation", async (string? scope, IInvoker invoker, CancellationToken ct)
@@ -566,6 +582,50 @@ public static class RealEstateEndpoints
     }
 
     public sealed record LoanPenaltyBody(Guid? LoanId, string? Amount);
+
+    /// <summary>
+    /// Issue #403: <c>{ on, annualRate, payments?, bankFees?, guaranteeFees?, penalty? }</c>; no <c>payments</c> keeps the payments
+    /// left. Rates and amounts are decimal strings.
+    /// </summary>
+    public sealed record LoanRenegotiationBody(string? On, string? AnnualRate, int? Payments, string? BankFees, string? GuaranteeFees, string? Penalty)
+    {
+        internal SimulateLoanRenegotiationQuery? ToQuery(ItemId id, FieldReader reader)
+        {
+            var on = reader.Date(On, "on");
+            var rate = LoanBodies.Number(reader, AnnualRate, "annualRate");
+            var bank = LoanBodies.Number(reader, BankFees, "bankFees", required: false);
+            var guarantee = LoanBodies.Number(reader, GuaranteeFees, "guaranteeFees", required: false);
+            var penalty = LoanBodies.Number(reader, Penalty, "penalty", required: false);
+            return reader.Ok ? new SimulateLoanRenegotiationQuery(id, on!.Value, rate!.Value, Payments, bank ?? 0m, guarantee ?? 0m, penalty ?? 0m) : null;
+        }
+    }
+
+    /// <summary>Issue #404: a quote for the contract's insurance <c>insurance</c> (its index): a monthly premium, or a rate and its base.</summary>
+    public sealed record InsuranceQuoteBody(int? Insurance, string? Mode, string? MonthlyAmount, string? AnnualRate);
+
+    /// <summary>Issue #404: <c>{ on, quotes: [ { insurance, mode, monthlyAmount?, annualRate? } ] }</c>, one quote at least.</summary>
+    public sealed record LoanInsuranceComparisonBody(string? On, IReadOnlyList<InsuranceQuoteBody>? Quotes)
+    {
+        internal CompareLoanInsuranceQuery? ToQuery(ItemId id, FieldReader reader)
+        {
+            var on = reader.Date(On, "on");
+            if (Quotes is null || Quotes.Count == 0)
+                reader.Add("quotes", "request.required", "At least one quote is required.");
+            var quotes = new List<InsuranceQuote>();
+            for (var j = 0; j < (Quotes?.Count ?? 0); j++)
+            {
+                var q = Quotes![j];
+                if (q?.Insurance is null)
+                    reader.Add($"quotes[{j}].insurance", "request.required", "A quote names the insurance it replaces.");
+                var mode = LoanBodies.Wire<InsuranceMode>(reader, q?.Mode, $"quotes[{j}].mode");
+                var monthly = LoanBodies.Number(reader, q?.MonthlyAmount, $"quotes[{j}].monthlyAmount", required: false);
+                var rate = LoanBodies.Number(reader, q?.AnnualRate, $"quotes[{j}].annualRate", required: false);
+                if (q?.Insurance is { } index && mode is { } m)
+                    quotes.Add(new InsuranceQuote(index, m, monthly, rate));
+            }
+            return reader.Ok ? new CompareLoanInsuranceQuery(id, on!.Value, quotes) : null;
+        }
+    }
 
     /// <summary>
     /// Loans dashboard spec §5.2: <c>loanId</c> required with <c>chosen</c> and refused otherwise; <c>penalties</c> optional.

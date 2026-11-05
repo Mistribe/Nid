@@ -13,10 +13,12 @@ public sealed record SubscriptionsOverview(
     MoneyView? MonthlyAmortized, MoneyView? AnnualAmortized, MoneyView? MonthCash, MoneyView? MonthCashRemaining,
     int ActiveCount, int EndedCount, IReadOnlyList<MonthView> Months, IReadOnlyList<PersonShareView> ByPerson,
     IReadOnlyList<LabelShareView> ByLabel, IReadOnlyList<ChargeLineView> Upcoming, IReadOnlyList<WatchView> Watch,
-    IReadOnlyList<FindingView> Findings) : IExposesItems
+    IReadOnlyList<FindingView> Findings, IReadOnlyList<YearView> Years, IReadOnlyList<TopProviderView> TopProviders,
+    SavingsView Savings, PriceRisesView PriceRises) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
-        => Upcoming.Select(u => u.ItemId).Concat(Watch.SelectMany(w => w.ItemIds).Select(id => new ItemId(id))).Distinct();
+        => Upcoming.Select(u => u.ItemId).Concat(Watch.SelectMany(w => w.ItemIds).Select(id => new ItemId(id)))
+            .Concat(Savings.Items.Select(s => s.ItemId)).Concat(PriceRises.Items.Select(r => r.ItemId)).Distinct();
 }
 
 /// <summary>One month of cash out, <c>yyyy-mm</c>: charges of phases of a month or less, and the rest (longer phases, purchases).</summary>

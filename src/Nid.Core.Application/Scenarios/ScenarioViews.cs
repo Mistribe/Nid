@@ -115,8 +115,9 @@ public sealed record ScenarioResultView(
 }
 
 /// <summary>
-/// One scenario of the list; <c>Kind</c> is <c>property_purchase</c> or <c>projection</c> (<see cref="ScenarioKinds"/>). A projection has no
-/// use, price, payment or debt ratio, and its <c>Gap</c> is the nominal gap at its horizon (null when its horizon can no longer be read).
+/// One scenario of the list; <c>Kind</c> is <c>property_purchase</c>, <c>property_sale</c> or <c>projection</c> (<see cref="ScenarioKinds"/>).
+/// A projection has no use, price, payment or debt ratio, and its <c>Gap</c> is the nominal gap at its horizon (null when its horizon can
+/// no longer be read); a sale has its price and gap only.
 /// </summary>
 public sealed record ScenarioListItemView(
     ItemId Id, string Kind, string Name, string? Use, DashboardMoneyView? Price, DashboardMoneyView? NewPayment, decimal? DebtRatioAfter,

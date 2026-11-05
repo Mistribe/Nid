@@ -16,11 +16,11 @@ public static class SubscriptionEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (string? scope, string? from, string? to, string? horizon, string? q, string? status, string? label, string? group,
-                IInvoker invoker, CancellationToken ct)
+                string? provider, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new ListSubscriptionsQuery(
                         ParseScope(scope), OptionalDate(from), OptionalDate(to), OptionalDate(horizon),
-                        new ListFilter(q, ParseStatus(status), ParseLabels(label)), ParseGroup(group)), ct))
+                        new ListFilter(q, ParseStatus(status), ParseLabels(label), provider), ParseGroup(group)), ct))
                 .ToHttp(list => list))
             .Returns<SubscriptionList>();
 

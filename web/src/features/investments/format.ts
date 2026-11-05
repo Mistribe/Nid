@@ -5,6 +5,9 @@ export const KINDS = ['checking', 'savings', 'pea', 'life_insurance', 'per', 'br
 export const hasPremiumsBefore2017 = (kind: string) => kind === 'life_insurance' || kind === 'tontine';
 
 export const CADENCES = ['monthly', 'quarterly', 'yearly', 'manual'] as const;
+/** A savings envelope's regulated livret (issue #399); `none` is a bank's own savings account. */
+export const REGULATED = ['none', 'livret_a', 'ldds', 'lep', 'livret_jeune'] as const;
+export const regulatedOptions = (t: TFunction) => REGULATED.map((r) => ({ value: r, label: t(`investments.regulated.${r}`) }));
 /** The categories that classify a withdrawal or an income as passive income (the server's own list). */
 export const INCOME_CATEGORIES = ['dividend', 'interest', 'distribution'] as const;
 export const FLOW_KINDS = ['contribution', 'withdrawal', 'expense', 'income', 'opening'] as const;

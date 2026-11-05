@@ -184,4 +184,67 @@ describe('Abonnements › vue d’ensemble', () => {
 
     expect(await within(await region('À surveiller')).findByText('Rien à surveiller')).toBeInTheDocument();
   });
+
+  it('Top_providers_open_the_list_on_their_provider', async () => {
+    serve(overview({ activeCount: 1, endedCount: 1, topProviders: [{ provider: ANTHROPIC, spent: eur('480.00'), partial: true }] }));
+    await renderApp('/subscriptions');
+
+    const row = within(await region('Fournisseurs qui ont le plus coûté')).getByRole('listitem');
+    expect(row).toHaveTextContent(/Anthropic.*480,00 €.*partiel/);
+    expect(within(row).getByRole('link', { name: 'Anthropic' }))
+      .toHaveAttribute('href', '/subscriptions?tab=list&status=all&provider=anthropic');
+  });
+
+  it('Savings_show_the_twelve_months_total_and_the_list_behind_it', async () => {
+    serve(overview({ activeCount: 1, endedCount: 1, savings: { last12Months: eur('60.00'), partial: false, items: [
+      { itemId: PRIME, displayName: 'World of Warcraft', provider: null, endedOn: '2025-04-01', last12Months: eur('60.00') },
+    ] } }));
+    await renderApp('/subscriptions');
+
+    const savings = await region('Économisé grâce aux résiliations');
+    expect(savings).toHaveTextContent('60,00 € depuis 12 mois');
+    expect(within(savings).getByRole('listitem')).toHaveTextContent(/World of Warcraft.*Fini le 1 avril 2025.*60,00 €/);
+  });
+
+  it('Price_rises_list_increases_and_launch_offers_ending_and_are_absent_without_any', async () => {
+    serve(overview({ activeCount: 2 }));
+    await renderApp('/subscriptions');
+    await region('À surveiller');
+    expect(screen.queryByRole('region', { name: 'Hausses de prix' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Économisé grâce aux résiliations' })).not.toBeInTheDocument();
+
+    const month = { count: 1, unit: 'month' };
+    serve(overview({ activeCount: 2, priceRises: { yearlyTotal: eur('36.00'), items: [
+      { itemId: SPOTIFY, displayName: 'Spotify', provider: null, on: '2026-03-01', oldPrice: eur('9.99'), oldEvery: month,
+        newPrice: eur('12.99'), newEvery: month, yearlyDifference: eur('36.00'), promoEnded: false },
+      { itemId: PRIME, displayName: 'Prime', provider: null, on: '2026-02-01', oldPrice: eur('0.99'), oldEvery: month,
+        newPrice: eur('9.99'), newEvery: month, yearlyDifference: eur('108.00'), promoEnded: true },
+    ] } }));
+    await renderApp('/subscriptions');
+
+    const rises = await region('Hausses de prix');
+    expect(rises).toHaveTextContent('+36,00 € par an sur 12 mois');
+    const [rise, promo] = within(rises).getAllByRole('listitem');
+    expect(rise).toHaveTextContent(/Spotify.*9,99 € \/ 1 mois → 12,99 € \/ 1 mois le 1 mars 2026.*\+36,00 € par an/);
+    expect(within(rise!).getByRole('link', { name: 'Spotify' })).toHaveAttribute('href', `/subscriptions/${SPOTIFY}?tab=history`);
+    expect(promo).toHaveTextContent('Fin d’offre de lancement');
+    expect(promo).not.toHaveTextContent('108');
+  });
+
+  it('Years_switch_between_labels_and_total_and_show_a_table', async () => {
+    const label = (paid: string) => [{ key: 'video', name: 'Vidéo', color: '#E50914', paid: eur(paid) }];
+    serve(overview({ activeCount: 1, years: [
+      { year: 2025, paid: eur('120.00'), upcoming: eur('0.00'), total: eur('120.00'), byLabel: label('120.00') },
+      { year: 2026, paid: eur('100.00'), upcoming: eur('20.00'), total: eur('120.00'), byLabel: label('100.00') },
+    ] }));
+    const { user } = await renderApp('/subscriptions');
+
+    const years = await region('Coût par an');
+    await user.click(await within(years).findByRole('button', { name: 'Afficher en tableau' }));
+    const rows = within(years).getAllByRole('row');
+    expect(rows[2]).toHaveTextContent(/2026.*100,00 €.*20,00 €.*120,00 €/);
+    expect(within(years).queryByRole('columnheader', { name: 'Vidéo' })).not.toBeInTheDocument();
+    await user.click(within(years).getByRole('radio', { name: 'Par libellé' }));
+    expect(within(years).getByRole('columnheader', { name: 'Vidéo' })).toBeInTheDocument();
+  });
 });

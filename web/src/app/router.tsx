@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import type { Panel } from '@/features/dashboard/KeyFigures';
+import type { LoanContractView } from '@/features/loans/api';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
 import { ErrorPage } from '@/components/ErrorPage';
 import { ForbiddenPage } from './ForbiddenPage';
@@ -26,23 +27,25 @@ export type RouterContext = { capabilities: Capabilities };
 export type RootSearch = { scope?: 'me' };
 /** The tax page's tab and the year of its figures (absent: the tab's own default). */
 export type TaxSearch = RootSearch & DetailSearch & { year?: string };
+/** A childcare arrangement's tab and the year of its summary (#411; absent: the year just ended). */
+export type ChildcareSearch = DetailSearch & { year?: string };
 export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel; projection?: ProjectionHorizon; real?: 0 };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
-/** The kind of scenario to create: a purchase without it (the page it always was), a projection with `projection`. */
-export type NewScenarioSearch = { kind?: 'projection' };
+/** The kind of scenario to create: a purchase without it (the page it always was), a projection or a sale (issue #416) with it. */
+export type NewScenarioSearch = { kind?: 'projection' | 'sale' };
 const RETIRE = /^retire:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * The list's own filters, in the URL beside the root scope (labels comma-joined, 1E2b2 design §3.3), and its tab. The
  * defaults stay out of the URL: `status` active, `group` provider (subscriptions dashboard design §3.3), `month` (the
- * calendar's, `yyyy-mm`) the current one.
+ * calendar's, `yyyy-mm`) the current one. `provider` (#395) keeps one provider's subscriptions, by key.
  */
 export type SubscriptionsSearch = {
   status?: 'active' | 'ended' | 'all'; q?: string; label?: string; group?: 'provider' | 'label' | 'person' | 'none'; tab?: string;
-  month?: string;
+  month?: string; provider?: string;
 };
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
@@ -80,6 +83,9 @@ export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
 export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
+
+/** Issue #412: a new goal opened as an emergency fund of `months` (1 to 24, anything else dropped). */
+export type NewGoalSearch = { kind?: 'emergency_fund'; months?: number };
 
 /** Issue #17: a new loan opened from a new property, already linked to it. */
 export type NewLoanSearch = { property?: string };
@@ -141,6 +147,7 @@ const subscriptionsRoute = createRoute({
     ...(search.group === 'label' || search.group === 'person' || search.group === 'none' ? { group: search.group } : {}),
     ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
     ...(typeof search.label === 'string' && search.label !== '' ? { label: search.label } : {}),
+    ...(typeof search.provider === 'string' && search.provider !== '' ? { provider: search.provider } : {}),
     // A malformed month would be a 400: it is overwritten (the raw key would survive a mere omission), and the calendar
     // shows the current one.
     month: typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : undefined,
@@ -197,6 +204,10 @@ const goalNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/goals/new',
   beforeLoad: requireModule('goals'),
+  validateSearch: (search: Record<string, unknown>): NewGoalSearch => ({
+    ...(search.kind === 'emergency_fund' ? { kind: 'emergency_fund' } : {}),
+    ...(Number.isInteger(search.months) && Number(search.months) >= 1 && Number(search.months) <= 24 ? { months: Number(search.months) } : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/goals/NewGoal'), 'NewGoal'),
 });
 
@@ -226,7 +237,11 @@ const childcareNewRoute = createRoute({
 const childcareDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/childcare/$id',
-  validateSearch: detailSearch,
+  // The router parses `year=2025` to a number: both spellings are read, anything but 4 digits is dropped.
+  validateSearch: (search: Record<string, unknown>): ChildcareSearch => ({
+    ...detailSearch(search),
+    ...(/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
+  }),
   beforeLoad: requireModule('childcare'),
   component: lazyRouteComponent(() => import('@/features/childcare/ChildcareDetailPage'), 'ChildcareDetailPage'),
 });
@@ -305,7 +320,8 @@ const scenariosRoute = createRoute({
 const scenarioNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/scenarios/new',
-  validateSearch: (search: Record<string, unknown>): NewScenarioSearch => (search.kind === 'projection' ? { kind: 'projection' } : {}),
+  validateSearch: (search: Record<string, unknown>): NewScenarioSearch =>
+    (search.kind === 'projection' || search.kind === 'sale' ? { kind: search.kind } : {}),
   component: lazyRouteComponent(() => import('@/features/scenarios/new/NewScenarioPage'), 'NewScenarioPage'),
 });
 
@@ -314,6 +330,14 @@ const projectionScenarioRoute = createRoute({
   path: '/scenarios/projection/$id',
   validateSearch: detailSearch,
   component: lazyRouteComponent(() => import('@/features/scenarios/projection/routes'), 'ProjectionScenarioPage'),
+});
+
+// Issue #416: a sale scenario's figures, tax and projection.
+const saleScenarioRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/scenarios/sale/$id',
+  validateSearch: detailSearch,
+  component: lazyRouteComponent(() => import('@/features/scenarios/sale/SaleScenarioPage'), 'SaleScenarioPage'),
 });
 
 // Projection spec §14.2: the base and up to three scenarios; the ids and the horizon in the URL.
@@ -478,6 +502,7 @@ const subscriptionDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/subscriptions/$id',
   beforeLoad: requireModule('subscriptions'),
+  validateSearch: detailSearch,
   component: lazyRouteComponent(() => import('@/features/subscriptions/SubscriptionDetailPage'), 'SubscriptionDetailPage'),
 });
 
@@ -575,7 +600,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
@@ -600,6 +625,8 @@ declare module '@tanstack/react-router' {
   interface HistoryState {
     loanSaved?: 'contract';
     loanRepayment?: { onDate: string; amount: string; effect: 'reduce_term' | 'reduce_payment'; penalty: string };
+    /** Issues #403–#404: a simulation's contract change, opened on the contract page and sent only from there. */
+    loanContract?: LoanContractView;
   }
 }
 

@@ -27,10 +27,10 @@ public static class MonthCharges
         var label = month.ToString("yyyy-MM", CultureInfo.InvariantCulture);
         var inMonth = ChargeCycles.HouseholdCharges(beyondHorizon ? [] : set).Where(x => InMonth(x.Charge, month))
             .OrderBy(x => x.Charge.Date).ThenBy(x => x.Sub.DisplayName, StringComparer.Ordinal).ToList();
-        var converted = FxConversion.Convert(inMonth.Select(x => Piece(x.Charge)), rates, reference);
+        var converted = FxConversion.Convert(inMonth.Select(x => SpendingHistory.Piece(x.Charge)), rates, reference);
         var lines = inMonth.Select(x =>
         {
-            var one = FxConversion.Convert([Piece(x.Charge)], rates, reference);
+            var one = FxConversion.Convert([SpendingHistory.Piece(x.Charge)], rates, reference);
             return new ChargeLineView(x.Charge.Date, x.Sub.Input.Subscription.Id, x.Sub.DisplayName, x.Sub.Provider,
                 MoneyView.From(x.Charge.Price), one.Total is { } m ? MoneyView.From(m) : null);
         }).ToList();
@@ -42,9 +42,7 @@ public static class MonthCharges
 
     /// <summary>Every piece <see cref="Build"/> converts, for one rate query.</summary>
     public static IEnumerable<CostPiece> RatePieces(IReadOnlyList<BuiltSubscription> set, YearMonth month)
-        => ChargeCycles.HouseholdCharges(set).Where(x => InMonth(x.Charge, month)).Select(x => Piece(x.Charge));
+        => ChargeCycles.HouseholdCharges(set).Where(x => InMonth(x.Charge, month)).Select(x => SpendingHistory.Piece(x.Charge));
 
     private static bool InMonth(Charge charge, YearMonth month) => new YearMonth(charge.Date.Year, charge.Date.Month) == month;
-
-    private static CostPiece Piece(Charge charge) => new(charge.Date, charge.Price.Currency, charge.Price.Amount, charge.IsProjected);
 }

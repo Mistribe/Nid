@@ -5,7 +5,7 @@ import { countChanges, draftErrors, initialDraft, profileBody } from './draft';
 describe('profile draft', () => {
   it('sends the saved profile back unchanged', () => {
     expect(profileBody(initialDraft(estimate()))).toEqual({
-      statuses: { [ADULT]: 'non_executive' }, dependents: null, childrenUnder6: 2, rentalRegime: null, pinel: [],
+      statuses: { [ADULT]: 'non_executive' }, dependents: null, childrenUnder6: 2, rentalRegime: null, department: null, pinel: [],
       contributionRates: {}, actualExpenses: {}, perUnusedCeilings: {}, perCeilings: {}, perCeilingsExpiring: {}, perPooling: false,
       exemptIncomes: {}, rentalDeficitCarried: '0.00', childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00',
       donationsAid: '0.00', donationsAidLate: '0.00', rentalEnergyWorks: '0.00',
@@ -37,5 +37,14 @@ describe('profile draft', () => {
     expect(draftErrors({ ...initial, rates: { [ADULT]: '2x' } })).toEqual({ [`rates.${ADULT}`]: 'rate' });
     expect(draftErrors({ ...initial, under6: '' })).toEqual({ under6: 'count' });
     expect(draftErrors({ ...initial, amounts: { ...initial.amounts, donations: '1,23456' } })).toEqual({ 'amounts.donations': 'amount' });
+  });
+
+  it('checks the department as the server does and sends it trimmed', () => {
+    const initial = initialDraft(estimate());
+
+    for (const code of ['01', '2a', '2B', '75', '974']) expect(draftErrors({ ...initial, department: code })).toEqual({});
+    for (const code of ['20', '96', '977', '1']) expect(draftErrors({ ...initial, department: code })).toEqual({ department: 'department' });
+    expect(profileBody({ ...initial, department: ' 75 ' })).toMatchObject({ department: '75' });
+    expect(countChanges({ ...initial, department: '75' }, initial)).toBe(1);
   });
 });

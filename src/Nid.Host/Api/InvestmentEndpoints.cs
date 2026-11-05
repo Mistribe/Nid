@@ -314,7 +314,7 @@ public static class InvestmentEndpoints
     public sealed record CreateEnvelopeBody(
         string DisplayName, string Kind, string Currency, string? Visibility, IReadOnlyList<OwnerBody> Owners,
         string? Institution, string? AccountHint, string? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
-        OpeningBody? Opening, FirstValuationBody? FirstValuation, string? PremiumsBefore2017, string? ShareLevel = null)
+        OpeningBody? Opening, FirstValuationBody? FirstValuation, string? PremiumsBefore2017, string? ShareLevel = null, string? Regulated = null)
     {
         internal CreateEnvelopeCommand? ToCommand(FieldReader reader)
         {
@@ -335,7 +335,7 @@ public static class InvestmentEndpoints
                     (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(),
                     Institution, AccountHint, openedOn, ValuationCadence, StaleAfterDays, Note,
                     Opening is null ? null : new OpeningDraft(openingOn!.Value, openingAmount!.Value),
-                    FirstValuation is null ? null : new FirstValuationDraft(firstOn!.Value, firstAmount!.Value), premiums, level!.Value)
+                    FirstValuation is null ? null : new FirstValuationDraft(firstOn!.Value, firstAmount!.Value), premiums, level!.Value, Regulated)
                 : null;
         }
     }
@@ -344,7 +344,7 @@ public static class InvestmentEndpoints
         string? DisplayName, string? Kind, string? Institution, bool ClearInstitution, string? AccountHint, bool ClearAccountHint,
         string? OpenedOn, bool ClearOpenedOn, string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays,
         string? Note, bool ClearNote, decimal? UcShareFloorPct, bool? ClearUcShareFloorPct,
-        string? PremiumsBefore2017, bool? ClearPremiumsBefore2017)
+        string? PremiumsBefore2017, bool? ClearPremiumsBefore2017, string? Regulated = null, bool? ClearRegulated = null)
     {
         internal EditEnvelopeCommand? ToCommand(ItemId id, FieldReader reader)
         {
@@ -357,7 +357,7 @@ public static class InvestmentEndpoints
             OpenedOn: OptionalDate(OpenedOn), ClearOpenedOn: ClearOpenedOn, StaleAfterDays: StaleAfterDays,
             ClearStaleAfterDays: ClearStaleAfterDays, Note: Note, ClearNote: ClearNote, UcShareFloorPct: UcShareFloorPct,
             ClearUcShareFloorPct: ClearUcShareFloorPct ?? false, PremiumsBefore2017: premiums,
-            ClearPremiumsBefore2017: ClearPremiumsBefore2017 ?? false), ValuationCadence);
+            ClearPremiumsBefore2017: ClearPremiumsBefore2017 ?? false, ClearRegulated: ClearRegulated ?? false), ValuationCadence, Regulated);
     }
 
     // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member

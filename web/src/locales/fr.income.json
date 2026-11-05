@@ -65,6 +65,13 @@
     "next_line": "{{date}} · {{amount}}",
     "over_1y": "Sur 1 an",
     "since_start": "depuis le début : {{value}} %",
+    "withholding": {
+      "rates": "Prélèvement à la source {{rate}} % · taux réel estimé {{real}} %",
+      "lent": "{{name}} : environ {{amount}} par mois prélevés en trop sur ses salaires, rendus après la déclaration",
+      "short": "{{name}} : environ {{amount}} par mois prélevés en moins sur ses salaires, à payer après la déclaration",
+      "indicative": "Estimation indicative, selon l’estimation d’impôt de l’année.",
+      "adjust": "Ajuster le taux de prélèvement"
+    },
     "received": "Perçu en {{year}}",
     "received_one_offs": "dont {{amount}} d’exceptionnels",
     "smoothed": "lissé sur l’année",

@@ -284,6 +284,15 @@ describe('DashboardPage', () => {
     expect(screen.queryByRole('link', { name: /à faire/ })).not.toBeInTheDocument();
   });
 
+  it('counts the expected documents in one line to the documents page (#414)', async () => {
+    serve(dashboard());
+    const one = { subject: 'property', targetKind: 'core.item', targetId: '00000000-0000-7000-8000-0000000000f1', label: 'Maison', module: 'realestate', role: 'deed', period: 0 };
+    server.use(http.get('*/api/v1/documents/expected', () => HttpResponse.json({ items: [one, { ...one, subject: 'loan', role: 'amortization_table' }, { ...one, subject: 'tax_year', period: 2025 }] })));
+    await renderApp('/dashboard');
+
+    expect(await screen.findByRole('link', { name: '3 documents attendus' })).toHaveAttribute('href', '/documents');
+  });
+
   it('shows no notice when nothing is due', async () => {
     serve(dashboard());
     await renderApp('/dashboard');

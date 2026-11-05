@@ -87,6 +87,32 @@ public sealed record RepaymentOutcome(
 
 public sealed record EarlyRepaymentSimulation(LocalDate On, decimal Amount, decimal Penalty, IReadOnlyList<RepaymentOutcome> Outcomes);
 
+/// <summary>
+/// Issue #403: a loan from a renegotiation's date on — the first payment after it (insurance excluded), the end, the payments,
+/// interest and insurance left, the fees and the total of those three.
+/// </summary>
+public sealed record RenegotiationSide(
+    decimal Payment, LocalDate? EndDate, int PaymentsLeft, decimal InterestLeft, decimal InsuranceLeft, decimal Fees, decimal TotalCost);
+
+/// <summary>
+/// Issue #403: the loan as it runs and renegotiated, side by side. <c>Saving</c> is the total cost left saved, fees included;
+/// <c>BreakEvenOn</c> the payment from which the interest and insurance saved cover the fees, null when they never do.
+/// <c>Terms</c> is the renegotiated contract the schedule engine read.
+/// </summary>
+public sealed record RenegotiationSimulation(
+    LocalDate On, decimal AnnualRate, int Payments, RenegotiationSide Current, RenegotiationSide Renegotiated, decimal Saving,
+    LocalDate? BreakEvenOn, LoanTerms Terms);
+
+/// <summary>Issue #404: an insurance line (one insured person) with what is left to pay from the switch date, now and with a quote.</summary>
+public sealed record InsuranceComparisonLine(int Index, LoanInsurance Current, decimal CurrentLeft, LoanInsurance? Quote, decimal? QuoteLeft);
+
+/// <summary>Issue #404: an insurance of the prepared contract; <c>Line</c> is the contract's line it keeps (cut on the switch date), null for a quote.</summary>
+public sealed record ProposedInsurance(int? Line, LoanInsurance Insurance);
+
+/// <summary>Issue #404: every line still due from <c>On</c>; <c>Insurances</c> the contract's insurances with each quote taking over on <c>On</c>.</summary>
+public sealed record InsuranceComparison(
+    LocalDate On, IReadOnlyList<InsuranceComparisonLine> Lines, decimal CurrentLeft, decimal QuotedLeft, IReadOnlyList<ProposedInsurance> Insurances);
+
 public static class LoanCodes
 {
     public const string InvalidLoan = "realestate.invalid_loan";

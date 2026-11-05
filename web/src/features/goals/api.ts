@@ -12,12 +12,14 @@ export type GoalMoney = components['schemas']['GoalMoneyView'];
 export type CreateGoalBody = components['schemas']['CreateGoalBody'];
 export type EditGoalBody = components['schemas']['EditGoalBody'];
 export type GoalFundingBody = components['schemas']['GoalFundingBody'];
+export type EmergencyTarget = components['schemas']['EmergencyTargetView'];
 
 export const GOALS = '/api/v1/goals' as const;
 export const GOAL = '/api/v1/goals/{id}' as const;
 export const CLOSE_GOAL = '/api/v1/goals/{id}/close' as const;
 export const REOPEN_GOAL = '/api/v1/goals/{id}/reopen' as const;
 export const PROGRESS = '/api/v1/goals/{id}/progress/{on}' as const;
+export const EMERGENCY_TARGET = '/api/v1/goals/emergency-target' as const;
 
 export type Scope = 'me' | 'household';
 
@@ -35,6 +37,12 @@ export function useGoals(scope: Scope, closed: boolean) {
 export function useGoal(id: string, scope: Scope) {
   const { $api } = useApi();
   return $api.useQuery('get', GOAL, { params: { path: { id }, query: { scope } } });
+}
+
+/** Issue #412: the target an emergency fund of `months` would have, computed by the server before the goal is saved. */
+export function useEmergencyTarget(months: number | null, scope: Scope) {
+  const { $api } = useApi();
+  return $api.useQuery('get', EMERGENCY_TARGET, { params: { query: { months: months ?? 0, scope } } }, { enabled: months !== null });
 }
 
 function useWrite() {
