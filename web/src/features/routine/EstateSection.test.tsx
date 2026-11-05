@@ -55,7 +55,10 @@ describe('the properties’ routine', () => {
     const rents = within(biens).getByRole('region', { name: 'Loyers du mois' });
     expect(within(rents).getByLabelText('Loyer T2 de Locatif')).not.toBeChecked();
     expect(within(rents).getByLabelText('Montant : Loyer T2 de Locatif')).toHaveValue('950.00');
-    expect(within(biens).getByRole('button', { name: 'Enregistrer les biens' })).toBeDisabled();
+    // Never a disabled save (design-system.md §6): enabled, at the foot of the form, not in a fixed bar.
+    const save = within(biens).getByRole('button', { name: 'Enregistrer les biens' });
+    expect(save).toBeEnabled();
+    expect(save.closest('.sticky')).toBeNull();
     expect(screen.getByRole('button', { name: 'Enregistrer les placements' })).toBeEnabled();
     await expectNoAxeViolations(container);
   });
@@ -295,13 +298,14 @@ describe('the properties’ routine', () => {
 
   it('with nothing due says so and opens the other estimates', async () => {
     serve(estateRoutine({ estimates: [estimate({ due: false, lastAsOf: '2025-06-30' })] }));
-    const { container } = await renderApp('/routine');
+    const { container, user } = await renderApp('/routine');
     const biens = await section();
 
     await waitFor(() => expect(within(biens).getByText('Rien à saisir pour vos biens ce mois-ci.')).toBeInTheDocument());
     expect(within(biens).getByRole('button', { name: 'Autres biens' })).toHaveAttribute('aria-expanded', 'true');
-    expect(within(biens).getByRole('button', { name: 'Enregistrer les biens' })).toBeDisabled();
     await expectNoAxeViolations(container);
+    await user.click(within(biens).getByRole('button', { name: 'Enregistrer les biens' }));
+    expect(await within(biens).findByRole('status')).toHaveTextContent('Rien à enregistrer : saisissez une estimation ou cochez une charge ou un loyer.');
   });
 
   it('is not shown without the real estate module', async () => {

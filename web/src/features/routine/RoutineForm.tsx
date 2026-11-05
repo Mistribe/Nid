@@ -10,6 +10,7 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChevronDown } from 'lucide-react';
 import { Field } from '@/components/form/Field';
+import { FormActions } from '@/components/page/FormPage';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -26,7 +27,7 @@ export type RoutineValues = { lines: { id: string; value: string; contribution: 
 export type Banked = Record<string, string>;
 
 const POSITIVE = /^(?!0+(?:[.,]0+)?$)\d+([.,]\d{1,4})?$/;
-const input = 'text-right tabular-nums md:w-36';
+const input = 'text-right tabular-nums';
 /** The fields Enter moves between: Radix adds a hidden input beside each checkbox, which is not a stop. */
 const STOPS = 'input:not([aria-hidden="true"]), button[role="checkbox"]';
 const filled = (l: RoutineValues['lines'][number]) => !l.skip && (l.value.trim() !== '' || l.contribution.trim() !== '');
@@ -55,6 +56,7 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
   const values = useWatch({ control: form.control });
   const [problem, setProblem] = useState<ReturnType<typeof present> | null>(null);
   const [othersOpen, setOthersOpen] = useState<boolean | null>(null);
+  const [nothing, setNothing] = useState(false);
   const save = $api.useMutation('post', ROUTINE, { onSuccess: () => {
     void invalidateInvestments(queryClient);
     // The list of the month: what was just recorded is no longer due.
@@ -87,6 +89,7 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
 
   const submit = form.handleSubmit((v) => {
     setProblem(null);
+    if (!v.lines.some(filled)) { setNothing(true); return; }
     let invalid = false;
     v.lines.forEach((l, i) => {
       if (!filled(l)) return;
@@ -126,26 +129,28 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
   const row = ({ line, index }: { line: RoutineLine; index: number }) => {
     const e = form.formState.errors.lines?.[index];
     return (
-      <li key={line.id} className="flex flex-col gap-3 p-4 md:grid md:grid-cols-[1fr_auto_auto_auto] md:items-end">
-          <div>
-            <p className="font-medium">{line.name}</p>
+      // One grid for every row (issue 346): the name in its column, the two amounts aligned from row to row, « Passer » last.
+      // The labels are short, the row names the envelope; each control's accessible name still carries it.
+      <li key={line.id} className="flex flex-col gap-3 p-4 md:grid md:grid-cols-[minmax(0,1fr)_9rem_9rem_6rem] md:items-end md:gap-x-4">
+          <div className="min-w-0">
+            <p className="font-medium break-words">{line.name}</p>
             <p className="text-sm text-muted-foreground">
               {line.lastValue && line.lastAsOf ? t('routine.last', { amount: formatMoney(line.lastValue), date: formatLocalDate(line.lastAsOf) }) : t('routine.no_last')}
             </p>
           </div>
           {banked[line.id] ? (
-            <p className="text-sm text-muted-foreground md:w-36 md:pb-2">{t('banks.routine_balance', { date: dayMonth(banked[line.id]!) })}</p>
+            <p className="text-sm text-muted-foreground md:pb-2">{t('banks.routine_balance', { date: dayMonth(banked[line.id]!) })}</p>
           ) : (
-            <Field label={t('routine.value', { name: line.name })} error={e?.value?.message}>
-              {(c) => <Input inputMode="decimal" {...c} {...form.register(`lines.${index}.value`)} className={input} />}
+            <Field label={t('routine.value_short')} error={e?.value?.message}>
+              {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine.value', { name: line.name })} {...form.register(`lines.${index}.value`)} className={input} />}
             </Field>
           )}
-          <Field label={t('routine.contribution', { name: line.name })} error={e?.contribution?.message}>
-            {(c) => <Input inputMode="decimal" {...c} {...form.register(`lines.${index}.contribution`)} className={input} />}
+          <Field label={t('routine.contribution_short')} error={e?.contribution?.message}>
+            {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine.contribution', { name: line.name })} {...form.register(`lines.${index}.contribution`)} className={input} />}
           </Field>
           <Controller control={form.control} name={`lines.${index}.skip`} render={({ field }) => (
-            <Field inline label={t('routine.skip', { name: line.name })}>
-              {(c) => <Checkbox {...c} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
+            <Field inline label={t('routine.skip_short')}>
+              {(c) => <Checkbox {...c} aria-label={t('routine.skip', { name: line.name })} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
             </Field>
           )} />
       </li>
@@ -155,7 +160,8 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
   return (
     <form noValidate onKeyDown={onKeyDown} onSubmit={(ev) => void submit(ev)} className="space-y-4">
       {problem ? <ProblemMessage problem={problem} /> : null}
-      <section aria-label={t('routine.due')} data-guide="routine.due" className="space-y-3">        <h2 className="text-lg font-semibold">{t('routine.due')}</h2>
+      <section aria-label={t('routine.due')} data-guide="routine.due" className="space-y-3">
+        <h2 className="text-title">{t('routine.due')}</h2>
         {due.length === 0 ? <p className="text-muted-foreground">{t('routine.all_done', { month })}</p> : <ul className="divide-y rounded-lg border">{due.map(row)}</ul>}
       </section>
       {others.length > 0 ? (
@@ -166,11 +172,13 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
           <CollapsibleContent><ul className="divide-y rounded-lg border">{others.map(row)}</ul></CollapsibleContent>
         </Collapsible>
       ) : null}
-      <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
-        <Button type="submit" disabled={count === 0 || save.isPending} data-guide="routine.save">
+      {/* At the foot of the form, never in a fixed bar (design-system.md §8.5); with nothing filled the click says so (§6). */}
+      <FormActions>
+        {nothing && count === 0 ? <p role="status" className="mr-auto text-sm text-muted-foreground">{t('routine.nothing')}</p> : null}
+        <Button type="submit" disabled={save.isPending} data-guide="routine.save">
           {t('routine.save')}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

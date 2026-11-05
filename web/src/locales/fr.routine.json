@@ -19,6 +19,7 @@
     "empty": "Rien à saisir pour vos biens ce mois-ci.",
     "add_property": "Ajouter un bien",
     "save": "Enregistrer les biens",
+    "nothing": "Rien à enregistrer : saisissez une estimation ou cochez une charge ou un loyer.",
     "saved": "Biens enregistrés.",
     "undone": "Saisie des biens annulée.",
     "recap": "Récapitulatif des biens",

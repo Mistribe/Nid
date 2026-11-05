@@ -188,11 +188,31 @@ describe('the routine', () => {
   });
 
   it('says when everything is up to date and opens the others', async () => {
-    serve(routine([line({ due: false, lastAsOf: '2025-09-30' })]));
-    await renderApp('/routine');
+    const posted: unknown[] = [];
+    serve(routine([line({ due: false, lastAsOf: '2025-09-30' })]), posted);
+    const { user } = await renderApp('/routine');
     expect(await screen.findByText('Tout est à jour pour septembre 2025.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Autres enveloppes' })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', { name: 'Enregistrer les placements' })).toBeDisabled();
+
+    // Never a disabled save (design-system.md §6): the click with nothing filled says so and sends nothing.
+    const save = screen.getByRole('button', { name: 'Enregistrer les placements' });
+    expect(save).toBeEnabled();
+    expect(save.closest('.sticky')).toBeNull();
+    await user.click(save);
+    expect(await screen.findByRole('status')).toHaveTextContent('Rien à enregistrer : saisissez une valeur ou un versement.');
+    expect(posted).toEqual([]);
+  });
+
+  it('labels each field shortly, the row naming the envelope; the accessible name still carries it', async () => {
+    serve(routine(lines()));
+    await renderApp('/routine');
+
+    const due = await screen.findByRole('region', { name: 'À relever' });
+    expect(within(due).getAllByText('Valeur', { selector: 'label' }).length).toBeGreaterThan(0);
+    expect(within(due).getAllByText('Versements du mois', { selector: 'label' }).length).toBeGreaterThan(0);
+    expect(within(due).queryByText(/^Valeur de /, { selector: 'label' })).toBeNull();
+    expect(within(due).getByRole('textbox', { name: 'Valeur de PEA' })).toBeInTheDocument();
+    expect(within(due).getByRole('checkbox', { name: 'Passer PEA' })).toBeInTheDocument();
   });
 
   it('puts its date in the filter row, the label before the field', async () => {

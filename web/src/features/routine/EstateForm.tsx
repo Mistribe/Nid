@@ -18,6 +18,7 @@ import { invalidateProperties } from '../properties/api';
 import { categoryText } from '../properties/format';
 import { ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
 import { Field } from '@/components/form/Field';
+import { FormActions } from '@/components/page/FormPage';
 import { messageFor } from '../subscriptions/fieldErrors';
 import { todayIso } from '../subscriptions/today';
 import { ESTATE_ROUTINE, type EstateEstimate, type EstateRecap, type EstateRoutineView } from './api';
@@ -75,6 +76,7 @@ export function EstateForm({ view, initial, onSaved }: {
   const values = useWatch({ control: form.control });
   const [problem, setProblem] = useState<ReturnType<typeof present> | null>(null);
   const [othersOpen, setOthersOpen] = useState<boolean | null>(null);
+  const [nothing, setNothing] = useState(false);
   const save = $api.useMutation('post', ESTATE_ROUTINE, { onSuccess: () => {
     void invalidateProperties(queryClient);
     // The month's lines: what was just recorded is now « already entered », its estimate no longer due.
@@ -108,6 +110,7 @@ export function EstateForm({ view, initial, onSaved }: {
   };
 
   const submit = form.handleSubmit((v) => {
+    if (!ready) { setNothing(true); return; }
     setProblem(null);
     let invalid = false;
     v.estimates.forEach((l, i) => {
@@ -225,9 +228,11 @@ export function EstateForm({ view, initial, onSaved }: {
         t('routine_estate.cost_line', { category: categoryText(t, c.category), name: c.name }), c.currency, c.alreadyEntered)))}
       {groupOf('rents', t('routine_estate.rents'), view.rents.map((r, i) => tickedRow('rents', i, `${r.tenancyId}:${r.category}`,
         t(r.category === 'recoverable_charges' ? 'routine_estate.charges_line' : 'routine_estate.rent_line', { label: r.label, name: r.name }), r.currency, r.alreadyEntered)))}
-      <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
-        <Button type="submit" disabled={!ready || save.isPending}>{t('routine_estate.save')}</Button>
-      </div>
+      {/* At the foot of the form, never in a fixed bar (design-system.md §8.5); with nothing entered the click says so (§6). */}
+      <FormActions>
+        {nothing && !ready ? <p role="status" className="mr-auto text-sm text-muted-foreground">{t('routine_estate.nothing')}</p> : null}
+        <Button type="submit" disabled={save.isPending}>{t('routine_estate.save')}</Button>
+      </FormActions>
     </form>
   );
 }
