@@ -71,6 +71,8 @@ Une API non authentifiée répond `401` **sans redirection HTML** : le SPA relan
 
 La page `/login-refused` explique ces refus et affiche l'email reçu, pour qu'on puisse le faire correspondre.
 
+Quand le fournisseur d'identité ne répond pas (son document de découverte est illisible), `/auth/login` envoie vers `/login-unavailable` au lieu d'une erreur 500 vide : la page le dit et propose de réessayer vers la page demandée.
+
 - **Aucun adulte n'est admin d'office.** Le premier administrateur est celui que l'hébergeur met dans le groupe admin ; tant que personne n'y est, personne n'administre Nid, et c'est le fournisseur d'identité qu'il faut corriger. Plusieurs admins sont possibles ; Nid n'édite pas le rôle (la zone admin le montre, `administration-and-audit.md` §2).
 - **Confiance** : qui administre Pocket ID décide de l'accès et du rôle admin, et peut donner à un compte l'email d'un adulte en attente. C'est l'hébergeur, déjà dans la frontière de confiance (`administration-and-audit.md` §1).
 - **Récupération** : la `person` est retrouvée par `oidc_subject`. Si le `sub` change (Pocket ID réinstallé, utilisateur recréé), le nouvel `sub` est refusé (`core.email_taken`). La commande d'administration `rebind-subject` (`administration-and-audit.md` §3) rattache la personne existante au nouvel `sub` et ferme ses sessions dans la même écriture (1F4). Sans elle, l'accès serait perdu.

@@ -125,6 +125,16 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Login_with_the_identity_provider_unreachable_sends_the_browser_to_a_page_that_says_so()
+    {
+        // auth.example.test does not resolve: the discovery document cannot be read, as when the provider is down.
+        var response = await Client().GetAsync("/auth/login?returnUrl=%2Floans%3Ftab%3Dall", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/login-unavailable?returnUrl=%2Floans%3Ftab%3Dall", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
     public async Task Unsafe_requests_without_the_csrf_header_are_refused()
     {
         var response = await Client().PostAsync("/auth/logout", content: null, cancellationToken: TestContext.Current.CancellationToken);

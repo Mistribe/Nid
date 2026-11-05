@@ -25,6 +25,9 @@ export const SIGNED_OUT_PATH = '/signed-out';
 /** Where the server sends an identity no administrator added (identity-and-access/authentication.md §5). */
 export const LOGIN_REFUSED_PATH = '/login-refused';
 
+/** Where the server sends the browser when the identity provider does not answer (issue 363). */
+export const LOGIN_UNAVAILABLE_PATH = '/login-unavailable';
+
 /** A relative path only: /auth/login refuses anything else (ReturnUrl.IsSafe). */
 export const loginUrl = (location: Pick<Location, 'pathname' | 'search'>): string =>
   `/auth/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`;

@@ -9,12 +9,29 @@ namespace Nid.Host.Auth;
 
 public static class AuthEndpoints
 {
+    /// <summary>Where <c>/auth/login</c> sends the browser when the identity provider does not answer.</summary>
+    public const string LoginUnavailablePath = "/login-unavailable";
+
     public static IEndpointRouteBuilder MapAuth(this IEndpointRouteBuilder routes)
     {
-        routes.MapGet("/auth/login", (string? returnUrl) =>
-            ReturnUrl.IsSafe(returnUrl ?? "/")
-                ? Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }, [OpenIdConnectDefaults.AuthenticationScheme])
-                : Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path."))
+        routes.MapGet("/auth/login", async (HttpContext http, string? returnUrl, ILoggerFactory loggers) =>
+        {
+            var target = returnUrl ?? "/";
+            if (!ReturnUrl.IsSafe(target))
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path.");
+            try
+            {
+                await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties { RedirectUri = target });
+                return Results.Empty;
+            }
+            catch (InvalidOperationException e) when (!http.Response.HasStarted)
+            {
+                // The identity provider's discovery document could not be read (it or its proxy is down): an empty 500
+                // left a blank page, the web page says what is wrong and offers to try again (issue 363).
+                loggers.CreateLogger(typeof(AuthEndpoints)).LogError(e, "The identity provider could not be reached to sign in.");
+                return Results.Redirect(LoginUnavailablePath + "?returnUrl=" + Uri.EscapeDataString(target));
+            }
+        })
             .ExcludeFromDescription();
 
         routes.MapPost("/auth/logout", async (HttpContext http, ISecurityEvents events) =>

@@ -318,6 +318,11 @@
     "no_email": "Le fournisseur d'identité n'a transmis aucune adresse email : demandez à la personne qui l'administre d'en ajouter une à votre compte.",
     "sign_in_again": "Se reconnecter"
   },
+  "login_unavailable": {
+    "title": "La connexion ne répond pas",
+    "body": "Nid n'arrive pas à joindre le fournisseur d'identité : il est peut-être arrêté ou en train de redémarrer. Réessayez dans un instant ; si cela dure, prévenez la personne qui l'administre.",
+    "retry": "Réessayer"
+  },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "page": { "more_actions": "Autres actions" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },

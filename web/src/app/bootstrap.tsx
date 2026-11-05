@@ -1,13 +1,14 @@
 import { MutationCache, QueryClient } from '@tanstack/react-query';
-import { StrictMode } from 'react';
+import { StrictMode, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { createApi, type Api } from '@/api/client';
 import { isProblem, present, toProblem } from '@/api/errors';
 import { PRIVATE_ITEMS } from '@/components/ScopeSwitch';
 import { App } from './App';
 import { LoginRefusedPage } from './LoginRefusedPage';
+import { LoginUnavailablePage } from './LoginUnavailablePage';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
-import { loadSession, loginUrl, LOGIN_REFUSED_PATH, SIGNED_OUT_PATH, type Session } from './session';
+import { loadSession, loginUrl, LOGIN_REFUSED_PATH, LOGIN_UNAVAILABLE_PATH, SIGNED_OUT_PATH, type Session } from './session';
 import { SignedOutPage } from './SignedOutPage';
 import { StartupFailure } from './StartupFailure';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from './theme';
@@ -53,15 +54,10 @@ async function renderSignedOut(root: HTMLElement, api: Api): Promise<Root> {
   return reactRoot;
 }
 
-/** No session exists, and the login redirect would loop through the identity provider: render the page as it is. */
-function renderLoginRefused(root: HTMLElement, location: AppLocation): Root {
-  const email = new URLSearchParams(location.search).get('email');
+/** A page outside the app, rendered as it is: no session exists, and the login redirect would only come back here. */
+function renderPage(root: HTMLElement, page: ReactNode): Root {
   const reactRoot = createRoot(root);
-  reactRoot.render(
-    <StrictMode>
-      <LoginRefusedPage email={email} />
-    </StrictMode>,
-  );
+  reactRoot.render(<StrictMode>{page}</StrictMode>);
   return reactRoot;
 }
 
@@ -92,7 +88,8 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
 
   // Never the login redirect here: the identity provider's open session would sign the same person straight back in.
   if (location.pathname === SIGNED_OUT_PATH) return renderSignedOut(root, api);
-  if (location.pathname === LOGIN_REFUSED_PATH) return renderLoginRefused(root, location);
+  if (location.pathname === LOGIN_REFUSED_PATH) return renderPage(root, <LoginRefusedPage email={new URLSearchParams(location.search).get('email')} />);
+  if (location.pathname === LOGIN_UNAVAILABLE_PATH) return renderPage(root, <LoginUnavailablePage returnUrl={new URLSearchParams(location.search).get('returnUrl')} />);
 
   let session: Session | null;
   try {

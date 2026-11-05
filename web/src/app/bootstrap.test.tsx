@@ -207,6 +207,22 @@ describe('bootstrap', () => {
     act(() => reactRoot?.unmount());
   });
 
+  it('says the identity provider does not answer, and offers to retry towards where the person was going', async () => {
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/login-unavailable', '?returnUrl=%2Floans%3Ftab%3Dall');
+
+    let reactRoot: Root | null = null;
+    await act(async () => { reactRoot = await bootstrap({ root, location }); });
+
+    expect(location.assign).not.toHaveBeenCalled();
+    expect(await screen.findByRole('heading', { name: 'La connexion ne répond pas' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Réessayer' })).toHaveAttribute('href', '/auth/login?returnUrl=%2Floans%3Ftab%3Dall');
+    await expectNoAxeViolations(root);
+
+    act(() => reactRoot?.unmount());
+  });
+
   it('says so when the identity provider sent no email', async () => {
     const root = document.body.appendChild(document.createElement('div'));
     container = root;
