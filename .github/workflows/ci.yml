@@ -1,7 +1,8 @@
 name: ci
 
 # The monthly Actions minutes are the budget (1000), so each commit is paid for once:
-#  - a pull request runs one job, `check`: it builds the solution and checks the web app, each only when its files change. It
+#  - a pull request into `main` runs one job, `check`: it builds the solution and checks the web app, each only when its files
+#    change. A pull request into another branch runs nothing; once retargeted to main, its next push runs the check. It
 #    runs no test: the developer runs them before opening it (.claude/CLAUDE.md). The integration tests also run weekly in e2e.yml;
 #  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
 #    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
@@ -13,6 +14,7 @@ on:
     branches: [main]
     paths-ignore: ['docs/**', '**/*.md']
   pull_request:
+    branches: [main]
     paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
 

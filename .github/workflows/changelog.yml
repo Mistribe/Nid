@@ -5,6 +5,7 @@ name: changelog
 # adding the label reruns this check alone, not ci.yml. No checkout: the pull request's file list is enough (seconds).
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 concurrency:
