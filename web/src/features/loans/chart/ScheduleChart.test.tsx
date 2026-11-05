@@ -17,4 +17,12 @@ describe('ScheduleChart', () => {
     expect(chart.style.getPropertyValue('--color-principal')).toBe('var(--primary)');
     expect(chart.style.getPropertyValue('--color-interest')).toBe('#9E9E9E');
   });
+
+  it('draws the balance in a chart of its own: one vertical axis per chart', () => {
+    const { container } = render(<ScheduleChart years={schedule().years} currency="EUR" summaryId="summary-id" />);
+
+    expect(screen.getByRole('figure', { name: 'Capital restant dû par année' })).toBeInTheDocument();
+    expect(container.querySelector('[yAxisId]')).toBeNull();
+    expect(container.innerHTML).not.toContain('orientation="right"');
+  });
 });

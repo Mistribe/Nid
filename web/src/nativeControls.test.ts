@@ -49,3 +49,18 @@ describe('colour literals', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// dataviz.md §6: a category axis thins its ticks (`minTickGap`) so month labels never touch; an axis with its own `ticks`,
+// every tick on purpose (`interval={0}`), hidden, or numeric is left out.
+describe('category axes', () => {
+  it('thin their ticks', () => {
+    const offenders = sources(root)
+      .map((path) => relative(root, path))
+      .filter((path) => path.endsWith('.tsx') && !path.endsWith('.test.tsx'))
+      .flatMap((path) => [...readFileSync(join(root, path), 'utf8').matchAll(/<XAxis\b[\s\S]*?\/>/g)]
+        .map((match) => match[0])
+        .filter((axis) => !/minTickGap|\bticks=|interval=\{0\}|\bhide\b|type="number"/.test(axis))
+        .map((axis) => `${path}: ${axis}`));
+    expect(offenders).toEqual([]);
+  });
+});

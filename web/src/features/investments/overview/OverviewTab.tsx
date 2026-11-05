@@ -29,6 +29,7 @@ import { AnnualReturn, Direction, Gain, pct } from '../Figures';
 import { kindText } from '../format';
 import { kindColor } from './colors';
 import { missingCodes, ValueChart } from './ValueChart';
+import { personColor, personSlot } from '@/features/dashboard/colors';
 import '@/locales/investments';
 import '@/locales/forms';
 
@@ -155,7 +156,7 @@ function Kinds({ d }: { d: InvestmentsOverview }) {
   return (
     <SectionCard title={t('investments_overview.kinds_title')}>
       <div aria-hidden="true" className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted">
-        {d.byKind.map((k) => <span key={k.kind} style={{ width: `${k.sharePct ?? 0}%`, background: kindColor(k.kind) }} />)}
+        {d.byKind.map((k) => <span key={k.kind} style={{ flex: `${Math.max(0, k.sharePct ?? 0)} 1 0`, background: kindColor(k.kind) }} />)}
       </div>
       <Table aria-label={t('investments_overview.kinds_table')}>
         <TableBody>
@@ -166,8 +167,11 @@ function Kinds({ d }: { d: InvestmentsOverview }) {
                   <span aria-hidden="true" className="size-2.5 rounded-sm" style={{ background: kindColor(k.kind) }} />{kindText(t, k.kind)}
                 </span>
               </TableHead>
-              <TableCell className="py-1.5 text-right tabular-nums">{figure(k.value)}</TableCell>
-              <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">{k.sharePct === null || k.sharePct === undefined ? '' : t('investments.pct', { value: share(k.sharePct) })}</TableCell>
+              {/* The share under the amount: two columns fit a third of the page below 1 280 px. */}
+              <TableCell className="py-1.5 text-right tabular-nums">
+                <div>{figure(k.value)}</div>
+                {k.sharePct === null || k.sharePct === undefined ? null : <div className="text-xs text-muted-foreground">{t('investments.pct', { value: share(k.sharePct) })}</div>}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -176,7 +180,7 @@ function Kinds({ d }: { d: InvestmentsOverview }) {
   );
 }
 
-/** D7 and D10: each person's part, in a neutral tone (the kinds own the colours here), named as the owner chips. */
+/** D7 and D10: each person's part, in the person's own colour (dataviz.md §2), named as the owner chips. */
 function Persons({ d }: { d: InvestmentsOverview }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -192,7 +196,7 @@ function Persons({ d }: { d: InvestmentsOverview }) {
             <li key={person.personId} className="space-y-1 text-sm">
               <div className="flex justify-between gap-2"><span>{name}</span><span className="font-semibold tabular-nums">{figure(person.value)}</span></div>
               <div aria-hidden="true" className="h-2 rounded-full bg-muted">
-                <div className="h-2 rounded-full bg-muted-foreground" style={{ width: `${person.sharePct ?? 0}%` }} />
+                <div className="h-2 rounded-full" style={{ width: `${person.sharePct ?? 0}%`, background: personColor(personSlot(people.data, person.personId)) }} />
               </div>
               <div className="text-muted-foreground tabular-nums">
                 {[person.sharePct === null || person.sharePct === undefined ? null : t('investments.pct', { value: share(person.sharePct) }),

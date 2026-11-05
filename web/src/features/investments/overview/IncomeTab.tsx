@@ -101,7 +101,7 @@ function Months({ d, kindLabel }: { d: PassiveIncome; kindLabel: (k: string) => 
         <ChartContainer config={config} className="h-64 w-full">
           <BarChart data={data} stackOffset="sign" maxBarSize={24} title={t('investments_income.months_title')} accessibilityLayer margin={{ top: 8, right: 8 }}>
             <CartesianGrid vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
             <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
             <ChartTooltip cursor={false} content={<MonthTooltip d={d} kindLabel={kindLabel} />} />
             {kinds.map((k) => <Bar key={k} dataKey={k} stackId="income" fill={`var(--color-${k})`} stroke="var(--background)" strokeWidth={1} />)}

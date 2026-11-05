@@ -40,7 +40,8 @@ export function MonthsChart({ months }: { months: MonthView[] }) {
       longCycle: m.longCycle ? long : undefined,
       recurringText: text(m.recurring), longCycleText: text(m.longCycle),
       // Over the bar, only what the long cycles add (one short line, never the sum); the month's whole is in the tooltip and the table.
-      label: long !== 0 ? `+ ${text(m.longCycle)}` : '',
+      // A no-break space: the label wraps on spaces, and « + » alone above the amount read as a stray mark (issue 359).
+      label: long !== 0 ? `+\u00a0${text(m.longCycle)}` : '',
     };
   });
   return (

@@ -256,6 +256,20 @@ describe('LoanDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows the yearly schedule as a table on demand, in the server’s figures', async () => {
+    serve();
+    const { user } = await renderApp(`/loans/${LOAN}`);
+
+    await screen.findByRole('figure', { name: 'Graphique de l’échéancier par année' });
+    const section = screen.getByRole('region', { name: 'Graphique de l’échéancier par année' });
+    await user.click(within(section).getByRole('button', { name: 'Afficher en tableau' }));
+
+    const table = within(section).getByRole('table', { name: 'Intérêts et capital par année' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Année', 'Intérêts', 'Capital', 'Capital restant dû']);
+    expect(within(table).getAllByRole('row')).toHaveLength(1 + 3);
+    expect(within(section).queryByRole('figure')).toBeNull();
+  });
+
   it('a reader sees no write action', async () => {
     serve(loanDetail({ canWrite: false, visibility: 'shared', fees: [{ id: 'f1', kind: 'file', amount: '1000.00', onDate: '2025-10-15', note: null, repaymentId: null, version: 1 }] }));
     const { user, container } = await renderApp(`/loans/${LOAN}`);

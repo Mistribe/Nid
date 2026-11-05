@@ -29,6 +29,7 @@ import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow,
 import { typeText } from '../format';
 import { typeColor } from './colors';
 import { missingCodes, NetValueChart } from './NetValueChart';
+import { personColor, personSlot } from '@/features/dashboard/colors';
 import '@/locales/properties';
 import '@/locales/forms';
 
@@ -136,7 +137,7 @@ function Types({ d }: { d: PropertiesOverview }) {
   return (
     <SectionCard title={t('properties_overview.types_title')}>
       <div aria-hidden="true" className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted">
-        {d.byType.map((k) => <span key={k.type} style={{ width: `${k.sharePct ?? 0}%`, background: typeColor(k.type) }} />)}
+        {d.byType.map((k) => <span key={k.type} style={{ flex: `${Math.max(0, k.sharePct ?? 0)} 1 0`, background: typeColor(k.type) }} />)}
       </div>
       <Table aria-label={t('properties_overview.types_table')}>
         <TableBody>
@@ -147,8 +148,11 @@ function Types({ d }: { d: PropertiesOverview }) {
                   <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm" style={{ background: typeColor(k.type) }} />{typeText(t, k.type)}
                 </span>
               </TableHead>
-              <TableCell className="py-1.5 text-right tabular-nums">{figure(k.value)}</TableCell>
-              <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">{k.sharePct === null || k.sharePct === undefined ? '' : share(t, k.sharePct)}</TableCell>
+              {/* The share under the amount: two columns fit a third of the page below 1 280 px. */}
+              <TableCell className="py-1.5 text-right tabular-nums">
+                <div>{figure(k.value)}</div>
+                {k.sharePct === null || k.sharePct === undefined ? null : <div className="text-xs text-muted-foreground">{share(t, k.sharePct)}</div>}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -157,7 +161,7 @@ function Types({ d }: { d: PropertiesOverview }) {
   );
 }
 
-/** D5 and D8: each person's net value, in a neutral tone (the types own the colours here), named as the owner chips. */
+/** D5 and D8: each person's net value, in the person's own colour (dataviz.md §2), named as the owner chips. */
 function Persons({ d }: { d: PropertiesOverview }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -173,7 +177,7 @@ function Persons({ d }: { d: PropertiesOverview }) {
             <li key={person.personId} className="space-y-1 text-sm">
               <div className="flex justify-between gap-2"><span>{name}</span><span className="font-semibold tabular-nums">{figure(person.netValue)}</span></div>
               <div aria-hidden="true" className="h-2 rounded-full bg-muted">
-                <div className="h-2 rounded-full bg-muted-foreground" style={{ width: `${Math.max(0, person.sharePct ?? 0)}%` }} />
+                <div className="h-2 rounded-full" style={{ width: `${Math.max(0, person.sharePct ?? 0)}%`, background: personColor(personSlot(people.data, person.personId)) }} />
               </div>
               <div className="text-muted-foreground tabular-nums">
                 {[person.sharePct === null || person.sharePct === undefined ? null : share(t, person.sharePct),

@@ -107,7 +107,7 @@ function Chart({ d, label, view }: { d: InvestmentsOverview; label: (p: Overview
     <ChartContainer config={config} className="h-72 w-full">
       <ComposedChart data={rows} title={t('investments_overview.chart_title')} accessibilityLayer margin={{ top: 8, right: 8 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
         <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
         <ChartTooltip content={<PointTooltip kinds={kinds} />} />
         <ChartLegend content={<ChartLegendContent />} />

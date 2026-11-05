@@ -150,7 +150,8 @@ function Sankey({ from, to, total }: { from: Mark[]; to: Mark[]; total: string }
   return (
     <div role="group" aria-label={t('dashboard.month.chart')}>
       <p className="mb-2 text-center text-sm font-semibold">{t('dashboard.month.per_month', { amount: total })}</p>
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(12rem,1.4fr)_minmax(0,1fr)]" style={{ height: h }}>
+      {/* The labels get as much width as the drawing, which stretches: at 1 188 px a name no longer truncates beside free space (issue 361). */}
+      <div data-sankey-columns className="grid grid-cols-[minmax(0,1fr)_minmax(10rem,1fr)_minmax(0,1fr)]" style={{ height: h }}>
         {labels(left, LEFT.x1, 'end')}
         <div className="relative">
           <svg viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none" aria-hidden="true" className="block w-full animate-reveal" style={{ height: h }}>

@@ -133,7 +133,7 @@ function CurveChart({ data, label }: { data: NetWorthHistory; label: (p: NetWort
           </linearGradient>
         </defs>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
         <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
         <ChartTooltip content={<CurveTooltip />} />
         <ChartLegend content={<ChartLegendContent />} />

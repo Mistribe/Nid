@@ -249,7 +249,7 @@ function Months({ d }: { d: HouseholdPerformance }) {
         <ChartContainer config={config} className="h-64 w-full">
           <BarChart data={rows} maxBarSize={24} title={t('investments_performance.months_title')} accessibilityLayer margin={{ top: 8, right: 8 }}>
             <CartesianGrid vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
             <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
             <ReferenceLine y={0} stroke="var(--border)" />
             <ChartTooltip cursor={false} content={<MonthTooltip />} />

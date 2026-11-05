@@ -42,7 +42,10 @@ describe('MonthsChart', () => {
   it('The_label_shows_what_the_long_cycles_add_never_a_sum', async () => {
     await render(<MonthsChart months={year({ '2026-12': { longCycle: eur('216.00') } })} />);
 
-    expect(screen.getByText('+ 216,00 €')).toBeInTheDocument();
+    // One line: the sign holds to the amount (a no-break space), so the label never wraps between them.
+    // One tspan, one line: before, the sign and the amount were two (the label wrapped on the plain space).
+    const line = screen.getAllByText('+ 216,00 €').find((node) => node.tagName === 'tspan')!;
+    expect(line.textContent).toMatch(/^\+\u00a0216/);
     expect(screen.queryByText('233,20 €')).not.toBeInTheDocument();
   });
 

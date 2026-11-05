@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { toPlot } from '../../investments/chart/plot';
@@ -12,8 +12,8 @@ type Row = {
 };
 
 /**
- * Spec §7: each year's interest and principal stacked, and the balance as a line on its own axis (precision 17). Every
- * figure read — tooltip, summary, table — is the server's string; `toPlot` only places the marks.
+ * Spec §7: each year's interest and principal stacked, then the balance in a chart of its own (dataviz.md §2 and §6: one
+ * vertical axis per chart). Every figure read — tooltip, summary, table — is the server's string; `toPlot` only places the marks.
  */
 export function ScheduleChart({ years, currency, summaryId }: { years: LoanScheduleYear[]; currency: string; summaryId: string }) {
   const { t } = useTranslation();
@@ -29,22 +29,35 @@ export function ScheduleChart({ years, currency, summaryId }: { years: LoanSched
   }));
   // Display of the plotting number only: an axis is a scale, not a figure the person reads exactly.
   const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, notation: 'compact' });
+  const yAxis = <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />;
   return (
-    <figure aria-label={t('loan_detail.chart.title')} aria-describedby={summaryId}>
-      <ChartContainer config={config} className="h-64 w-full">
-        <ComposedChart data={rows} maxBarSize={24} accessibilityLayer>
-          <CartesianGrid vertical={false} />
-          <XAxis dataKey="year" tickLine={false} tickMargin={8} />
-          <YAxis yAxisId="booked" width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
-          <YAxis yAxisId="balance" orientation="right" width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
-          <ChartTooltip content={<YearTooltip />} />
-          <ChartLegend content={<ChartLegendContent />} />
-          <Bar yAxisId="booked" dataKey="interest" stackId="booked" fill="var(--color-interest)" stroke="var(--card)" strokeWidth={2} animationDuration={800} />
-          <Bar yAxisId="booked" dataKey="principal" stackId="booked" fill="var(--color-principal)" stroke="var(--card)" strokeWidth={2} radius={[4, 4, 0, 0]} animationDuration={800} />
-          <Line yAxisId="balance" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} animationDuration={800} />
-        </ComposedChart>
-      </ChartContainer>
-    </figure>
+    <div className="grid gap-6 lg:grid-cols-2">
+      <figure aria-label={t('loan_detail.chart.title')} aria-describedby={summaryId}>
+        <ChartContainer config={config} className="h-64 w-full">
+          <BarChart data={rows} maxBarSize={24} accessibilityLayer>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="year" tickLine={false} tickMargin={8} minTickGap={24} />
+            {yAxis}
+            <ChartTooltip content={<YearTooltip />} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar dataKey="interest" stackId="booked" fill="var(--color-interest)" stroke="var(--card)" strokeWidth={2} animationDuration={800} />
+            <Bar dataKey="principal" stackId="booked" fill="var(--color-principal)" stroke="var(--card)" strokeWidth={2} radius={[4, 4, 0, 0]} animationDuration={800} />
+          </BarChart>
+        </ChartContainer>
+      </figure>
+      <figure aria-label={t('loan_detail.chart.balance_title')}>
+        <ChartContainer config={config} className="h-64 w-full">
+          <LineChart data={rows} accessibilityLayer>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="year" tickLine={false} tickMargin={8} minTickGap={24} />
+            {yAxis}
+            <ChartTooltip content={<YearTooltip />} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Line dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} animationDuration={800} />
+          </LineChart>
+        </ChartContainer>
+      </figure>
+    </div>
   );
 }
 

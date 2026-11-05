@@ -77,7 +77,7 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
           <ChartContainer config={config} className="h-64 w-full">
             <BarChart data={rows} maxBarSize={24} title={t('income_detail.evolution.chart')} accessibilityLayer>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="label" tickLine={false} tickMargin={8} />
+              <XAxis dataKey="label" tickLine={false} tickMargin={8} minTickGap={24} />
               <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
               <ChartTooltip cursor={false} content={<MonthTooltip />} />
               <ChartLegend content={<ChartLegendContent />} />

@@ -55,7 +55,7 @@ export function MonthsChart({ months, missingRates, period, year }: {
               <ChartContainer config={config} className={wide ? 'h-64 w-full min-w-[48rem] overflow-hidden' : 'h-64 w-full overflow-hidden'}>
                 <BarChart data={rows} title={t('income.overview.months_chart')} accessibilityLayer>
                   <CartesianGrid vertical={false} />
-                  <XAxis xAxisId="now" dataKey="label" tickLine={false} tickMargin={8} />
+                  <XAxis xAxisId="now" dataKey="label" tickLine={false} tickMargin={8} minTickGap={24} />
                   <XAxis xAxisId="prev" dataKey="label" hide />
                   <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
                   <ChartTooltip cursor={false} content={<MonthTooltip />} />

@@ -177,6 +177,8 @@ describe('DashboardPage', () => {
     const flow = within(month).getByRole('group', { name: 'Flux du revenu du mois vers les engagements et le reste' });
     expect(await within(flow).findByRole('link', { name: /Salaire Alice/ })).toHaveAttribute('href', `/income/${SALARY}`);
     expect(flow).toHaveTextContent('2 500,00 € / mois');
+    // Each label column is as wide as the drawing (issue 361): the names have room before they truncate.
+    expect(flow.querySelector('[data-sankey-columns]')).toHaveClass('grid-cols-[minmax(0,1fr)_minmax(10rem,1fr)_minmax(0,1fr)]');
     expect(within(flow).getByRole('link', { name: /Studio Lyon/ })).toHaveAttribute('href', `/properties/${PROPERTY}?tab=rental`);
     expect(Array.from(flow.querySelectorAll('[data-band]')).map((el) => el.getAttribute('data-band')))
       .toEqual([SALARY, PROPERTY, 'other', 'subscriptions', 'rest']);

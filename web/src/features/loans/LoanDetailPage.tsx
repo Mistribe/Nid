@@ -24,7 +24,9 @@ import { FeesSection } from './fees/FeesSection';
 import { money, warningText } from './format';
 import type { RepaymentPrefill } from './repayments/repayment';
 import { RepaymentsSection } from './repayments/RepaymentsSection';
+import { ScheduleYearsTable } from './chart/ScheduleYearsTable';
 import { SettingsForm } from './settings/SettingsForm';
+import { TableToggle } from '@/components/page/TableToggle';
 import { SimulationSection } from './simulation/SimulationSection';
 import '@/locales/loans';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
@@ -178,6 +180,7 @@ function OverviewSchedule({ loan }: { loan: LoanDetail }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const summaryId = useId();
+  const [asTable, setAsTable] = useState(false);
   const answer = $api.useQuery('get', SCHEDULE, { params: { path: { id: loan.id } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data) return loadingRow(t('loan_detail.schedule.loading'));
@@ -219,16 +222,18 @@ function OverviewSchedule({ loan }: { loan: LoanDetail }) {
         </Section>
       ) : null}
       {first && last ? (
-        <Section title={t('loan_detail.chart.title')}>
+        <Section title={t('loan_detail.chart.title')} actions={<TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />}>
           {/* Spec §7: the chart's reading for screen readers, outside the lazy chunk so it never waits for it. */}
           <p id={summaryId} className="sr-only">
             {t('loan_detail.chart.summary', {
               first: first.year, last: last.year, interest: m(plan.totalInterest), principal: m(plan.totalPrincipal),
             })}
           </p>
-          <Suspense fallback={<div className="h-64 shimmer rounded-md border bg-muted" />}>
-            <ScheduleChart years={plan.years} currency={loan.currency} summaryId={summaryId} />
-          </Suspense>
+          {asTable ? <ScheduleYearsTable years={plan.years} currency={loan.currency} /> : (
+            <Suspense fallback={<div className="h-64 shimmer rounded-md border bg-muted" />}>
+              <ScheduleChart years={plan.years} currency={loan.currency} summaryId={summaryId} />
+            </Suspense>
+          )}
         </Section>
       ) : null}
     </>

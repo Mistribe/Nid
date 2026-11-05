@@ -171,6 +171,9 @@
       "interest": "Intérêts",
       "principal": "Capital",
       "balance": "Capital restant dû",
+      "balance_title": "Capital restant dû par année",
+      "year": "Année",
+      "table": "Intérêts et capital par année",
       "summary": "Échéancier de {{first}} à {{last}} : {{interest}} d’intérêts et {{principal}} de capital au total."
     },
     "settings": {

@@ -5,6 +5,10 @@ const PERSON_COLORS = ['var(--chart-5)', 'var(--chart-6)', 'var(--chart-7)'];
 
 export const personColor = (slot: number): string => PERSON_COLORS[slot] ?? NEUTRAL_COLOR;
 
+/** A person's slot: their place among the household's persons, adults by creation first, then dependents (-1 when unknown). */
+export const personSlot = (people: readonly { id: string; kind: string }[] | undefined, id: string): number =>
+  [...(people ?? [])].sort((a, b) => Number(a.kind !== 'adult') - Number(b.kind !== 'adult')).findIndex((p) => p.id === id);
+
 // dataviz.md §5, « Répartition » (issue #104): a fixed colour per asset class and per liquidity, never by rank.
 const CLASS_SLOTS: Record<string, number> = { money_market: 1, equity: 2, capital_guaranteed: 3, real_estate: 4, bond: 5, cash: 6, mixed: 7 };
 const LIQUIDITY_SLOTS: Record<string, number> = { available: 1, days: 3, locked: 7 };

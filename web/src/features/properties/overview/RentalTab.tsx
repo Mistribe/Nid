@@ -167,7 +167,7 @@ function MonthsChart({ months, currency }: { months: RentalMonth[]; currency: st
     <ChartContainer config={config} className="h-72 w-full">
       <ComposedChart data={rows} maxBarSize={24} title={t('properties_rental.chart_title')} accessibilityLayer stackOffset="sign" margin={{ top: 8, right: 8 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
         <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip content={<MonthTooltip />} />
