@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { CalendarClock, CalendarX, FileText, Flag, Hourglass, KeyRound, Landmark, Milestone, Percent, PiggyBank, RefreshCw, Receipt, Scale, TimerOff, Wallet, type LucideIcon } from 'lucide-react';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
@@ -10,6 +10,7 @@ import { usePendingCount } from '../proposals/api';
 import { useExpectedDocuments } from '../documents/api';
 import { categoryText } from '../properties/format';
 import { SectionCard } from '@/components/page/SectionCard';
+import { Button } from '@/components/ui/button';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { placeOf, tileOf } from '@/app/nav';
 import { todayIso } from '../subscriptions/today';
@@ -60,12 +61,17 @@ function dayLabel(t: TFunction, on: string, today: string): string {
     .format(new Date(Date.UTC(year, month - 1, day)));
 }
 
-/** Spec §4.1: the next 60 days, sorted by the server, date and amount; one group per day. */
+// Beside the net worth curve on a desktop: a few rows keep the card about the curve's height (issue 391).
+const UPCOMING_SHOWN = 3;
+
+/** Spec §4.1: the next 60 days, sorted by the server, date and amount; one group per day, the first few then « Tout voir ». */
 export function Upcoming({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   const today = todayIso();
   const listId = useId();
-  const days = d.upcoming.reduce<{ on: string; events: DashboardEvent[] }[]>((acc, e) => {
+  const [all, setAll] = useState(false);
+  const shown = all ? d.upcoming : d.upcoming.slice(0, UPCOMING_SHOWN);
+  const days = shown.reduce<{ on: string; events: DashboardEvent[] }[]>((acc, e) => {
     const last = acc.at(-1);
     if (last?.on === e.on) last.events.push(e);
     else acc.push({ on: e.on, events: [e] });
@@ -98,6 +104,11 @@ export function Upcoming({ d }: { d: DashboardView }) {
               </GroupedList>
             </div>
           ))}
+          {d.upcoming.length > UPCOMING_SHOWN ? (
+            <Button type="button" variant="link" className="h-auto p-0" onClick={() => setAll((v) => !v)}>
+              {all ? t('dashboard.upcoming.less') : t('dashboard.upcoming.all', { count: d.upcoming.length })}
+            </Button>
+          ) : null}
         </div>
       )}
     </SectionCard>

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { trimAmount } from '../investments/entries/entries';
-import { ISO_DATE } from '../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount } from '../subscriptions/edits/amount';
 import { Field } from '@/components/form/Field';
 import { Table, TableBody } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -68,7 +68,7 @@ export const invoice: KindUi = {
   }),
   toForm: (original) => {
     const o = asInvoice(original);
-    return { chargedOn: o.chargedOn, amount: trimAmount(o.amount.amount) };
+    return { chargedOn: o.chargedOn, amount: toFieldAmount(trimAmount(o.amount.amount)) };
   },
   toPayload: (values, original) => {
     const v = values as InvoiceForm;

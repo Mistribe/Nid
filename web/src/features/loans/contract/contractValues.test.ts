@@ -31,9 +31,9 @@ describe('contractValuesOf', () => {
       insurances: [{ mode: 'rate_on_initial', monthlyAmount: null, annualRate: '0.0036', startsOn: '2025-11-15', endsOn: null, note: null }],
     });
     expect(values).toEqual({
-      principal: '200000.00', totalPayments: '240', disbursedOn: '2025-10-15', firstPaymentDate: '2025-11-15', rounding: 'half_up',
+      principal: '200000,00', totalPayments: '240', disbursedOn: '2025-10-15', firstPaymentDate: '2025-11-15', rounding: 'half_up',
       firstPeriod: 'full',
-      phases: [{ mode: 'annuity', rate: '4,12', rateType: 'fixed', payments: '24', paymentOverride: '1250.00', openingBalance: '', note: '' }],
+      phases: [{ mode: 'annuity', rate: '4,12', rateType: 'fixed', payments: '24', paymentOverride: '1250,00', openingBalance: '', note: '' }],
       insurances: [{ mode: 'rate_on_initial', amount: '', rate: '0,36', startsOn: '2025-11-15', endsOn: '', note: '', follows: false }],
     });
   });

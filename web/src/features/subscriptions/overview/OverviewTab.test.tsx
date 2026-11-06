@@ -28,8 +28,8 @@ describe('Abonnements › vue d’ensemble', () => {
     const figures = (await screen.findByText('Par mois')).closest('dl')!;
     expect(figures).toHaveTextContent('20,00 €');
     expect(figures).toHaveTextContent('240,00 €');
-    expect(figures).toHaveTextContent('Reste à prélever12,00 € sur 30,00 €');
-    expect(figures).toHaveTextContent('3 actifs · 1 fini');
+    expect(figures).toHaveTextContent('Reste à prélever12,00 €sur 30,00 €');
+    expect(figures).toHaveTextContent('Abonnements3 actifs1 fini');
     await expectNoAxeViolations(container);
   });
 
@@ -49,7 +49,7 @@ describe('Abonnements › vue d’ensemble', () => {
 
     const figures = (await screen.findByText('Par mois')).closest('dl')!;
     expect(within(figures).getByText('Par mois').nextElementSibling).toHaveTextContent(/^—$/);
-    expect(figures).toHaveTextContent('Reste à prélever— sur 0,00 €');
+    expect(figures).toHaveTextContent('Reste à prélever—sur 0,00 €');
   });
 
   it('People_show_their_share_and_counts', async () => {
@@ -229,6 +229,16 @@ describe('Abonnements › vue d’ensemble', () => {
     expect(within(rise!).getByRole('link', { name: 'Spotify' })).toHaveAttribute('href', `/subscriptions/${SPOTIFY}?tab=history`);
     expect(promo).toHaveTextContent('Fin d’offre de lancement');
     expect(promo).not.toHaveTextContent('108');
+  });
+
+  it('The_months_card_header_switches_to_a_table', async () => {
+    serve(overview({ activeCount: 1, months: [{ month: '2026-05', recurring: eur('17.20'), longCycle: eur('0.00') }] }));
+    const { user } = await renderApp('/subscriptions');
+
+    const months = await region('12 prochains mois');
+    await user.click(await within(months).findByRole('button', { name: 'Afficher en tableau' }));
+    expect(await within(months).findByTestId('months-table')).not.toHaveClass('sr-only');
+    expect(within(months).getByRole('button', { name: 'Afficher le graphique' })).toBeInTheDocument();
   });
 
   it('Years_switch_between_labels_and_total_and_show_a_table', async () => {

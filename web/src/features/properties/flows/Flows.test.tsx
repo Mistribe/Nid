@@ -175,7 +175,7 @@ describe('flows', () => {
 
     await rowAction(user, (await rows())[1]!, '10 mars 2024', 'Corriger');
     const form = within(await screen.findByRole('dialog', { name: 'Corriger la ligne' }));
-    expect(form.getByLabelText('Montant')).toHaveValue('12000.00');
+    expect(form.getByLabelText('Montant')).toHaveValue('12000,00');
         expect(form.getByRole('combobox', { name: 'Catégorie' })).toHaveTextContent('Travaux');
     await user.clear(form.getByLabelText('Montant'));
     await user.type(form.getByLabelText('Montant'), '12500');

@@ -169,7 +169,7 @@ describe('recurring costs', () => {
     await rowAction(user, (await rows())[1]!, '15 octobre 2021', 'Corriger');
     const form = within(await screen.findByRole('dialog', { name: 'Corriger la charge prévue' }));
     await expectNoAxeViolations(container);
-    expect(form.getByLabelText('Montant')).toHaveValue('1200.00');
+    expect(form.getByLabelText('Montant')).toHaveValue('1200,00');
     await user.type(form.getByLabelText('Fin'), '31/12/2025');
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 

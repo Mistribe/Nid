@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { stubLocalDay } from '@/test/timeZone';
 import type { DocumentList } from './api';
-import { DOC, link, list, summary } from './testData';
+import { ALICE, DOC, link, list, summary } from './testData';
 
 function serve(body: DocumentList, seen: string[] = []) {
   server.use(http.get('*/api/v1/documents', ({ request }) => {
@@ -53,6 +53,24 @@ describe('DocumentsPage', () => {
     expect(seen[0]).toContain('scope=household');
     expect(seen[0]).toContain('inbox=false');
     await expectNoAxeViolations(container);
+  });
+
+  it('reads like the other lists: singular headers, the owner, « Liés à » cut with the whole list in a tooltip (issue 392)', async () => {
+    serve(three());
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ALICE, kind: 'adult', displayName: 'Alice Martin', email: null }])));
+    const { user } = await renderApp('/documents');
+
+    const table = await screen.findByRole('table', { name: 'Liste des documents' });
+    expect(within(table).getByRole('columnheader', { name: /^Type/ })).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: /^Propriétaire/ })).toBeInTheDocument();
+    const facture = (await rows())[2]!;
+    expect(await within(facture).findByText('Alice Martin')).toBeInTheDocument();
+    const linked = within(facture).getByText('Box internet, Appartement Lyon');
+    expect(linked).toHaveClass('truncate');
+    await user.hover(linked);
+    const tip = await screen.findByRole('tooltip');
+    expect(within(tip).getByText('Box internet')).toBeInTheDocument();
+    expect(within(tip).getByText('Appartement Lyon')).toBeInTheDocument();
   });
 
   it('the « À classer » tab asks for the inbox and puts it in the URL', async () => {

@@ -127,7 +127,7 @@ describe('early repayments', () => {
 
     await rowAction(user, (await rows())[0]!, 'Corriger');
     const form = await dialogOf('Corriger le remboursement anticipé');
-    expect(form.getByLabelText('Pénalité')).toHaveValue('300.00');
+    expect(form.getByLabelText('Pénalité')).toHaveValue('300,00');
     expect(form.getByRole('radio', { name: 'Réduire la mensualité' })).toBeChecked();
     await user.clear(form.getByLabelText('Pénalité'));
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));

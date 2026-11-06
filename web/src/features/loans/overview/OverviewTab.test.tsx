@@ -29,7 +29,7 @@ describe('Crédits › vue d’ensemble', () => {
     expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
     expect(await region('Capital restant dû')).toHaveTextContent('Capital restant dû199 564,23 €sur 212 000,00 € empruntés');
     const figures = (await screen.findByText('Mensualités', { selector: 'dt' })).closest('dl')!;
-    expect(figures).toHaveTextContent('2 159,92 € / moisassurances comprises');
+    expect(figures).toHaveTextContent('2 159,92 €par mois, assurances comprises');
     expect(figures).toHaveTextContent('72 157,31 €6 823,35 € déjà payés');
     expect(figures).toHaveTextContent('Sans crédit enoctobre 2045dans 18 ans et 11 mois');
     expect(await region('Avancement')).toHaveTextContent('12 435,77 € remboursés sur 212 000,00 € · 5,87 %');

@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { fakeImportServer, householdPersons, session, SESSION_ID } from '@/test/importServer';
@@ -19,12 +19,15 @@ describe('Import › home', () => {
       ],
     });
     server.use(...fake.handlers);
-    const { container } = await renderApp('/import');
+    const { container, user } = await renderApp('/import');
 
     expect(await screen.findByRole('heading', { name: 'Imports récents' })).toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /en cours/ })).toHaveTextContent('Reprendre');
-    expect(screen.getByRole('row', { name: /importé/ })).toHaveTextContent('Voir');
+    const committed = screen.getByRole('row', { name: /Importé/ });
+    // Issue 389: the date reads like the rest of the app, and a row's action sits in its ⋯ menu.
+    expect(within(committed).getByRole('link', { name: /^20 sept\. 2026 à \d{2}:00$/ })).toHaveAttribute('href', '/import/0192aaaa-0000-7000-8000-000000000002');
     await expectNoAxeViolations(container);
+    await user.click(within(screen.getByRole('row', { name: /En cours/ })).getByRole('button', { name: /^Actions de l’import du/ }));
+    expect(await screen.findByRole('menuitem', { name: 'Reprendre' })).toBeInTheDocument();
   });
 
   it('shows what the local check finds, and nothing is sent', async () => {

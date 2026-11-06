@@ -6,6 +6,7 @@ import { present, toProblem } from '@/api/errors';
 import type { RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
+import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { RowMenu } from '@/components/page/RowMenu';
@@ -13,6 +14,7 @@ import { SortableTable, type Selection } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { contentUrl, useArchiveDocument, useDocuments, useUnarchiveDocument, type DocumentSummary, type Scope } from './api';
 import { previewable, usePreview } from './preview';
 import { ExpectedDocuments } from './ExpectedDocuments';
@@ -118,14 +120,19 @@ function Table({ rows, selection }: { rows: DocumentSummary[]; selection?: Selec
   const { t } = useTranslation();
   if (rows.length === 0) return <p className="text-muted-foreground">{t('documents_page.no_match')}</p>;
   const types = (d: DocumentSummary) => [...new Set(d.links.map((l) => roleText(t, l.role)))].join(', ');
-  const linked = (d: DocumentSummary) => [...new Set(d.links.map((l) => l.label))].join(', ');
+  const labels = (d: DocumentSummary) => [...new Set(d.links.map((l) => l.label))];
+  const linked = (d: DocumentSummary) => labels(d).join(', ');
   const date = (d: DocumentSummary) => <LocalDate value={shownDate(d)} style="short" />;
+  // The uploader: the person a document belongs to (private to them while it has no link).
+  const owner = (d: DocumentSummary) => <OwnerChips owners={[{ personId: d.uploadedBy, shareBp: 10_000 }]} />;
   return (
+    <TooltipProvider>
     <SortableTable<DocumentSummary> caption={t('documents_page.list')} rows={rows} rowKey={(d) => d.id} selection={selection}
       columns={[
         { id: 'title', header: t('documents_page.col_title'), sort: (d) => d.title, cell: (d) => <Title doc={d} /> },
+        { id: 'owner', header: t('documents_page.col_owner'), cell: owner },
         { id: 'types', header: t('documents_page.col_types'), sort: types, cell: types },
-        { id: 'links', header: t('documents_page.col_links'), sort: linked, cell: linked },
+        { id: 'links', header: t('documents_page.col_links'), sort: linked, cell: (d) => <Linked labels={labels(d)} /> },
         { id: 'date', header: t('documents_page.col_date'), sort: shownDate, cell: date },
         { id: 'size', header: t('documents_page.col_size'), align: 'end', sort: (d) => d.sizeBytes, cell: (d) => fileSize(t, d.sizeBytes) },
         { id: 'menu', header: t('documents_page.col_actions'), align: 'end', cell: (d) => <Actions doc={d} /> },
@@ -134,9 +141,23 @@ function Table({ rows, selection }: { rows: DocumentSummary[]; selection?: Selec
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2"><Title doc={d} /><Actions doc={d} /></div>
           <div className="text-sm text-muted-foreground">{[types(d), linked(d)].filter(Boolean).join(' · ')}</div>
-          <div className="flex justify-between gap-2 text-sm text-muted-foreground">{date(d)}<span>{fileSize(t, d.sizeBytes)}</span></div>
+          <div className="flex justify-between gap-2 text-sm text-muted-foreground">{date(d)}{owner(d)}<span>{fileSize(t, d.sizeBytes)}</span></div>
         </div>
       )} />
+    </TooltipProvider>
+  );
+}
+
+/** « Liés à » cut with an ellipsis, the whole list in a tooltip (issue 392); the full text stays in the cell for a screen reader. */
+function Linked({ labels }: { labels: string[] }) {
+  if (labels.length === 0) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span tabIndex={0} className="block max-w-64 truncate">{labels.join(', ')}</span>
+      </TooltipTrigger>
+      <TooltipContent><ul>{labels.map((label) => <li key={label}>{label}</li>)}</ul></TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -5,7 +5,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { SIGNED_AMOUNT, trimAmount } from '../investments/entries/entries';
 import { flowKindText } from '../investments/format';
-import { ISO_DATE } from '../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount } from '../subscriptions/edits/amount';
 import { Controller } from 'react-hook-form';
 import { Field } from '@/components/form/Field';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -117,7 +117,7 @@ export const statement: KindUi = {
   },
   toForm: (original, preview) => {
     const o = asStatement(original);
-    return { asOf: o.asOf, amount: o.value ? trimAmount(o.value.amount) : '', keep: defaultKeep(o, preview) };
+    return { asOf: o.asOf, amount: o.value ? toFieldAmount(trimAmount(o.value.amount)) : '', keep: defaultKeep(o, preview) };
   },
   toPayload: (values, original, preview) => {
     const v = values as StatementForm;

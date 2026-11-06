@@ -1,9 +1,10 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { buttonVariants } from '@/components/ui/button';
+import { RowMenu } from '@/components/page/RowMenu';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatInstant } from '@/features/admin/format';
 import { StepCard } from './StepCard';
@@ -15,6 +16,7 @@ export function RecentImports() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const label = useStateLabel();
+  const navigate = useNavigate();
   const list = $api.useQuery('get', '/api/v1/platform/imports');
 
   if (list.error) return <ProblemMessage problem={present(toProblem(list.error))} />;
@@ -36,20 +38,22 @@ export function RecentImports() {
           <TableRow>
             <TableHead scope="col">{t('import.started')}</TableHead>
             <TableHead scope="col">{t('import.state_column')}</TableHead>
-            <TableHead scope="col">{t('import.action')}</TableHead>
+            <TableHead scope="col"><span className="sr-only">{t('page.more_actions')}</span></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {list.data.map((session) => {
             const state = effectiveState(session);
+            const started = formatInstant(session.createdAt);
             return (
               <TableRow key={session.id}>
-                <TableCell>{formatInstant(session.createdAt)}</TableCell>
-                <TableCell>{label(state)}</TableCell>
-                <TableCell>
-                  <Link to="/import/$id" params={{ id: session.id }} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                    {ACTIVE_STATES.has(state) ? t('import.resume') : t('import.view')}
-                  </Link>
+                <TableCell><Link to="/import/$id" params={{ id: session.id }} className="font-medium hover:underline">{started}</Link></TableCell>
+                <TableCell><Badge variant={ACTIVE_STATES.has(state) ? 'secondary' : 'outline'}>{label(state)}</Badge></TableCell>
+                <TableCell className="text-right">
+                  <RowMenu label={t('import.menu', { date: started })} items={[{
+                    label: ACTIVE_STATES.has(state) ? t('import.resume') : t('import.view'),
+                    onSelect: () => void navigate({ to: '/import/$id', params: { id: session.id } }),
+                  }]} />
                 </TableCell>
               </TableRow>
             );

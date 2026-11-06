@@ -4,16 +4,16 @@
     "recent_title": "Imports récents",
     "started": "Commencé le",
     "state_column": "État",
-    "action": "Action",
+    "menu": "Actions de l’import du {{date}}",
     "resume": "Reprendre",
     "view": "Voir",
     "state": {
-      "open": "en cours",
-      "validated": "validé",
-      "invalid": "refusé",
-      "committed": "importé",
-      "cancelled": "annulé",
-      "expired": "expiré"
+      "open": "En cours",
+      "validated": "Validé",
+      "invalid": "Refusé",
+      "committed": "Importé",
+      "cancelled": "Annulé",
+      "expired": "Expiré"
     },
     "file_title": "Choisir un fichier",
     "file_hint": "Un fichier nid.data (JSON). Déposez-le ici ou choisissez-le.",

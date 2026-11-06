@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import { formatMoney } from '@/components/Money';
@@ -14,6 +14,7 @@ type Months = IncomeOverview['months'];
 type Month = Months[number];
 type Row = { key: string; label: string; month: Month; recurring?: number; oneOff?: number; previous?: number };
 
+const UPCOMING_OPACITY = 0.4;
 const plot = (v?: { amount: string } | null) => (v ? toPlot(v.amount) : undefined);
 
 /** Month by month: this period's cash as stacked bars (upcoming months dimmed) in front of last year's total. */
@@ -23,7 +24,8 @@ export function MonthsChart({ months, missingRates, period, year }: {
   const { t } = useTranslation();
   const [asTable, setAsTable] = useState(false);
   const config = {
-    previous: { label: t('income.overview.col_previous'), color: 'var(--muted-foreground)' },
+    // #380: the pale shade is the colour itself, so the legend's swatch reads as the bars do.
+    previous: { label: t('income.overview.col_previous'), color: 'color-mix(in oklab, var(--muted-foreground) 30%, transparent)' },
     recurring: { label: t('income.overview.col_recurring'), color: 'var(--chart-1)' },
     oneOff: { label: t('income.overview.col_one_off'), color: 'var(--chart-4)' },
   } satisfies ChartConfig;
@@ -38,7 +40,7 @@ export function MonthsChart({ months, missingRates, period, year }: {
   const title = period === 'year'
     ? t('income.overview.months_title', { year, previous: year - 1 })
     : t('income.overview.months_title_previous');
-  const dim = (r: Row) => (r.month.upcoming ? 0.4 : 1);
+  const dim = (r: Row) => (r.month.upcoming ? UPCOMING_OPACITY : 1);
   // 36 months: thinner bars on a minimum width that scrolls sideways on a phone (spec §7).
   const wide = period === '3y';
   const [back, front] = wide ? [14, 8] : [28, 16];
@@ -59,8 +61,8 @@ export function MonthsChart({ months, missingRates, period, year }: {
                   <XAxis xAxisId="prev" dataKey="label" hide />
                   <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
                   <ChartTooltip cursor={false} content={<MonthTooltip />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar xAxisId="prev" dataKey="previous" fill="var(--color-previous)" fillOpacity={0.3} barSize={back} radius={[4, 4, 0, 0]} animationDuration={800} />
+                  <ChartLegend content={<MonthsLegend upcoming={rows.filter((r) => r.month.upcoming).map((r) => r.label)} />} />
+                  <Bar xAxisId="prev" dataKey="previous" fill="var(--color-previous)" barSize={back} radius={[4, 4, 0, 0]} animationDuration={800} />
                   <Bar xAxisId="now" dataKey="recurring" stackId="now" fill="var(--color-recurring)" barSize={front} animationDuration={800}>
                     {rows.map((r) => <Cell key={r.key} fillOpacity={dim(r)} />)}
                   </Bar>
@@ -72,6 +74,22 @@ export function MonthsChart({ months, missingRates, period, year }: {
             </div>
           )}
     </SectionCard>
+  );
+}
+
+/** The series, then the upcoming months named as projected: they are the paler bars (#380). */
+function MonthsLegend({ upcoming, ...props }: { upcoming: string[] } & ComponentProps<typeof ChartLegendContent>) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-4 pt-3">
+      <ChartLegendContent {...props} className="pt-0" />
+      {upcoming.length > 0 ? (
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--chart-1)', opacity: UPCOMING_OPACITY }} />
+          {t('income.overview.projected', { months: upcoming.join(', '), count: upcoming.length })}
+        </span>
+      ) : null}
+    </div>
   );
 }
 

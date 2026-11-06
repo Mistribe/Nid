@@ -22,7 +22,7 @@ const abbreviate = (month: string) =>
  * Subscriptions dashboard design §4.2: the next twelve months, monthly charges then long-cycle charges stacked. Every
  * figure read (label, tooltip, table) is the server's string; `toPlot` only sizes the bars.
  */
-export function MonthsChart({ months }: { months: MonthView[] }) {
+export function MonthsChart({ months, asTable = false }: { months: MonthView[]; asTable?: boolean }) {
   const { t } = useTranslation('subscriptions-board');
   const navigate = useNavigate();
   // Keeps the current scope, like the other overview links; a click on a bar goes where its table row's link goes.
@@ -44,13 +44,16 @@ export function MonthsChart({ months }: { months: MonthView[] }) {
       label: long !== 0 ? `+\u00a0${text(m.longCycle)}` : '',
     };
   });
+  const currency = months.map((m) => m.recurring ?? m.longCycle).find(Boolean)?.currency ?? 'EUR';
+  // Display of the plotting number only: the axis is a scale, not a figure the person reads exactly.
+  const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, notation: 'compact' });
   return (
     <figure aria-label={t('overview.months')}>
-      <ChartContainer config={config} className="h-64 w-full">
+      {asTable ? null : <ChartContainer config={config} className="h-64 w-full">
         <BarChart data={rows} maxBarSize={24} accessibilityLayer margin={{ top: 24 }}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} tickMargin={8} interval={0} />
-          <YAxis hide />
+          <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
           <ChartTooltip content={<MonthTooltip />} />
           <ChartLegend content={<ChartLegendContent />} />
           <Bar dataKey="recurring" stackId="m" fill="var(--color-recurring)" stroke="var(--card)" strokeWidth={2} radius={[4, 4, 0, 0]} animationDuration={800} {...barClick} />
@@ -58,21 +61,21 @@ export function MonthsChart({ months }: { months: MonthView[] }) {
             <LabelList dataKey="label" position="top" className="fill-foreground text-[11px] font-medium" />
           </Bar>
         </BarChart>
-      </ChartContainer>
-      {/* Hidden until a month link takes focus, so keyboard users see where they are. */}
-      <div data-testid="months-table" className="sr-only focus-within:not-sr-only focus-within:mt-2">
+      </ChartContainer>}
+      {/* « Afficher en tableau » shows it; under the chart it stays hidden until a month link takes focus, so keyboard users see where they are. */}
+      <div data-testid="months-table" className={asTable ? undefined : 'sr-only focus-within:not-sr-only focus-within:mt-2'}>
       <Table aria-label={t('overview.months')}>
         <TableHeader>
           <TableRow>
             <TableHead>{t('overview.months_month')}</TableHead>
-            <TableHead>{t('overview.months_recurring')}</TableHead>
-            <TableHead>{t('overview.months_long')}</TableHead>
+            <TableHead className="text-right">{t('overview.months_recurring')}</TableHead>
+            <TableHead className="text-right">{t('overview.months_long')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((r, i) => (
             <TableRow key={months[i]!.month}>
-              <TableCell><Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'calendar', month: months[i]!.month })}>{r.name}</Link></TableCell><TableCell>{r.recurringText}</TableCell><TableCell>{r.longCycleText}</TableCell>
+              <TableCell><Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'calendar', month: months[i]!.month })}>{r.name}</Link></TableCell><TableCell className="text-right tabular-nums">{r.recurringText}</TableCell><TableCell className="text-right tabular-nums">{r.longCycleText}</TableCell>
             </TableRow>
           ))}
         </TableBody>

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNames';
 import { Folded } from '../../loans/new/Folded';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import type { PropertyPurchaseDoc, Scenario, ScenarioDefaults } from '../api';
 import '@/locales/forms';
 import '@/locales/scenarios';
@@ -51,6 +51,9 @@ export const newLoan = (t: TFunction, n: number): LoanDraft => ({
   insurance: { kind: 'rate_on_initial', value: '0' }, fileFees: '0', guaranteeFees: '0',
 });
 
+/** The server's rates as a French reader types them (`6.0` → `6,0`). */
+const fieldRates = (rates: Record<string, string>) => Object.fromEntries(Object.entries(rates).map(([k, v]) => [k, toFieldAmount(v)]));
+
 /** A blank scenario, its rates pre-filled from the defaults (spec §3); the growth defaults to the `real_estate` rate. */
 export function newDraft(t: TFunction, defaults: ScenarioDefaults): ScenarioDraft {
   return {
@@ -58,7 +61,7 @@ export function newDraft(t: TFunction, defaults: ScenarioDefaults): ScenarioDraf
     currentRent: '0', expectedRent: '0', vacancyMonths: '0', rentalRegime: '',
     funding: [], loans: [newLoan(t, 1)],
     assumptions: {
-      horizonYears: '10', classRates: { ...defaults.classRates }, propertyGrowth: defaults.classRates.real_estate ?? '',
+      horizonYears: '10', classRates: fieldRates(defaults.classRates), propertyGrowth: toFieldAmount(defaults.classRates.real_estate ?? ''),
       monthlySavings: '0', savingsClass: 'cash',
     },
   };
@@ -99,18 +102,18 @@ export function fromDocument(s: Pick<Scenario, 'name' | 'visibility' | 'document
   const d = s.document;
   const a = d.assumptions;
   return {
-    name: s.name, visibility: s.visibility, use: d.use, purchaseOn: d.purchaseOn, price: d.price, notaryFees: d.notaryFees,
-    agencyFees: d.agencyFees, otherCosts: d.otherCosts, monthlyCharges: d.monthlyCharges, currentRent: d.currentRent,
-    expectedRent: d.expectedRent, vacancyMonths: String(d.vacancyMonths), rentalRegime: d.rentalRegime ?? '',
-    funding: d.funding.map((f) => ({ item: f.item, amount: f.amount })),
+    name: s.name, visibility: s.visibility, use: d.use, purchaseOn: d.purchaseOn, price: toFieldAmount(d.price), notaryFees: toFieldAmount(d.notaryFees),
+    agencyFees: toFieldAmount(d.agencyFees), otherCosts: toFieldAmount(d.otherCosts), monthlyCharges: toFieldAmount(d.monthlyCharges),
+    currentRent: toFieldAmount(d.currentRent), expectedRent: toFieldAmount(d.expectedRent), vacancyMonths: String(d.vacancyMonths), rentalRegime: d.rentalRegime ?? '',
+    funding: d.funding.map((f) => ({ item: f.item, amount: toFieldAmount(f.amount) })),
     loans: d.loans.map((l) => ({
-      name: l.name, amount: l.amount, rate: l.rate, months: String(l.months),
+      name: l.name, amount: toFieldAmount(l.amount), rate: toFieldAmount(l.rate), months: String(l.months),
       deferral: l.deferral ? { kind: l.deferral.kind, months: String(l.deferral.months) } : { kind: '', months: '' },
-      insurance: { ...l.insurance }, fileFees: l.fileFees, guaranteeFees: l.guaranteeFees,
+      insurance: { kind: l.insurance.kind, value: toFieldAmount(l.insurance.value) }, fileFees: toFieldAmount(l.fileFees), guaranteeFees: toFieldAmount(l.guaranteeFees),
     })),
     assumptions: {
-      horizonYears: String(a.horizonYears), classRates: { ...a.classRates }, propertyGrowth: a.propertyGrowth ?? '',
-      monthlySavings: a.monthlySavings, savingsClass: a.savingsClass,
+      horizonYears: String(a.horizonYears), classRates: fieldRates(a.classRates), propertyGrowth: toFieldAmount(a.propertyGrowth ?? ''),
+      monthlySavings: toFieldAmount(a.monthlySavings), savingsClass: a.savingsClass,
     },
   };
 }

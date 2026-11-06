@@ -31836,6 +31836,7 @@
           "mediaType",
           "sizeBytes",
           "uploadedAt",
+          "uploadedBy",
           "archived",
           "canEdit",
           "links"
@@ -31866,6 +31867,10 @@
           "uploadedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "uploadedBy": {
+            "type": "string",
+            "format": "uuid"
           },
           "archived": {
             "type": "boolean"

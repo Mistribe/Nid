@@ -35,9 +35,10 @@ export function SourceFigures({ figures, withholding = [] }: { figures: IncomeSo
         },
         {
           label: t('income_detail.next'),
-          value: nextOn && nextAmount
-            ? <>{t('income_detail.next_line', { date: formatLocalDate(nextOn), amount: formatMoney(nextAmount) })}{nextLabel ? <Sub>{nextLabel}</Sub> : null}</>
-            : '—',
+          value: nextOn && nextAmount ? formatMoney(nextAmount) : '—',
+          hint: nextOn && nextAmount
+            ? <>{t('income_detail.next_on', { date: formatLocalDate(nextOn) })}{nextLabel ? <Sub>{nextLabel}</Sub> : null}</>
+            : null,
         },
         {
           label: t('income_detail.over_1y'),

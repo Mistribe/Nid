@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { LOAN_AMOUNT } from '../../loans/new/loanForm';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyRecurringCost } from '../api';
 import { EVERY_UNITS, RECURRING_CATEGORIES } from '../format';
@@ -41,7 +41,7 @@ export function costValuesOf(c?: PropertyRecurringCost): CostValues {
   // The server writes only its own categories and units.
   return c
     ? {
-      category: c.category as CostValues['category'], amount: c.amount, everyCount: String(c.every.count),
+      category: c.category as CostValues['category'], amount: toFieldAmount(c.amount), everyCount: String(c.every.count),
       everyUnit: c.every.unit as CostValues['everyUnit'], startsOn: c.startsOn, endsOn: c.endsOn ?? '', note: c.note ?? '',
     }
     : { category: 'property_tax', amount: '', everyCount: '1', everyUnit: 'year', startsOn: todayIso(), endsOn: '', note: '' };

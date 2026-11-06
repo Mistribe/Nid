@@ -8,7 +8,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toWireAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
@@ -39,7 +39,7 @@ export function ValueForm({ envelope, editing, titleId, onDone }: {
     resolver: zodResolver(valueSchema(t)),
     defaultValues: {
       asOf: editing?.asOf ?? todayIso(),
-      amount: editing ? trimAmount(editing.amount.amount) : last ? trimAmount(last.amount.amount) : '',
+      amount: editing ? toFieldAmount(trimAmount(editing.amount.amount)) : last ? toFieldAmount(trimAmount(last.amount.amount)) : '',
       note: editing?.note ?? '',
     },
   });

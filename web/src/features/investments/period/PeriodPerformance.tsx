@@ -73,12 +73,13 @@ export function PeriodPerformance({ envelopeId }: { envelopeId: string }) {
       {range && !answer.error && !data ? <div role="status" aria-busy="true" aria-label={t('envelope.period.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
       {data ? (
         <StatLine items={[
-          { label: t('envelope.period.start'), value: data.startValue && data.startAsOf
-            ? <><Money value={data.startValue} tabular /> · <LocalDate value={data.startAsOf} /></>
-            : missing(t('envelope.period.no_start')) },
-          { label: t('envelope.period.end'), value: data.endValue && data.endAsOf
-            ? <><Money value={data.endValue} tabular /> · <LocalDate value={data.endAsOf} /></>
-            : missing(t('envelope.period.no_end')) },
+          // #376: the value on its line, its date under it.
+          data.startValue && data.startAsOf
+            ? { label: t('envelope.period.start'), value: <Money value={data.startValue} tabular />, hint: <LocalDate value={data.startAsOf} /> }
+            : { label: t('envelope.period.start'), value: missing(t('envelope.period.no_start')) },
+          data.endValue && data.endAsOf
+            ? { label: t('envelope.period.end'), value: <Money value={data.endValue} tabular />, hint: <LocalDate value={data.endAsOf} /> }
+            : { label: t('envelope.period.end'), value: missing(t('envelope.period.no_end')) },
           { label: t('envelope.period.net'), value: data.netContributions ? <Money value={data.netContributions} tabular /> : missing(t('investments.no_value')) },
           { label: t('envelope.period.performance'), value: data.performance ? <Direction amount={data.performance} /> : missing(t('investments.no_value')) },
         ]} />

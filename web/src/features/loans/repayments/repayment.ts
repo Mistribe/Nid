@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import type { DefaultValues } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { LoanRepayment } from '../api';
 import type { EFFECTS } from '../format';
@@ -43,8 +43,8 @@ export const REPAYMENT_PATHS = {
  */
 export function repaymentValuesOf(r?: LoanRepayment, prefill?: RepaymentPrefill | null): DefaultValues<RepaymentValues> {
   // The server writes only its own effects.
-  if (r) return { onDate: r.onDate, amount: r.amount, effect: r.effect as Effect, penalty: r.penalty ?? '', note: r.note ?? '' };
-  if (prefill) return { onDate: prefill.onDate, amount: prefill.amount, effect: prefill.effect, penalty: prefill.penalty, note: '' };
+  if (r) return { onDate: r.onDate, amount: toFieldAmount(r.amount), effect: r.effect as Effect, penalty: toFieldAmount(r.penalty ?? ''), note: r.note ?? '' };
+  if (prefill) return { onDate: prefill.onDate, amount: toFieldAmount(prefill.amount), effect: prefill.effect, penalty: toFieldAmount(prefill.penalty), note: '' };
   return { onDate: todayIso(), amount: '', penalty: '', note: '' };
 }
 

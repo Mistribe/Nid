@@ -1,5 +1,5 @@
 import type { Path } from 'react-hook-form';
-import { toWireAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import type { EventDate, EventKind, ProjectionEvent } from './api';
 
 /** A date as typed: a day, or a person's age (spec §4); an end may also be none. Every figure a string, as typed. */
@@ -28,9 +28,9 @@ const dateDraft = (date: EventDate | null | undefined, none: boolean): DateDraft
 export function fromEvent(event?: ProjectionEvent): EventDraft {
   return {
     label: event?.label ?? '', start: dateDraft(event?.start, false), until: dateDraft(event?.until, true),
-    monthlyAmount: event?.monthlyAmount ?? '', amount: event?.amount ?? '', split: event?.split ?? 'highest_rate', loan: event?.loan ?? '',
-    effect: event?.effect ?? 'reduce_term', penalty: event?.penalty ?? '0', property: event?.property ?? '', price: event?.price ?? '',
-    costs: event?.costs ?? '0', scenario: event?.scenario ?? '',
+    monthlyAmount: toFieldAmount(event?.monthlyAmount ?? ''), amount: toFieldAmount(event?.amount ?? ''), split: event?.split ?? 'highest_rate', loan: event?.loan ?? '',
+    effect: event?.effect ?? 'reduce_term', penalty: toFieldAmount(event?.penalty ?? '0'), property: event?.property ?? '', price: toFieldAmount(event?.price ?? ''),
+    costs: toFieldAmount(event?.costs ?? '0'), scenario: event?.scenario ?? '',
   };
 }
 

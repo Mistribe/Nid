@@ -3,7 +3,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { StatLine } from '@/components/page/StatLine';
 import { monthLabel } from '@/features/income/expected/months';
 import { Terms } from '../../loans/detail/Terms';
-import { money, signedMoney } from '../../loans/format';
+import { money, percent, signedMoney } from '../../loans/format';
 import type { PropertyDetail } from '../api';
 import { costLineText } from '../format';
 import { rentalFigures } from '../rental/RentalFigures';
@@ -15,20 +15,25 @@ export function PropertyStats({ property }: { property: PropertyDetail }) {
   const f = property.figures;
   const m = (amount: string) => money(property.currency, amount);
   const unknown = t('property_detail.unknown');
+  // #376: the figure alone on its line, its date (and « À réestimer ») in the line under it.
   const value = f.value && f.valueOn
-    ? t(f.stale ? 'property_detail.value_stale' : 'property_detail.value_on', { amount: m(f.value), date: formatLocalDate(f.valueOn) })
-    : unknown;
+    ? { value: m(f.value), hint: t(f.stale ? 'property_detail.value_stale' : 'property_detail.value_on', { date: formatLocalDate(f.valueOn) }) }
+    : { value: unknown };
   const rent = f.rentedSince ? rentalFigures(t, property) : null;
   return (
     <StatLine items={[
-      { label: t('property_detail.value'), value },
+      { label: t('property_detail.value'), ...value },
       { label: t('property_detail.net_value'), value: f.netValue ? <>{m(f.netValue)}<NetValueTurn property={property} /></> : unknown },
       { label: t('property_detail.latent_gain'), value: f.latentGain ? signedMoney(property.currency, f.latentGain) : unknown },
       { label: t('property_detail.real_cost'), value: m(f.realCost) },
       ...(rent ? [
         { label: t('property_rental.expected_rent'), value: rent.expected },
-        { label: t('property_rental.vacancy'), value: rent.vacancy },
-        { label: t('property_rental.net_yield'), value: rent.net },
+        f.vacantDays != null && f.vacancyRate
+          ? { label: t('property_rental.vacancy'), value: percent(t, f.vacancyRate), hint: t('properties_rental.vacancy_days', { count: f.vacantDays }) }
+          : { label: t('property_rental.vacancy'), value: unknown },
+        f.netYieldBeforeTax
+          ? { label: t('property_rental.net_yield'), value: rent.net }
+          : { label: t('property_rental.net_yield'), value: t('properties_rental.not_significant'), hint: t('properties_rental.not_significant_note') },
       ] : []),
     ]} />
   );

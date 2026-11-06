@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { POSITIVE_AMOUNT, trimAmount } from '../../investments/entries/entries';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeOneOff } from '../api';
 import '@/locales/investments';
@@ -36,7 +36,7 @@ export const ONE_OFF_FALLBACK = {
 } as const satisfies Record<string, keyof OneOffValues>;
 
 export function oneOffValuesOf(f?: IncomeOneOff, on = todayIso()): OneOffValues {
-  return f ? { occurredOn: f.occurredOn, amount: trimAmount(f.amount.amount), taxableAmount: f.taxableAmount ? trimAmount(f.taxableAmount.amount) : '', note: f.note ?? '' }
+  return f ? { occurredOn: f.occurredOn, amount: toFieldAmount(trimAmount(f.amount.amount)), taxableAmount: f.taxableAmount ? toFieldAmount(trimAmount(f.taxableAmount.amount)) : '', note: f.note ?? '' }
     : { occurredOn: on, amount: '', taxableAmount: '', note: '' };
 }
 

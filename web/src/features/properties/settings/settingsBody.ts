@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { toWireAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import type { PropertyDetail } from '../api';
 import { propertyFieldPath, propertyFieldsSchema } from '../new/propertyForm';
 
@@ -27,8 +27,9 @@ export function settingsPath(path: string): keyof SettingsValues | undefined {
 export function settingsValuesOf(p: PropertyDetail): SettingsValues {
   // The server writes only its own types and cadences.
   return {
-    name: p.name, type: p.type as SettingsValues['type'], purchaseDate: p.purchaseDate, purchasePrice: p.purchasePrice,
-    notaryFees: p.notaryFees, agencyFees: p.agencyFees, otherAcquisitionCosts: p.otherAcquisitionCosts, surfaceM2: p.surfaceM2 ?? '',
+    name: p.name, type: p.type as SettingsValues['type'], purchaseDate: p.purchaseDate, purchasePrice: toFieldAmount(p.purchasePrice),
+    notaryFees: toFieldAmount(p.notaryFees), agencyFees: toFieldAmount(p.agencyFees),
+    otherAcquisitionCosts: toFieldAmount(p.otherAcquisitionCosts), surfaceM2: toFieldAmount(p.surfaceM2 ?? ''),
     locationLabel: p.locationLabel ?? '', valuationCadence: p.valuationCadence as SettingsValues['valuationCadence'],
     staleAfterDays: p.staleAfterDays == null ? '' : String(p.staleAfterDays), rentalStartsOn: p.rentalStartsOn ?? '', note: p.note ?? '', energyClass: p.energyClass ?? '',
     postalAddress: p.postalAddress ?? '',

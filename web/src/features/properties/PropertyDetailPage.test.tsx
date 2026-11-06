@@ -56,8 +56,9 @@ describe('PropertyDetailPage', () => {
     expect(within(within(document.querySelector<HTMLElement>('[data-pane="toolbar"]')!).getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/properties');
     expect(screen.queryByRole('list', { name: 'Avertissements' })).not.toBeInTheDocument();
     expect(screen.queryByText('Vous pouvez consulter ce bien, pas le modifier.')).not.toBeInTheDocument();
-    expect(figure('Valeur')).toHaveTextContent('290 000,00 € au 1 juin 2026');
-    expect(figure('Valeur')).not.toHaveTextContent('À réestimer');
+    expect(figure('Valeur')).toHaveTextContent(/^290\s000,00\s€$/);
+    expect(figure('Valeur')!.nextElementSibling).toHaveTextContent('au 1 juin 2026');
+    expect(figure('Valeur')!.nextElementSibling).not.toHaveTextContent('À réestimer');
     expect(figure('Valeur nette')).toHaveTextContent('96 435,77 €');
     expect(figure('Plus-value latente')).toHaveTextContent('+9 000,00 €');
     expect(figure('Coût réel')).toHaveTextContent('288 823,35 €');
@@ -80,7 +81,8 @@ describe('PropertyDetailPage', () => {
 
     await heading();
     expect(figure('Loyers attendus sur 12 mois')).toHaveTextContent('10 800,00 €');
-    expect(figure('Vacance sur 12 mois')).toHaveTextContent('0 jour (0 %)');
+    expect(figure('Vacance sur 12 mois')).toHaveTextContent('0 %');
+    expect(figure('Vacance sur 12 mois')!.nextElementSibling).toHaveTextContent('0 jour sans bail');
     expect(figure('Rendement net avant impôt')).toHaveTextContent('3,31 %');
     await expectNoAxeViolations(container);
   });
@@ -119,7 +121,7 @@ describe('PropertyDetailPage', () => {
 
     await heading();
     expect(figure('Plus-value latente')).toHaveTextContent('-12 000,00 €');
-    expect(figure('Valeur')).toHaveTextContent('290 000,00 € au 1 juin 2026 — À réestimer');
+    expect(figure('Valeur')!.nextElementSibling).toHaveTextContent('au 1 juin 2026 — À réestimer');
     expect(detail('something_new')).toHaveTextContent('10,00 €');
   });
 

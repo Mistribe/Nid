@@ -3,10 +3,12 @@ import { Link } from '@tanstack/react-router';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
+import { Hero, HeroUnknown } from '@/components/page/Hero';
 import { StatLine } from '@/components/page/StatLine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { percent } from '@/features/dashboard/format';
-import type { IncomeOverviewFigures } from '../api';
+import { toPlot } from '@/features/investments/chart/plot';
+import type { IncomeOverview, IncomeOverviewFigures } from '../api';
 
 /** A change in words and an arrow (never the colour alone), the sign as the server gave it. */
 export function Change({ value, label }: { value: number; label?: string }) {
@@ -39,9 +41,12 @@ export function RealChange({ value, inflation }: { value: number | null | undefi
   );
 }
 
-/** The four key figures as the server computed them; one it could not compute reads « — » and says why on focus. */
-export function OverviewFigures({ figures, missingRates, period, year }: {
-  figures: IncomeOverviewFigures; missingRates: string[]; period: 'year' | '12m' | '3y'; year: number;
+/**
+ * The key figures as the server computed them: today's smoothed monthly income leads in the hero, its months as the curve,
+ * the other three follow in the `StatLine`; one it could not compute reads « — » and says why on focus.
+ */
+export function OverviewFigures({ figures, months, missingRates, period, year }: {
+  figures: IncomeOverviewFigures; months: IncomeOverview['months']; missingRates: string[]; period: 'year' | '12m' | '3y'; year: number;
 }) {
   const { t } = useTranslation();
   // A missing rate nulls a figure before history does: name it (spec §2, §5).
@@ -57,17 +62,11 @@ export function OverviewFigures({ figures, missingRates, period, year }: {
 
   return (
     <TooltipProvider>
+      <Hero label={t('income.overview.per_month')} figure={monthlyNow ? formatMoney(monthlyNow) : <HeroUnknown>{dash}</HeroUnknown>}
+        change={monthlyChange1y != null ? <Change value={monthlyChange1y} label={t('income.overview.over_1y')} /> : null}
+        note={<>{t('income.overview.per_month_hint')}<RealChange value={monthlyRealChange1y} inflation={inflation} /></>}
+        values={months.flatMap((m) => (m.total ? [toPlot(m.total.amount)] : []))} />
       <StatLine items={[
-        {
-          label: t('income.overview.per_month'),
-          value: monthlyNow ? (
-            <>
-              {formatMoney(monthlyNow)}
-              {monthlyChange1y != null ? <Change value={monthlyChange1y} label={t('income.overview.over_1y')} /> : null}
-              <RealChange value={monthlyRealChange1y} inflation={inflation} />
-            </>
-          ) : dash,
-        },
         {
           label: yearly ? t('income.overview.total_year', { year }) : t('income.overview.total_period'),
           value: total ? <>{formatMoney(total)}{yearly && elapsed ? <Sub>{t('income.overview.elapsed', { amount: formatMoney(elapsed) })}</Sub> : null}</> : dash,

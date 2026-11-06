@@ -64,6 +64,8 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
   const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, notation: 'compact' });
   const dim = (r: Row) => (r.month.upcoming ? 0.4 : 1);
   const series = [...labels.map((_, i) => `l${i}`), 'oneOff'];
+  // #383: a window without a payment says so rather than drawing axes over nothing.
+  const empty = months.every((m) => toPlot(m.total.amount) === 0);
 
   return (
     <SectionCard title={t('income_detail.evolution.title')} actions={
@@ -73,7 +75,9 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
         <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </>
     }>
-        {asTable ? <SourceMonthsTable months={months} labels={labels} /> : (
+        {asTable ? <SourceMonthsTable months={months} labels={labels} /> : empty ? (
+          <p className="text-sm text-muted-foreground">{t(`income_detail.evolution.empty_${period}`)}</p>
+        ) : (
           <ChartContainer config={config} className="h-64 w-full">
             <BarChart data={rows} maxBarSize={24} title={t('income_detail.evolution.chart')} accessibilityLayer>
               <CartesianGrid vertical={false} />

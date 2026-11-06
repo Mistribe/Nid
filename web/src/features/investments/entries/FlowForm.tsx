@@ -9,7 +9,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toWireAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
@@ -47,7 +47,7 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
       occurredOn: editing?.occurredOn ?? todayIso(),
       kind: (editing?.kind as (typeof FLOW_KINDS)[number] | undefined) ?? (opening ? 'opening' : 'contribution'),
       nature: INCOME_CATEGORIES.find((c) => c === editing?.category) ?? '',
-      amount: editing ? trimAmount(editing.amount.amount) : '',
+      amount: editing ? toFieldAmount(trimAmount(editing.amount.amount)) : '',
       note: editing?.note ?? '',
     },
   });

@@ -34,12 +34,18 @@ export function Gain({ figures }: { figures: Figures }) {
   if (!figures.gain) return <span className="text-muted-foreground">{t('investments.no_value')}</span>;
   return (
     <Direction amount={figures.gain}>
-      {figures.gainPct === null || figures.gainPct === undefined
-        ? <><span aria-hidden="true">{t('investments.dash')}</span><span className="sr-only">{t('investments.pct_undefined')}</span></>
-        // Secondary to the amount, as in HeroChange; when the column is narrow it moves to the next line whole.
-        : <span className="tabular-nums whitespace-nowrap font-normal text-muted-foreground">{t('investments.pct', { value: pct(figures.gainPct) })}</span>}
+      {/* Secondary to the amount, as in HeroChange; when the column is narrow it moves to the next line whole. */}
+      <GainPct value={figures.gainPct} className="font-normal text-muted-foreground" />
     </Direction>
   );
+}
+
+/** The gain's percent alone, « — » when the server gives none: under the amount in a StatLine (#376). */
+export function GainPct({ value, className }: { value: number | null | undefined; className?: string }) {
+  const { t } = useTranslation();
+  return value === null || value === undefined
+    ? <><span aria-hidden="true">{t('investments.dash')}</span><span className="sr-only">{t('investments.pct_undefined')}</span></>
+    : <span className={`tabular-nums whitespace-nowrap ${className ?? ''}`}>{t('investments.pct', { value: pct(value) })}</span>;
 }
 
 /** The money-weighted annual return the server computed (XIRR), already rounded. */

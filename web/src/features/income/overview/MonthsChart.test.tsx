@@ -26,6 +26,18 @@ describe('MonthsChart', () => {
     for (const name of ['Année précédente', 'Récurrent', 'Exceptionnel']) expect(await within(region).findByText(name)).toBeInTheDocument();
   });
 
+  it('draws last year’s swatch as its bars and names the projected months (#380)', async () => {
+    const { container } = show();
+    const region = screen.getByRole('region', { name: 'Mois par mois · 2026 vs 2025' });
+    await within(region).findByText('Année précédente');
+    // The legend's swatch and the bars read the same colour, its pale shade included (jsdom drops color-mix from the swatch's style).
+    expect((container.querySelector('[data-chart]') as HTMLElement).style.getPropertyValue('--color-previous')).toBe('color-mix(in oklab, var(--muted-foreground) 30%, transparent)');
+    const bar = container.querySelectorAll('.recharts-bar')[0]!.querySelector('.recharts-bar-rectangle path')!;
+    expect(bar.getAttribute('fill')).toBe('var(--color-previous)');
+    expect(bar.getAttribute('fill-opacity')).toBeNull();
+    expect(within(region).getByText(/^mars.* : projeté$/)).toBeInTheDocument();
+  });
+
   it('scrolls sideways over three years instead of squeezing 36 months', () => {
     const { container } = render(<MonthsChart months={months} missingRates={[]} period="3y" year={2026} />);
     expect(container.querySelector('[data-chart]')).toHaveClass('min-w-[48rem]');

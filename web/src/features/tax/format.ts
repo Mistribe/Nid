@@ -31,6 +31,9 @@ export function noticeAmount(t: TFunction, code: string, amount: string, money: 
   return code === 'contribution_rate_differs' ? percentText(t, amount) : money(amount);
 }
 
+/** A number of parts from the server (`"2.50"`) in French (`2,5`): Intl reads the decimal string, nothing computes. */
+export const partsText = (value: string) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value as `${number}`);
+
 export const METHODS = ['entered', 'estimated', 'mixed'] as const;
 export const ORIGINS = ['entered', 'gross', 'net'] as const;
 

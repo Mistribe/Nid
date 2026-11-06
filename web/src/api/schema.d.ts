@@ -26804,6 +26804,8 @@ export interface components {
             documentDate?: null | string;
             /** Format: date-time */
             uploadedAt: string;
+            /** Format: uuid */
+            uploadedBy: string;
             archived: boolean;
             canEdit: boolean;
             links: components["schemas"]["DocumentLinkView"][];

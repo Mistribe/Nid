@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { POSITIVE_AMOUNT, trimAmount } from '../investments/entries/entries';
-import { ISO_DATE } from '../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount } from '../subscriptions/edits/amount';
 import { Field } from '@/components/form/Field';
 import { Table, TableBody } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -75,7 +75,7 @@ export const payslip: KindUi = {
   }),
   toForm: (original) => {
     const o = asPayslip(original);
-    return { effectiveOn: o.effectiveOn ?? '', net: trimAmount(o.net.amount), gross: o.gross ? trimAmount(o.gross.amount) : '' };
+    return { effectiveOn: o.effectiveOn ?? '', net: toFieldAmount(trimAmount(o.net.amount)), gross: o.gross ? toFieldAmount(trimAmount(o.gross.amount)) : '' };
   },
   toPayload: (values, original) => {
     const v = values as PayslipForm;

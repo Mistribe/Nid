@@ -44,7 +44,8 @@ describe('the projection settings page', () => {
     serve();
     await renderApp('/settings/projection');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Projection' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Réglages' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Projection' })).toHaveAttribute('aria-current', 'page');
     expect(await screen.findByText('Actions : 6 %')).toBeInTheDocument();
     expect(screen.getByText('Liquidités : 1,5 %')).toBeInTheDocument();
     expect(screen.getByText(/Automatique \(moyenne des 12 derniers mois\)/)).toBeInTheDocument();
@@ -78,7 +79,7 @@ describe('the projection settings page', () => {
 
     expect(await screen.findByText(/Épargne mensuelle : 500,00\s*CHF/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
-    expect(await screen.findByLabelText('Épargne mensuelle (CHF)')).toHaveValue('500.00');
+    expect(await screen.findByLabelText('Épargne mensuelle (CHF)')).toHaveValue('500,00');
   });
 
   it('sends a fixed monthly amount', async () => {

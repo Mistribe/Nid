@@ -73,7 +73,7 @@ describe('property settings', () => {
     await waitFor(() => {
       expect(sent).toEqual([{ ...FLAGS, version: 7, purchasePrice: '255000', clearLocationLabel: true, note: 'toiture refaite' }]);
       expect(reads.detail).toBeGreaterThan(1);
-      expect(within(settings()).getByLabelText('Prix d’achat')).toHaveValue('255000.00');
+      expect(within(settings()).getByLabelText('Prix d’achat')).toHaveValue('255000,00');
       expect(screen.getByRole('heading', { name: 'Réglages' })).toHaveFocus();
     });
   });

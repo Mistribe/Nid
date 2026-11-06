@@ -41,7 +41,7 @@ describe('Abonnements › conditions du contrat', () => {
   it('shows the last day to cancel in the key figures only for a deadline', async () => {
     serve(detail({ contractTerms: TERMS, cancellation: DEADLINE }));
     await renderApp(`/subscriptions/${SUB}`);
-    expect((await screen.findByText('Dernier jour pour résilier')).nextElementSibling).toHaveTextContent('1 octobre 2026');
+    expect((await screen.findByText('Dernier jour pour résilier')).nextElementSibling).toHaveTextContent('1 oct. 2026');
   });
 
   it('keeps the key figures free of it when it is free to cancel', async () => {

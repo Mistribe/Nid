@@ -1,9 +1,8 @@
 {
   "overview": {
     "remaining": "Reste à prélever",
-    "remaining_of": "<left>{{left}}</left> sur <total>{{total}}</total>",
+    "remaining_of": "sur {{total}}",
     "count": "Abonnements",
-    "counts": "{{active}} · {{ended}}",
     "active_one": "{{count}} actif",
     "active_other": "{{count}} actifs",
     "ended_one": "{{count}} fini",

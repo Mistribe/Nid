@@ -62,7 +62,7 @@ describe('EnvelopeDetailPage', () => {
     }));
     const { container } = await renderApp(`/investments/${PEA}`);
     const figuresBlock = await screen.findByRole('region', { name: 'Valeur et gain' });
-    expect(figuresBlock).toHaveTextContent('22 950,00 € · encore 3 600,00 € versables');
+    expect(figuresBlock).toHaveTextContent('Plafond22 950,00 €encore 3 600,00 € versables');
     expect(figuresBlock).toHaveTextContent('Intérêts estimés à ce jour173,33 €');
     expect(figuresBlock).toHaveTextContent('attendus au 31 décembre : 215,83 €');
     expect(figuresBlock).toHaveTextContent('Estimation au taux réglementé (1,7 % aujourd’hui)');
@@ -71,7 +71,7 @@ describe('EnvelopeDetailPage', () => {
 
     serve(detail({ kind: 'savings', regulated: 'livret_a', ceiling: { ceiling: eur('22950'), room: eur('0'), reached: true, since: '2013-01-01', source: 'Banque de France' } }));
     await renderApp(`/investments/${PEA}`);
-    expect(await screen.findByRole('region', { name: 'Valeur et gain' })).toHaveTextContent('22 950,00 € · atteint');
+    expect(await screen.findByRole('region', { name: 'Valeur et gain' })).toHaveTextContent('Plafond22 950,00 €atteint');
   });
 
   it('announces the next tax date and leads to the tax on a sale (issue 400)', async () => {
@@ -198,7 +198,8 @@ describe('EnvelopeDetailPage', () => {
     const line = (await screen.findByText('Valeur au 30 sept. 2025')).closest('dl')!;
     expect(line).toHaveTextContent('25 000,00 €');
     expect(within(line).getByText('Versements nets').nextElementSibling).toHaveTextContent('22 000,00 €');
-    expect(within(line).getByText('Gain').nextElementSibling).toHaveTextContent(/\+3\s000,00\s€.*\+13,6\s%/);
+    expect(within(line).getByText('Gain').nextElementSibling).toHaveTextContent(/^\+3\s000,00\s€/);
+    expect(within(line).getByText('Gain').nextElementSibling!.nextElementSibling).toHaveTextContent(/^\+13,6\s%$/);
     expect(within(line).getByText('Rendement annuel').nextElementSibling).toHaveTextContent(/\+14,2\s%\spar an/);
     await waitFor(() => expect(within(line).getByText('Depuis janvier').nextElementSibling).toHaveTextContent('+439,00 €'));
   });

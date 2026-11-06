@@ -254,6 +254,16 @@ describe('page grammar', () => {
     expect(screen.getByText('Valeur')).toHaveClass('text-label');
   });
 
+  it('StatLine puts what qualifies a figure in the small line under it, out of the figure font (#376)', () => {
+    render(<StatLine items={[{ label: 'Mensualités', value: '2 315,40 €', hint: 'par mois' }, { label: 'Fin', value: 'mai 2036' }]} />);
+    expect(screen.getByText('2 315,40 €')).toHaveClass('text-figure');
+    const hint = screen.getByText('par mois');
+    expect(hint.tagName).toBe('DD');
+    expect(hint).toHaveClass('text-sm', 'text-muted-foreground');
+    expect(hint).not.toHaveClass('text-figure');
+    expect(screen.getByText('mai 2036').nextElementSibling).toBeNull();
+  });
+
   it('FilterRow is one labelled group of controls on a wrapping line', () => {
     render(<FilterRow label="Filtres"><button type="button">A</button></FilterRow>);
     expect(screen.getByRole('group', { name: 'Filtres' })).toHaveClass('flex', 'flex-wrap', 'items-center');

@@ -16,6 +16,7 @@ import { todayIso } from '../../subscriptions/today';
 import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_RECEIPTS } from '../api';
 import { monthText } from '../format';
+import { elision } from '@/lib/elision';
 import '@/locales/properties';
 
 /** The tenancy fields are completed on the lease, the address on the property's settings. */
@@ -95,7 +96,7 @@ export function ReceiptPage() {
       {view.kind === 'unpaid' ? <p className="text-muted-foreground">{t('property_receipt.unpaid')}</p> : (
         <article aria-labelledby={titleId} className="mx-auto max-w-2xl space-y-6 bg-white p-6 text-black print:max-w-none print:p-0">
           <h2 id={titleId} className="text-2xl font-semibold">{title}</h2>
-          <p className="font-medium">{t('property_receipt.period', { month: period })}</p>
+          <p className="font-medium">{t('property_receipt.period', { month: period, context: elision(period) })}</p>
           <dl className="space-y-3">
             <div><dt className="text-sm font-semibold">{t('property_receipt.dwelling')}</dt><dd className="whitespace-pre-line">{view.postalAddress || todo}</dd></div>
             <div><dt className="text-sm font-semibold">{t('property_receipt.landlord')}</dt><dd className="whitespace-pre-line">{landlord}{'\n'}{view.landlordAddress || todo}</dd></div>
@@ -115,8 +116,8 @@ export function ReceiptPage() {
           {view.paidOn ? <p>{t('property_receipt.paid_on', { date: formatLocalDate(view.paidOn) })}</p> : null}
           <p>
             {view.kind === 'receipt'
-              ? t('property_receipt.statement_receipt', { landlord, tenant, paid: money(view.currency, view.paid), month: period })
-              : t('property_receipt.statement_quittance', { landlord, tenant, total: money(view.currency, view.total), month: period })}
+              ? t('property_receipt.statement_receipt', { landlord, tenant, paid: money(view.currency, view.paid), month: period, context: elision(period) })
+              : t('property_receipt.statement_quittance', { landlord, tenant, total: money(view.currency, view.total), month: period, context: elision(period) })}
           </p>
           {view.kind === 'receipt' ? <p className="font-semibold">{t('property_receipt.partial')}</p> : null}
           <p>{t('property_receipt.made_on', { date: formatLocalDate(todayIso()) })}</p>

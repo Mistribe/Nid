@@ -74,13 +74,14 @@ describe('receipt page', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('shows a reçu with its mention and the amount paid', async () => {
-    serve(view({ kind: 'receipt', paid: '400.00' }));
-    await renderApp(`${PAGE}?month=2026-09`);
+  it('shows a reçu with its mention and the amount paid, « d’octobre » elided', async () => {
+    serve(view({ kind: 'receipt', paid: '400.00', month: '2026-10', months: ['2026-10', '2026-09'] }));
+    await renderApp(`${PAGE}?month=2026-10`);
 
     const doc = await screen.findByRole('article', { name: 'Reçu de paiement' });
     expect(doc).toHaveTextContent('Reçu pour solde partiel, ne vaut pas quittance');
-    expect(doc).toHaveTextContent('la somme de 400,00 €, en paiement partiel');
+    expect(doc).toHaveTextContent('la somme de 400,00 €, en paiement partiel du loyer et des charges du mois d’octobre 2026.');
+    expect(doc).toHaveTextContent('Période : mois d’octobre 2026');
     expect(screen.queryByText('Quittance de loyer')).not.toBeInTheDocument();
     // The table holds what is due; what was paid stands apart.
     const due = within(doc).getByLabelText('Montants dus');

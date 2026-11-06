@@ -27,7 +27,7 @@ describe('Import › one session', () => {
     await renderApp(`/import/${SESSION_ID}`);
 
     expect(await screen.findByText('Cet import a expiré. Recommencez avec le fichier.')).toBeInTheDocument();
-    expect(screen.getByText('État : expiré')).toBeInTheDocument();
+    expect(screen.getByText('État : Expiré')).toBeInTheDocument();
   });
 
   it('shows a cancelled import', async () => {
@@ -147,13 +147,14 @@ describe('Import › sending', () => {
     server.use(...fake.handlers);
     const { user } = await renderApp('/import');
 
-    await user.click(await screen.findByRole('link', { name: 'Reprendre' }));
+    await user.click(await screen.findByRole('button', { name: /^Actions de l’import du/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Reprendre' }));
     await upload(user, nidFile());
     await user.click(await screen.findByRole('button', { name: 'Corriger' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    expect(await screen.findByRole('row', { name: /annulé/ })).toHaveTextContent('Voir');
-    expect(screen.queryByRole('row', { name: /en cours/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole('row', { name: /Annulé/ })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /En cours/ })).not.toBeInTheDocument();
   });
 
   it('says so when the file is not the one of this import', async () => {

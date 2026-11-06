@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { POSITIVE_AMOUNT, trimAmount } from '../../investments/entries/entries';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeGap, IncomePhase } from '../api';
 import '@/locales/income';
@@ -113,8 +113,8 @@ export function newPhase(label = '', startsOn = todayIso()): PhaseValues {
 
 export function phaseValuesOf(p: IncomePhase): PhaseValues {
   return {
-    label: p.label, startsOn: p.startsOn, endsOn: p.endsOn ?? '', netAmount: trimAmount(p.netAmount.amount), ...cadenceFromWire(p.every),
-    grossAmount: p.grossAmount ? trimAmount(p.grossAmount.amount) : '', taxableAmount: p.taxableAmount ? trimAmount(p.taxableAmount.amount) : '', maxCycles: p.maxCycles == null ? '' : String(p.maxCycles),
+    label: p.label, startsOn: p.startsOn, endsOn: p.endsOn ?? '', netAmount: toFieldAmount(trimAmount(p.netAmount.amount)), ...cadenceFromWire(p.every),
+    grossAmount: p.grossAmount ? toFieldAmount(trimAmount(p.grossAmount.amount)) : '', taxableAmount: p.taxableAmount ? toFieldAmount(trimAmount(p.taxableAmount.amount)) : '', maxCycles: p.maxCycles == null ? '' : String(p.maxCycles),
     note: p.note ?? '',
   };
 }
@@ -124,7 +124,7 @@ export function followingPhase(gap: IncomeGap, phases: IncomePhase[]): PhaseValu
   const ending = phases.filter((p) => p.label === gap.label).sort((a, b) => (a.startsOn < b.startsOn ? 1 : a.startsOn > b.startsOn ? -1 : 0))[0];
   return {
     ...newPhase(gap.label, gap.endsOn),
-    ...(ending ? { netAmount: trimAmount(ending.netAmount.amount), ...cadenceFromWire(ending.every) } : {}),
+    ...(ending ? { netAmount: toFieldAmount(trimAmount(ending.netAmount.amount)), ...cadenceFromWire(ending.every) } : {}),
   };
 }
 

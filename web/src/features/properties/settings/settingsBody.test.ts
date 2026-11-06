@@ -6,7 +6,7 @@ const values = settingsValuesOf(propertyDetail());
 
 describe('toEditBody', () => {
   it('is null when nothing changed, the server’s amounts and a trimmed name included', () => {
-    expect(values).toMatchObject({ purchasePrice: '250000.00', surfaceM2: '85.50', staleAfterDays: '', note: '' });
+    expect(values).toMatchObject({ purchasePrice: '250000,00', surfaceM2: '85,50', staleAfterDays: '', note: '' });
     expect(toEditBody(propertyDetail(), { ...values, name: ' Maison de Nantes ' })).toBeNull();
   });
 

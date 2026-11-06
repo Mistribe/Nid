@@ -18,6 +18,7 @@
   },
   "routine": {
     "title": "Routine de {{month}}",
+    "title_vowel": "Routine d’{{month}}",
     "date": "Valeurs au",
     "date_invalid": "Une date passée ou d’aujourd’hui, comme 30/09/2025.",
     "loading": "Chargement de la routine",
@@ -319,7 +320,9 @@
       "tax_department_unknown": "Date la plus tôt : renseignez le département dans le profil fiscal",
       "tax_new_rate": "Impôt : le nouveau taux de prélèvement s’applique",
       "tax_balance_due": "Impôt : prélèvement du solde",
-      "property_tax_due": "Taxe foncière à payer"
+      "property_tax_due": "Taxe foncière à payer",
+      "all": "Tout voir ({{count}})",
+      "less": "Voir moins"
     },
     "changes": {
       "title": "Depuis le mois dernier",
@@ -436,7 +439,6 @@
       "reduce_transparency_hint": "Rend les surfaces opaques et retire les halos du fond. Réglé sur cet appareil."
     },
     "persons": {
-      "title": "Personnes",
       "add_child": "Ajouter un enfant",
       "name": "Prénom et nom",
       "add": "Ajouter",
@@ -506,18 +508,19 @@
     "overview": {
       "period_label": "Période", "period_12m": "12 mois", "period_year": "Année", "period_3y": "3 ans",
       "person_label": "Personne", "person_all": "Tous", "kind_label": "Type", "kind_all": "Tous types", "kind_rent": "Loyers",
-      "per_month": "Revenu / mois", "over_1y": "sur 1 an",
+      "per_month": "Revenu net / mois", "per_month_hint": "Aujourd’hui, lissé sur l’année", "over_1y": "sur 1 an",
       "real_change": "soit {{value}} % après inflation", "inflation": "Inflation supposée : {{value}} % par an, selon", "inflation_source": "vos hypothèses de projection",
       "total_year": "Total {{year}} (projeté)", "total_period": "Total sur la période",
       "elapsed": "{{amount}} déjà perçus", "vs_previous": "Contre la période précédente", "last_3y": "Sur 3 ans", "yearly": "≈ {{amount}} / an",
       "pct": "{{value}} %", "up": "hausse", "down": "baisse", "no_history": "Pas assez d’historique pour ce chiffre.",
-      "split": "Répartition des revenus", "one_off": "Exceptionnels", "other": "Autres",
+      "split": "Répartition des revenus", "split_note_year": "Moyenne par mois en {{year}}", "split_note_12m": "Moyenne par mois sur 12 mois", "split_note_3y": "Moyenne par mois sur 3 ans", "one_off": "Exceptionnels", "other": "Autres",
       "split_unavailable": "Répartition indisponible : taux manquant ({{currencies}})", "isolate": "Isoler {{name}}",
       "months_title": "Mois par mois · {{year}} vs {{previous}}", "months_title_previous": "Mois par mois · vs l’année précédente",
       "months_chart": "Revenus mois par mois, comparés à l’année précédente", "months_table": "Revenus mois par mois",
       "col_month": "Mois", "col_recurring": "Récurrent", "col_one_off": "Exceptionnel", "col_total": "Total", "col_previous": "Année précédente",
       "missing_rate": "taux manquant ({{currencies}})", "upcoming": "à venir",
-      "col_owners": "Propriétaires", "col_1y": "Sur 1 an", "col_next": "Prochain versement", "col_end": "Fin de période",
+      "projected_one": "{{months}} : projeté", "projected_other": "{{months}} : projetés",
+      "sources": "Sources de revenu", "col_per_month": "Par mois, lissé sur l’année", "col_owners": "Propriétaires", "col_1y": "Sur 1 an", "col_next": "Prochain versement", "col_end": "Fin de période",
       "next_line": "{{date}} · {{amount}}", "gap_on": "{{date}} sans suite"
     },
     "title": "Revenus",
@@ -642,8 +645,8 @@
     "tab": { "overview": "Vue d’ensemble", "rental": "Location", "return": "Rentabilité", "valuations": "Estimations", "expenses": "Dépenses", "settings": "Réglages" },
     "cost_title": "Coût réel",
     "value": "Valeur",
-    "value_on": "{{amount}} au {{date}}",
-    "value_stale": "{{amount}} au {{date}} — À réestimer",
+    "value_on": "au {{date}}",
+    "value_stale": "au {{date}} — À réestimer",
     "unknown": "Inconnue",
     "cost_price": "Prix de revient",
     "latent_gain": "Plus-value latente",

@@ -155,7 +155,7 @@ describe('ScenarioDetailPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Modifier le scénario' }));
     const dialog = await screen.findByRole('dialog', { name: 'Modifier le scénario' });
     expect(within(dialog).getByLabelText('Nom du scénario')).toHaveValue('T3 Nantes');
-    expect(within(dialog).getByLabelText('Prix')).toHaveValue('320000.00');
+    expect(within(dialog).getByLabelText('Prix')).toHaveValue('320000,00');
   });
 
   it('offers no edit action to a reader without write access', async () => {

@@ -11,17 +11,18 @@ const SECTIONS = [
   { to: '/settings/appearance', label: 'settings_frame.nav.appearance' },
   { to: '/settings/notifications', label: 'settings_frame.nav.notifications' },
   { to: '/settings/projection', label: 'settings_frame.nav.projection' },
+  { to: '/settings/persons', label: 'settings_frame.nav.persons' },
 ] as const;
 /** Shown only while the household has bank sync on. */
 const BANKS = { to: '/settings/banks', label: 'settings_frame.nav.banks' } as const;
 
-/** Every settings screen: the title and its actions, the links between the settings pages, the content. */
+/** Every settings screen: « Réglages » and the page's actions, the links between the settings pages, the content. `title` is the page's tab, read in the trail. */
 export function SettingsFrame({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
   const banking = useBankingStatus().data?.enabled === true;
   return (
     <div className="max-w-2xl space-y-6">
-      <PageHeader title={title} actions={actions} />
+      <PageHeader title={t('settings_frame.nav.label')} crumbLabel={title} actions={actions} />
       <nav aria-label={t('settings_frame.nav.label')} className={cn(tabsListVariants({ variant: 'line' }), 'h-auto max-w-full justify-start overflow-x-auto overflow-y-hidden border-b pb-[5px]')}>
         {(banking ? [...SECTIONS, BANKS] : SECTIONS).map((section) => (
           <Link

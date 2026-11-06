@@ -23,7 +23,7 @@ import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from './api';
 import { useTaxAssessments, type TaxAssessment } from './assessments/api';
 import { GapTable } from './assessments/GapTable';
 import { AssessmentView } from './assessments/AssessmentView';
-import { noticeAmount, noticeText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
+import { noticeAmount, noticeText, partsText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
 import { PerRows, PerSummary, perWarningsInBlock } from './PerSection';
 import { ProfileForm } from './profile/ProfileForm';
 import { ProfileSubmit } from './profile/ProfileSubmit';
@@ -187,7 +187,7 @@ function MoreFigures({ result: r }: { result: TaxEstimate['result'] }) {
         [t('tax.figure.net_taxable'), eur(r.netTaxableIncome)],
         [t('tax.figure.marginal_rate'), percentText(t, r.marginalRate)],
         [t('tax.figure.withholding_rate'), percentText(t, r.withholding.rate)],
-        [t('tax.figure.parts'), r.parts],
+        [t('tax.figure.parts'), partsText(r.parts)],
       ].map(([label, value]) => (
         <div key={label} className="flex gap-1.5"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium tabular-nums">{value}</dd></div>
       ))}

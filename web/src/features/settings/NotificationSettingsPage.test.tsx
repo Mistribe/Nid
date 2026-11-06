@@ -37,7 +37,8 @@ describe('the notification settings page', () => {
     serve(view({ emailEnabled: true }));
     const { container } = await renderApp('/settings/notifications');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Notifications' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Réglages' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Notifications' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Apparence' })).toHaveAttribute('href', '/settings/appearance');
     expect(await screen.findByRole('checkbox', { name: 'Email' })).toBeChecked();
     expect(screen.getByText('Critique : toujours tout de suite, sur tous vos canaux.')).toBeInTheDocument();

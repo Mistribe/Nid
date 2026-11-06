@@ -19,6 +19,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { seeAllClass } from '@/components/page/seeAll';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,7 +30,6 @@ import { AnnualReturn, Direction, Gain, pct } from '../Figures';
 import { kindText } from '../format';
 import { kindColor } from './colors';
 import { missingCodes, ValueChart } from './ValueChart';
-import { personColor, personSlot } from '@/features/dashboard/colors';
 import '@/locales/investments';
 import '@/locales/forms';
 
@@ -180,7 +180,7 @@ function Kinds({ d }: { d: InvestmentsOverview }) {
   );
 }
 
-/** D7 and D10: each person's part, in the person's own colour (dataviz.md §2), named as the owner chips. */
+/** D7 and D10: each person's part, in a neutral tone (dataviz.md §5: the kinds own the colours here), named as the owner chips. */
 function Persons({ d }: { d: InvestmentsOverview }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -196,7 +196,7 @@ function Persons({ d }: { d: InvestmentsOverview }) {
             <li key={person.personId} className="space-y-1 text-sm">
               <div className="flex justify-between gap-2"><span>{name}</span><span className="font-semibold tabular-nums">{figure(person.value)}</span></div>
               <div aria-hidden="true" className="h-2 rounded-full bg-muted">
-                <div className="h-2 rounded-full" style={{ width: `${person.sharePct ?? 0}%`, background: personColor(personSlot(people.data, person.personId)) }} />
+                <div className="h-2 rounded-full bg-muted-foreground" style={{ width: `${person.sharePct ?? 0}%` }} />
               </div>
               <div className="text-muted-foreground tabular-nums">
                 {[person.sharePct === null || person.sharePct === undefined ? null : t('investments.pct', { value: share(person.sharePct) }),
@@ -293,7 +293,7 @@ function Envelopes({ d }: { d: InvestmentsOverview }) {
   };
   return (
     <SectionCard title={t('investments_overview.envelopes_title')} actions={
-      <Link to="/investments" search={(prev: RootSearch & InvestmentsSearch) => ({ ...prev, tab: 'list' })} className="text-sm hover:underline">
+      <Link to="/investments" search={(prev: RootSearch & InvestmentsSearch) => ({ ...prev, tab: 'list' })} className={seeAllClass}>
         {t('investments_overview.see_list')}
       </Link>
     }>

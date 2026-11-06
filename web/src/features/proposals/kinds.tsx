@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { trimAmount, valueSchema, type ValueFormValues } from '../investments/entries/entries';
+import { toFieldAmount } from '../subscriptions/edits/amount';
 import { Field } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
 import type { ProposalView } from './api';
@@ -52,7 +53,7 @@ const valuation: KindUi = {
   schema: (t) => valueSchema(t),
   toForm: (payload) => {
     const v = asValuation(payload);
-    return { asOf: v.asOf, amount: trimAmount(v.amount.amount), note: v.note ?? '' };
+    return { asOf: v.asOf, amount: toFieldAmount(trimAmount(v.amount.amount)), note: v.note ?? '' };
   },
   toPayload: (values, original) => {
     const v = values as ValueFormValues;

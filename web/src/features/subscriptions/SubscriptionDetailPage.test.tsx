@@ -29,7 +29,7 @@ describe('Abonnements › détail', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' })).toBeInTheDocument();
     expect(screen.getByText('Partagé')).toBeInTheDocument();
-    expect(screen.getByText('Prochaine échéance').nextElementSibling).toHaveTextContent('28 janvier 2026');
+    expect(screen.getByText('Prochaine échéance').nextElementSibling).toHaveTextContent('28 janv. 2026');
     expect(screen.getByRole('img', { name: /Couverture/ })).toBeInTheDocument();
     expect(screen.getByText(/92 jours offerts/)).toBeInTheDocument();
     await expectNoAxeViolations(container);
@@ -320,7 +320,7 @@ describe('Abonnements › détail', () => {
     expect(costs).toHaveTextContent('Pr\u00e9lev\u00e9 ce mois-ci');
     expect(costs).toHaveTextContent('Co\u00fbt mensuel r\u00e9el');
     expect(costs).toHaveTextContent('Prochaine \u00e9ch\u00e9ance');
-    expect(costs).toHaveTextContent('28 janvier 2026');
+    expect(costs).toHaveTextContent('28 janv. 2026');
     const notice = screen.getByRole('list', { name: 'Points \u00e0 v\u00e9rifier' });
     expect(notice).toHaveTextContent(/plafond de renouvellements/);
     expect(screen.queryByText(/The walk stopped/)).not.toBeInTheDocument();
@@ -394,10 +394,19 @@ describe('Abonnements › détail', () => {
     }));
     await renderApp(`/subscriptions/${SUB}`);
 
-    expect((await screen.findByText('Dépensé depuis le 2 mars 2014')).nextElementSibling).toHaveTextContent(/^1\s250,00\s€\s*partiel$/);
+    expect((await screen.findByText('Dépensé depuis le 2 mars 2014')).nextElementSibling).toHaveTextContent(/^1\s250,00\s€$/);
+    expect(screen.getByText('Dépensé depuis le 2 mars 2014').nextElementSibling!.nextElementSibling).toHaveTextContent('partiel');
     expect(screen.getByText('dont 12 derniers mois').nextElementSibling).toHaveTextContent('120,00 €');
-    expect(screen.getByText('Économisé depuis le 1 avril 2025').nextElementSibling)
-      .toHaveTextContent(/^90,00\s€au dernier prix : 15,00\s€ pour 1 mois$/);
+    expect(screen.getByText('Économisé depuis le 1 avril 2025').nextElementSibling).toHaveTextContent(/^90,00\s€$/);
+    expect(screen.getByText('Économisé depuis le 1 avril 2025').nextElementSibling!.nextElementSibling)
+      .toHaveTextContent(/^au dernier prix : 15,00\s€ pour 1 mois$/);
+  });
+
+  it('says « Rien » when nothing is charged this month (#384)', async () => {
+    serveDetail(detail({ cashCost: [] }));
+    await renderApp(`/subscriptions/${SUB}`);
+
+    expect((await screen.findByText('Prélevé ce mois-ci')).nextElementSibling).toHaveTextContent(/^Rien$/);
   });
 
   it('Shows_no_spent_before_the_first_charge', async () => {

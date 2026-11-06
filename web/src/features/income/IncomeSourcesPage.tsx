@@ -4,6 +4,7 @@ import { present, toProblem } from '@/api/errors';
 import type { IncomeSearch, RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SectionCard } from '@/components/page/SectionCard';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { SourcesTable } from './overview/SourcesTable';
 import { SplitBar } from './overview/SplitBar';
 import { useOverview } from './overview/useOverview';
 
-/** The income dashboard: filters, key figures, split, months, then the sources (overview design). */
+/** The income dashboard (overview grammar): filters, hero and key figures, then the split, the months and the sources in their cards. */
 export function IncomeSourcesPage() {
   const { t } = useTranslation();
   const search: RootSearch & IncomeSearch = useSearch({ strict: false });
@@ -31,6 +32,7 @@ export function IncomeSourcesPage() {
   const filtered = Boolean(search.person || search.kind || search.source);
   // A brand-new household (no row, no share, no ended source) gets the invitation alone, without 0,00 € figures (spec §4).
   const blank = !filtered && data?.sources.length === 0 && data.split.length === 0 && !withEnded.data?.sources.length;
+  const year = Number(data?.to.slice(0, 4));
 
   // One stable frame whatever the answer: the filters and the switch must survive the reload their own change causes (focus).
   return (
@@ -39,14 +41,16 @@ export function IncomeSourcesPage() {
       <OverviewFilters />
       {data && period && !blank ? (
         <>
-          <OverviewFigures figures={data.figures} missingRates={data.missingRates} period={period} year={Number(data.to.slice(0, 4))} />
-          <SplitBar split={data.split} missingRates={data.missingRates} selected={search.source} onSelect={select} />
-          <MonthsChart months={data.months} missingRates={data.missingRates} period={period} year={Number(data.to.slice(0, 4))} />
+          <OverviewFigures figures={data.figures} months={data.months} missingRates={data.missingRates} period={period} year={year} />
+          <SplitBar split={data.split} missingRates={data.missingRates} selected={search.source} onSelect={select}
+            note={t(`income.overview.split_note_${period}`, { year })} />
+          <MonthsChart months={data.months} missingRates={data.missingRates} period={period} year={year} />
         </>
       ) : null}
-      <SwitchField label={t('income.show_ended')} checked={ended} onCheckedChange={setEnded} />
-      {error ? <ProblemMessage problem={present(toProblem(error))} />
-        : <Sources data={data} filtered={filtered} withEnded={ended ? null : withEnded.data} deciding={!ended && data?.sources.length === 0 && !withEnded.data && !withEnded.error} />}
+      <SectionCard title={t('income.overview.sources')} actions={<SwitchField label={t('income.show_ended')} checked={ended} onCheckedChange={setEnded} />}>
+        {error ? <ProblemMessage problem={present(toProblem(error))} />
+          : <Sources data={data} filtered={filtered} withEnded={ended ? null : withEnded.data} deciding={!ended && data?.sources.length === 0 && !withEnded.data && !withEnded.error} />}
+      </SectionCard>
     </div>
   );
 }
@@ -86,9 +90,9 @@ function Sources({ data, filtered, withEnded, deciding }: { data: Overview; filt
     );
 
   return (
-    <>
+    <div className="space-y-2">
       <p className="text-sm text-muted-foreground">{t('income.smoothed')}</p>
       <SourcesTable rows={data.sources} />
-    </>
+    </div>
   );
 }

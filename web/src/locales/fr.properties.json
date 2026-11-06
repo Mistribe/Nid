@@ -348,6 +348,7 @@
     "landlord": "Bailleur",
     "tenant": "Locataire",
     "period": "Période : mois de {{month}}",
+    "period_vowel": "Période : mois d’{{month}}",
     "rent": "Loyer",
     "charges": "Charges",
     "total": "Total",
@@ -355,7 +356,9 @@
     "paid": "Payé",
     "paid_on": "Payé le {{date}}",
     "statement_quittance": "Je soussigné(e) {{landlord}}, propriétaire du logement désigné ci-dessus, déclare avoir reçu de {{tenant}} la somme de {{total}} au titre du loyer et des charges du mois de {{month}}, et lui en donne quittance, sous réserve de tous mes droits.",
+    "statement_quittance_vowel": "Je soussigné(e) {{landlord}}, propriétaire du logement désigné ci-dessus, déclare avoir reçu de {{tenant}} la somme de {{total}} au titre du loyer et des charges du mois d’{{month}}, et lui en donne quittance, sous réserve de tous mes droits.",
     "statement_receipt": "Je soussigné(e) {{landlord}}, propriétaire du logement désigné ci-dessus, déclare avoir reçu de {{tenant}} la somme de {{paid}}, en paiement partiel du loyer et des charges du mois de {{month}}.",
+    "statement_receipt_vowel": "Je soussigné(e) {{landlord}}, propriétaire du logement désigné ci-dessus, déclare avoir reçu de {{tenant}} la somme de {{paid}}, en paiement partiel du loyer et des charges du mois d’{{month}}.",
     "partial": "Reçu pour solde partiel, ne vaut pas quittance",
     "made_on": "Fait le {{date}}"
   },

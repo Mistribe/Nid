@@ -270,7 +270,7 @@ describe('an envelope\'s settings', () => {
     const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
-    expect(form.getByLabelText('Primes versées avant le 27/09/2017')).toHaveValue('5000.00');
+    expect(form.getByLabelText('Primes versées avant le 27/09/2017')).toHaveValue('5000,00');
     await pick(user, 'Type', 'Livret');
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
     await screen.findByText('Réglages enregistrés.');

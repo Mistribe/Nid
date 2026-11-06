@@ -34,7 +34,7 @@ export function SourcesTable({ rows }: { rows: Row[] }) {
       columns={[
         { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: (r) => <Name row={r} /> },
         { id: 'owner', header: t('income.overview.col_owners'), cell: (r) => <OwnerChips owners={r.owners} /> },
-        { id: 'per_month', header: t('lists.col.per_month'), align: 'end', sort: (r) => amountKey(r.perMonth?.amount), cell: perMonth },
+        { id: 'per_month', header: t('income.overview.col_per_month'), align: 'end', sort: (r) => amountKey(r.perMonth?.amount), cell: perMonth },
         { id: 'change', header: t('income.overview.col_1y'), align: 'end', sort: (r) => r.change1y ?? Number.NEGATIVE_INFINITY, cell: change },
         { id: 'next', header: t('income.overview.col_next'), sort: (r) => r.nextOn ?? '', cell: next },
         { id: 'end', header: t('income.overview.col_end'), cell: (r) => gap(r) ?? '—' },

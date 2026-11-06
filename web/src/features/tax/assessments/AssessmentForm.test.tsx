@@ -139,7 +139,7 @@ describe('AssessmentForm', () => {
     const deduction = within(screen.getByRole('radiogroup', { name: /Alice Dev/ }));
     await user.click(deduction.getByRole('radio', { name: '10 %' }));
 
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Montant de la déduction Alice Dev' })).toHaveValue('4145.00'));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Montant de la déduction Alice Dev' })).toHaveValue('4145,00'));
     expect(sent.allowances).toEqual(['?year=2025&grossSalaries=41447']);
     // Frais réels asks nothing: the person types the amount.
     await user.click(deduction.getByRole('radio', { name: 'Frais réels' }));
@@ -348,7 +348,7 @@ describe('AssessmentForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Cet élément a changé entre-temps');
     expect(router.state.location.pathname).toBe(`/tax/assessments/${NOTICE}/edit`);
     await user.click(screen.getByRole('button', { name: 'Retour' }));
-    expect(screen.getByLabelText('Impôt net')).toHaveValue('2688.00');
+    expect(screen.getByLabelText('Impôt net')).toHaveValue('2688,00');
   });
 
   it('Keeps_the_opened_version_after_a_refetch', async () => {

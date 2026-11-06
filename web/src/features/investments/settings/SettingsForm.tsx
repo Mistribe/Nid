@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/form/Field';
-import { AMOUNT, ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { AMOUNT, ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { knownConflictMessage } from '../../subscriptions/fieldErrors';
@@ -102,7 +102,7 @@ export function SettingsForm({ envelope, onDone }: {
     accountHint: envelope.accountHint ?? '', valuationCadence: envelope.valuationCadence as (typeof CADENCES)[number],
     staleAfterDays: envelope.staleAfterDays == null ? '' : String(envelope.staleAfterDays), note: envelope.note ?? '',
     ucShareFloorPct: envelope.ucShareFloorPct == null ? '' : String(envelope.ucShareFloorPct),
-    openedOn: envelope.openedOn ?? '', premiumsBefore2017: envelope.premiumsBefore2017?.amount ?? '',
+    openedOn: envelope.openedOn ?? '', premiumsBefore2017: toFieldAmount(envelope.premiumsBefore2017?.amount ?? ''),
     regulated: REGULATED.find((r) => r === envelope.regulated) ?? 'none',
   };
   const form = useForm({ resolver: zodResolver(schema(t)), defaultValues: defaults });

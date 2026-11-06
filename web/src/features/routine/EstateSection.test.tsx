@@ -50,11 +50,11 @@ describe('the properties’ routine', () => {
     expect(within(biens).getByRole('button', { name: 'Autres biens' })).toHaveAttribute('aria-expanded', 'false');
     const costs = within(biens).getByRole('region', { name: 'Charges du mois' });
     expect(within(costs).getByLabelText('Taxe foncière de Maison')).not.toBeChecked();
-    expect(within(costs).getByLabelText('Montant : Taxe foncière de Maison')).toHaveValue('1200.00');
+    expect(within(costs).getByLabelText('Montant : Taxe foncière de Maison')).toHaveValue('1200,00');
     expect(within(costs).getByLabelText('Date : Taxe foncière de Maison')).toHaveValue('15/09/2025');
     const rents = within(biens).getByRole('region', { name: 'Loyers du mois' });
     expect(within(rents).getByLabelText('Loyer T2 de Locatif')).not.toBeChecked();
-    expect(within(rents).getByLabelText('Montant : Loyer T2 de Locatif')).toHaveValue('950.00');
+    expect(within(rents).getByLabelText('Montant : Loyer T2 de Locatif')).toHaveValue('950,00');
     // Never a disabled save (design-system.md §6): enabled, at the foot of the form, not in a fixed bar.
     const save = within(biens).getByRole('button', { name: 'Enregistrer les biens' });
     expect(save).toBeEnabled();
@@ -221,7 +221,7 @@ describe('the properties’ routine', () => {
 
     await waitFor(() => expect(within(again).getByLabelText('Loyer T2 de Locatif')).toBeChecked());
     expect(within(again).getByLabelText('Montant : Loyer T2 de Locatif')).toHaveValue('900');
-    expect(within(again).getByLabelText('Montant : Taxe foncière de Maison')).toHaveValue('1300.00');
+    expect(within(again).getByLabelText('Montant : Taxe foncière de Maison')).toHaveValue('1300,00');
     expect(within(again).getByLabelText('Assurance de Maison')).not.toBeChecked();
     await expectNoAxeViolations(container);
   });

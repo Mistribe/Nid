@@ -53,6 +53,23 @@ describe('Income overview', () => {
     expect(screen.getByRole('button', { name: /Pas assez d’historique/ })).toHaveTextContent('—');
   });
 
+  it('leads with today’s monthly income in the hero, then the split, months and sources each in their card (#394)', async () => {
+    serve(overview({ sources: [sourceRow()] }));
+    await renderApp('/income');
+
+    const hero = await screen.findByRole('region', { name: 'Revenu net / mois' });
+    expect(hero).toHaveTextContent('6 420,00 €');
+    expect(hero).toHaveTextContent('Aujourd’hui, lissé sur l’année');
+    expect(screen.getByText('77 040,00 €').closest('dl')).not.toHaveTextContent('Revenu net / mois');
+    // The split's monthly amounts are the period's average, the table's today's smoothed amount: each says which.
+    const split = screen.getByRole('region', { name: 'Répartition des revenus' });
+    expect(split).toHaveTextContent('Moyenne par mois en 2026');
+    expect(split).toHaveTextContent('5 000,00 €');
+    const sources = screen.getByRole('region', { name: 'Sources de revenu' });
+    expect(within(sources).getByRole('switch', { name: 'Afficher les sources terminées' })).toBeInTheDocument();
+    expect(within(sources).getByRole('columnheader', { name: /Par mois, lissé sur l’année/ })).toBeInTheDocument();
+  });
+
   it('gives the change over a year after the household’s inflation, and where that assumption comes from', async () => {
     serve();
     await renderApp('/income');
@@ -92,7 +109,7 @@ describe('Income overview', () => {
     for (const [label, role] of [['Période', 'radiogroup'], ['Personne', 'radiogroup'], ['Type', 'combobox']] as const) {
       expectLabelBefore(within(row).getByText(label), within(row).getByRole(role, { name: label }));
     }
-    const figures = await screen.findByText('6 420,00 €');
+    const figures = await screen.findByText('77 040,00 €');
     expect(row.compareDocumentPosition(figures.closest('dl')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 

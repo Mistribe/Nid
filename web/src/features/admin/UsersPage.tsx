@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -8,14 +8,16 @@ import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
 import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { RowMenu } from '@/components/page/RowMenu';
 import { Field } from '@/components/form/Field';
 import { FormDialog } from '@/components/FormDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { elision } from '@/lib/elision';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { ConfirmAction } from '@/components/ConfirmAction';
+import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import '@/locales/admin';
 
 type Adult = components['schemas']['AdultView'];
@@ -32,6 +34,9 @@ export function UsersPage() {
   const [adding, setAdding] = useState(false);
   const [capNotice, setCapNotice] = useState(false);
   const [problem, setProblem] = useState<Presentation | null>(null);
+  const [asking, setAsking] = useState<Adult | null>(null);
+  // Each row's ⋯, where the focus goes back when the confirmation closes.
+  const menus = useRef<Record<string, HTMLButtonElement | null>>({});
   const adults = $api.useQuery('get', USERS);
   const household = $api.useQuery('get', HOUSEHOLD);
 
@@ -54,33 +59,24 @@ export function UsersPage() {
   const capReached = household.data.adultCount >= household.data.maxAdults;
 
   const row = (adult: Adult) => {
-    const isSelf = adult.id === session.person.id;
-    const target = { params: { path: { id: adult.id } } };
+    const pending = adult.status === 'pending';
     return (
       <TableRow key={adult.id}>
         <TableCell>{adult.displayName}</TableCell>
         <TableCell>{adult.email}</TableCell>
-        <TableCell>{t(adult.status === 'pending' ? 'admin.users.pending' : 'admin.users.active')}</TableCell>
+        <TableCell><Badge variant={pending ? 'outline' : 'secondary'}>{t(pending ? 'admin.users.pending' : 'admin.users.active')}</Badge></TableCell>
         <TableCell>{adult.isAdmin ? <Badge variant="secondary">{t('admin.users.admin')}</Badge> : null}</TableCell>
-        <TableCell>
-          {adult.status === 'pending' ? (
-            <ConfirmAction
-              label={t('admin.users.cancel_invitation')}
-              confirmation={t('admin.users.cancel_invitation_confirm', { email: adult.email ?? '' })}
-              pending={remove.isPending}
-              onConfirm={() => remove.mutate(target)}
-            />
-          ) : (
-            <ConfirmAction
-              label={t('admin.users.revoke')}
-              confirmation={isSelf ? t('admin.users.revoke_self_confirm') : t('admin.users.revoke_confirm', { name: adult.displayName })}
-              pending={revoke.isPending}
-              onConfirm={() => revoke.mutate(target)}
-            />
-          )}
+        <TableCell className="text-right">
+          <RowMenu label={t('admin.users.menu', { name: adult.displayName, context: elision(adult.displayName) })} triggerRef={(node) => { menus.current[adult.id] = node; }}
+            items={[{ label: t(pending ? 'admin.users.cancel_invitation' : 'admin.users.revoke'), destructive: pending, onSelect: () => setAsking(adult) }]} />
         </TableCell>
       </TableRow>
     );
+  };
+
+  const confirmation = (adult: Adult) => {
+    if (adult.status === 'pending') return t('admin.users.cancel_invitation_confirm', { email: adult.email ?? '' });
+    return adult.id === session.person.id ? t('admin.users.revoke_self_confirm') : t('admin.users.revoke_confirm', { name: adult.displayName });
   };
 
   return (
@@ -101,11 +97,20 @@ export function UsersPage() {
             <TableHead>{t('admin.users.email')}</TableHead>
             <TableHead>{t('admin.users.status')}</TableHead>
             <TableHead>{t('admin.users.role')}</TableHead>
-            <TableHead>{t('admin.users.actions')}</TableHead>
+            <TableHead><span className="sr-only">{t('page.more_actions')}</span></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>{adults.data.map(row)}</TableBody>
       </Table>
+      {asking ? (
+        <ConfirmFromMenu label={t(asking.status === 'pending' ? 'admin.users.cancel_invitation' : 'admin.users.revoke')} confirmation={confirmation(asking)}
+          pending={asking.status === 'pending' ? remove.isPending : revoke.isPending} returnFocus={{ current: menus.current[asking.id] ?? null }}
+          onClose={() => setAsking(null)}
+          onConfirm={() => {
+            const target = { params: { path: { id: asking.id } } };
+            if (asking.status === 'pending') remove.mutate(target); else revoke.mutate(target);
+          }} />
+      ) : null}
       <p className="max-w-prose text-sm text-muted-foreground">{t('admin.users.managed_hint')}</p>
     </AdminFrame>
   );

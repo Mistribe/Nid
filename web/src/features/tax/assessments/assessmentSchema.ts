@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { Path } from 'react-hook-form';
 import { z } from 'zod';
-import { AMOUNT, toWireAmount } from '../../subscriptions/edits/amount';
+import { AMOUNT, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import type { TaxAssessment, TaxAssessmentBody } from './api';
 import '@/locales/tax';
 import '@/locales/taxAssessments';
@@ -127,7 +127,7 @@ export function toBody(v: AssessmentValues): TaxAssessmentBody {
   return body;
 }
 
-const text = (m: { amount: string } | null | undefined) => m?.amount ?? '';
+const text = (m: { amount: string } | null | undefined) => toFieldAmount(m?.amount ?? '');
 
 /** The form of a stored notice; a negative balance is « Remboursé » and its absolute text. */
 export function fromView(view: TaxAssessment, persons: number): AssessmentValues {
@@ -140,9 +140,9 @@ export function fromView(view: TaxAssessment, persons: number): AssessmentValues
   if (declarants.length < 2 && persons > 1) declarants.push(base.declarants[1]!);
   return {
     ...base, year: String(view.year), issuedYear: view.issuedYear === view.year + 1 ? '' : String(view.issuedYear),
-    declarants, shares: view.shares ?? '', averageRate: view.averageRate ?? '', marginalRate: view.marginalRate ?? '',
+    declarants, shares: toFieldAmount(view.shares ?? ''), averageRate: toFieldAmount(view.averageRate ?? ''), marginalRate: toFieldAmount(view.marginalRate ?? ''),
     ...Object.fromEntries(AMOUNT_FIELDS.map((k) => [k, text(view[k])])),
-    balance: refund ? view.balance!.amount.slice(1) : text(view.balance), balanceSign: refund ? 'refund' : 'due',
+    balance: refund ? toFieldAmount(view.balance!.amount.slice(1)) : text(view.balance), balanceSign: refund ? 'refund' : 'due',
     documentId: view.documentId ?? '',
   } as AssessmentValues;
 }

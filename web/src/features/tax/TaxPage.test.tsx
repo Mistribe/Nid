@@ -330,11 +330,11 @@ describe('TaxPage', () => {
 
       const ceiling = await screen.findByRole('textbox', { name: 'Plafond épargne retraite (avis) Alice' });
       expect(ceiling).toBeDisabled();
-      expect(ceiling).toHaveValue('5843.13');
+      expect(ceiling).toHaveValue('5843,13');
       expect(screen.getAllByText('Avis 2025')).toHaveLength(2);
       expect(screen.getByRole('textbox', { name: 'dont perdu au 31 décembre Alice' })).toBeEnabled();
       expect(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' })).toBeDisabled();
-      expect(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' })).toHaveValue('3500.00');
+      expect(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' })).toHaveValue('3500,00');
       expect(screen.getByLabelText('Déficits fonciers antérieurs à reporter')).toBeEnabled();
       expect(screen.getByLabelText('Emploi à domicile')).toBeEnabled();
     });
@@ -364,7 +364,7 @@ describe('TaxPage', () => {
 
       const field = await screen.findByLabelText('Déficits fonciers antérieurs à reporter');
       expect(field).toBeEnabled();
-      expect(field).toHaveValue('800.00');
+      expect(field).toHaveValue('800,00');
       expect(screen.getByText('D’après l’avis 2025, à ajuster')).toBeInTheDocument();
       await user.clear(field);
       await user.type(field, '650');
@@ -446,7 +446,7 @@ describe('TaxPage', () => {
     expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('9000');
     expect(screen.getByText('1 modification non enregistrée')).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: '2025' }));
-    expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('0.00');
+    expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('0,00');
     expect(screen.queryByText(/non enregistrée/)).not.toBeInTheDocument();
   });
 

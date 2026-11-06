@@ -3,7 +3,7 @@ import { useApi } from '@/api/ApiProvider';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TAX_CHANGES, type TaxEstimate } from './api';
-import { ZERO } from './format';
+import { partsText, ZERO } from './format';
 import { eur } from './ResultTable';
 import '@/locales/tax';
 
@@ -27,7 +27,7 @@ export function ChangesSection({ year, scope, adults }: { year: string; scope: '
     const known = LINES.find((l) => l === code);
     return known ? t(`tax.changes.line.${known}`) : code;
   };
-  const value = (code: string, amount: string) => (code === 'shares' ? amount.replace(/\.?0+$/, '').replace('.', ',') : eur(amount));
+  const value = (code: string, amount: string) => (code === 'shares' ? partsText(amount) : eur(amount));
   return (
     <Section title={t('tax.changes.title', { year: since })}>
       <p className="text-sm text-muted-foreground">{t('tax.changes.intro', { year })}</p>

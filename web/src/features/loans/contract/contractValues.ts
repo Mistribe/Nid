@@ -1,6 +1,7 @@
 import type { LoanDetail } from '../api';
 import type { ContractValues, InsuranceLine, PhaseLine } from '../new/loanForm';
 import { fractionToPercent } from '../rate';
+import { toFieldAmount } from '../../subscriptions/edits/amount';
 
 type Contract = LoanDetail['contract'];
 
@@ -15,16 +16,16 @@ export function isPlain(c: Contract): boolean {
 export function contractValuesOf(c: Contract): ContractValues {
   // The server writes only its own enumerations: the casts name them for the form's types.
   return {
-    principal: c.principal, totalPayments: String(c.totalPayments), disbursedOn: c.disbursedOn, firstPaymentDate: c.firstPaymentDate,
+    principal: toFieldAmount(c.principal), totalPayments: String(c.totalPayments), disbursedOn: c.disbursedOn, firstPaymentDate: c.firstPaymentDate,
     rounding: c.rounding as ContractValues['rounding'], firstPeriod: c.firstPeriod as ContractValues['firstPeriod'],
     phases: c.phases.map((p) => ({
       mode: p.mode as PhaseLine['mode'], rate: fractionToPercent(p.annualRate), rateType: p.rateType as PhaseLine['rateType'],
-      payments: p.payments == null ? '' : String(p.payments), paymentOverride: p.paymentOverride ?? '',
-      openingBalance: p.openingBalanceOverride ?? '', note: p.note ?? '',
+      payments: p.payments == null ? '' : String(p.payments), paymentOverride: toFieldAmount(p.paymentOverride ?? ''),
+      openingBalance: toFieldAmount(p.openingBalanceOverride ?? ''), note: p.note ?? '',
     })),
     // A stored insurance keeps its start (3B2 design §4.3).
     insurances: c.insurances.map((i) => ({
-      mode: i.mode as InsuranceLine['mode'], amount: i.monthlyAmount ?? '', rate: i.annualRate ? fractionToPercent(i.annualRate) : '',
+      mode: i.mode as InsuranceLine['mode'], amount: toFieldAmount(i.monthlyAmount ?? ''), rate: i.annualRate ? fractionToPercent(i.annualRate) : '',
       startsOn: i.startsOn, endsOn: i.endsOn ?? '', note: i.note ?? '', follows: false,
     })),
   };

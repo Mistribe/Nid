@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { seeAllClass } from '@/components/page/seeAll';
 import { useTranslation } from 'react-i18next';
 import { tileOf } from '@/app/nav';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
@@ -15,7 +16,7 @@ export function GoalsCard({ scope }: { scope: 'me' | 'household' }) {
   const { data } = useGoals(scope, false);
   if (!data || data.items.length === 0) return null;
   return (
-    <SectionCard title={t('goals_card.title')} actions={<Link to="/goals" className="text-sm hover:underline">{t('goals_card.all')}</Link>}>
+    <SectionCard title={t('goals_card.title')} actions={<Link to="/goals" className={seeAllClass}>{t('goals_card.all')}</Link>}>
       <GroupedList>
         {data.items.slice(0, MAX).map((g) => (
           // The progress bar and the amounts go in `detail`: a row has no other place for them.

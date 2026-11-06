@@ -120,7 +120,7 @@ describe('Crédits › rembourser plus tôt', () => {
     await user.click(dialog.getByRole('link', { name: /Prêt maison : 2\s000,00\s€/ }));
 
     const add = within(await screen.findByRole('dialog', { name: 'Nouveau remboursement anticipé' }));
-    expect(add.getByLabelText('Montant')).toHaveValue('2000.00');
+    expect(add.getByLabelText('Montant')).toHaveValue('2000,00');
     expect(add.getByLabelText('Date')).toHaveValue('15/11/2026');
     expect(add.getByRole('radio', { name: 'Réduire la durée' })).toBeChecked();
     await waitFor(() => expect(router.state.location.state.loanRepayment).toBeUndefined());

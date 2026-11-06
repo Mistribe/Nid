@@ -68,6 +68,15 @@ export function CoverageBand({ coverage }: { coverage: Coverage[] }) {
             {sourceText(t, s)}
           </li>
         ))}
+        {/* #384: the dashed outline of the planned periods has its own entry, as each source does. */}
+        {coverage.some((c) => c.isProjected) ? (
+          <li className="inline-flex items-center gap-1">
+            <svg aria-hidden="true" width={16} height={16} className="text-muted-foreground">
+              <rect x={1} y={1} width={14} height={14} fill="none" stroke="currentColor" strokeDasharray="4 2" />
+            </svg>
+            {t('subscription.projected')}
+          </li>
+        ) : null}
       </ul>
       <Table aria-label={t('coverage.table')}>
         <TableHeader>

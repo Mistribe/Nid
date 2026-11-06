@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toFieldAmount } from '../subscriptions/edits/amount';
 import { fieldErrorsOf, messageFor } from '../subscriptions/fieldErrors';
 import { ASSET_CLASSES, PROJECTION, PROJECTION_ASSUMPTIONS } from './api';
 
@@ -32,10 +33,10 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const save = $api.useMutation('put', PROJECTION_ASSUMPTIONS);
-  const [rates, setRates] = useState<Record<string, string>>(() => ({ ...current.classRates }));
-  const [inflation, setInflation] = useState(current.inflation);
+  const [rates, setRates] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(current.classRates).map(([k, v]) => [k, toFieldAmount(v)])));
+  const [inflation, setInflation] = useState(toFieldAmount(current.inflation));
   const [mode, setMode] = useState<'auto' | 'amount'>(current.monthlySavings ? 'amount' : 'auto');
-  const [amount, setAmount] = useState(current.monthlySavings ?? '');
+  const [amount, setAmount] = useState(toFieldAmount(current.monthlySavings ?? ''));
   const [savingsClass, setSavingsClass] = useState(current.savingsClass);
   const [freed, setFreed] = useState(current.freedPaymentsToSavings);
   const freedId = useId();

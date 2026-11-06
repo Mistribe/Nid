@@ -118,11 +118,13 @@ export function SubscriptionDetailPage() {
   const shown = tab === 'settings' && !detail.canWrite ? 'overview' : tab;
   const allCharges = expandedFor === id;
   const charges = allCharges ? detail.charges : chargesWindow(detail.charges);
+  // #376: dates in the short form, so that a figure holds on one line; what qualifies a figure goes in its hint.
   const nextCharge = detail.nextChargeOn
-    ? { label: t('subscription.next_charge'), value: formatLocalDate(detail.nextChargeOn) }
+    ? { label: t('subscription.next_charge'), value: formatLocalDate(detail.nextChargeOn, 'short') }
     : detail.expiresOn
-      ? { label: t('subscription.expires'), value: formatLocalDate(detail.expiresOn) }
+      ? { label: t('subscription.expires'), value: formatLocalDate(detail.expiresOn, 'short') }
       : { label: t('subscription.next_charge'), value: t('subscription.no_next_charge') };
+  const partial = (yes: boolean) => (yes ? t('subscription.partial') : null);
 
   return (
     <article className="space-y-6">
@@ -136,27 +138,23 @@ export function SubscriptionDetailPage() {
         meta={<><AccessBadge access={accessOf(detail, persons)} /><SharingBadges item={id} /></>}>
         <section aria-label={t('subscription.costs')} className="space-y-2">
           <StatLine items={[
-            { label: t('subscription.cash'), value: detail.cashCost.map((m) => <Money key={m.currency} value={m} tabular />) },
+            // #384: nothing charged this month is a server answer too (`[]`), never an empty figure.
+            { label: t('subscription.cash'), value: detail.cashCost.length ? detail.cashCost.map((m) => <Money key={m.currency} value={m} tabular />) : t('subscription.no_cash') },
             ...(detail.billedMonthly ? [] : [{ label: t('subscription.amortized'), value: detail.amortizedCost.map((m) => <Money key={m.currency} value={m} tabular />) }]),
             nextCharge,
             // #395, #397: what it has cost since its first charge; once ended without successor, what stopping it has saved.
             ...(detail.spent ? [
-              { label: t('subscription.spent_since', { date: formatLocalDate(detail.spent.since) }), value: <Figure value={detail.spent.total} partial={detail.spent.partial} /> },
-              { label: t('subscription.spent_last12'), value: <Figure value={detail.spent.last12Months} partial={detail.spent.partial} /> },
+              { label: t('subscription.spent_since', { date: formatLocalDate(detail.spent.since) }), value: <Figure value={detail.spent.total} />, hint: partial(detail.spent.partial) },
+              { label: t('subscription.spent_last12'), value: <Figure value={detail.spent.last12Months} />, hint: partial(detail.spent.partial) },
             ] : []),
             ...(detail.saved ? [{
               label: t('subscription.saved_since', { date: formatLocalDate(detail.saved.since) }),
-              value: (
-                <>
-                  <Figure value={detail.saved.total} partial={detail.saved.partial} />
-                  <span className="block text-sm text-muted-foreground">
-                    {t('subscription.saved_rule', { price: formatMoney(detail.saved.lastPrice), every: durationText(t, detail.saved.every) })}
-                  </span>
-                </>
-              ),
+              value: <Figure value={detail.saved.total} />,
+              hint: [partial(detail.saved.partial), t('subscription.saved_rule', { price: formatMoney(detail.saved.lastPrice), every: durationText(t, detail.saved.every) })]
+                .filter(Boolean).join(' · '),
             }] : []),
             ...(detail.cancellation.status === 'deadline' && detail.cancellation.lastDayToCancel
-              ? [{ label: t('contract_terms.cancel_deadline'), value: formatLocalDate(detail.cancellation.lastDayToCancel) }] : []),
+              ? [{ label: t('contract_terms.cancel_deadline'), value: formatLocalDate(detail.cancellation.lastDayToCancel, 'short') }] : []),
           ]} />
           {detail.freeDays > 0 ? <p className="text-sm text-muted-foreground">{t('subscription.free_days', { count: detail.freeDays })}</p> : null}
         </section>
@@ -310,14 +308,8 @@ export function SubscriptionDetailPage() {
 }
 
 /** A server total; « — » without one, « partiel » when a rate was missing (the findings name it). */
-function Figure({ value, partial }: { value?: MoneyValue | null; partial: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      {value ? <Money value={value} tabular /> : '—'}
-      {partial ? <span className="ml-1 text-sm text-muted-foreground">{t('subscription.partial')}</span> : null}
-    </>
-  );
+function Figure({ value }: { value?: MoneyValue | null }) {
+  return value ? <Money value={value} tabular /> : '—';
 }
 
 /** What a bundle covers: the server gives the list, the link goes from the bundle to its services only. */

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { IncomeDetailSearch, RootSearch } from '@/app/router';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
+import { seeAllClass } from '@/components/page/seeAll';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import type { IncomeSourceOverview } from '../api';
@@ -37,7 +38,7 @@ export function LastCard({ title, tab, all, action, children }: { title: string;
   return (
     <SectionCard title={title} actions={action} className="space-y-2">
         {children}
-        <Link from="/income/$id" to="/income/$id" params={{ id }} search={(prev: RootSearch & IncomeDetailSearch) => ({ ...prev, tab })} className="text-sm underline">{all}</Link>
+        <Link from="/income/$id" to="/income/$id" params={{ id }} search={(prev: RootSearch & IncomeDetailSearch) => ({ ...prev, tab })} className={seeAllClass}>{all}</Link>
     </SectionCard>
   );
 }

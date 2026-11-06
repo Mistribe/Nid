@@ -21,8 +21,11 @@ describe('Réglages › Personnes', () => {
         return HttpResponse.json(child, { status: 201 });
       }),
     );
-    const { user } = await renderApp('/settings/appearance');
+    const { user } = await renderApp('/settings/persons');
 
+    // Its own tab under the « Réglages » title (issue 387), no longer at the foot of Apparence.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Réglages' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Personnes' })).toHaveAttribute('aria-current', 'page');
     await user.click(await screen.findByRole('button', { name: 'Ajouter un enfant' }));
     const dialog = screen.getByRole('dialog', { name: 'Ajouter un enfant' });
     await user.type(within(dialog).getByLabelText('Prénom et nom'), 'Léo Martin');
@@ -30,7 +33,7 @@ describe('Réglages › Personnes', () => {
 
     await waitFor(() => expect(toasts()).toHaveTextContent('Léo Martin fait maintenant partie du foyer.'));
     expect(sent).toEqual([{ displayName: 'Léo Martin' }]);
-    const list = within(screen.getByRole('region', { name: 'Personnes' })).getByRole('list');
+    const list = screen.getByRole('list', { name: 'Personnes' });
     const leo = await within(list).findByText('Léo Martin');
     expect(leo).toHaveTextContent('Enfant');
     expect(within(list).getByText('Alice Martin')).not.toHaveTextContent('Enfant');
@@ -39,7 +42,7 @@ describe('Réglages › Personnes', () => {
   it('shows the API problem when the name is refused, and keeps the dialog open', async () => {
     server.use(http.post('*/api/v1/core/persons/dependents', () => HttpResponse.json(
       { status: 400, code: 'core.name_required', title: 'A name is required.', traceId: '00-t-24' }, { status: 400 })));
-    const { user } = await renderApp('/settings/appearance');
+    const { user } = await renderApp('/settings/persons');
 
     await user.click(await screen.findByRole('button', { name: 'Ajouter un enfant' }));
     const dialog = screen.getByRole('dialog', { name: 'Ajouter un enfant' });

@@ -15,7 +15,6 @@ import { SettingsFrame } from './SettingsFrame';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { modes, themes, type Mode, type ThemeId } from '@/styles/themes';
-import { PersonsSection } from './PersonsSection';
 import '@/locales/guides';
 
 type Change = Partial<Pick<Preferences, 'theme' | 'mode' | 'chartPatterns' | 'guidesSeen'>>;
@@ -152,8 +151,6 @@ export function AppearancePage() {
         <h2 className="font-medium">{t('guides.settings.title')}</h2>
         <Button variant="outline" onClick={() => change({ guidesSeen: {} })}>{t('guides.settings.replay_all')}</Button>
       </section>
-
-      <PersonsSection />
     </SettingsFrame>
   );
 }

@@ -65,7 +65,7 @@ describe('IncomeSourceDetailPage', () => {
     expect(figures).toHaveTextContent('Net versé / mois2 450,00 €lissé sur l’année');
     const parts = within(within(figures).getByRole('list', { name: 'Composantes en cours' })).getAllByRole('listitem');
     expect(parts.map(text)).toEqual(['Prime annuelle — 150,00 € par mois', 'Salaire de base — 2 300,00 € par mois']);
-    expect(text(figures)).toContain('Prochain versement1 novembre 2026 · 2 300,00 €Salaire de base');
+    expect(text(figures)).toContain('Prochain versement2 300,00 €le 1 novembre 2026Salaire de base');
     expect(text(figures)).toContain('+4,5 %');
     expect(text(figures)).toContain('depuis le début : +11,4 %');
     expect(text(figures)).toContain('soit +2,5 % après inflation');
@@ -110,6 +110,16 @@ describe('IncomeSourceDetailPage', () => {
     await waitFor(() => expect(seen).toContain('?period=3y'));
     await user.click(within(chart).getByRole('radio', { name: '12 mois' }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('period'));
+  });
+
+  it('says so instead of drawing empty axes when the window holds no payment (#383)', async () => {
+    const none = { parts: [], oneOff: eur('0.0000'), total: eur('0.0000') };
+    serve(detail(), sourceOverview({ months: [{ year: 2026, month: 10, upcoming: false, ...none }, { year: 2026, month: 11, upcoming: false, ...none }] }));
+    await renderApp(`/income/${SALARY}`);
+
+    const chart = await screen.findByRole('region', { name: 'Évolution' });
+    expect(await within(chart).findByText(/Aucun versement sur ces 12 mois/)).toBeInTheDocument();
+    expect(chart.querySelector('.recharts-wrapper')).toBeNull();
   });
 
   it('sets the owner’s withholding rate against the real rate, with what it withholds too much each month', async () => {

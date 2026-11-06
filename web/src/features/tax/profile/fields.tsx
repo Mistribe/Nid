@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Field, type FieldControl } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
+import { toFieldAmount } from '../../subscriptions/edits/amount';
 import type { TaxEstimate } from '../api';
 import type { DraftErrors, DraftField, ProfileDraft } from './draft';
 import type { Draft } from './useProfileDraft';
@@ -24,7 +25,7 @@ export function AdultInput({ draft, map, adult, control, placeholder, locked }: 
   control: FieldControl & { 'aria-labelledby'?: string }; placeholder?: string; locked?: string;
 }) {
   const values = draft.value[map];
-  return <Input inputMode="decimal" {...control} placeholder={placeholder} disabled={locked !== undefined} value={locked ?? values[adult] ?? ''}
+  return <Input inputMode="decimal" {...control} placeholder={placeholder} disabled={locked !== undefined} value={locked === undefined ? values[adult] ?? '' : toFieldAmount(locked)}
     onChange={(e) => draft.set({ [map]: { ...values, [adult]: e.target.value } })} />;
 }
 

@@ -22,7 +22,7 @@ import { DeclarantGrid, type GridRow } from '../profile/DeclarantGrid';
 import { PERSONS } from '../../subscriptions/api';
 import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
-import { AMOUNT, toWireAmount } from '../../subscriptions/edits/amount';
+import { AMOUNT, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import { FIRST_ESTIMATE_YEAR } from '../api';
 import {
@@ -105,7 +105,7 @@ function SalaryAllowance({ form, index }: { form: Form; index: number }) {
     if (!wanted || !allowance.data) return;
     filled.current = key;
     const options = { shouldDirty: true, shouldValidate: true };
-    form.setValue(`declarants.${index}.deductionAmount`, allowance.data.deductionAmount.amount, options);
+    form.setValue(`declarants.${index}.deductionAmount`, toFieldAmount(allowance.data.deductionAmount.amount), options);
   }, [wanted, allowance.data, key, form, index]);
   return null;
 }

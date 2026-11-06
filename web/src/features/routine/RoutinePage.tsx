@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { monthLabel } from '../income/expected/months';
+import { elision } from '@/lib/elision';
 import { ToLinkLink } from '../operations/ToLinkLink';
 import { PendingLine } from '../proposals/PendingLine';
 import { todayIso } from '../subscriptions/today';
@@ -54,7 +55,7 @@ export function RoutinePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('routine.title', { month: monthText })} actions={<ToLinkLink />} />
+      <PageHeader title={t('routine.title', { month: monthText, context: elision(monthText) })} actions={<ToLinkLink />} />
       <PendingLine />
       <FilterRow label={t('common.filters')}>
         <FilterField label={t('routine.date')} labelFor>

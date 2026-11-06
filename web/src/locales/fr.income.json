@@ -62,7 +62,7 @@
     "figures_loading": "Chargement des chiffres clés",
     "per_month": "Net versé / mois",
     "next": "Prochain versement",
-    "next_line": "{{date}} · {{amount}}",
+    "next_on": "le {{date}}",
     "over_1y": "Sur 1 an",
     "since_start": "depuis le début : {{value}} %",
     "withholding": {
@@ -97,7 +97,10 @@
       "one_off": "Exceptionnels",
       "total": "Total",
       "upcoming": "à venir",
-      "pct": "{{value}} %"
+      "pct": "{{value}} %",
+      "empty_12m": "Aucun versement sur ces 12 mois : choisissez « 3 ans » ou « Tout » pour voir les plus anciens.",
+      "empty_3y": "Aucun versement sur ces 3 ans : choisissez « Tout » pour voir les plus anciens.",
+      "empty_all": "Aucun versement pour l’instant."
     },
     "last_payments": {
       "title": "Derniers versements",

@@ -32,8 +32,9 @@ describe('Administration › Utilisateurs', () => {
     const { container } = await renderApp('/admin/users', { capabilities: adminCapabilities });
 
     const carolRow = await screen.findByRole('row', { name: /Carol/ });
-    expect(within(carolRow).getByText('en attente')).toBeInTheDocument();
-    expect(within(screen.getByRole('row', { name: /Alice Dev/ })).getByText('admin')).toBeInTheDocument();
+    expect(within(carolRow).getByText('En attente')).toBeInTheDocument();
+    expect(within(screen.getByRole('row', { name: /Alice Dev/ })).getByText('Actif')).toBeInTheDocument();
+    expect(within(screen.getByRole('row', { name: /Alice Dev/ })).getByText('Admin')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
@@ -76,7 +77,7 @@ describe('Administration › Utilisateurs', () => {
     await renderApp('/admin/users', { capabilities: adminCapabilities });
 
     const aliceRow = await screen.findByRole('row', { name: /Alice Dev/ });
-    expect(within(aliceRow).getByText('admin')).toBeInTheDocument();
+    expect(within(aliceRow).getByText('Admin')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /rôle admin|Rendre admin/ })).not.toBeInTheDocument();
     expect(screen.getByText(/groupes du fournisseur d'identité/)).toBeInTheDocument();
   });
@@ -91,7 +92,8 @@ describe('Administration › Utilisateurs', () => {
     const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
 
     const carolRow = await screen.findByRole('row', { name: /Carol/ });
-    await user.click(within(carolRow).getByRole('button', { name: "Annuler l'invitation" }));
+    await user.click(within(carolRow).getByRole('button', { name: 'Actions de Carol' }));
+    await user.click(await screen.findByRole('menuitem', { name: "Annuler l'invitation" }));
     expect(deleted).toEqual([]);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
@@ -132,7 +134,8 @@ describe('Administration › Utilisateurs', () => {
     const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
 
     const aliceRow = await screen.findByRole('row', { name: /Alice Dev/ });
-    await user.click(within(aliceRow).getByRole('button', { name: 'Déconnecter partout' }));
+    await user.click(within(aliceRow).getByRole('button', { name: 'Actions d’Alice Dev' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Déconnecter partout' }));
 
     // The confirmation loads lazily: it may not be there yet when the click returns.
     expect(await screen.findByText(/vous devrez vous reconnecter/)).toBeInTheDocument();

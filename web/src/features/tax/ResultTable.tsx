@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { TaxEstimate, TaxResult } from './api';
-import { METHODS, ORIGINS, percentText, regimeText, ZERO } from './format';
+import { METHODS, ORIGINS, partsText, percentText, regimeText, ZERO } from './format';
 import '@/locales/tax';
 
 export const eur = (amount: string) => formatMoney({ amount, currency: 'EUR' });
@@ -39,7 +39,7 @@ export function ResultTable({ columns, label, declarants = true }: {
       money(t('tax.row.reference_income'), (r) => r.referenceIncome),
     ] },
     { title: t('tax.group.income_tax'), rows: [
-      { title: t('tax.row.parts'), cell: (r) => r.parts },
+      { title: t('tax.row.parts'), cell: (r) => partsText(r.parts) },
       { title: t('tax.row.gross_tax'), cell: (r) => (r.familyCapApplied ? t('tax.row.capped', { amount: eur(r.grossTax) }) : eur(r.grossTax)) },
       money(t('tax.row.decote'), (r) => r.decote),
       money(t('tax.row.pinel'), (r) => r.pinelReduction),

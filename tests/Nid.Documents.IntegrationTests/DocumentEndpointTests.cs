@@ -27,10 +27,13 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         var id = await UploadedAsync(app, app.AdultA, Pdf);
 
         var detail = (await JsonAsync(await GetAsync(app, app.AdultA, id))).GetProperty("document").GetProperty("uploadedAt");
-        var listed = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Documents + "?scope=me")).RootElement.GetProperty("items")[0].GetProperty("uploadedAt");
+        var item = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Documents + "?scope=me")).RootElement.GetProperty("items")[0];
+        var listed = item.GetProperty("uploadedAt");
 
         Assert.Equal((JsonValueKind.String, UploadInstant), (detail.ValueKind, detail.GetString()));
         Assert.Equal((JsonValueKind.String, UploadInstant), (listed.ValueKind, listed.GetString()));
+        // The list's owner column (issue 392).
+        Assert.Equal(app.AdultA.Value, item.GetProperty("uploadedBy").GetGuid());
     }
 
     [Fact]

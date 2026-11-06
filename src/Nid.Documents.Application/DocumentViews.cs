@@ -8,9 +8,12 @@ namespace Nid.Documents.Application;
 /// <summary><c>AnchorItemId</c>: the item the link counts through (the item itself for a <c>core.item</c>), null for a person or the household.</summary>
 public sealed record DocumentLinkView(string TargetKind, Guid TargetId, Guid? AnchorItemId, string Role, string Label, bool CanWrite);
 
-/// <summary>Design §7: <c>Links</c> holds only the links whose target the reader reads; the others are absent, not counted.</summary>
+/// <summary>
+/// Design §7: <c>Links</c> holds only the links whose target the reader reads; the others are absent, not counted.
+/// <c>UploadedBy</c> is the document's owner, the person it is private to while it has no link (the list's owner column).
+/// </summary>
 public sealed record DocumentSummary(
-    Guid Id, string Title, string MediaType, long SizeBytes, LocalDate? DocumentDate, Instant UploadedAt, bool Archived, bool CanEdit,
+    Guid Id, string Title, string MediaType, long SizeBytes, LocalDate? DocumentDate, Instant UploadedAt, Guid UploadedBy, bool Archived, bool CanEdit,
     IReadOnlyList<DocumentLinkView> Links, string? SourceRef)
 {
     /// <summary>The label of a link whose target the resolvers no longer return; the link still counts through its anchor.</summary>
@@ -25,7 +28,7 @@ public sealed record DocumentSummary(
             .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DeletedTargetLabel),
                 DocumentRules.CanWriteLink(DocumentAccess.Facts(l), read.Actor)))
             .ToList();
-        return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.ArchivedAt is not null, read.CanEdit, links, d.SourceRef);
+        return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.UploadedBy, d.ArchivedAt is not null, read.CanEdit, links, d.SourceRef);
     }
 
     /// <summary>Every item id the links name: a <c>core.item</c> target and every anchor.</summary>

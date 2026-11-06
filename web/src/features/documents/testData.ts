@@ -9,7 +9,7 @@ export const link = (over: Partial<DocumentLink> = {}): DocumentLink => ({
 
 export const summary = (over: Partial<DocumentSummary> = {}): DocumentSummary => ({
   id: DOC, title: 'Bail 2024', mediaType: 'application/pdf', sizeBytes: 250_880, documentDate: '2024-03-01',
-  uploadedAt: '2026-10-20T09:00:00Z', archived: false, canEdit: true, links: [link()], ...over,
+  uploadedAt: '2026-10-20T09:00:00Z', uploadedBy: ALICE, archived: false, canEdit: true, links: [link()], ...over,
 });
 
 export const list = (items: DocumentSummary[]): DocumentList => ({ items });

@@ -28,11 +28,12 @@ describe('CoverageBand', () => {
     const { container } = render(<CoverageBand coverage={coverage} />);
 
     const legend = screen.getByRole('list', { name: 'Légende' });
-    expect(within(legend).getAllByRole('listitem').map((i) => i.textContent)).toEqual(['Payé', 'Offert']);
+    expect(within(legend).getAllByRole('listitem').map((i) => i.textContent)).toEqual(['Payé', 'Offert', 'Prévu']);
     const table = screen.getByRole('table', { name: 'Périodes couvertes' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
-    expect(rows[2]).toHaveTextContent('prévu');
+    expect(rows[2]).toHaveTextContent('Prévu');
+    expect(rows[0]).toHaveTextContent('Passé');
     await expectNoAxeViolations(container);
   });
 

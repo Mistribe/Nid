@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
+import { SectionCard } from '@/components/page/SectionCard';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { percent } from '@/features/dashboard/format';
 import { cn } from '@/lib/utils';
@@ -8,17 +9,22 @@ import type { IncomeOverviewShare } from '../api';
 const isolable = (s: IncomeOverviewShare) => s.kind !== 'one_off' && s.kind !== 'other' && s.item != null;
 
 /**
- * Where the income comes from, as one bar of the server's shares. `one_off` / `other` shares carry a neutral name and
+ * Where the income comes from, as one bar of the server's shares, in its card; `note` names what each share's monthly
+ * amount is (the period's average, not today's smoothed amount of the sources' table). `one_off` / `other` shares carry a neutral name and
  * are labelled here; the others isolate their source on click (again to release). An empty split with missing rates
  * says which currency lacks one rather than showing a partial bar.
  */
-export function SplitBar({ split, missingRates, selected, onSelect }: {
-  split: IncomeOverviewShare[]; missingRates: string[]; selected?: string; onSelect: (source?: string) => void;
+export function SplitBar({ split, missingRates, selected, onSelect, note }: {
+  split: IncomeOverviewShare[]; missingRates: string[]; selected?: string; onSelect: (source?: string) => void; note: string;
 }) {
   const { t } = useTranslation();
   if (split.length === 0)
     return missingRates.length > 0
-      ? <p role="note" className="text-sm text-muted-foreground">{t('income.overview.split_unavailable', { currencies: missingRates.join(', ') })}</p>
+      ? (
+        <SectionCard title={t('income.overview.split')}>
+          <p role="note" className="text-sm text-muted-foreground">{t('income.overview.split_unavailable', { currencies: missingRates.join(', ') })}</p>
+        </SectionCard>
+      )
       : null;
 
   const name = (s: IncomeOverviewShare) =>
@@ -29,6 +35,7 @@ export function SplitBar({ split, missingRates, selected, onSelect }: {
   const colored = split.map((s) => ({ s, color: s.kind === 'other' ? NEUTRAL_COLOR : `var(--chart-${(rank++ % 6) + 1})` }));
 
   return (
+    <SectionCard title={t('income.overview.split')} note={note}>
     <div role="group" aria-label={t('income.overview.split')} className="space-y-2">
       <div className="flex h-6 gap-0.5">
         {colored.map(({ s, color }) => {
@@ -55,5 +62,6 @@ export function SplitBar({ split, missingRates, selected, onSelect }: {
         ))}
       </ul>
     </div>
+    </SectionCard>
   );
 }

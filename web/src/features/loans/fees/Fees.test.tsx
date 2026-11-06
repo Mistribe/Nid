@@ -122,7 +122,7 @@ describe('fees', () => {
 
     await rowAction(user, (await rows())[0]!, FILE_DATE, 'Corriger');
     const dialog = within(await screen.findByRole('dialog', { name: 'Corriger les frais' }));
-    expect(dialog.getByLabelText('Montant')).toHaveValue('1000.00');
+    expect(dialog.getByLabelText('Montant')).toHaveValue('1000,00');
     await user.clear(dialog.getByLabelText('Montant'));
     await user.type(dialog.getByLabelText('Montant'), '1200');
     await user.clear(dialog.getByLabelText('Note'));

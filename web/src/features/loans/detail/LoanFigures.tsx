@@ -13,23 +13,24 @@ import '@/locales/loans';
 export function LoanStats({ loan }: { loan: LoanDetail }) {
   const { t } = useTranslation();
   const f = loan.figures;
+  // #376: each figure short enough for one line, what qualifies it (date, phase, count) in the line under it.
   const next = f.nextPaymentOn && f.nextPaymentTotal
-    ? t('loan_detail.next_payment_value', { date: formatLocalDate(f.nextPaymentOn), amount: money(loan.currency, f.nextPaymentTotal) })
-    : t('loan_detail.no_next_payment');
+    ? { value: money(loan.currency, f.nextPaymentTotal), hint: t('loan_detail.next_payment_on', { date: formatLocalDate(f.nextPaymentOn) }) }
+    : { value: t('loan_detail.no_next_payment'), hint: t('loan_detail.no_next_payment_hint') };
   // An ended loan has no current phase (spec §7, precision 9), although the server still names its last one.
   const rate = !loan.ended && f.currentRate && f.currentPhaseSeq != null
-    ? t('loan_detail.current_rate_value', { rate: fractionToPercent(f.currentRate), phase: f.currentPhaseSeq })
+    ? { value: t('loan_detail.current_rate_value', { rate: fractionToPercent(f.currentRate) }), hint: t('loan_detail.current_phase', { phase: f.currentPhaseSeq }) }
     : null;
   const end = f.endDate
-    ? t('loan_detail.end_value', { date: formatLocalDate(f.endDate), count: f.paymentsLeft })
-    : t('loan_detail.payments_left', { count: f.paymentsLeft });
+    ? { value: formatLocalDate(f.endDate, 'short'), hint: t('loan_detail.payments_left', { count: f.paymentsLeft }) }
+    : { value: t('loan_detail.payments_left', { count: f.paymentsLeft }) };
   return (
     <>
       <StatLine items={[
         { label: t('loan_detail.remaining'), value: money(loan.currency, f.balance) },
-        { label: t('loan_detail.next_payment'), value: next },
-        ...(rate ? [{ label: t('loan_detail.current_rate'), value: rate }] : []),
-        { label: t('loan_detail.end'), value: end },
+        { label: t('loan_detail.next_payment'), ...next },
+        ...(rate ? [{ label: t('loan_detail.current_rate'), ...rate }] : []),
+        { label: t('loan_detail.end'), ...end },
       ]} />
       {f.nextPaymentTotal ? <p className="text-sm text-muted-foreground">{t('loan_detail.insurance_included')}</p> : null}
     </>

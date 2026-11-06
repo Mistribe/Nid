@@ -1,14 +1,16 @@
 import { Link } from '@tanstack/react-router';
-import { lazy, Suspense, useId, type ReactNode } from 'react';
+import { lazy, Suspense, useId, useState, type ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { tileOf } from '@/app/nav';
+import { seeAllClass } from '@/components/page/seeAll';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money, type MoneyValue } from '@/components/Money';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { StatLine } from '@/components/page/StatLine';
+import { TableToggle } from '@/components/page/TableToggle';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { buttonVariants } from '@/components/ui/button';
@@ -38,6 +40,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
   const { t: tc } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', OVERVIEW, { params: { query: { scope } } });
+  const [monthsTable, setMonthsTable] = useState(false);
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
@@ -54,20 +57,21 @@ export function OverviewTab({ scope }: { scope: Scope }) {
       <StatLine items={[
         { label: tc('subscriptions.per_month'), value: text(d.monthlyAmortized) },
         { label: tc('subscriptions.per_year'), value: text(d.annualAmortized) },
-        { label: t('overview.remaining'), value: <Trans t={t} i18nKey="overview.remaining_of" values={{ left: text(d.monthCashRemaining), total: text(d.monthCash) }}
-            components={{ left: <span className="whitespace-nowrap" />, total: <span className="whitespace-nowrap" /> }} /> },
-        { label: t('overview.count'), value: t('overview.counts', { active: t('overview.active', { count: d.activeCount }), ended: t('overview.ended', { count: d.endedCount }) }) },
+        // #376: the figure on its line, what it is read against under it.
+        { label: t('overview.remaining'), value: text(d.monthCashRemaining), hint: t('overview.remaining_of', { total: text(d.monthCash) }) },
+        { label: t('overview.count'), value: t('overview.active', { count: d.activeCount }), hint: t('overview.ended', { count: d.endedCount }) },
       ]} />
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel title={t('overview.months')} className="lg:order-1 lg:col-span-2">
-          <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><MonthsChart months={d.months} /></Suspense>
+        <Panel title={t('overview.months')} className="lg:order-1 lg:col-span-2"
+          action={<TableToggle asTable={monthsTable} onToggle={() => setMonthsTable((v) => !v)} />}>
+          <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><MonthsChart months={d.months} asTable={monthsTable} /></Suspense>
         </Panel>
         <Panel title={t('overview.watch')} className="lg:order-5"><Watch d={d} scope={scope} /></Panel>
         <Panel title={t('overview.upcoming')} className="lg:order-4"
           action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'calendar' })} className="text-sm underline-offset-4 hover:underline">{t('overview.calendar')}</Link>}><Upcoming d={d} /></Panel>
         <Panel title={t('overview.persons')} className="lg:order-2"><Persons d={d} /></Panel>
         <Panel title={t('overview.labels')} className="lg:order-3"
-          action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'list', group: 'label', status: 'all' })} className="text-sm underline-offset-4 hover:underline">{t('overview.see_list')}</Link>}>
+          action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'list', group: 'label', status: 'all' })} className={seeAllClass}>{t('overview.see_list')}</Link>}>
           <Labels d={d} />
         </Panel>
         {d.years.length > 0 ? (

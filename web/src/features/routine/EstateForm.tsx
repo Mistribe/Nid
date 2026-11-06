@@ -16,8 +16,8 @@ import { Input } from '@/components/ui/input';
 import { LOAN_AMOUNT } from '../loans/new/loanForm';
 import { invalidateProperties } from '../properties/api';
 import { categoryText } from '../properties/format';
-import { ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
-import { Field } from '@/components/form/Field';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../subscriptions/edits/amount';
+import { Field, FieldLabel } from '@/components/form/Field';
 import { FormActions } from '@/components/page/FormPage';
 import { messageFor } from '../subscriptions/fieldErrors';
 import { todayIso } from '../subscriptions/today';
@@ -30,7 +30,9 @@ type Ticked = { key: string; checked: boolean; amount: string; date: string };
 type Group = 'costs' | 'rents';
 export type EstateValues = { estimates: { property: string; amount: string }[]; costs: Ticked[]; rents: Ticked[] };
 
-const input = 'text-right tabular-nums md:w-36';
+const input = 'text-right tabular-nums';
+// One grid for every row, estimates included (issue 378, as the envelope rows): the name, then the amount and the date aligned.
+const row = 'flex flex-col gap-3 p-4 md:grid md:grid-cols-[minmax(0,1fr)_9rem_11rem] md:items-end md:gap-x-4';
 /** The fields Enter moves between: Radix adds a hidden input beside each checkbox, which is not a stop. */
 const STOPS = 'input:not([aria-hidden="true"]), button[role="checkbox"]';
 
@@ -38,8 +40,8 @@ const STOPS = 'input:not([aria-hidden="true"]), button[role="checkbox"]';
 export function freshEstate(view: EstateRoutineView): EstateValues {
   return {
     estimates: view.estimates.map((e) => ({ property: e.property, amount: '' })),
-    costs: view.costs.map((c) => ({ key: c.costId, checked: false, amount: c.amount, date: c.dueOn })),
-    rents: view.rents.map((r) => ({ key: `${r.tenancyId}:${r.category}`, checked: false, amount: r.amount, date: r.occurredOn })),
+    costs: view.costs.map((c) => ({ key: c.costId, checked: false, amount: toFieldAmount(c.amount), date: c.dueOn })),
+    rents: view.rents.map((r) => ({ key: `${r.tenancyId}:${r.category}`, checked: false, amount: toFieldAmount(r.amount), date: r.occurredOn })),
   };
 }
 
@@ -159,21 +161,28 @@ export function EstateForm({ view, initial, onSaved }: {
   const e = form.formState.errors;
 
   const estimateRow = ({ line, index }: { line: EstateEstimate; index: number }) => (
-    <li key={line.property} className="p-4">
-      <Field label={t('routine_estate.estimate', { name: line.name })} error={e.estimates?.[index]?.amount?.message}
-        hint={line.lastValue && line.lastAsOf
-          ? t('routine_estate.last', { value: formatMoney({ amount: line.lastValue, currency: line.currency }), date: formatLocalDate(line.lastAsOf) })
-          : t('routine_estate.no_last')}>
-        {(c) => <Input inputMode="decimal" {...c} {...form.register(`estimates.${index}.amount`)} className={input} />}
+    <li key={line.property} className={row}>
+      <div className="min-w-0">
+        <p className="font-medium break-words">{line.name}</p>
+        <p className="text-sm text-muted-foreground">
+          {line.lastValue && line.lastAsOf
+            ? t('routine_estate.last', { value: formatMoney({ amount: line.lastValue, currency: line.currency }), date: formatLocalDate(line.lastAsOf) })
+            : t('routine_estate.no_last')}
+        </p>
+      </div>
+      <Field label={t('routine_estate.estimate_short')} error={e.estimates?.[index]?.amount?.message}>
+        {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine_estate.estimate', { name: line.name })} {...form.register(`estimates.${index}.amount`)} className={input} />}
       </Field>
     </li>
   );
 
   const tickedRow = (group: Group, index: number, key: string, text: string, currency: string, already: string | null | undefined) => {
     const le = e[group]?.[index];
+    const dateName = t('routine_estate.date_of', { line: text });
+    // The labels are short, the row names the line; each control's accessible name still carries it.
     return (
-      <li key={key} className="flex flex-col gap-3 p-4 md:grid md:grid-cols-[1fr_auto_auto] md:items-start">
-        <div className="space-y-1">
+      <li key={key} className={row}>
+        <div className="min-w-0 space-y-1">
           <Controller control={form.control} name={`${group}.${index}.checked`} render={({ field }) => (
             <Field inline label={text}>{(c) => <Checkbox {...c} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}</Field>
           )} />
@@ -184,12 +193,13 @@ export function EstateForm({ view, initial, onSaved }: {
             </p>
           ) : null}
         </div>
-        <Field label={t('routine_estate.amount_of', { line: text })} error={le?.amount?.message}>
-          {(c) => <Input inputMode="decimal" {...c} {...form.register(`${group}.${index}.amount`)} className={input} />}
+        <Field label={t('routine_estate.amount_short')} error={le?.amount?.message}>
+          {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine_estate.amount_of', { line: text })} {...form.register(`${group}.${index}.amount`)} className={input} />}
         </Field>
         <Controller control={form.control} name={`${group}.${index}.date`} render={({ field }) => (
-          <Field label={t('routine_estate.date_of', { line: text })} error={le?.date?.message}>
-            {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
+          <Field label={t('routine_estate.date_short')} error={le?.date?.message}>
+            {/* The calendar button keeps the line's full name, not the short label. */}
+            {(c) => <FieldLabel value={dateName}><DateField {...c} aria-label={dateName} max={todayIso()} value={field.value} onChange={field.onChange} /></FieldLabel>}
           </Field>
         )} />
       </li>

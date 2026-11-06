@@ -494,7 +494,7 @@ describe('the top bar trail', () => {
 
   it('a page with no crumbs gets its module from the navigation', async () => {
     await renderApp('/settings/appearance');
-    await screen.findByRole('heading', { level: 1, name: 'Apparence' });
+    await screen.findByRole('heading', { level: 1, name: 'Réglages' });
     // The module is the page's own section: plain text, not a link to here.
     expect(within(trail()).getByText('Réglages')).not.toHaveAttribute('aria-current');
     expect(within(trail()).queryByRole('link')).toBeNull();

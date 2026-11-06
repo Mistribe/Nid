@@ -49,4 +49,11 @@ describe('GroupedList', () => {
     await renderList();
     expect(screen.getByText('1 200 €')).toBeVisible();
   });
+
+  it('wraps the title to two lines before cutting it, the amount on its first line', async () => {
+    await renderList();
+    expect(screen.getByText('Prêt A')).toHaveClass('line-clamp-2');
+    expect(screen.getByText('Prêt A')).not.toHaveClass('truncate');
+    expect(screen.getByText('1 200 €')).toHaveClass('col-start-2', 'row-start-1');
+  });
 });

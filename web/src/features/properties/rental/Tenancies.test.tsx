@@ -157,7 +157,7 @@ describe('tenancies', () => {
 
     await rowAction(user, (await rows())[0]!, '1 janvier 2023', 'Corriger');
     const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
-        expect(form.getByLabelText('Loyer mensuel')).toHaveValue('900.00');
+        expect(form.getByLabelText('Loyer mensuel')).toHaveValue('900,00');
     await expectNoAxeViolations(container);
     await user.type(form.getByLabelText('Fin'), '31/12/2025');
     await user.clear(form.getByLabelText('Dépôt de garantie'));

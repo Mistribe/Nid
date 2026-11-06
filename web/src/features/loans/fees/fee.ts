@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { LoanFee } from '../api';
 import { FEE_KINDS } from '../format';
@@ -31,7 +31,7 @@ export const FEE_PATHS = { kind: 'kind', amount: 'amount', onDate: 'onDate', not
 export function feeValuesOf(f?: LoanFee): FeeValues {
   // The server writes only its own kinds.
   return f
-    ? { kind: f.kind as FeeValues['kind'], amount: f.amount, onDate: f.onDate, note: f.note ?? '' }
+    ? { kind: f.kind as FeeValues['kind'], amount: toFieldAmount(f.amount), onDate: f.onDate, note: f.note ?? '' }
     : { kind: 'file', amount: '', onDate: todayIso(), note: '' };
 }
 

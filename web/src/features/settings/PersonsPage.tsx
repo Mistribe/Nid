@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -11,20 +11,21 @@ import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PERSONS } from '@/features/subscriptions/api';
+import { SettingsFrame } from './SettingsFrame';
+import '@/locales/notifications';
 
-/** screens.md §9, Personnes: the household's persons, and « Ajouter un enfant » (a `dependent`). */
-export function PersonsSection() {
+/** screens.md §9, Réglages › Personnes: the household's persons, and « Ajouter un enfant » (a `dependent`). */
+export function PersonsPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const persons = $api.useQuery('get', PERSONS);
   const [adding, setAdding] = useState(false);
-  const heading = useId();
 
   return (
-    <section aria-labelledby={heading} className="space-y-2">
-      <h2 id={heading} className="font-medium">{t('settings.persons.title')}</h2>
+    <SettingsFrame title={t('settings_frame.nav.persons')}
+      actions={<Button variant="outline" onClick={() => setAdding(true)}>{t('settings.persons.add_child')}</Button>}>
       {persons.error ? <ProblemMessage problem={present(toProblem(persons.error))} /> : null}
-      <ul className="space-y-1">
+      <ul aria-label={t('settings_frame.nav.persons')} className="space-y-1">
         {persons.data?.map((person) => (
           <li key={person.id} className="flex items-center gap-2">
             {person.displayName}
@@ -32,9 +33,8 @@ export function PersonsSection() {
           </li>
         ))}
       </ul>
-      <Button variant="outline" onClick={() => setAdding(true)}>{t('settings.persons.add_child')}</Button>
       {adding ? <AddChildDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); toast.success(message); }} /> : null}
-    </section>
+    </SettingsFrame>
   );
 }
 

@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -39,7 +40,12 @@ describe('dashboard lists', () => {
     }));
     const { container } = await renderApp('/dashboard');
 
+    // The first three, then « Tout voir » (issue 391: the card stays about the curve's height).
+    expect(within(await section('À venir')).getAllByRole('listitem')).toHaveLength(3);
+    await userEvent.click(within(await section('À venir')).getByRole('button', { name: 'Tout voir (4)' }));
     const items = within(await section('À venir')).getAllByRole('listitem');
+    expect(items).toHaveLength(4);
+    expect(within(await section('À venir')).getByRole('button', { name: 'Voir moins' })).toBeInTheDocument();
     // One list per day, named by its date (« Aujourd’hui » and « Demain » only near today).
     expect(within(await section('À venir')).getByRole('list', { name: 'lundi 10 novembre 2025' })).toContainElement(items[0] as HTMLElement);
     expect(items[0]).toHaveTextContent('Amazon Prime');
@@ -66,6 +72,7 @@ describe('dashboard lists', () => {
     }));
     const { container } = await renderApp('/dashboard');
 
+    await userEvent.click(within(await section('À venir')).getByRole('button', { name: 'Tout voir (5)' }));
     const items = within(await section('À venir')).getAllByRole('listitem');
     expect(items[0]).toHaveAttribute('data-tile', '3');
     expect(items[0]).toHaveTextContent('Taxe foncière');

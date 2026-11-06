@@ -55,7 +55,7 @@ describe('recording values and flows', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Saisir une valeur' })).toHaveFocus());
     await expectNoAxeViolations(container);
 
-    expect((await openValue(user)).getByLabelText('Montant')).toHaveValue('25400.1');
+    expect((await openValue(user)).getByLabelText('Montant')).toHaveValue('25400,1');
   });
 
   it('says a value on a date that already has one replaces it, and leaves one row for that date', async () => {

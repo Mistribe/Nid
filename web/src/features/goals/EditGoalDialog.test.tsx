@@ -31,7 +31,7 @@ describe('EditGoalDialog', () => {
 
     const name = screen.getByLabelText('Nom');
     expect(name).toHaveValue('Voyage');
-    expect(screen.getByLabelText('Montant cible')).toHaveValue('5000.0000');
+    expect(screen.getByLabelText('Montant cible')).toHaveValue('5000,0000');
     await user.clear(name);
     await user.type(name, 'Grand voyage');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));

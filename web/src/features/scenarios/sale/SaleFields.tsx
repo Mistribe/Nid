@@ -6,7 +6,7 @@ import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { Input } from '@/components/ui/input';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import type { SaleDocument, SaleScenario } from '../api';
 import { usePickOptions } from '../projection/pickOptions';
 import '@/locales/forms';
@@ -23,8 +23,8 @@ export const newSaleDraft = (): SaleDraft => ({
 
 /** A saved sale back as the draft; a property the reader cannot see comes back empty, to be picked again. */
 export const fromSale = (s: Pick<SaleScenario, 'name' | 'visibility' | 'document'>): SaleDraft => ({
-  name: s.name, visibility: s.visibility, property: s.document.property ?? '', saleOn: s.document.saleOn, price: s.document.price ?? '',
-  agencyFees: s.document.agencyFees ?? '0', penalties: s.document.penalties ?? '0', horizonYears: String(s.document.horizonYears),
+  name: s.name, visibility: s.visibility, property: s.document.property ?? '', saleOn: s.document.saleOn, price: toFieldAmount(s.document.price ?? ''),
+  agencyFees: toFieldAmount(s.document.agencyFees ?? '0'), penalties: toFieldAmount(s.document.penalties ?? '0'), horizonYears: String(s.document.horizonYears),
 });
 
 /** The wire document; an unreadable date is left out (the server names it on its field rather than refusing the whole body). */

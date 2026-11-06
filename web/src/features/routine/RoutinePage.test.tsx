@@ -57,7 +57,7 @@ describe('the routine', () => {
 
     const due = await screen.findByRole('region', { name: 'À relever' });
     expect(screen.getByRole('heading', { level: 1, name: 'Routine de septembre 2025' })).toBeInTheDocument();
-    expect(within(due).getByLabelText('Valeur de PEA')).toHaveValue('1000.00');
+    expect(within(due).getByLabelText('Valeur de PEA')).toHaveValue('1000,00');
     expect(within(due).getByText('1 000,00 € au 31 août 2025')).toBeInTheDocument();
     expect(within(due).getByLabelText('Valeur de Livret A')).toHaveValue('');
     expect(screen.getByRole('button', { name: 'Autres enveloppes' })).toHaveAttribute('aria-expanded', 'false');
@@ -239,7 +239,7 @@ describe('the routine', () => {
     const seen: string[] = [];
     server.use(http.get('*/api/v1/investments/routine', ({ request }) => { seen.push(new URL(request.url).search); return HttpResponse.json(routine(lines(), '2025-08-31')); }));
     await renderApp('/routine?on=2025-08-31');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Routine de août 2025' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Routine d’août 2025' })).toBeInTheDocument();
     expect(seen[0]).toContain('on=2025-08-31');
   });
 
@@ -283,14 +283,14 @@ describe('the routine', () => {
     first.unmount();
     serve(routine([line({ lastValue: { amount: '1200.00', currency: 'EUR' }, lastAsOf: '2025-09-15' })]));
     await renderApp('/routine');
-    expect(await screen.findByLabelText('Valeur de PEA')).toHaveValue('1200.00');
+    expect(await screen.findByLabelText('Valeur de PEA')).toHaveValue('1200,00');
   });
 
   it('ignores a malformed draft', async () => {
     sessionStorage.setItem('routine:2025-09-30', '{}');
     serve(routine(lines()));
     await renderApp('/routine');
-    expect(await screen.findByLabelText('Valeur de PEA')).toHaveValue('1000.00');
+    expect(await screen.findByLabelText('Valeur de PEA')).toHaveValue('1000,00');
   });
   it('shows the recap with the gain of the month', async () => {
     serve(routine(lines()));

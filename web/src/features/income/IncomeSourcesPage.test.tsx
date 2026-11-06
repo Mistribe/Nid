@@ -38,7 +38,7 @@ describe('IncomeSourcesPage', () => {
 
     const table = await screen.findByRole('table', { name: 'Liste des revenus' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
-      .toEqual(['Nom', 'Propriétaires', 'Par mois', 'Sur 1 an', 'Prochain versement', 'Fin de période']);
+      .toEqual(['Nom', 'Propriétaires', 'Par mois, lissé sur l’année', 'Sur 1 an', 'Prochain versement', 'Fin de période']);
     const row = (await rows())[0]!;
     expect(within(row).getByRole('link', { name: /Salaire Alice/ })).toHaveAttribute('href', expect.stringContaining('/income/'));
     await waitFor(() => expect(row).toHaveTextContent('Alice'));
@@ -56,7 +56,7 @@ describe('IncomeSourcesPage', () => {
 
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/^(Gros|Petit)/)?.[0]);
     expect(await names()).toEqual(['Gros', 'Petit']);
-    await user.click(within(screen.getByRole('table', { name: 'Liste des revenus' })).getByRole('button', { name: 'Par mois' }));
+    await user.click(within(screen.getByRole('table', { name: 'Liste des revenus' })).getByRole('button', { name: 'Par mois, lissé sur l’année' }));
     expect(await names()).toEqual(['Petit', 'Gros']);
   });
 
@@ -91,7 +91,7 @@ describe('IncomeSourcesPage', () => {
     await renderApp('/income');
 
     await screen.findByRole('heading', { name: 'Aucun revenu pour l’instant' });
-    expect(screen.queryByText('Revenu / mois')).toBeNull();
+    expect(screen.queryByText('Revenu net / mois')).toBeNull();
     expect(screen.queryByRole('region', { name: /Mois par mois/ })).toBeNull();
   });
 

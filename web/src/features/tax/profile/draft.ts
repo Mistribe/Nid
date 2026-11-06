@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema';
-import { AMOUNT, toWireAmount } from '../../subscriptions/edits/amount';
+import { AMOUNT, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import type { PinelCommitment, TaxEstimate } from '../api';
 import { ZERO } from '../format';
 
@@ -36,6 +36,9 @@ export function suggestedDeficit(estimate: TaxEstimate): string | undefined {
     ? carried : undefined;
 }
 
+/** The server's figures as a French reader types them (`800.00` → `800,00`). */
+const fields = (values: Record<string, string>) => Object.fromEntries(Object.entries(values).map(([k, v]) => [k, toFieldAmount(v)]));
+
 /** Tax estimate spec §7: the household's declarations for the year, as the profile tab starts from. */
 export function initialDraft(estimate: TaxEstimate): ProfileDraft {
   const p = estimate.profile;
@@ -43,10 +46,10 @@ export function initialDraft(estimate: TaxEstimate): ProfileDraft {
     statuses: Object.fromEntries(estimate.adults.map((a) => [a.id, p.statuses[a.id] ?? 'non_executive'])),
     dependents: p.dependents === null || p.dependents === undefined ? '' : String(p.dependents),
     under6: String(p.childrenUnder6), regime: p.rentalRegime ?? 'auto', department: p.department ?? '',
-    amounts: { ...Object.fromEntries(AMOUNT_KEYS.map((k) => [k, p[k]])), rentalDeficitCarried: suggestedDeficit(estimate) ?? p.rentalDeficitCarried } as ProfileDraft['amounts'],
+    amounts: fields({ ...Object.fromEntries(AMOUNT_KEYS.map((k) => [k, p[k]])), rentalDeficitCarried: suggestedDeficit(estimate) ?? p.rentalDeficitCarried }) as ProfileDraft['amounts'],
     pinel: p.pinel, pooling: p.perPooling,
-    rates: p.contributionRates, expenses: p.actualExpenses, unused: p.perUnusedCeilings, ceilings: p.perCeilings,
-    expiring: p.perCeilingsExpiring, exempt: p.exemptIncomes,
+    rates: fields(p.contributionRates), expenses: fields(p.actualExpenses), unused: fields(p.perUnusedCeilings), ceilings: fields(p.perCeilings),
+    expiring: fields(p.perCeilingsExpiring), exempt: fields(p.exemptIncomes),
   };
 }
 

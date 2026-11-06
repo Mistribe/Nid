@@ -40,7 +40,7 @@ describe('GoalDetailPage', () => {
     expect(stat('Progression')).toHaveTextContent('40 %');
     expect(stat('Mensualité nécessaire')).toHaveTextContent('200,00 €');
     expect(stat('Rythme mensuel')).toHaveTextContent('150,00 €');
-    expect(stat('Date prévue')).toHaveTextContent('1 septembre 2027');
+    expect(stat('Date prévue')).toHaveTextContent('1 sept. 2027');
     expect(stat('Statut')).toHaveTextContent('En retard');
     expect(screen.getByText('Projet')).toBeInTheDocument();
     await expectNoAxeViolations(container);

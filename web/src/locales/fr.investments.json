@@ -136,8 +136,8 @@
     },
     "regulated": {
       "ceiling": "Plafond",
-      "reached": "{{ceiling}} · atteint",
-      "room": "{{ceiling}} · encore {{amount}} versables",
+      "reached": "atteint",
+      "room": "encore {{amount}} versables",
       "ceiling_source": "Plafond des versements, hors intérêts. Source : {{source}}",
       "interest_to_date": "Intérêts estimés à ce jour",
       "interest_expected": "attendus au 31 décembre : {{amount}}",

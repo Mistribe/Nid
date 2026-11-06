@@ -31,7 +31,7 @@ import { CloseDialog } from './closing/CloseDialog';
 import { ClosedBanner } from './closing/ClosedBanner';
 import { SettingsForm } from './settings/SettingsForm';
 import { TransferDialog } from './transfer/TransferDialog';
-import { AnnualReturn, Direction, Gain, StaleBadge } from './Figures';
+import { AnnualReturn, Direction, Gain, GainPct, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 import { percent } from './holdings/holdingFormat';
 import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
@@ -203,40 +203,38 @@ export function EnvelopeDetailPage() {
         <section aria-label={t('envelope.figures')} data-guide="investments.figures" className="space-y-2">
           <StatLine items={[
             { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf, 'short') }) : t('envelope.value'),
-              value: figures.value ? <><Money value={figures.value} tabular />{' '}<StaleBadge days={figures.staleDays} /></> : absent },
+              value: figures.value ? <Money value={figures.value} tabular /> : absent,
+              hint: figures.value && figures.staleDays != null ? <StaleBadge days={figures.staleDays} /> : null },
             { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
-            { label: t('envelope.gain'), value: <Gain figures={figures} /> },
+            // #376: the amount on its line, its percent under it.
+            figures.gain
+              ? { label: t('envelope.gain'), value: <Direction amount={figures.gain} />, hint: <GainPct value={figures.gainPct} /> }
+              : { label: t('envelope.gain'), value: <Gain figures={figures} /> },
             ...(figures.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
             ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
             ...(holdings.data?.estimate?.value && holdings.data.estimate.asOf ? [{
               label: t('holding_prices.estimate_at', { date: formatLocalDate(holdings.data.estimate.asOf, 'short') }),
-              value: <><Money value={holdings.data.estimate.value} tabular />{holdings.data.estimate.converted ? <span className="ml-2 text-sm font-normal text-muted-foreground">{t('holding_prices.estimate_converted')}</span> : null}</>,
+              value: <Money value={holdings.data.estimate.value} tabular />,
+              hint: holdings.data.estimate.converted ? t('holding_prices.estimate_converted') : null,
             }] : []),
             ...extra(t('envelope.fees'), figures.fees),
             ...extra(t('envelope.gain_after_fees'), figures.gainAfterFees),
             ...extra(t('envelope.income'), figures.income),
-            ...(holdings.data?.ucSharePct != null ? [{ label: t('holdings.uc_share'), value: (
-              <span className="inline-flex items-center gap-1">
-                {t('investments.pct', { value: percent(holdings.data.ucSharePct) })}
-                {holdings.data.warnings.some((w) => w.code === 'uc_share_below_floor') ? (
-                  <span className="inline-flex items-center gap-1 text-sm font-normal">
-                    <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
-                    {t('holdings.uc_below_floor', { floor: percent(holdings.data.ucShareFloorPct ?? 0) })}
-                  </span>
-                ) : null}
-              </span>
-            ) }] : []),
+            ...(holdings.data?.ucSharePct != null ? [{ label: t('holdings.uc_share'),
+              value: t('investments.pct', { value: percent(holdings.data.ucSharePct) }),
+              hint: holdings.data.warnings.some((w) => w.code === 'uc_share_below_floor') ? (
+                <span className="inline-flex items-center gap-1 text-foreground">
+                  <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
+                  {t('holdings.uc_below_floor', { floor: percent(holdings.data.ucShareFloorPct ?? 0) })}
+                </span>
+              ) : null }] : []),
             ...(holdings.data?.explicitFees && directionOf(holdings.data.explicitFees.amount) !== 'flat'
               ? [{ label: t('holdings.fees_taken'), value: <Money value={holdings.data.explicitFees} tabular /> }] : []),
-            ...(detail.ceiling ? [{ label: t('envelope.regulated.ceiling'), value: detail.ceiling.reached
-              ? t('envelope.regulated.reached', { ceiling: formatMoney(detail.ceiling.ceiling) })
-              : t('envelope.regulated.room', { ceiling: formatMoney(detail.ceiling.ceiling), amount: formatMoney(detail.ceiling.room) }) }] : []),
-            ...(detail.interest ? [{ label: t('envelope.regulated.interest_to_date'), value: (
-              <>
-                <Money value={detail.interest.toDate} tabular />
-                <span className="ml-2 text-sm font-normal text-muted-foreground">{t('envelope.regulated.interest_expected', { amount: formatMoney(detail.interest.expected) })}</span>
-              </>
-            ) }] : []),
+            ...(detail.ceiling ? [{ label: t('envelope.regulated.ceiling'), value: formatMoney(detail.ceiling.ceiling), hint: detail.ceiling.reached
+              ? t('envelope.regulated.reached')
+              : t('envelope.regulated.room', { amount: formatMoney(detail.ceiling.room) }) }] : []),
+            ...(detail.interest ? [{ label: t('envelope.regulated.interest_to_date'), value: <Money value={detail.interest.toDate} tabular />,
+              hint: t('envelope.regulated.interest_expected', { amount: formatMoney(detail.interest.expected) }) }] : []),
           ]} />
           <p className="text-sm text-muted-foreground">{t('envelope.before_tax')}</p>
           {detail.ceiling ? <p className="text-sm text-muted-foreground">{t('envelope.regulated.ceiling_source', { source: detail.ceiling.source })}</p> : null}
@@ -316,7 +314,7 @@ export function EnvelopeDetailPage() {
                       ))}
                     </TableBody>
                   </Table>
-                  {values.length > 3 ? <Button type="button" variant="link" size="sm" className="px-0" onClick={() => setTab('values')}>{t('envelope.see_all_values')}</Button> : null}
+                  {values.length > 3 ? <Button type="button" variant="link" className="h-auto p-0" onClick={() => setTab('values')}>{t('envelope.see_all_values')}</Button> : null}
                 </Section>
                 <Section title={t('envelope.period.title')}>
                   <PeriodPerformance envelopeId={detail.id} />

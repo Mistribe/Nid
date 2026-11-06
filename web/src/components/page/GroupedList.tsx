@@ -23,13 +23,14 @@ export function GroupedRow({ link, tile, title, detail, trailing }: {
     <li data-tile={tile ? String(tile.tile) : undefined} className="relative before:left-0 data-tile:before:left-[34px]">
       <Link {...link} className="flex min-h-11 items-center gap-3 rounded-md py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
         {tile ? <ModuleTile icon={tile.icon} tile={tile.tile} /> : null}
-        {/* Divs, not spans: a detail may hold a block (a goal's progress bar), which a span cannot. */}
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{title}</div>
+        {/* Divs, not spans: a detail may hold a block (a goal's progress bar), which a span cannot.
+            A grid so the amount sits on the title's first line while the title wraps to two (issue 390), DOM order unchanged. */}
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start">
+          <div className="line-clamp-2 font-medium">{title}</div>
           {/* A space between the parts: the accessible name reads « title detail amount », not run together. */}
-          {detail ? <>{' '}<div className="text-xs text-muted-foreground">{detail}</div></> : null}
+          {detail ? <>{' '}<div className="col-start-1 text-xs text-muted-foreground">{detail}</div></> : null}
+          {trailing ? <>{' '}<span className="col-start-2 row-start-1 pl-3 font-medium tabular-nums">{trailing}</span></> : null}
         </div>
-        {trailing ? <>{' '}<span className="shrink-0 font-medium tabular-nums">{trailing}</span></> : null}
         <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       </Link>
     </li>

@@ -3,6 +3,9 @@ export function toWireAmount(text: string): string {
   return text.replace(/\s/g, '').replace(',', '.');
 }
 
+/** `toWireAmount`'s counterpart: the server's amount (`32.05`) as a field shows it to a French reader (`32,05`). Text only. */
+export const toFieldAmount = (amount: string) => amount.replace('.', ',');
+
 /** An amount as typed: digits, then a comma or a dot and at most four decimals. */
 export const AMOUNT = /^\d+([.,]\d{1,4})?$/;
 export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;

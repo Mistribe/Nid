@@ -54,7 +54,7 @@ describe('a phase alone', () => {
     expect(toWirePhase(line({ grossAmount: '5500.00', taxableAmount: '4400,00' }), 'EUR'))
       .toMatchObject({ taxableAmount: { amount: '4400.00', currency: 'EUR' } });
     expect(toWirePhase(line(), 'EUR')).not.toHaveProperty('taxableAmount');
-    expect(phaseValuesOf(phase({ taxableAmount: { amount: '4400.00', currency: 'EUR' } })).taxableAmount).toBe('4400.0');
+    expect(phaseValuesOf(phase({ taxableAmount: { amount: '4400.00', currency: 'EUR' } })).taxableAmount).toBe('4400,0');
     expect(phaseValuesOf(phase()).taxableAmount).toBe('');
   });
 

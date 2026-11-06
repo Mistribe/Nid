@@ -49,6 +49,15 @@ describe('MonthsChart', () => {
     expect(screen.queryByText('233,20 €')).not.toBeInTheDocument();
   });
 
+  it('As_a_table_the_months_show_without_the_chart', async () => {
+    const { container } = await render(<MonthsChart months={year()} asTable />);
+
+    expect(screen.getByTestId('months-table')).not.toHaveClass('sr-only');
+    expect(container.querySelector('.recharts-responsive-container')).toBeNull();
+    const head = within(screen.getByRole('table', { name: '12 prochains mois' })).getAllByRole('columnheader').map((h) => h.textContent);
+    expect(head).toEqual(['Mois', 'Mensuels', 'Autres échéances']);
+  });
+
   it('The_month_table_shows_itself_while_a_link_has_focus', async () => {
     await render(<MonthsChart months={year()} />);
 

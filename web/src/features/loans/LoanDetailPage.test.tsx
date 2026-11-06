@@ -58,9 +58,12 @@ describe('LoanDetailPage', () => {
     expect(screen.getByText('Banque')).toBeInTheDocument();
     expect(screen.getByText('Privé')).toBeInTheDocument();
     expect(figure('Restant dû')).toHaveTextContent('193 564,23 €');
-    expect(figure('Prochaine échéance')).toHaveTextContent('15 octobre 2026 : 1 159,92 €');
-    expect(figure('Taux actuel')).toHaveTextContent('3,5 % (phase 1)');
-    expect(figure('Fin')).toHaveTextContent('15 octobre 2045 · 229 échéances restantes');
+    expect(figure('Prochaine échéance')).toHaveTextContent(/^1\s159,92\s€$/);
+    expect(figure('Prochaine échéance')!.nextElementSibling).toHaveTextContent('le 15 octobre 2026');
+    expect(figure('Taux actuel')).toHaveTextContent(/^3,5\s%$/);
+    expect(figure('Taux actuel')!.nextElementSibling).toHaveTextContent('phase 1');
+    expect(figure('Fin')).toHaveTextContent('15 oct. 2045');
+    expect(figure('Fin')!.nextElementSibling).toHaveTextContent('229 échéances restantes');
     // The bar is sized by plotting numbers; what a person reads is the server's two strings.
     const spaced = (text: string) => text.replace(/\s/g, ' ');
     const bar = screen.getByRole('progressbar', { name: (name) => spaced(name) === '6 435,77 € remboursés sur 200 000,00 €' });
@@ -101,7 +104,8 @@ describe('LoanDetailPage', () => {
 
     await heading();
     expect(screen.getByText('Terminé')).toBeInTheDocument();
-    expect(figure('Prochaine échéance')).toHaveTextContent('Aucune : le crédit est terminé.');
+    expect(figure('Prochaine échéance')).toHaveTextContent(/^Aucune$/);
+    expect(figure('Prochaine échéance')!.nextElementSibling).toHaveTextContent('le crédit est terminé');
     expect(within(screen.getByRole('region', { name: 'Aujourd’hui' })).queryByText('Taux actuel')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Simuler un remboursement' })).not.toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Prochaines échéances' })).not.toBeInTheDocument();

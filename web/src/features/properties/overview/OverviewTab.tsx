@@ -19,6 +19,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { seeAllClass } from '@/components/page/seeAll';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,7 +30,6 @@ import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow,
 import { typeText } from '../format';
 import { typeColor } from './colors';
 import { missingCodes, NetValueChart } from './NetValueChart';
-import { personColor, personSlot } from '@/features/dashboard/colors';
 import '@/locales/properties';
 import '@/locales/forms';
 
@@ -161,7 +161,7 @@ function Types({ d }: { d: PropertiesOverview }) {
   );
 }
 
-/** D5 and D8: each person's net value, in the person's own colour (dataviz.md §2), named as the owner chips. */
+/** D5 and D8: each person's net value, in a neutral tone (dataviz.md §5: the types own the colours here), named as the owner chips. */
 function Persons({ d }: { d: PropertiesOverview }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -177,7 +177,7 @@ function Persons({ d }: { d: PropertiesOverview }) {
             <li key={person.personId} className="space-y-1 text-sm">
               <div className="flex justify-between gap-2"><span>{name}</span><span className="font-semibold tabular-nums">{figure(person.netValue)}</span></div>
               <div aria-hidden="true" className="h-2 rounded-full bg-muted">
-                <div className="h-2 rounded-full" style={{ width: `${Math.max(0, person.sharePct ?? 0)}%`, background: personColor(personSlot(people.data, person.personId)) }} />
+                <div className="h-2 rounded-full bg-muted-foreground" style={{ width: `${Math.max(0, person.sharePct ?? 0)}%` }} />
               </div>
               <div className="text-muted-foreground tabular-nums">
                 {[person.sharePct === null || person.sharePct === undefined ? null : share(t, person.sharePct),
@@ -280,7 +280,7 @@ function Properties({ d }: { d: PropertiesOverview }) {
   );
   return (
     <SectionCard title={t('properties_overview.properties_title')} actions={
-      <Link to="/properties" search={(prev: RootSearch & PropertiesSearch) => ({ ...prev, tab: 'list' })} className="text-sm hover:underline">
+      <Link to="/properties" search={(prev: RootSearch & PropertiesSearch) => ({ ...prev, tab: 'list' })} className={seeAllClass}>
         {t('properties_overview.see_list')}
       </Link>
     }>

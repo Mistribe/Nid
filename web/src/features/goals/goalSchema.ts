@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import { ownershipPath, ownershipShape, checkOwnership, ownershipToWire, percentToBp, type OwnerRow } from '@/components/ownership/ownership';
-import { AMOUNT, ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
+import { AMOUNT, ISO_DATE, toFieldAmount, toWireAmount } from '../subscriptions/edits/amount';
 import { todayIso } from '../subscriptions/today';
 import type { CreateGoalBody, EditGoalBody, GoalDetail } from './api';
 import '@/locales/goals';
@@ -84,7 +84,7 @@ export function goalDefaults(detail?: GoalDetail): Omit<GoalValues, 'visibility'
   if (!detail) return { kind: 'savings', name: '', amount: '', months: DEFAULT_MONTHS, targetDate: '', note: '', mode: 'envelopes', funding: [{ envelopeId: '', share: '100' }] };
   const { goal } = detail;
   return {
-    kind: goal.kind === 'emergency_fund' ? 'emergency_fund' : 'savings', name: goal.name, amount: goal.target?.amount ?? '',
+    kind: goal.kind === 'emergency_fund' ? 'emergency_fund' : 'savings', name: goal.name, amount: toFieldAmount(goal.target?.amount ?? ''),
     months: String(detail.months ?? DEFAULT_MONTHS), targetDate: goal.targetDate ?? '', note: detail.note ?? '',
     // A partial goal without a visible envelope is still funded: envelopes, no row (the hidden links stay on the server).
     mode: detail.funding.length > 0 || goal.partial ? 'envelopes' : 'free',

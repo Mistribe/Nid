@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -67,9 +67,10 @@ describe('Placements › vue d’ensemble', () => {
     expect(pea0).toHaveTextContent('PEA25 000,00 €71,4 %');
     expect(livret0).toHaveTextContent('Livret10 000,00 €28,6 %');
     expect(await region('Part de chacun')).toHaveTextContent('Alice35 000,00 €100,0 % · gain +3 200,00 €');
-    // dataviz.md §2: each person in their own colour, the dashboard's (the first adult takes slot 5).
-    const bar = () => screen.getByRole('region', { name: 'Part de chacun' }).querySelector<HTMLElement>('li [aria-hidden="true"] > div')!;
-    await waitFor(() => expect(bar().style.background).toBe('var(--chart-5)'));
+    // dataviz.md §5: the kinds own the colours on Placements, the persons are in a neutral tone (#393).
+    const bar = screen.getByRole('region', { name: 'Part de chacun' }).querySelector<HTMLElement>('li [aria-hidden="true"] > div')!;
+    expect(bar).toHaveClass('bg-muted-foreground');
+    expect(bar.style.background).toBe('');
     // The bar's segments grow by their share: the gaps between them never push the last one out of the card.
     expect([...kinds.querySelectorAll<HTMLElement>('[aria-hidden="true"] > span')].map((s) => s.style.flex)).toEqual(['71.4 1 0px', '28.6 1 0px']);
 

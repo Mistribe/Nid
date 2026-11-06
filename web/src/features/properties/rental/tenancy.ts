@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { LOAN_AMOUNT } from '../../loans/new/loanForm';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyTenancy } from '../api';
 import { FEE_AMOUNT } from '../new/propertyForm';
@@ -54,8 +54,8 @@ export const TENANCY_PATHS = {
 export function tenancyValuesOf(x?: PropertyTenancy): TenancyValues {
   return x
     ? {
-      label: x.label, startsOn: x.startsOn, endsOn: x.endsOn ?? '', rentMonthly: x.rentMonthly, chargesMonthly: x.chargesMonthly,
-      deposit: x.deposit ?? '', note: x.note ?? '', indexed: x.indexed, irlQuarter: x.irlReferenceQuarter == null ? '' : String(x.irlReferenceQuarter),
+      label: x.label, startsOn: x.startsOn, endsOn: x.endsOn ?? '', rentMonthly: toFieldAmount(x.rentMonthly), chargesMonthly: toFieldAmount(x.chargesMonthly),
+      deposit: toFieldAmount(x.deposit ?? ''), note: x.note ?? '', indexed: x.indexed, irlQuarter: x.irlReferenceQuarter == null ? '' : String(x.irlReferenceQuarter),
       tenantNames: x.tenantNames ?? '', landlordName: x.landlordName ?? '', landlordAddress: x.landlordAddress ?? '',
       rentsTrackedFrom: x.rentsTrackedFrom ?? '',
     }

@@ -61,7 +61,7 @@ describe('ContractPage', () => {
 
     await form();
     expect(screen.getByRole('heading', { name: 'Modifier le contrat : Prêt maison', level: 1 })).toBeInTheDocument();
-    expect(screen.getByLabelText('Capital emprunté')).toHaveValue('200000.00');
+    expect(screen.getByLabelText('Capital emprunté')).toHaveValue('200000,00');
     expect(screen.getByLabelText('Taux annuel (%)')).toHaveValue('3,5');
     expect(screen.getByLabelText('Durée (mois)')).toHaveValue('240');
     expect(screen.getByLabelText('Date de déblocage')).toHaveValue('15/10/2025');
@@ -158,7 +158,7 @@ describe('ContractPage', () => {
     change(loanDetail({ contract: { ...loanDetail().contract, principal: '180000.00', version: 4 } }));
     await act(() => queryClient.invalidateQueries());
     expect(screen.getByLabelText('Taux annuel (%)')).toHaveValue('3,2');
-    expect(screen.getByLabelText('Capital emprunté')).toHaveValue('200000.00');
+    expect(screen.getByLabelText('Capital emprunté')).toHaveValue('200000,00');
     await save(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Ce crédit a changé entre-temps : rechargez la page.');
@@ -166,7 +166,7 @@ describe('ContractPage', () => {
     expect(bodies[0]).toMatchObject({ version: 3 });
 
     await user.click(screen.getByRole('button', { name: 'Recharger' }));
-    await waitFor(() => expect(screen.getByLabelText('Capital emprunté')).toHaveValue('180000.00'));
+    await waitFor(() => expect(screen.getByLabelText('Capital emprunté')).toHaveValue('180000,00'));
     expect(screen.getByLabelText('Taux annuel (%)')).toHaveValue('3,5');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });

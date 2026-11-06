@@ -79,16 +79,16 @@ function kindsOf(d: InvestmentsOverview): string[] {
   return [...KIND_ORDER.filter((k) => present.has(k)), ...[...present].filter((k) => !(KIND_ORDER as readonly string[]).includes(k)).sort()];
 }
 
-function Chart({ d, label, view }: { d: InvestmentsOverview; label: (p: OverviewPoint, i: number) => string; view: 'kind' | 'total' }) {
-  const { t } = useTranslation();
-  const kinds = kindsOf(d);
-  const rows: Row[] = d.points.map((p, i) => {
+/** The plotted rows: each kind's value, or 0 where the point has none of it, or null where the point is unknown. */
+export function rowsOf(d: InvestmentsOverview, kinds: string[], label: (p: OverviewPoint, i: number) => string): Row[] {
+  return d.points.map((p, i): Row => {
     const row: Row = {
       on: p.on, label: label(p, i), total: p.value ? toPlot(p.value.amount) : null, net: p.netContributions ? toPlot(p.netContributions.amount) : null,
       totalText: p.value ? formatMoney(p.value) : '', netText: p.netContributions ? formatMoney(p.netContributions) : '', paidIn: p.paidIn, texts: {},
     };
-    for (const kind of kinds) row[key(kind)] = null;
-    // A point whose total is unknown is not drawn (a missing rate): the note under the chart says so.
+    // A kind the point leaves out has no envelope at that date (not opened yet, or closed): 0 in the stack, so the bands
+    // above stay continuous (#379). A point whose total is unknown is not drawn (a missing rate): the note under the chart says so.
+    for (const kind of kinds) row[key(kind)] = p.value ? 0 : null;
     if (p.value)
       for (const k of p.byKind) {
         row[key(k.kind)] = k.value ? toPlot(k.value.amount) : null;
@@ -96,6 +96,12 @@ function Chart({ d, label, view }: { d: InvestmentsOverview; label: (p: Overview
       }
     return row;
   });
+}
+
+function Chart({ d, label, view }: { d: InvestmentsOverview; label: (p: OverviewPoint, i: number) => string; view: 'kind' | 'total' }) {
+  const { t } = useTranslation();
+  const kinds = kindsOf(d);
+  const rows = rowsOf(d, kinds, label);
   const config = {
     ...Object.fromEntries(kinds.map((k) => [key(k), { label: kindText(t, k), color: kindColor(k) }])),
     total: { label: t('investments_overview.series_value'), color: 'var(--chart-1)' },

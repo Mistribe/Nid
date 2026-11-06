@@ -84,7 +84,7 @@ export function GoalDetailPage() {
             { label: t('goals_list.progress'), value: <GoalProgress pct={goal.progressPct} /> },
             { label: t('goals_list.col_monthly'), value: money(goal.monthlyNeeded) },
             { label: t('goals_detail.monthly_pace'), value: money(goal.monthlyPace) },
-            { label: t('goals_detail.projected'), value: goal.projectedOn ? <LocalDate value={goal.projectedOn} /> : never ? t('goals_detail.never') : <Dash /> },
+            { label: t('goals_detail.projected'), value: goal.projectedOn ? <LocalDate value={goal.projectedOn} style="short" /> : never ? t('goals_detail.never') : <Dash /> },
             { label: t('goals_list.col_status'), value: <GoalStatus status={goal.status} /> },
           ]} />
         </section>

@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { invalidateInvestments } from '../investments/api';
-import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
+import { AMOUNT, toFieldAmount, toWireAmount } from '../subscriptions/edits/amount';
 import { ROUTINE, type RoutineLine, type RoutineRecap, type RoutineView } from './api';
 import { clearDraft, saveDraft } from './draft';
 import { dayMonth } from '../settings/banks/api';
@@ -40,7 +40,7 @@ const filled = (l: RoutineValues['lines'][number]) => !l.skip && (l.value.trim()
 export function startValues(view: RoutineView, draft: RoutineValues | null, banked: Banked = {}): RoutineValues {
   return {
     lines: view.lines.map((l) => {
-      const line = draft?.lines.find((d) => d.id === l.id) ?? { id: l.id, value: l.due && l.lastValue ? l.lastValue.amount : '', contribution: '', skip: false };
+      const line = draft?.lines.find((d) => d.id === l.id) ?? { id: l.id, value: l.due && l.lastValue ? toFieldAmount(l.lastValue.amount) : '', contribution: '', skip: false };
       return l.id in banked ? { ...line, value: '' } : line;
     }),
   };

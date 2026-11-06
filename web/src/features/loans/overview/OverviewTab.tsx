@@ -106,9 +106,9 @@ function Figures({ d }: { d: LoansOverview }) {
     : years > 0 ? t('loans_overview.years', { count: years }) : t('loans_overview.months', { count: months });
   return (
     <StatLine items={[
-      { label: t('loans_overview.monthly'), value: <>{figure(d.monthlyPayment, (amount) => t('loans_overview.monthly_value', { amount }))}<Sub>{t('loans_overview.monthly_note')}</Sub></> },
-      { label: t('loans_overview.cost'), value: <>{figure(d.costRemaining)}{d.costPaid ? <Sub>{t('loans_overview.cost_paid', { amount: formatMoney(d.costPaid) })}</Sub> : null}</> },
-      ...(d.freeOn ? [{ label: t('loans_overview.free'), value: <>{monthText(d.freeOn.slice(0, 7))}<Sub>{left > 0 ? t('loans_overview.free_in', { span }) : t('loans_overview.free_this_month')}</Sub></> }] : []),
+      { label: t('loans_overview.monthly'), value: figure(d.monthlyPayment), hint: t('loans_overview.monthly_note') },
+      { label: t('loans_overview.cost'), value: figure(d.costRemaining), hint: d.costPaid ? t('loans_overview.cost_paid', { amount: formatMoney(d.costPaid) }) : null },
+      ...(d.freeOn ? [{ label: t('loans_overview.free'), value: monthText(d.freeOn.slice(0, 7)), hint: left > 0 ? t('loans_overview.free_in', { span }) : t('loans_overview.free_this_month') }] : []),
       ...(d.debtRatio ? [{ label: t('loans_overview.debt_ratio'), value: <DebtRatio d={d} ratio={d.debtRatio} /> }] : []),
     ]} />
   );

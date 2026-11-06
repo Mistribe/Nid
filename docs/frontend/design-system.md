@@ -340,7 +340,7 @@ le réglage de la personne déclenche (§8.2). L'accessibilité ne passe pas par
 
 - Jamais la couleur seule (§5) : « Convey information with more than color alone. » Une variation a une flèche et un
   signe, un statut une icône et un texte.
-- Une tuile de module a toujours son libellé à côté. Un lien dans un texte est souligné.
+- Une tuile de module a toujours son libellé à côté. Un lien dans un texte est souligné. Un lien seul dans l'en-tête ou au pied d'une carte ou d'une section (« Voir la liste », « Tout voir (5) », « Voir tout l'historique ») prend `seeAllClass` (`components/page/seeAll.ts`) : couleur d'accent, souligné au survol.
 - Un même ton ne porte jamais deux sens dans le même graphique.
 
 **Lecteurs d'écran.**

@@ -9,6 +9,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { components } from '@/api/schema';
+import { monthLabel } from '../../income/expected/months';
 import { SERIES } from '../api';
 import { toPlot } from './plot';
 import { TableToggle } from '@/components/page/TableToggle';
@@ -53,6 +54,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
   }));
   // Display of the plotting number only: the axis is a scale, not a figure the person reads exactly.
   const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, notation: 'compact' });
+  const time = timeTicks(Math.min(...rows.map((r) => r.at)), Math.max(...rows.map((r) => r.at)));
 
   return (
     <div className="space-y-2">
@@ -89,7 +91,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
             </defs>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="at" type="number" scale="time" domain={['dataMin', 'dataMax']} tickLine={false} tickMargin={8}
-              tickFormatter={(at: number) => formatLocalDate(new Date(at).toISOString().slice(0, 10), 'short')} />
+              ticks={time.ticks} tickFormatter={time.format} />
             <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
             <ChartTooltip content={<ValueTooltip netLabel={netLabel} />} />
             <ChartLegend content={<ChartLegendContent />} />
@@ -100,6 +102,31 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
       )}
     </div>
   );
+}
+
+/**
+ * Round dates for a time axis (#381), evenly spaced: each January (every few years past eight) over more than two years,
+ * else the first of every one, two or three months, eight ticks at most. Under a month there is no round date: the data's own.
+ */
+export function timeTicks(from: number, to: number): { ticks?: number[]; format: (at: number) => string } {
+  const start = new Date(from);
+  const end = new Date(to);
+  const months = (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth();
+  const years = months > 24;
+  const step = years ? Math.ceil(months / 12 / 8) * 12 : [1, 2, 3].find((s) => months / s <= 8) ?? 3;
+  const ticks: number[] = [];
+  for (let index = start.getUTCFullYear() * 12 + start.getUTCMonth(); index <= end.getUTCFullYear() * 12 + end.getUTCMonth(); index++) {
+    const at = Date.UTC(Math.floor(index / 12), index % 12, 1);
+    if (index % step === 0 && at >= from && at <= to) ticks.push(at);
+  }
+  if (ticks.length === 0) return { format: (at) => formatLocalDate(new Date(at).toISOString().slice(0, 10), 'short') };
+  return {
+    ticks,
+    format: (at) => {
+      const date = new Date(at);
+      return years ? String(date.getUTCFullYear()) : monthLabel(date.getUTCFullYear(), date.getUTCMonth() + 1, 'short');
+    },
+  };
 }
 
 function ValueTooltip({ active, payload, netLabel }: { active?: boolean; payload?: ReadonlyArray<{ payload?: Row }>; netLabel: string }) {
