@@ -2,43 +2,36 @@ import { useTranslation } from 'react-i18next';
 import { SelectField, type Option } from '@/components/form/SelectField';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { SwitchField } from '@/components/page/SwitchField';
-import type { DocumentSummary } from './api';
-import { linkKey, roleText, shownDate } from './format';
+import { Input } from '@/components/ui/input';
+import type { DocumentFacets } from './api';
+import { roleText } from './format';
 import '@/locales/documents';
 
-/** An empty value lets every document through. */
-export type Filters = { role: string; year: string; link: string };
-export const NO_FILTER: Filters = { role: '', year: '', link: '' };
+/** The URL's filters (issue #420); an empty value lets every document through. */
+export type Filters = { type: string; year: string; item: string; q: string };
 
-/** Filtered in the browser on the list's answer (design §2.2): a document shows under each of its types and elements. */
-export const applyFilters = (rows: DocumentSummary[], f: Filters) => rows.filter((d) =>
-  (!f.role || d.links.some((l) => l.role === f.role))
-  && (!f.year || shownDate(d).startsWith(f.year))
-  && (!f.link || d.links.some((l) => linkKey(l) === f.link)));
-
-/** The filters these rows still offer: one whose option went away is cleared. The same object when none did. */
-export function keepOffered(f: Filters, rows: DocumentSummary[]): Filters {
-  const links = rows.flatMap((d) => d.links);
+/** The filters these facets still offer: one whose option went away is cleared. The same object when none did. */
+export function keepOffered(f: Filters, facets: DocumentFacets): Filters {
   const next: Filters = {
-    role: links.some((l) => l.role === f.role) ? f.role : '',
-    year: rows.some((d) => shownDate(d).slice(0, 4) === f.year) ? f.year : '',
-    link: links.some((l) => linkKey(l) === f.link) ? f.link : '',
+    ...f,
+    type: facets.roles.includes(f.type) ? f.type : '',
+    year: facets.years.some((y) => String(y) === f.year) ? f.year : '',
+    item: facets.links.some((l) => l.targetId === f.item) ? f.item : '',
   };
-  return next.role === f.role && next.year === f.year && next.link === f.link ? f : next;
+  return next.type === f.type && next.year === f.year && next.item === f.item ? f : next;
 }
 
 const byLabel = (a: Option, b: Option) => a.label.localeCompare(b.label, 'fr');
 
-/** Type, year and linked element, offered from the documents listed; the archived ones on demand. */
-export function DocumentFilters({ rows, filters, onChange, archived, onArchivedChange }: {
-  rows: DocumentSummary[]; filters: Filters; onChange: (next: Filters) => void; archived: boolean; onArchivedChange: (on: boolean) => void;
+/** Title search, type, year and linked element, offered by the server over the whole list; the archived ones on demand. */
+export function DocumentFilters({ facets, filters, onChange, archived, onArchivedChange }: {
+  facets: DocumentFacets | undefined; filters: Filters; onChange: (next: Filters) => void; archived: boolean; onArchivedChange: (on: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const links = rows.flatMap((d) => d.links);
-  const roles = [...new Set(links.map((l) => l.role))].map((role) => ({ value: role, label: roleText(t, role) })).sort(byLabel);
-  const years = [...new Set(rows.map((d) => shownDate(d).slice(0, 4)))].sort().reverse().map((y) => ({ value: y, label: y }));
-  const elements = [...new Map(links.map((l) => [linkKey(l), { value: linkKey(l), label: l.label }])).values()].sort(byLabel);
-  const select = (key: keyof Filters, label: string, all: string, options: Option[]) => (
+  const roles = (facets?.roles ?? []).map((role) => ({ value: role, label: roleText(t, role) })).sort(byLabel);
+  const years = (facets?.years ?? []).map((y) => ({ value: String(y), label: String(y) }));
+  const elements = (facets?.links ?? []).map((l) => ({ value: l.targetId, label: l.label })).sort(byLabel);
+  const select = (key: 'type' | 'year' | 'item', label: string, all: string, options: Option[]) => (
     <FilterField label={label} className="w-full sm:w-auto">
       {(labelId, controlId) => (
         <div className="min-w-0 flex-1 sm:w-52 sm:flex-none">
@@ -50,9 +43,13 @@ export function DocumentFilters({ rows, filters, onChange, archived, onArchivedC
   );
   return (
     <FilterRow label={t('common.filters')}>
-      {select('role', t('documents_page.filter_type'), t('documents_page.filter_type_all'), roles)}
+      <FilterField label={t('documents_page.search')} labelFor className="w-full sm:w-auto">
+        {(labelId, controlId) => <Input id={controlId} aria-labelledby={labelId} type="search" className="min-w-0 flex-1 sm:w-56 sm:flex-none"
+          value={filters.q} onChange={(e) => onChange({ ...filters, q: e.target.value })} />}
+      </FilterField>
+      {select('type', t('documents_page.filter_type'), t('documents_page.filter_type_all'), roles)}
       {select('year', t('documents_page.filter_year'), t('documents_page.filter_year_all'), years)}
-      {select('link', t('documents_page.filter_link'), t('documents_page.filter_link_all'), elements)}
+      {select('item', t('documents_page.filter_link'), t('documents_page.filter_link_all'), elements)}
       <SwitchField label={t('documents_page.show_archived')} checked={archived} onCheckedChange={onArchivedChange} />
     </FilterRow>
   );

@@ -45,20 +45,18 @@ public sealed class DocumentTools
     {
         if (limit < 1)
             return McpCalls.Error("Refused: limit is at least 1.");
-        // The household's day, as the web shows an undated document by its upload day.
-        var zone = year is null ? null : await services.GetRequiredService<IHouseholdCalendar>().ZoneAsync(ct);
         var http = services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions;
         return await McpCalls.RunAsync(services, () =>
             (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
                 ? throw new BadHttpRequestException("Give targetKind and targetId together.")
                 : new ListDocumentsQuery(SubscriptionEndpoints.ParseScope(scope), false, inbox,
-                    targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), SourceRefPrefix: sourceRefPrefix),
+                    targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), SourceRefPrefix: sourceRefPrefix,
+                    Year: year, Page: 1, PageSize: limit),
             list =>
             {
-                var matched = list.Items.Where(d => year is null || (d.DocumentDate ?? d.UploadedAt.InZone(zone!).Date).Year == year).ToList();
-                var answer = JsonSerializer.SerializeToNode(new DocumentList(matched.Take(limit).ToList()), http)!.AsObject();
-                if (matched.Count > limit)
-                    answer["truncated"] = $"{limit} of {matched.Count} documents shown, newest first: narrow with year, inbox or a target, or raise limit.";
+                var answer = JsonSerializer.SerializeToNode(list, http)!.AsObject();
+                if (list.Total > limit)
+                    answer["truncated"] = $"{limit} of {list.Total} documents shown, newest first: narrow with year, inbox or a target, or raise limit.";
                 return answer;
             }, ct);
     }

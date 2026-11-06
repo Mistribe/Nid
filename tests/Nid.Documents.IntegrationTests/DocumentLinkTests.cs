@@ -257,6 +257,42 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal([recent, archived, old, undated], await ListedAsync(app, app.AdultA, "scope=me&archived=true"));
     }
 
+    /// <summary>Issue #420: type, year, linked element and title search apply on the server; the total counts what matched, the facets every listed document.</summary>
+    [Fact]
+    public async Task Filters_searches_and_pages_on_the_server()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var box = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Shared);
+        var invoice = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=a.pdf&title=Facture%20box&date=2025-06-10&targetKind=core.item&targetId={box.Value}&role=invoice");
+        var lease = await UploadedAsync(app, app.AdultA, Pdf, "fileName=b.pdf&title=Bail%20Lyon&date=2024-03-01&targetKind=core.household&role=lease");
+        var tax = await UploadedAsync(app, app.AdultA, Pdf, "fileName=c.pdf&title=Avis%20imposition&date=2025-09-01&targetKind=core.household&role=tax_notice");
+
+        Assert.Equal([invoice], await ListedAsync(app, app.AdultA, "role=invoice"));
+        Assert.Equal([tax, invoice], await ListedAsync(app, app.AdultA, "year=2025"));
+        Assert.Equal([invoice], await ListedAsync(app, app.AdultA, $"linked={box.Value}"));
+        Assert.Equal([lease], await ListedAsync(app, app.AdultA, "q=bAIL"));
+        Assert.Empty(await ListedAsync(app, app.AdultA, "role=invoice&year=2024"));
+
+        var first = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Root}?year=2025&page=1"));
+        Assert.Equal(2, first.GetProperty("total").GetInt32());
+        var facets = first.GetProperty("facets");
+        Assert.Equal(["invoice", "lease", "tax_notice"], facets.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
+        Assert.Equal([2025, 2024], facets.GetProperty("years").EnumerateArray().Select(y => y.GetInt32()));
+        Assert.Equal(new[] { box.Value, TargetKinds.Household }.Order(), facets.GetProperty("links").EnumerateArray().Select(l => l.GetProperty("targetId").GetGuid()).Order());
+
+        // Undated: its upload day in the household's zone counts (the test clock uploads on 2025-10-15), and it sorts last.
+        var scan = await UploadedAsync(app, app.AdultA, Pdf, "fileName=d.pdf&title=Scan%2050%25");
+        Assert.Equal([tax, invoice, scan], await ListedAsync(app, app.AdultA, "scope=me&year=2025"));
+        // Typed text, not a pattern: % matches only itself.
+        Assert.Equal([scan], await ListedAsync(app, app.AdultA, "scope=me&q=%25"));
+        Assert.Empty(await ListedAsync(app, app.AdultA, "scope=me&q=_"));
+
+        // Past the last page: no row, the same total.
+        var past = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Root}?year=2025&page=2"));
+        Assert.Empty(past.GetProperty("items").EnumerateArray());
+        Assert.Equal(2, past.GetProperty("total").GetInt32());
+    }
+
     [Fact]
     public async Task Changes_the_role_of_a_link()
     {

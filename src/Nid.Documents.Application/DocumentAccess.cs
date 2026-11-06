@@ -126,12 +126,15 @@ public sealed class DocumentAccess(
     }
 
     /// <summary>The display label of each link's target, by kind and id; a target that no longer resolves is absent.</summary>
-    public async Task<IReadOnlyDictionary<(string Kind, Guid Id), string>> LabelsAsync(IEnumerable<LinkRecord> links, CancellationToken ct)
+    public Task<IReadOnlyDictionary<(string Kind, Guid Id), string>> LabelsAsync(IEnumerable<LinkRecord> links, CancellationToken ct)
+        => LabelsAsync(links.Select(l => (l.TargetKind, l.TargetId)), ct);
+
+    public async Task<IReadOnlyDictionary<(string Kind, Guid Id), string>> LabelsAsync(IEnumerable<(string Kind, Guid Id)> targets, CancellationToken ct)
     {
         var labels = new Dictionary<(string, Guid), string>();
-        foreach (var group in links.GroupBy(l => l.TargetKind))
+        foreach (var group in targets.GroupBy(t => t.Kind))
             if (TargetsFor(group.Key) is { } kind)
-                foreach (var (id, target) in await kind.ResolveAsync(group.Key, group.Select(l => l.TargetId).Distinct().ToList(), ct))
+                foreach (var (id, target) in await kind.ResolveAsync(group.Key, group.Select(t => t.Id).Distinct().ToList(), ct))
                     labels[(group.Key, id)] = target.Label;
         return labels;
     }

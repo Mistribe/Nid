@@ -13223,6 +13223,44 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "linked",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -31749,6 +31787,62 @@
           }
         }
       },
+      "DocumentFacets": {
+        "required": [
+          "roles",
+          "years",
+          "links"
+        ],
+        "type": "object",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "years": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentLinkOption"
+            }
+          }
+        }
+      },
+      "DocumentLinkOption": {
+        "required": [
+          "targetKind",
+          "targetId",
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "anchorItemId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
       "DocumentLinkView": {
         "required": [
           "targetKind",
@@ -31786,7 +31880,9 @@
       },
       "DocumentList": {
         "required": [
-          "items"
+          "items",
+          "total",
+          "facets"
         ],
         "type": "object",
         "properties": {
@@ -31795,6 +31891,13 @@
             "items": {
               "$ref": "#/components/schemas/DocumentSummary"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "facets": {
+            "$ref": "#/components/schemas/DocumentFacets"
           }
         }
       },

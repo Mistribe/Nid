@@ -59,6 +59,7 @@ Every screen follows one page grammar (`docs/frontend/design-system.md` §6.1, `
 - Radix `TabsContent` unmounts inactive tabs: state the page hands into a tab must be consumed once.
 - Colours come from theme tokens only; the default theme is `ardoise` (« Confiance », blue accent); chart and status colours are fixed (`docs/frontend/dataviz.md`).
 - Never compute an amount in the browser (`nid/no-amount-arithmetic`): show the server's figures; `toPlot` only sizes marks or sorts.
+- Filters and search are applied on the server, never in the browser. A list that can grow takes its filters, its search and `page` as query parameters. It answers one page, the total, and the options its filters offer. The store applies them in the SQL query, read rights included, rather than loading everything and filtering in memory. The page keeps them in the URL. `GET /api/v1/documents` and `DocumentsPage` are the reference (#420).
 - Initial JS stays under 200 kB gzip (`pnpm --dir web budget`): pages are lazy routes, heavy parts (cmdk, calendar, confirmation dialog) load lazily.
 - Tests: `pick` (`web/src/test/controls.ts`) for selects and comboboxes; `pick` / `fillDate` (`web/e2e/controls.ts`) in Playwright; a Radix modal makes the page behind inert (`hidden: true`).
 

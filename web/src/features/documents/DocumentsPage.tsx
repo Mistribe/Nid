@@ -1,9 +1,9 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
-import type { RootSearch } from '@/app/router';
+import type { DocumentsSearch, RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { OwnerChips } from '@/components/OwnerChips';
@@ -15,10 +15,10 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { contentUrl, useArchiveDocument, useDocuments, useUnarchiveDocument, type DocumentSummary, type Scope } from './api';
+import { contentUrl, PAGE_SIZE, useArchiveDocument, useDocuments, useUnarchiveDocument, type DocumentSummary, type Scope } from './api';
 import { previewable, usePreview } from './preview';
 import { ExpectedDocuments } from './ExpectedDocuments';
-import { applyFilters, DocumentFilters, keepOffered, NO_FILTER } from './DocumentFilters';
+import { DocumentFilters, keepOffered, type Filters } from './DocumentFilters';
 import { FileDocumentsDialog, type Filed } from './FileDocumentsDialog';
 import { UploadList, UploadPicker, UploadZone, useUploads } from './DocumentUpload';
 import { fileSize, roleText, shownDate } from './format';
@@ -54,25 +54,39 @@ export function DocumentsPage() {
 
 function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbox: boolean; archived: boolean; onArchivedChange: (on: boolean) => void }) {
   const { t } = useTranslation();
-  const answer = useDocuments(scope, archived, inbox);
-  const [filters, setFilters] = useState(NO_FILTER);
+  const navigate = useNavigate();
+  // Issue #420: the filters and the page live in the URL, and the server applies them.
+  const search: DocumentsSearch = useSearch({ strict: false });
+  const page = search.page ?? 1;
+  const filters: Filters = { type: search.type ?? '', year: search.year ? String(search.year) : '', item: search.item ?? '', q: search.q ?? '' };
+  const answer = useDocuments(scope, archived, inbox, { role: search.type, year: search.year, linked: search.item, q: search.q, page });
   // « À classer » only (issue #183): the documents to file together, and those the last « Classer » refused, with why.
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [refused, setRefused] = useState<Filed['refused']>([]);
   const [filing, setFiling] = useState(false);
   const fileRef = useRef<HTMLButtonElement>(null);
-  const all = answer.data?.items ?? [];
-  // The filters, and the archived switch below, start a new selection: what was ticked may no longer be shown.
-  const [shownArchived, setShownArchived] = useState(archived);
-  const clear = () => { setSelected(new Set()); setRefused([]); };
-  const filter = (next: typeof filters) => { setFilters(next); clear(); };
-  if (shownArchived !== archived) { setShownArchived(archived); clear(); }
-  // A selection the new rows no longer offer is dropped, rather than hiding every row behind an option that is gone.
-  const kept = keepOffered(filters, all);
-  if (answer.data && kept !== filters) filter(kept);
-  const rows = applyFilters(all, filters);
+  const shown = answer.data?.items ?? [];
+  const total = answer.data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const go = (change: Partial<DocumentsSearch>) =>
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: DocumentsSearch) => ({ ...prev, ...change })) as never });
+  const filter = (next: Filters) => go({ type: next.type || undefined, year: next.year ? Number(next.year) : undefined,
+    item: next.item || undefined, q: next.q || undefined, page: undefined });
+  const toPage = (n: number) => go({ page: n > 1 ? n : undefined });
+  // A new page, a filter or the archived switch starts a new selection: what was ticked may no longer be shown.
+  const asked = JSON.stringify([archived, filters, page]);
+  const [shownAsked, setShownAsked] = useState(asked);
+  if (shownAsked !== asked) { setShownAsked(asked); setSelected(new Set()); setRefused([]); }
+  // A filter the list no longer offers is dropped rather than hiding every row; a page past the end (the last rows filed) steps back.
+  const settled = answer.data && !answer.isPlaceholderData ? answer.data : undefined;
+  useEffect(() => {
+    if (!settled) return;
+    const kept = keepOffered(filters, settled.facets);
+    if (kept !== filters) filter(kept);
+    else if (settled.items.length === 0 && page > 1) toPage(Math.ceil(settled.total / PAGE_SIZE));
+  });
   // A filed document leaves the list: what is still selected is what is still shown.
-  const chosen = inbox ? rows.filter((d) => selected.has(d.id)) : [];
+  const chosen = inbox ? shown.filter((d) => selected.has(d.id)) : [];
   const filed = (message: string, outcome: Filed) => {
     setFiling(false);
     toast.success(message);
@@ -80,10 +94,11 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
     setRefused(outcome.refused);
     if (outcome.refused.length > 0) fileRef.current?.focus(); else focusTabs();
   };
+  const narrowed = Object.values(filters).some(Boolean);
   // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
   return (
     <>
-      <DocumentFilters rows={all} filters={filters} onChange={filter} archived={archived} onArchivedChange={onArchivedChange} />
+      <DocumentFilters facets={answer.data?.facets} filters={filters} onChange={filter} archived={archived} onArchivedChange={onArchivedChange} />
       {chosen.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
           <span className="text-sm">{t('documents_page.file.selected', { count: chosen.length })}</span>
@@ -94,7 +109,7 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
         <ul aria-label={t('documents_page.file.refused')} className="space-y-2">
           {refused.map((r) => (
             <li key={r.id} className="space-y-1">
-              <p className="text-sm font-medium">{all.find((d) => d.id === r.id)?.title}</p>
+              <p className="text-sm font-medium">{shown.find((d) => d.id === r.id)?.title}</p>
               <ProblemMessage problem={present(toProblem(r.problem))} />
             </li>
           ))}
@@ -107,11 +122,23 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
             {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
           </ul>
         )
-        : all.length === 0 ? (inbox
+        : total === 0 && !narrowed ? (inbox
           ? <EmptyState module="/documents" title={t('documents_page.empty_inbox_title')} body={t('documents_page.empty_inbox_body')} />
           : <EmptyState module="/documents" title={t('documents_page.empty_title')} body={t('documents_page.empty_body')} />)
-        : <Table rows={rows} selection={inbox ? { selected, onChange: setSelected, allLabel: t('documents_page.file.select_all'),
-          label: (d) => t('documents_page.file.select', { title: d.title }), disabled: (d) => !d.canEdit } : undefined} />}
+        : (
+          <>
+            <p className="text-sm text-muted-foreground">{t('documents_page.count', { count: total })}</p>
+            <Table rows={shown} selection={inbox ? { selected, onChange: setSelected, allLabel: t('documents_page.file.select_all'),
+              label: (d) => t('documents_page.file.select', { title: d.title }), disabled: (d) => !d.canEdit } : undefined} />
+            {pages > 1 ? (
+              <nav aria-label={t('documents_page.pages')} className="flex items-center justify-between gap-3">
+                <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => toPage(page - 1)}>{t('documents_page.previous')}</Button>
+                <span className="text-sm text-muted-foreground">{t('documents_page.page_of', { page, pages })}</span>
+                <Button type="button" variant="outline" size="sm" disabled={page >= pages} onClick={() => toPage(page + 1)}>{t('documents_page.next')}</Button>
+              </nav>
+            ) : null}
+          </>
+        )}
     </>
   );
 }

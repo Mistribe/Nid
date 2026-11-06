@@ -155,13 +155,16 @@ public static class DocumentEndpoints
 
         // inbox=true keeps the documents with no link the actor sees, whatever the scope; targetKind/targetId keep those linked to it.
         // anchor=<item> keeps those linked to the item or anything anchored on it, alone. Both or neither: only targetKind=core.household may come without a targetId (a targetId alone is a 400).
-        api.MapGet("", async (string? scope, bool? archived, bool? inbox, string? targetKind, Guid? targetId, Guid? anchor, IInvoker invoker, CancellationToken ct)
+        // Issue #420: role, year, linked (a visible link's target id) and q (part of the title) narrow the list; page (from 1) answers 50 of them, none all.
+        api.MapGet("", async (string? scope, bool? archived, bool? inbox, string? targetKind, Guid? targetId, Guid? anchor,
+                    string? role, int? year, Guid? linked, string? q, int? page, IInvoker invoker, CancellationToken ct)
                 => anchor is not null && (inbox == true || targetKind is not null || targetId is not null)
                     ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Give anchor alone.")
                     : (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
                     ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Give targetKind and targetId together.")
                     : (await invoker.InvokeAsync(new ListDocumentsQuery(ParseScope(scope), archived ?? false, inbox ?? false,
-                        targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), anchor), ct)).ToHttp(list => list))
+                        targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), anchor,
+                        Role: string.IsNullOrEmpty(role) ? null : role, Year: year, Linked: linked, Search: q, Page: page), ct)).ToHttp(list => list))
             .Returns<DocumentList>();
 
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)

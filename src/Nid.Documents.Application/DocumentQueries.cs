@@ -4,6 +4,7 @@ using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Documents.Domain;
 using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
@@ -21,9 +22,17 @@ public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>;
 /// row's screen, a private row's too); one the actor cannot see answers an empty list. <c>Anchor</c> keeps those with a visible link
 /// anchored on that item (the item, its phases, its one-offs), whatever the scope.
 /// </summary>
-/// <summary><paramref name="SourceRefPrefix"/>: syndic documents design §2.1, the documents whose source reference starts with it.</summary>
+/// <summary>
+/// <paramref name="SourceRefPrefix"/>: syndic documents design §2.1, the documents whose source reference starts with it. Issue #420, on top of those: <paramref name="Role"/> a link role, <paramref name="Year"/> the year of the shown date (the document's
+/// own, else its upload day in the household's zone), <paramref name="Linked"/> a visible link's target id, <paramref name="Search"/>
+/// part of the title, whatever the case. <paramref name="Page"/> (from 1) answers <see cref="PageSize"/> documents; null answers them all.
+/// </summary>
 public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null, Guid? Anchor = null,
-    string? SourceRefPrefix = null) : IQuery<DocumentList>;
+    string? SourceRefPrefix = null, string? Role = null, int? Year = null, Guid? Linked = null, string? Search = null, int? Page = null,
+    int PageSize = ListDocumentsQuery.DefaultPageSize) : IQuery<DocumentList>
+{
+    public const int DefaultPageSize = 50;
+}
 
 /// <summary>Tranche 3 design §4.1: the ids among <paramref name="Ids"/> the actor reads; one missing and one unreadable are both left out.</summary>
 public sealed record FilterReadableDocumentsQuery(IReadOnlyCollection<Guid> Ids) : IQuery<IReadOnlySet<Guid>>;
@@ -55,7 +64,8 @@ public sealed class GetDocumentHandler(DocumentAccess access, IActorAccessor act
 }
 
 [RequestHandler<ListDocumentsQuery, DocumentList>]
-public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess access, IVisibleItems visible, IActorAccessor actor)
+public sealed class ListDocumentsHandler(
+    IDocumentStore store, DocumentAccess access, IVisibleItems visible, IHouseholdCalendar calendar, IActorAccessor actor)
     : IRequestHandler<ListDocumentsQuery, DocumentList>
 {
     public async ValueTask<Result<DocumentList>> HandleAsync(ListDocumentsQuery query, CancellationToken ct = default)
@@ -64,50 +74,28 @@ public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess ac
         if (query.Target is { } asked && !access.IsKnownKind(asked.Kind))
             return Result.Failure<DocumentList>(new Failure(DocumentsCodes.UnknownTargetKind, $"The target kind '{asked.Kind}' is unknown.",
                 new Dictionary<string, object?> { ["field"] = "targetKind" }));
-        var documents = await store.ListAsync(query.Archived, ct);
-        if (query.Target is { } target)
-        {
-            var linked = await store.DocumentsLinkedToAsync(target, ct);
-            documents = documents.Where(d => linked.Contains(d.Id)).ToList();
-        }
-        // Read as a reference is stored: trimmed, blank meaning no filter.
-        if (DocumentFields.SourceRef(query.SourceRefPrefix) is { } prefix)
-            documents = documents.Where(d => d.SourceRef?.StartsWith(prefix, StringComparison.Ordinal) == true).ToList();
-
-        var links = (await store.LinksOfAsync(documents.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
-        // One rights check for every anchor of every document: a constant number of queries.
-        var facts = await access.FactsAsync(person, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
-        var household = query is { Scope: VisibilityScope.Household, Inbox: false, Target: null, Anchor: null }
-            ? await visible.ForAsync(person, VisibilityScope.Household, includeArchived: true, ct)
+        // One rights check over every anchored item, then the list's question in SQL: a constant number of queries.
+        var facts = await access.FactsAsync(person, await store.AnchorItemsAsync(ct), ct);
+        var shared = query is { Scope: VisibilityScope.Household, Inbox: false, Target: null, Anchor: null }
+            ? (await visible.ForAsync(person, VisibilityScope.Household, includeArchived: true, ct)).Select(i => i.Value).ToList()
             : null;
+        var size = Math.Max(query.PageSize, 1);
+        var found = await store.PageAsync(new DocumentPageQuery(
+            person.Value, facts.ReadableItems, [facts.Person, .. facts.Dependents], facts.Dependents, query.Archived,
+            // Read as a reference is stored: trimmed, blank meaning no filter.
+            DocumentFields.SourceRef(query.SourceRefPrefix), query.Inbox, query.Target, query.Anchor, shared,
+            string.IsNullOrEmpty(query.Role) ? null : query.Role, query.Year, query.Linked,
+            string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(), await calendar.ZoneAsync(ct),
+            query.Page is { } page ? (Math.Max(page, 1) - 1) * size : 0, query.Page is null ? null : size), ct);
 
-        bool Shared(LinkRecord l) => l switch
-        {
-            { AnchorItemId: { } anchor } => household!.Contains(new ItemId(anchor)),
-            { TargetKind: TargetKinds.CorePerson } => facts.Dependents.Contains(l.TargetId),
-            { TargetKind: TargetKinds.CoreHousehold } => true,
-            _ => false,
-        };
-
-        var kept = new List<ReadableDocument>();
-        foreach (var d in documents.OrderByDescending(d => d.DocumentDate).ThenByDescending(d => d.UploadedAt)) // a null date sorts last
-        {
-            var all = links[d.Id].ToList();
-            if (!DocumentRules.CanRead(d.UploadedBy, all.Select(DocumentAccess.Facts), facts))
-                continue;
-            var seen = all.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), facts)).ToList();
-            if (query.Target is { } t && !seen.Any(l => l.TargetKind == t.Kind && l.TargetId == t.Id))
-                continue;
-            // ponytail: filters the full list loaded above; add a store query by anchor when the lists grow.
-            if (query.Anchor is { } anchor && !seen.Any(l => l.AnchorItemId == anchor))
-                continue;
-            if (query.Inbox ? seen.Count > 0 : household is not null && !seen.Any(Shared))
-                continue;
-            kept.Add(new ReadableDocument(d, all, facts));
-        }
-
-        var labels = await access.LabelsAsync(kept.SelectMany(r => r.Links).Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), facts)), ct);
-        return Result.Success(new DocumentList(kept.Select(r => DocumentSummary.Of(r, labels)).ToList()));
+        // The facets' targets hold every readable link of the page: one label lookup serves both.
+        var labels = await access.LabelsAsync(found.Links.Select(l => (l.TargetKind, l.TargetId)), ct);
+        var links = (await store.LinksOfAsync(found.Items.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
+        var facets = new DocumentFacets(found.Roles, found.Years, found.Links
+            .Select(l => new DocumentLinkOption(l.TargetKind, l.TargetId, l.AnchorItemId, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DocumentSummary.DeletedTargetLabel)))
+            .ToList());
+        return Result.Success(new DocumentList(
+            found.Items.Select(d => DocumentSummary.Of(new ReadableDocument(d, links[d.Id].ToList(), facts), labels)).ToList(), found.Total, facets));
     }
 }
 

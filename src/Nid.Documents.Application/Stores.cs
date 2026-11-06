@@ -13,8 +13,31 @@ public sealed class DuplicateSourceRefException(Exception inner) : Exception("Th
 public sealed record LinkRecord(
     Guid DocumentId, string TargetKind, Guid TargetId, Guid? AnchorItemId, string Role, Guid LinkedBy, Instant LinkedAt);
 
+/// <summary>
+/// Issue #420: the list's question, answered in SQL. A link is readable when its anchor is in <paramref name="ReadableItems"/>, or, without
+/// an anchor, when it names the household or one of <paramref name="Persons"/>; a document is readable when <paramref name="Actor"/>
+/// uploaded it or it holds a readable link. <paramref name="SharedItems"/> (the household scope) keeps the documents with a readable link
+/// to one of them, to one of <paramref name="Dependents"/> or to the household. The facets come before <paramref name="Role"/>,
+/// <paramref name="Year"/>, <paramref name="Linked"/> and <paramref name="Search"/>; <paramref name="Take"/> null answers every document.
+/// </summary>
+public sealed record DocumentPageQuery(
+    Guid Actor, IReadOnlyCollection<Guid> ReadableItems, IReadOnlyCollection<Guid> Persons, IReadOnlyCollection<Guid> Dependents,
+    bool Archived, string? SourceRefPrefix, bool Inbox, DocumentTarget? Target, Guid? Anchor, IReadOnlyCollection<Guid>? SharedItems,
+    string? Role, int? Year, Guid? Linked, string? Search, DateTimeZone Zone, int Skip, int? Take);
+
+/// <summary>One page, newest document date first (undated last), the number that matched, and the readable links' roles and targets and the years over the list before the filters.</summary>
+public sealed record DocumentPageRecord(
+    IReadOnlyList<DocumentRecord> Items, int Total, IReadOnlyList<string> Roles, IReadOnlyList<int> Years, IReadOnlyList<LinkTargetRecord> Links);
+
+public sealed record LinkTargetRecord(string TargetKind, Guid TargetId, Guid? AnchorItemId);
+
 public interface IDocumentStore
 {
+    Task<DocumentPageRecord> PageAsync(DocumentPageQuery query, CancellationToken ct);
+
+    /// <summary>Every item a link counts through: the items whose rights decide who reads what.</summary>
+    Task<IReadOnlyList<Guid>> AnchorItemsAsync(CancellationToken ct);
+
     Task CreateAsync(DocumentRecord document, CancellationToken ct);
 
     Task<DocumentRecord?> FindAsync(Guid id, CancellationToken ct);
@@ -46,9 +69,6 @@ public interface IDocumentStore
 
     /// <summary>Re-points the links to <paramref name="from"/> at <paramref name="to"/>; a document already linked to <paramref name="to"/> loses its <paramref name="from"/> link.</summary>
     Task MoveLinksAsync(DocumentTarget from, DocumentTarget to, CancellationToken ct);
-
-    /// <summary>The ids of the documents holding a link to the target, whoever may read it.</summary>
-    Task<IReadOnlySet<Guid>> DocumentsLinkedToAsync(DocumentTarget target, CancellationToken ct);
 
     /// <summary>Issue #414: every « pas disponible » of the household; a few per item, read whole.</summary>
     Task<IReadOnlyList<ExpectedDismissal>> DismissalsAsync(CancellationToken ct);

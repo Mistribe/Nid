@@ -12221,6 +12221,11 @@ export interface paths {
                     targetKind?: string;
                     targetId?: string;
                     anchor?: string;
+                    role?: string;
+                    year?: number;
+                    linked?: string;
+                    q?: string;
+                    page?: number;
                 };
                 header?: never;
                 path?: never;
@@ -26772,6 +26777,19 @@ export interface components {
             documentDate?: null | string;
             note?: null | string;
         };
+        DocumentFacets: {
+            roles: string[];
+            years: number[];
+            links: components["schemas"]["DocumentLinkOption"][];
+        };
+        DocumentLinkOption: {
+            targetKind: string;
+            /** Format: uuid */
+            targetId: string;
+            /** Format: uuid */
+            anchorItemId?: null | string;
+            label: string;
+        };
         DocumentLinkView: {
             targetKind: string;
             /** Format: uuid */
@@ -26784,6 +26802,9 @@ export interface components {
         };
         DocumentList: {
             items: components["schemas"]["DocumentSummary"][];
+            /** Format: int32 */
+            total: number;
+            facets: components["schemas"]["DocumentFacets"];
         };
         DocumentRoleBody: {
             /** Format: uuid */

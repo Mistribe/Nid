@@ -34,6 +34,70 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
     public async Task<IReadOnlyList<DocumentRecord>> FindBySha256Async(string sha256, CancellationToken ct)
         => (await db.Documents.AsNoTracking().Where(d => d.Sha256 == sha256).OrderByDescending(d => d.UploadedAt).ToListAsync(ct)).Select(ToRecord).ToList();
 
+    public async Task<DocumentPageRecord> PageAsync(DocumentPageQuery q, CancellationToken ct)
+    {
+        List<Guid> readable = [.. q.ReadableItems], persons = [.. q.Persons], dependents = [.. q.Dependents];
+        // DocumentRules.CanReadLink: an anchored link is judged on its anchor, whatever its kind.
+        var seen = db.Links.Where(l => (l.AnchorItemId != null && readable.Contains(l.AnchorItemId.Value))
+            || (l.AnchorItemId == null && (l.TargetKind == TargetKinds.CoreHousehold
+                || (l.TargetKind == TargetKinds.CorePerson && persons.Contains(l.TargetId)))));
+
+        var docs = db.Documents.AsNoTracking().Where(d => q.Archived || d.ArchivedAt == null)
+            .Where(d => d.UploadedByPersonId == q.Actor || seen.Any(l => l.DocumentId == d.Id));
+        if (q.SourceRefPrefix is { } prefix)
+            docs = docs.Where(d => d.SourceRef != null && d.SourceRef.StartsWith(prefix));
+        if (q.Target is { } target)
+            docs = docs.Where(d => seen.Any(l => l.DocumentId == d.Id && l.TargetKind == target.Kind && l.TargetId == target.Id));
+        if (q.Anchor is { } anchor)
+            docs = docs.Where(d => seen.Any(l => l.DocumentId == d.Id && l.AnchorItemId == anchor));
+        if (q.Inbox)
+            docs = docs.Where(d => !seen.Any(l => l.DocumentId == d.Id));
+        else if (q.SharedItems is { } sharedItems)
+        {
+            List<Guid> shared = [.. sharedItems];
+            docs = docs.Where(d => seen.Any(l => l.DocumentId == d.Id && ((l.AnchorItemId != null && shared.Contains(l.AnchorItemId.Value))
+                || (l.AnchorItemId == null && (l.TargetKind == TargetKinds.CoreHousehold
+                    || (l.TargetKind == TargetKinds.CorePerson && dependents.Contains(l.TargetId)))))));
+        }
+
+        // The facets, before the filters: an option stays offered while it is on.
+        var listedLinks = seen.Where(l => docs.Any(d => d.Id == l.DocumentId));
+        var roles = await listedLinks.Select(l => l.Role).Distinct().OrderBy(r => r).ToListAsync(ct);
+        var links = await listedLinks.Select(l => new { l.TargetKind, l.TargetId, l.AnchorItemId }).Distinct().ToListAsync(ct);
+        var zoneId = q.Zone.Id;
+        var years = await docs.Select(d => d.DocumentDate != null ? d.DocumentDate.Value.Year : d.UploadedAt.InZone(DateTimeZoneProviders.Tzdb[zoneId]).Date.Year)
+            .Distinct().OrderByDescending(y => y).ToListAsync(ct);
+
+        if (q.Role is { } role)
+            docs = docs.Where(d => seen.Any(l => l.DocumentId == d.Id && l.Role == role));
+        if (q.Linked is { } linked)
+            docs = docs.Where(d => seen.Any(l => l.DocumentId == d.Id && l.TargetId == linked));
+        if (q.Year is { } year)
+        {
+            // The shown date: the document's own, else its upload day in the household's zone.
+            LocalDate from = new(year, 1, 1), to = new(year + 1, 1, 1);
+            Instant start = q.Zone.AtStartOfDay(from).ToInstant(), end = q.Zone.AtStartOfDay(to).ToInstant();
+            docs = docs.Where(d => (d.DocumentDate != null && d.DocumentDate >= from && d.DocumentDate < to)
+                || (d.DocumentDate == null && d.UploadedAt >= start && d.UploadedAt < end));
+        }
+        if (q.Search is { } search)
+        {
+            // Typed text, not a pattern: % and _ match themselves.
+            var pattern = $"%{search.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")}%";
+            docs = docs.Where(d => EF.Functions.ILike(d.Title, pattern, @"\"));
+        }
+
+        var total = await docs.CountAsync(ct);
+        // A null date sorts last, as it always did.
+        var ordered = docs.OrderBy(d => d.DocumentDate == null).ThenByDescending(d => d.DocumentDate).ThenByDescending(d => d.UploadedAt).ThenBy(d => d.Id);
+        var rows = await (q.Take is { } take ? ordered.Skip(q.Skip).Take(take) : ordered).ToListAsync(ct);
+        return new DocumentPageRecord(rows.Select(ToRecord).ToList(), total, roles, years,
+            links.Select(l => new LinkTargetRecord(l.TargetKind, l.TargetId, l.AnchorItemId)).ToList());
+    }
+
+    public async Task<IReadOnlyList<Guid>> AnchorItemsAsync(CancellationToken ct)
+        => await db.Links.Where(l => l.AnchorItemId != null).Select(l => l.AnchorItemId!.Value).Distinct().ToListAsync(ct);
+
     // ponytail: a household holds hundreds of documents, not millions; filtering moves to SQL if listing gets slow.
     public async Task<IReadOnlyList<DocumentRecord>> ListAsync(bool includeArchived, CancellationToken ct)
         => (await db.Documents.AsNoTracking().ToListAsync(ct))
@@ -168,9 +232,6 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
             });
         await db.SaveChangesAsync(ct);
     }
-
-    public async Task<IReadOnlySet<Guid>> DocumentsLinkedToAsync(DocumentTarget target, CancellationToken ct)
-        => (await db.Links.AsNoTracking().Where(l => l.TargetKind == target.Kind && l.TargetId == target.Id).Select(l => l.DocumentId).ToListAsync(ct)).ToHashSet();
 
     private Task<DocumentLinkRow?> FindLinkAsync(Guid document, DocumentTarget target, CancellationToken ct)
         => db.Links.SingleOrDefaultAsync(l => l.DocumentId == document && l.TargetKind == target.Kind && l.TargetId == target.Id, ct);

@@ -1,10 +1,11 @@
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { Api } from '@/api/client';
 import { ProblemError, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
 
 export type DocumentList = components['schemas']['DocumentList'];
+export type DocumentFacets = components['schemas']['DocumentFacets'];
 export type DocumentSummary = components['schemas']['DocumentSummary'];
 export type DocumentDetail = components['schemas']['DocumentDetail'];
 export type DocumentLink = components['schemas']['DocumentLinkView'];
@@ -35,10 +36,19 @@ export function invalidateDocuments(queryClient: QueryClient): Promise<void> {
   return Promise.all([DOCUMENTS, DOCUMENT, EXPECTED].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }
 
-/** `inbox` lists the unlinked documents whatever the scope; `archived` adds the archived ones. */
-export function useDocuments(scope: Scope, archived: boolean, inbox: boolean) {
+/** The documents page's own narrowing (issue #420), applied by the server; `page` from 1, absent for every document (a picker). */
+export type DocumentQuery = { role?: string; year?: number; linked?: string; q?: string; page?: number };
+
+/** The server's page size: the documents list shows this many at a time. */
+export const PAGE_SIZE = 50;
+
+/**
+ * `inbox` lists the unlinked documents whatever the scope; `archived` adds the archived ones. The previous page stays shown
+ * while the next one loads, so a filter or a page change does not blank the table.
+ */
+export function useDocuments(scope: Scope, archived: boolean, inbox: boolean, narrow: DocumentQuery = {}) {
   const { $api } = useApi();
-  return $api.useQuery('get', DOCUMENTS, { params: { query: { scope, archived, inbox } } });
+  return $api.useQuery('get', DOCUMENTS, { params: { query: { scope, archived, inbox, ...narrow } } }, { placeholderData: keepPreviousData });
 }
 
 /** The documents linked to the item or to anything anchored on it (a phase, a one-off). */

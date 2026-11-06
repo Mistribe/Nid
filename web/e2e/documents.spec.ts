@@ -14,8 +14,11 @@ async function addItem(page: Page, displayName: string, visibility: 'shared' | '
   expect(response.status()).toBe(201);
 }
 
+/** The list shows 50 documents a page (issue #420): a journey searches its own stamp so its rows are on the first one. */
+const searching = (path: string, text: string) => `${path}${path.includes('?') ? '&' : '?'}q=${encodeURIComponent(text)}`;
+
 async function uploadAndOpen(page: Page, title: string): Promise<void> {
-  await page.goto('/documents?tab=inbox');
+  await page.goto(searching('/documents?tab=inbox', title));
   await page.getByLabel('Déposer').setInputFiles(pdf(`${title}.pdf`));
   await expect(page.getByRole('list', { name: 'Dépôts' })).toContainText('Déposé');
   await page.getByRole('table', { name: 'Liste des documents' }).getByRole('link', { name: title }).click();
@@ -49,7 +52,7 @@ test('alice files a document under a shared item and bob sees it; a private link
   await expect(toasts(alice)).toContainText('Lien ajouté.');
   await expect(alice.getByRole('list', { name: 'Liens du document' })).toContainText(shared);
 
-  await alice.goto('/documents');
+  await alice.goto(searching('/documents', first));
   await expect(alice.getByRole('table', { name: 'Liste des documents' }).getByRole('row').filter({ hasText: first })).toContainText(shared);
 
   await uploadAndOpen(alice, second);
@@ -57,7 +60,7 @@ test('alice files a document under a shared item and bob sees it; a private link
   await expect(toasts(alice)).toContainText('Lien ajouté.');
 
   const bob = await browser.newPage();
-  await signIn(bob, 'bob', '/documents');
+  await signIn(bob, 'bob', searching('/documents', String(stamp)));
   const table = bob.getByRole('table', { name: 'Liste des documents' });
   await expect(table.getByRole('row').filter({ hasText: first })).toBeVisible();
   await expect(bob.getByText(second)).toHaveCount(0);
@@ -71,7 +74,7 @@ test('alice files two uploaded documents at once from « À classer »', async (
   await signIn(page, 'alice', '/documents');
   await addItem(page, item, 'private');
 
-  await page.goto('/documents?tab=inbox');
+  await page.goto(searching('/documents?tab=inbox', String(stamp)));
   await page.getByLabel('Déposer').setInputFiles([pdf(`${first}.pdf`), pdf(`${second}.pdf`)]);
   await expect(page.getByRole('list', { name: 'Dépôts' }).getByText('Déposé')).toHaveCount(2);
   const table = page.getByRole('table', { name: 'Liste des documents' });

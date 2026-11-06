@@ -41,9 +41,22 @@ public sealed record DocumentDetail(DocumentSummary Document, string OriginalFil
     public IEnumerable<ItemId> ExposedItems() => Document.Items();
 }
 
-public sealed record DocumentList(IReadOnlyList<DocumentSummary> Items) : IExposesItems
+/// <summary>
+/// Issue #420: one page of the documents (all of them when no page was asked), <c>Total</c> the number that matched the filters,
+/// <c>Facets</c> what the filters offer over every document of the list before they apply.
+/// </summary>
+public sealed record DocumentList(IReadOnlyList<DocumentSummary> Items, int Total, DocumentFacets Facets) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => Items.SelectMany(i => i.Items());
+    public IEnumerable<ItemId> ExposedItems() => Items.SelectMany(i => i.Items()).Concat(Facets.Links.SelectMany(l => l.Items()));
+}
+
+/// <summary>The link roles, the years (newest first) and the linked targets the listed documents carry, readable links only.</summary>
+public sealed record DocumentFacets(IReadOnlyList<string> Roles, IReadOnlyList<int> Years, IReadOnlyList<DocumentLinkOption> Links);
+
+public sealed record DocumentLinkOption(string TargetKind, Guid TargetId, Guid? AnchorItemId, string Label)
+{
+    internal IEnumerable<ItemId> Items() => new[] { TargetKind == TargetKinds.CoreItem ? TargetId : (Guid?)null, AnchorItemId }
+        .OfType<Guid>().Distinct().Select(id => new ItemId(id));
 }
 
 /// <summary>The stored bytes, for the download endpoint only; the caller disposes <paramref name="Content"/>.</summary>

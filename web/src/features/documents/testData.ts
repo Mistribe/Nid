@@ -12,7 +12,18 @@ export const summary = (over: Partial<DocumentSummary> = {}): DocumentSummary =>
   uploadedAt: '2026-10-20T09:00:00Z', uploadedBy: ALICE, archived: false, canEdit: true, links: [link()], ...over,
 });
 
-export const list = (items: DocumentSummary[]): DocumentList => ({ items });
+/** The server's answer for these rows: all of them, and the facets they carry. */
+export const list = (items: DocumentSummary[], total = items.length): DocumentList => {
+  const links = items.flatMap((d) => d.links);
+  return {
+    items, total,
+    facets: {
+      roles: [...new Set(links.map((l) => l.role))],
+      years: [...new Set(items.map((d) => Number((d.documentDate ?? d.uploadedAt).slice(0, 4))))].sort().reverse(),
+      links: [...new Map(links.map((l) => [l.targetId, { targetKind: l.targetKind, targetId: l.targetId, anchorItemId: l.anchorItemId, label: l.label }])).values()],
+    },
+  };
+};
 
 export const ALICE = '0192f0aa-0000-7000-8000-00000000a001';
 export const BOB_ITEM = '0192f0aa-0000-7000-8000-00000000e009';

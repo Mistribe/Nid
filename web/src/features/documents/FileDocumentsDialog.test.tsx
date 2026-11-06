@@ -27,7 +27,12 @@ function serveInbox(over: { gained?: Record<string, { id: string; name: string }
   const posts: { id: string; body: unknown }[] = [];
   server.use(
     http.get('*/api/v1/documents/targets', () => HttpResponse.json(targets())),
-    http.get('*/api/v1/documents', () => HttpResponse.json(list(inbox))),
+    // The server filters by year (issue #420); the facets stay those of the whole inbox.
+    http.get('*/api/v1/documents', ({ request }) => {
+      const year = new URL(request.url).searchParams.get('year');
+      const shown = inbox.filter((d) => !year || d.documentDate?.startsWith(year));
+      return HttpResponse.json({ ...list(inbox), items: shown, total: shown.length });
+    }),
     http.get('*/api/v1/documents/:id/links/preview', ({ params }) => {
       previews.push(String(params.id));
       return HttpResponse.json({ gainedReaders: over.gained?.[String(params.id)] ?? [] });

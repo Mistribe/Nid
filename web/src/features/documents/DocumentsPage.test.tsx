@@ -8,14 +8,28 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { stubLocalDay } from '@/test/timeZone';
 import type { DocumentList } from './api';
-import { ALICE, DOC, link, list, summary } from './testData';
+import { ALICE, DOC, ITEM, link, list, summary } from './testData';
+
+/** As the server (issue #420): the facets of every row, the rows the filters keep, one page of `size`. */
+function narrow(body: DocumentList, p: URLSearchParams): DocumentList {
+  const role = p.get('role'), year = p.get('year'), linked = p.get('linked'), q = p.get('q')?.toLowerCase();
+  const kept = body.items.filter((d) => (!role || d.links.some((l) => l.role === role))
+    && (!year || (d.documentDate ?? d.uploadedAt).startsWith(year))
+    && (!linked || d.links.some((l) => l.targetId === linked))
+    && (!q || d.title.toLowerCase().includes(q)));
+  const page = Number(p.get('page') ?? 1);
+  return { ...body, items: kept.slice((page - 1) * 50, page * 50), total: kept.length };
+}
 
 function serve(body: DocumentList, seen: string[] = []) {
   server.use(http.get('*/api/v1/documents', ({ request }) => {
-    seen.push(new URL(request.url).search);
-    return HttpResponse.json(body);
+    const url = new URL(request.url);
+    seen.push(url.search);
+    return HttpResponse.json(narrow(body, url.searchParams));
   }));
 }
+
+const titles = async () => (await rows()).map((r) => r.querySelector('td')?.textContent);
 
 async function rows(): Promise<HTMLElement[]> {
   const table = await screen.findByRole('table', { name: 'Liste des documents' });
@@ -92,26 +106,78 @@ describe('DocumentsPage', () => {
     expect(seen[0]).toContain('scope=me');
   });
 
-  it('filters by type, year and linked element without asking again', async () => {
+  it('asks the server for the type, year, linked element and title, and keeps them in the URL (issue #420)', async () => {
     const seen: string[] = [];
     serve(three(), seen);
-    const { user } = await renderApp('/documents');
+    const { user, router } = await renderApp('/documents');
     await rows();
-    const asked = seen.length;
+    expect(seen[0]).toContain('page=1');
 
     await pick(user, 'Type', 'Bulletin de paie');
-    await waitFor(async () => expect((await rows()).map((r) => r.querySelector('td')?.textContent)).toEqual(['Bulletin septembre']));
+    await waitFor(async () => expect(await titles()).toEqual(['Bulletin septembre']));
+    expect(seen.at(-1)).toContain('role=payslip');
+    expect(router.state.location.search).toEqual({ type: 'payslip' });
     await pick(user, 'Type', 'Tous les types');
 
-    // No document date: the upload year counts.
+    // No document date: the upload year counts, on the server.
     await pick(user, 'Année', '2026');
-    await waitFor(async () => expect((await rows()).map((r) => r.querySelector('td')?.textContent)).toEqual(['Bulletin septembre']));
+    await waitFor(async () => expect(await titles()).toEqual(['Bulletin septembre']));
+    expect(seen.at(-1)).toContain('year=2026');
     await pick(user, 'Année', 'Toutes les années');
 
     await pick(user, 'Élément lié', 'Appartement Lyon');
-    await waitFor(async () => expect((await rows()).map((r) => r.querySelector('td')?.textContent)).toEqual(['Bail 2024', 'Facture box']));
+    await waitFor(async () => expect(await titles()).toEqual(['Bail 2024', 'Facture box']));
+    expect(seen.at(-1)).toContain(`linked=${ITEM}`);
 
-    expect(seen).toHaveLength(asked);
+    await user.type(screen.getByRole('searchbox', { name: 'Rechercher' }), 'fact');
+    await waitFor(async () => expect(await titles()).toEqual(['Facture box']));
+    expect(seen.at(-1)).toContain('q=fact');
+    expect(router.state.location.search).toEqual({ item: ITEM, q: 'fact' });
+    expect(screen.getByText('1 document')).toBeInTheDocument();
+  });
+
+  it('reads the filters and the page from the URL', async () => {
+    const seen: string[] = [];
+    serve(three(), seen);
+    await renderApp('/documents?type=payslip&year=2026&q=bul&page=2');
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0));
+    for (const part of ['role=payslip', 'year=2026', 'q=bul', 'page=2']) expect(seen[0]).toContain(part);
+  });
+
+  it('shows the total and turns the pages, one page of 50 at a time', async () => {
+    const seen: string[] = [];
+    serve(list(Array.from({ length: 120 }, (_, i) => summary({ id: `p${i}`, title: `Pièce ${i}` }))), seen);
+    const { user, router } = await renderApp('/documents?page=3');
+    const pages = await screen.findByRole('navigation', { name: 'Pages des documents' });
+    expect(pages).toHaveTextContent('Page 3 sur 3');
+    expect(screen.getByText('120 documents')).toBeInTheDocument();
+    expect(await rows()).toHaveLength(20);
+    expect(within(pages).getByRole('button', { name: 'Suivant' })).toBeDisabled();
+
+    await user.click(within(pages).getByRole('button', { name: 'Précédent' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
+    expect(seen.at(-1)).toContain('page=2');
+    await user.click(within(pages).getByRole('button', { name: 'Précédent' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    await waitFor(() => expect(within(pages).getByRole('button', { name: 'Précédent' })).toBeDisabled());
+  });
+
+  it('a page past the end steps back to the last one', async () => {
+    serve(three());
+    const { router } = await renderApp('/documents?page=4');
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(await rows()).toHaveLength(3);
+  });
+
+  it('« À classer »: a new page clears the selection', async () => {
+    serve(list(Array.from({ length: 60 }, (_, i) => summary({ id: `i${i}`, title: `Scan ${i}`, links: [] }))));
+    const { user } = await renderApp('/documents?tab=inbox');
+    await rows();
+    await user.click(within(await screen.findByRole('table', { name: 'Liste des documents' })).getByRole('checkbox', { name: 'Sélectionner Scan 0' }));
+    expect(screen.getByText('1 document sélectionné')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Suivant' }));
+    expect((await screen.findAllByRole('link', { name: 'Scan 50' })).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/sélectionné/)).not.toBeInTheDocument();
   });
 
   it('the document filters sit in one row, each labelled before its control', async () => {
@@ -119,6 +185,7 @@ describe('DocumentsPage', () => {
     await renderApp('/documents');
     await rows();
     const row = screen.getByRole('group', { name: 'Filtres' });
+    expectLabelBefore(within(row).getByText('Rechercher'), within(row).getByRole('searchbox', { name: 'Rechercher' }));
     for (const name of ['Type', 'Année', 'Élément lié']) {
       expectLabelBefore(within(row).getByText(name), within(row).getByRole('combobox', { name }));
     }
@@ -191,7 +258,7 @@ describe('DocumentsPage', () => {
 
   it('clears a year or element filter the new rows no longer offer', async () => {
     let body = three();
-    server.use(http.get('*/api/v1/documents', () => HttpResponse.json(body)));
+    server.use(http.get('*/api/v1/documents', ({ request }) => HttpResponse.json(narrow(body, new URL(request.url).searchParams))));
     const { user } = await renderApp('/documents');
     await rows();
     await pick(user, 'Année', '2026');

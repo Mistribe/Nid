@@ -253,12 +253,26 @@ const childcareStatementRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/childcare/StatementPage'), 'StatementPage'),
 });
 
+/** Issue #420: the documents list's filters (a link role, a year, a linked target's id, part of the title) and its page (from 2). */
+export type DocumentsSearch = DetailSearch & { type?: string; year?: number; item?: string; q?: string; page?: number };
+const positive = (value: unknown): number | undefined => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+};
+
 // Documents design §2.2: « Tous », then « À classer » under `?tab=inbox`.
 const documentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/documents',
   beforeLoad: requireModule('documents'),
-  validateSearch: detailSearch,
+  validateSearch: (search: Record<string, unknown>): DocumentsSearch => ({
+    ...detailSearch(search),
+    ...(typeof search.type === 'string' && search.type !== '' ? { type: search.type } : {}),
+    ...(positive(search.year) ? { year: positive(search.year) } : {}),
+    ...(typeof search.item === 'string' && /^[0-9a-f-]{36}$/i.test(search.item) ? { item: search.item } : {}),
+    ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+    ...((positive(search.page) ?? 1) > 1 ? { page: positive(search.page) } : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/documents/DocumentsPage'), 'DocumentsPage'),
 });
 
