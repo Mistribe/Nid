@@ -55,10 +55,10 @@ export function ProjectionCurve() {
   const retirements = answer.data?.retirementHorizons ?? [];
   const chooseHorizon = (next: string) => {
     const projection = next === DEFAULT_HORIZON ? undefined : (next as ProjectionHorizon);
-    void navigate({ to: '/dashboard', replace: true, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, projection }) });
+    void navigate({ to: '/dashboard', replace: true, resetScroll: false, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, projection }) });
   };
   const chooseReading = (next: string) => {
-    void navigate({ to: '/dashboard', replace: true, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, real: next === 'nominal' ? (0 as const) : undefined }) });
+    void navigate({ to: '/dashboard', replace: true, resetScroll: false, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, real: next === 'nominal' ? (0 as const) : undefined }) });
   };
   const data = answer.data;
   if (data && data.points.every((p) => ZERO.test(p.nominal)) && data.milestones.length === 0) return null;
