@@ -69,7 +69,7 @@ export function Shell() {
   const side = items.filter((item) => item.group !== 'account');
   const groups = (['follow', 'estate', 'budget'] as const).map((group) => ({ group, entries: side.filter((item) => item.group === group) })).filter((g) => g.entries.length > 0);
   const more = items.filter((item) => item.mobile === 'more');
-  const inMore = pathname === '/more'
+  const inMore = pathname === '/more' || pathname === '/changelog'
     || more.some((item) => pathname === section(item.to) || pathname.startsWith(`${section(item.to)}/`));
 
   const sideLink = (item: NavItem) => {

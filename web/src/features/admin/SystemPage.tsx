@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -32,6 +33,7 @@ export function SystemPage() {
         <dt>{t('admin.system.size')}</dt>
         <dd>{status.databaseSizeBytes == null ? t('admin.system.unknown') : t('admin.system.megabytes', { size: formatMegabytes(status.databaseSizeBytes) })}</dd>
       </dl>
+      <p><Link to="/changelog" className="underline">{t('app.changelog.see_all')}</Link></p>
     </AdminFrame>
   );
 }

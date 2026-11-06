@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,12 @@ export function MorePage() {
             </Link>
           </li>
         ))}
+        <li>
+          <Link to="/changelog" className="flex min-h-11 items-center gap-3 px-4 py-3 hover:bg-accent">
+            <Sparkles aria-hidden="true" className="size-5" />
+            <span>{t('app.changelog.title')}</span>
+          </Link>
+        </li>
       </ul>
       <Button variant="outline" className="md:hidden" onClick={() => void signOut()}>{t('shell.sign_out')}</Button>
     </div>

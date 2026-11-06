@@ -1,6 +1,8 @@
 {
   "app": { "name": "Nid", "version": "Version {{version}}", "api_version": "API : {{version}}", "api_version_unknown": "indisponible", "toasts": "Messages",
-    "changelog": { "title": "Nouveautés", "loading": "Chargement…", "error": "Les nouveautés n'ont pas pu être chargées.", "empty": "Aucune nouveauté à afficher.", "close": "Fermer" }
+    "changelog": { "title": "Nouveautés", "loading": "Chargement des nouveautés", "error": "Les nouveautés n'ont pas pu être chargées.", "empty": "Aucune nouveauté à afficher.",
+      "web": "Version de l'application", "api": "Version de l'API", "current": "Version actuelle", "patches": "Correctifs de la version {{minor}}",
+      "older_one": "Version précédente ({{count}} groupe)", "older_other": "Versions précédentes ({{count}} groupes)", "see_all": "Voir les nouveautés" }
   },
   "theme": { "sobre": "Sobre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
   "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" },
