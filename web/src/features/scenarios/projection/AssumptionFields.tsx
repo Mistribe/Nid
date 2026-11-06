@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { Controller, useFormContext, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '@/components/form/Field';
@@ -8,13 +8,15 @@ import { formatCurrency } from '@/components/Money';
 import { Input } from '@/components/ui/input';
 import type { Projection } from '@/features/dashboard/api';
 import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNames';
+import { YEARLY_CLASSES, projectionYears } from '../../settings/api';
 import { toWireAmount } from '../../subscriptions/edits/amount';
 import type { ProjectionOverrides } from './api';
 import '@/locales/forms';
 import '@/locales/scenarios';
 
 /** The assumptions a scenario changes, as typed (spec §2.1 and §4): an empty field keeps the household's. */
-export type AssumptionsDraft = { classRates: Record<string, string>; inflation: string; monthlySavings: string; savingsClass: string; freed: string };
+export type AssumptionsDraft = { classRates: Record<string, string>; inflation: string; monthlySavings: string; savingsClass: string; freed: string;
+  inflationByYear: Record<string, string>; classRatesByYear: Record<string, Record<string, string>>; incomeGrowth: string };
 
 /** The part of a form these fields fill: its horizon and its assumptions. */
 type HorizonAndAssumptions = { horizon: string; assumptions: AssumptionsDraft };
@@ -34,15 +36,26 @@ export function assumptionsDraft(o?: ProjectionOverrides | null): AssumptionsDra
     classRates: Object.fromEntries(CLASSES.map((c) => [c, o?.classRates?.[c] == null ? '' : comma(o.classRates[c])])),
     inflation: o?.inflation == null ? '' : comma(o.inflation),
     monthlySavings: o?.monthlySavings == null ? '' : comma(o.monthlySavings),
+    inflationByYear: Object.fromEntries(projectionYears().map((y) => [y, o?.inflationByYear?.[y] == null ? '' : comma(o.inflationByYear[y])])),
+    classRatesByYear: Object.fromEntries(YEARLY_CLASSES.map((c) => [c, Object.fromEntries(projectionYears().map((y) => [y, o?.classRatesByYear?.[c]?.[y] == null ? '' : comma(o.classRatesByYear[c][y])]))])),
+    incomeGrowth: o?.incomeGrowth == null ? '' : comma(o.incomeGrowth),
     savingsClass: o?.savingsClass ?? '',
     freed: o?.freedPaymentsToSavings == null ? '' : o.freedPaymentsToSavings ? 'yes' : 'no',
   };
 }
 
+/** The typed years of a table, each as the wire reads it. */
+const typedYears = (byYear: Record<string, string>) => Object.fromEntries(Object.entries(byYear).filter(([, v]) => bare(v)).map(([y, v]) => [y, toWireAmount(v)]));
+
 /** The assumptions the scenario changes, each typed field as the wire reads it; none at all is `null` (the household's). */
 export function overridesOf(a: AssumptionsDraft): ProjectionOverrides | null {
   const rates = Object.fromEntries(Object.entries(a.classRates).filter(([, v]) => bare(v)).map(([k, v]) => [k, toWireAmount(v)]));
+  const byYear = typedYears(a.inflationByYear);
+  const classYears = Object.fromEntries(Object.entries(a.classRatesByYear).flatMap(([c, years]): [string, Record<string, string>][] => { const t = typedYears(years); return Object.keys(t).length > 0 ? [[c, t]] : []; }));
   const o: ProjectionOverrides = {
+    ...(Object.keys(byYear).length > 0 ? { inflationByYear: byYear } : {}),
+    ...(Object.keys(classYears).length > 0 ? { classRatesByYear: classYears } : {}),
+    ...(bare(a.incomeGrowth) ? { incomeGrowth: toWireAmount(a.incomeGrowth) } : {}),
     ...(Object.keys(rates).length > 0 ? { classRates: rates } : {}),
     ...(bare(a.inflation) ? { inflation: toWireAmount(a.inflation) } : {}),
     ...(bare(a.monthlySavings) ? { monthlySavings: toWireAmount(a.monthlySavings) } : {}),
@@ -54,13 +67,13 @@ export function overridesOf(a: AssumptionsDraft): ProjectionOverrides | null {
 
 /** Every typed assumption reads as a number: the document can be simulated. */
 export const isComplete = (a: AssumptionsDraft) =>
-  [...Object.values(a.classRates), a.inflation].every((v) => !bare(v) || RATE.test(bare(v))) && (!bare(a.monthlySavings) || SIGNED.test(bare(a.monthlySavings)));
+  [...Object.values(a.classRates), a.inflation, a.incomeGrowth, ...Object.values(a.inflationByYear), ...Object.values(a.classRatesByYear).flatMap((y) => Object.values(y))].every((v) => !bare(v) || RATE.test(bare(v))) && (!bare(a.monthlySavings) || SIGNED.test(bare(a.monthlySavings)));
 
 /** A server path of the horizon or the assumptions (`horizon`, `assumptions.classRates.equity`) as the draft's field. */
 export function assumptionPath(path: string): 'horizon' | `assumptions.${string}` | undefined {
   if (path === 'horizon') return path;
   if (path === 'assumptions.freedPaymentsToSavings') return 'assumptions.freed';
-  if (/^assumptions\.(classRates\.[a-z_]+|inflation|monthlySavings|savingsClass)$/.test(path)) return path as `assumptions.${string}`;
+  if (/^assumptions\.(classRates\.[a-z_]+|classRatesByYear\.[a-z_]+\.\d{4}|inflationByYear\.\d{4}|inflation|incomeGrowth|monthlySavings|savingsClass)$/.test(path)) return path as `assumptions.${string}`;
   return undefined;
 }
 
@@ -92,10 +105,12 @@ export function AssumptionFields({ base }: { base: Projection }) {
   const className = useClassName();
   const form = useFormContext<HorizonAndAssumptions>();
   const a = base.assumptions;
+  const [years] = useState(projectionYears);
   const household = (value: string) => t('scenarios.projection.form.household_value', { value });
   const rate = (value: string | undefined) => household(value === undefined ? '' : `${comma(value)} %`);
   const choice = t('scenarios.projection.form.household_choice');
   return (
+    <div className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-3">
       <TextField name="assumptions.inflation" label={t('scenarios.projection.form.inflation')} hint={rate(a.inflation)} pattern={RATE} />
       <TextField name="assumptions.monthlySavings" label={t('scenarios.projection.form.monthly_savings')}
@@ -120,6 +135,24 @@ export function AssumptionFields({ base }: { base: Projection }) {
         <TextField key={c} name={`assumptions.classRates.${c}`} label={t('scenarios.projection.form.class_rate', { name: className(c) })}
           hint={rate(a.classRates[c])} pattern={RATE} />
       ))}
+      <TextField name="assumptions.incomeGrowth" label={t('scenarios.projection.form.income_growth')} hint={rate(a.incomeGrowth)} pattern={RATE} />
+    </div>
+    <div className="grid gap-3 sm:grid-cols-5">
+      {years.map((y) => (
+        <TextField key={`inflation${y}`} name={`assumptions.inflationByYear.${y}`}
+          label={t('scenarios.projection.form.year_rate', { name: t('scenarios.projection.form.inflation_name'), year: y })}
+          hint={rate(a.inflationByYear[y] ?? (y === years[0] ? base.observedInflation : undefined) ?? a.inflation)} pattern={RATE} />
+      ))}
+    </div>
+    {YEARLY_CLASSES.map((c) => (
+      <div key={c} className="grid gap-3 sm:grid-cols-5">
+        {years.map((y) => (
+          <TextField key={y} name={`assumptions.classRatesByYear.${c}.${y}`}
+            label={t('scenarios.projection.form.year_rate', { name: className(c), year: y })}
+            hint={rate(a.classRatesByYear[c]?.[y] ?? a.classRates[c])} pattern={RATE} />
+        ))}
+      </div>
+    ))}
     </div>
   );
 }

@@ -132,4 +132,26 @@ public class ScenarioStoreTests(PostgresFixture postgres)
 
         Assert.Equal(1, inserted);
     }
+
+    [Fact]
+    public async Task Old_projection_scenario_json_reads_with_null_yearly_overrides()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var item = await AddItemAsync(db, "Projection");
+        // The shape stored before the yearly overrides (#419 PR 3).
+        db.Scenarios.Add(new ScenarioRow
+        {
+            ItemId = item.Value, Kind = ScenarioKinds.Projection, Scope = "household",
+            Data = """{"version":1,"horizon":{"years":10,"retireOf":null},"assumptions":{"classRates":{"equity":0.08},"inflation":0.03,"monthlySavings":null,"savingsClass":null,"freedPaymentsToSavings":null},"events":[]}""",
+        });
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var found = await new ScenarioStore(db).FindAsync(item, TestContext.Current.CancellationToken);
+
+        var overrides = found!.Projection!.Assumptions;
+        Assert.Null(overrides.InflationByYear);
+        Assert.Null(overrides.ClassRatesByYear);
+        Assert.Null(overrides.IncomeGrowth);
+        Assert.Equal((0.03m, 0.08m), (overrides.Inflation, overrides.ClassRates!["equity"]));
+    }
 }

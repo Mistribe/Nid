@@ -212,6 +212,31 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(rest.GetProperty("gapReal").GetString(), mcp.GetProperty("gapReal").GetString());
     }
 
+    /// <summary>Inflation spec C18: the yearly rates and the income growth reach the engine through the tool as through the route.</summary>
+    [Fact]
+    public async Task Simulate_projection_takes_the_yearly_rates_as_the_route_does()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+        var ev = RetirementIncome();
+        var yearly = new
+        {
+            inflationByYear = new Dictionary<string, string> { ["2026"] = "4" },
+            classRatesByYear = new Dictionary<string, Dictionary<string, string>> { ["cash"] = new() { ["2026"] = "3" } },
+            incomeGrowth = "0.5",
+        };
+
+        var rest = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/scenarios/projection/simulate",
+            new { scope = "household", document = new { version = 1, horizon = "5y", assumptions = yearly, events = new[] { ev } } }))
+            .Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+        var mcp = await AnswerAsync(client, "simulate_projection", new { horizon = "5y", assumptions = yearly, events = new[] { ev } });
+
+        Assert.Equal(YearEndPoints(rest.GetProperty("scenario")), YearEndPoints(mcp.GetProperty("scenario")));
+        Assert.Equal(rest.GetProperty("gapNominal").GetString(), mcp.GetProperty("gapNominal").GetString());
+        Assert.Equal(rest.GetProperty("gapReal").GetString(), mcp.GetProperty("gapReal").GetString());
+        Assert.Equal("""{"2026":"4"}""", mcp.GetProperty("scenario").GetProperty("assumptions").GetProperty("inflationByYear").GetRawText());
+    }
+
     [Fact]
     public async Task Simulate_projection_invalid_event_is_a_tool_error()
     {

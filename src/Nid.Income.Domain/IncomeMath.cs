@@ -91,9 +91,16 @@ public static class IncomeMath
     /// </summary>
     public static (decimal Amount, bool Extended) MonthlyEquivalentExtended(IReadOnlyList<IncomePhase> phases, LocalDate today, LocalDate on, bool sourceClosed)
     {
-        var amount = MonthlyEquivalent(phases, on);
+        var parts = MonthlyEquivalentExtendedParts(phases, today, on, sourceClosed);
+        return (parts.Sum(p => p.Amount), parts.Any(p => p.Extended));
+    }
+
+    /// <summary>The pieces behind <see cref="MonthlyEquivalentExtended"/>: one per phase counted on <paramref name="on"/> (active there, or extended), so the sum cannot drift from it.</summary>
+    public static IReadOnlyList<(IncomePhase Phase, decimal Amount, bool Extended)> MonthlyEquivalentExtendedParts(IReadOnlyList<IncomePhase> phases, LocalDate today, LocalDate on, bool sourceClosed)
+    {
+        var parts = phases.Where(p => IsActive(p, on)).Select(p => (p, MonthlyEquivalent(p), false)).ToList();
         if (sourceClosed)
-            return (amount, false);
+            return parts;
         // Latest start first: a successor starts strictly after the end of the phase it replaces, so it is decided before it.
         var extended = new HashSet<Guid>();
         foreach (var phase in phases.OrderByDescending(p => p.StartsOn))
@@ -104,9 +111,9 @@ public static class IncomeMath
             if (phases.Any(q => q.Id != phase.Id && q.StartsOn >= end && q.StartsOn <= on && (IsActive(q, on) || extended.Contains(q.Id))))
                 continue;
             extended.Add(phase.Id);
-            amount += MonthlyEquivalent(phase);
+            parts.Add((phase, MonthlyEquivalent(phase), true));
         }
-        return (amount, extended.Count > 0);
+        return parts;
     }
 
     private static bool IsOneShot(IncomePhase phase, LocalDate end) => end <= phase.Every.AddTo(phase.StartsOn, 1);

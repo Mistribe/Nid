@@ -81,4 +81,87 @@ public class IncomeTimelineEndpointTests(PostgresFixture fixture) : IClassFixtur
         Assert.Equal(2500m, timeline.Monthly[3][Currency.Eur]); // 2026-01-31
         Assert.Empty(timeline.Extended);
     }
+
+    private static Dictionary<Currency, decimal> Sum(IEnumerable<TimelinePart> parts)
+        => parts.GroupBy(p => p.Currency).ToDictionary(g => g.Key, g => g.Sum(p => p.Amount));
+
+    [Fact]
+    public async Task Timeline_parts_sum_to_the_monthly_amounts()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewSourceAsync(app, "Salaire", Phase("Salaire", "2025-01-01", "2000", "2026-03-01"), Phase("Salaire", "2026-03-01", "2200"), Phase("Prime", "2027-03-01", "300"));
+
+        var (_, timeline) = await ReadAsync(app, 24);
+
+        Assert.NotNull(timeline.Parts);
+        Assert.Equal(25, timeline.Parts.Count);
+        for (var k = 0; k <= 24; k++)
+            Assert.Equal(timeline.Monthly[k].OrderBy(e => e.Key.Code), Sum(timeline.Parts[k]).OrderBy(e => e.Key.Code));
+    }
+
+    [Fact]
+    public async Task A_phase_running_today_is_indexed_from_zero()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewSourceAsync(app, "Salaire", Phase("Salaire", "2025-01-01", "2000"));
+
+        var (_, timeline) = await ReadAsync(app, 24);
+
+        Assert.All(timeline.Parts!, month => Assert.All(month, p => Assert.Equal(0, p.IndexedFrom)));
+    }
+
+    [Fact]
+    public async Task A_later_phase_is_indexed_from_its_start_month()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewSourceAsync(app, "Salaire", Phase("Salaire", "2025-01-01", "2000"), Phase("Prime", "2027-03-01", "300"));
+
+        var (_, timeline) = await ReadAsync(app, 24);
+
+        for (var k = 0; k <= 24; k++)
+        {
+            var prime = timeline.Parts![k].Where(p => p.Amount == 300m).ToList();
+            Assert.Equal(k >= 17 ? 1 : 0, prime.Count);
+            Assert.All(prime, p => Assert.Equal(17, p.IndexedFrom));
+        }
+    }
+
+    [Fact]
+    public async Task An_extended_phase_is_indexed_from_zero()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewSourceAsync(app, "Mon CDD", Phase("CDD", "2025-01-01", "2000", "2026-03-01"));
+
+        var (_, timeline) = await ReadAsync(app, 24);
+
+        Assert.Single(timeline.Extended);
+        var late = timeline.Parts![24];
+        Assert.Equal(2000m, Assert.Single(late).Amount);
+        Assert.Equal(0, late[0].IndexedFrom);
+    }
+
+    [Fact]
+    public async Task An_extended_future_phase_keeps_its_start_month()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewSourceAsync(app, "Salaire", Phase("Salaire", "2025-01-01", "2000"), Phase("Mission", "2027-03-01", "500", "2027-06-01"));
+
+        var (_, timeline) = await ReadAsync(app, 24);
+
+        Assert.Single(timeline.Extended);
+        var mission = Assert.Single(timeline.Parts![24], p => p.Amount == 500m);
+        Assert.Equal(17, mission.IndexedFrom);
+    }
+
+    [Fact]
+    public async Task A_month_without_income_keeps_its_zero_currency_key()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewSourceAsync(app, "Prime", Phase("Prime", "2027-03-01", "300"));
+
+        var (_, timeline) = await ReadAsync(app, 6);
+
+        Assert.All(timeline.Monthly, m => Assert.Equal(0m, m.Single().Value));
+        Assert.Empty(timeline.Parts![0]);
+    }
 }

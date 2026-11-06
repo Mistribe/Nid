@@ -2,8 +2,11 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Projection;
 using Nid.TestSupport;
+using NodaTime;
 using static Nid.TestSupport.LoanApi;
+using static Nid.TestSupport.ProjectionApi;
 using static Nid.TestSupport.PropertyApi;
 
 namespace Nid.Core.IntegrationTests.Projection;
@@ -33,15 +36,6 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
         Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope.Value}/valuations",
             new { asOf = "2025-09-30", amount = new { amount, currency = "EUR" }, note = (string?)null })).StatusCode);
         return envelope;
-    }
-
-    private static async Task HouseholdSavingsAsync(NidApp app, string monthlySavings)
-    {
-        var assumptions = await app.GetAsync<JsonElement>(app.AdultA, "/api/v1/core/projection-assumptions");
-        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
-        {
-            classRates = assumptions.GetProperty("classRates"), inflation = "2", monthlySavings, savingsClass = "cash", freedPaymentsToSavings = true,
-        })).EnsureSuccessStatusCode();
     }
 
     /// <summary>A purchase scenario saved through its route: 215 000 on 2026-01-10, 30 000 from <paramref name="funding"/>, 200 000 borrowed.</summary>
@@ -99,9 +93,11 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
             id = Guid.NewGuid(), kind = "income_change", label = "Retraite", start = new { on = "2030-01-01" }, monthlyAmount = "-1800",
         }));
 
-        // January 2030 is point 51: the drop is added to the 70 monthly savings from there to point 120, each compounding after.
+        // January 2030 is point 51: the drop, in euros of January 2030 (inflation spec C17), is added to the 70 monthly savings from
+        // there to point 120 as −1800 × g(k) ÷ g(51), each compounding after.
+        var g = ProjectionRates.Resolve(ProjectionDefaults.Assumptions, null, new LocalDate(2025, 10, 15), 120, []).Income;
         var compounded = 0m;
-        for (var k = 51; k <= 120; k++) compounded = compounded * (1m + CashMonthly) - 1800m;
+        for (var k = 51; k <= 120; k++) compounded = compounded * (1m + CashMonthly) - 1800m * g[k] / g[51];
         var (based, scenario) = (Points(view, "base"), Points(view, "scenario"));
         Assert.Equal(121, scenario.Count);
         Assert.Equal(Str(based[50], "savings"), Str(scenario[50], "savings"));
@@ -130,6 +126,8 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
     {
         await using var app = await NidApp.StartAsync(fixture);
         await ValuedEnvelopeAsync(app, "10000.00");
+        // Inflation spec C17: S₀ follows inflation, S₀ × i(k), and a savings change from today is indexed from today, −500 × i(k):
+        // the pause cancels S₀ exactly at any inflation.
         await HouseholdSavingsAsync(app, "500");
 
         var view = await SimulateAsync(app, Document(events: new
@@ -141,6 +139,49 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
         var zero = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/projection")).RootElement;
         Assert.Equal(Raw(List(zero, "points")), Raw(Points(view, "scenario")));
         Assert.NotEqual(Raw(List(zero, "points")), Raw(Points(view, "base")));
+    }
+
+    [Fact]
+    public async Task Observed_inflation_indexes_savings_incomes_and_events() // inflation spec D5, C17
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedCpiAsync(new YearMonth(2025, 9), 3m);
+        await HouseholdSavingsAsync(app, "500");
+        await IncomeSourceAsync(app, "Salaire", "salary", "2020-01-01", "3000");
+
+        var view = await SimulateAsync(app, Document(events: new
+        {
+            id = Guid.NewGuid(), kind = "savings_change", label = "Moins", start = new { on = "2026-03-01" }, monthlyAmount = "-200",
+        }));
+
+        // S(k) = 500 × i(k) + 3000 × g(k) − 3000 × i(k) − 200 × i(k) ÷ i(5) from March 2026 (point 5), i(k) at the observed 3 % for
+        // 2025 and the long-term 2 % after; the pot grows at the cash rate.
+        static List<decimal> Expected(ResolvedRates rates, bool change)
+        {
+            var (i, g, cash) = (rates.Inflation, rates.Income, rates.MonthlyClassRate[AllocationClasses.Cash]);
+            var pot = 0m;
+            var points = new List<decimal> { 0m };
+            for (var k = 1; k <= 120; k++)
+            {
+                pot = pot * (1m + cash[k]) + 500m * i[k] + 3000m * g[k] - 3000m * i[k] + (change && k >= 5 ? -200m * i[k] / i[5] : 0m);
+                points.Add(pot);
+            }
+            return points;
+        }
+        var today = new LocalDate(2025, 10, 15);
+        var observed = ProjectionRates.Resolve(ProjectionDefaults.Assumptions, 0.03m, today, 120, [AllocationClasses.Cash]);
+        var longTerm = ProjectionRates.Resolve(ProjectionDefaults.Assumptions, null, today, 120, [AllocationClasses.Cash]);
+        var (based, scenario) = (Points(view, "base"), Points(view, "scenario"));
+        Assert.Equal(("3.0", "3.0"), (Str(view.GetProperty("base"), "observedInflation"), Str(view.GetProperty("scenario"), "observedInflation")));
+        foreach (var k in new[] { 1, 2, 3, 4, 5, 6, 12, 120 })
+        {
+            Assert.InRange(Dec(based[k], "savings"), Expected(observed, false)[k] - 0.01m, Expected(observed, false)[k] + 0.01m);
+            Assert.InRange(Dec(scenario[k], "savings"), Expected(observed, true)[k] - 0.01m, Expected(observed, true)[k] + 0.01m);
+            Assert.InRange(Dec(scenario[k], "real"), Dec(scenario[k], "nominal") / observed.Inflation[k] - 0.01m,
+                Dec(scenario[k], "nominal") / observed.Inflation[k] + 0.01m);
+        }
+        // Positive control: at the long-term rate alone the figures differ by more than a cent.
+        Assert.True(Math.Abs(Dec(scenario[6], "savings") - Expected(longTerm, true)[6]) > 0.05m);
     }
 
     [Fact]

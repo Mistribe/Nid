@@ -35,4 +35,54 @@ public class ProjectionOverridesTests
         Assert.False(applied.FreedPaymentsToSavings);
         Assert.Equal(Household.ClassRates, applied.ClassRates);
     }
+
+    [Fact]
+    public void Overrides_merge_yearly_tables()
+    {
+        var household = Household with
+        {
+            InflationByYear = new Dictionary<int, decimal> { [2026] = 0.025m, [2027] = 0.022m },
+            ClassRatesByYear = new Dictionary<string, IReadOnlyDictionary<int, decimal>>
+            {
+                [AllocationClasses.Cash] = new Dictionary<int, decimal> { [2026] = 0.03m },
+                [AllocationClasses.MoneyMarket] = new Dictionary<int, decimal> { [2026] = 0.035m },
+            },
+            IncomeGrowth = 0.005m,
+        };
+
+        // C18: an override of the long-term inflation only keeps the household's yearly tables.
+        var longTerm = new ProjectionOverrides(null, 0.03m, null, null, null).Apply(household);
+        Assert.Equal(0.03m, longTerm.Inflation);
+        Assert.Same(household.InflationByYear, longTerm.InflationByYear);
+        Assert.Equal(household.ClassRatesByYear, longTerm.ClassRatesByYear);
+        Assert.Equal(0.005m, longTerm.IncomeGrowth);
+
+        var yearly = new ProjectionOverrides(null, null, null, null, null,
+            InflationByYear: new Dictionary<int, decimal> { [2028] = 0.01m },
+            ClassRatesByYear: new Dictionary<string, IReadOnlyDictionary<int, decimal>>
+            {
+                [AllocationClasses.Cash] = new Dictionary<int, decimal> { [2027] = 0.04m },
+            },
+            IncomeGrowth: 0.01m).Apply(household);
+        Assert.Equal(new Dictionary<int, decimal> { [2028] = 0.01m }, yearly.InflationByYear);
+        Assert.Equal(new Dictionary<int, decimal> { [2027] = 0.04m }, yearly.ClassRatesByYear![AllocationClasses.Cash]);
+        Assert.Equal(new Dictionary<int, decimal> { [2026] = 0.035m }, yearly.ClassRatesByYear[AllocationClasses.MoneyMarket]);
+        Assert.Equal(0.01m, yearly.IncomeGrowth);
+    }
+
+    [Fact]
+    public void A_null_class_table_in_an_override_is_absent()
+    {
+        var household = Household with
+        {
+            ClassRatesByYear = new Dictionary<string, IReadOnlyDictionary<int, decimal>> { [AllocationClasses.Cash] = new Dictionary<int, decimal> { [2026] = 0.03m } },
+        };
+        var overrides = new ProjectionOverrides(null, null, null, null, null,
+            ClassRatesByYear: new Dictionary<string, IReadOnlyDictionary<int, decimal>> { [AllocationClasses.Cash] = null!, [AllocationClasses.MoneyMarket] = null! });
+
+        var applied = overrides.Apply(household);
+
+        Assert.Equal(new Dictionary<int, decimal> { [2026] = 0.03m }, applied.ClassRatesByYear![AllocationClasses.Cash]);
+        Assert.False(applied.ClassRatesByYear.ContainsKey(AllocationClasses.MoneyMarket));
+    }
 }

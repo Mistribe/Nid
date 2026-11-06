@@ -55,7 +55,9 @@ public static class ProjectionEndpoints
 
     /// <summary>The same shape as the view: rates in percent, the savings in the reference currency; a missing member is read as such.</summary>
     public sealed record AssumptionsBody(
-        IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings)
+        IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,
+        IReadOnlyDictionary<string, string>? InflationByYear = null, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? ClassRatesByYear = null,
+        string? IncomeGrowth = null)
     {
         internal ProjectionAssumptions? ToAssumptions(FieldReader reader)
         {
@@ -71,7 +73,15 @@ public static class ProjectionEndpoints
             var savingsClass = reader.Text(SavingsClass, "savingsClass");
             if (FreedPaymentsToSavings is null) reader.Add("freedPaymentsToSavings", "request.required", "This choice is required.");
 
-            return reader.Ok ? new ProjectionAssumptions(rates, inflation!.Value, savings, savingsClass!, FreedPaymentsToSavings!.Value) : null;
+            // Inflation spec C15: the yearly tables and the income growth are optional; a body without them is read as none.
+            decimal? Percent(string? text, string path) => reader.Decimal(text, path);
+            var byYear = ProjectionAssumptionsView.Years(InflationByYear, "inflationByYear", Percent, (path, message) => reader.Add(path, "request.invalid", message));
+            var classYears = ProjectionAssumptionsView.ClassYears(ClassRatesByYear, "classRatesByYear", Percent, (path, message) => reader.Add(path, "request.invalid", message));
+            var growth = reader.Decimal(IncomeGrowth, "incomeGrowth") / 100m;
+
+            return reader.Ok
+                ? new ProjectionAssumptions(rates, inflation!.Value, savings, savingsClass!, FreedPaymentsToSavings!.Value, byYear, classYears, growth ?? 0m)
+                : null;
         }
     }
 }

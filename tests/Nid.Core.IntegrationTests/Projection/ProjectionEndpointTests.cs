@@ -1,8 +1,15 @@
 using System.Net;
+using System.Globalization;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application.Projection;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Projection;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 using static Nid.TestSupport.LoanApi;
+using static Nid.TestSupport.ProjectionApi;
 using static Nid.TestSupport.PropertyApi;
 
 namespace Nid.Core.IntegrationTests.Projection;
@@ -46,6 +53,17 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
     private static List<JsonElement> List(JsonElement view, string name) => view.GetProperty(name).EnumerateArray().ToList();
 
     private static string? Str(JsonElement element, string name) => element.GetProperty(name).GetString();
+
+    private static decimal Dec(JsonElement element, string name) => decimal.Parse(Str(element, name)!, CultureInfo.InvariantCulture);
+
+    private static readonly LocalDate Today = new(2025, 10, 15);
+
+    /// <summary>Point k's real figure is its nominal one divided by <paramref name="i"/>[k], within the cent each side rounds to.</summary>
+    private static void DeflatedBy(IReadOnlyList<decimal> i, List<JsonElement> points, params int[] months)
+    {
+        foreach (var k in months)
+            Assert.InRange(Dec(points[k], "real"), Dec(points[k], "nominal") / i[k] - 0.01m, Dec(points[k], "nominal") / i[k] + 0.01m);
+    }
 
     [Fact]
     public async Task Default_horizon_is_ten_years()
@@ -136,12 +154,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         await using var app = await NidApp.StartAsync(fixture);
         var envelope = await ValuedEnvelopeAsync(app, app.AdultA, "5000.00");
         await ContributionAsync(app, envelope, "2025-05-15", "1200.00");
-        var assumptions = await app.GetAsync<JsonElement>(app.AdultA, "/api/v1/core/projection-assumptions");
-        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
-        {
-            classRates = assumptions.GetProperty("classRates"), inflation = "2", monthlySavings = "500", savingsClass = "cash",
-            freedPaymentsToSavings = true,
-        })).EnsureSuccessStatusCode();
+        await HouseholdSavingsAsync(app, "500");
 
         var view = await ProjectionAsync(app, app.AdultA);
 
@@ -295,5 +308,70 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         var forB = await ProjectionAsync(app, app.AdultB, "?scope=me");
         Assert.Contains(List(forB, "milestones"), m => Str(m, "label") == "Prêt secret");
         Assert.Equal("58100.00", Str(List(forB, "points")[0], "savings"));
+    }
+
+    [Fact]
+    public async Task Projection_uses_the_observed_inflation_this_year() // inflation spec D5, C16
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedCpiAsync(new YearMonth(2025, 9), 3m);
+        await ValuedEnvelopeAsync(app, app.AdultA, "10000.00");
+
+        var view = await ProjectionAsync(app, app.AdultA);
+
+        Assert.Equal("3.0", Str(view, "observedInflation"));
+        // 2025-11 and 2025-12 at the observed 3 %, 2026 at the long-term 2 %.
+        var i = ProjectionRates.Resolve(ProjectionDefaults.Assumptions, 0.03m, Today, 120, []).Inflation;
+        DeflatedBy(i, List(view, "points"), 1, 2, 3, 120);
+        Assert.NotEqual(i[2], ProjectionRates.Resolve(ProjectionDefaults.Assumptions, null, Today, 120, []).Inflation[2]);
+    }
+
+    [Fact]
+    public async Task Non_eur_household_uses_the_long_term_inflation() // inflation spec C7
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedCpiAsync(new YearMonth(2025, 9), 3m);
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { referenceCurrency = "USD" })).EnsureSuccessStatusCode();
+        await HouseholdSavingsAsync(app, "500");
+
+        var view = await ProjectionAsync(app, app.AdultA);
+
+        Assert.Equal(("USD", JsonValueKind.Null), (Str(view, "currency"), view.GetProperty("observedInflation").ValueKind));
+        var i = Enumerable.Range(0, 121).Select(k => (decimal)Math.Pow(1.02, k / 12.0)).ToList();
+        DeflatedBy(i, List(view, "points"), 2, 12, 120);
+    }
+
+    [Fact]
+    public async Task Projection_without_series_uses_the_long_term_inflation()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await HouseholdSavingsAsync(app, "500");
+
+        var view = await ProjectionAsync(app, app.AdultA);
+
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("observedInflation").ValueKind);
+        var i = Enumerable.Range(0, 121).Select(k => (decimal)Math.Pow(1.02, k / 12.0)).ToList();
+        DeflatedBy(i, List(view, "points"), 2, 12, 120);
+    }
+
+    [Fact]
+    public async Task Future_phase_is_indexed_from_its_start() // inflation spec D8, C17
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await IncomeSourceAsync(app, "Salaire", "salary", "2020-01-01", "3000");
+        await IncomeSourceAsync(app, "Retraite", "pension", "2045-01-01", "2000");
+        var assumptions = ProjectionDefaults.Assumptions with { IncomeGrowth = 0.01m };
+
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+        var read = await scope.ServiceProvider.GetRequiredService<ProjectionFactsReader>()
+            .ReadAsync(VisibilityScope.Household, new ProjectionHorizon(20, null), assumptions, RealEstateEvents.None, TestContext.Current.CancellationToken);
+
+        Assert.True(read.TryGetValue(out var reading), read.ToString());
+        var g = ProjectionRates.Resolve(assumptions, null, Today, 240, []).Income;
+        const int pension = 231; // 2045-01: the pension's first month, in euros of that month; the salary runs since before today
+        Assert.Equal(Math.Round(3000m * g[pension - 1], 6), Math.Round(reading!.Inputs.Income[pension - 1], 6));
+        Assert.Equal(Math.Round(3000m * g[pension] + 2000m, 6), Math.Round(reading.Inputs.Income[pension], 6));
+        Assert.Equal(Math.Round(3000m * g[240] + 2000m * g[240] / g[pension], 6), Math.Round(reading.Inputs.Income[240], 6));
     }
 }

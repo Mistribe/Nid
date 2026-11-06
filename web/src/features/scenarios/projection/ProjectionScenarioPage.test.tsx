@@ -261,6 +261,26 @@ describe('ProjectionScenarioPage', () => {
     expect(await screen.findByText('Hypothèses enregistrées.')).toBeInTheDocument();
   });
 
+  it('reopens saved yearly overrides prefilled and sends them back unchanged', async () => {
+    const year = new Date().getFullYear();
+    const yearly = { inflationByYear: { [year]: '2.5' }, classRatesByYear: { cash: { [year + 1]: '3' } }, incomeGrowth: '0.5' };
+    const initial = view();
+    initial.result.document = { ...DOCUMENT, assumptions: yearly };
+    const { puts } = serve(initial);
+    const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+
+    const section = await screen.findByRole('region', { name: 'Hypothèses du scénario' });
+    await user.click(within(section).getByRole('button', { name: 'Modifier les hypothèses' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Modifier les hypothèses' });
+    expect(within(dialog).getByLabelText(`Inflation ${year} (%)`)).toHaveValue('2,5');
+    expect(within(dialog).getByLabelText(`Liquidités ${year + 1} (%)`)).toHaveValue('3');
+    expect(within(dialog).getByLabelText('Évolution des revenus : inflation + x %')).toHaveValue('0,5');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]!.document.assumptions).toEqual(yearly);
+  });
+
   it('renames the scenario', async () => {
     const { puts } = serve();
     const { user } = await renderApp(`/scenarios/projection/${ID}`);

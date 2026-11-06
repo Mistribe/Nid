@@ -20,6 +20,9 @@ public sealed record ProjectionScenarioReading(
     IReadOnlyList<ProjectionMilestone> EventMilestones, string SavingsOrigin)
 {
     public IReadOnlyList<SaleOutcome> Sales { get; init; } = [];
+
+    /// <summary>The observed inflation the scenario's own assumptions use for the current year (see <see cref="ProjectionReading"/>).</summary>
+    public decimal? ObservedInflation { get; init; }
 }
 
 /// <summary>
@@ -112,8 +115,8 @@ public sealed class ProjectionScenarioReader(
     /// </summary>
     public async Task<Failure?> RefusalAsync(ProjectionScenario doc, VisibilityScope scope, CancellationToken ct)
     {
-        if (ProjectionScenarioRefusals.Of(doc, await household.ProjectionAssumptionsAsync(ct)) is { } refused) return refused;
         var today = await calendar.TodayAsync(ct);
+        if (ProjectionScenarioRefusals.Of(doc, await household.ProjectionAssumptionsAsync(ct), today) is { } refused) return refused;
         var span = await facts.MonthsAsync(ProjectionHorizon.From(doc.Horizon), today, ct);
         if (span.TryGetFailure(out var failure)) return FieldErrors.At(failure!, "horizon");
 
@@ -185,6 +188,7 @@ public sealed class ProjectionScenarioReader(
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionScenarioReading>(failure!);
         read.TryGetValue(out var based);
         var today = based!.Inputs.Today;
+        doc = ProjectionScenarios.WithoutPastYears(doc, today); // a stored past year is neither used nor echoed
         var months = based.Inputs.Months;
         var thisMonth = today.ToYearMonth();
         var assumptions = doc.Assumptions.Apply(await household.ProjectionAssumptionsAsync(ct));
@@ -196,6 +200,7 @@ public sealed class ProjectionScenarioReader(
 
         var adjustments = new decimal[months + 1];
         var cashFlows = new decimal[months + 1];
+        var changes = new List<ScheduledChange>();
         var withdrawals = new List<SliceWithdrawal>();
         var repayments = new List<ProjectedRepayment>();
         var penalties = new Dictionary<Guid, decimal>();
@@ -255,9 +260,10 @@ public sealed class ProjectionScenarioReader(
             switch (e.Kind)
             {
                 case ProjectionEventKinds.IncomeChange or ProjectionEventKinds.SavingsChange:
-                    // [start, until): an end on or before the start is an empty interval.
+                    // [start, until): an end on or before the start is an empty interval. The amount is in money of its start month
+                    // (inflation spec C17), indexed by the engine from there.
                     var to = until is { } stop ? Math.Clamp(Month(stop), 0, months + 1) : months + 1;
-                    for (var k = Month(start); k < to; k++) adjustments[k] += e.MonthlyAmount ?? 0m;
+                    changes.Add(new ScheduledChange(Month(start), to, e.MonthlyAmount ?? 0m, e.Kind == ProjectionEventKinds.IncomeChange));
                     break;
                 case ProjectionEventKinds.EarlyRepayment:
                     repayments.Add(new ProjectedRepayment(e.Id, start, e.Amount ?? 0m, e.Split!, e.Loan, e.Effect!));
@@ -321,12 +327,15 @@ public sealed class ProjectionScenarioReader(
 
         var inputs = scenario.Inputs with
         {
-            RealEstate = property, MonthlyAdjustments = adjustments, CashFlows = cashFlows, Withdrawals = withdrawals,
+            RealEstate = property, MonthlyAdjustments = adjustments, CashFlows = cashFlows, Withdrawals = withdrawals, Changes = changes,
             Milestones = [.. scenario.Inputs.Milestones, .. milestones],
         };
         return Result.Success(new ProjectionScenarioReading(
             based, inputs, doc with { Events = kept }, warnings, milestones,
-            doc.Assumptions.MonthlySavings is null ? based.SavingsOrigin : ScenarioSavings) { Sales = realEstate.Sales });
+            doc.Assumptions.MonthlySavings is null ? based.SavingsOrigin : ScenarioSavings)
+        {
+            Sales = realEstate.Sales, ObservedInflation = scenario.ObservedInflation,
+        });
 
         PersonInfo? Person(PersonId id) => people.GetValueOrDefault(id);
 

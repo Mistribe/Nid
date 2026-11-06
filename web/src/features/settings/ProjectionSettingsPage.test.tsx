@@ -13,13 +13,16 @@ const BOB = '22222222-2222-4222-8222-222222222222';
 
 const assumptions = (over: Body = {}) => ({
   classRates: { cash: '1.5', money_market: '2', bond: '3', equity: '6', mixed: '4', capital_guaranteed: '2.5', real_estate: '2', other: '0' },
-  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', ...over,
+  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0', observedInflation: null, ...over,
 });
 
 const observed = {
   lastPublished: '2026-09', last12Months: { to: '2026-09', percent: '1.2' },
   years: [{ year: 2025, percent: '0.9' }, { year: 2024, percent: '2.0' }],
 };
+
+const YEAR = new Date().getFullYear();
+const NEXT = YEAR + 1;
 
 const persons = [
   { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: null, retirementAge: 64 },
@@ -129,6 +132,56 @@ describe('the projection settings page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: '1984-05-20', retirementAge: 64 } }]));
+  });
+
+  it('sends only the typed years and the income growth', async () => {
+    const { puts } = serve(assumptions({ observedInflation: { percent: '3.1', to: '2026-09' } }));
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    expect(await screen.findByText('observée : 3,1 % (12 mois à fin septembre 2026)')).toBeInTheDocument();
+    await user.type(screen.getByLabelText(`Inflation ${YEAR}`), '2,5');
+    await user.type(screen.getByLabelText(`Liquidités ${NEXT}`), '3');
+    const growth = screen.getByLabelText('Évolution des revenus : inflation + x %');
+    await user.clear(growth);
+    await user.type(growth, '0,5');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ inflationByYear: { [YEAR]: '2.5' }, classRatesByYear: { cash: { [NEXT]: '3' } }, incomeGrowth: '0.5' });
+    expect(puts[0]!.classRatesByYear).not.toHaveProperty('money_market');
+  });
+
+  it('reopens the dialog with the saved years and income growth', async () => {
+    serve(assumptions({ inflationByYear: { [YEAR]: '2.5' }, classRatesByYear: { money_market: { [NEXT]: '3.2' } }, incomeGrowth: '0.5', observedInflation: { percent: '3.1', to: '2026-09' } }));
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    expect(await screen.findByLabelText(`Inflation ${YEAR}`)).toHaveValue('2,5');
+    expect(screen.getByLabelText(`Monétaire ${NEXT}`)).toHaveValue('3,2');
+    expect(screen.getByLabelText('Évolution des revenus : inflation + x %')).toHaveValue('0,5');
+    expect(screen.queryByText(/observée : 3,1/)).not.toBeInTheDocument();
+  });
+
+  it('lists the typed years in the summary', async () => {
+    serve(assumptions({ inflationByYear: { [YEAR]: '2.5', [NEXT]: '2.2' }, classRatesByYear: { cash: { [YEAR]: '3' } }, incomeGrowth: '0.5' }));
+    await renderApp('/settings/projection');
+
+    expect(await screen.findByText(`Inflation : ${YEAR} 2,5 %, ${NEXT} 2,2 %, puis 2 %`)).toBeInTheDocument();
+    expect(screen.getByText(`Liquidités : ${YEAR} 3 %, puis 1,5 %`)).toBeInTheDocument();
+    expect(screen.getByText('Évolution des revenus : inflation + 0,5 %')).toBeInTheDocument();
+  });
+
+  it('shows a yearly field error on its field', async () => {
+    serve();
+    server.use(http.put(ASSUMPTIONS, () => HttpResponse.json(
+      { status: 422, code: 'projection.invalid_field', errors: [{ path: `classRatesByYear.cash.${NEXT}`, code: 'projection.invalid_field', message: 'Taux hors limites.' }] },
+      { status: 422, headers: { 'content-type': 'application/problem+json' } })));
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(screen.getByLabelText(`Liquidités ${NEXT}`)).toHaveAccessibleDescription('Taux hors limites.'));
   });
 
   it('has no axe violations', async () => {

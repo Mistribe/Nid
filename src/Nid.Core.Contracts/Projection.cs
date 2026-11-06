@@ -4,10 +4,15 @@ namespace Nid.Core.Contracts;
 
 /// <summary>
 /// Net worth projection spec §2.1: the household's assumptions. Rates and inflation are annual fractions (<c>0.06</c> is 6 %);
-/// <c>MonthlySavings</c> is in the reference currency, <c>null</c> meaning automatic.
+/// <c>MonthlySavings</c> is in the reference currency, <c>null</c> meaning automatic. Inflation spec C15: <c>Inflation</c> and
+/// <c>ClassRates</c> are the long-term rates; <c>InflationByYear</c> and <c>ClassRatesByYear</c> (cash and money market only) set a
+/// calendar year's rate; incomes grow by inflation plus <c>IncomeGrowth</c> (D6).
 /// </summary>
 public sealed record ProjectionAssumptions(
-    IReadOnlyDictionary<string, decimal> ClassRates, decimal Inflation, decimal? MonthlySavings, string SavingsClass, bool FreedPaymentsToSavings);
+    IReadOnlyDictionary<string, decimal> ClassRates, decimal Inflation, decimal? MonthlySavings, string SavingsClass, bool FreedPaymentsToSavings,
+    IReadOnlyDictionary<int, decimal>? InflationByYear = null,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<int, decimal>>? ClassRatesByYear = null,
+    decimal IncomeGrowth = 0m);
 
 /// <summary>What a household that never chose assumptions gets; the property purchase scenario starts from the same rates.</summary>
 public static class ProjectionDefaults
@@ -72,17 +77,33 @@ public sealed record ProjectionEvent(
 
 /// <summary>Spec §6: what a scenario changes of the household's assumptions; a null field keeps the household's.</summary>
 public sealed record ProjectionOverrides(
-    IReadOnlyDictionary<string, decimal>? ClassRates, decimal? Inflation, decimal? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings)
+    IReadOnlyDictionary<string, decimal>? ClassRates, decimal? Inflation, decimal? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,
+    IReadOnlyDictionary<int, decimal>? InflationByYear = null,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<int, decimal>>? ClassRatesByYear = null,
+    decimal? IncomeGrowth = null)
 {
-    /// <summary>Class rates merged key by key, every other field replaced when set.</summary>
+    /// <summary>
+    /// Class rates merged key by key, the yearly class tables class by class; the inflation table replaced whole (C18); every other
+    /// field replaced when set.
+    /// </summary>
     public ProjectionAssumptions Apply(ProjectionAssumptions household)
     {
         var rates = household.ClassRates.ToDictionary(r => r.Key, r => r.Value);
         foreach (var (@class, rate) in ClassRates ?? new Dictionary<string, decimal>())
             rates[@class] = rate;
+        var yearly = household.ClassRatesByYear;
+        if (ClassRatesByYear is not null)
+        {
+            var merged = (household.ClassRatesByYear ?? new Dictionary<string, IReadOnlyDictionary<int, decimal>>()).ToDictionary(c => c.Key, c => c.Value);
+            // A null table (`{"cash": null}` on the wire) is absent: the household's stays.
+            foreach (var (@class, table) in ClassRatesByYear)
+                if (table is not null) merged[@class] = table;
+            yearly = merged;
+        }
         return new ProjectionAssumptions(
             rates, Inflation ?? household.Inflation, MonthlySavings ?? household.MonthlySavings,
-            SavingsClass ?? household.SavingsClass, FreedPaymentsToSavings ?? household.FreedPaymentsToSavings);
+            SavingsClass ?? household.SavingsClass, FreedPaymentsToSavings ?? household.FreedPaymentsToSavings,
+            InflationByYear ?? household.InflationByYear, yearly, IncomeGrowth ?? household.IncomeGrowth);
     }
 }
 

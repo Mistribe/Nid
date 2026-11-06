@@ -15,7 +15,9 @@ public sealed record EventDateView(string? On, Guid? Person, int? Age);
 
 /// <summary>Spec §6: a scenario's assumption overrides, as <see cref="ProjectionAssumptionsView"/> writes them; a null field keeps the household's.</summary>
 public sealed record ProjectionOverridesView(
-    IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings);
+    IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,
+    IReadOnlyDictionary<string, string>? InflationByYear = null, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? ClassRatesByYear = null,
+    string? IncomeGrowth = null);
 
 /// <summary>
 /// Spec §4: one event on the wire, the fields of <see cref="ProjectionEvent"/>; amounts are decimal strings in the reference currency.
@@ -44,7 +46,9 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
             new ProjectionOverridesView(
                 o.ClassRates?.ToDictionary(r => r.Key, r => PropertyPurchaseView.Rate(r.Value)),
                 o.Inflation is { } inflation ? PropertyPurchaseView.Rate(inflation) : null, Optional(o.MonthlySavings), o.SavingsClass,
-                o.FreedPaymentsToSavings),
+                o.FreedPaymentsToSavings, ProjectionAssumptionsView.Years(o.InflationByYear),
+                o.ClassRatesByYear?.Where(c => c.Value is not null).ToDictionary(c => c.Key, c => (IReadOnlyDictionary<string, string>)ProjectionAssumptionsView.Years(c.Value)!),
+                o.IncomeGrowth is { } growth ? PropertyPurchaseView.Rate(growth) : null),
             doc.Events.Select(e => new ProjectionEventView(
                 e.Id, e.Kind, Date(e.Start), e.Until is { } until ? Date(until) : null, e.Label, Optional(e.MonthlyAmount),
                 Optional(e.Amount), e.Split, e.Loan?.Value, e.Effect, Optional(e.Penalty),
@@ -97,7 +101,10 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
                 rates[@class] = percent / 100m;
         var overrides = new ProjectionOverrides(
             a?.ClassRates is null ? null : rates, Decimal(a?.Inflation, "assumptions.inflation") / 100m,
-            Decimal(a?.MonthlySavings, "assumptions.monthlySavings"), a?.SavingsClass, a?.FreedPaymentsToSavings);
+            Decimal(a?.MonthlySavings, "assumptions.monthlySavings"), a?.SavingsClass, a?.FreedPaymentsToSavings,
+            ProjectionAssumptionsView.Years(a?.InflationByYear, "assumptions.inflationByYear", Decimal, Refuse),
+            ProjectionAssumptionsView.ClassYears(a?.ClassRatesByYear, "assumptions.classRatesByYear", Decimal, Refuse),
+            Decimal(a?.IncomeGrowth, "assumptions.incomeGrowth") / 100m);
 
         var events = new List<ProjectionEvent>();
         for (var i = 0; i < (view.Events?.Count ?? 0); i++)
@@ -172,8 +179,10 @@ public sealed record ProjectionComparisonView(
             s.On, PropertyPurchaseView.Amount(s.Nominal - b.Nominal), PropertyPurchaseView.Amount(s.Real - b.Real))).ToList();
         return new ProjectionComparisonView(
             ProjectionView.From(horizon, reading.Base, based),
-            ProjectionView.From(horizon, reading.Base with { Inputs = reading.Scenario, SavingsOrigin = reading.SavingsOrigin }, scenario,
-                reading.ExtraWarnings),
+            ProjectionView.From(horizon, reading.Base with
+            {
+                Inputs = reading.Scenario, SavingsOrigin = reading.SavingsOrigin, ObservedInflation = reading.ObservedInflation,
+            }, scenario, reading.ExtraWarnings),
             gaps, gaps[^1].Nominal, gaps[^1].Real,
             ProjectionDocumentView.From(reading.VisibleDocument));
     }
@@ -184,13 +193,15 @@ public static class ProjectionScenarioRefusals
 {
     /// <summary>
     /// <see cref="ProjectionScenarioRules.Check"/>, then the assumptions the overrides give on <paramref name="household"/>'s, as
-    /// <see cref="ProjectionRules.Check"/> bounds them (fields under <c>assumptions.</c>); null when the document is valid.
+    /// <see cref="ProjectionRules.Check"/> bounds them (fields under <c>assumptions.</c>); null when the document is valid. The
+    /// past years, the household's or the document's, are dropped first, never refused.
     /// </summary>
-    public static Failure? Of(ProjectionScenario doc, ProjectionAssumptions household)
+    public static Failure? Of(ProjectionScenario doc, ProjectionAssumptions household, LocalDate today)
     {
         var errors = ProjectionScenarioRules.Check(doc).ToList();
         if (doc.Assumptions is { } overrides)
-            errors.AddRange(ProjectionRules.Check(overrides.Apply(household)).Select(e => ($"assumptions.{e.Field}", e.Message)));
+            errors.AddRange(ProjectionRules.Check(ProjectionRules.WithoutPastYears(overrides.Apply(household), today), today)
+                .Select(e => ($"assumptions.{e.Field}", e.Message)));
         return errors.Count == 0
             ? null
             : FieldErrors.Many(ProjectionCodes.InvalidField, errors.Count == 1 ? errors[0].Message : "Some fields are not valid.",

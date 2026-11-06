@@ -9,10 +9,10 @@ import { ALICE, comparison, loans, persons, properties, scenarioList } from './t
 const CREATED = '0192f0aa-0000-7000-8000-0000000000d9';
 type Body = { scope: string; document: { horizon: string; assumptions?: Record<string, unknown> | null; events?: Record<string, unknown>[] } };
 
-function serve() {
+function serve(observedInflation: string | null = null) {
   const simulated: Body[] = [];
   const created: unknown[] = [];
-  const base = comparison().base;
+  const base = { ...comparison().base, observedInflation };
   server.use(
     http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
     http.get('*/api/v1/projection', () => HttpResponse.json(base)),
@@ -90,6 +90,35 @@ describe('NewProjectionScenarioPage', () => {
       name: 'Retraite anticipée', visibility: 'shared', scope: 'household', owners: [{ personId: ALICE, shareBp: 10000 }],
       document: { version: 1, horizon: `retire:${ALICE}`, assumptions: { inflation: '3.5' }, events: [REPAYMENT] },
     }]);
+  });
+
+  it('hints the observed inflation on the current year', async () => {
+    serve('3.1');
+    const { user } = await renderApp('/scenarios/new?kind=projection');
+    const year = new Date().getFullYear();
+
+    await general(user);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: 'Changer les hypothèses du foyer' }));
+
+    expect(screen.getByLabelText(`Inflation ${year} (%)`)).toHaveAccessibleDescription(/3,1 %/);
+    expect(screen.getByLabelText(`Inflation ${year + 1} (%)`)).not.toHaveAccessibleDescription(/3,1 %/);
+  });
+
+  it('sends the yearly overrides it was typed', async () => {
+    const { simulated } = serve();
+    const { user } = await renderApp('/scenarios/new?kind=projection');
+    const year = new Date().getFullYear();
+
+    await general(user);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: 'Changer les hypothèses du foyer' }));
+    await user.type(screen.getByLabelText(`Inflation ${year} (%)`), '2,5');
+    await user.type(screen.getByLabelText(`Liquidités ${year + 1} (%)`), '3');
+    await user.type(screen.getByLabelText('Évolution des revenus : inflation + x %'), '0,5');
+    await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({
+      inflationByYear: { [year]: '2.5' }, classRatesByYear: { cash: { [year + 1]: '3' } }, incomeGrowth: '0.5',
+    }));
   });
 
   it('sends no simulation while a typed assumption cannot be read', async () => {

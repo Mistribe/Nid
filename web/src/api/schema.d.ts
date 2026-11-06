@@ -26248,6 +26248,15 @@ export interface components {
             monthlySavings?: null | string;
             savingsClass?: null | string;
             freedPaymentsToSavings?: null | boolean;
+            inflationByYear?: null | {
+                [key: string]: string;
+            };
+            classRatesByYear?: null | {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            incomeGrowth?: null | string;
         };
         AuditActorView: {
             kind: string;
@@ -29663,6 +29672,16 @@ export interface components {
             savingsClass: string;
             freedPaymentsToSavings: boolean;
             currency: string;
+            inflationByYear: {
+                [key: string]: string;
+            };
+            classRatesByYear: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            incomeGrowth: string;
+            observedInflation?: null | components["schemas"]["InflationTwelveMonthsView"];
         };
         ProjectionCompareView: {
             base: components["schemas"]["ProjectionView"];
@@ -29726,6 +29745,15 @@ export interface components {
             monthlySavings?: null | string;
             savingsClass?: null | string;
             freedPaymentsToSavings?: null | boolean;
+            inflationByYear?: null | {
+                [key: string]: string;
+            };
+            classRatesByYear?: null | {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            incomeGrowth?: null | string;
         };
         ProjectionPointView: {
             /** Format: date */
@@ -29761,6 +29789,7 @@ export interface components {
             milestones: components["schemas"]["ProjectionMilestoneView"][];
             warnings: components["schemas"]["ProjectionWarningView"][];
             retirementHorizons: components["schemas"]["RetirementHorizonView"][];
+            observedInflation?: null | string;
         };
         ProjectionWarningView: {
             code: string;

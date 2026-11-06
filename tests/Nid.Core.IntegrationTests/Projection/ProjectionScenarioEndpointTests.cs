@@ -122,6 +122,64 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
     }
 
     [Fact]
+    public async Task Scenario_overrides_round_trip_the_yearly_tables()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var document = new
+        {
+            version = 1, horizon = "10y", events = Array.Empty<object>(),
+            assumptions = new
+            {
+                inflationByYear = new Dictionary<string, string> { ["2026"] = "2.5" },
+                classRatesByYear = new { cash = new Dictionary<string, string> { ["2027"] = "3" } }, incomeGrowth = "0.5",
+            },
+        };
+
+        var id = await SavedAsync(await CreateAsync(app, Body(app, document)));
+
+        var echoed = (await GetAsync(app, id)).GetProperty("result").GetProperty("document").GetProperty("assumptions");
+        Assert.Equal("""{"2026":"2.5"}""", echoed.GetProperty("inflationByYear").GetRawText());
+        Assert.Equal("""{"cash":{"2027":"3"}}""", echoed.GetProperty("classRatesByYear").GetRawText());
+        Assert.Equal("0.5", echoed.GetProperty("incomeGrowth").GetString());
+    }
+
+    [Fact]
+    public async Task Scenario_saved_with_a_past_override_year_drops_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var document = new
+        {
+            version = 1, horizon = "10y", events = Array.Empty<object>(),
+            assumptions = new { inflationByYear = new Dictionary<string, string> { ["2024"] = "9", ["2026"] = "2.5" } },
+        };
+
+        var id = await SavedAsync(await CreateAsync(app, Body(app, document)));
+
+        var echoed = (await GetAsync(app, id)).GetProperty("result").GetProperty("document").GetProperty("assumptions");
+        Assert.Equal("""{"2026":"2.5"}""", echoed.GetProperty("inflationByYear").GetRawText());
+    }
+
+    [Fact]
+    public async Task Stored_past_override_year_is_not_echoed_on_read()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await SavedAsync(await CreateAsync(app, Body(app, Document())));
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            var store = scope.ServiceProvider.GetRequiredService<IScenarioStore>();
+            var stored = (await store.FindAsync(new ItemId(id), TestContext.Current.CancellationToken))!;
+            var past = new Dictionary<int, decimal> { [2024] = 0.09m, [2026] = 0.025m };
+            await store.SaveAsync(stored with { Projection = stored.Projection! with { Assumptions = stored.Projection.Assumptions with { InflationByYear = past } } },
+                TestContext.Current.CancellationToken);
+        }
+
+        var echoed = (await GetAsync(app, id)).GetProperty("result").GetProperty("document").GetProperty("assumptions");
+
+        Assert.Equal("""{"2026":"2.5"}""", echoed.GetProperty("inflationByYear").GetRawText());
+    }
+
+    [Fact]
     public async Task List_shows_both_kinds_with_the_projection_gap()
     {
         await using var app = await NidApp.StartAsync(fixture);

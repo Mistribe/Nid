@@ -28270,6 +28270,33 @@
               "null",
               "boolean"
             ]
+          },
+          "inflationByYear": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "classRatesByYear": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "incomeGrowth": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -43038,7 +43065,10 @@
           "inflation",
           "savingsClass",
           "freedPaymentsToSavings",
-          "currency"
+          "currency",
+          "inflationByYear",
+          "classRatesByYear",
+          "incomeGrowth"
         ],
         "type": "object",
         "properties": {
@@ -43065,6 +43095,34 @@
           },
           "currency": {
             "type": "string"
+          },
+          "inflationByYear": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "classRatesByYear": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "incomeGrowth": {
+            "type": "string"
+          },
+          "observedInflation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InflationTwelveMonthsView"
+              }
+            ]
           }
         }
       },
@@ -43346,6 +43404,33 @@
               "null",
               "boolean"
             ]
+          },
+          "inflationByYear": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "classRatesByYear": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "incomeGrowth": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -43500,6 +43585,12 @@
             "items": {
               "$ref": "#/components/schemas/RetirementHorizonView"
             }
+          },
+          "observedInflation": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

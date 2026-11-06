@@ -92,4 +92,18 @@ public class IncomeTimelineTests
         Assert.Equal((0m, false), IncomeMath.MonthlyEquivalentExtended(phases, Today, D(2026, 12, 31), sourceClosed: false));
         Assert.Equal((2000m, true), IncomeMath.MonthlyEquivalentExtended(phases, Today, D(2027, 6, 30), sourceClosed: false));
     }
+
+    [Fact]
+    public void Parts_sum_to_MonthlyEquivalentExtended_and_flag_the_extended_phase()
+    {
+        var phases = new[] { P("CDD", D(2025, 1, 1), D(2027, 1, 1), 2000m), P("Prime", D(2025, 6, 1), null, 300m) };
+        foreach (var on in new[] { D(2026, 10, 15), D(2027, 3, 31), D(2028, 6, 30) })
+        {
+            var parts = IncomeMath.MonthlyEquivalentExtendedParts(phases, Today, on, sourceClosed: false);
+            var (amount, extended) = IncomeMath.MonthlyEquivalentExtended(phases, Today, on, sourceClosed: false);
+            Assert.Equal(amount, parts.Sum(p => p.Amount));
+            Assert.Equal(extended, parts.Any(p => p.Extended));
+        }
+        Assert.Contains(IncomeMath.MonthlyEquivalentExtendedParts(phases, Today, D(2028, 6, 30), false), p => p.Phase.Label == "CDD" && p.Extended);
+    }
 }

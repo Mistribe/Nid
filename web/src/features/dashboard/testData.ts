@@ -80,7 +80,8 @@ export const projectionPoint = (on: string, over: Partial<HouseholdPoint> = {}):
 /** The projection of a household with savings: today (Oct 2026), two December 31sts and a last month end. */
 export const projection = (over: Partial<Projection> = {}): Projection => ({
   currency: 'EUR', horizon: '10y', horizonOn: '2028-03-31',
-  assumptions: { currency: 'EUR', classRates: { equity: '6.0', cash: '1.5' }, inflation: '2.0', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true },
+  assumptions: { currency: 'EUR', classRates: { equity: '6.0', cash: '1.5' }, inflation: '2.0', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true,
+    inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0' },
   monthlySavings: '500.00', savingsOrigin: 'auto',
   points: [
     projectionPoint('2026-10-27', { nominal: '10000.00', real: '10000.00', realSavings: '4000.00', realProperty: '8000.00', realDebt: '-2000.00' }),

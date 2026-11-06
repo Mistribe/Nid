@@ -14,18 +14,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toFieldAmount } from '../subscriptions/edits/amount';
 import { fieldErrorsOf, messageFor } from '../subscriptions/fieldErrors';
-import { ASSET_CLASSES, PROJECTION, PROJECTION_ASSUMPTIONS } from './api';
+import { monthText } from '@/components/LocalDate';
+import { ASSET_CLASSES, PROJECTION, PROJECTION_ASSUMPTIONS, YEARLY_CLASSES, projectionYears } from './api';
 
 export type Assumptions = {
   classRates: Record<string, string>; inflation: string; monthlySavings?: string | null; savingsClass: string; freedPaymentsToSavings: boolean;
   /** The household reference currency, the unit of the fixed monthly savings. */
   currency: string;
+  /** Yearly rates (percent strings by calendar year) and income growth over inflation. */
+  inflationByYear: Record<string, string>; classRatesByYear: Record<string, Record<string, string>>; incomeGrowth: string;
+  observedInflation?: { percent: string; to: string } | null;
 };
 
 const RATE_PREFIX = 'classRates.';
 
 /** A typed percent as the wire string: a French comma reads as a point, nothing else is touched (the server checks it). */
 const wire = (text: string) => text.trim().replace(',', '.');
+
+/** The typed years only, as the wire reads them: an empty year is not sent. */
+const typed = (byYear: Record<string, string>) => Object.fromEntries(Object.entries(byYear).filter(([, v]) => v.trim()).map(([y, v]) => [y, wire(v)]));
 
 /** The household's growth rates, inflation and savings (« Modifier » of the Hypothèses section); one PUT replaces the document. */
 export function AssumptionsDialog({ current, onClose, onDone }: { current: Assumptions; onClose: () => void; onDone: (message: string) => void }) {
@@ -35,6 +42,10 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
   const save = $api.useMutation('put', PROJECTION_ASSUMPTIONS);
   const [rates, setRates] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(current.classRates).map(([k, v]) => [k, toFieldAmount(v)])));
   const [inflation, setInflation] = useState(toFieldAmount(current.inflation));
+  const [years] = useState(projectionYears);
+  const [inflationYears, setInflationYears] = useState<Record<string, string>>(() => Object.fromEntries(years.map((y) => [y, toFieldAmount(current.inflationByYear[y] ?? '')])));
+  const [classYears, setClassYears] = useState<Record<string, Record<string, string>>>(() => Object.fromEntries(YEARLY_CLASSES.map((c) => [c, Object.fromEntries(years.map((y) => [y, toFieldAmount(current.classRatesByYear[c]?.[y] ?? '')]))])));
+  const [growth, setGrowth] = useState(toFieldAmount(current.incomeGrowth));
   const [mode, setMode] = useState<'auto' | 'amount'>(current.monthlySavings ? 'amount' : 'auto');
   const [amount, setAmount] = useState(toFieldAmount(current.monthlySavings ?? ''));
   const [savingsClass, setSavingsClass] = useState(current.savingsClass);
@@ -44,7 +55,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
 
   const fields = fieldErrorsOf(save.error);
   const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? messageFor(t, f) : undefined; };
-  const placed = (path: string) => path === 'inflation' || path === 'monthlySavings' || path === 'savingsClass'
+  const placed = (path: string) => path === 'inflation' || path === 'incomeGrowth' || /^(inflationByYear|classRatesByYear\.[a-z_]+)\.\d{4}$/.test(path) || path === 'monthlySavings' || path === 'savingsClass'
     || (path.startsWith(RATE_PREFIX) && (ASSET_CLASSES as readonly string[]).includes(path.slice(RATE_PREFIX.length)));
   const unplaced = save.error && !(fields.length > 0 && fields.every((f) => placed(f.path)));
 
@@ -58,6 +69,9 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
             body: {
               classRates: Object.fromEntries(ASSET_CLASSES.map((c) => [c, wire(rates[c] ?? '')])),
               inflation: wire(inflation),
+              inflationByYear: typed(inflationYears),
+              classRatesByYear: Object.fromEntries(YEARLY_CLASSES.flatMap((c): [string, Record<string, string>][] => { const v = typed(classYears[c] ?? {}); return Object.keys(v).length > 0 ? [[c, v]] : []; })),
+              incomeGrowth: wire(growth) || '0',
               monthlySavings: mode === 'amount' ? wire(amount) : null,
               savingsClass,
               freedPaymentsToSavings: freed,
@@ -81,9 +95,36 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
               ))}
             </div>
           </fieldset>
-          <div className="max-w-48">
-            <Field label={t('settings.projection.inflation')} error={errorOf('inflation')}>
-              {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={inflation} onChange={(e) => setInflation(e.target.value)} />}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">{t('settings.projection.inflation_years')}</legend>
+            <div className="grid grid-cols-3 gap-3">
+              {years.map((y) => (
+                <Field key={y} label={t('settings.projection.year_label', { name: t('settings.projection.inflation'), year: y })} error={errorOf(`inflationByYear.${y}`)}
+                  hint={y === years[0] && current.observedInflation && !inflationYears[y]?.trim() ? t('settings.projection.observed_hint', { percent: current.observedInflation.percent.replace('.', ','), month: monthText(current.observedInflation.to) }) : undefined}>
+                  {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" placeholder={y === years[0] && current.observedInflation ? undefined : inflation} value={inflationYears[y] ?? ''} onChange={(e) => setInflationYears((all) => ({ ...all, [y]: e.target.value }))} />}
+                </Field>
+              ))}
+              <Field label={t('settings.projection.long_term')} error={errorOf('inflation')}>
+                {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={inflation} onChange={(e) => setInflation(e.target.value)} />}
+              </Field>
+            </div>
+          </fieldset>
+          {YEARLY_CLASSES.map((c) => (
+            <fieldset key={c} className="space-y-3">
+              <legend className="text-sm font-medium">{t('settings.projection.class_years', { name: t(`settings.projection.class.${c}`) })}</legend>
+              <div className="grid grid-cols-3 gap-3">
+                {years.map((y) => (
+                  <Field key={y} label={t('settings.projection.year_label', { name: t(`settings.projection.class.${c}`), year: y })} error={errorOf(`classRatesByYear.${c}.${y}`)}>
+                    {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" placeholder={rates[c] ?? ''} value={classYears[c]?.[y] ?? ''}
+                      onChange={(e) => setClassYears((all) => ({ ...all, [c]: { ...all[c], [y]: e.target.value } }))} />}
+                  </Field>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+          <div className="max-w-64">
+            <Field label={t('settings.projection.income_growth')} error={errorOf('incomeGrowth')}>
+              {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={growth} onChange={(e) => setGrowth(e.target.value)} />}
             </Field>
           </div>
           <div className="space-y-1">

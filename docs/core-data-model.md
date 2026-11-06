@@ -54,7 +54,7 @@ fx_rate (indépendante)
 | `max_adults` | int | Plafond d'adultes, en attente compris (défaut 2, au moins 1 et au moins le nombre d'adultes). Modifié par un admin (`identity-and-access/administration-and-audit.md` §2) |
 | `timezone` | text | Fuseau IANA (défaut `Europe/Paris`) : jour courant, tâches planifiées |
 | `locale` | text | Langue et formats d'affichage |
-| `projection_assumptions` | jsonb? | Hypothèses de la projection du patrimoine (`superpowers/specs/2026-10-27-networth-projection-design.md` §2.1) : `class_rates` (taux annuel nominal par classe d'actifs, −50 à 50 %), `inflation` (−5 à 20 %, 2 % par défaut), `monthly_savings` (`null` = automatique, sinon un montant signé), `savings_class`, `freed_payments_to_savings`. Absente : les valeurs par défaut. Lue et modifiée par tout adulte (`GET` et `PUT /api/v1/core/projection-assumptions`), à la différence des autres réglages du foyer |
+| `projection_assumptions` | jsonb? | Hypothèses de la projection du patrimoine (`superpowers/specs/2026-10-27-networth-projection-design.md` §2.1) : `ClassRates` (taux annuel nominal par classe d'actifs, −50 à 50 %), `Inflation` (−5 à 20 %, 2 % par défaut), `InflationByYear`, `ClassRatesByYear` (tables année civile → taux, de l'année en cours à +4 ; `cash` et `money_market` seulement), `IncomeGrowth` (évolution des revenus au-delà de l'inflation, −5 à 10 %, 0 par défaut ; #419, PR 3), `MonthlySavings` (`null` = automatique, sinon un montant signé), `SavingsClass`, `FreedPaymentsToSavings` (clés du JSON stocké en PascalCase ; sur l'API, les mêmes en camelCase). Absente : les valeurs par défaut. Lue et modifiée par tout adulte (`GET` et `PUT /api/v1/core/projection-assumptions`), à la différence des autres réglages du foyer |
 
 **`person`**
 
@@ -188,7 +188,7 @@ Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou p
 
 ### 4.7 Scénarios (`scenario`)
 
-Le document d'un scénario « et si », rattaché à un élément du registre (`item`) : le scénario d'achat immobilier (`superpowers/specs/2026-10-22-property-purchase-scenario-design.md` §5) et, depuis la tranche 2 de la #102, le scénario « Projection » (`superpowers/specs/2026-10-27-networth-projection-design.md` §6).
+Le document d'un scénario « et si », rattaché à un élément du registre (`item`) : le scénario d'achat immobilier (`superpowers/specs/2026-10-22-property-purchase-scenario-design.md` §5) et, depuis la tranche 2 de la #102, le scénario « Projection » (`superpowers/specs/2026-10-27-networth-projection-design.md` §6), dont les surcharges portent aussi l'inflation et les taux des liquidités et du monétaire année par année, et l'évolution des revenus (#419, PR 3).
 
 **`scenario`**
 

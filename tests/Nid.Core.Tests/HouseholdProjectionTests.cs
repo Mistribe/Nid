@@ -44,6 +44,24 @@ public class HouseholdProjectionTests
     }
 
     [Fact]
+    public void Cash_grows_at_its_yearly_rate()
+    {
+        var assumptions = Assumptions(cashRate: 0.02m) with
+        {
+            ClassRatesByYear = new Dictionary<string, IReadOnlyDictionary<int, decimal>> { [AllocationClasses.Cash] = new Dictionary<int, decimal> { [2027] = 0.03m } },
+        };
+        var points = Run(10_000m, months: 14, assumptions: assumptions).Points;
+
+        // November and December 2026 at 2 %, then the twelve months of 2027 at 3 %: 10,000 × 1.02^(2/12) × 1.03 = 10,334.05.
+        var m2 = (decimal)Math.Pow(1.02, 1.0 / 12) - 1m;
+        var m3 = (decimal)Math.Pow(1.03, 1.0 / 12) - 1m;
+        var expected = 10_000m;
+        for (var k = 1; k <= 14; k++) expected *= 1m + (k <= 2 ? m2 : m3);
+        Assert.Equal(Math.Round(expected, 2, MidpointRounding.AwayFromZero), points[14].Savings);
+        Assert.Equal(10_334.05m, points[14].Savings);
+    }
+
+    [Fact]
     public void Monthly_savings_go_to_the_savings_class() =>
         Assert.Equal(1_200m, Run(0m, savings: 100m).Points[12].Savings);
 
@@ -127,6 +145,24 @@ public class HouseholdProjectionTests
     {
         var adjustments = new List<decimal> { 0m, 0m }.Concat(Enumerable.Repeat(300m, 11)).ToList();
         Assert.Equal(600m, RunEvents([], adjustments: adjustments).Points[3].Savings);
+    }
+
+    [Fact]
+    public void Changes_are_indexed_from_their_start()
+    {
+        // Inflation spec C17 (events): an income change follows g(k) ÷ g(s), a savings change i(k) ÷ i(s), from its start month s.
+        var assumptions = Assumptions(inflation: 0.02m) with { IncomeGrowth = 0.01m };
+        var rates = ProjectionRates.Resolve(assumptions, null, Today, 12, [AllocationClasses.Cash]);
+        var (g, i) = (rates.Income, rates.Inflation);
+        var points = HouseholdProjection.Project(new(
+            Today, 12, [], Enumerable.Repeat(0m, 13).ToList(), [], 0m, assumptions, [],
+            Changes: [new ScheduledChange(3, 6, 100m, Income: true), new ScheduledChange(6, 13, -50m, Income: false)])).Points;
+
+        Assert.Equal(0m, points[2].Savings);
+        Assert.Equal(100m, points[3].Savings); // in euros of its start month
+        var expected = Enumerable.Range(3, 3).Sum(k => 100m * g[k] / g[3]) + Enumerable.Range(6, 7).Sum(k => -50m * i[k] / i[6]);
+        Assert.Equal(Math.Round(expected, 2, MidpointRounding.AwayFromZero), points[12].Savings);
+        Assert.NotEqual(Math.Round(300m - 350m, 2), points[12].Savings);
     }
 
     [Fact]

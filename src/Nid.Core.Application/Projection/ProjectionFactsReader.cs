@@ -36,6 +36,12 @@ public sealed record ProjectionReading(
 {
     /// <summary>What RealEstate projected, with the outcomes of the scenario's sales and repayments (projection spec §5.2).</summary>
     public RealEstateProjection RealEstate { get; init; } = new([], []);
+
+    /// <summary>
+    /// Inflation spec D5: the last 12 months' observed inflation when it is the rate of the current year's months on the grid; null
+    /// when the year has its own rate, the reference is not EUR, no series is stored, or no month of the year is ahead.
+    /// </summary>
+    public decimal? ObservedInflation { get; init; }
 }
 
 /// <summary>
@@ -44,7 +50,8 @@ public sealed record ProjectionReading(
 /// </summary>
 public sealed class ProjectionFactsReader(
     ScenarioFactsReader scenario, IEnumerable<INetWorthContribution> netWorth, IEnumerable<IIncomeContribution> income,
-    IRealEstateProjection realEstate, IPersonRegistry persons, IActorAccessor actor, IHouseholdSettings household, IFxRates fx)
+    IRealEstateProjection realEstate, IPersonRegistry persons, IActorAccessor actor, IHouseholdSettings household, IFxRates fx,
+    IInflation inflation)
 {
     public const string AutoSavings = "auto";
     public const string HouseholdSavings = "household";
@@ -77,7 +84,7 @@ public sealed class ProjectionFactsReader(
         var thisMonth = today.ToYearMonth();
         var horizonOn = thisMonth.PlusMonths(months).ToDateInterval().End;
 
-        assumptions ??= await household.ProjectionAssumptionsAsync(ct);
+        assumptions = ProjectionRules.WithoutPastYears(assumptions ?? await household.ProjectionAssumptionsAsync(ct), today); // C15
 
         // Spec §2.1: the automatic savings are the last 12 months' net contributions, both ends included.
         var saved = assumptions.MonthlySavings is null
@@ -118,7 +125,16 @@ public sealed class ProjectionFactsReader(
         var slices = now.Savings.Where(s => s.Converted is not null).SelectMany(s => s.Slices).ToList();
 
         var monthlySavings = assumptions.MonthlySavings ?? Converted(contributions!) / 12m;
-        var incomes = Enumerable.Range(0, months + 1).Select(k => Converted(earned!.Select(t => t.Monthly[k]))).ToList();
+        // Inflation spec C7, D5: the current year falls back on the observed inflation, for a EUR household only.
+        var observed = reference == Currency.Eur ? (await inflation.ReadAsync(ct)).Last12Months?.Rate : null;
+        var resolved = ProjectionRates.Resolve(assumptions, observed, today, months, slices.Select(s => s.Class).Append(assumptions.SavingsClass));
+        var growth = resolved.Income;
+        // C17, D8: each part is indexed from the month its amount is in; a timeline without parts (rents) is in today's money.
+        var incomes = Enumerable.Range(0, months + 1).Select(k => earned!
+            .SelectMany(t => t.Parts?[k] ?? t.Monthly[k].Select(m => new TimelinePart(m.Key, m.Value, 0)))
+            .GroupBy(p => p.IndexedFrom)
+            .Sum(from => Converted(from.Select(p => new Dictionary<Currency, decimal> { [p.Currency] = p.Amount })) * growth[k] / growth[from.Key]))
+            .ToList();
 
         var milestones = property!.LoanEnds.Select(e => new ProjectionMilestone(e.On, "loan_end", e.Name, e.Loan))
             .Concat(property.PropertiesFree.Select(p => new ProjectionMilestone(p.On, "property_free", p.Name, p.Property)))
@@ -134,11 +150,15 @@ public sealed class ProjectionFactsReader(
             .OrderBy(r => r.On).ThenBy(r => r.Name, StringComparer.Ordinal)
             .ToList();
 
-        var inputs = new ProjectionInputs(today, months, slices, incomes, property.Months, monthlySavings, assumptions, milestones);
+        var inputs = new ProjectionInputs(today, months, slices, incomes, property.Months, monthlySavings, assumptions, milestones, Rates: resolved);
         return Result.Success(new ProjectionReading(
             inputs, reference, horizonOn, assumptions.MonthlySavings is null ? AutoSavings : HouseholdSavings,
             earned!.SelectMany(t => t.Extended).DistinctBy(e => e.Source).ToList(),
-            missing.Union(property.MissingCurrencies).Order(StringComparer.Ordinal).ToList(), retirements) { RealEstate = property });
+            missing.Union(property.MissingCurrencies).Order(StringComparer.Ordinal).ToList(), retirements)
+        {
+            RealEstate = property,
+            ObservedInflation = ProjectionRules.ShowsObserved(assumptions, today) ? observed : null,
+        });
     }
 
     /// <summary>

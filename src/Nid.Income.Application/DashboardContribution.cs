@@ -51,6 +51,7 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
         for (var k = 1; k <= months; k++)
             dates.Add(thisMonth.PlusMonths(k).ToDateInterval().End);
         var monthly = dates.Select(_ => new Dictionary<Currency, decimal>()).ToList();
+        var parts = dates.Select(_ => new List<TimelinePart>()).ToList();
         var extended = new List<ExtendedSource>();
         foreach (var source in found)
         {
@@ -61,14 +62,22 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
             var wasExtended = false;
             for (var k = 0; k < dates.Count; k++)
             {
-                var (amount, isExtended) = IncomeMath.MonthlyEquivalentExtended(list, today, dates[k], source.EndedOn is not null);
-                monthly[k][currency] = monthly[k].GetValueOrDefault(currency) + amount;
-                wasExtended |= isExtended;
+                var sum = 0m;
+                foreach (var (phase, amount, isExtended) in IncomeMath.MonthlyEquivalentExtendedParts(list, today, dates[k], source.EndedOn is not null))
+                {
+                    // An extension keeps the month of the phase it extends.
+                    var from = phase.StartsOn <= today ? 0 : (phase.StartsOn.Year - today.Year) * 12 + phase.StartsOn.Month - today.Month;
+                    parts[k].Add(new TimelinePart(currency, amount, from));
+                    sum += amount;
+                    wasExtended |= isExtended;
+                }
+                monthly[k][currency] = monthly[k].GetValueOrDefault(currency) + sum;
             }
             if (wasExtended)
                 extended.Add(new ExtendedSource(source.ItemId, item.DisplayName));
         }
-        return Result.Success(new IncomeTimeline(monthly.Select(m => (IReadOnlyDictionary<Currency, decimal>)m).ToList(), extended));
+        return Result.Success(new IncomeTimeline(monthly.Select(m => (IReadOnlyDictionary<Currency, decimal>)m).ToList(), extended,
+            parts.Select(p => (IReadOnlyList<TimelinePart>)p).ToList()));
     }
 }
 

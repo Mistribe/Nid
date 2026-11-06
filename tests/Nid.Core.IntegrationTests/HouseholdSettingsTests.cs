@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.TestSupport;
@@ -127,6 +128,48 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         Assert.Equal((0.07m, 0m), (read.ClassRates[AllocationClasses.Equity], read.ClassRates[AllocationClasses.Cash]));
         Assert.Equal(ProjectionDefaults.ClassRates[AllocationClasses.Bond], read.ClassRates[AllocationClasses.Bond]);
         Assert.Equal(ProjectionDefaults.ClassRates[AllocationClasses.RealEstate], read.ClassRates[AllocationClasses.RealEstate]);
+    }
+
+    [Fact]
+    public async Task Projection_assumptions_round_trip_the_yearly_tables()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var settings = new HouseholdSettings(db);
+        var saved = ProjectionDefaults.Assumptions with
+        {
+            InflationByYear = new Dictionary<int, decimal> { [2026] = 0.025m, [2027] = 0.022m },
+            ClassRatesByYear = new Dictionary<string, IReadOnlyDictionary<int, decimal>>
+            {
+                [AllocationClasses.Cash] = new Dictionary<int, decimal> { [2026] = 0.03m },
+            },
+            IncomeGrowth = 0.005m,
+        };
+        await settings.SaveProjectionAssumptionsAsync(saved, TestContext.Current.CancellationToken);
+
+        var read = await settings.ProjectionAssumptionsAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(saved.InflationByYear, read.InflationByYear);
+        Assert.Equal(saved.ClassRatesByYear[AllocationClasses.Cash], read.ClassRatesByYear![AllocationClasses.Cash]);
+        Assert.Equal(0.005m, read.IncomeGrowth);
+    }
+
+    [Fact]
+    public async Task Old_assumptions_json_reads_with_empty_yearly_tables()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        // The shape stored before the yearly tables (#419 PR 3).
+        var row = await db.HouseholdSettings.FirstOrDefaultAsync(TestContext.Current.CancellationToken)
+            ?? db.HouseholdSettings.Add(new HouseholdSettingsRow()).Entity;
+        row.ProjectionAssumptions =
+            """{"ClassRates":{"cash":0.02,"equity":0.07},"Inflation":0.021,"MonthlySavings":500,"SavingsClass":"cash","FreedPaymentsToSavings":true}""";
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var read = await new HouseholdSettings(db).ProjectionAssumptionsAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(read.InflationByYear is null or { Count: 0 });
+        Assert.True(read.ClassRatesByYear is null or { Count: 0 });
+        Assert.Equal(0m, read.IncomeGrowth);
+        Assert.Equal((0.021m, 500m, 0.07m), (read.Inflation, read.MonthlySavings, read.ClassRates[AllocationClasses.Equity]));
     }
 
     private sealed class FixedClock(Instant now) : IClock

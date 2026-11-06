@@ -124,8 +124,15 @@ public interface IIncomeContribution
 /// <summary>An open source whose phase ends without a successor: the timeline keeps it running (projection spec §3.2) and names it so the screen can warn.</summary>
 public sealed record ExtendedSource(ItemId Source, string Name);
 
-/// <summary><c>Monthly</c> has months + 1 entries (see <see cref="IIncomeContribution.TimelineAsync"/>); <c>Extended</c> lists the sources whose income was carried on.</summary>
-public sealed record IncomeTimeline(IReadOnlyList<IReadOnlyDictionary<Currency, decimal>> Monthly, IReadOnlyList<ExtendedSource> Extended);
+/// <summary>An amount of <c>Monthly[k]</c> and the month it is indexed from (D8): 0 for what runs today or is carried on, else the months from this month to its start.</summary>
+public sealed record TimelinePart(Currency Currency, decimal Amount, int IndexedFrom);
+
+/// <summary>
+/// <c>Monthly</c> has months + 1 entries (see <see cref="IIncomeContribution.TimelineAsync"/>); <c>Extended</c> lists the sources whose income was carried on.
+/// <c>Parts[k]</c> splits <c>Monthly[k]</c> by phase; null reads every amount as indexed from 0.
+/// </summary>
+public sealed record IncomeTimeline(IReadOnlyList<IReadOnlyDictionary<Currency, decimal>> Monthly, IReadOnlyList<ExtendedSource> Extended,
+    IReadOnlyList<IReadOnlyList<TimelinePart>>? Parts = null);
 
 /// <summary>2D2a spec §4: a dated event of « À venir » (or, for <see cref="UpcomingKinds.IncomeGapSoon"/>, of « À faire »). <c>Amount</c> stays in its own currency.</summary>
 public sealed record UpcomingEvent(LocalDate On, string Kind, ItemId Item, string Module, string Name, string? Label, Money? Amount);

@@ -1,3 +1,4 @@
+using Nid.Core.Application.Inflation;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
 using Nid.Core.Domain.Projection;
@@ -32,11 +33,12 @@ public sealed record ProjectionWarningView(string Code, string? Detail);
 /// Spec §7: the base projection. <c>MonthlySavings</c> is the S₀ applied, from the household's assumptions (<c>"household"</c>), the
 /// last 12 months' average (<c>"auto"</c>) or a scenario's own (<c>"scenario"</c>); <c>Horizon</c> is the wire form asked,
 /// <c>HorizonOn</c> the last point's date; <c>RetirementHorizons</c> the retirements the route accepts as a horizon, whatever the horizon asked.
+/// <c>ObservedInflation</c> (inflation spec D5): the observed rate the current year uses, a percent with one decimal (<c>"3.1"</c>), or null.
 /// </summary>
 public sealed record ProjectionView(
     string Currency, string Horizon, LocalDate HorizonOn, ProjectionAssumptionsView Assumptions, string MonthlySavings, string SavingsOrigin,
     IReadOnlyList<HouseholdPointView> Points, IReadOnlyList<ProjectionMilestoneView> Milestones, IReadOnlyList<ProjectionWarningView> Warnings,
-    IReadOnlyList<RetirementHorizonView> RetirementHorizons)
+    IReadOnlyList<RetirementHorizonView> RetirementHorizons, string? ObservedInflation)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Milestones.Select(m => m.Item).OfType<ItemId>();
@@ -56,6 +58,6 @@ public sealed record ProjectionView(
             result.Points.Select(p => new HouseholdPointView(p.On, Amount(p.Nominal), Amount(p.Real), Amount(p.Savings), Amount(p.Property),
                 Amount(p.Debt), Amount(p.SavingsReal), Amount(p.PropertyReal), Amount(p.DebtReal))).ToList(),
             result.Milestones.Select(m => new ProjectionMilestoneView(m.On, m.Kind, m.Label, m.Item)).ToList(),
-            warnings, reading.Retirements);
+            warnings, reading.Retirements, reading.ObservedInflation is { } observed ? CpiViews.Percent(observed) : null);
     }
 }

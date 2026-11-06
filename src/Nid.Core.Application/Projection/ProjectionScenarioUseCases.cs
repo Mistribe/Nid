@@ -29,12 +29,12 @@ public sealed record GetProjectionScenarioQuery(ItemId ItemId) : IQuery<Projecti
 }
 
 [RequestHandler<SimulateProjectionScenarioQuery, ProjectionComparisonView>]
-public sealed class SimulateProjectionScenarioHandler(ProjectionScenarioReader reader, IHouseholdSettings household)
+public sealed class SimulateProjectionScenarioHandler(ProjectionScenarioReader reader, IHouseholdSettings household, IHouseholdCalendar calendar)
     : IRequestHandler<SimulateProjectionScenarioQuery, ProjectionComparisonView>
 {
     public async ValueTask<Result<ProjectionComparisonView>> HandleAsync(SimulateProjectionScenarioQuery query, CancellationToken ct = default)
     {
-        if (ProjectionScenarioRefusals.Of(query.Document, await household.ProjectionAssumptionsAsync(ct)) is { } refused)
+        if (ProjectionScenarioRefusals.Of(query.Document, await household.ProjectionAssumptionsAsync(ct), await calendar.TodayAsync(ct)) is { } refused)
             return Result.Failure<ProjectionComparisonView>(refused);
         var read = await reader.ReadAsync(query.Document, query.Scope, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionComparisonView>(failure!);
@@ -57,6 +57,10 @@ internal static class ProjectionScenarios
             item.Id, item.DisplayName, ScenarioResults.Wire(item.Visibility), stored.Scope == VisibilityScope.Me ? "me" : "household", canWrite,
             ProjectionComparisonView.From(reading!)));
     }
+
+    /// <summary>Inflation spec C15: a saved scenario keeps no yearly override of a past year.</summary>
+    public static ProjectionScenario WithoutPastYears(ProjectionScenario doc, NodaTime.LocalDate today)
+        => doc with { Assumptions = ProjectionRules.WithoutPastYears(doc.Assumptions, today) };
 
     /// <summary>
     /// Spec §6: the writer's document with the stored events they were not shown put back, each at its index when it still fits
@@ -86,11 +90,13 @@ public sealed class GetProjectionScenarioHandler(
 }
 
 [RequestHandler<CreateProjectionScenarioCommand, ItemId>]
-public sealed class CreateProjectionScenarioHandler(IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, IUnitOfWork unitOfWork)
+public sealed class CreateProjectionScenarioHandler(
+    IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, IUnitOfWork unitOfWork, IHouseholdCalendar calendar)
     : IRequestHandler<CreateProjectionScenarioCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateProjectionScenarioCommand command, CancellationToken ct = default)
     {
+        command = command with { Document = ProjectionScenarios.WithoutPastYears(command.Document, await calendar.TodayAsync(ct)) };
         if ((ScenarioResults.Name(command.Name) ?? await reader.RefusalAsync(command.Document, command.Scope, ct)) is { } refused)
             return Result.Failure<ItemId>(refused);
 
@@ -109,7 +115,7 @@ public sealed class CreateProjectionScenarioHandler(IItemRegistry items, IScenar
 [RequestHandler<ReplaceProjectionScenarioCommand, ProjectionScenarioView>]
 public sealed class ReplaceProjectionScenarioHandler(
     IItemRegistry items, IItemRules rules, IScenarioStore store, ProjectionScenarioReader reader, IAccessPolicy policy, IActorAccessor actor,
-    IHouseholdSettings household, IUnitOfWork unitOfWork)
+    IHouseholdSettings household, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
     : IRequestHandler<ReplaceProjectionScenarioCommand, ProjectionScenarioView>
 {
     public async ValueTask<Result<ProjectionScenarioView>> HandleAsync(ReplaceProjectionScenarioCommand command, CancellationToken ct = default)
@@ -126,8 +132,9 @@ public sealed class ReplaceProjectionScenarioHandler(
         // Spec §6: the writer was sent the document without the events on items they cannot see (in the scope it was shown in);
         // those are kept, not re-checked against the writer. The whole must still hold at most 30 events, each id once.
         var hidden = await reader.HiddenAsync(found.Stored.Projection!, found.Stored.Scope, ct);
-        var document = ProjectionScenarios.Merge(command.Document, hidden);
-        if (ProjectionScenarioRefusals.Of(document, await household.ProjectionAssumptionsAsync(ct)) is { } merged)
+        var today = await calendar.TodayAsync(ct);
+        var document = ProjectionScenarios.WithoutPastYears(ProjectionScenarios.Merge(command.Document, hidden), today);
+        if (ProjectionScenarioRefusals.Of(document, await household.ProjectionAssumptionsAsync(ct), today) is { } merged)
             return Result.Failure<ProjectionScenarioView>(merged);
 
         var owners = found.Item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
