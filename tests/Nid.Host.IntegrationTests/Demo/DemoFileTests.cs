@@ -26,10 +26,16 @@ public class DemoFileTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
     private static async Task ImportAsync(ImportClient client, PersonId actor, string file, object adults)
     {
-        var validated = await client.RunAsync(actor, adults, Sections(file));
+        var sections = Sections(file);
+        var validated = await client.RunAsync(actor, adults, sections);
         Assert.True(validated.Report!.Issues.Count == 0, string.Join("; ", validated.Report.Issues.Select(i => $"{i.Severity} {i.Code} at {i.Path}: {i.Message}")));
         var committed = await client.CommitRawAsync(actor, validated.Id);
-        Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
+        var body = await committed.Content.ReadAsStringAsync();
+        Assert.True(committed.IsSuccessStatusCode, body);
+        // A bank link or rule that misses its line or item is skipped and counted unchanged, not refused: every section must write.
+        var idle = JsonDocument.Parse(body).RootElement.GetProperty("report").GetProperty("sections").EnumerateObject()
+            .Where(s => sections.ContainsKey(s.Name) && s.Name != "persons" && s.Value.GetProperty("created").GetInt32() == 0).Select(s => s.Name).ToList();
+        Assert.True(idle.Count == 0, $"Sections of {file} that created nothing: {string.Join(", ", idle)}");
     }
 
     private static Dictionary<string, string> Sections(string file, [CallerFilePath] string here = "")

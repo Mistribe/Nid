@@ -532,11 +532,11 @@
       "ownership": [
         {
           "person": "adult-1",
-          "share_bp": 5000
+          "share_bp": 7000
         },
         {
           "person": "adult-2",
-          "share_bp": 5000
+          "share_bp": 3000
         }
       ]
     },
@@ -547,6 +547,20 @@
       "institution": "Banque Exemple",
       "opened_on": "2012-02-01",
       "closed_on": "2025-03-31",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    },
+    {
+      "id": "env-tech",
+      "name": "Compte-titres actions tech",
+      "kind": "brokerage",
+      "institution": "Courtier en ligne",
+      "opened_on": "2024-10-15",
       "currency": "EUR",
       "ownership": [
         {
@@ -1580,6 +1594,231 @@
       "as_of": "2025-12-31",
       "amount": {
         "amount": "151000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2024-11",
+      "item": "env-tech",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "5880.13",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2024-12",
+      "item": "env-tech",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "5591.61",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-01",
+      "item": "env-tech",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "5512.41",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-02",
+      "item": "env-tech",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "5524.86",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-03",
+      "item": "env-tech",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "5508.89",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-04",
+      "item": "env-tech",
+      "as_of": "2025-04-30",
+      "amount": {
+        "amount": "5594.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-05",
+      "item": "env-tech",
+      "as_of": "2025-05-31",
+      "amount": {
+        "amount": "5605.06",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-06",
+      "item": "env-tech",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "5611.52",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-07",
+      "item": "env-tech",
+      "as_of": "2025-07-31",
+      "amount": {
+        "amount": "5330.49",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-08",
+      "item": "env-tech",
+      "as_of": "2025-08-31",
+      "amount": {
+        "amount": "5403.16",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-09",
+      "item": "env-tech",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "5366.48",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-10",
+      "item": "env-tech",
+      "as_of": "2025-10-31",
+      "amount": {
+        "amount": "5219.35",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-11",
+      "item": "env-tech",
+      "as_of": "2025-11-30",
+      "amount": {
+        "amount": "5015.91",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2025-12",
+      "item": "env-tech",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "4822.45",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-01",
+      "item": "env-tech",
+      "as_of": "2026-01-31",
+      "amount": {
+        "amount": "4578.74",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-02",
+      "item": "env-tech",
+      "as_of": "2026-02-28",
+      "amount": {
+        "amount": "4408.68",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-03",
+      "item": "env-tech",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "4428.26",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-04",
+      "item": "env-tech",
+      "as_of": "2026-04-30",
+      "amount": {
+        "amount": "4224.99",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-05",
+      "item": "env-tech",
+      "as_of": "2026-05-31",
+      "amount": {
+        "amount": "4060.48",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-06",
+      "item": "env-tech",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "4072.41",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-07",
+      "item": "env-tech",
+      "as_of": "2026-07-31",
+      "amount": {
+        "amount": "3903.06",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-08",
+      "item": "env-tech",
+      "as_of": "2026-08-31",
+      "amount": {
+        "amount": "3754.59",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-09",
+      "item": "env-tech",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "3560.48",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-tech-2026-10",
+      "item": "env-tech",
+      "as_of": "2026-10-28",
+      "amount": {
+        "amount": "3416.84",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-parking-2025",
+      "item": "prop-parking",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "21000.00",
         "currency": "EUR"
       }
     }
@@ -3185,6 +3424,16 @@
         "currency": "EUR"
       },
       "note": "Prime de projet"
+    },
+    {
+      "id": "fl-tech-open",
+      "item": "env-tech",
+      "occurred_on": "2024-10-15",
+      "kind": "opening",
+      "amount": {
+        "amount": "6000.00",
+        "currency": "EUR"
+      }
     }
   ],
   "holdings": [
@@ -3663,6 +3912,29 @@
           "share_bp": 10000
         }
       ]
+    },
+    {
+      "id": "prop-parking",
+      "name": "Parking Nantes centre",
+      "property_type": "parking",
+      "currency": "EUR",
+      "purchase_date": "2020-03-12",
+      "purchase_price": {
+        "amount": "19000.00",
+        "currency": "EUR"
+      },
+      "notary_fees": {
+        "amount": "2100.00",
+        "currency": "EUR"
+      },
+      "location_label": "Nantes",
+      "rental_starts_on": "2020-04-01",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
     }
   ],
   "property_recurring_costs": [
@@ -3778,6 +4050,21 @@
       },
       "indexed": true,
       "irl_reference_quarter": 2
+    },
+    {
+      "id": "ten-parking-1",
+      "property": "prop-parking",
+      "label": "Place n° 12",
+      "starts_on": "2020-04-01",
+      "ends_on": "2026-06-30",
+      "rent_monthly": {
+        "amount": "85.00",
+        "currency": "EUR"
+      },
+      "deposit": {
+        "amount": "85.00",
+        "currency": "EUR"
+      }
     }
   ],
   "loans": [
@@ -3938,6 +4225,34 @@
       "note": "Prime placée sur le prêt"
     }
   ],
+  "subscription_insurances": [
+    {
+      "id": "ins-home",
+      "subscription": "sub-home-insurance",
+      "kind": "home",
+      "property": "prop-home",
+      "insured_label": "Maison de Nantes",
+      "policy_number": "MRH-2021-0457",
+      "insurer_contact": "02 40 00 00 00",
+      "guarantees": [
+        {
+          "label": "Incendie et événements climatiques"
+        },
+        {
+          "label": "Dégât des eaux",
+          "deductible": "150 €"
+        },
+        {
+          "label": "Vol et vandalisme",
+          "ceiling": "15 000 €",
+          "deductible": "300 €"
+        },
+        {
+          "label": "Responsabilité civile"
+        }
+      ]
+    }
+  ],
   "income_sources": [
     {
       "id": "inc-alice-salary",
@@ -4055,6 +4370,114 @@
       }
     }
   ],
+  "security_breakdowns": [
+    {
+      "isin": "IE00B4L5Y983",
+      "as_of": "2025-12-31",
+      "regions": [
+        {
+          "code": "north_america",
+          "pct": "73.1"
+        },
+        {
+          "code": "europe_ex_france",
+          "pct": "11.4"
+        },
+        {
+          "code": "france",
+          "pct": "2.6"
+        },
+        {
+          "code": "japan",
+          "pct": "5.4"
+        },
+        {
+          "code": "asia_pacific_ex_japan",
+          "pct": "3.2"
+        },
+        {
+          "code": "other",
+          "pct": "4.3"
+        }
+      ]
+    },
+    {
+      "isin": "IE00B4L5Y983",
+      "as_of": "2026-09-30",
+      "regions": [
+        {
+          "code": "north_america",
+          "pct": "74.2"
+        },
+        {
+          "code": "europe_ex_france",
+          "pct": "10.9"
+        },
+        {
+          "code": "france",
+          "pct": "2.5"
+        },
+        {
+          "code": "japan",
+          "pct": "5.1"
+        },
+        {
+          "code": "asia_pacific_ex_japan",
+          "pct": "3.1"
+        },
+        {
+          "code": "other",
+          "pct": "4.2"
+        }
+      ],
+      "sectors": [
+        {
+          "code": "information_technology",
+          "pct": "26.8"
+        },
+        {
+          "code": "financials",
+          "pct": "16.2"
+        },
+        {
+          "code": "health_care",
+          "pct": "10.1"
+        },
+        {
+          "code": "industrials",
+          "pct": "10.9"
+        },
+        {
+          "code": "consumer_discretionary",
+          "pct": "10.3"
+        },
+        {
+          "code": "communication_services",
+          "pct": "8.4"
+        },
+        {
+          "code": "consumer_staples",
+          "pct": "5.6"
+        },
+        {
+          "code": "energy",
+          "pct": "3.7"
+        },
+        {
+          "code": "materials",
+          "pct": "3.2"
+        },
+        {
+          "code": "utilities",
+          "pct": "2.6"
+        },
+        {
+          "code": "real_estate",
+          "pct": "2.2"
+        }
+      ]
+    }
+  ],
   "goals": [
     {
       "id": "goal-japan",
@@ -4135,6 +4558,3156 @@
           "amount": "2100.00"
         }
       ]
+    }
+  ],
+  "childcare_arrangements": [
+    {
+      "id": "cc-lea",
+      "name": "Assistante maternelle de Léa",
+      "child": "dependent-1",
+      "carer": {
+        "name": "Sophie Martin",
+        "approval": "AM-44-2019-118"
+      },
+      "terms": [
+        {
+          "from": "2025-09-01",
+          "net_hourly_rate": "4.20",
+          "gross_hourly_rate": "5.40",
+          "overtime_pct": "25",
+          "upkeep_per_9h": "3.80",
+          "meal_price": "4.00",
+          "week_types": [
+            {
+              "name": "Semaine type",
+              "weeks": 45,
+              "schedule": [
+                {
+                  "day": 1,
+                  "arrival": "08:30",
+                  "departure": "17:30",
+                  "meal": true
+                },
+                {
+                  "day": 2,
+                  "arrival": "08:30",
+                  "departure": "17:30",
+                  "meal": true
+                },
+                {
+                  "day": 4,
+                  "arrival": "08:30",
+                  "departure": "17:30",
+                  "meal": true
+                },
+                {
+                  "day": 5,
+                  "arrival": "08:30",
+                  "departure": "17:30",
+                  "meal": true
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ]
+    }
+  ],
+  "bank_accounts": [
+    {
+      "ref": "acc-joint",
+      "name": "Compte joint",
+      "iban_last4": "4821",
+      "kind": "checking",
+      "currency": "EUR",
+      "envelope_ref": "env-joint",
+      "owner_ref": "adult-1"
+    },
+    {
+      "ref": "acc-alice",
+      "name": "Compte courant Alice",
+      "iban_last4": "7310",
+      "kind": "checking",
+      "currency": "EUR",
+      "owner_ref": "adult-1"
+    }
+  ],
+  "bank_transactions": [
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2025-11",
+      "fingerprint": "alice-salary-2025-11",
+      "booked_on": "2025-11-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2025-11",
+      "fingerprint": "alice-to-joint-2025-11",
+      "booked_on": "2025-11-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2025-11",
+      "fingerprint": "joint-from-alice-2025-11",
+      "booked_on": "2025-11-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2025-11",
+      "fingerprint": "joint-from-bob-2025-11",
+      "booked_on": "2025-11-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2025-11",
+      "fingerprint": "alice-rent-2025-11",
+      "booked_on": "2025-11-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2025-11",
+      "fingerprint": "alice-loan-2025-11",
+      "booked_on": "2025-11-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2025-11",
+      "fingerprint": "alice-mobile-2025-11",
+      "booked_on": "2025-11-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2025-11",
+      "fingerprint": "alice-icloud-2025-11",
+      "booked_on": "2025-11-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2025-11",
+      "fingerprint": "joint-loan-2025-11",
+      "booked_on": "2025-11-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2025-11",
+      "fingerprint": "joint-spotify-2025-11",
+      "booked_on": "2025-11-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2025-11",
+      "fingerprint": "joint-netflix-2025-11",
+      "booked_on": "2025-11-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2025-11",
+      "fingerprint": "joint-box-2025-11",
+      "booked_on": "2025-11-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2025-11",
+      "fingerprint": "joint-caf-2025-11",
+      "booked_on": "2025-11-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2025-11",
+      "fingerprint": "joint-energy-2025-11",
+      "booked_on": "2025-11-12",
+      "amount": "-141.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2025-11",
+      "fingerprint": "joint-childcare-2025-11",
+      "booked_on": "2025-11-06",
+      "amount": "-587.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-11-0",
+      "fingerprint": "joint-shop-2025-11-0",
+      "booked_on": "2025-11-06",
+      "amount": "-126.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-11-1",
+      "fingerprint": "joint-shop-2025-11-1",
+      "booked_on": "2025-11-12",
+      "amount": "-123.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-11-2",
+      "fingerprint": "joint-shop-2025-11-2",
+      "booked_on": "2025-11-18",
+      "amount": "-121.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-11-3",
+      "fingerprint": "joint-shop-2025-11-3",
+      "booked_on": "2025-11-24",
+      "amount": "-76.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2025-12",
+      "fingerprint": "alice-salary-2025-12",
+      "booked_on": "2025-12-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2025-12",
+      "fingerprint": "alice-to-joint-2025-12",
+      "booked_on": "2025-12-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2025-12",
+      "fingerprint": "joint-from-alice-2025-12",
+      "booked_on": "2025-12-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2025-12",
+      "fingerprint": "joint-from-bob-2025-12",
+      "booked_on": "2025-12-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2025-12",
+      "fingerprint": "alice-rent-2025-12",
+      "booked_on": "2025-12-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2025-12",
+      "fingerprint": "alice-loan-2025-12",
+      "booked_on": "2025-12-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2025-12",
+      "fingerprint": "alice-mobile-2025-12",
+      "booked_on": "2025-12-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2025-12",
+      "fingerprint": "alice-icloud-2025-12",
+      "booked_on": "2025-12-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2025-12",
+      "fingerprint": "joint-loan-2025-12",
+      "booked_on": "2025-12-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2025-12",
+      "fingerprint": "joint-spotify-2025-12",
+      "booked_on": "2025-12-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2025-12",
+      "fingerprint": "joint-netflix-2025-12",
+      "booked_on": "2025-12-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2025-12",
+      "fingerprint": "joint-box-2025-12",
+      "booked_on": "2025-12-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2025-12",
+      "fingerprint": "joint-caf-2025-12",
+      "booked_on": "2025-12-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2025-12",
+      "fingerprint": "joint-energy-2025-12",
+      "booked_on": "2025-12-12",
+      "amount": "-155.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2025-12",
+      "fingerprint": "joint-childcare-2025-12",
+      "booked_on": "2025-12-06",
+      "amount": "-561.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-12-0",
+      "fingerprint": "joint-shop-2025-12-0",
+      "booked_on": "2025-12-06",
+      "amount": "-66.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-12-1",
+      "fingerprint": "joint-shop-2025-12-1",
+      "booked_on": "2025-12-12",
+      "amount": "-62.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-12-2",
+      "fingerprint": "joint-shop-2025-12-2",
+      "booked_on": "2025-12-18",
+      "amount": "-98.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2025-12-3",
+      "fingerprint": "joint-shop-2025-12-3",
+      "booked_on": "2025-12-24",
+      "amount": "-100.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-01",
+      "fingerprint": "alice-salary-2026-01",
+      "booked_on": "2026-01-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-01",
+      "fingerprint": "alice-to-joint-2026-01",
+      "booked_on": "2026-01-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-01",
+      "fingerprint": "joint-from-alice-2026-01",
+      "booked_on": "2026-01-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-01",
+      "fingerprint": "joint-from-bob-2026-01",
+      "booked_on": "2026-01-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-01",
+      "fingerprint": "alice-rent-2026-01",
+      "booked_on": "2026-01-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-01",
+      "fingerprint": "alice-loan-2026-01",
+      "booked_on": "2026-01-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-01",
+      "fingerprint": "alice-mobile-2026-01",
+      "booked_on": "2026-01-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-01",
+      "fingerprint": "alice-icloud-2026-01",
+      "booked_on": "2026-01-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-01",
+      "fingerprint": "joint-loan-2026-01",
+      "booked_on": "2026-01-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-01",
+      "fingerprint": "joint-spotify-2026-01",
+      "booked_on": "2026-01-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-01",
+      "fingerprint": "joint-netflix-2026-01",
+      "booked_on": "2026-01-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-01",
+      "fingerprint": "joint-box-2026-01",
+      "booked_on": "2026-01-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-01",
+      "fingerprint": "joint-caf-2026-01",
+      "booked_on": "2026-01-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-01",
+      "fingerprint": "joint-energy-2026-01",
+      "booked_on": "2026-01-12",
+      "amount": "-112.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-01",
+      "fingerprint": "joint-childcare-2026-01",
+      "booked_on": "2026-01-06",
+      "amount": "-550.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-01-0",
+      "fingerprint": "joint-shop-2026-01-0",
+      "booked_on": "2026-01-06",
+      "amount": "-129.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-01-1",
+      "fingerprint": "joint-shop-2026-01-1",
+      "booked_on": "2026-01-12",
+      "amount": "-79.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-01-2",
+      "fingerprint": "joint-shop-2026-01-2",
+      "booked_on": "2026-01-18",
+      "amount": "-98.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-01-3",
+      "fingerprint": "joint-shop-2026-01-3",
+      "booked_on": "2026-01-24",
+      "amount": "-89.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-02",
+      "fingerprint": "alice-salary-2026-02",
+      "booked_on": "2026-02-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-02",
+      "fingerprint": "alice-to-joint-2026-02",
+      "booked_on": "2026-02-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-02",
+      "fingerprint": "joint-from-alice-2026-02",
+      "booked_on": "2026-02-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-02",
+      "fingerprint": "joint-from-bob-2026-02",
+      "booked_on": "2026-02-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-02",
+      "fingerprint": "alice-rent-2026-02",
+      "booked_on": "2026-02-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-02",
+      "fingerprint": "alice-loan-2026-02",
+      "booked_on": "2026-02-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-02",
+      "fingerprint": "alice-mobile-2026-02",
+      "booked_on": "2026-02-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-02",
+      "fingerprint": "alice-icloud-2026-02",
+      "booked_on": "2026-02-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-02",
+      "fingerprint": "joint-loan-2026-02",
+      "booked_on": "2026-02-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-02",
+      "fingerprint": "joint-spotify-2026-02",
+      "booked_on": "2026-02-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-02",
+      "fingerprint": "joint-netflix-2026-02",
+      "booked_on": "2026-02-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-02",
+      "fingerprint": "joint-box-2026-02",
+      "booked_on": "2026-02-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-02",
+      "fingerprint": "joint-caf-2026-02",
+      "booked_on": "2026-02-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-02",
+      "fingerprint": "joint-energy-2026-02",
+      "booked_on": "2026-02-12",
+      "amount": "-128.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-02",
+      "fingerprint": "joint-childcare-2026-02",
+      "booked_on": "2026-02-06",
+      "amount": "-572.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-02-0",
+      "fingerprint": "joint-shop-2026-02-0",
+      "booked_on": "2026-02-06",
+      "amount": "-114.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-02-1",
+      "fingerprint": "joint-shop-2026-02-1",
+      "booked_on": "2026-02-12",
+      "amount": "-94.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-02-2",
+      "fingerprint": "joint-shop-2026-02-2",
+      "booked_on": "2026-02-18",
+      "amount": "-121.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-02-3",
+      "fingerprint": "joint-shop-2026-02-3",
+      "booked_on": "2026-02-24",
+      "amount": "-67.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-03",
+      "fingerprint": "alice-salary-2026-03",
+      "booked_on": "2026-03-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-03",
+      "fingerprint": "alice-to-joint-2026-03",
+      "booked_on": "2026-03-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-03",
+      "fingerprint": "joint-from-alice-2026-03",
+      "booked_on": "2026-03-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-03",
+      "fingerprint": "joint-from-bob-2026-03",
+      "booked_on": "2026-03-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-03",
+      "fingerprint": "alice-rent-2026-03",
+      "booked_on": "2026-03-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-03",
+      "fingerprint": "alice-loan-2026-03",
+      "booked_on": "2026-03-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-03",
+      "fingerprint": "alice-mobile-2026-03",
+      "booked_on": "2026-03-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-03",
+      "fingerprint": "alice-icloud-2026-03",
+      "booked_on": "2026-03-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-03",
+      "fingerprint": "joint-loan-2026-03",
+      "booked_on": "2026-03-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-03",
+      "fingerprint": "joint-spotify-2026-03",
+      "booked_on": "2026-03-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-03",
+      "fingerprint": "joint-netflix-2026-03",
+      "booked_on": "2026-03-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-03",
+      "fingerprint": "joint-box-2026-03",
+      "booked_on": "2026-03-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-03",
+      "fingerprint": "joint-caf-2026-03",
+      "booked_on": "2026-03-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-03",
+      "fingerprint": "joint-energy-2026-03",
+      "booked_on": "2026-03-12",
+      "amount": "-166.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-03",
+      "fingerprint": "joint-childcare-2026-03",
+      "booked_on": "2026-03-06",
+      "amount": "-568.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-03-0",
+      "fingerprint": "joint-shop-2026-03-0",
+      "booked_on": "2026-03-06",
+      "amount": "-96.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-03-1",
+      "fingerprint": "joint-shop-2026-03-1",
+      "booked_on": "2026-03-12",
+      "amount": "-97.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-03-2",
+      "fingerprint": "joint-shop-2026-03-2",
+      "booked_on": "2026-03-18",
+      "amount": "-122.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-03-3",
+      "fingerprint": "joint-shop-2026-03-3",
+      "booked_on": "2026-03-24",
+      "amount": "-107.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-04",
+      "fingerprint": "alice-salary-2026-04",
+      "booked_on": "2026-04-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-04",
+      "fingerprint": "alice-to-joint-2026-04",
+      "booked_on": "2026-04-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-04",
+      "fingerprint": "joint-from-alice-2026-04",
+      "booked_on": "2026-04-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-04",
+      "fingerprint": "joint-from-bob-2026-04",
+      "booked_on": "2026-04-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-04",
+      "fingerprint": "alice-rent-2026-04",
+      "booked_on": "2026-04-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-04",
+      "fingerprint": "alice-loan-2026-04",
+      "booked_on": "2026-04-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-04",
+      "fingerprint": "alice-mobile-2026-04",
+      "booked_on": "2026-04-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-04",
+      "fingerprint": "alice-icloud-2026-04",
+      "booked_on": "2026-04-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-04",
+      "fingerprint": "joint-loan-2026-04",
+      "booked_on": "2026-04-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-04",
+      "fingerprint": "joint-spotify-2026-04",
+      "booked_on": "2026-04-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-04",
+      "fingerprint": "joint-netflix-2026-04",
+      "booked_on": "2026-04-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-04",
+      "fingerprint": "joint-box-2026-04",
+      "booked_on": "2026-04-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-04",
+      "fingerprint": "joint-caf-2026-04",
+      "booked_on": "2026-04-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-04",
+      "fingerprint": "joint-energy-2026-04",
+      "booked_on": "2026-04-12",
+      "amount": "-108.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-04",
+      "fingerprint": "joint-childcare-2026-04",
+      "booked_on": "2026-04-06",
+      "amount": "-545.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-04-0",
+      "fingerprint": "joint-shop-2026-04-0",
+      "booked_on": "2026-04-06",
+      "amount": "-105.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-04-1",
+      "fingerprint": "joint-shop-2026-04-1",
+      "booked_on": "2026-04-12",
+      "amount": "-67.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-04-2",
+      "fingerprint": "joint-shop-2026-04-2",
+      "booked_on": "2026-04-18",
+      "amount": "-96.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-04-3",
+      "fingerprint": "joint-shop-2026-04-3",
+      "booked_on": "2026-04-24",
+      "amount": "-99.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-05",
+      "fingerprint": "alice-salary-2026-05",
+      "booked_on": "2026-05-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-05",
+      "fingerprint": "alice-to-joint-2026-05",
+      "booked_on": "2026-05-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-05",
+      "fingerprint": "joint-from-alice-2026-05",
+      "booked_on": "2026-05-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-05",
+      "fingerprint": "joint-from-bob-2026-05",
+      "booked_on": "2026-05-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-05",
+      "fingerprint": "alice-rent-2026-05",
+      "booked_on": "2026-05-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-05",
+      "fingerprint": "alice-loan-2026-05",
+      "booked_on": "2026-05-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-05",
+      "fingerprint": "alice-mobile-2026-05",
+      "booked_on": "2026-05-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-05",
+      "fingerprint": "alice-icloud-2026-05",
+      "booked_on": "2026-05-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-05",
+      "fingerprint": "joint-loan-2026-05",
+      "booked_on": "2026-05-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-05",
+      "fingerprint": "joint-spotify-2026-05",
+      "booked_on": "2026-05-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-05",
+      "fingerprint": "joint-netflix-2026-05",
+      "booked_on": "2026-05-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-05",
+      "fingerprint": "joint-box-2026-05",
+      "booked_on": "2026-05-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-05",
+      "fingerprint": "joint-caf-2026-05",
+      "booked_on": "2026-05-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-05",
+      "fingerprint": "joint-energy-2026-05",
+      "booked_on": "2026-05-12",
+      "amount": "-126.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-05",
+      "fingerprint": "joint-childcare-2026-05",
+      "booked_on": "2026-05-06",
+      "amount": "-533.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-05-0",
+      "fingerprint": "joint-shop-2026-05-0",
+      "booked_on": "2026-05-06",
+      "amount": "-102.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-05-1",
+      "fingerprint": "joint-shop-2026-05-1",
+      "booked_on": "2026-05-12",
+      "amount": "-82.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-05-2",
+      "fingerprint": "joint-shop-2026-05-2",
+      "booked_on": "2026-05-18",
+      "amount": "-124.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-05-3",
+      "fingerprint": "joint-shop-2026-05-3",
+      "booked_on": "2026-05-24",
+      "amount": "-106.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-06",
+      "fingerprint": "alice-salary-2026-06",
+      "booked_on": "2026-06-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-06",
+      "fingerprint": "alice-to-joint-2026-06",
+      "booked_on": "2026-06-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-06",
+      "fingerprint": "joint-from-alice-2026-06",
+      "booked_on": "2026-06-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-06",
+      "fingerprint": "joint-from-bob-2026-06",
+      "booked_on": "2026-06-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-06",
+      "fingerprint": "alice-rent-2026-06",
+      "booked_on": "2026-06-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-06",
+      "fingerprint": "alice-loan-2026-06",
+      "booked_on": "2026-06-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-06",
+      "fingerprint": "alice-mobile-2026-06",
+      "booked_on": "2026-06-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-06",
+      "fingerprint": "alice-icloud-2026-06",
+      "booked_on": "2026-06-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-06",
+      "fingerprint": "joint-loan-2026-06",
+      "booked_on": "2026-06-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-06",
+      "fingerprint": "joint-spotify-2026-06",
+      "booked_on": "2026-06-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-06",
+      "fingerprint": "joint-netflix-2026-06",
+      "booked_on": "2026-06-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-06",
+      "fingerprint": "joint-box-2026-06",
+      "booked_on": "2026-06-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-06",
+      "fingerprint": "joint-caf-2026-06",
+      "booked_on": "2026-06-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-06",
+      "fingerprint": "joint-energy-2026-06",
+      "booked_on": "2026-06-12",
+      "amount": "-106.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-06",
+      "fingerprint": "joint-childcare-2026-06",
+      "booked_on": "2026-06-06",
+      "amount": "-582.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-06-0",
+      "fingerprint": "joint-shop-2026-06-0",
+      "booked_on": "2026-06-06",
+      "amount": "-120.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-06-1",
+      "fingerprint": "joint-shop-2026-06-1",
+      "booked_on": "2026-06-12",
+      "amount": "-88.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-06-2",
+      "fingerprint": "joint-shop-2026-06-2",
+      "booked_on": "2026-06-18",
+      "amount": "-103.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-06-3",
+      "fingerprint": "joint-shop-2026-06-3",
+      "booked_on": "2026-06-24",
+      "amount": "-100.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-07",
+      "fingerprint": "alice-salary-2026-07",
+      "booked_on": "2026-07-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-07",
+      "fingerprint": "alice-to-joint-2026-07",
+      "booked_on": "2026-07-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-07",
+      "fingerprint": "joint-from-alice-2026-07",
+      "booked_on": "2026-07-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-07",
+      "fingerprint": "joint-from-bob-2026-07",
+      "booked_on": "2026-07-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-07",
+      "fingerprint": "alice-rent-2026-07",
+      "booked_on": "2026-07-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-07",
+      "fingerprint": "alice-loan-2026-07",
+      "booked_on": "2026-07-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-07",
+      "fingerprint": "alice-mobile-2026-07",
+      "booked_on": "2026-07-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-07",
+      "fingerprint": "alice-icloud-2026-07",
+      "booked_on": "2026-07-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-07",
+      "fingerprint": "joint-loan-2026-07",
+      "booked_on": "2026-07-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-07",
+      "fingerprint": "joint-spotify-2026-07",
+      "booked_on": "2026-07-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-07",
+      "fingerprint": "joint-netflix-2026-07",
+      "booked_on": "2026-07-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-07",
+      "fingerprint": "joint-box-2026-07",
+      "booked_on": "2026-07-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-07",
+      "fingerprint": "joint-caf-2026-07",
+      "booked_on": "2026-07-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-07",
+      "fingerprint": "joint-energy-2026-07",
+      "booked_on": "2026-07-12",
+      "amount": "-130.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-07",
+      "fingerprint": "joint-childcare-2026-07",
+      "booked_on": "2026-07-06",
+      "amount": "-553.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-07-0",
+      "fingerprint": "joint-shop-2026-07-0",
+      "booked_on": "2026-07-06",
+      "amount": "-67.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-07-1",
+      "fingerprint": "joint-shop-2026-07-1",
+      "booked_on": "2026-07-12",
+      "amount": "-70.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-07-2",
+      "fingerprint": "joint-shop-2026-07-2",
+      "booked_on": "2026-07-18",
+      "amount": "-87.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-07-3",
+      "fingerprint": "joint-shop-2026-07-3",
+      "booked_on": "2026-07-24",
+      "amount": "-92.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-08",
+      "fingerprint": "alice-salary-2026-08",
+      "booked_on": "2026-08-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-08",
+      "fingerprint": "alice-to-joint-2026-08",
+      "booked_on": "2026-08-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-08",
+      "fingerprint": "joint-from-alice-2026-08",
+      "booked_on": "2026-08-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-08",
+      "fingerprint": "joint-from-bob-2026-08",
+      "booked_on": "2026-08-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-08",
+      "fingerprint": "alice-loan-2026-08",
+      "booked_on": "2026-08-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-08",
+      "fingerprint": "alice-mobile-2026-08",
+      "booked_on": "2026-08-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-08",
+      "fingerprint": "alice-icloud-2026-08",
+      "booked_on": "2026-08-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-08",
+      "fingerprint": "joint-loan-2026-08",
+      "booked_on": "2026-08-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-08",
+      "fingerprint": "joint-spotify-2026-08",
+      "booked_on": "2026-08-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-08",
+      "fingerprint": "joint-netflix-2026-08",
+      "booked_on": "2026-08-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-08",
+      "fingerprint": "joint-box-2026-08",
+      "booked_on": "2026-08-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-08",
+      "fingerprint": "joint-caf-2026-08",
+      "booked_on": "2026-08-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-08",
+      "fingerprint": "joint-energy-2026-08",
+      "booked_on": "2026-08-12",
+      "amount": "-159.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-08",
+      "fingerprint": "joint-childcare-2026-08",
+      "booked_on": "2026-08-06",
+      "amount": "-555.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-08-0",
+      "fingerprint": "joint-shop-2026-08-0",
+      "booked_on": "2026-08-06",
+      "amount": "-86.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-08-1",
+      "fingerprint": "joint-shop-2026-08-1",
+      "booked_on": "2026-08-12",
+      "amount": "-75.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-08-2",
+      "fingerprint": "joint-shop-2026-08-2",
+      "booked_on": "2026-08-18",
+      "amount": "-101.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-08-3",
+      "fingerprint": "joint-shop-2026-08-3",
+      "booked_on": "2026-08-24",
+      "amount": "-119.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-09",
+      "fingerprint": "alice-salary-2026-09",
+      "booked_on": "2026-09-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-09",
+      "fingerprint": "alice-to-joint-2026-09",
+      "booked_on": "2026-09-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-09",
+      "fingerprint": "joint-from-alice-2026-09",
+      "booked_on": "2026-09-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-09",
+      "fingerprint": "joint-from-bob-2026-09",
+      "booked_on": "2026-09-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-09",
+      "fingerprint": "alice-rent-2026-09",
+      "booked_on": "2026-09-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-09",
+      "fingerprint": "alice-loan-2026-09",
+      "booked_on": "2026-09-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-09",
+      "fingerprint": "alice-mobile-2026-09",
+      "booked_on": "2026-09-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-09",
+      "fingerprint": "alice-icloud-2026-09",
+      "booked_on": "2026-09-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-09",
+      "fingerprint": "joint-loan-2026-09",
+      "booked_on": "2026-09-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-09",
+      "fingerprint": "joint-spotify-2026-09",
+      "booked_on": "2026-09-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-09",
+      "fingerprint": "joint-netflix-2026-09",
+      "booked_on": "2026-09-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-09",
+      "fingerprint": "joint-box-2026-09",
+      "booked_on": "2026-09-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-09",
+      "fingerprint": "joint-caf-2026-09",
+      "booked_on": "2026-09-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-09",
+      "fingerprint": "joint-energy-2026-09",
+      "booked_on": "2026-09-12",
+      "amount": "-136.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-09",
+      "fingerprint": "joint-childcare-2026-09",
+      "booked_on": "2026-09-06",
+      "amount": "-533.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-09-0",
+      "fingerprint": "joint-shop-2026-09-0",
+      "booked_on": "2026-09-06",
+      "amount": "-120.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-09-1",
+      "fingerprint": "joint-shop-2026-09-1",
+      "booked_on": "2026-09-12",
+      "amount": "-115.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-09-2",
+      "fingerprint": "joint-shop-2026-09-2",
+      "booked_on": "2026-09-18",
+      "amount": "-68.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-09-3",
+      "fingerprint": "joint-shop-2026-09-3",
+      "booked_on": "2026-09-24",
+      "amount": "-71.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-insurance-2026",
+      "fingerprint": "joint-insurance-2026",
+      "booked_on": "2026-09-01",
+      "amount": "-312.40",
+      "currency": "EUR",
+      "label": "PRLV ASSUREUR EXEMPLE MRH",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-salary-2026-10",
+      "fingerprint": "alice-salary-2026-10",
+      "booked_on": "2026-10-27",
+      "amount": "3285.00",
+      "currency": "EUR",
+      "label": "VIR SEPA ENTREPRISE EXEMPLE SALAIRE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-10",
+      "fingerprint": "alice-to-joint-2026-10",
+      "booked_on": "2026-10-01",
+      "amount": "-1800.00",
+      "currency": "EUR",
+      "label": "VIR VERS COMPTE JOINT",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-10",
+      "fingerprint": "joint-from-alice-2026-10",
+      "booked_on": "2026-10-01",
+      "amount": "1800.00",
+      "currency": "EUR",
+      "label": "VIR DE ALICE DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-bob-2026-10",
+      "fingerprint": "joint-from-bob-2026-10",
+      "booked_on": "2026-10-02",
+      "amount": "1500.00",
+      "currency": "EUR",
+      "label": "VIR DE BOB DEV",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-10",
+      "fingerprint": "alice-rent-2026-10",
+      "booked_on": "2026-10-03",
+      "amount": "710.00",
+      "currency": "EUR",
+      "label": "VIR LOCATAIRE STUDIO LYON",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-10",
+      "fingerprint": "alice-loan-2026-10",
+      "booked_on": "2026-10-10",
+      "amount": "-572.24",
+      "currency": "EUR",
+      "label": "PRLV CREDIT EXEMPLE ECHEANCE PRET",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-10",
+      "fingerprint": "alice-mobile-2026-10",
+      "booked_on": "2026-10-04",
+      "amount": "-9.99",
+      "currency": "EUR",
+      "label": "PRLV FORFAIT MOBILE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-10",
+      "fingerprint": "alice-icloud-2026-10",
+      "booked_on": "2026-10-15",
+      "amount": "-2.99",
+      "currency": "EUR",
+      "label": "APPLE.COM/BILL ICLOUD",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-10",
+      "fingerprint": "joint-loan-2026-10",
+      "booked_on": "2026-10-05",
+      "amount": "-1103.09",
+      "currency": "EUR",
+      "label": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-10",
+      "fingerprint": "joint-spotify-2026-10",
+      "booked_on": "2026-10-12",
+      "amount": "-17.99",
+      "currency": "EUR",
+      "label": "PRLV SPOTIFY P2A4F81C",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-10",
+      "fingerprint": "joint-netflix-2026-10",
+      "booked_on": "2026-10-05",
+      "amount": "-14.99",
+      "currency": "EUR",
+      "label": "CB NETFLIX.COM",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-10",
+      "fingerprint": "joint-box-2026-10",
+      "booked_on": "2026-10-20",
+      "amount": "-39.99",
+      "currency": "EUR",
+      "label": "PRLV FIBRE MAISON FACTURE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-caf-2026-10",
+      "fingerprint": "joint-caf-2026-10",
+      "booked_on": "2026-10-05",
+      "amount": "148.52",
+      "currency": "EUR",
+      "label": "VIR CAF LOIRE ATLANTIQUE PRESTATIONS",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-energy-2026-10",
+      "fingerprint": "joint-energy-2026-10",
+      "booked_on": "2026-10-12",
+      "amount": "-177.00",
+      "currency": "EUR",
+      "label": "PRLV ENERGIE EXEMPLE",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-childcare-2026-10",
+      "fingerprint": "joint-childcare-2026-10",
+      "booked_on": "2026-10-06",
+      "amount": "-579.00",
+      "currency": "EUR",
+      "label": "PRLV PAJEMPLOI URSSAF",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-10-0",
+      "fingerprint": "joint-shop-2026-10-0",
+      "booked_on": "2026-10-06",
+      "amount": "-107.00",
+      "currency": "EUR",
+      "label": "CB CARREFOUR NANTES",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-10-1",
+      "fingerprint": "joint-shop-2026-10-1",
+      "booked_on": "2026-10-12",
+      "amount": "-111.37",
+      "currency": "EUR",
+      "label": "CB BIOCOOP",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-10-2",
+      "fingerprint": "joint-shop-2026-10-2",
+      "booked_on": "2026-10-18",
+      "amount": "-123.74",
+      "currency": "EUR",
+      "label": "CB MARCHE TALENSAC",
+      "fetched_via": "file"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-shop-2026-10-3",
+      "fingerprint": "joint-shop-2026-10-3",
+      "booked_on": "2026-10-24",
+      "amount": "-76.11",
+      "currency": "EUR",
+      "label": "CB LIDL REZE",
+      "fetched_via": "file"
+    }
+  ],
+  "bank_links": [
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2025-11",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2025-11-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2025-11",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2025-11-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2025-11",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2025-11-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2025-11",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2025-11-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2025-11",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2025-11-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2025-11",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2025-11-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2025-11",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2025-11-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2025-11",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2025-11-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2025-11",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2025-11-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2025-11",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2025-11-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2025-12",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2025-12-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2025-12",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2025-12-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2025-12",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2025-12-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2025-12",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2025-12-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2025-12",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2025-12-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2025-12",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2025-12-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2025-12",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2025-12-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2025-12",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2025-12-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2025-12",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2025-12-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2025-12",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2025-12-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-01",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-01-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-01",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-01-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-01",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-01-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-01",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-01-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-01",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-01-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-01",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-01-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-01",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-01-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-01",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-01-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-01",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-01-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-01",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-01-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-02",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-02-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-02",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-02-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-02",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-02-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-02",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-02-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-02",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-02-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-02",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-02-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-02",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-02-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-02",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-02-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-02",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-02-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-02",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-02-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-03",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-03-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-03",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-03-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-03",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-03-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-03",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-03-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-03",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-03-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-03",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-03-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-03",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-03-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-03",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-03-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-03",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-03-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-03",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-03-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-04",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-04-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-04",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-04-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-04",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-04-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-04",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-04-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-04",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-04-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-04",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-04-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-04",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-04-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-04",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-04-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-04",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-04-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-04",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-04-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-05",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-05-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-05",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-05-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-05",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-05-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-05",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-05-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-05",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-05-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-05",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-05-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-05",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-05-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-05",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-05-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-05",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-05-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-05",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-05-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-06",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-06-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-06",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-06-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-06",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-06-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-06",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-06-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-06",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-06-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-06",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-06-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-06",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-06-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-06",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-06-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-06",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-06-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-06",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-06-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-07",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-07-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-07",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-07-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-07",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-07-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-07",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-07-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-07",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-07-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-07",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-07-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-07",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-07-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-07",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-07-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-07",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-07-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-07",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-07-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-08",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-08-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-08",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-08-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-08",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-08-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-08",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-08-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-08",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-08-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-08",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-08-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-08",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-08-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-08",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-08-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-08",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-08-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-to-joint-2026-09",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-joint",
+      "decided_at": "2026-09-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-from-alice-2026-09",
+      "outcome": "internal_transfer",
+      "counterpart_ref": "acc-alice",
+      "decided_at": "2026-09-01T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-rent-2026-09",
+      "outcome": "income",
+      "target_ref": "prop-studio",
+      "decided_at": "2026-09-03T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-loan-2026-09",
+      "outcome": "as_expected",
+      "target_ref": "loan-studio",
+      "decided_at": "2026-09-10T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-mobile-2026-09",
+      "outcome": "as_expected",
+      "target_ref": "sub-mobile-alice",
+      "decided_at": "2026-09-04T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-alice",
+      "provider_ref": "alice-icloud-2026-09",
+      "outcome": "as_expected",
+      "target_ref": "sub-icloud",
+      "decided_at": "2026-09-15T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-loan-2026-09",
+      "outcome": "as_expected",
+      "target_ref": "loan-home",
+      "decided_at": "2026-09-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-spotify-2026-09",
+      "outcome": "as_expected",
+      "target_ref": "sub-spotify",
+      "decided_at": "2026-09-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-netflix-2026-09",
+      "outcome": "as_expected",
+      "target_ref": "sub-netflix",
+      "decided_at": "2026-09-05T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-box-2026-09",
+      "outcome": "as_expected",
+      "target_ref": "sub-box",
+      "decided_at": "2026-09-20T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "provider_ref": "joint-insurance-2026",
+      "outcome": "as_expected",
+      "target_ref": "sub-home-insurance",
+      "decided_at": "2026-09-01T19:00:00Z"
+    }
+  ],
+  "bank_rules": [
+    {
+      "account_ref": "acc-joint",
+      "label_stem": "PRLV SPOTIFY",
+      "target_ref": "sub-spotify",
+      "created_at": "2025-12-12T19:00:00Z"
+    },
+    {
+      "account_ref": "acc-joint",
+      "label_stem": "PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO",
+      "target_ref": "loan-home",
+      "created_at": "2025-12-05T19:00:00Z"
     }
   ]
 }

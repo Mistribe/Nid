@@ -22,17 +22,18 @@ Pour repartir d'une base vide : `docker volume rm nid-dev-pgdata nid-dev-pocket-
 
 ### Données de démonstration
 
-`deploy/local/demo/` remplit les écrans d'un foyer fictif (Alice, Bob et Léa) : abonnements, comptes et placements, deux biens et
-trois crédits, revenus, objectifs. Les utilisateurs de développement n'ont pas de passkey : un lien à usage unique les connecte.
+`deploy/local/demo/` remplit les écrans d'un foyer fictif (Alice, Bob et Léa) : abonnements et assurance, comptes bancaires et
+opérations, placements et leur répartition, trois biens et trois crédits, revenus, garde, objectifs. Ses dates finissent le mois
+dernier. La pile démarrée (`aspire run`) et Playwright installé (`pnpm --dir web install`) :
 
 ```bash
-node deploy/local/demo/sign-in-link.mjs bob     # ouvrir le lien, puis https://nid.localtest.me : Bob existe dans Nid
-node deploy/local/demo/sign-in-link.mjs alice   # dans une autre fenêtre privée : chaque lien sert une fois
+node deploy/local/demo/load.mjs                 # connecte Bob puis Alice, active la banque, importe, valide les mois de garde
+node deploy/local/demo/sign-in-link.mjs alice   # un lien à usage unique pour se connecter (les utilisateurs n'ont pas de passkey)
 ```
 
-Puis, connecté en Alice, menu Import : `deploy/local/demo/alice.nid.json` ; connecté en Bob, `deploy/local/demo/bob.nid.json` (ses
-éléments à lui, facultatif). Bob doit s'être connecté une fois avant l'import d'Alice, qui partage des éléments avec lui. Les
-fichiers sortent de `node deploy/local/demo/generate.mjs` ; `DemoFileTests` vérifie qu'ils s'importent sans erreur ni avertissement.
+La relancer ne change rien. Une base chargée un autre mois refuse le nouvel import (conflits) : repartir d'une base vide. Les
+fichiers `alice.nid.json` et `bob.nid.json` sortent de `node deploy/local/demo/generate.mjs`, leurs dates figées à octobre 2026 ;
+`DemoFileTests` vérifie qu'ils s'importent sans erreur ni avertissement, chaque section écrivant quelque chose.
 
 ### Frontend (`web/`)
 

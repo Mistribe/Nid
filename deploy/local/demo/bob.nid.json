@@ -350,7 +350,7 @@
       "item": "bob-env-per",
       "as_of": "2024-11-30",
       "amount": {
-        "amount": "10002.08",
+        "amount": "9929.36",
         "currency": "EUR"
       }
     },
@@ -359,7 +359,7 @@
       "item": "bob-env-per",
       "as_of": "2024-12-31",
       "amount": {
-        "amount": "10337.06",
+        "amount": "10388.96",
         "currency": "EUR"
       }
     },
@@ -368,7 +368,7 @@
       "item": "bob-env-per",
       "as_of": "2025-01-31",
       "amount": {
-        "amount": "10428.35",
+        "amount": "10604.33",
         "currency": "EUR"
       }
     },
@@ -377,7 +377,7 @@
       "item": "bob-env-per",
       "as_of": "2025-02-28",
       "amount": {
-        "amount": "10845.56",
+        "amount": "11098.55",
         "currency": "EUR"
       }
     },
@@ -386,7 +386,7 @@
       "item": "bob-env-per",
       "as_of": "2025-03-31",
       "amount": {
-        "amount": "11385.69",
+        "amount": "11104.20",
         "currency": "EUR"
       }
     },
@@ -395,7 +395,7 @@
       "item": "bob-env-per",
       "as_of": "2025-04-30",
       "amount": {
-        "amount": "11417.25",
+        "amount": "11492.32",
         "currency": "EUR"
       }
     },
@@ -404,7 +404,7 @@
       "item": "bob-env-per",
       "as_of": "2025-05-31",
       "amount": {
-        "amount": "11353.62",
+        "amount": "11476.06",
         "currency": "EUR"
       }
     },
@@ -413,7 +413,7 @@
       "item": "bob-env-per",
       "as_of": "2025-06-30",
       "amount": {
-        "amount": "11435.45",
+        "amount": "12058.90",
         "currency": "EUR"
       }
     },
@@ -422,7 +422,7 @@
       "item": "bob-env-per",
       "as_of": "2025-07-31",
       "amount": {
-        "amount": "11473.43",
+        "amount": "12336.16",
         "currency": "EUR"
       }
     },
@@ -431,7 +431,7 @@
       "item": "bob-env-per",
       "as_of": "2025-08-31",
       "amount": {
-        "amount": "11697.28",
+        "amount": "12777.34",
         "currency": "EUR"
       }
     },
@@ -440,7 +440,7 @@
       "item": "bob-env-per",
       "as_of": "2025-09-30",
       "amount": {
-        "amount": "11774.17",
+        "amount": "12891.34",
         "currency": "EUR"
       }
     },
@@ -449,7 +449,7 @@
       "item": "bob-env-per",
       "as_of": "2025-10-31",
       "amount": {
-        "amount": "12223.48",
+        "amount": "13218.12",
         "currency": "EUR"
       }
     },
@@ -458,7 +458,7 @@
       "item": "bob-env-per",
       "as_of": "2025-11-30",
       "amount": {
-        "amount": "12309.95",
+        "amount": "13646.73",
         "currency": "EUR"
       }
     },
@@ -467,7 +467,7 @@
       "item": "bob-env-per",
       "as_of": "2025-12-31",
       "amount": {
-        "amount": "12243.73",
+        "amount": "14291.42",
         "currency": "EUR"
       }
     },
@@ -476,7 +476,7 @@
       "item": "bob-env-per",
       "as_of": "2026-01-31",
       "amount": {
-        "amount": "12284.50",
+        "amount": "14191.88",
         "currency": "EUR"
       }
     },
@@ -485,7 +485,7 @@
       "item": "bob-env-per",
       "as_of": "2026-02-28",
       "amount": {
-        "amount": "12429.55",
+        "amount": "14093.43",
         "currency": "EUR"
       }
     },
@@ -494,7 +494,7 @@
       "item": "bob-env-per",
       "as_of": "2026-03-31",
       "amount": {
-        "amount": "12351.88",
+        "amount": "14391.20",
         "currency": "EUR"
       }
     },
@@ -503,7 +503,7 @@
       "item": "bob-env-per",
       "as_of": "2026-04-30",
       "amount": {
-        "amount": "12849.38",
+        "amount": "14491.35",
         "currency": "EUR"
       }
     },
@@ -512,7 +512,7 @@
       "item": "bob-env-per",
       "as_of": "2026-05-31",
       "amount": {
-        "amount": "12735.32",
+        "amount": "14631.01",
         "currency": "EUR"
       }
     },
@@ -521,7 +521,7 @@
       "item": "bob-env-per",
       "as_of": "2026-06-30",
       "amount": {
-        "amount": "13284.73",
+        "amount": "14637.08",
         "currency": "EUR"
       }
     },
@@ -530,7 +530,7 @@
       "item": "bob-env-per",
       "as_of": "2026-07-31",
       "amount": {
-        "amount": "13209.79",
+        "amount": "15017.44",
         "currency": "EUR"
       }
     },
@@ -539,7 +539,7 @@
       "item": "bob-env-per",
       "as_of": "2026-08-31",
       "amount": {
-        "amount": "13635.95",
+        "amount": "15000.04",
         "currency": "EUR"
       }
     },
@@ -548,7 +548,7 @@
       "item": "bob-env-per",
       "as_of": "2026-09-30",
       "amount": {
-        "amount": "13653.46",
+        "amount": "15061.17",
         "currency": "EUR"
       }
     },
@@ -557,7 +557,7 @@
       "item": "bob-env-per",
       "as_of": "2026-10-28",
       "amount": {
-        "amount": "14150.09",
+        "amount": "15404.31",
         "currency": "EUR"
       }
     }

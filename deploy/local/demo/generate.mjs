@@ -1,6 +1,6 @@
 // Writes the demo household as nid.data files (docs/import-format.md), to fill the screens of a local stack for a visual review.
 // Fictional figures. alice.nid.json is imported by alice (both adults' shared items and hers), bob.nid.json by bob (his own).
-//   node deploy/local/demo/generate.mjs
+//   node deploy/local/demo/generate.mjs   (the checked-in files, which DemoFileTests imports; load.mjs calls household() itself)
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const LAST = '2026-10-28'; // The last fact of the files: no valuation may be in the future of the stack's calendar.
 
 // A deterministic jitter, so that the files only change when this script does.
-let seed = 42;
+let seed;
 const noise = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648 - 0.5) * 2;
 
 const eur = (amount) => ({ amount: amount.toFixed(2), currency: 'EUR' });
@@ -105,7 +105,7 @@ function alice() {
     { id: 'env-livret-a', name: 'Livret A', kind: 'savings', institution: 'Banque Exemple', opened_on: '2016-04-10', currency: 'EUR', ownership: mine(A) },
     { id: 'env-pea', name: 'PEA', kind: 'pea', institution: 'Courtier en ligne', account_hint: '0937', opened_on: '2020-01-15', currency: 'EUR', ownership: mine(A), visibility: 'private' },
     { id: 'env-av', name: 'Assurance-vie', kind: 'life_insurance', institution: 'Assureur Exemple', opened_on: '2022-03-01', currency: 'EUR', ownership: mine(A) },
-    { id: 'env-cto', name: 'Compte-titres commun', kind: 'brokerage', institution: 'Courtier en ligne', opened_on: '2023-05-02', currency: 'EUR', ownership: halves(A, B) },
+    { id: 'env-cto', name: 'Compte-titres commun', kind: 'brokerage', institution: 'Courtier en ligne', opened_on: '2023-05-02', currency: 'EUR', ownership: [{ person: A, share_bp: 7000 }, { person: B, share_bp: 3000 }] },
     { id: 'env-old-livret', name: 'Ancien livret jeune', kind: 'savings', institution: 'Banque Exemple', opened_on: '2012-02-01', closed_on: '2025-03-31', currency: 'EUR', ownership: mine(A) },
   ];
   const valuations = [
@@ -277,10 +277,108 @@ function alice() {
     },
   ];
 
+  // The home insurance in detail, and the region and sector split of the world ETF, at two dates.
+  const subscription_insurances = [
+    {
+      id: 'ins-home', subscription: 'sub-home-insurance', kind: 'home', property: 'prop-home', insured_label: 'Maison de Nantes',
+      policy_number: 'MRH-2021-0457', insurer_contact: '02 40 00 00 00',
+      guarantees: [
+        { label: 'Incendie et événements climatiques' }, { label: 'Dégât des eaux', deductible: '150 €' },
+        { label: 'Vol et vandalisme', ceiling: '15 000 €', deductible: '300 €' }, { label: 'Responsabilité civile' },
+      ],
+    },
+  ];
+  const security_breakdowns = [
+    {
+      isin: 'IE00B4L5Y983', as_of: '2025-12-31',
+      regions: [{ code: 'north_america', pct: '73.1' }, { code: 'europe_ex_france', pct: '11.4' }, { code: 'france', pct: '2.6' }, { code: 'japan', pct: '5.4' }, { code: 'asia_pacific_ex_japan', pct: '3.2' }, { code: 'other', pct: '4.3' }],
+    },
+    {
+      isin: 'IE00B4L5Y983', as_of: '2026-09-30',
+      regions: [{ code: 'north_america', pct: '74.2' }, { code: 'europe_ex_france', pct: '10.9' }, { code: 'france', pct: '2.5' }, { code: 'japan', pct: '5.1' }, { code: 'asia_pacific_ex_japan', pct: '3.1' }, { code: 'other', pct: '4.2' }],
+      sectors: [
+        { code: 'information_technology', pct: '26.8' }, { code: 'financials', pct: '16.2' }, { code: 'health_care', pct: '10.1' }, { code: 'industrials', pct: '10.9' },
+        { code: 'consumer_discretionary', pct: '10.3' }, { code: 'communication_services', pct: '8.4' }, { code: 'consumer_staples', pct: '5.6' },
+        { code: 'energy', pct: '3.7' }, { code: 'materials', pct: '3.2' }, { code: 'utilities', pct: '2.6' }, { code: 'real_estate', pct: '2.2' },
+      ],
+    },
+  ];
+
+  // Léa at a childminder since September 2025, four days a week; load.mjs validates her months through the API, whose figures
+  // the server computes (a file's figures must match them to the cent).
+  const childcare_arrangements = [
+    {
+      id: 'cc-lea', name: 'Assistante maternelle de Léa', child: 'dependent-1', carer: { name: 'Sophie Martin', approval: 'AM-44-2019-118' },
+      terms: [{
+        from: '2025-09-01', net_hourly_rate: '4.20', gross_hourly_rate: '5.40', overtime_pct: '25', upkeep_per_9h: '3.80', meal_price: '4.00',
+        week_types: [{
+          name: 'Semaine type', weeks: 45,
+          schedule: [1, 2, 4, 5].map((day) => ({ day, arrival: '08:30', departure: '17:30', meal: true })),
+        }],
+      }],
+      ownership: halves(A, B),
+    },
+  ];
+
+  // The bank: the joint account (its envelope) and Alice's own, a year of lines. The last month is not reconciled yet: its lines
+  // wait for a link, as after a sync.
+  const bank_accounts = [
+    { ref: 'acc-joint', name: 'Compte joint', iban_last4: '4821', kind: 'checking', currency: 'EUR', envelope_ref: 'env-joint', owner_ref: A },
+    { ref: 'acc-alice', name: 'Compte courant Alice', iban_last4: '7310', kind: 'checking', currency: 'EUR', owner_ref: A },
+  ];
+  const bank_transactions = [];
+  const bank_links = [];
+  const monthly = (principal, rate, count) => (principal * (rate / 12)) / (1 - (1 + rate / 12) ** -count);
+  const homeLoan = Math.round((monthly(265000, 0.0135, 300) + (265000 * 0.0028) / 12) * 100) / 100;
+  const studioLoan = Math.round((monthly(118000, 0.0115, 240) + (118000 * 0.0022) / 12) * 100) / 100;
+  const line = (account, ref, booked_on, amount, label, link) => {
+    bank_transactions.push({ account_ref: account, provider_ref: ref, fingerprint: ref, booked_on, amount: amount.toFixed(2), currency: 'EUR', label, fetched_via: 'file' });
+    if (link) bank_links.push({ account_ref: account, provider_ref: ref, ...link, decided_at: `${booked_on}T19:00:00Z` });
+  };
+  const groceries = ['CB CARREFOUR NANTES', 'CB BIOCOOP', 'CB MARCHE TALENSAC', 'CB LIDL REZE'];
+  for (const [y, m] of months(2025, 11)) {
+    const ym = `${y}-${pad(m)}`;
+    const done = ym < LAST.slice(0, 7); // the last month waits for its links
+    const to = (target_ref, outcome = 'as_expected') => (done ? { outcome, target_ref } : undefined);
+    line('acc-alice', `alice-salary-${ym}`, date(y, m, 27), 3285, 'VIR SEPA ENTREPRISE EXEMPLE SALAIRE');
+    line('acc-alice', `alice-to-joint-${ym}`, date(y, m, 1), -1800, 'VIR VERS COMPTE JOINT', done ? { outcome: 'internal_transfer', counterpart_ref: 'acc-joint' } : undefined);
+    line('acc-joint', `joint-from-alice-${ym}`, date(y, m, 1), 1800, 'VIR DE ALICE DEV', done ? { outcome: 'internal_transfer', counterpart_ref: 'acc-alice' } : undefined);
+    line('acc-joint', `joint-from-bob-${ym}`, date(y, m, 2), 1500, 'VIR DE BOB DEV');
+    if (!(y === 2026 && m === 8)) line('acc-alice', `alice-rent-${ym}`, date(y, m, 3), 710, 'VIR LOCATAIRE STUDIO LYON', to('prop-studio', 'income'));
+    line('acc-alice', `alice-loan-${ym}`, date(y, m, 10), -studioLoan, 'PRLV CREDIT EXEMPLE ECHEANCE PRET', to('loan-studio'));
+    line('acc-alice', `alice-mobile-${ym}`, date(y, m, 4), -9.99, 'PRLV FORFAIT MOBILE', to('sub-mobile-alice'));
+    line('acc-alice', `alice-icloud-${ym}`, date(y, m, 15), -2.99, 'APPLE.COM/BILL ICLOUD', to('sub-icloud'));
+    line('acc-joint', `joint-loan-${ym}`, date(y, m, 5), -homeLoan, 'PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO', to('loan-home'));
+    line('acc-joint', `joint-spotify-${ym}`, date(y, m, 12), -17.99, 'PRLV SPOTIFY P2A4F81C', to('sub-spotify'));
+    line('acc-joint', `joint-netflix-${ym}`, date(y, m, 5), -14.99, 'CB NETFLIX.COM', to('sub-netflix'));
+    line('acc-joint', `joint-box-${ym}`, date(y, m, 20), -39.99, 'PRLV FIBRE MAISON FACTURE', to('sub-box'));
+    line('acc-joint', `joint-caf-${ym}`, date(y, m, 5), 148.52, 'VIR CAF LOIRE ATLANTIQUE PRESTATIONS');
+    line('acc-joint', `joint-energy-${ym}`, date(y, m, 12), -(145 + Math.round(40 * noise())), 'PRLV ENERGIE EXEMPLE');
+    if (ym >= '2025-10') line('acc-joint', `joint-childcare-${ym}`, date(y, m, 6), -(560 + Math.round(30 * noise())), 'PRLV PAJEMPLOI URSSAF');
+    groceries.forEach((label, i) => line('acc-joint', `joint-shop-${ym}-${i}`, date(y, m, 6 + i * 6), -(60 + Math.round(70 * Math.abs(noise())) + 0.37 * i), label));
+    if (m === 9) line('acc-joint', `joint-insurance-${y}`, date(y, m, 1), -312.4, 'PRLV ASSUREUR EXEMPLE MRH', to('sub-home-insurance'));
+  }
+  const bank_rules = [
+    { account_ref: 'acc-joint', label_stem: 'PRLV SPOTIFY', target_ref: 'sub-spotify', created_at: '2025-12-12T19:00:00Z' },
+    { account_ref: 'acc-joint', label_stem: 'PRLV BANQUE EXEMPLE ECHEANCE PRET IMMO', target_ref: 'loan-home', created_at: '2025-12-05T19:00:00Z' },
+  ];
+
+  // Edge cases: an envelope that lost money over the year, and a parking space left vacant since its tenant left in June.
+  envelopes.push({ id: 'env-tech', name: 'Compte-titres actions tech', kind: 'brokerage', institution: 'Courtier en ligne', opened_on: '2024-10-15', currency: 'EUR', ownership: mine(A) });
+  valuations.push(...series('env-tech', [2024, 11], 6000, { rate: -0.012, jitter: 0.04 }));
+  flows.push({ id: 'fl-tech-open', item: 'env-tech', occurred_on: '2024-10-15', kind: 'opening', amount: eur(6000) });
+  properties.push({
+    id: 'prop-parking', name: 'Parking Nantes centre', property_type: 'parking', currency: 'EUR', purchase_date: '2020-03-12', purchase_price: eur(19000),
+    notary_fees: eur(2100), location_label: 'Nantes', rental_starts_on: '2020-04-01', ownership: mine(A),
+  });
+  valuations.push({ id: 'val-parking-2025', item: 'prop-parking', as_of: '2025-12-31', amount: eur(21000) });
+  tenancies.push({ id: 'ten-parking-1', property: 'prop-parking', label: 'Place n° 12', starts_on: '2020-04-01', ends_on: '2026-06-30', rent_monthly: eur(85), deposit: eur(85) });
+
   return {
     persons, providers, subscriptions, billing_phases, purchases, envelopes, valuations, flows, holdings, holding_snapshots, holding_movements,
     properties, property_recurring_costs, tenancies, loans, loan_phases, loan_insurances, loan_fees, loan_events,
-    income_sources, income_phases, income_one_off_taxable, goals,
+    subscription_insurances, income_sources, income_phases, income_one_off_taxable, security_breakdowns, goals,
+    childcare_arrangements, bank_accounts, bank_transactions, bank_links, bank_rules,
   };
 }
 
@@ -327,6 +425,34 @@ function bob() {
   return { persons, providers, subscriptions, billing_phases, envelopes, valuations, flows, income_sources, income_phases };
 }
 
-for (const [name, sections] of [['alice', alice()], ['bob', bob()]]) {
-  writeFileSync(join(here, `${name}.nid.json`), JSON.stringify({ format: 'nid.data', version: 1, ...sections }, null, 2) + '\n');
+/**
+ * Moves every date of a file by `months` whole months: a month's last day stays its last day, a 31st becomes the 30th of a
+ * shorter month. Times keep their part after the date. Ids keep the month they were written with: only their uniqueness counts.
+ */
+export function shiftDates(value, months) {
+  if (months === 0) return value;
+  if (Array.isArray(value)) return value.map((v) => shiftDates(v, months));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shiftDates(v, months)]));
+  const found = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})(T.*)?$/.exec(value);
+  if (!found) return value;
+  const [y, m, d] = [Number(found[1]), Number(found[2]), Number(found[3])];
+  const days = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const at = y * 12 + (m - 1) + months;
+  const [ny, nm] = [Math.floor(at / 12), (at % 12) + 1];
+  const day = d === days(y, m) ? days(ny, nm) : Math.min(d, days(ny, nm));
+  return `${ny}-${pad(nm)}-${pad(day)}${found[4] ?? ''}`;
+}
+
+/** Both files, their last facts in the month `anchor` (`YYYY-MM`); the checked-in files end in LAST's month. */
+export function household(anchor = LAST.slice(0, 7)) {
+  seed = 42;
+  const [ay, am] = anchor.split('-').map(Number);
+  const [ly, lm] = LAST.split('-').map(Number);
+  const months = ay * 12 + am - (ly * 12 + lm);
+  const file = (sections) => shiftDates({ format: 'nid.data', version: 1, ...sections }, months);
+  return { alice: file(alice()), bob: file(bob()) };
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  for (const [name, file] of Object.entries(household())) writeFileSync(join(here, `${name}.nid.json`), JSON.stringify(file, null, 2) + '\n');
 }
