@@ -212,6 +212,13 @@
     "validated": "Relevé validé.",
     "reopened": "Relevé rouvert.",
     "discarded": "Relevé reparti du planning.",
+    "question": {
+      "complementaryHours": "Heures complémentaires effectuées ?",
+      "overtimeHours": "Heures majorées effectuées ?",
+      "paidLeaveDays": "Congés payés versés ?"
+    },
+    "answer_yes": "Oui",
+    "answer_no": "Non",
     "field": {
       "normalHours": "Heures normales",
       "activityDays": "Jours d'activité",
