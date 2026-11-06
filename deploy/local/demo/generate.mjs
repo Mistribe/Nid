@@ -258,7 +258,7 @@ function alice() {
   const income_phases = [
     { id: 'ip-alice-1', source: 'inc-alice-salary', label: 'Salaire de base', starts_on: '2024-01-01', ends_on: '2025-04-01', net_amount: eur(3120), every: every(1, 'month'), gross_amount: eur(4010), taxable_amount: eur(3290) },
     { id: 'ip-alice-2', source: 'inc-alice-salary', label: 'Salaire de base', starts_on: '2025-04-01', net_amount: eur(3285), every: every(1, 'month'), gross_amount: eur(4225), taxable_amount: eur(3465) },
-    { id: 'ip-alice-bonus', source: 'inc-alice-salary', label: 'Prime annuelle', starts_on: '2024-12-20', net_amount: eur(2400), every: every(1, 'year') },
+    { id: 'ip-alice-bonus', source: 'inc-alice-salary', label: 'Prime annuelle', starts_on: '2024-12-20', net_amount: eur(2400), every: every(1, 'year'), gross_amount: eur(3080), taxable_amount: eur(2530) },
     { id: 'ip-caf', source: 'inc-caf', label: 'Allocations', starts_on: '2020-03-05', net_amount: eur(148.52), every: every(1, 'month') },
   ];
   flows.push({ id: 'fl-alice-oneoff', item: 'inc-alice-salary', occurred_on: '2026-06-30', kind: 'income', category: 'one_off', amount: eur(1500), note: 'Prime de projet' });
@@ -418,8 +418,8 @@ function bob() {
     { id: 'bob-inc-freelance', name: 'Missions de traduction', kind: 'self_employment', currency: 'EUR', ownership: [{ person: B, share_bp: 10000 }] },
   ];
   const income_phases = [
-    { id: 'bob-ip-salary-1', source: 'bob-inc-salary', label: 'Traitement', starts_on: '2024-01-01', ends_on: '2026-01-01', net_amount: eur(2480), every: every(1, 'month') },
-    { id: 'bob-ip-salary-2', source: 'bob-inc-salary', label: 'Traitement', starts_on: '2026-01-01', net_amount: eur(2560), every: every(1, 'month') },
+    { id: 'bob-ip-salary-1', source: 'bob-inc-salary', label: 'Traitement', starts_on: '2024-01-01', ends_on: '2026-01-01', net_amount: eur(2480), every: every(1, 'month'), gross_amount: eur(3190), taxable_amount: eur(2610) },
+    { id: 'bob-ip-salary-2', source: 'bob-inc-salary', label: 'Traitement', starts_on: '2026-01-01', net_amount: eur(2560), every: every(1, 'month'), gross_amount: eur(3290), taxable_amount: eur(2695) },
     { id: 'bob-ip-freelance', source: 'bob-inc-freelance', label: 'Missions', starts_on: '2025-01-01', ends_on: '2026-12-31', net_amount: eur(900), every: every(3, 'month') },
   ];
   return { persons, providers, subscriptions, billing_phases, envelopes, valuations, flows, income_sources, income_phases };
@@ -443,12 +443,17 @@ export function shiftDates(value, months) {
   return `${ny}-${pad(nm)}-${pad(day)}${found[4] ?? ''}`;
 }
 
+/** The months from LAST's month to `anchor` (`YYYY-MM`): how far household(anchor) moves the dates. */
+export function offset(anchor) {
+  const [ay, am] = anchor.split('-').map(Number);
+  const [ly, lm] = LAST.split('-').map(Number);
+  return ay * 12 + am - (ly * 12 + lm);
+}
+
 /** Both files, their last facts in the month `anchor` (`YYYY-MM`); the checked-in files end in LAST's month. */
 export function household(anchor = LAST.slice(0, 7)) {
   seed = 42;
-  const [ay, am] = anchor.split('-').map(Number);
-  const [ly, lm] = LAST.split('-').map(Number);
-  const months = ay * 12 + am - (ly * 12 + lm);
+  const months = offset(anchor);
   const file = (sections) => shiftDates({ format: 'nid.data', version: 1, ...sections }, months);
   return { alice: file(alice()), bob: file(bob()) };
 }

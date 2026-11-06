@@ -23,11 +23,11 @@ Pour repartir d'une base vide : `docker volume rm nid-dev-pgdata nid-dev-pocket-
 ### Données de démonstration
 
 `deploy/local/demo/` remplit les écrans d'un foyer fictif (Alice, Bob et Léa) : abonnements et assurance, comptes bancaires et
-opérations, placements et leur répartition, trois biens et trois crédits, revenus, garde, objectifs. Ses dates finissent le mois
-dernier. La pile démarrée (`aspire run`) et Playwright installé (`pnpm --dir web install`) :
+opérations, placements et leur répartition, trois biens et trois crédits, revenus, garde, objectifs, avis d'impôt,
+simulations, documents et indice des prix. Ses dates finissent le mois dernier. La pile démarrée (`aspire run`) et Playwright installé (`pnpm --dir web install`) :
 
 ```bash
-node deploy/local/demo/load.mjs                 # connecte Bob puis Alice, active la banque, importe, valide les mois de garde
+node deploy/local/demo/load.mjs                 # connecte Bob puis Alice, importe les fichiers, puis le reste par l'API
 node deploy/local/demo/sign-in-link.mjs alice   # un lien à usage unique pour se connecter (les utilisateurs n'ont pas de passkey)
 ```
 

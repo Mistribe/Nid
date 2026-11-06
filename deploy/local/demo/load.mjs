@@ -1,5 +1,6 @@
 // Fills a local stack with the demo household in one go: signs Bob and Alice in, switches the bank on, imports both files with
-// their dates ending last month, and validates Léa's childcare months. Running it again changes nothing.
+// their dates ending last month, validates Léa's childcare months, then seeds what the files cannot hold (seed.mjs): tax
+// notices, scenarios, documents, the CPI. Running it again changes nothing.
 // Throwaway: it uses the static API key of the local Pocket ID, and refuses any other host. Never on a real deployment.
 //   node deploy/local/demo/load.mjs        (the stack running: `aspire run`; Playwright installed: `pnpm --dir web install`)
 //   NID_URL (default https://nid.localtest.me), NID_IDP_URL (default https://auth.localtest.me), NID_IDP_API_KEY
@@ -7,7 +8,8 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { household } from './generate.mjs';
+import { household, offset } from './generate.mjs';
+import { seed } from './seed.mjs';
 
 const NID = process.env.NID_URL ?? 'https://nid.localtest.me';
 const IDP = process.env.NID_IDP_URL ?? 'https://auth.localtest.me';
@@ -48,11 +50,14 @@ async function signIn(browser, username) {
   await page.waitForURL((url) => url.pathname === '/dashboard', { timeout: 30_000 }).catch(() => fail(`${username} could not sign in to Nid (${page.url()}).`));
   const { csrf } = await (await context.request.get('/auth/session')).json();
 
-  const call = async (method, path, data) => {
-    const response = await context.request.fetch(path, { method, data, headers: { 'X-Nid-Csrf': csrf } });
-    if (!response.ok()) fail(`${username}: ${method} ${path} -> ${response.status()} ${await response.text()}`);
+  const call = async (method, path, data, { multipart, allow = [] } = {}) => {
+    const response = await context.request.fetch(path, { method, data, multipart, headers: { 'X-Nid-Csrf': csrf } });
+    if (!response.ok() && !allow.includes(response.status())) fail(`${username}: ${method} ${path} -> ${response.status()} ${await response.text()}`);
     return response.status() === 204 ? null : response.json();
   };
+  // The first-visit guides would cover every screen of a demo: marked seen, as web/e2e/session.ts does.
+  const guides = ['dashboard', 'subscriptions', 'investments', 'income', 'properties', 'loans', 'routine', 'import', 'export'];
+  await call('PATCH', '/api/v1/core/me/preferences', { guidesSeen: Object.fromEntries(guides.map((id) => [id, 999])) });
   return { username, call };
 }
 
@@ -77,7 +82,7 @@ async function importFile({ username, call }, file) {
   if (validated.state !== 'validated') {
     const errors = validated.report?.issues ?? [];
     const list = errors.slice(0, 10).map((i) => `  ${i.code} at ${i.path}: ${i.message}`).join('\n');
-    const stale = errors.some((i) => i.code === 'import.conflict') ? '\nThe stack holds a demo of another month: start from an empty base (README, « Données de démonstration »).' : '';
+    const stale = errors.some((i) => i.code === 'import.conflict') ? '\nThe stack holds another version of the demo (another month, or files generated since): start from an empty base (README, « Données de démonstration »).' : '';
     fail(`${username}'s import was refused:\n${list}${stale}`);
   }
   const committed = await call('POST', `/api/v1/platform/imports/${id}/commit`, {});
@@ -112,6 +117,8 @@ try {
   await importFile(alice, files.alice);
   await importFile(bob, files.bob);
   await validateChildcare(alice);
+  const seeded = await seed(alice, anchor, offset(anchor));
+  console.log(`Through the API: ${seeded.length ? seeded.join(', ') : 'nothing new'}.`);
   console.log(`\nDone: ${NID}. To look around, a sign-in link: node deploy/local/demo/sign-in-link.mjs alice`);
 } finally {
   await browser.close();

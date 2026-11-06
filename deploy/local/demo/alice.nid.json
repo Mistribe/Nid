@@ -4344,6 +4344,14 @@
       "every": {
         "count": 1,
         "unit": "year"
+      },
+      "gross_amount": {
+        "amount": "3080.00",
+        "currency": "EUR"
+      },
+      "taxable_amount": {
+        "amount": "2530.00",
+        "currency": "EUR"
       }
     },
     {

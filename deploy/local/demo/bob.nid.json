@@ -1105,6 +1105,14 @@
       "every": {
         "count": 1,
         "unit": "month"
+      },
+      "gross_amount": {
+        "amount": "3190.00",
+        "currency": "EUR"
+      },
+      "taxable_amount": {
+        "amount": "2610.00",
+        "currency": "EUR"
       }
     },
     {
@@ -1119,6 +1127,14 @@
       "every": {
         "count": 1,
         "unit": "month"
+      },
+      "gross_amount": {
+        "amount": "3290.00",
+        "currency": "EUR"
+      },
+      "taxable_amount": {
+        "amount": "2695.00",
+        "currency": "EUR"
       }
     },
     {
