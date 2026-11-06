@@ -114,7 +114,7 @@ public static class JobsSetup
     /// Platform migration; Quartz only validates them. No clustering: one nid instance runs (architecture §10),
     /// and a second instance would be the moment to turn it on, with its own test.
     /// </summary>
-    public static IServiceCollection AddNidJobs(this IServiceCollection services, string connectionString, FxOptions options, PriceOptions prices, IrlOptions irl, Nid.Banking.Contracts.BankingOptions banking,
+    public static IServiceCollection AddNidJobs(this IServiceCollection services, string connectionString, FxOptions options, PriceOptions prices, IrlOptions irl, InflationOptions inflation, Nid.Banking.Contracts.BankingOptions banking,
         string schedulerName)
     {
         services.AddQuartz(schedulerName, q =>
@@ -153,6 +153,12 @@ public static class JobsSetup
                 .ForJob(IrlJobs.WeeklyKey)
                 .WithIdentity("irl-weekly")
                 .WithCronSchedule(irl.WeeklyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
+            q.AddJob<CpiWeeklyJob>(job => job.WithIdentity(InflationJobs.WeeklyKey));
+            q.AddTrigger(t => t
+                .ForJob(InflationJobs.WeeklyKey)
+                .WithIdentity("cpi-weekly")
+                .WithCronSchedule(inflation.WeeklyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc)));
 
             // Hourly: each adult is evaluated once a day, from 06:00 on the household's clock (notifications design §3.3).
             q.AddJob<NotificationsEvaluateJob>(job => job.WithIdentity(NotificationJobs.EvaluateKey));
@@ -198,6 +204,8 @@ public static class JobsSetup
             new QuartzPriceJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.Replace(ServiceDescriptor.Singleton<IIrlJobTrigger>(sp =>
             new QuartzIrlJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
+        services.Replace(ServiceDescriptor.Singleton<ICpiJobTrigger>(sp =>
+            new QuartzCpiJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.Replace(ServiceDescriptor.Singleton<ICatalogJobTrigger>(sp =>
             new QuartzCatalogJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.Replace(ServiceDescriptor.Singleton<IJobStatusReader>(sp =>
@@ -209,6 +217,7 @@ public static class JobsSetup
         services.AddHostedService<NotificationRefreshWorker>();
         services.AddHostedService<FxStartupBackfill>();
         services.AddHostedService<CatalogStartupSync>();
+        services.AddHostedService<CpiStartupCollect>();
         return services;
     }
 }

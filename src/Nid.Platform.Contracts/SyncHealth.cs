@@ -5,7 +5,7 @@ namespace Nid.Platform.Contracts;
 /// <summary>
 /// What one module's run log says about its last runs: <paramref name="LastFinishedFailed"/> when the latest finished run failed,
 /// <paramref name="LastSucceededAt"/> when the latest success finished (the reader dates it in the household's zone).
-/// <paramref name="Source"/>: "fx", "catalog", "prices" or "irl".
+/// <paramref name="Source"/>: "fx", "catalog", "prices", "irl" or "inflation".
 /// </summary>
 public sealed record SyncState(string Source, bool LastFinishedFailed, Instant? LastSucceededAt)
 {

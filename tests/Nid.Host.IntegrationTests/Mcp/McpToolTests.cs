@@ -16,7 +16,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         "get_childcare", "get_childcare_statement", "get_childcare_statements", "get_childcare_year", "list_childcare", "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
         "get_net_worth_history", "get_passive_income", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "get_tax", "get_tax_changes", "list_envelopes",
         "list_bank_transactions", "list_expected_charges", "propose_bank_link", "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_providers", "list_subscriptions", "list_tax_years", "get_projection", "delete_proposal", "get_proposal", "list_proposals", "simulate_projection", "simulate_property_sale", "propose_amortization", "propose_breakdown", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment", "simulate_loan_renegotiation", "compare_loan_insurance", "upload_document", "request_document_upload",
-        "get_month_changes",
+        "get_month_changes", "get_inflation",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
@@ -88,6 +88,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
             SameJson(await app.GetRawAsync(a, "/api/v1/dashboard?scope=household"), await CallAsync(client, "get_dashboard", new { scope = "household" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/dashboard/net-worth?scope=me&period=3y"), await CallAsync(client, "get_net_worth_history", new { scope = "me", period = "3y" }));
+            SameJson(await app.GetRawAsync(a, "/api/v1/core/inflation"), await CallAsync(client, "get_inflation"));
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/overview/income?scope=household"), await CallAsync(client, "get_passive_income"));
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/overview/income?scope=me"), await CallAsync(client, "get_passive_income", new { scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/routine?on=2025-10-01"), await CallAsync(client, "get_routine", new { on = "2025-10-01" }));

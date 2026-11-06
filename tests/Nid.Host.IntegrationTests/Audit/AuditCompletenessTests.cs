@@ -74,6 +74,8 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Nid.Platform.Infrastructure/Admin/JobRunStore.cs"] = 3, // job_run: excluded (a technical journal)
         ["src/Nid.Platform.Infrastructure/Notifications/DeliveryStore.cs"] = 7, // notification_delivery, notification_digest, notification: excluded (the outbox)
         ["src/Nid.Platform.Infrastructure/Persistence/ImportStagingStore.cs"] = 4, // import staging: excluded
+        ["src/Nid.Core.Infrastructure/Persistence/CpiRunLog.cs"] = 3, // cpi_run: excluded
+        ["src/Nid.Core.Infrastructure/Persistence/CpiStore.cs"] = 1, // cpi: excluded (reference data, like fx_rate)
         ["src/Nid.RealEstate.Infrastructure/Persistence/IrlRunLog.cs"] = 3, // irl_run: excluded
         ["src/Nid.RealEstate.Infrastructure/Persistence/IrlStore.cs"] = 1, // irl: excluded (reference data, like fx_rate)
         ["src/Nid.RealEstate.Infrastructure/Persistence/LoanStore.cs"] = 1, // the loan's row lock (3A2 precision 5): writes nothing

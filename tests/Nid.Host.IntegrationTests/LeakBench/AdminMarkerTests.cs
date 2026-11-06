@@ -66,6 +66,16 @@ public class AdminMarkerTests
         Assert.DoesNotContain(irl, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
+    /// <summary>The CPI collection, its trigger, its journal and the manual entry are the admin's; the read of the inflation is not.</summary>
+    [Fact]
+    public void The_cpi_collection_is_admin_only()
+    {
+        Type[] cpi = [typeof(Nid.Core.Application.Inflation.CollectCpiCommand), typeof(Nid.Core.Application.Inflation.RequestCpiSyncCommand),
+            typeof(Nid.Core.Application.Inflation.GetCpiQuery), typeof(Nid.Core.Application.Inflation.SetCpiValueCommand)];
+        Assert.DoesNotContain(cpi, t => !typeof(IAdminOnly).IsAssignableFrom(t));
+        Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Core.Application.Inflation.GetInflationQuery)));
+    }
+
     /// <summary>Adding a subscription needs them, so no admin marker may creep onto them.</summary>
     [Fact]
     public void The_provider_requests_stay_open_to_every_adult()

@@ -15,6 +15,8 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<OwnershipRow> Ownerships => Set<OwnershipRow>();
     public DbSet<FxRateRow> FxRates => Set<FxRateRow>();
     public DbSet<FxSyncRunRow> FxSyncRuns => Set<FxSyncRunRow>();
+    public DbSet<CpiRow> Cpi => Set<CpiRow>();
+    public DbSet<CpiRunRow> CpiRuns => Set<CpiRunRow>();
     public DbSet<ValuationRow> Valuations => Set<ValuationRow>();
     public DbSet<FlowRow> Flows => Set<FlowRow>();
     public DbSet<PersonalAccessTokenRow> PersonalAccessTokens => Set<PersonalAccessTokenRow>();
@@ -45,6 +47,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.MaxAdults).HasDefaultValue(2);
             e.Property(x => x.PricesEnabled).HasDefaultValue(false);
             e.Property(x => x.IrlEnabled).HasDefaultValue(false);
+            e.Property(x => x.InflationEnabled).HasDefaultValue(true);
             e.Property(x => x.BankingEnabled).HasDefaultValue(false);
         });
 
@@ -187,6 +190,29 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.Quote).HasColumnType("char(3)");
             e.Property(x => x.Rate).HasColumnType("numeric(19,10)");
             e.Property(x => x.FetchedAt).HasDefaultValueSql("now()");
+        });
+
+        modelBuilder.Entity<CpiRow>(e =>
+        {
+            e.ToTable("cpi", t =>
+            {
+                t.HasCheckConstraint("ck_cpi_month", "month ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'");
+                t.HasCheckConstraint("ck_cpi_value", "value > 0");
+                t.HasCheckConstraint("ck_cpi_source", "source in ('insee','manual')");
+            });
+            e.HasKey(x => x.Month);
+            e.Property(x => x.Month).ValueGeneratedNever();
+            e.Property(x => x.Value).HasColumnType("numeric(10,4)");
+        });
+
+        modelBuilder.Entity<CpiRunRow>(e =>
+        {
+            e.ToTable("cpi_run", t => t.HasCheckConstraint("ck_cpi_run_status", "status in ('running','succeeded','failed')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // At most one running row: a second start fails on this index.
+            e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'running'");
+            e.HasIndex(x => x.StartedAt);
         });
 
         modelBuilder.Entity<FxSyncRunRow>(e =>

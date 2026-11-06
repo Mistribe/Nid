@@ -447,6 +447,13 @@
     "projection": {
       "title": "Projection",
       "loading": "Chargement des hypothèses",
+      "observed_loading": "Chargement de l’inflation observée",
+      "observed": "Inflation observée",
+      "observed_last12": "Sur 12 mois à fin {{month}} : {{percent}}",
+      "observed_year": "Année",
+      "observed_percent": "Inflation",
+      "observed_source": "Source : INSEE, IPC base 2025, ensemble des ménages, France. Dernier mois publié : {{month}}.",
+      "observed_unavailable": "Inflation observée indisponible.",
       "assumptions": "Hypothèses",
       "assumptions_title": "Hypothèses de projection",
       "assumptions_saved": "Hypothèses enregistrées.",

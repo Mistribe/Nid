@@ -16,17 +16,23 @@ const assumptions = (over: Body = {}) => ({
   inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', ...over,
 });
 
+const observed = {
+  lastPublished: '2026-09', last12Months: { to: '2026-09', percent: '1.2' },
+  years: [{ year: 2025, percent: '0.9' }, { year: 2024, percent: '2.0' }],
+};
+
 const persons = [
   { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: null, retirementAge: 64 },
   { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62 },
 ];
 
-function serve(initial: Body = assumptions()) {
+function serve(initial: Body = assumptions(), inflation: Body = observed) {
   const puts: Body[] = [];
   const retirements: { id: string; body: Body }[] = [];
   server.use(
     http.get(ASSUMPTIONS, () => HttpResponse.json(initial)),
     http.put(ASSUMPTIONS, async ({ request }) => { const body = (await request.json()) as Body; puts.push(body); return HttpResponse.json(body); }),
+    http.get('*/api/v1/core/inflation', () => HttpResponse.json(inflation)),
     http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
     http.put('*/api/v1/core/persons/:id/retirement', async ({ request, params }) => {
       const body = (await request.json()) as Body;
@@ -130,5 +136,32 @@ describe('the projection settings page', () => {
     const { container } = await renderApp('/settings/projection');
     await screen.findByText('Actions : 6 %');
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the observed series', async () => {
+    serve();
+    await renderApp('/settings/projection');
+
+    expect(await screen.findByText('Sur 12 mois à fin septembre 2026 : 1,2 %')).toBeInTheDocument();
+    const row = screen.getByRole('row', { name: /2025/ });
+    expect(within(row).getByText('0,9 %')).toBeInTheDocument();
+    expect(screen.getByText(/Dernier mois publié : septembre 2026/)).toBeInTheDocument();
+  });
+
+  it('shows unavailable when the series is empty', async () => {
+    serve(assumptions(), { lastPublished: null, last12Months: null, years: [] });
+    await renderApp('/settings/projection');
+
+    expect(await screen.findByText('Inflation observée indisponible.')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('hides the 12-month line when only the yearly series is known', async () => {
+    serve(assumptions(), { ...observed, last12Months: null });
+    await renderApp('/settings/projection');
+
+    expect(await screen.findByRole('row', { name: /2025/ })).toBeInTheDocument();
+    expect(screen.getByText(/Dernier mois publié : septembre 2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/Sur 12 mois/)).not.toBeInTheDocument();
   });
 });

@@ -12,4 +12,7 @@
     <ProjectReference Include="..\..\src\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Nid.Core.Domain\Nid.Core.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\vectors\cpi\*" LinkBase="vectors\cpi" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

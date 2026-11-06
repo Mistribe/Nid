@@ -13,6 +13,7 @@
     <ProjectReference Include="..\Nid.TestSupport\Nid.TestSupport.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\vectors\cpi\*" LinkBase="vectors\cpi" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\vectors\enablebanking\*" LinkBase="vectors\enablebanking" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

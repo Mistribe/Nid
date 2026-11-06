@@ -16,11 +16,11 @@ public sealed record AdultView(Guid Id, string DisplayName, string? Email, strin
 }
 
 public sealed record HouseholdSettingsView(
-    int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled, bool BankingEnabled, string? EnableBankingAppId, int? BankRetentionMonths)
+    int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled, bool BankingEnabled, string? EnableBankingAppId, int? BankRetentionMonths, bool InflationEnabled)
 {
     public static HouseholdSettingsView From(HouseholdSettingsInfo settings)
         => new(settings.MaxAdults, settings.ReferenceCurrency.Code, settings.AdultCount, settings.PricesEnabled, settings.IrlEnabled,
-            settings.BankingEnabled, settings.EnableBankingAppId, settings.BankRetentionMonths);
+            settings.BankingEnabled, settings.EnableBankingAppId, settings.BankRetentionMonths, settings.InflationEnabled);
 }
 
 public sealed record ListAdultsQuery : IQuery<IReadOnlyList<AdultView>>, IAdminOnly;
@@ -55,14 +55,15 @@ public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsView>, 
 
 public sealed record UpdateHouseholdSettingsCommand(
     int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled = null, bool? BankingEnabled = null, string? EnableBankingAppId = null,
-    int? BankRetentionMonths = null, bool ClearBankRetention = false)
+    int? BankRetentionMonths = null, bool ClearBankRetention = false, bool? InflationEnabled = null)
     : ICommand<HouseholdSettingsView>, IAdminOnly, IRecordsSecurityEvent
 {
     public SecurityEvent? EventFor(object response)
     {
         var fields = new[] { MaxAdults is null ? null : "max_adults", ReferenceCurrency is null ? null : "reference_currency", PricesEnabled is null ? null : "prices_enabled", IrlEnabled is null ? null : "irl_enabled",
             BankingEnabled is null ? null : "banking_enabled", EnableBankingAppId is null ? null : "enable_banking_app_id",
-            BankRetentionMonths is null && !ClearBankRetention ? null : "bank_retention_months" };
+            BankRetentionMonths is null && !ClearBankRetention ? null : "bank_retention_months",
+            InflationEnabled is null ? null : "inflation_enabled" };
         var joined = string.Join(",", fields.OfType<string>());
         // No field was given (Minor #4): nothing changed, so nothing is worth an event.
         return joined.Length == 0 ? null : new SecurityEvent(SecurityEventNames.HouseholdSettingsChanged, null, [],
@@ -128,7 +129,7 @@ public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
     public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
         => (await settings.UpdateAsync(new HouseholdSettingsChange(
                 command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.EnableBankingAppId,
-                command.BankRetentionMonths, command.ClearBankRetention), ct))
+                command.BankRetentionMonths, command.ClearBankRetention, command.InflationEnabled), ct))
             .Map(HouseholdSettingsView.From);
 }
 

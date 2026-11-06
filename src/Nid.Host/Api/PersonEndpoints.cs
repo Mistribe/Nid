@@ -186,6 +186,7 @@ public static class ResultHttp
             _ when failure.Code == CatalogCodes.SyncRunning => StatusCodes.Status409Conflict,
             _ when failure.Code is PriceCodes.SyncRunning or PriceCodes.Disabled or PriceCodes.NotRejected => StatusCodes.Status409Conflict,
             _ when failure.Code is IrlCodes.SyncRunning or IrlCodes.Disabled => StatusCodes.Status409Conflict,
+            _ when failure.Code is InflationCodes.SyncRunning or InflationCodes.Disabled => StatusCodes.Status409Conflict,
             _ when failure.Code is FxCodes.InvalidRate or FxCodes.InvalidRange => StatusCodes.Status400BadRequest,
             _ when failure.Code == ExportCodes.RevisionChanged => StatusCodes.Status409Conflict,
             _ when failure.Code == ExportCodes.BadCursor => StatusCodes.Status400BadRequest,

@@ -419,6 +419,10 @@ Un cours qui ne tient pas dans `numeric(19,10)` une fois rebasé (plus de 9 chif
 
 Une ligne par exécution (planifiée ou à la demande) : `id`, `kind` (`daily`, `backfill`), `started_at`, `finished_at`, `status` (`running`, `succeeded`, `failed`), `files_read`, `rows_written`, `failure` (code et message, nul en cas de succès), `rejected` (jsonb : `[{on_date, quote, rate, previous, reason}]`). Rend concret le « refusé **et signalé** » de `security/application.md` §8 ; le futur écran d'administration n'a qu'à l'afficher. Les lignes de plus de 400 jours sont purgées par le job quotidien, sauf le dernier rattrapage réussi, dont dépend le démarrage (§8.3). Une exécution interrompue par l'arrêt du service est close en `failed` avec `core.fx_run_interrupted`.
 
+### 8.6 Indice des prix (`cpi`, `cpi_run`)
+
+Série mensuelle de l'IPC de l'INSEE (BDM 011814630, base 2025), collectée par le job `cpi-weekly` (`superpowers/specs/2026-11-06-inflation-design.md`). `core.cpi` : un mois (`2026-09`), la valeur de l'indice, la source (`insee` ou `manual`) ; une valeur de l'INSEE remplace toujours celle du même mois, une valeur manuelle est refusée sur un mois que l'INSEE a fourni (`core.cpi_from_insee`). `core.cpi_run` : le journal des collectes, gardé 400 jours. Lecture par le contrat `IInflation`.
+
 ## 9. Contrats exposés (`Core.Contracts`)
 
 Toutes les opérations passent par `IAccessPolicy`. Côté application, les écritures sont des commandes Synapse ; audit et provenance sont ajoutés par les comportements de pipeline (`architecture.md` §5.4).

@@ -14,6 +14,7 @@ const SECTIONS = [
   { to: '/admin/fx', label: 'admin.nav.fx' },
   { to: '/admin/prices', label: 'admin.nav.prices' },
   { to: '/admin/irl', label: 'admin.nav.irl' },
+  { to: '/admin/inflation', label: 'admin.nav.inflation' },
   { to: '/admin/banking', label: 'admin.nav.banking' },
   { to: '/admin/catalog', label: 'admin.nav.catalog' },
   { to: '/admin/jobs', label: 'admin.nav.jobs' },

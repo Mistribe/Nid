@@ -24,5 +24,5 @@ public sealed class CoreAuditMap : IAuditMap
 
     // tokens: their life is told by the token_* security events (spec 4A §2).
     // fx_rate: one bulk upsert the interceptor never sees, and collections have their journal (U8).
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(FxRateRow), typeof(FxSyncRunRow), typeof(AuditEntryRow), typeof(PersonalAccessTokenRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(FxRateRow), typeof(FxSyncRunRow), typeof(CpiRow), typeof(CpiRunRow), typeof(AuditEntryRow), typeof(PersonalAccessTokenRow) };
 }

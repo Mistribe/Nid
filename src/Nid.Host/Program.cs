@@ -75,6 +75,8 @@ var bankingOptions = builder.Configuration.GetSection("EnableBanking").Get<Nid.B
 builder.Services.AddSingleton(bankingOptions);
 var irlOptions = builder.Configuration.GetSection("Irl").Get<IrlOptions>() ?? new IrlOptions();
 builder.Services.AddSingleton(irlOptions);
+var inflationOptions = builder.Configuration.GetSection("Inflation").Get<InflationOptions>() ?? new InflationOptions();
+builder.Services.AddSingleton(inflationOptions);
 builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
 builder.Services.AddSingleton(builder.Configuration.GetSection("Catalog").Get<CatalogOptions>() ?? new CatalogOptions());
 builder.Services.AddSingleton(builder.Configuration.GetSection("Nid:Backup").Get<Nid.Platform.Notifications.BackupOptions>() ?? new Nid.Platform.Notifications.BackupOptions());
@@ -107,7 +109,7 @@ builder.Services.AddNidEmail(smtpOptions, builder.Configuration["Auth:PublicUrl"
 builder.Services.AddNid(connectionString);
 builder.Services.AddNidOpenApi();
 if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))
-    builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, bankingOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
+    builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, inflationOptions, bankingOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
 builder.Services.AddNidAuthentication(builder.Configuration);
 builder.Services.AddTokenRateLimiter();
@@ -186,6 +188,7 @@ app.MapDocumentEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
 app.MapProjectionEndpoints();
+app.MapInflationEndpoints();
 app.MapTaxEndpoints();
 app.MapScenarioEndpoints();
 app.MapProjectionScenarioEndpoints();

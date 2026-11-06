@@ -8,11 +8,13 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Section } from '@/components/page/Section';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { monthText } from '../properties/format';
 import { PERSONS } from '../subscriptions/api';
 import { AssumptionsDialog } from './AssumptionsDialog';
 import { RetirementDialog } from './RetirementDialog';
 import { SettingsFrame } from './SettingsFrame';
-import { ASSET_CLASSES, PROJECTION_ASSUMPTIONS } from './api';
+import { ASSET_CLASSES, INFLATION, PROJECTION_ASSUMPTIONS } from './api';
 
 /** A server percent as a French one: « 1.5 » reads « 1,5 % » (a string swap, nothing computed). */
 const percent = (value: string) => `${value.replace('.', ',')} %`;
@@ -28,6 +30,7 @@ export function ProjectionSettingsPage() {
   const { $api } = useApi();
   const assumptions = $api.useQuery('get', PROJECTION_ASSUMPTIONS);
   const persons = $api.useQuery('get', PERSONS);
+  const observed = $api.useQuery('get', INFLATION);
   // Which dialog is open: the assumptions', or a person's id.
   const [editing, setEditing] = useState<string | null>(null);
   const adults = persons.data?.filter((p) => p.kind !== 'dependent') ?? [];
@@ -52,6 +55,34 @@ export function ProjectionSettingsPage() {
           </>
         ) : assumptions.error ? <ProblemMessage problem={present(toProblem(assumptions.error))} />
           : <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('settings.projection.loading')}</span></Skeleton>}
+      </Section>
+      <Section title={t('settings.projection.observed')}>
+        {observed.data?.lastPublished ? (
+          <>
+            {observed.data.last12Months ? (
+              <p className="text-sm">{t('settings.projection.observed_last12', { month: monthText(observed.data.last12Months.to), percent: percent(observed.data.last12Months.percent) })}</p>
+            ) : null}
+            <Table className="max-w-xs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('settings.projection.observed_year')}</TableHead>
+                  <TableHead className="text-right">{t('settings.projection.observed_percent')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {observed.data.years.map((y) => (
+                  <TableRow key={y.year}>
+                    <TableCell>{y.year}</TableCell>
+                    <TableCell className="text-right tabular-nums">{percent(y.percent)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="text-xs text-muted-foreground">{t('settings.projection.observed_source', { month: monthText(observed.data.lastPublished) })}</p>
+          </>
+        ) : observed.error ? <ProblemMessage problem={present(toProblem(observed.error))} />
+          : observed.data ? <p className="text-sm">{t('settings.projection.observed_unavailable')}</p>
+            : <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('settings.projection.observed_loading')}</span></Skeleton>}
       </Section>
       <Section title={t('settings.projection.retirement')}>
         {persons.error ? <ProblemMessage problem={present(toProblem(persons.error))} /> : null}

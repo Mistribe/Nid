@@ -24,6 +24,94 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.CpiRow", b =>
+                {
+                    b.Property<string>("Month")
+                        .HasColumnType("text")
+                        .HasColumnName("month");
+
+                    b.Property<LocalDate>("FetchedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("fetched_on");
+
+                    b.Property<LocalDate?>("PublishedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("published_on");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("numeric(10,4)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Month")
+                        .HasName("pk_cpi");
+
+                    b.ToTable("cpi", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_cpi_month", "month ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'");
+
+                            t.HasCheckConstraint("ck_cpi_source", "source in ('insee','manual')");
+
+                            t.HasCheckConstraint("ck_cpi_value", "value > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.CpiRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Added")
+                        .HasColumnType("integer")
+                        .HasColumnName("added");
+
+                    b.Property<Instant?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<int>("Rejected")
+                        .HasColumnType("integer")
+                        .HasColumnName("rejected");
+
+                    b.Property<int>("Replaced")
+                        .HasColumnType("integer")
+                        .HasColumnName("replaced");
+
+                    b.Property<Instant>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cpi_run");
+
+                    b.HasIndex("StartedAt")
+                        .HasDatabaseName("ix_cpi_run_started_at");
+
+                    b.HasIndex("Status")
+                        .IsUnique()
+                        .HasDatabaseName("ix_cpi_run_status")
+                        .HasFilter("status = 'running'");
+
+                    b.ToTable("cpi_run", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_cpi_run_status", "status in ('running','succeeded','failed')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FlowRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -286,6 +374,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                     b.Property<string>("FeeReferences")
                         .HasColumnType("jsonb")
                         .HasColumnName("fee_references");
+
+                    b.Property<bool>("InflationEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("inflation_enabled");
 
                     b.Property<bool>("IrlEnabled")
                         .ValueGeneratedOnAdd()

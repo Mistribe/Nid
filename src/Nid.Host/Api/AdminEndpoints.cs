@@ -17,7 +17,7 @@ public static class AdminEndpoints
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record HouseholdBody(
         int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled, bool? BankingEnabled, string? EnableBankingAppId,
-        int? BankRetentionMonths, bool? ClearBankRetention);
+        int? BankRetentionMonths, bool? ClearBankRetention, bool? InflationEnabled = null);
 
     public sealed record PersonIdResponse(Guid Id);
 
@@ -51,7 +51,7 @@ public static class AdminEndpoints
         api.MapPatch("/household", async (HouseholdBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(
                         body.MaxAdults, body.ReferenceCurrency, body.PricesEnabled, body.IrlEnabled, body.BankingEnabled, body.EnableBankingAppId,
-                        body.BankRetentionMonths, body.ClearBankRetention ?? false), ct))
+                        body.BankRetentionMonths, body.ClearBankRetention ?? false, body.InflationEnabled), ct))
                     .ToHttp(settings => settings))
             .Returns<HouseholdSettingsView>();
 

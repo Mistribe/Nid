@@ -4,6 +4,7 @@ using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
+using Nid.Core.Application.Inflation;
 using Nid.Core.Application.Projection;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Application.Tax;
@@ -81,4 +82,9 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(TaxAssessmentList))]
 [JsonSerializable(typeof(SalaryAllowanceView))]
 [JsonSerializable(typeof(SessionResponse))]
+[JsonSerializable(typeof(InflationView))]
+[JsonSerializable(typeof(CpiAdminView))]
+[JsonSerializable(typeof(CpiValueView))]
+[JsonSerializable(typeof(CpiSyncRequested))]
+[JsonSerializable(typeof(InflationEndpoints.CpiValueBody))]
 internal sealed partial class CoreJsonContext : JsonSerializerContext;

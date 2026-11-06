@@ -19,6 +19,8 @@ public sealed class HouseholdSettingsRow
     /// <summary>The admin switch of the nightly price collection (holding prices spec §2.1).</summary>
     public bool PricesEnabled { get; set; }
     public bool IrlEnabled { get; set; }
+    /// <summary>Inflation spec: the admin switch of the CPI collection; on by default (the series is public and light).</summary>
+    public bool InflationEnabled { get; set; } = true;
     /// <summary>Bank sync spec D14: the admin switch and the installation's Enable Banking application.</summary>
     public bool BankingEnabled { get; set; }
     public string? EnableBankingAppId { get; set; }
@@ -209,4 +211,27 @@ public sealed class ProposalRow
     /// <summary>The source document (Documents module), no foreign key across schemas.</summary>
     public Guid? DocumentId { get; set; }
     public uint Version { get; set; }
+}
+
+/// <summary>core.cpi: one CPI value per month, <c>2026-09</c>; <c>Source</c> is <c>insee</c> or <c>manual</c>.</summary>
+public sealed class CpiRow
+{
+    public string Month { get; set; } = "";
+    public decimal Value { get; set; }
+    public LocalDate? PublishedOn { get; set; }
+    public LocalDate FetchedOn { get; set; }
+    public string Source { get; set; } = "";
+}
+
+/// <summary>core.cpi_run: one collection of the series.</summary>
+public sealed class CpiRunRow
+{
+    public Guid Id { get; set; }
+    public Instant StartedAt { get; set; }
+    public Instant? FinishedAt { get; set; }
+    public string Status { get; set; } = "";
+    public int Added { get; set; }
+    public int Replaced { get; set; }
+    public int Rejected { get; set; }
+    public string? Message { get; set; }
 }

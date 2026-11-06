@@ -145,4 +145,16 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
 
         Assert.Equal(new LocalDateTime(2025, 10, 14, 23, 0), now);
     }
+
+    [Fact]
+    public async Task Inflation_is_enabled_by_default_and_can_be_turned_off()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var settings = new HouseholdSettings(db);
+
+        Assert.True((await settings.ReadAsync(TestContext.Current.CancellationToken)).InflationEnabled);
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, InflationEnabled: false), TestContext.Current.CancellationToken)).TryGetValue(out var off));
+        Assert.False(off.InflationEnabled);
+        Assert.False((await settings.ReadAsync(TestContext.Current.CancellationToken)).InflationEnabled);
+    }
 }

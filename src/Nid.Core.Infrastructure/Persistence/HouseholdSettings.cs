@@ -28,7 +28,7 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
         var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
         return new HouseholdSettingsInfo(
             row.MaxAdults, Currency.TryCreate(row.ReferenceCurrency.Trim(), out var currency) ? currency : Currency.Eur, adults, row.PricesEnabled, row.IrlEnabled,
-            row.BankingEnabled, row.EnableBankingAppId, row.BankRetentionMonths);
+            row.BankingEnabled, row.EnableBankingAppId, row.BankRetentionMonths, row.InflationEnabled);
     }
 
     public async Task<Result<HouseholdSettingsInfo>> UpdateAsync(HouseholdSettingsChange change, CancellationToken ct)
@@ -72,6 +72,9 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
 
         if (change.IrlEnabled is { } irl)
             row.IrlEnabled = irl;
+
+        if (change.InflationEnabled is { } inflation)
+            row.InflationEnabled = inflation;
 
         if (change.BankingEnabled is { } banking)
             row.BankingEnabled = banking;

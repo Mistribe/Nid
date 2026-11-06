@@ -44,7 +44,7 @@ public sealed class NidApp : IAsyncDisposable
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
-        FakeFxSources sources, FakePriceSources prices, FakeEnableBanking banks, FakeIrlSource irl, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot, string documentsRoot)
+        FakeFxSources sources, FakePriceSources prices, FakeEnableBanking banks, FakeIrlSource irl, FakeCpiSource cpi, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot, string documentsRoot)
     {
         this.factory = factory;
         ConnectionString = connectionString;
@@ -55,6 +55,7 @@ public sealed class NidApp : IAsyncDisposable
         Prices = prices;
         Banks = banks;
         Irl = irl;
+        Cpi = cpi;
         Catalog = catalog;
         Icons = icons;
         AssetsRoot = assetsRoot;
@@ -89,6 +90,9 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The offline <see cref="IIrlSourceClient"/> this host runs against; every request fails unless a test serves the series.</summary>
     public FakeIrlSource Irl { get; }
 
+    /// <summary>The offline <see cref="ICpiSourceClient"/> this host runs against; every request fails unless a test serves the series.</summary>
+    public FakeCpiSource Cpi { get; }
+
     /// <summary>The offline <see cref="ICatalogSourceClient"/> this host runs against; every fetch fails unless a test serves files.</summary>
     public FakeCatalogSource Catalog { get; }
 
@@ -114,6 +118,7 @@ public sealed class NidApp : IAsyncDisposable
         var prices = FakePriceSources.Offline();
         var banks = FakeEnableBanking.Offline();
         var irl = FakeIrlSource.Offline();
+        var cpi = FakeCpiSource.Offline();
         var catalog = FakeCatalogSource.Offline();
         var icons = FakeIconSource.Offline();
         var assetsRoot = Path.Combine(Path.GetTempPath(), "nid-assets-" + Guid.NewGuid().ToString("N"));
@@ -155,6 +160,7 @@ public sealed class NidApp : IAsyncDisposable
                     services.AddSingleton<IPriceSourceClient>(prices);
                     services.AddSingleton<Nid.Banking.Contracts.IEnableBankingClient>(banks);
                     services.AddSingleton<IIrlSourceClient>(irl);
+                    services.AddSingleton<ICpiSourceClient>(cpi);
                     services.AddSingleton<ICatalogSourceClient>(catalog);
                     services.AddSingleton<ICatalogIconSource>(icons);
                     // No test reaches the identity provider (https://auth.test.localhost does not exist).
@@ -166,7 +172,7 @@ public sealed class NidApp : IAsyncDisposable
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources, prices, banks, irl, catalog, icons, assetsRoot, documentsRoot);
+            return new NidApp(factory, connectionString, a, b, d, sources, prices, banks, irl, cpi, catalog, icons, assetsRoot, documentsRoot);
         }
     }
 

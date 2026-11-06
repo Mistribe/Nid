@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Nid.Core.Application.Inflation;
 using Nid.Core.Application.Projection;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
@@ -105,4 +106,9 @@ public sealed class ProjectionTools
         {
             Points = view.Points.Where((p, i) => IsKept(p.On, i, view.Points.Count)).ToList(),
         };
+
+    [McpServerTool(Name = "get_inflation", ReadOnly = true)]
+    [Description("France's observed inflation (INSEE CPI): the last published month, the last 12 months and the last ten years' annual averages. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetInflation(IServiceProvider services, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetInflationQuery(), ct);
 }

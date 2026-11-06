@@ -134,7 +134,7 @@ public static class NotificationTemplates
         "proposal_pending" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",
         "job_failed" => n.Params.GetValueOrDefault("job") is { Length: > 0 } job ? $"/admin/jobs/{job}" : "/admin/jobs",
-        "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" ? $"/admin/{n.Params["source"]}" : "/admin/system",
+        "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" or "inflation" ? $"/admin/{n.Params["source"]}" : "/admin/system",
         _ => "/",
     };
 

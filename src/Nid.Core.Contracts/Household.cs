@@ -5,7 +5,7 @@ namespace Nid.Core.Contracts;
 /// <summary><paramref name="AdultCount"/> counts active and pending adults: both count against the cap.</summary>
 public sealed record HouseholdSettingsInfo(
     int MaxAdults, Currency ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled = false, bool BankingEnabled = false,
-    string? EnableBankingAppId = null, int? BankRetentionMonths = null);
+    string? EnableBankingAppId = null, int? BankRetentionMonths = null, bool InflationEnabled = true);
 
 /// <summary>
 /// A field left <c>null</c> is left unchanged; an empty <paramref name="EnableBankingAppId"/> clears it;
@@ -13,7 +13,7 @@ public sealed record HouseholdSettingsInfo(
 /// </summary>
 public sealed record HouseholdSettingsChange(
     int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled = null, bool? IrlEnabled = null, bool? BankingEnabled = null,
-    string? EnableBankingAppId = null, int? BankRetentionMonths = null, bool ClearBankRetention = false);
+    string? EnableBankingAppId = null, int? BankRetentionMonths = null, bool ClearBankRetention = false, bool? InflationEnabled = null);
 
 /// <summary>
 /// Issue #209: the household's fee references, in %: contract fees by envelope kind, support fees by holding kind (wire values), and
