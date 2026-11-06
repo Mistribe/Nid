@@ -28,6 +28,7 @@ import { ProjectionWarnings } from './ProjectionWarnings';
 import '@/locales/forms';
 import { baseAndScenario } from './chartSeries';
 import '@/locales/scenarios';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 
 // The chart (Recharts) loads once there is a result to draw.
 const ProjectionComparisonChart = lazy(() => import('./ProjectionComparisonChart').then((m) => ({ default: m.ProjectionComparisonChart })));
@@ -68,7 +69,7 @@ export function NewProjectionScenarioPage() {
     <article className="space-y-4">
       <PageHeader crumbs={[{ label: t('scenarios.title'), to: '/scenarios' }]} title={t('scenarios.projection.form.title')} />
       {base.error ? <ProblemMessage problem={present(toProblem(base.error))} />
-        : !base.data ? <p aria-busy="true" className="text-sm text-muted-foreground">{t('scenarios.projection.form.loading')}</p>
+        : !base.data ? <Loading label={t('scenarios.projection.form.loading')}><SectionSkeleton /><SectionSkeleton /></Loading>
           : <ProjectionForm base={base.data} scope={scope} />}
     </article>
   );

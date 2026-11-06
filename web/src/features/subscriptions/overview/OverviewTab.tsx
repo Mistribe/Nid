@@ -22,6 +22,7 @@ import board from '@/locales/fr.subscriptions-board.json';
 import { cn } from '@/lib/utils';
 import { LIST, OVERVIEW, PERSONS, type Overview } from '../api';
 import { durationText } from '../format';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 // Loaded with this lazy chunk, not with the initial bundle.
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);
@@ -44,7 +45,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
-  if (!d) return <Skeleton aria-busy="true" className="h-64 w-full" />;
+  if (!d) return <OverviewSkeleton label={t('overview.loading')} />;
   if (d.activeCount === 0 && d.endedCount === 0)
     return (
       <EmptyState module="/subscriptions" title={tc('subscriptions.empty_title')} body={tc('subscriptions.empty_body')}

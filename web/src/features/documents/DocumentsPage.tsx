@@ -23,6 +23,7 @@ import { FileDocumentsDialog, type Filed } from './FileDocumentsDialog';
 import { UploadList, UploadPicker, UploadZone, useUploads } from './DocumentUpload';
 import { fileSize, roleText, shownDate } from './format';
 import '@/locales/documents';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
 
@@ -118,9 +119,7 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
       {filing ? <FileDocumentsDialog docs={chosen} onClose={() => setFiling(false)} onDone={filed} /> : null}
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data ? (
-          <ul aria-busy="true" aria-label={t('documents_page.loading')} className="space-y-2">
-            {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
-          </ul>
+          <Loading label={t('documents_page.loading')}><TableSkeleton columns={7} /></Loading>
         )
         : total === 0 && !narrowed ? (inbox
           ? <EmptyState module="/documents" title={t('documents_page.empty_inbox_title')} body={t('documents_page.empty_inbox_body')} />

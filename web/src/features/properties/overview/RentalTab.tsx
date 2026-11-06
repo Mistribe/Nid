@@ -26,6 +26,7 @@ import { PROPERTIES_RENTAL, type PropertiesRental, type RentalMonth, type Rental
 import { TableToggle } from '@/components/page/TableToggle';
 import { PropertyFilter } from './PropertyFilter';
 import '@/locales/properties';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 
@@ -40,7 +41,7 @@ export function RentalTab({ scope, property }: { scope: Scope; property?: string
   const answer = $api.useQuery('get', PROPERTIES_RENTAL, { params: { query: { scope } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
-  if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('properties_rental.loading')} className="h-64 w-full" />;
+  if (!d) return <OverviewSkeleton label={t('properties_rental.loading')} />;
 
   return (
     <div className="flex flex-col gap-6">

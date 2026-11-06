@@ -386,7 +386,7 @@ describe('Abonnements › liste groupée', () => {
     await user.type(screen.getByLabelText('Rechercher par nom'), 'c');
     // The new answer is pending: the page holds the previous rows instead of the loading skeleton.
     await waitFor(() => expect(asked).toBe(true));
-    expect(screen.queryByRole('list', { name: 'Chargement des abonnements' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Chargement des abonnements' })).not.toBeInTheDocument();
     expect(await rows()).toHaveLength(2);
     release();
   });

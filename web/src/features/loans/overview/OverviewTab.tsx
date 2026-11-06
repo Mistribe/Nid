@@ -18,7 +18,6 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { todayIso } from '@/features/subscriptions/today';
 import { toPlot } from '@/features/investments/chart/plot';
@@ -29,6 +28,7 @@ import { loanColor } from './colors';
 import { DurationSection } from './DurationSection';
 import { monthsBetween } from './span';
 import '@/locales/loans';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 
@@ -40,7 +40,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
-  if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('loans_overview.loading')} className="h-64 w-full" />;
+  if (!d) return <OverviewSkeleton label={t('loans_overview.loading')} hero />;
   if (d.runningCount === 0 && d.endedCount === 0)
     return (
       <EmptyState module="/loans" title={t('loans.empty_title')} body={t('loans.empty_body')}

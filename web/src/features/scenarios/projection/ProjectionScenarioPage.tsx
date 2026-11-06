@@ -31,6 +31,7 @@ import type { ScenarioDialog } from './ProjectionScenarioDialogs';
 import { ProjectionWarnings } from './ProjectionWarnings';
 import { bodyOf, useSave } from './save';
 import '@/locales/scenarios';
+import { Loading, PageSkeleton, SectionSkeleton } from '@/components/page/skeletons';
 
 // The chart (Recharts) loads with its tab; the rename and assumptions dialogs when one opens.
 const ProjectionScenarioTab = lazy(() => import('./ProjectionScenarioTab'));
@@ -64,7 +65,7 @@ export function ProjectionScenarioPage() {
         : (
           <>
             <PageTrail crumbs={crumbs} />
-            <Skeleton role="status" aria-busy="true" aria-label={t('scenarios.projection.detail.loading')} className="h-40 w-full rounded-md" />
+            <PageSkeleton label={t('scenarios.projection.detail.loading')} stats={4} tabs={3} />
           </>
         )}
     </article>
@@ -131,7 +132,7 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
   // The last loan's end is the latest `loan_end` date the server gives (ISO dates compare as strings).
   const lastLoanEnd = result.scenario.milestones.filter((m) => m.kind === 'loan_end').map((m) => m.on).sort().at(-1);
   const money = (amount: string | undefined) => (amount === undefined ? t('scenarios.dash') : formatCurrency(amount, currency));
-  const tabFallback = <Skeleton role="status" aria-busy="true" aria-label={t('scenarios.projection.detail.loading')} className="h-72 w-full rounded-md" />;
+  const tabFallback = <Loading label={t('scenarios.projection.detail.loading')}><SectionSkeleton><Skeleton className="h-72 w-full" /></SectionSkeleton></Loading>;
 
   return (
     <>

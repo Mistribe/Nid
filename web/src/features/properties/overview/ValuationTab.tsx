@@ -15,7 +15,6 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/features/investments/chart/plot';
 import { Direction } from '@/features/investments/Figures';
@@ -23,6 +22,7 @@ import { money, signedMoney } from '@/features/loans/format';
 import { PROPERTIES_VALUATION, type PropertiesValuation, type ValuationRow } from '../api';
 import { typeText } from '../format';
 import '@/locales/properties';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 
@@ -33,7 +33,7 @@ export function ValuationTab({ scope }: { scope: Scope }) {
   const answer = $api.useQuery('get', PROPERTIES_VALUATION, { params: { query: { scope } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
-  if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('properties_valuation.loading')} className="h-64 w-full" />;
+  if (!d) return <OverviewSkeleton label={t('properties_valuation.loading')} />;
 
   return (
     <div className="flex flex-col gap-6">

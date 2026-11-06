@@ -30,6 +30,7 @@ import { MovementDialog } from './MovementDialog';
 import { PriceCell } from './PriceCell';
 import '@/locales/investments';
 import '@/locales/forms';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 const TABS = ['overview', 'movements', 'costs'] as const;
 type Dialog = { kind: 'movement' } | { kind: 'edit' } | { kind: 'cost'; editing?: CostReport } | { kind: 'breakdown' };
@@ -64,7 +65,7 @@ export function HoldingPage() {
   const trail = <PageTrail crumbs={crumbs} />;
   const error = envelope.error ?? holdings.error;
   if (error) return <>{trail}<ProblemMessage problem={present(toProblem(error))} /></>;
-  if (!envelope.data || !holdings.data) return <>{trail}<div aria-busy="true" aria-label={t('holdings.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (!envelope.data || !holdings.data) return <>{trail}<PageSkeleton label={t('holdings.loading')} actions={2} stats={4} tabs={3} /></>;
   const holding = holdings.data.holdings.find((h) => h.id === holdingId);
   if (!holding) return <>{trail}<ProblemMessage problem={{ kind: 'not_found' }} /></>;
 

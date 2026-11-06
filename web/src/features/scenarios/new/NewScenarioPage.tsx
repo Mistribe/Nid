@@ -16,6 +16,7 @@ import { SCENARIO_DEFAULTS, SCENARIO_SIMULATE, SCENARIOS, type PropertyPurchaseD
 import { CapacitySummary } from './CapacitySummary';
 import { draftPath, firstStepOf, newDraft, ScenarioFields, STEP_FIELDS, toDocument, type ScenarioDraft, type ScenarioStep } from './ScenarioFields';
 import '@/locales/scenarios';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 
 // A projection's creation loads on its own (the projection spec §8): a purchase never fetches its forms and chart.
 const NewProjectionScenarioPage = lazy(() => import('../projection/routes').then((m) => ({ default: m.NewProjectionScenarioPage })));
@@ -40,7 +41,7 @@ function NewPurchaseScenarioPage() {
     <article className="space-y-4">
       <PageHeader crumbs={[{ label: t('scenarios.title'), to: '/scenarios' }]} title={t('scenarios.form.title')} />
       {defaults.error ? <ProblemMessage problem={present(toProblem(defaults.error))} />
-        : !defaults.data ? <p aria-busy="true" className="text-sm text-muted-foreground">{t('scenarios.form.loading')}</p>
+        : !defaults.data ? <Loading label={t('scenarios.form.loading')}><SectionSkeleton /><SectionSkeleton /></Loading>
           : <ScenarioForm defaults={defaults.data} scope={scope} />}
     </article>
   );

@@ -23,6 +23,7 @@ import { fileSize, localDay } from './format';
 import { DocumentViewer } from './DocumentViewer';
 import { previewable } from './preview';
 import '@/locales/documents';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 /**
  * Design §2.2: the title with « Télécharger » and « Modifier », « Archiver » in its `⋯` menu, the file's figures inline, then
@@ -45,7 +46,7 @@ export function DocumentDetailPage() {
   const trail = <PageTrail crumbs={crumbs} />;
 
   if (!answer.data && answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!answer.data) return <>{trail}<div aria-busy="true" aria-label={t('documents_page.detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (!answer.data) return <>{trail}<PageSkeleton label={t('documents_page.detail.loading')} actions={2} stats={3} /></>;
 
   // A refetch that failed under data on screen: a 404 means the actor no longer reads the document (its last link was theirs).
   if (answer.error && toProblem(answer.error).status === 404) return <Navigate to="/documents" replace />;

@@ -9,11 +9,13 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import type { LoanContractView } from '@/features/loans/api';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
 import { ErrorPage } from '@/components/ErrorPage';
+import { PageSkeleton } from '@/components/page/skeletons';
 import { ForbiddenPage } from './ForbiddenPage';
 import { NotFoundPage } from './NotFoundPage';
 import { useSession, type Capabilities } from './Providers';
@@ -628,7 +630,14 @@ export function createAppRouter(context: RouterContext, history?: RouterHistory)
     routeTree, context, ...(history ? { history } : {}), defaultPreload: 'intent',
     // A page that throws while rendering (a lazy chunk that fails to load, a bug): the error page in the shell, with « Réessayer ».
     defaultErrorComponent: ({ reset }) => <ErrorPage problem={{ kind: 'unexpected' }} onRetry={reset} />,
+    // A page's chunk still downloading: the shape of a page in `main` rather than an empty area; a fast load shows nothing.
+    defaultPendingComponent: PendingPage, defaultPendingMs: 200,
   });
+}
+
+function PendingPage() {
+  const { t } = useTranslation();
+  return <PageSkeleton label={t('page.loading')} />;
 }
 
 declare module '@tanstack/react-router' {

@@ -15,12 +15,12 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { money, percent } from '../loans/format';
 import { PROPERTIES, PROPERTIES_RENTAL, type PropertySummary } from './api';
 import { typeText } from './format';
 import '@/locales/properties';
 import '@/locales/forms';
+import { Loading, OverviewSkeleton, TableSkeleton } from '@/components/page/skeletons';
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 
@@ -52,13 +52,13 @@ export function PropertiesPage() {
       <PageHeader title={t('properties.title')} actions={add()} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('properties_overview.tab_overview'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.history ?? '3y'} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><OverviewTab scope={scope} span={search.history ?? '3y'} /></Suspense> },
         ...(rented ? [{ id: 'rental' as const, label: t('properties_rental.tab'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><RentalTab scope={scope} property={search.property} /></Suspense> }] : []),
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><RentalTab scope={scope} property={search.property} /></Suspense> }] : []),
         { id: 'costs', label: t('properties_costs.tab'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><CostsTab scope={scope} property={search.property} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><CostsTab scope={scope} property={search.property} /></Suspense> },
         { id: 'valuation', label: t('properties_valuation.tab'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><ValuationTab scope={scope} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><ValuationTab scope={scope} /></Suspense> },
         { id: 'list', label: t('properties_overview.tab_list'), content: <ListTab scope={scope} add={add('outline')} /> },
       ]} />
     </div>
@@ -75,9 +75,7 @@ function ListTab({ scope, add }: { scope: 'me' | 'household'; add: ReactNode }) 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!items)
     return (
-      <ul aria-busy="true" aria-label={t('properties.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
-      </ul>
+      <Loading label={t('properties.loading')}><TableSkeleton columns={6} /></Loading>
     );
   if (items.length === 0) return <EmptyState module="/properties" title={t('properties.empty_title')} body={t('properties.empty_body')} action={add} />;
   return (

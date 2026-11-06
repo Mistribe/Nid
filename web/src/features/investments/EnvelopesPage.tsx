@@ -16,12 +16,12 @@ import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ENVELOPES, HOUSEHOLD_HOLDINGS, type EnvelopeSummary } from './api';
 import { kindText } from './format';
 import { Gain } from './Figures';
 import '@/locales/investments';
 import '@/locales/forms';
+import { Loading, OverviewSkeleton, TableSkeleton } from '@/components/page/skeletons';
 
 function useEnvelopes(scope: 'me' | 'household', closed: boolean) {
   const { $api } = useApi();
@@ -58,13 +58,13 @@ export function EnvelopesPage() {
       <PageHeader title={t('investments.title')} actions={add()} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('investments_overview.tab_overview'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
         { id: 'performance', label: t('investments_overview.tab_performance'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><PerformanceTab scope={scope} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><PerformanceTab scope={scope} /></Suspense> },
         { id: 'income', label: t('investments_overview.tab_income'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><IncomeTab scope={scope} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><IncomeTab scope={scope} /></Suspense> },
         ...(detailed ? [{ id: 'holdings' as const, label: t('investments_overview.tab_holdings'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><HoldingsTab scope={scope} /></Suspense> }] : []),
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><HoldingsTab scope={scope} /></Suspense> }] : []),
         { id: 'list', label: t('investments_overview.tab_list'), content: <ListTab scope={scope} add={add('outline')} /> },
       ]} />
     </div>
@@ -96,9 +96,7 @@ function Body({ answer, add }: { answer: ReturnType<typeof useEnvelopes>; add: R
 
   if (!answer.data)
     return (
-      <ul aria-busy="true" aria-label={t('investments.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
-      </ul>
+      <Loading label={t('investments.loading')}><TableSkeleton columns={6} /></Loading>
     );
 
   const data = answer.data;

@@ -22,6 +22,7 @@ import { PROPERTIES_COSTS, type CostDue, type CostRow, type PropertiesCosts } fr
 import { categoryText } from '../format';
 import { PropertyFilter } from './PropertyFilter';
 import '@/locales/properties';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 
@@ -35,7 +36,7 @@ export function CostsTab({ scope, property }: { scope: Scope; property?: string 
   const answer = $api.useQuery('get', PROPERTIES_COSTS, { params: { query: { scope } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
-  if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('properties_costs.loading')} className="h-64 w-full" />;
+  if (!d) return <OverviewSkeleton label={t('properties_costs.loading')} />;
 
   return (
     <div className="flex flex-col gap-6">

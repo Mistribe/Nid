@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import '@/locales/notifications';
 import { useDismiss, useNotifications, useRead, useReadAll, useSnooze, type NotificationList, type NotificationView } from './api';
 import { localDateOf, parseNotificationLink, readsOnFollow } from './link';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
 const SnoozeDialog = lazy(() => import('./SnoozeDialog').then((m) => ({ default: m.SnoozeDialog })));
@@ -46,7 +47,7 @@ function Panel({ list, actions }: { list: NotificationList; actions: Actions }) 
   const { t } = useTranslation();
   const answer = useNotifications(list);
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('notifications_page.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
+  if (!answer.data) return <Loading label={t('notifications_page.loading')}><TableSkeleton columns={6} /></Loading>;
   const rows = answer.data.pages.flatMap((page) => page.entries);
   if (rows.length === 0) return <EmptyState module="/notifications" title={t(`notifications_page.empty.${list}`)} body="" />;
 

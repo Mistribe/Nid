@@ -16,11 +16,11 @@ import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { LOANS, OVERVIEW, type LoanSummary } from './api';
 import { money, percent } from './format';
 import '@/locales/loans';
 import '@/locales/forms';
+import { Loading, OverviewSkeleton, TableSkeleton } from '@/components/page/skeletons';
 
 function useLoans(scope: 'me' | 'household', ended: boolean, enabled = true) {
   const { $api } = useApi();
@@ -46,7 +46,7 @@ export function LoansPage() {
   const overview = $api.useQuery('get', OVERVIEW, { params: { query: { scope } } });
   const running = overview.data && overview.data.runningCount > 0 ? overview.data : null;
   const [tab, setTab] = useDetailTab<(typeof WITH_EARLY)[number]>(running ? WITH_EARLY : WITHOUT_EARLY);
-  const fallback = <Skeleton className="h-64 w-full" />;
+  const fallback = <OverviewSkeleton label={t('page.loading')} />;
   return (
     <div className="space-y-4">
       <PageHeader title={t('loans.title')} actions={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
@@ -91,9 +91,7 @@ function Body({ answer, withEnded }: { answer: ReturnType<typeof useLoans>; with
   const deciding = empty && withEnded !== null && !withEnded.data && !withEnded.error;
   if (!answer.data || deciding)
     return (
-      <ul aria-busy="true" aria-label={t('loans.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
-      </ul>
+      <Loading label={t('loans.loading')}><TableSkeleton columns={7} /></Loading>
     );
 
   if (empty && (withEnded?.data?.items.length ?? 0) > 0)

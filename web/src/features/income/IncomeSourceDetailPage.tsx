@@ -40,6 +40,7 @@ import { SettingsForm } from './settings/SettingsForm';
 import '@/locales/income';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 const TABS = ['overview', 'history', 'oneoffs', 'documents', 'settings'] as const;
 
@@ -119,7 +120,7 @@ export function IncomeSourceDetailPage() {
   const crumbs = [{ label: t('nav.income'), to: '/income' as const }];
   const trail = <PageTrail crumbs={crumbs} />;
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!source) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!source) return <article className="space-y-6">{trail}<PageSkeleton label={t('income_detail.loading')} actions={2} stats={4} tabs={4} /></article>;
 
   // Every write affordance: the header actions, the row menus and the settings.
   const writable = source.canWrite && !source.ended;

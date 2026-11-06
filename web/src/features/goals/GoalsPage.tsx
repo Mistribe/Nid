@@ -19,6 +19,7 @@ import { Amounts, Dash, GoalProgress, GoalStatus } from './GoalStatus';
 import { presentGoalConflict, statusText } from './format';
 import '@/locales/goals';
 import '@/locales/forms';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
 
@@ -49,9 +50,7 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data)
     return (
-      <ul aria-busy="true" aria-label={t('goals_list.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
-      </ul>
+      <Loading label={t('goals_list.loading')}><TableSkeleton columns={8} /></Loading>
     );
   // `closed=true` lists the open goals too: this tab keeps the closed ones.
   const rows = closed ? answer.data.items.filter((g) => g.closed) : answer.data.items;

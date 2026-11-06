@@ -20,7 +20,6 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { seeAllClass } from '@/components/page/seeAll';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PERSONS } from '@/features/subscriptions/api';
@@ -32,6 +31,7 @@ import { kindColor } from './colors';
 import { missingCodes, ValueChart } from './ValueChart';
 import '@/locales/investments';
 import '@/locales/forms';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 type Span = '12m' | '3y' | 'all';
@@ -44,7 +44,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
-  if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('investments_overview.loading')} className="h-64 w-full" />;
+  if (!d) return <OverviewSkeleton label={t('investments_overview.loading')} hero />;
   if (d.openCount === 0 && d.closedCount === 0)
     return (
       <EmptyState module="/investments" title={t('investments.empty_title')} body={t('investments.empty_body')}

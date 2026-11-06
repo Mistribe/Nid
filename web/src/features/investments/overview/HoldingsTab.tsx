@@ -21,7 +21,6 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FEE_REFERENCES, HOUSEHOLD_HOLDINGS, type FeeReferences, type FeesCost, type HoldingOverviewRow, type HouseholdHoldings } from '../api';
 import { toPlot } from '../chart/plot';
@@ -31,6 +30,7 @@ import { HOLDING_KINDS, holdingKindText } from '../holdings/holdingFormat';
 import { holdingKindColor } from './colors';
 import { ExposureSection } from './ExposureSection';
 import '@/locales/investments';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 
@@ -47,7 +47,7 @@ export function HoldingsTab({ scope }: { scope: Scope }) {
   const answer = $api.useQuery('get', HOUSEHOLD_HOLDINGS, { params: { query: { scope } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
-  if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('investments_holdings.loading')} className="h-64 w-full" />;
+  if (!d) return <OverviewSkeleton label={t('investments_holdings.loading')} />;
   return (
     <div className="flex flex-col gap-6">
       <Figures d={d} />

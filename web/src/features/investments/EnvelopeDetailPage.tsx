@@ -41,6 +41,7 @@ import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/features/settings/banks/api';
 import '@/locales/banks';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 // The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
 const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));
@@ -158,7 +159,7 @@ export function EnvelopeDetailPage() {
   }, [landOn, isClosed]);
 
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!answer.data) return <>{trail}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (!answer.data) return <>{trail}<PageSkeleton label={t('envelope.loading')} actions={2} stats={5} tabs={4} /></>;
 
   const detail = answer.data;
   const figures = detail.figures;

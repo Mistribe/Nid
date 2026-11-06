@@ -22,12 +22,12 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import { labelColour } from '@/lib/labelColour';
 import type { components } from '@/api/schema';
 import { LABELS, LIST, PERSONS, type ListResponse, type Summary } from './api';
 import { labelParam, labelsOf } from './filter';
 import '@/locales/forms';
+import { Loading, OverviewSkeleton, TableSkeleton } from '@/components/page/skeletons';
 
 type Group = components['schemas']['GroupView'];
 type GroupBy = NonNullable<SubscriptionsSearch['group']>;
@@ -80,10 +80,10 @@ export function SubscriptionsPage() {
       <PageHeader title={t('subscriptions.title')} actions={add} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('subscriptions.tab_overview'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><OverviewTab scope={scope} /></Suspense> },
         { id: 'list', label: t('subscriptions.tab_list'), content: <ListTab scope={scope} /> },
         { id: 'calendar', label: t('subscriptions.tab_calendar'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><CalendarTab scope={scope} /></Suspense> },
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><CalendarTab scope={scope} /></Suspense> },
       ]} />
     </div>
   );
@@ -200,9 +200,7 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
 
   if (!data || (data.items.length === 0 && bare && !everything.data && !everything.error))
     return page(
-      <ul aria-busy="true" aria-label={t('subscriptions.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
-      </ul>,
+      <Loading label={t('subscriptions.loading')}><TableSkeleton columns={7} /></Loading>,
     );
 
   if (data.items.length === 0 && bare && everything.data?.items.length === 0)

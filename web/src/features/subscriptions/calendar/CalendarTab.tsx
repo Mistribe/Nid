@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { CHARGES, type Charges } from '../api';
 import { todayIso } from '../today';
 import { monthGrid, shiftMonth } from './monthGrid';
+import { Loading, StatLineSkeleton } from '@/components/page/skeletons';
 
 // Loaded with this lazy chunk, not with the initial bundle.
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);
@@ -60,7 +61,7 @@ export function CalendarTab({ scope }: { scope: 'household' | 'me' }) {
   // The header keeps its place while the month loads: a click on « › » is not lost to a remount.
   if (answer.error) return <div className="space-y-4">{header}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
   const d = answer.data;
-  if (!d) return <div className="space-y-4">{header}<Skeleton aria-busy="true" className="h-64 w-full" /></div>;
+  if (!d) return <div className="space-y-4">{header}<Loading label={t('calendar.loading')}><StatLineSkeleton items={3} /><Skeleton className="h-96 w-full" /></Loading></div>;
 
   const byDay = new Map<string, Line[]>();
   for (const c of d.charges) byDay.set(c.date, [...(byDay.get(c.date) ?? []), c]);

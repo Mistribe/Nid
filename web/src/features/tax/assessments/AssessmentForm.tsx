@@ -35,6 +35,7 @@ import tax from '@/locales/fr.tax-assessments.json';
 import '@/locales/documents';
 import '@/locales/tax';
 import '@/locales/taxAssessments';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 type Form = UseFormReturn<AssessmentValues>;
 type FieldKey = keyof typeof tax.tax.assessment.field;
@@ -306,6 +307,6 @@ export function EditAssessment() {
   const { loaded, adults } = useAdults();
   const crumbs = [{ label: t('tax.title'), to: '/tax' as const, search: answer.data ? { year: String(answer.data.year) } : undefined }];
   if (answer.error) return <FormPage crumbs={crumbs} title={t('tax.title')}><ProblemMessage problem={present(toProblem(answer.error))} /></FormPage>;
-  if (!answer.data || !loaded) return <><PageTrail crumbs={crumbs} /><div aria-busy="true" aria-label={t('tax.assessment_form.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (!answer.data || !loaded) return <><PageTrail crumbs={crumbs} /><PageSkeleton label={t('tax.assessment_form.loading')} actions={0} stats={0} /></>;
   return <AssessmentForm view={answer.data} adults={adults} />;
 }

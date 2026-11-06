@@ -1,5 +1,6 @@
 {
   "overview": {
+    "loading": "Chargement de la synthèse des abonnements",
     "remaining": "Reste à prélever",
     "remaining_of": "sur {{total}}",
     "count": "Abonnements",
@@ -36,6 +37,7 @@
     "watch_same_provider_other": "{{count}} abonnements chez {{provider}} : {{amount}} par mois"
   },
   "calendar": {
+    "loading": "Chargement du calendrier",
     "previous": "Mois précédent",
     "next": "Mois suivant",
     "total": "Total du mois",

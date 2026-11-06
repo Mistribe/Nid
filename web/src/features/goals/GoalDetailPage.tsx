@@ -27,6 +27,7 @@ import { FundingTab } from './detail/FundingTab';
 import { kindText, presentGoalConflict } from './format';
 import { Dash, GoalProgress, GoalStatus } from './GoalStatus';
 import '@/locales/goals';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 // A pace of zero or less never reaches the target; read from the decimal text, nothing is computed.
 const NOT_POSITIVE = /^(-|0+(\.0+)?$)/;
@@ -47,7 +48,7 @@ export function GoalDetailPage() {
   const reopen = useReopenGoal();
   const crumbs = [{ label: t('goals_list.title'), to: '/goals' as const }];
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!answer.data) return <><PageTrail crumbs={crumbs} /><div aria-busy="true" aria-label={t('goals_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
+  if (!answer.data) return <><PageTrail crumbs={crumbs} /><PageSkeleton label={t('goals_detail.loading')} actions={2} stats={4} tabs={2} /></>;
 
   const detail = answer.data;
   const goal = detail.goal;

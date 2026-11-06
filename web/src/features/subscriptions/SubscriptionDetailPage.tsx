@@ -38,6 +38,7 @@ import '@/locales/forms';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import '@/locales/subscriptions';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 type IncludedProvider = components['schemas']['IncludedProviderView'];
 
@@ -94,7 +95,7 @@ export function SubscriptionDetailPage() {
   const crumbs = [{ label: t('nav.subscriptions'), to: '/subscriptions' as const }];
   const trail = <PageTrail crumbs={crumbs} />;
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!answer.data) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('subscription.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!answer.data) return <article className="space-y-6">{trail}<PageSkeleton label={t('subscription.loading')} actions={2} stats={4} tabs={3} /></article>;
 
   const detail = answer.data;
   const findings = visibleFindings(detail.findings);

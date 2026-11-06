@@ -21,6 +21,7 @@ import { presentConflict } from '../investments/entries/entries';
 import { PROJECTION_SCENARIO, PROJECTION_SCENARIOS, SALE_SCENARIO, SALE_SCENARIOS, SCENARIO, SCENARIOS, type ScenarioListItem } from './api';
 import '@/locales/forms';
 import '@/locales/scenarios';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
 /**
  * Scenarios list (purchase spec §7, projection spec §8): a dense table of both kinds, a row's `⋯` duplicates or deletes, creation is
@@ -44,9 +45,7 @@ export function ScenariosPage() {
       )} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data ? (
-          <ul aria-busy="true" aria-label={t('scenarios.loading')} className="space-y-2">
-            {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
-          </ul>
+          <Loading label={t('scenarios.loading')}><TableSkeleton columns={9} /></Loading>
         ) : answer.data.items.length === 0
           ? <EmptyState module="/scenarios" title={t('scenarios.empty_title')} body={t('scenarios.empty_body')} action={<AddMenu variant="outline" />} />
           : <List items={answer.data.items} />}

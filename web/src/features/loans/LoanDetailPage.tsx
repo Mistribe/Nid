@@ -34,6 +34,7 @@ import { RenegotiationSection } from './simulation/RenegotiationSection';
 import '@/locales/loans';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 // Loaded on demand, as the dashboard's charts: Recharts stays out of the detail's own chunk.
 const ScheduleChart = lazy(() => import('./chart/ScheduleChart').then((m) => ({ default: m.ScheduleChart })));
@@ -83,7 +84,7 @@ export function LoanDetailPage() {
     // An unknown loan and another adult's private one both answer 404: the same « Page introuvable ».
     return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   }
-  if (!loan) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!loan) return <article className="space-y-6">{trail}<PageSkeleton label={t('loan_detail.loading')} actions={2} stats={4} tabs={4} /></article>;
 
   const actions = (
     <>

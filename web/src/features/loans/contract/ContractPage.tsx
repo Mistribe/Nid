@@ -21,6 +21,7 @@ import { contractPath, contractSchema, toContractBody, type ContractValues } fro
 import { presentRefusal } from '../refusal';
 import { contractValuesOf, isPlain, repaymentRank } from './contractValues';
 import '@/locales/loans';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 
 /** 3B2 design §5: the contract edited on its own page, sent whole with the version it was read at. */
 export function ContractPage() {
@@ -39,7 +40,7 @@ export function ContractPage() {
 
   // An unknown loan and another adult's private one both answer 404: the same « Page introuvable », under « Crédits ».
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs()} onRetry={() => void answer.refetch()} />;
-  if (!answer.data) return page(undefined, <div aria-busy="true" aria-label={t('loan_contract.loading')} className="h-40 shimmer rounded-md border bg-muted" />);
+  if (!answer.data) return page(undefined, <Loading label={t('loan_contract.loading')}><SectionSkeleton /><SectionSkeleton /></Loading>);
 
   const loan = answer.data;
   return page(loan.name, loan.canWrite

@@ -14,6 +14,7 @@ import { OverviewFilters } from './overview/OverviewFilters';
 import { SourcesTable } from './overview/SourcesTable';
 import { SplitBar } from './overview/SplitBar';
 import { useOverview } from './overview/useOverview';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
 /** The income dashboard (overview grammar): filters, hero and key figures, then the split, the months and the sources in their cards. */
 export function IncomeSourcesPage() {
@@ -61,9 +62,7 @@ function Sources({ data, filtered, withEnded, deciding }: { data: Overview; filt
   const { t } = useTranslation();
   if (!data || deciding)
     return (
-      <ul aria-busy="true" aria-label={t('income.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
-      </ul>
+      <Loading label={t('income.loading')}><TableSkeleton columns={5} /></Loading>
     );
 
   // Empty: no row and no share, ended ones included.

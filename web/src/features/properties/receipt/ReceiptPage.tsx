@@ -17,6 +17,7 @@ import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_RECEIPTS } from '../api';
 import { elision } from '@/lib/elision';
 import '@/locales/properties';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 /** The tenancy fields are completed on the lease, the address on the property's settings. */
 const LEASE_FIELDS = ['tenant_names', 'landlord_name', 'landlord_address'];
@@ -45,7 +46,7 @@ export function ReceiptPage() {
   const trail = <PageTrail crumbs={crumbs} />;
 
   if (answer.error && !stale) return <div className="space-y-4">{trail}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
-  if (!view) return <div className="space-y-4">{trail}<div aria-busy="true" aria-label={t('property_receipt.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></div>;
+  if (!view) return <div className="space-y-4">{trail}<PageSkeleton label={t('property_receipt.loading')} stats={0} /></div>;
 
   const missingText = (field: string) => {
     switch (field) {

@@ -24,6 +24,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { SALE_SCENARIO, SCENARIOS, type SaleResult, type SaleScenario } from '../api';
 import { fromSale, SaleFields, salePath, toSaleDocument, type SaleDraft } from './SaleFields';
 import '@/locales/scenarios';
+import { Loading, PageSkeleton, SectionSkeleton } from '@/components/page/skeletons';
 
 // The chart (Recharts) and the tax page (the tax strings) load with their tab.
 const ProjectionTab = lazy(() => import('../ProjectionTab'));
@@ -47,12 +48,12 @@ export function SaleScenarioPage() {
 
   const crumbs = [{ label: t('scenarios.title'), to: '/scenarios' as const }];
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!answer.data) return <><PageTrail crumbs={crumbs} /><div aria-busy="true" aria-label={t('scenarios.sale.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
+  if (!answer.data) return <><PageTrail crumbs={crumbs} /><PageSkeleton label={t('scenarios.sale.loading')} stats={4} tabs={3} /></>;
 
   const scenario = answer.data;
   const { sale, gap } = scenario.result;
   const dash = t('scenarios.dash');
-  const tabFallback = <div role="status" aria-busy="true" aria-label={t('scenarios.sale.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
+  const tabFallback = <Loading label={t('scenarios.sale.loading')}><SectionSkeleton /></Loading>;
 
   return (
     <article className="space-y-6">

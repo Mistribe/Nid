@@ -29,6 +29,7 @@ import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/properties';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 const TABS = ['overview', 'rental', 'return', 'expenses', 'valuations', 'documents', 'settings'] as const;
 
@@ -65,7 +66,7 @@ export function PropertyDetailPage() {
     // An unknown property and another adult's private one both answer 404: the same « Page introuvable ».
     return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   }
-  if (!property) return <article className="space-y-6">{trail}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
+  if (!property) return <article className="space-y-6">{trail}<PageSkeleton label={t('property_detail.loading')} actions={2} stats={4} tabs={5} /></article>;
 
   const rented = property.type === 'rental' || property.tenancies.length > 0;
   const shown = (tab === 'settings' && !property.canWrite) || ((tab === 'rental' || tab === 'return') && !rented) ? 'overview' : tab;

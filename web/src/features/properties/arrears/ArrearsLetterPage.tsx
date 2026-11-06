@@ -17,6 +17,7 @@ import { todayIso } from '../../subscriptions/today';
 import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_ARREARS } from '../api';
 import '@/locales/properties';
+import { PageSkeleton } from '@/components/page/skeletons';
 
 /** The delays offered; any other one in the URL (1 to 60) still sets the deadline. */
 const DELAYS = [8, 15, 30];
@@ -50,7 +51,7 @@ export function ArrearsLetterPage() {
   const trail = <PageTrail crumbs={crumbs} />;
 
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!view) return <div className="space-y-4">{trail}<div aria-busy="true" aria-label={t('property_arrears.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></div>;
+  if (!view) return <div className="space-y-4">{trail}<PageSkeleton label={t('property_arrears.loading')} stats={0} /></div>;
 
   const letter = view.letter;
   const header = (

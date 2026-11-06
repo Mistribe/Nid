@@ -11,7 +11,6 @@ import { StatLine } from '@/components/page/StatLine';
 import { TableToggle } from '@/components/page/TableToggle';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '../../income/expected/months';
 import { HOUSEHOLD_INCOME, type PassiveIncome } from '../api';
@@ -20,6 +19,7 @@ import { kindText, missingRateCodes } from '../format';
 import { incomeColor } from './colors';
 import '@/locales/investments';
 import '@/locales/forms';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Row = PassiveIncome['rows'][number];
 const month = (ym: string, style: 'long' | 'short' = 'long') => monthLabel(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), style);
@@ -33,7 +33,7 @@ export default function IncomeTab({ scope }: { scope: 'me' | 'household' }) {
   const { $api } = useApi();
   const answer = $api.useQuery('get', HOUSEHOLD_INCOME, { params: { query: { scope } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data) return <Skeleton role="status" aria-busy="true" aria-label={t('investments_income.loading')} className="h-64 w-full" />;
+  if (!answer.data) return <OverviewSkeleton label={t('investments_income.loading')} />;
   return <Body d={answer.data} />;
 }
 

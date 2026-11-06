@@ -17,7 +17,6 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '../../income/expected/months';
 import { ISO_DATE } from '../../subscriptions/edits/amount';
@@ -31,6 +30,7 @@ import { kindColor } from './colors';
 import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/investments';
 import '@/locales/forms';
+import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 const PRESETS = ['ytd', 'last12', 'last36', 'all'] as const;
@@ -76,7 +76,7 @@ export function PerformanceTab({ scope }: { scope: Scope }) {
       </div>
       {custom ? <CustomPeriod today={today} range={range} onClose={() => setCustom(false)} onApply={(next) => { setCustom(false); choose(next); }} /> : null}
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
-        : !d ? <Skeleton role="status" aria-busy="true" aria-label={t('investments_performance.loading')} className="h-64 w-full" />
+        : !d ? <OverviewSkeleton label={t('investments_performance.loading')} />
           : <Body d={d} />}
     </div>
   );
