@@ -33,7 +33,7 @@ public class SpendingHistoryTests
     private static decimal? Amount(MoneyView? money) => money is null ? null : decimal.Parse(money.Amount, CultureInfo.InvariantCulture);
 
     private static SubscriptionsOverview Overview(params BuiltSubscription[] set)
-        => OverviewMath.Build(set, [], Currency.Eur, NoRates, Today);
+        => OverviewMath.Build(set, [], Currency.Eur, NoRates, Today, InflationSeries.Empty);
 
     [Fact]
     public void Spent_sums_the_past_charges_since_the_first_and_over_twelve_months()

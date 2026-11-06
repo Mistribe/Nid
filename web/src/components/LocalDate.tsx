@@ -15,6 +15,10 @@ export function formatLocalDate(iso: string, style: 'long' | 'short' = 'long', l
   return new Intl.DateTimeFormat(locale, { timeZone: 'UTC', day: 'numeric', month: style, year: 'numeric' }).format(date);
 }
 
+/** « septembre 2026 » from a `yyyy-mm`: formatting only, no arithmetic. */
+export const monthText = (month: string) =>
+  new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
+
 export function LocalDate({ value, style = 'long' }: { value: string; style?: 'long' | 'short' }) {
   return <time dateTime={value}>{formatLocalDate(value, style)}</time>;
 }

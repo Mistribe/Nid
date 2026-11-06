@@ -41,7 +41,7 @@ public class OverviewMathTests
     private static SubscriptionsOverview Overview(BuiltSubscription[] set, Guid[] persons)
         => OverviewMath.Build(
             set, persons.Select(p => new PersonInfo(new PersonId(p), PersonKind.Adult, p.ToString(), null, 0)).ToList(),
-            Currency.Eur, RateTable.Empty(Today, 7), Today);
+            Currency.Eur, RateTable.Empty(Today, 7), Today, InflationSeries.Empty);
 
     private static decimal? Amount(MoneyView? money)
         => money is null ? null : decimal.Parse(money.Amount, CultureInfo.InvariantCulture);

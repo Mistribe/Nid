@@ -6,7 +6,7 @@ import { tileOf } from '@/app/nav';
 import { seeAllClass } from '@/components/page/seeAll';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
-import { formatLocalDate, LocalDate } from '@/components/LocalDate';
+import { formatLocalDate, LocalDate, monthText } from '@/components/LocalDate';
 import { formatMoney, Money, type MoneyValue } from '@/components/Money';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { StatLine } from '@/components/page/StatLine';
@@ -260,6 +260,27 @@ function Savings({ d }: { d: Overview }) {
   );
 }
 
+const pct = (value: number) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(value);
+const REASONS = ['unavailable', 'currency', 'not_published'] as const;
+
+/** #419: « +10,0 %, soit +7,8 % après inflation », or the nominal change and why there is no real one. */
+function RiseChange({ rise }: { rise: Overview['priceRises']['items'][number] }) {
+  const { t } = useTranslation('subscriptions-board');
+  if (rise.changePct == null) return null;
+  const { real } = rise;
+  const change = pct(rise.changePct);
+  const reason = REASONS.find((r) => r === real?.missing) ?? 'unavailable';
+  return (
+    <span className="block text-xs text-muted-foreground">
+      {real?.percent != null
+        ? t('rises.pct_real', { change, real: pct(real.percent) })
+        : t('rises.pct', { change })}
+      {real?.percent != null && real.inflationTo ? <> ({t('rises.real_to', { month: monthText(real.inflationTo) })})</> : null}
+      {real?.percent == null ? <> · {t(`rises.real_missing.${reason}`)}</> : null}
+    </span>
+  );
+}
+
 /** #398: each dearer price of the last 12 months, latest first; a launch offer ending says so and stays out of the total. */
 function PriceRises({ d }: { d: Overview }) {
   const { t } = useTranslation('subscriptions-board');
@@ -281,7 +302,7 @@ function PriceRises({ d }: { d: Overview }) {
             <span className="ml-auto whitespace-nowrap text-right">
               {r.promoEnded
                 ? <span className="text-xs font-medium text-muted-foreground">{t('rises.promo_ended')}</span>
-                : t('rises.yearly', { amount: text(r.yearlyDifference) })}
+                : <>{t('rises.yearly', { amount: text(r.yearlyDifference) })}<RiseChange rise={r} /></>}
             </span>
           </li>
         ))}

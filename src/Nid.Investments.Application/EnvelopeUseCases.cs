@@ -150,7 +150,7 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
 
 [RequestHandler<GetEnvelopeQuery, EnvelopeDetail>]
 public sealed class GetEnvelopeHandler(
-    EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor, IPersonRegistry persons)
+    EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor, IPersonRegistry persons, IInflation inflation)
     : IRequestHandler<GetEnvelopeQuery, EnvelopeDetail>
 {
     public async ValueTask<Result<EnvelopeDetail>> HandleAsync(GetEnvelopeQuery query, CancellationToken ct = default)
@@ -167,6 +167,9 @@ public sealed class GetEnvelopeHandler(
         var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
         var e = f.Envelope;
         var open = f.Item.ArchivedAt is null;
+        var latest = Nid.Investments.Domain.EnvelopeMath.LastOnOrBefore(f.Values, today);
+        var real = latest is null ? null
+            : (await inflation.ReadAsync(ct)).RealAnnualReturn(Nid.Investments.Domain.EnvelopeMath.CashFlows(f.Flows, latest), latest.AsOf, f.Currency);
 
         return Result.Success(new EnvelopeDetail(
             query.ItemId, f.Item.DisplayName, EnvelopeWire.Of(e.Kind), f.Currency.Code,
@@ -179,7 +182,8 @@ public sealed class GetEnvelopeHandler(
             e.Regulated is { } regulated ? EnvelopeWire.Of(regulated) : null,
             open ? EnvelopeInsights.Ceiling(f, today) : null,
             open ? EnvelopeInsights.Interest(f, today) : null,
-            open && EnvelopeInsights.Milestone(f, await persons.ListAsync(ct), today) is { } m ? new TaxMilestoneView(m.Code, m.On) : null));
+            open && EnvelopeInsights.Milestone(f, await persons.ListAsync(ct), today) is { } m ? new TaxMilestoneView(m.Code, m.On) : null,
+            real));
     }
 }
 

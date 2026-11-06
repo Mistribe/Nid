@@ -34,14 +34,14 @@ public sealed record IncomeWithholdingView(Guid Person, string Name, decimal Rat
 /// <summary>
 /// <paramref name="MonthlyNow"/>, its <paramref name="MonthlyParts"/> (one per running label) and the changes are smoothed;
 /// <paramref name="ReceivedThisYear"/> is cash from 1 January to today, one-offs included (<paramref name="OneOffsThisYear"/>).
-/// <paramref name="RealChange1y"/> is <paramref name="Change1y"/> after <paramref name="Inflation"/>, the household's projection
-/// assumption in percent (#407).
+/// <paramref name="RealChange1y"/> is <paramref name="Change1y"/> after <paramref name="Inflation"/>, the observed change over the
+/// last 12 months in percent (#407, #419); null when unknown.
 /// </summary>
 public sealed record IncomeSourceFigures(
     IncomeAmountView MonthlyNow, IReadOnlyList<IncomeOverviewPart> MonthlyParts,
     LocalDate? NextOn, IncomeMoneyView? NextAmount, string? NextLabel,
     decimal? Change1y, decimal? ChangeSinceStart, IncomeMoneyView ReceivedThisYear, IncomeMoneyView OneOffsThisYear,
-    decimal? RealChange1y, decimal Inflation);
+    RealPercentView RealChange1y, decimal? Inflation);
 
 public sealed record IncomeLabelAmount(string Label, IncomeMoneyView Amount);
 
@@ -54,7 +54,7 @@ public sealed record IncomeChangeView(
 [RequestHandler<GetIncomeSourceOverviewQuery, IncomeSourceOverview>]
 public sealed class GetIncomeSourceOverviewHandler(
     IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables, IHouseholdCalendar calendar,
-    IHouseholdSettings household, ITaxWithholdingRates withholding)
+    ITaxWithholdingRates withholding, IInflation inflation)
     : IRequestHandler<GetIncomeSourceOverviewQuery, IncomeSourceOverview>
 {
     public const int UpcomingMonths = 3;
@@ -97,7 +97,7 @@ public sealed class GetIncomeSourceOverviewHandler(
         var monthlyNow = IncomeMath.MonthlyEquivalent(list, today);
         var next = IncomeMath.Next(list, today);
         var yearStart = new LocalDate(today.Year, 1, 1);
-        var inflation = (await household.ProjectionAssumptionsAsync(ct)).Inflation;
+        var series = await inflation.ReadAsync(ct);
         var change1y = OverviewMath.ChangePct(monthlyNow, IncomeMath.MonthlyEquivalent(list, today.PlusYears(-1)));
         var paid = list.SelectMany(p => IncomeMath.Occurrences(p, LocalDate.MinIsoValue, today.PlusDays(1))).ToList();
         var oneOffsThisYear = oneOffs!.Where(f => f.OccurredOn >= yearStart && f.OccurredOn <= today).Select(f => f.Amount.Amount).ToList();
@@ -111,7 +111,7 @@ public sealed class GetIncomeSourceOverviewHandler(
             change1y,
             list.Count == 0 ? null : OverviewMath.ChangePct(monthlyNow, IncomeMath.MonthlyEquivalent(list, list.Min(p => p.StartsOn))),
             Sum(paid.Where(o => o.On >= yearStart).Select(o => o.Amount.Amount).Concat(oneOffsThisYear)),
-            Sum(oneOffsThisYear), OverviewMath.RealChangePct(change1y, inflation), inflation * 100m);
+            Sum(oneOffsThisYear), series.RealChangeOver12Months(change1y, currency), OverviewMath.InflationPct(series));
 
         // The estimate counts open salaries in euros only (TaxLineCodes.InEuros).
         var rates = source.Source.Kind == IncomeKind.Salary && source.Item.ArchivedAt is null && currency == Currency.Eur

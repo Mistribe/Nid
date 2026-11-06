@@ -16,7 +16,7 @@ public static class OverviewMath
     private const int LongCycleSoonDays = 90; // spec §4.1: today + 90 included
 
     public static SubscriptionsOverview Build(
-        IReadOnlyList<BuiltSubscription> set, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today)
+        IReadOnlyList<BuiltSubscription> set, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today, InflationSeries inflation)
     {
         var missing = new List<Finding>();
         var estimate = false;
@@ -97,7 +97,7 @@ public static class OverviewMath
 
         var years = SpendingHistory.Years(set, today, View);
         var savings = Savings(set, today, reference, rates);
-        var rises = Rises(set, today, reference, rates);
+        var rises = Rises(set, today, reference, rates, inflation);
 
         var shared = HouseholdCost.Combine(timelines, window).Shared;
         var findings = HouseholdCost.Divergences(shared).Concat(missing.DistinctBy(f => f.Reference)).Select(FindingView.From).ToList();
@@ -125,17 +125,28 @@ public static class OverviewMath
     }
 
     /// <summary>#398: the dearer phases of the last 12 months, latest first; the total leaves the promotions ending out.</summary>
-    private static PriceRisesView Rises(IReadOnlyList<BuiltSubscription> set, LocalDate today, Currency reference, RateTable rates)
+    private static PriceRisesView Rises(IReadOnlyList<BuiltSubscription> set, LocalDate today, Currency reference, RateTable rates, InflationSeries inflation)
     {
         var rises = SpendingHistory.Rises(set, today).OrderByDescending(r => r.To.StartsOn)
             .ThenBy(r => r.Sub.DisplayName, StringComparer.Ordinal).ToList();
         var total = FxConversion.Convert(rises.Where(r => r.From.MaxCycles is null).Select(r => r.Difference), rates, reference);
         return new PriceRisesView(total.Total is { } t && rises.Any(r => r.From.MaxCycles is null) ? MoneyView.From(t) : null,
-            rises.Select(r => new PriceRiseView(r.Sub.Input.Subscription.Id, r.Sub.DisplayName, r.Sub.Provider, r.To.StartsOn,
-                MoneyView.From(r.From.Price), DurationView.From(r.From.Every), MoneyView.From(r.To.Price), DurationView.From(r.To.Every),
-                FxConversion.Convert([r.Difference], rates, reference).Total is { } d ? MoneyView.From(d) : null,
-                r.From.MaxCycles is not null)).ToList());
+            rises.Select(r =>
+            {
+                var pct = ChangePct(r.From, r.Difference.Amount, r.To.StartsOn);
+                return new PriceRiseView(r.Sub.Input.Subscription.Id, r.Sub.DisplayName, r.Sub.Provider, r.To.StartsOn,
+                    MoneyView.From(r.From.Price), DurationView.From(r.From.Every), MoneyView.From(r.To.Price), DurationView.From(r.To.Every),
+                    FxConversion.Convert([r.Difference], rates, reference).Total is { } d ? MoneyView.From(d) : null,
+                    r.From.MaxCycles is not null, pct,
+                    inflation.RealChange(pct, MonthOf(r.From.StartsOn), MonthOf(r.To.StartsOn), r.To.Price.Currency));
+            }).ToList());
     }
+
+    private static YearMonth MonthOf(LocalDate date) => new(date.Year, date.Month);
+
+    /// <summary>The yearly cost change of a rise in percent, both yearly amounts taken at the rise's date; null from a free phase.</summary>
+    private static decimal? ChangePct(BillingPhase from, decimal difference, LocalDate on)
+        => SpendingHistory.Yearly(from, on) is > 0m and var old ? Math.Round(difference / old * 100, 1, MidpointRounding.AwayFromZero) : null;
 
     /// <summary>Every piece <see cref="Build"/> converts, for one rate query: the cash of this month and the twelve after, and the amortized cost of the month and the year.</summary>
     public static IEnumerable<CostPiece> RatePieces(IReadOnlyList<BuiltSubscription> set, LocalDate today)

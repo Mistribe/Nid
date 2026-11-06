@@ -1,14 +1,16 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
+import type { components } from '@/api/schema';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { PROPERTY, propertyDetail, rentedFigures, tenancy } from '../testData';
 
 const PAGE = `/properties/${PROPERTY}?tab=rental`;
-const due = {
+const due: components['schemas']['TenancyRevisionView'] = {
   state: 'due', anniversary: '2026-09-01', fromQuarter: '2025-Q2', fromValue: '145.17', toQuarter: '2026-Q2', toValue: '148.37',
   currentRent: '900.00', newRent: '919.84', defaultEffectiveOn: '2026-09-01', dpeUnknown: false,
+  irlChangePct: 3.5, cpi: { percent: 2.1, inflationTo: '2026-06', missing: null },
 };
 
 function serve(revision = due, answer?: () => Response) {
@@ -48,6 +50,17 @@ describe('revision dialog', () => {
 
     await waitFor(() => expect(sent).toEqual([{ effectiveOn: '2026-09-01' }]));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('compares the IRL with the inflation of the same period, or says why it cannot', async () => {
+    serve();
+    const first = await renderApp(PAGE);
+    expect((await open(first.user)).getByText('IRL +3,5 % · inflation sur la même période +2,1 % (jusqu’à fin juin 2026)')).toBeInTheDocument();
+    first.unmount();
+
+    serve({ ...due, cpi: { percent: null, inflationTo: null, missing: 'not_published' } });
+    const second = await renderApp(PAGE);
+    expect((await open(second.user)).getByText('IRL +3,5 % · inflation pas encore publiée pour cette période')).toBeInTheDocument();
   });
 
   it('says when the DPE is not given', async () => {

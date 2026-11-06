@@ -39,7 +39,7 @@ export const overview = (over: Partial<IncomeOverview> = {}): IncomeOverview => 
   figures: {
     monthlyNow: eur('6420.00'), monthlyChange1y: 4.1, total: eur('77040.00'), elapsed: eur('64200.00'),
     changeVsPrevious: eur('3000.00'), changeVsPreviousPct: 4.1, change3y: null, change3yYearly: null,
-    monthlyRealChange1y: 2.1, inflation: 2,
+    monthlyRealChange1y: { percent: 2.1, inflationTo: '2026-09', missing: null }, inflation: 2,
   },
   split: [
     { item: SALARY, name: 'Salaire Alice', kind: 'salary', total: eur('60000.00'), perMonth: eur('5000.00'), percent: 77.9 },
@@ -58,7 +58,7 @@ export const sourceOverview = (over: Partial<IncomeSourceOverview> = {}): Income
     monthlyNow: eur('2450.00'),
     monthlyParts: [{ item: SALARY, name: 'Prime annuelle', amount: eur('150.00') }, { item: SALARY, name: 'Salaire de base', amount: eur('2300.00') }],
     nextOn: '2026-11-01', nextAmount: eur('2300.00'), nextLabel: 'Salaire de base', change1y: 4.5, changeSinceStart: 11.4,
-    receivedThisYear: eur('23400.00'), oneOffsThisYear: eur('400.00'), realChange1y: 2.5, inflation: 2,
+    receivedThisYear: eur('23400.00'), oneOffsThisYear: eur('400.00'), realChange1y: { percent: 2.5, inflationTo: '2026-09', missing: null }, inflation: 2,
   },
   months: [
     { year: 2024, month: 12, upcoming: false, parts: [{ label: 'Prime annuelle', amount: eur('1800.0000') }, { label: 'Salaire de base', amount: eur('2200.0000') }], oneOff: eur('0.0000'), total: eur('4000.0000') },

@@ -184,9 +184,57 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         var figures = overview.GetProperty("figures");
         Assert.Equal("1800.00", Amount(figures.GetProperty("monthlyNow")));
         Assert.Equal(0m, figures.GetProperty("change3y").GetDecimal());
-        // #407: flat over a year is a loss after the default 2 % inflation.
-        Assert.Equal((0m, -2.0m, 2m), (figures.GetProperty("monthlyChange1y").GetDecimal(),
-            figures.GetProperty("monthlyRealChange1y").GetDecimal(), figures.GetProperty("inflation").GetDecimal()));
+        Assert.Equal(0m, figures.GetProperty("monthlyChange1y").GetDecimal());
+    }
+
+    private static async Task RaiseAsync(NidApp app, Guid id)
+        => await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{id}/phase-changes",
+            new { label = "Salaire", effectiveOn = "2025-06-01", netAmount = new { amount = "2080", currency = "EUR" } }));
+
+    [Fact]
+    public async Task Income_overview_real_change_uses_the_observed_series()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedCpiAsync(new NodaTime.YearMonth(2025, 9), 2m);
+        await RaiseAsync(app, await SalaryAsync(app, app.AdultA));
+
+        var figures = (await OverviewAsync(app, "?period=year")).GetProperty("figures");
+
+        var real = figures.GetProperty("monthlyRealChange1y"); // 1.04 / 1.02 − 1 = 1.96 %
+        Assert.Equal((4.0m, 2.0m, "2025-09", JsonValueKind.Null, 2.0m), (figures.GetProperty("monthlyChange1y").GetDecimal(),
+            real.GetProperty("percent").GetDecimal(), real.GetProperty("inflationTo").GetString(), real.GetProperty("missing").ValueKind,
+            figures.GetProperty("inflation").GetDecimal()));
+    }
+
+    [Fact]
+    public async Task Income_overview_in_a_foreign_reference_currency_has_no_real_change()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedCpiAsync(new YearMonth(2025, 9), 2m);
+        await RaiseAsync(app, await SalaryAsync(app, app.AdultA));
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { referenceCurrency = "USD" })).EnsureSuccessStatusCode();
+        var days = Enumerable.Range(0, 2000).Select(i => new LocalDate(2024, 1, 1).PlusDays(i)).TakeWhile(d => d <= NidApp.GoldenCaseToday);
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
+                .WriteAsync(days.Select(d => new FxRate(d, Currency.Eur, 1.1m, FxRateSource.Ecb)).ToList(), TestContext.Current.CancellationToken);
+
+        var real = (await OverviewAsync(app, "?period=year")).GetProperty("figures").GetProperty("monthlyRealChange1y");
+
+        Assert.Equal("currency", real.GetProperty("missing").GetString());
+    }
+
+    [Fact]
+    public async Task Income_overview_without_series_keeps_nominal_figures()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RaiseAsync(app, await SalaryAsync(app, app.AdultA));
+
+        var figures = (await OverviewAsync(app, "?period=year")).GetProperty("figures");
+
+        var real = figures.GetProperty("monthlyRealChange1y");
+        Assert.Equal((4.0m, JsonValueKind.Null, JsonValueKind.Null, "unavailable", JsonValueKind.Null), (figures.GetProperty("monthlyChange1y").GetDecimal(),
+            real.GetProperty("percent").ValueKind, real.GetProperty("inflationTo").ValueKind, real.GetProperty("missing").GetString(),
+            figures.GetProperty("inflation").ValueKind));
     }
 
     [Fact]

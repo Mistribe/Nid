@@ -27401,6 +27401,7 @@ export interface components {
             ceiling?: null | components["schemas"]["CeilingView"];
             interest?: null | components["schemas"]["InterestEstimateView"];
             milestone?: null | components["schemas"]["TaxMilestoneView"];
+            realReturn?: null | components["schemas"]["RealPercentView"];
         };
         EnvelopeEstimateView: {
             value?: null | components["schemas"]["AmountView"];
@@ -28016,6 +28017,7 @@ export interface components {
             figures?: null | components["schemas"]["HoldingFiguresView"];
             autoPrice: boolean;
             price?: null | components["schemas"]["PriceView"];
+            realReturn?: null | components["schemas"]["RealPercentView"];
         };
         HoldingWarningView: {
             code: string;
@@ -28246,10 +28248,9 @@ export interface components {
             change3y?: null | number;
             /** Format: double */
             change3yYearly?: null | number;
+            monthlyRealChange1y: components["schemas"]["RealPercentView"];
             /** Format: double */
-            monthlyRealChange1y?: null | number;
-            /** Format: double */
-            inflation: number;
+            inflation?: null | number;
         };
         IncomeOverviewMonth: {
             /** Format: int32 */
@@ -28404,10 +28405,9 @@ export interface components {
             changeSinceStart?: null | number;
             receivedThisYear: components["schemas"]["IncomeMoneyView"];
             oneOffsThisYear: components["schemas"]["IncomeMoneyView"];
+            realChange1y: components["schemas"]["RealPercentView"];
             /** Format: double */
-            realChange1y?: null | number;
-            /** Format: double */
-            inflation: number;
+            inflation?: null | number;
         };
         IncomeSourceList: {
             items: components["schemas"]["IncomeSourceSummary"][];
@@ -29311,6 +29311,8 @@ export interface components {
             currency: string;
             period: string;
             points: components["schemas"]["NetWorthPointView"][];
+            realTo?: null | string;
+            realMissing?: null | string;
         };
         NetWorthPointView: {
             /** Format: date */
@@ -29318,6 +29320,8 @@ export interface components {
             value?: null | components["schemas"]["DashboardMoneyView"];
             contributions?: null | components["schemas"]["DashboardMoneyView"];
             missingCurrency?: null | string;
+            realValue?: null | components["schemas"]["DashboardMoneyView"];
+            realContributions?: null | components["schemas"]["DashboardMoneyView"];
         };
         NewTokenBody: {
             name: string;
@@ -29603,6 +29607,9 @@ export interface components {
             newEvery: components["schemas"]["DurationView"];
             yearlyDifference?: null | components["schemas"]["MoneyView"];
             promoEnded: boolean;
+            /** Format: double */
+            changePct?: null | number;
+            real?: null | components["schemas"]["RealPercentView"];
         };
         PriceRunView: {
             /** Format: uuid */
@@ -30368,6 +30375,12 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+        };
+        RealPercentView: {
+            /** Format: double */
+            percent?: null | number;
+            inflationTo?: null | string;
+            missing?: null | string;
         };
         RejectProposalBody: {
             /** Format: uint32 */
@@ -31638,6 +31651,9 @@ export interface components {
             lostAnniversary?: null | string;
             dpeUnknown: boolean;
             missingQuarter?: null | string;
+            /** Format: double */
+            irlChangePct?: null | number;
+            cpi: components["schemas"]["RealPercentView"];
         };
         TermsBody: {
             from?: null | string;

@@ -39,10 +39,12 @@ public sealed record SavedItemView(ItemId ItemId, string DisplayName, ProviderSu
 /// <summary>
 /// #398: a phase change in the last 12 months to a dearer year. <paramref name="PromoEnded"/>: the old phase was a launch offer
 /// (it had a cycle limit), so the change is the offer ending, not an increase, and stays out of <see cref="PriceRisesView.YearlyTotal"/>.
+/// <paramref name="ChangePct"/> is the yearly cost change in percent (one decimal), <paramref name="Real"/> the same after inflation (#419).
 /// </summary>
 public sealed record PriceRiseView(
     ItemId ItemId, string DisplayName, ProviderSummaryView? Provider, LocalDate On, MoneyView OldPrice, DurationView OldEvery,
-    MoneyView NewPrice, DurationView NewEvery, MoneyView? YearlyDifference, bool PromoEnded);
+    MoneyView NewPrice, DurationView NewEvery, MoneyView? YearlyDifference, bool PromoEnded,
+    decimal? ChangePct = null, RealPercentView? Real = null);
 
 /// <summary>#398: the increases' yearly differences summed (promotions ending left out), and every change listed, latest first.</summary>
 public sealed record PriceRisesView(MoneyView? YearlyTotal, IReadOnlyList<PriceRiseView> Items);

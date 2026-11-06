@@ -421,7 +421,7 @@ describe('tenancies', () => {
     ['irl_missing', 'IRL du 1ᵉʳ trimestre 2027 manquant', '2027-Q1'],
     ['forbidden_dpe', 'Révision interdite (DPE F/G)', null],
   ])('says why a revision is not offered: %s', async (state, text, missingQuarter) => {
-    const revision = { state, dpeUnknown: false, missingQuarter };
+    const revision = { state, dpeUnknown: false, missingQuarter, cpi: { percent: null, inflationTo: null, missing: null } };
     serve(propertyDetail({ figures: rentedFigures(), tenancies: [tenancy({ indexed: true, irlReferenceQuarter: 2, revision })] }));
     await renderApp(PAGE);
 
@@ -430,7 +430,7 @@ describe('tenancies', () => {
   });
 
   it('says a revision was missed', async () => {
-    const revision = { state: 'none', dpeUnknown: false, lostAnniversary: '2025-01-01' };
+    const revision = { state: 'none', dpeUnknown: false, lostAnniversary: '2025-01-01', cpi: { percent: null, inflationTo: null, missing: null } };
     serve(propertyDetail({ figures: rentedFigures(), tenancies: [tenancy({ indexed: true, irlReferenceQuarter: 2, revision })] }));
     await renderApp(PAGE);
 

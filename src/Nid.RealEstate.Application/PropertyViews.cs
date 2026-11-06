@@ -86,9 +86,9 @@ internal static class PropertyViews
             LoanViews.Wire(item.Visibility), Amount(f.Value), f.ValueOn, f.Stale, Amount(f.NetValue), Fraction(f.Rental.GrossYield),
             Fraction(f.Rental.VacancyRate), canWrite, item.OwnerViews());
 
-    public static PropertyDetail Detail(ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite, LocalDate today, IReadOnlyList<IrlValue> irl)
+    public static PropertyDetail Detail(ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite, LocalDate today, IReadOnlyList<IrlValue> irl, InflationSeries inflation)
     {
-        var revisions = RentRevisions.Of(property, irl, today).ToDictionary(c => c.Last.Id, RentRevisions.View);
+        var revisions = RentRevisions.Of(property, irl, today).ToDictionary(c => c.Last.Id, c => RentRevisions.View(c, inflation));
         var d = property.Details;
         var f = read.Figures;
         return new PropertyDetail(property.ItemId, item.DisplayName, LoanWire.Of(d.Type), LoanViews.CurrencyOf(item).Code,

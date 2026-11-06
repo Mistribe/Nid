@@ -43,8 +43,11 @@ public static class CpiViews
 /// <summary>The stored CPI as the shared <see cref="InflationSeries"/>; empty before the first collection.</summary>
 public sealed class ObservedInflation(ICpiStore store) : IInflation
 {
+    private InflationSeries? series;
+
+    // Scoped: a request that reads it twice queries the table once.
     public async Task<InflationSeries> ReadAsync(CancellationToken ct)
-        => new((await store.ListAsync(ct)).ToDictionary(v => v.Month, v => v.Value));
+        => series ??= new((await store.ListAsync(ct)).ToDictionary(v => v.Month, v => v.Value));
 }
 
 [RequestHandler<CollectCpiCommand, CpiRunView>]

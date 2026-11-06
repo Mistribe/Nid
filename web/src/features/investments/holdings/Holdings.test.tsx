@@ -465,6 +465,19 @@ describe('a holding’s breakdown', () => {
   const putInto = (puts: unknown[], status = 200, body: HoldingBreakdown = known()) =>
     server.use(http.put(BREAKDOWN, async ({ request }) => { puts.push(await request.json()); return HttpResponse.json(body, { status }); }));
 
+  it('shows the holding’s annual return after inflation with its month (#419)', async () => {
+    serve(view({ holdings: [holding({ figures: { ...holding().figures!, annualReturnPct: 5.2 }, realReturn: { percent: 3.1, inflationTo: '2025-09', missing: null } }), euroFund] }));
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/movements', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, items: [] })),
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/series', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, points: [] })),
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/cost-reports', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, items: [] })),
+    );
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+    const real = within(await screen.findByRole('region', { name: 'Chiffres du support' })).getByText('Rendement annuel réel');
+    expect(real.nextElementSibling).toHaveTextContent(/\+3,1\s%\spar an/);
+    expect(real.nextElementSibling!.nextElementSibling).toHaveTextContent('inflation comptée jusqu’à fin septembre 2025');
+  });
+
   it('shows the holding’s breakdown and its date, flagged when old', async () => {
     open(view());
     server.use(http.get(BREAKDOWN, () => HttpResponse.json(known({ stale: true }))));

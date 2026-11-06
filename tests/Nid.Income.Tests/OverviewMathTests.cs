@@ -197,14 +197,4 @@ public class OverviewMathTests
         Assert.Null(OverviewMath.ChangePct(2250m, 0m));
         Assert.Null(OverviewMath.ChangePct(null, 2000m));
     }
-
-    [Fact]
-    public void The_real_change_takes_the_inflation_out_and_is_unknown_with_the_change()
-    {
-        Assert.Equal(2.6m, OverviewMath.RealChangePct(4.7m, 0.02m)); // 1.047 / 1.02 − 1
-        Assert.Equal(-2.0m, OverviewMath.RealChangePct(0m, 0.02m));
-        Assert.Equal(4.7m, OverviewMath.RealChangePct(4.7m, 0m));
-        Assert.Equal(5.3m, OverviewMath.RealChangePct(0m, -0.05m)); // deflation: 1 / 0.95 − 1
-        Assert.Null(OverviewMath.RealChangePct(null, 0.02m));
-    }
 }

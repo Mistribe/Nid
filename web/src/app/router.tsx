@@ -32,7 +32,7 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
-export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel; projection?: ProjectionHorizon; real?: 0 };
+export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0 };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
 /** The kind of scenario to create: a purchase without it (the page it always was), a projection or a sale (issue #416) with it. */
 export type NewScenarioSearch = { kind?: 'projection' | 'sale' };
@@ -130,6 +130,7 @@ const dashboardRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): DashboardSearch =>
     ({
       ...(search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
+      ...(search.curveReal === 1 || search.curveReal === '1' ? { curveReal: 1 as const } : {}),
       ...(PANELS.includes(search.panel as Panel) ? { panel: search.panel as Panel } : {}),
       ...(search.projection === '5y' || search.projection === '20y' || search.projection === '30y' ? { projection: search.projection } : {}),
       ...(typeof search.projection === 'string' && RETIRE.test(search.projection) ? { projection: search.projection as ProjectionHorizon } : {}),

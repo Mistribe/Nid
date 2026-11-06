@@ -135,12 +135,8 @@ public static class OverviewMath
     public static decimal? ChangePct(decimal? now, decimal? then)
         => now is { } n && then is { } t && t != 0m ? Percent((n - t) / t) : null;
 
-    /// <summary>
-    /// A one-year change in percent (<see cref="ChangePct"/>) after <paramref name="inflation"/>, an annual fraction: (1 + change) ÷
-    /// (1 + inflation) − 1, 1 decimal; null when the change is unknown. Read from the rounded change, so both figures shown agree.
-    /// </summary>
-    public static decimal? RealChangePct(decimal? changePct, decimal inflation)
-        => changePct is { } c ? Percent((1m + c / 100m) / (1m + inflation) - 1m) : null;
+    /// <summary>The observed inflation over the last 12 months in percent, 1 decimal; null on a series that cannot tell.</summary>
+    public static decimal? InflationPct(InflationSeries series) => series.Last12Months is { } l ? Percent(l.Rate) : null;
 
     private static decimal? YearlyRate(decimal? now, decimal? then)
         => now is { } n && then is { } t && t > 0m && n >= 0m

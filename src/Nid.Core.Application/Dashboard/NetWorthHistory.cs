@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
+using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -9,9 +10,11 @@ namespace Nid.Core.Application.Dashboard;
 public enum NetWorthPeriod { TwelveMonths, ThreeYears, All }
 
 /// <summary>2D2b spec §4: one point of the curve; both amounts null with no reading, or with a missing rate (then <c>MissingCurrency</c> names it).</summary>
-public sealed record NetWorthPointView(LocalDate On, DashboardMoneyView? Value, DashboardMoneyView? Contributions, string? MissingCurrency);
+public sealed record NetWorthPointView(LocalDate On, DashboardMoneyView? Value, DashboardMoneyView? Contributions, string? MissingCurrency,
+    DashboardMoneyView? RealValue = null, DashboardMoneyView? RealContributions = null);
 
-public sealed record NetWorthHistoryView(string Currency, string Period, IReadOnlyList<NetWorthPointView> Points);
+/// <summary>Issue #419: <c>RealTo</c> is the month ("2025-09") the real amounts are expressed in; <c>RealMissing</c> says why they are absent.</summary>
+public sealed record NetWorthHistoryView(string Currency, string Period, IReadOnlyList<NetWorthPointView> Points, string? RealTo = null, string? RealMissing = null);
 
 /// <summary>2D2b spec §4: the net worth curve for the reader, in the Foyer / Moi scope.</summary>
 public sealed record GetNetWorthHistoryQuery(VisibilityScope Scope, NetWorthPeriod Period) : IQuery<NetWorthHistoryView>;
@@ -41,10 +44,12 @@ public static class NetWorthHistory
     }
 
     public static NetWorthHistoryView Compose(
-        NetWorthPeriod period, IReadOnlyList<LocalDate> grid, IReadOnlyList<IReadOnlyList<NetWorthPoint>> parts, Currency reference, RateTable rates)
+        NetWorthPeriod period, IReadOnlyList<LocalDate> grid, IReadOnlyList<IReadOnlyList<NetWorthPoint>> parts, Currency reference, RateTable rates, InflationSeries inflation)
     {
         var byDate = parts.SelectMany(p => p).GroupBy(p => p.On).ToDictionary(g => g.Key, g => g.ToList());
         var points = new List<NetWorthPointView>();
+        var stop = inflation.LastPublished;
+        var gate = reference != Currency.Eur ? RealMissing.Currency : stop is null ? RealMissing.Unavailable : null;
         foreach (var date in grid)
         {
             var at = byDate.GetValueOrDefault(date) ?? [];
@@ -56,20 +61,29 @@ public static class NetWorthHistory
             var value = DashboardMath.Sum.Of(DashboardMath.Merge(at.Select(p => p.Values)), reference, rates, date);
             var paid = DashboardMath.Sum.Of(DashboardMath.Merge(at.Select(p => p.NetContributions)), reference, rates, date);
             var missing = value.Missing ?? paid.Missing;
-            points.Add(missing is null
-                ? new NetWorthPointView(date, DashboardMath.Money(value.Total ?? 0m, reference), DashboardMath.Money(paid.Total ?? 0m, reference), null)
-                : new NetWorthPointView(date, null, null, missing));
+            if (missing is not null)
+            {
+                points.Add(new NetWorthPointView(date, null, null, missing));
+                continue;
+            }
+            // A date after the last published month keeps factor 1; a month before the series gives no real figure.
+            var factor = gate is null ? inflation.Deflator(new YearMonth(date.Year, date.Month), stop!.Value) : null;
+            DashboardMoneyView? Real(decimal? nominal) => factor is { } f ? DashboardMath.Money((nominal ?? 0m) * f, reference) : null;
+            points.Add(new NetWorthPointView(date, DashboardMath.Money(value.Total ?? 0m, reference), DashboardMath.Money(paid.Total ?? 0m, reference), null,
+                Real(value.Total), Real(paid.Total)));
         }
         // « Tout » starts at the first month with a value, not 20 years of empty months.
         if (period == NetWorthPeriod.All)
             points = points.SkipWhile(p => p.Value is null && p.MissingCurrency is null).ToList();
-        return new NetWorthHistoryView(reference.Code, Code(period), points);
+        var deflated = points.Any(p => p.RealValue is not null);
+        var realMissing = gate ?? (deflated || points.All(p => p.Value is null) ? null : RealMissing.NotPublished);
+        return new NetWorthHistoryView(reference.Code, Code(period), points, deflated ? YearMonthPattern.Iso.Format(stop!.Value) : null, realMissing);
     }
 }
 
 [RequestHandler<GetNetWorthHistoryQuery, NetWorthHistoryView>]
 public sealed class GetNetWorthHistoryHandler(
-    IEnumerable<INetWorthContribution> netWorth, IActorAccessor actor, IHouseholdCalendar calendar, IHouseholdSettings household, IFxRates fx)
+    IEnumerable<INetWorthContribution> netWorth, IActorAccessor actor, IHouseholdCalendar calendar, IHouseholdSettings household, IFxRates fx, IInflation inflation)
     : IRequestHandler<GetNetWorthHistoryQuery, NetWorthHistoryView>
 {
     public async ValueTask<Result<NetWorthHistoryView>> HandleAsync(GetNetWorthHistoryQuery query, CancellationToken ct = default)
@@ -89,6 +103,6 @@ public sealed class GetNetWorthHistoryHandler(
         var rates = foreign.Count == 0
             ? RateTable.Empty(today, 0)
             : await fx.LoadAsync(foreign.Append(reference).ToList(), grid[0], today, ct);
-        return Result.Success(NetWorthHistory.Compose(query.Period, grid, parts!, reference, rates));
+        return Result.Success(NetWorthHistory.Compose(query.Period, grid, parts!, reference, rates, await inflation.ReadAsync(ct)));
     }
 }

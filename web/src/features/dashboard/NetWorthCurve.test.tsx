@@ -68,6 +68,58 @@ describe('net worth curve', () => {
     expect(within(card).queryByRole('table')).not.toBeInTheDocument();
   });
 
+  it('plots the real figures in euros of the last published month with ?curveReal=1', async () => {
+    const body = { ...netWorth([
+      curvePoint({ on: '2025-08-31', realValue: { amount: '1020.00', currency: 'EUR' }, realContributions: { amount: '918.00', currency: 'EUR' } }),
+      curvePoint({ on: '2025-10-15' }),
+    ]), realTo: '2025-09' };
+    serveCurve(body);
+    const { user } = await renderApp('/dashboard?curveReal=1');
+
+    const card = await curve();
+    expect(await within(card).findByRole('radio', { name: 'Euros d’aujourd’hui' })).toBeChecked();
+    expect(within(card).getByText('en euros de septembre 2025')).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Afficher en tableau' }));
+    expect(within(card).getByRole('table')).toHaveTextContent('1 020,00 €');
+  });
+
+  it('explains a point without a real figure in the table and under the chart', async () => {
+    const body = { ...netWorth([
+      curvePoint({ on: '2025-08-31' }),
+      curvePoint({ on: '2025-10-15', realValue: { amount: '1000.00', currency: 'EUR' }, realContributions: { amount: '900.00', currency: 'EUR' } }),
+    ]), realTo: '2025-09' };
+    serveCurve(body);
+    const { user } = await renderApp('/dashboard?curveReal=1');
+
+    const card = await curve();
+    expect(await within(card).findByText(/Certains mois n’ont pas de valeur/)).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Afficher en tableau' }));
+    expect(within(card).getByRole('table')).toHaveTextContent('Pas d’indice d’inflation à cette date');
+  });
+
+  it('says why the real figures are unavailable', async () => {
+    serveCurve({ ...netWorth([curvePoint({ on: '2025-08-31' }), curvePoint({ on: '2025-10-15' })]), realMissing: 'currency' });
+    await renderApp('/dashboard?curveReal=1');
+    expect(await within(await curve()).findByText('Euros d’aujourd’hui indisponibles : patrimoine hors euro')).toBeInTheDocument();
+  });
+
+  it('shows no real note unless real mode was asked for', async () => {
+    serveCurve({ ...netWorth([curvePoint({ on: '2025-08-31' }), curvePoint({ on: '2025-10-15' })]), realMissing: 'currency' });
+    await renderApp('/dashboard');
+    const card = await curve();
+    await within(card).findByRole('button', { name: 'Afficher en tableau' });
+    expect(within(card).queryByText(/Euros d’aujourd’hui indisponibles/)).not.toBeInTheDocument();
+  });
+
+  it('has no reading toggle without realTo', async () => {
+    serveCurve(netWorth([curvePoint({ on: '2025-08-31' }), curvePoint({ on: '2025-10-15' })]));
+    await renderApp('/dashboard?curveReal=1');
+    const card = await curve();
+    await within(card).findByRole('button', { name: 'Afficher en tableau' });
+    expect(within(card).queryByRole('radio', { name: 'Euros d’aujourd’hui' })).not.toBeInTheDocument();
+    expect(within(card).queryByText(/en euros de/)).not.toBeInTheDocument();
+  });
+
   it('says when no point has a value', async () => {
     serveCurve(netWorth([curvePoint({ value: null, contributions: null })]));
     await renderApp('/dashboard');

@@ -91,6 +91,20 @@ public class NetWorthHistoryTests(PostgresFixture fixture, SharedNidApp shared) 
     }
 
     [Fact]
+    public async Task The_real_value_is_in_euros_of_the_last_published_month()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedCpiAsync(new YearMonth(2025, 9), 2m);
+        var pea = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, pea, "2024-09-30", "1000.00");
+
+        var points = await PointsAsync(app, app.AdultA, "?period=3y");
+
+        Assert.Equal("1020.00", Amount(At(points, "2024-09-30"), "realValue"));
+        Assert.Equal(Amount(At(points, "2025-10-15"), "value"), Amount(At(points, "2025-10-15"), "realValue"));
+    }
+
+    [Fact]
     public async Task The_grid_is_each_month_end_then_today()
     {
         await using var app = await NidApp.StartAsync(fixture);

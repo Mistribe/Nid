@@ -3,6 +3,7 @@ using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
+using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
@@ -34,10 +35,12 @@ public sealed record GetRentRevisionsQuery(VisibilityScope Scope) : IQuery<RentR
 /// <summary>
 /// <c>State</c> is <c>none</c>, <c>due</c>, <c>irl_missing</c> (<c>MissingQuarter</c> names the quarter) or <c>forbidden_dpe</c>;
 /// <c>LostAnniversary</c>: the previous anniversary passed without a revision. IRL values and rents as decimal strings.
+/// <c>IrlChangePct</c> is the IRL change and <c>Cpi.Percent</c> the CPI change over the same quarters (not a real change), one decimal.
 /// </summary>
 public sealed record TenancyRevisionView(
     string State, LocalDate? Anniversary, string? FromQuarter, string? FromValue, string? ToQuarter, string? ToValue, string? CurrentRent,
-    string? NewRent, LocalDate? DefaultEffectiveOn, LocalDate? LostAnniversary, bool DpeUnknown, string? MissingQuarter);
+    string? NewRent, LocalDate? DefaultEffectiveOn, LocalDate? LostAnniversary, bool DpeUnknown, string? MissingQuarter,
+    decimal? IrlChangePct, RealPercentView Cpi);
 
 /// <summary>A revision due, with its property; rents in the property's <c>Currency</c>.</summary>
 public sealed record RentRevisionDueView(
@@ -80,17 +83,31 @@ internal static class RentRevisions
         return new ChainRevision(link, state, lost);
     }
 
-    public static TenancyRevisionView View(ChainRevision c)
+    public static TenancyRevisionView View(ChainRevision c, InflationSeries series)
     {
         var rent = Amount(c.Last.Tenancy.RentMonthly);
         return c.State switch
         {
             RevisionDue d => new("due", d.Anniversary, d.From.Quarter.ToString(), Amount(d.From.Value), d.To.Quarter.ToString(), Amount(d.To.Value),
-                rent, Amount(d.NewRent), d.DefaultEffectiveOn, c.Lost, d.DpeUnknown, null),
-            RevisionIrlMissing m => new("irl_missing", m.Anniversary, null, null, null, null, rent, null, null, c.Lost, false, m.Missing.ToString()),
-            RevisionForbiddenDpe f => new("forbidden_dpe", f.Anniversary, null, null, null, null, rent, null, null, c.Lost, false, null),
-            _ => new("none", null, null, null, null, null, rent, null, null, c.Lost, false, null),
+                rent, Amount(d.NewRent), d.DefaultEffectiveOn, c.Lost, d.DpeUnknown, null, Round1((d.To.Value / d.From.Value - 1) * 100), Cpi(series, d)),
+            RevisionIrlMissing m => new("irl_missing", m.Anniversary, null, null, null, null, rent, null, null, c.Lost, false, m.Missing.ToString(), null, RealPercentView.None),
+            RevisionForbiddenDpe f => new("forbidden_dpe", f.Anniversary, null, null, null, null, rent, null, null, c.Lost, false, null, null, RealPercentView.None),
+            _ => new("none", null, null, null, null, null, rent, null, null, c.Lost, false, null, null, RealPercentView.None),
         };
+    }
+
+    private static decimal Round1(decimal x) => Math.Round(x, 1, MidpointRounding.AwayFromZero);
+
+    /// <summary>The CPI change between the IRL's two quarters (means of their months), and the last month it covers.</summary>
+    private static RealPercentView Cpi(InflationSeries series, RevisionDue d)
+    {
+        if (series.LastPublished is null) return new(null, null, RealMissing.Unavailable);
+        var (from, to) = (d.From.Quarter, d.To.Quarter);
+        var end = new YearMonth(to.Year, to.Quarter * 3);
+        var stop = YearMonthPattern.Iso.Format(end < series.LastPublished!.Value ? end : series.LastPublished.Value);
+        return series.QuarterMean(from.Year, from.Quarter) is { } a && series.QuarterMean(to.Year, to.Quarter) is { } b
+            ? new(Round1((b / a - 1) * 100), stop, null)
+            : new(null, stop, RealMissing.NotPublished);
     }
 
     public static Failure Refusal(string code, string message, string? field = null)
@@ -98,7 +115,7 @@ internal static class RentRevisions
 }
 
 [RequestHandler<GetTenancyRevisionQuery, TenancyRevisionView>]
-public sealed class GetTenancyRevisionHandler(IPropertyStore properties, IItemRegistry items, IIrlStore irl, IHouseholdCalendar calendar)
+public sealed class GetTenancyRevisionHandler(IPropertyStore properties, IItemRegistry items, IIrlStore irl, IHouseholdCalendar calendar, IInflation inflation)
     : IRequestHandler<GetTenancyRevisionQuery, TenancyRevisionView>
 {
     public async ValueTask<Result<TenancyRevisionView>> HandleAsync(GetTenancyRevisionQuery query, CancellationToken ct = default)
@@ -110,7 +127,7 @@ public sealed class GetTenancyRevisionHandler(IPropertyStore properties, IItemRe
         if (found.Property.Tenancies.FirstOrDefault(t => t.Id == query.Tenancy) is not { } tenancy)
             return Result.Failure<TenancyRevisionView>(new NotFoundFailure("tenancy", query.Tenancy.ToString()));
         var today = await calendar.TodayAsync(ct);
-        return Result.Success(RentRevisions.View(RentRevisions.Of(found.Property, tenancy, await irl.ListAsync(ct), today)));
+        return Result.Success(RentRevisions.View(RentRevisions.Of(found.Property, tenancy, await irl.ListAsync(ct), today), await inflation.ReadAsync(ct)));
     }
 }
 

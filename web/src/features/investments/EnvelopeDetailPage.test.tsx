@@ -204,6 +204,19 @@ describe('EnvelopeDetailPage', () => {
     await waitFor(() => expect(within(line).getByText('Depuis janvier').nextElementSibling).toHaveTextContent('+439,00 €'));
   });
 
+  it('shows the annual return after inflation with its month, or why it is missing (#419)', async () => {
+    serve(detail({ realReturn: { percent: 11.9, inflationTo: '2025-09', missing: null } }));
+    await renderApp(`/investments/${PEA}`);
+    const real = within((await screen.findByText('Valeur au 30 sept. 2025')).closest('dl')!).getByText('Rendement annuel réel');
+    expect(real.nextElementSibling).toHaveTextContent(/\+11,9\s%\spar an/);
+    expect(real.nextElementSibling!.nextElementSibling).toHaveTextContent('inflation comptée jusqu’à fin septembre 2025');
+    cleanup();
+
+    serve(detail({ realReturn: { percent: null, inflationTo: null, missing: 'currency' } }));
+    await renderApp(`/investments/${PEA}`);
+    expect(await screen.findByText('Pas de chiffre après inflation hors euros')).toBeInTheDocument();
+  });
+
   it('dates in figure labels are short', async () => {
     serve(detail());
     await renderApp(`/investments/${PEA}`);

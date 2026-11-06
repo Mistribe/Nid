@@ -79,7 +79,7 @@ public sealed class ListPropertiesHandler(
 [RequestHandler<GetPropertyQuery, PropertyDetail>]
 public sealed class GetPropertyHandler(
     IPropertyStore properties, IItemRegistry items, PropertyReading reading, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
-    IIrlStore irl)
+    IIrlStore irl, IInflation inflation)
     : IRequestHandler<GetPropertyQuery, PropertyDetail>
 {
     public async ValueTask<Result<PropertyDetail>> HandleAsync(GetPropertyQuery query, CancellationToken ct = default)
@@ -95,7 +95,7 @@ public sealed class GetPropertyHandler(
             return Result.Failure<PropertyDetail>(failure!);
         read.TryGetValue(out var r);
         var canWrite = (await policy.CheckAsync(person, query.ItemId, AccessKind.Write, ct)).IsSuccess;
-        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, today, await irl.ListAsync(ct)));
+        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, today, await irl.ListAsync(ct), await inflation.ReadAsync(ct)));
     }
 }
 

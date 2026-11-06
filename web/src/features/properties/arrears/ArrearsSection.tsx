@@ -5,7 +5,7 @@ import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { money } from '../../loans/format';
 import { PROPERTY_ARREARS } from '../api';
-import { monthText } from '../format';
+import { monthText } from '@/components/LocalDate';
 import '@/locales/properties';
 
 /**

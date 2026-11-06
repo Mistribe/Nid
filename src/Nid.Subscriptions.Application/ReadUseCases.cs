@@ -83,7 +83,7 @@ public sealed class ListSubscriptionsHandler(
 public sealed record GetSubscriptionsOverviewQuery(VisibilityScope Scope) : IQuery<SubscriptionsOverview>;
 
 /// <summary>The overview of what a reader sees, shared by its endpoint and the notification source.</summary>
-public sealed class SubscriptionsOverviewReader(SubscriptionSet set, IFxRates fx, IHouseholdSettings household, IPersonRegistry persons)
+public sealed class SubscriptionsOverviewReader(SubscriptionSet set, IFxRates fx, IHouseholdSettings household, IPersonRegistry persons, IInflation inflation)
 {
     public async Task<SubscriptionsOverview> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
@@ -93,7 +93,7 @@ public sealed class SubscriptionsOverviewReader(SubscriptionSet set, IFxRates fx
         var built = await set.LoadAsync(reader, scope, today, horizon, ct);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var rates = await Conversion.LoadAsync(fx, OverviewMath.RatePieces(built, today), reference, today, ct);
-        return OverviewMath.Build(built, await persons.ListAsync(ct), reference, rates, today);
+        return OverviewMath.Build(built, await persons.ListAsync(ct), reference, rates, today, await inflation.ReadAsync(ct));
     }
 }
 

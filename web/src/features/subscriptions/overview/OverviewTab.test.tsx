@@ -216,7 +216,7 @@ describe('Abonnements › vue d’ensemble', () => {
     const month = { count: 1, unit: 'month' };
     serve(overview({ activeCount: 2, priceRises: { yearlyTotal: eur('36.00'), items: [
       { itemId: SPOTIFY, displayName: 'Spotify', provider: null, on: '2026-03-01', oldPrice: eur('9.99'), oldEvery: month,
-        newPrice: eur('12.99'), newEvery: month, yearlyDifference: eur('36.00'), promoEnded: false },
+        newPrice: eur('12.99'), newEvery: month, yearlyDifference: eur('36.00'), promoEnded: false, changePct: 10, real: { percent: 7.8, inflationTo: '2026-03', missing: null } },
       { itemId: PRIME, displayName: 'Prime', provider: null, on: '2026-02-01', oldPrice: eur('0.99'), oldEvery: month,
         newPrice: eur('9.99'), newEvery: month, yearlyDifference: eur('108.00'), promoEnded: true },
     ] } }));
@@ -227,8 +227,28 @@ describe('Abonnements › vue d’ensemble', () => {
     const [rise, promo] = within(rises).getAllByRole('listitem');
     expect(rise).toHaveTextContent(/Spotify.*9,99 € \/ 1 mois → 12,99 € \/ 1 mois le 1 mars 2026.*\+36,00 € par an/);
     expect(within(rise!).getByRole('link', { name: 'Spotify' })).toHaveAttribute('href', `/subscriptions/${SPOTIFY}?tab=history`);
+    expect(rise).toHaveTextContent('+10,0 %, soit +7,8 % après inflation');
     expect(promo).toHaveTextContent('Fin d’offre de lancement');
     expect(promo).not.toHaveTextContent('108');
+  });
+
+  it('A_rise_without_a_real_figure_says_why_and_a_free_phase_shows_no_percent', async () => {
+    const month = { count: 1, unit: 'month' };
+    const rise = (id: string, name: string, extra: object) => ({ itemId: id, displayName: name, provider: null, on: '2026-03-01', oldPrice: eur('9.99'), oldEvery: month,
+      newPrice: eur('12.99'), newEvery: month, yearlyDifference: eur('36.00'), promoEnded: false, ...extra });
+    serve(overview({ activeCount: 3, priceRises: { yearlyTotal: eur('108.00'), items: [
+      rise(SPOTIFY, 'Spotify', { changePct: 10, real: { percent: null, inflationTo: null, missing: 'currency' } }),
+      rise(PRIME, 'Prime', { changePct: 10 }),
+      rise('0192f0aa-0000-7000-8000-0000000000f3', 'Gratuit', { oldPrice: eur('0.00'), changePct: null, real: { percent: null, inflationTo: null, missing: null } }),
+    ] } }));
+    await renderApp('/subscriptions');
+
+    const [chf, absent, free] = within(await region('Hausses de prix')).getAllByRole('listitem');
+    expect(chf).toHaveTextContent('+10,0 %');
+    expect(chf).toHaveTextContent('Pas de chiffre après inflation hors euros');
+    expect(absent).toHaveTextContent('Inflation observée indisponible');
+    expect(free).toHaveTextContent('Gratuit');
+    expect(free).not.toHaveTextContent('%');
   });
 
   it('The_months_card_header_switches_to_a_table', async () => {

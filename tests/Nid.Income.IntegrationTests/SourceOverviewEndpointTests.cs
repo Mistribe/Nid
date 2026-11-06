@@ -108,7 +108,7 @@ public class SourceOverviewEndpointTests(PostgresFixture fixture) : IClassFixtur
 
         var figures = overview.GetProperty("figures");
         Assert.Equal(JsonValueKind.Null, figures.GetProperty("change1y").ValueKind);
-        Assert.Equal(JsonValueKind.Null, figures.GetProperty("realChange1y").ValueKind);
+        Assert.Equal(JsonValueKind.Null, figures.GetProperty("realChange1y").GetProperty("percent").ValueKind);
         Assert.Equal(5.0m, figures.GetProperty("changeSinceStart").GetDecimal());
         var changes = overview.GetProperty("changes").EnumerateArray().ToList();
         Assert.Equal([("change", "2025-06-01"), ("start", "2025-01-01")],
@@ -117,25 +117,44 @@ public class SourceOverviewEndpointTests(PostgresFixture fixture) : IClassFixtur
             changes[0].GetProperty("percent").GetDecimal()));
     }
 
+    private static async Task<JsonElement> RaisedAsync(NidApp app, string currency)
+    {
+        var id = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Sources, new Dictionary<string, object?>
+        {
+            ["displayName"] = "Salaire", ["kind"] = "salary", ["currency"] = currency, ["visibility"] = "shared",
+            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["phases"] = new[] { new { label = "Salaire", startsOn = "2024-01-01", netAmount = new { amount = "2000", currency }, every = new { count = 1, unit = "month" } } },
+        }));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phase-changes",
+            new { label = "Salaire", effectiveOn = "2025-06-01", netAmount = new { amount = "2080", currency } }));
+        return (await OverviewAsync(app, id)).GetProperty("figures");
+    }
+
     [Fact]
-    public async Task The_change_over_one_year_is_also_given_after_the_households_inflation()
+    public async Task Income_source_real_change_uses_the_observed_series()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var assumptions = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/core/projection-assumptions"));
-        var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
-        {
-            classRates = assumptions.GetProperty("classRates"), inflation = "3", savingsClass = "cash", freedPaymentsToSavings = true,
-        });
-        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
-        var id = await NewSourceAsync(app, Phase("Salaire", "2024-01-01", "2000"));
-        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phase-changes",
-            new { label = "Salaire", effectiveOn = "2025-06-01", netAmount = new { amount = "2100", currency = "EUR" } }));
+        await app.SeedCpiAsync(new NodaTime.YearMonth(2025, 9), 2m);
 
-        var figures = (await OverviewAsync(app, id)).GetProperty("figures");
+        var figures = await RaisedAsync(app, "EUR");
 
-        // 1.05 / 1.03 − 1 = 1.94 %.
-        Assert.Equal((5.0m, 1.9m, 3m), (figures.GetProperty("change1y").GetDecimal(), figures.GetProperty("realChange1y").GetDecimal(),
+        var real = figures.GetProperty("realChange1y"); // 1.04 / 1.02 − 1 = 1.96 %
+        Assert.Equal((4.0m, 2.0m, "2025-09", JsonValueKind.Null, 2.0m), (figures.GetProperty("change1y").GetDecimal(),
+            real.GetProperty("percent").GetDecimal(), real.GetProperty("inflationTo").GetString(), real.GetProperty("missing").ValueKind,
             figures.GetProperty("inflation").GetDecimal()));
+    }
+
+    [Fact]
+    public async Task Income_source_in_usd_has_no_real_change()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedCpiAsync(new NodaTime.YearMonth(2025, 9), 2m);
+
+        var figures = await RaisedAsync(app, "USD");
+
+        var real = figures.GetProperty("realChange1y");
+        Assert.Equal((4.0m, JsonValueKind.Null, JsonValueKind.Null, "currency"), (figures.GetProperty("change1y").GetDecimal(),
+            real.GetProperty("percent").ValueKind, real.GetProperty("inflationTo").ValueKind, real.GetProperty("missing").GetString()));
     }
 
     [Fact]

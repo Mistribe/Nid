@@ -9,7 +9,7 @@ import { Section } from '@/components/page/Section';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { monthText } from '../properties/format';
+import { monthText } from '@/components/LocalDate';
 import { PERSONS } from '../subscriptions/api';
 import { AssumptionsDialog } from './AssumptionsDialog';
 import { RetirementDialog } from './RetirementDialog';

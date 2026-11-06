@@ -19,6 +19,7 @@ import { Section } from '@/components/page/Section';
 import { COST_REPORTS, ENVELOPE, HOLDING_BREAKDOWN, HOLDING_SERIES, HOLDINGS, MOVEMENTS, type CostReport, type Holding } from '../api';
 import { SeriesChart } from '../chart/ValueChart';
 import { AnnualReturn, Direction, pct } from '../Figures';
+import { realReturnItem } from '../realReturn';
 import { BreakdownDialog } from './BreakdownDialog';
 import { SourceLink } from '@/features/documents/SourceLink';
 import { hasBreakdown, REGIONS, regionText, SECTORS, sectorText, sharePct } from './breakdown';
@@ -101,6 +102,7 @@ export function HoldingPage() {
             ...(holding.price ? [{ label: t('holding_prices.price'), value: <PriceCell envelope={id} holding={holding} writable={writable} /> }] : []),
             ...(holding.isin && pricesOn ? [{ label: t('holding_prices.auto_price'), value: t(holding.autoPrice ? 'holding_prices.auto_price_on' : 'holding_prices.auto_price_off') }] : []),
             ...(figures?.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
+            ...realReturnItem(t, holding.realReturn),
             ...(figures ? [
               { label: t('holdings.explicit_fees'), value: <Money value={figures.explicitFees} tabular /> },
               { label: t('holdings.gain_before_fees'), value: <Money value={figures.gainBeforeFees} tabular /> },

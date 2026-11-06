@@ -106,6 +106,48 @@ public class RentRevisionTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task Revision_compares_the_irl_with_the_cpi_of_the_same_quarters()
+    {
+        await using var app = await StartAsync(fixture);
+        await app.SeedCpiAsync(new YearMonth(2025, 4), new YearMonth(2026, 6), 1.002m); // both quarter means scale by 1.002^12 = 1.0243
+        var (property, tenancy) = await LetAsync(app);
+
+        var due = await GetRevisionAsync(app, property, tenancy);
+
+        Assert.Equal(1.2m, due.GetProperty("irlChangePct").GetDecimal());
+        var cpi = due.GetProperty("cpi");
+        Assert.Equal((2.4m, "2026-06"), (cpi.GetProperty("percent").GetDecimal(), S(cpi, "inflationTo")));
+        Assert.Equal(JsonValueKind.Null, cpi.GetProperty("missing").ValueKind);
+    }
+
+    [Fact]
+    public async Task Revision_without_the_quarter_cpi_says_not_published()
+    {
+        await using var app = await StartAsync(fixture);
+        await app.SeedCpiAsync(new YearMonth(2025, 4), new YearMonth(2026, 5), 1.002m); // 2026-Q2 lacks June
+        var (property, tenancy) = await LetAsync(app);
+
+        var due = await GetRevisionAsync(app, property, tenancy);
+
+        Assert.Equal(1.2m, due.GetProperty("irlChangePct").GetDecimal());
+        Assert.Equal(("not_published", JsonValueKind.Null), (S(due.GetProperty("cpi"), "missing"), due.GetProperty("cpi").GetProperty("percent").ValueKind));
+        Assert.Equal("2026-05", S(due.GetProperty("cpi"), "inflationTo")); // the quarter ends in June, the series in May
+    }
+
+    [Fact]
+    public async Task Revision_without_a_cpi_series_keeps_the_irl_change_and_says_unavailable()
+    {
+        await using var app = await StartAsync(fixture);
+        var (property, tenancy) = await LetAsync(app);
+
+        var due = await GetRevisionAsync(app, property, tenancy);
+
+        Assert.Equal(1.2m, due.GetProperty("irlChangePct").GetDecimal());
+        var cpi = due.GetProperty("cpi");
+        Assert.Equal(("unavailable", JsonValueKind.Null), (S(cpi, "missing"), cpi.GetProperty("percent").ValueKind));
+    }
+
+    [Fact]
     public async Task A_revision_copies_the_tenant_and_landlord_identity() // Rental receipts spec §2
     {
         await using var app = await StartAsync(fixture);

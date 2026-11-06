@@ -72,6 +72,10 @@
     "total": "+{{amount}} par an sur 12 mois",
     "change": "{{old}} → {{new}} le {{date}}",
     "yearly": "+{{amount}} par an",
-    "promo_ended": "Fin d’offre de lancement"
+    "promo_ended": "Fin d’offre de lancement",
+    "pct": "{{change}} %",
+    "pct_real": "{{change}} %, soit {{real}} % après inflation",
+    "real_to": "inflation connue jusqu’à fin {{month}}",
+    "real_missing": { "unavailable": "Inflation observée indisponible", "currency": "Pas de chiffre après inflation hors euros", "not_published": "Inflation pas encore publiée pour cette période" }
   }
 }

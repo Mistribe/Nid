@@ -102,7 +102,7 @@ Sert à comparer honnêtement un livret, une assurance-vie et un PEA en tenant c
 
 - **Flux** : `opening` et `contribution` négatifs, `withdrawal` positifs, valeur finale positive à `v`. Base **Actual/365**.
 - **Résolution** : bissection sur ]−99,99 %, +10 000 %], tolérance 10⁻⁹ sur le taux, 100 itérations au plus ; arrondi par le serveur à 0,1 %. Pas de changement de signe de la VAN sur l'intervalle → non significatif.
-- **Livré** avec l'issue #20 : `annual_return_pct` dans les chiffres d'une enveloppe (`annualReturnPct` sur le fil), affiché « Rendement annuel » sur sa fiche. Le solveur est `Xirr.AnnualPercent`, partagé avec les supports (§16).
+- **Livré** avec l'issue #20 : `annual_return_pct` dans les chiffres d'une enveloppe (`annualReturnPct` sur le fil), affiché « Rendement annuel » sur sa fiche. Le solveur est `Xirr.AnnualPercent`, partagé avec les supports (§16). Avec la PR 2 de la #419, un « Rendement annuel réel » (`realReturn` sur le détail d'une enveloppe et sur un support, hors de `figures`) l'accompagne, après l'inflation observée de l'INSEE (même contrat `RealPercentView`, pour une enveloppe et pour un support).
 - **Non significatif** si tous les flux ont le même signe ou si la période couvre moins de 12 mois.
 - **Seule exception aux montants décimaux** : la puissance non entière impose un calcul en flottant. Il reste **à la frontière du calcul** : les montants restent décimaux, le taux est reconverti en décimal.
 

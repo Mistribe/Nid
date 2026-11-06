@@ -5,6 +5,7 @@ import { useApi } from '@/api/ApiProvider';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { FormDialog } from '@/components/FormDialog';
+import { monthText } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { money } from '../../loans/format';
@@ -19,6 +20,9 @@ export const REVISION = '/api/v1/realestate/properties/{id}/tenancies/{tenancyId
 
 /** « 2026-Q2 » as the French write it. */
 const quarterText = (quarter: string) => quarter.replace('-Q', '-T');
+
+const REASONS = ['unavailable', 'not_published'] as const;
+const signed = new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /**
  * « Réviser le loyer »: the two IRL values and the rents as the server worked them out, and the date the new rent takes
@@ -58,6 +62,15 @@ export function RevisionDialog({ property, tenancy, onClose, onDone }: {
             <p>{t('property_rental.revision_irl', {
               from: quarterText(revision.fromQuarter), fromValue: revision.fromValue, to: quarterText(revision.toQuarter), toValue: revision.toValue,
             })}</p>
+          ) : null}
+          {revision.irlChangePct != null ? (
+            <p className="text-sm text-muted-foreground">{revision.cpi.percent != null
+              ? t('property_rental.revision_compare', {
+                irl: signed.format(revision.irlChangePct), cpi: signed.format(revision.cpi.percent), month: revision.cpi.inflationTo ? monthText(revision.cpi.inflationTo) : '',
+              })
+              : t('property_rental.revision_compare_missing', {
+                irl: signed.format(revision.irlChangePct), reason: t(`property_rental.revision_cpi_missing.${REASONS.find((r) => r === revision.cpi.missing) ?? 'unavailable'}`),
+              })}</p>
           ) : null}
           {revision.currentRent && revision.newRent ? (
             <p className="font-medium">{t('property_rental.revision_rents', {

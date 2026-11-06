@@ -41,7 +41,8 @@ public sealed record EnvelopeDetail(
     ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string ValuationCadence, int? StaleAfterDays, string? Note,
     decimal? UcShareFloorPct, AmountView? PremiumsBefore2017, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows,
-    string? Regulated = null, CeilingView? Ceiling = null, InterestEstimateView? Interest = null, TaxMilestoneView? Milestone = null) : IExposesItems, IExposesDocuments
+    string? Regulated = null, CeilingView? Ceiling = null, InterestEstimateView? Interest = null, TaxMilestoneView? Milestone = null,
+    RealPercentView? RealReturn = null) : IExposesItems, IExposesDocuments
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 
@@ -162,13 +163,13 @@ public static class Units6
 public sealed record HoldingView(
     Guid Id, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
     LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, uint Version, LineView? Line,
-    HoldingFiguresView? Figures, bool AutoPrice, PriceView? Price)
+    HoldingFiguresView? Figures, bool AutoPrice, PriceView? Price, RealPercentView? RealReturn = null)
 {
-    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures, PriceView? price)
+    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures, PriceView? price, RealPercentView? realReturn = null)
     {
         var h = s.Holding;
         return new(h.Id, h.Name, h.Isin, h.Kind, h.AssetClass, h.Issuer, h.RiskIndicator, h.OpenedOn, h.MaturesOn, h.EntryCostPct, h.ClosedOn, h.Note,
-            s.Version, line, HoldingFiguresView.Of(figures), h.AutoPrice, price);
+            s.Version, line, HoldingFiguresView.Of(figures), h.AutoPrice, price, realReturn);
     }
 }
 

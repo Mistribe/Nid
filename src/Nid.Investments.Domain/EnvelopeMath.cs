@@ -84,10 +84,13 @@ public static class EnvelopeMath
     /// <c>investments-data-model.md</c> §6: the money-weighted annual return (XIRR, Actual/365) up to the value at <c>v</c>, in percent;
     /// null when not meaningful (under 12 months, or cash flows all of one sign).
     /// </summary>
-    public static decimal? AnnualReturn(IReadOnlyList<Flow> flows, Valuation latest)
-        => Xirr.AnnualPercent(flows.Where(f => f.OccurredOn <= latest.AsOf && f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal)
+    public static decimal? AnnualReturn(IReadOnlyList<Flow> flows, Valuation latest) => Xirr.AnnualPercent(CashFlows(flows, latest), latest.AsOf);
+
+    /// <summary>The XIRR's cash flows: money paid in negative, taken out and the latest value positive.</summary>
+    public static IEnumerable<(LocalDate On, decimal Amount)> CashFlows(IReadOnlyList<Flow> flows, Valuation latest)
+        => flows.Where(f => f.OccurredOn <= latest.AsOf && f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal)
             .Select(f => (f.OccurredOn, f.Kind == FlowKind.Withdrawal ? f.Amount.Amount : -f.Amount.Amount))
-            .Append((latest.AsOf, latest.Value.Amount)), latest.AsOf);
+            .Append((latest.AsOf, latest.Value.Amount));
 
     public static decimal RoundPercent(decimal percent) => Math.Round(percent, 1, MidpointRounding.AwayFromZero);
 
@@ -99,7 +102,7 @@ public static class EnvelopeMath
         _ => null,
     };
 
-    private static Valuation? LastOnOrBefore(IReadOnlyList<Valuation> values, LocalDate d)
+    public static Valuation? LastOnOrBefore(IReadOnlyList<Valuation> values, LocalDate d)
         => values.Where(x => x.AsOf <= d).OrderByDescending(x => x.AsOf).FirstOrDefault();
 
     private static decimal NetContributions(IReadOnlyList<Flow> flows, Func<Flow, bool> window)

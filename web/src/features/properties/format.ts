@@ -2,10 +2,6 @@ import type { TFunction } from 'i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import type { PropertyDetail, PropertyWarning } from './api';
 
-/** « septembre 2026 » from a `yyyy-mm`: formatting only, no arithmetic. */
-export const monthText = (month: string) =>
-  new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
-
 export const PROPERTY_TYPES = ['primary_residence', 'secondary_residence', 'rental', 'parking', 'land', 'other'] as const;
 export const CADENCES = ['yearly', 'manual'] as const;
 export const FLOW_KINDS = ['expense', 'income'] as const;

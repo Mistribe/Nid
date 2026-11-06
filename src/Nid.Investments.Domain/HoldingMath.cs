@@ -67,6 +67,16 @@ public static class HoldingMath
             .Select(s => ((LocalDate AsOf, decimal Value)?)(s.AsOf, s.Line?.Value ?? 0m))
             .FirstOrDefault();
 
+    /// <summary>The holding's XIRR cash flows up to its latest value on or before <paramref name="d"/> (at <c>At</c>); null without a value.</summary>
+    public static (IReadOnlyList<(LocalDate On, decimal Amount)> Cash, LocalDate At)? CashFlows(
+        Guid holding, IReadOnlyList<HoldingSnapshot> snapshots, IReadOnlyList<HoldingMovement> movements, LocalDate d)
+        => ValueAt(holding, snapshots, d) is not var (v, value) ? null : (Cash(holding, movements, v, value), v);
+
+    private static List<(LocalDate On, decimal Amount)> Cash(Guid holding, IReadOnlyList<HoldingMovement> movements, LocalDate v, decimal value)
+        => movements.Where(m => m.HoldingId == holding && m.OccurredOn <= v && (MovementKinds.IsMoneyIn(m.Kind) || MovementKinds.IsMoneyOut(m.Kind)))
+            .Select(m => (m.OccurredOn, MovementKinds.IsMoneyIn(m.Kind) ? -m.Amount : m.Amount))
+            .Append((v, value)).ToList();
+
     /// <summary>Issue #34 §3 at the holding's latest value on or before <paramref name="d"/>; null without one.</summary>
     public static HoldingFigures? At(Guid holding, IReadOnlyList<HoldingSnapshot> snapshots, IReadOnlyList<HoldingMovement> movements, Currency currency, LocalDate d)
     {
@@ -77,12 +87,9 @@ public static class HoldingMath
         var moneyOut = mine.Where(m => MovementKinds.IsMoneyOut(m.Kind)).Sum(m => m.Amount);
         var gain = value + moneyOut - moneyIn;
         var fees = ExplicitFees(mine, v);
-        var cash = mine.Where(m => MovementKinds.IsMoneyIn(m.Kind) || MovementKinds.IsMoneyOut(m.Kind))
-            .Select(m => (m.OccurredOn, MovementKinds.IsMoneyIn(m.Kind) ? -m.Amount : m.Amount))
-            .Append((v, value));
         return new HoldingFigures(v, EnvelopeMath.M(value, currency), EnvelopeMath.M(moneyIn, currency), EnvelopeMath.M(moneyOut, currency),
             EnvelopeMath.M(gain, currency), moneyIn > 0 ? EnvelopeMath.RoundPercent(gain / moneyIn * 100m) : null,
-            Xirr.AnnualPercent(cash, v), EnvelopeMath.M(fees, currency), EnvelopeMath.M(gain + fees, currency));
+            Xirr.AnnualPercent(Cash(holding, movements, v, value), v), EnvelopeMath.M(fees, currency), EnvelopeMath.M(gain + fees, currency));
     }
 
     /// <summary>

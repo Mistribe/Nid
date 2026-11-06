@@ -19,7 +19,7 @@ import { PERSONS } from '../../subscriptions/api';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, TENANCIES, TENANCY, type PropertyDetail, type PropertyTenancy } from '../api';
-import { monthText } from '../format';
+import { monthText } from '@/components/LocalDate';
 import { todayIso } from '../../subscriptions/today';
 import { chainStart, TENANCY_PATHS, tenancySchema, tenancyValuesOf, toTenancyBody, trackedMonths, type TenancyValues } from './tenancy';
 import '@/locales/loans';

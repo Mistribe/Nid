@@ -298,7 +298,7 @@ public sealed class DeleteHoldingsSnapshotHandler(IEnvelopeStore envelopes, IIte
 [RequestHandler<GetHoldingsQuery, HoldingsView>]
 public sealed class GetHoldingsHandler(
     IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IValuations valuations, IHouseholdCalendar calendar,
-    ISecurityPriceStore prices, Prices.EnvelopeEstimator estimator, IHouseholdSettings settings)
+    ISecurityPriceStore prices, Prices.EnvelopeEstimator estimator, IHouseholdSettings settings, IInflation inflation)
     : IRequestHandler<GetHoldingsQuery, HoldingsView>
 {
     public async ValueTask<Result<HoldingsView>> HandleAsync(GetHoldingsQuery query, CancellationToken ct = default)
@@ -319,6 +319,8 @@ public sealed class GetHoldingsHandler(
         var isins = (await settings.ReadAsync(ct)).PricesEnabled ? facts.Holdings.Select(h => h.Holding.Isin).OfType<string>().ToList() : [];
         var latest = isins.Count == 0 ? new Dictionary<string, LatestPrices>() : await prices.LatestAsync(isins, ct);
         PriceView? Price(StoredHolding h) => h.Holding.Isin is { } isin ? PriceView.Of(latest.GetValueOrDefault(isin)) : null;
+        var series = await inflation.ReadAsync(ct);
+        RealPercentView? Real(Guid h) => HoldingMath.CashFlows(h, snapshots, facts.Movements, on) is var (cash, at) ? series.RealAnnualReturn(cash, at, currency) : null;
         // The estimate is a figure of today.
         var estimate = on == today ? EnvelopeEstimateView.Of((await estimator.EstimateAsync([query.ItemId], ct))[query.ItemId]) : null;
         if (snapshot is null)
@@ -333,7 +335,7 @@ public sealed class GetHoldingsHandler(
             AmountView.From(Amounts.Of(total, currency)), valuation is { } v ? AmountView.From(Amounts.Of(v - total, currency)) : null,
             AmountView.From(Amounts.Of(HoldingMath.ExplicitFees(facts.Movements, snapshot.AsOf), currency)), ucShare, floor,
             facts.Holdings.Select(h => HoldingView.Of(h, snapshot.Lines.FirstOrDefault(l => l.HoldingId == h.Holding.Id) is { } line
-                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id), Price(h))).ToList(),
+                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id), Price(h), Real(h.Holding.Id))).ToList(),
             HoldingMath.Warnings(snapshot, valuation).Concat(shareWarning).Concat(movementWarnings).Select(HoldingWarningView.Of).ToList(), estimate));
     }
 }

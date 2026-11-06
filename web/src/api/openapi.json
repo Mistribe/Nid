@@ -33260,6 +33260,16 @@
                 "$ref": "#/components/schemas/TaxMilestoneView"
               }
             ]
+          },
+          "realReturn": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RealPercentView"
+              }
+            ]
           }
         }
       },
@@ -35893,6 +35903,16 @@
                 "$ref": "#/components/schemas/PriceView"
               }
             ]
+          },
+          "realReturn": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RealPercentView"
+              }
+            ]
           }
         }
       },
@@ -36779,7 +36799,7 @@
       },
       "IncomeOverviewFigures": {
         "required": [
-          "inflation"
+          "monthlyRealChange1y"
         ],
         "type": "object",
         "properties": {
@@ -36852,14 +36872,13 @@
             "format": "double"
           },
           "monthlyRealChange1y": {
+            "$ref": "#/components/schemas/RealPercentView"
+          },
+          "inflation": {
             "type": [
               "null",
               "number"
             ],
-            "format": "double"
-          },
-          "inflation": {
-            "type": "number",
             "format": "double"
           }
         }
@@ -37538,7 +37557,7 @@
           "monthlyParts",
           "receivedThisYear",
           "oneOffsThisYear",
-          "inflation"
+          "realChange1y"
         ],
         "type": "object",
         "properties": {
@@ -37595,14 +37614,13 @@
             "$ref": "#/components/schemas/IncomeMoneyView"
           },
           "realChange1y": {
+            "$ref": "#/components/schemas/RealPercentView"
+          },
+          "inflation": {
             "type": [
               "null",
               "number"
             ],
-            "format": "double"
-          },
-          "inflation": {
-            "type": "number",
             "format": "double"
           }
         }
@@ -41555,6 +41573,18 @@
             "items": {
               "$ref": "#/components/schemas/NetWorthPointView"
             }
+          },
+          "realTo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "realMissing": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -41592,6 +41622,26 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "realValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "realContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
             ]
           }
         }
@@ -42811,6 +42861,23 @@
           },
           "promoEnded": {
             "type": "boolean"
+          },
+          "changePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "real": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RealPercentView"
+              }
+            ]
           }
         }
       },
@@ -46174,6 +46241,30 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "RealPercentView": {
+        "type": "object",
+        "properties": {
+          "percent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "inflationTo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "missing": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -51753,7 +51844,8 @@
       "TenancyRevisionView": {
         "required": [
           "state",
-          "dpeUnknown"
+          "dpeUnknown",
+          "cpi"
         ],
         "type": "object",
         "properties": {
@@ -51825,6 +51917,16 @@
               "null",
               "string"
             ]
+          },
+          "irlChangePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "cpi": {
+            "$ref": "#/components/schemas/RealPercentView"
           }
         }
       },

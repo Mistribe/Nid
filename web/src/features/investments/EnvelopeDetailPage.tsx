@@ -32,6 +32,7 @@ import { ClosedBanner } from './closing/ClosedBanner';
 import { SettingsForm } from './settings/SettingsForm';
 import { TransferDialog } from './transfer/TransferDialog';
 import { AnnualReturn, Direction, Gain, GainPct, StaleBadge } from './Figures';
+import { realReturnItem } from './realReturn';
 import { directionOf, flowKindText, kindText } from './format';
 import { percent } from './holdings/holdingFormat';
 import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
@@ -211,6 +212,7 @@ export function EnvelopeDetailPage() {
               ? { label: t('envelope.gain'), value: <Direction amount={figures.gain} />, hint: <GainPct value={figures.gainPct} /> }
               : { label: t('envelope.gain'), value: <Gain figures={figures} /> },
             ...(figures.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
+            ...realReturnItem(t, detail.realReturn),
             ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
             ...(holdings.data?.estimate?.value && holdings.data.estimate.asOf ? [{
               label: t('holding_prices.estimate_at', { date: formatLocalDate(holdings.data.estimate.asOf, 'short') }),

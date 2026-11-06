@@ -69,7 +69,7 @@ describe('IncomeSourceDetailPage', () => {
     expect(text(figures)).toContain('+4,5 %');
     expect(text(figures)).toContain('depuis le début : +11,4 %');
     expect(text(figures)).toContain('soit +2,5 % après inflation');
-    expect(text(figures)).toContain('Inflation supposée : 2 % par an, selon vos hypothèses de projection');
+    expect(text(figures)).toContain('Inflation observée : 2 % sur 12 mois à fin septembre 2026 (INSEE) voir la série');
     // No tax estimate in use: no withholding line.
     expect(text(figures)).not.toContain('Prélèvement à la source');
     expect(text(figures)).toContain(`Perçu en ${todayIso().slice(0, 4)}23 400,00 €dont 400,00 € d’exceptionnels`);

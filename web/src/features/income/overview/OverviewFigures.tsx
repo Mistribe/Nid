@@ -8,6 +8,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { percent } from '@/features/dashboard/format';
 import { toPlot } from '@/features/investments/chart/plot';
+import { monthText } from '@/components/LocalDate';
 import type { IncomeOverview, IncomeOverviewFigures } from '../api';
 
 /** A change in words and an arrow (never the colour alone), the sign as the server gave it. */
@@ -26,17 +27,22 @@ export function Change({ value, label }: { value: number; label?: string }) {
 
 export const Sub = ({ children }: { children: ReactNode }) => <span className="block text-sm font-normal text-muted-foreground">{children}</span>;
 
-/** #407: the one-year change after inflation, the household's projection assumption named with a link to it; nothing without a change. */
-export function RealChange({ value, inflation }: { value: number | null | undefined; inflation: number }) {
+type RealPercent = IncomeOverviewFigures['monthlyRealChange1y'];
+
+/** #407, #419: the one-year change after the observed inflation, its source linked; a figure that is missing says why. */
+export function RealChange({ value, inflation }: { value: RealPercent; inflation: number | null | undefined }) {
   const { t } = useTranslation();
-  if (value == null) return null;
+  if (value.percent == null && value.missing == null) return null;
+  if (value.percent == null) return <Sub>{t(`income.overview.real_missing.${value.missing as 'unavailable' | 'currency' | 'not_published'}`)}</Sub>;
   return (
     <>
-      <Sub>{t('income.overview.real_change', { value: percent(value, true) })}</Sub>
-      <Sub>
-        {t('income.overview.inflation', { value: percent(inflation) })}{' '}
-        <Link to="/settings/projection" className="underline">{t('income.overview.inflation_source')}</Link>
-      </Sub>
+      <Sub>{t('income.overview.real_change', { value: percent(value.percent, true) })}</Sub>
+      {inflation != null && value.inflationTo ? (
+        <Sub>
+          {t('income.overview.inflation', { value: percent(inflation), month: monthText(value.inflationTo) })}{' '}
+          <Link to="/settings/projection" className="underline">{t('income.overview.inflation_source')}</Link>
+        </Sub>
+      ) : null}
     </>
   );
 }

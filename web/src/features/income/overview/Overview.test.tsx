@@ -70,22 +70,37 @@ describe('Income overview', () => {
     expect(within(sources).getByRole('columnheader', { name: /Par mois, lissé sur l’année/ })).toBeInTheDocument();
   });
 
-  it('gives the change over a year after the household’s inflation, and where that assumption comes from', async () => {
+  it('gives the change over a year after the observed inflation, and where it comes from', async () => {
     serve();
     await renderApp('/income');
 
     expect(await screen.findByText('soit +2,1 % après inflation')).toBeInTheDocument();
-    expect(screen.getByText(/Inflation supposée : 2 % par an/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'vos hypothèses de projection' })).toHaveAttribute('href', '/settings/projection');
+    expect(screen.getByText(/Inflation observée : 2 % sur 12 mois à fin septembre 2026 \(INSEE\)/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'voir la série' })).toHaveAttribute('href', '/settings/projection');
   });
 
   it('says nothing of inflation when the change over a year is unknown', async () => {
-    serve(overview({ figures: { ...overview().figures, monthlyChange1y: null, monthlyRealChange1y: null } }));
+    serve(overview({ figures: { ...overview().figures, monthlyChange1y: null, monthlyRealChange1y: { percent: null, inflationTo: null, missing: null } } }));
     await renderApp('/income');
 
     await screen.findByText('6 420,00 €');
     expect(screen.queryByText(/après inflation/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Inflation supposée/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Inflation observée/)).not.toBeInTheDocument();
+  });
+
+  it('says why there is no figure after inflation', async () => {
+    serve(overview({ figures: { ...overview().figures, inflation: null, monthlyRealChange1y: { percent: null, inflationTo: null, missing: 'unavailable' } } }));
+    await renderApp('/income');
+
+    expect(await screen.findByText('Inflation observée indisponible')).toBeInTheDocument();
+    expect(screen.queryByText(/après inflation/)).not.toBeInTheDocument();
+  });
+
+  it('says when the inflation is not yet published for the period', async () => {
+    serve(overview({ figures: { ...overview().figures, monthlyRealChange1y: { percent: null, inflationTo: '2026-09', missing: 'not_published' } } }));
+    await renderApp('/income');
+
+    expect(await screen.findByText('Inflation pas encore publiée pour cette période')).toBeInTheDocument();
   });
 
   it('filters by person and type', async () => {

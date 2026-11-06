@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { SelectField } from '@/components/form/SelectField';
-import { formatLocalDate } from '@/components/LocalDate';
+import { formatLocalDate, monthText } from '@/components/LocalDate';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
@@ -15,7 +15,6 @@ import { money } from '../../loans/format';
 import { todayIso } from '../../subscriptions/today';
 import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_RECEIPTS } from '../api';
-import { monthText } from '../format';
 import { elision } from '@/lib/elision';
 import '@/locales/properties';
 

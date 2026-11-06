@@ -1,4 +1,5 @@
 using NodaTime;
+using NodaTime.Text;
 using UnambitiousFx.Functional;
 
 namespace Nid.Core.Contracts;
@@ -13,6 +14,21 @@ public static class InflationCodes
     public const string JobsDisabled = "core.cpi_jobs_disabled";
     public const string FromInsee = "core.cpi_from_insee";
     public const string InvalidValue = "core.invalid_cpi_value";
+}
+
+/// <summary>Why a real figure is absent.</summary>
+public static class RealMissing
+{
+    public const string Unavailable = "unavailable";
+    public const string Currency = "currency";
+    public const string NotPublished = "not_published";
+}
+
+/// <summary>A real percent (one decimal) and the month the inflation stopped at ("2026-09"); <c>Missing</c> says why <c>Percent</c> is null.</summary>
+public sealed record RealPercentView(decimal? Percent, string? InflationTo, string? Missing)
+{
+    /// <summary>The nominal figure is itself absent: nothing to deflate, nothing to explain.</summary>
+    public static RealPercentView None => new(null, null, null);
 }
 
 /// <summary>
@@ -42,6 +58,63 @@ public sealed class InflationSeries(IReadOnlyDictionary<YearMonth, decimal> sour
 
     /// <summary>(1 + nominal) ÷ (1 + inflation) − 1.</summary>
     public static decimal Real(decimal nominal, decimal inflation) => (1 + nominal) / (1 + inflation) - 1;
+
+    /// <summary>The month, or the last published one when it is later; null on an empty series.</summary>
+    public YearMonth? Clamp(YearMonth month) => LastPublished is { } last ? (month < last ? month : last) : null;
+
+    public decimal? Deflator(YearMonth from, YearMonth to) =>
+        Clamp(from) is { } f && Clamp(to) is { } t ? Between(f, t) : null;
+
+    public RealPercentView RealChange(decimal? nominalPct, YearMonth from, YearMonth to, Currency currency)
+    {
+        if (nominalPct is not { } nominal) return RealPercentView.None;
+        if (Gate(currency) is { } gate) return gate;
+        var stop = Pattern(Clamp(to)!.Value);
+        return Deflator(from, to) is { } d
+            ? new(Round1(Real(nominal / 100, d - 1) * 100), stop, null)
+            : new(null, stop, RealMissing.NotPublished);
+    }
+
+    public RealPercentView RealChangeOver12Months(decimal? nominalPct, Currency currency)
+    {
+        if (nominalPct is not { } nominal) return RealPercentView.None;
+        if (Gate(currency) is { } gate) return gate;
+        return Last12Months is { } l
+            ? new(Round1(Real(nominal / 100, l.Rate) * 100), Pattern(l.To), null)
+            : new(null, Pattern(LastPublished!.Value), RealMissing.NotPublished);
+    }
+
+    /// <summary>The XIRR of the flows deflated into euros of the month of <paramref name="at"/> (clamped).</summary>
+    public RealPercentView RealAnnualReturn(IEnumerable<(LocalDate On, decimal Amount)> cash, LocalDate at, Currency currency)
+    {
+        var flows = cash.ToList();
+        if (Xirr.AnnualPercent(flows, at) is null) return RealPercentView.None;
+        if (Gate(currency) is { } gate) return gate;
+        var stop = Clamp(new YearMonth(at.Year, at.Month))!.Value;
+        var deflated = new List<(LocalDate On, decimal Amount)>();
+        foreach (var (on, amount) in flows)
+        {
+            if (Deflator(new YearMonth(on.Year, on.Month), stop) is not { } d) return new(null, Pattern(stop), RealMissing.NotPublished);
+            deflated.Add((on, amount * d));
+        }
+        return new(Xirr.AnnualPercent(deflated, at), Pattern(stop), null);
+    }
+
+    /// <summary>The mean of the quarter's three months; null when any is missing.</summary>
+    public decimal? QuarterMean(int year, int quarter)
+    {
+        var months = Enumerable.Range(0, 3).Select(i => Index(new YearMonth(year, (quarter - 1) * 3 + 1 + i))).ToList();
+        return months.All(v => v is not null) ? months.Average(v => v!.Value) : null;
+    }
+
+    private RealPercentView? Gate(Currency currency) =>
+        currency != Currency.Eur ? new(null, null, RealMissing.Currency)
+        : LastPublished is null ? new(null, null, RealMissing.Unavailable)
+        : null;
+
+    private static string Pattern(YearMonth m) => YearMonthPattern.Iso.Format(m);
+
+    private static decimal Round1(decimal x) => Math.Round(x, 1, MidpointRounding.AwayFromZero);
 
     private decimal? Mean(int year)
     {
