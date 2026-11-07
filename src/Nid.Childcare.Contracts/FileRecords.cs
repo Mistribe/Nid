@@ -117,8 +117,33 @@ public sealed record StatementRecord
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public required decimal Cmg { get; init; }
 
+    public DeclaredRecord? Declared { get; set; }
+
     public required IReadOnlyList<DayRecord> Days { get; init; }
     public required FiguresRecord Figures { get; init; }
+}
+
+/// <summary>Decision 30: the declaration's fields entered by hand.</summary>
+public sealed record DeclaredRecord
+{
+    public int? NormalHours { get; set; }
+    public int? ActivityDays { get; set; }
+    public int? PaidLeaveDays { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? ComplementaryHours { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? OvertimeHours { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? NetPay { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? Upkeep { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? Meals { get; set; }
 }
 
 /// <summary>A day; <c>absence</c> snake_case (<c>child_sick</c>).</summary>

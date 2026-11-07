@@ -26597,6 +26597,7 @@ export interface components {
             /** Format: uint32 */
             version: number;
             cmgEstimate?: null | string;
+            declared?: null | components["schemas"]["DeclaredView"];
         };
         ChildcareSummary: {
             /** Format: uuid */
@@ -27158,6 +27159,32 @@ export interface components {
             upkeep: string;
             meals: string;
             mileage: string;
+        };
+        DeclaredBody: {
+            /** Format: int32 */
+            normalHours?: null | number;
+            /** Format: int32 */
+            activityDays?: null | number;
+            /** Format: int32 */
+            paidLeaveDays?: null | number;
+            complementaryHours?: null | string;
+            overtimeHours?: null | string;
+            netPay?: null | string;
+            upkeep?: null | string;
+            meals?: null | string;
+        };
+        DeclaredView: {
+            /** Format: int32 */
+            normalHours?: null | number;
+            /** Format: int32 */
+            activityDays?: null | number;
+            /** Format: int32 */
+            paidLeaveDays?: null | number;
+            complementaryHours?: null | string;
+            overtimeHours?: null | string;
+            netPay?: null | string;
+            upkeep?: null | string;
+            meals?: null | string;
         };
         DiscordWebhookBody: {
             url?: null | string;
@@ -31069,6 +31096,8 @@ export interface components {
             cmg?: null | string;
             /** Format: uint32 */
             version?: null | number;
+            declared?: null | components["schemas"]["DeclaredBody"];
+            summary?: null | components["schemas"]["StatementSummaryBody"];
         };
         StatementDayBody: {
             date?: null | string;
@@ -31130,6 +31159,12 @@ export interface components {
             /** Format: date */
             closingBalanceOn?: null | string;
             written: boolean;
+        };
+        StatementSummaryBody: {
+            /** Format: int32 */
+            careDays?: null | number;
+            hours?: null | string;
+            absence?: null | string;
         };
         /** Format: binary */
         Stream: string;

@@ -69,6 +69,14 @@ public sealed class StatementRow
     public bool Validated { get; set; }
     public decimal Mileage { get; set; }
     public decimal? Cmg { get; set; }
+    public decimal? DeclaredNetPay { get; set; }
+    public decimal? DeclaredUpkeep { get; set; }
+    public decimal? DeclaredMeals { get; set; }
+    public int? DeclaredNormalHours { get; set; }
+    public int? DeclaredActivityDays { get; set; }
+    public int? DeclaredPaidLeaveDays { get; set; }
+    public decimal? DeclaredComplementaryHours { get; set; }
+    public decimal? DeclaredOvertimeHours { get; set; }
     public Instant? ValidatedAt { get; set; }
     public int? NormalHours { get; set; }
     public int? ActivityDays { get; set; }

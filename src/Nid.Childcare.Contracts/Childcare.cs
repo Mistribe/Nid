@@ -23,6 +23,14 @@ public sealed record ContractTerms(LocalDate Start, LocalDate? End, decimal NetH
 /// <summary>One calendar day of a statement. <c>Planned</c>: in the template and not in a gap.</summary>
 public sealed record StatementDay(LocalDate Date, bool Planned, bool Present, LocalTime? Arrival, LocalTime? Departure, bool Meal, AbsenceReason? Absence);
 
+/// <summary>Childcare decision 30: the declaration's fields entered by hand, each over the month's own when given.</summary>
+public sealed record DeclaredFigures(
+    decimal? NetPay = null, decimal? Upkeep = null, decimal? Meals = null, int? NormalHours = null, int? ActivityDays = null, int? PaidLeaveDays = null,
+    decimal? ComplementaryHours = null, decimal? OvertimeHours = null)
+{
+    public bool AnyNegative => NetPay < 0 || Upkeep < 0 || Meals < 0 || NormalHours < 0 || ActivityDays < 0 || PaidLeaveDays < 0 || ComplementaryHours < 0 || OvertimeHours < 0;
+}
+
 /// <summary>Spec §3: the Pajemploi monthly declaration, field by field.</summary>
 public sealed record PajemploiDeclaration(
     int NormalHours, int ActivityDays, int? PaidLeaveDays, decimal ComplementaryHours, decimal OvertimeHours,

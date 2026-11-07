@@ -191,6 +191,38 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("cost");
 
+                    b.Property<int?>("DeclaredActivityDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("declared_activity_days");
+
+                    b.Property<decimal?>("DeclaredComplementaryHours")
+                        .HasColumnType("numeric(9,2)")
+                        .HasColumnName("declared_complementary_hours");
+
+                    b.Property<decimal?>("DeclaredMeals")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("declared_meals");
+
+                    b.Property<decimal?>("DeclaredNetPay")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("declared_net_pay");
+
+                    b.Property<int?>("DeclaredNormalHours")
+                        .HasColumnType("integer")
+                        .HasColumnName("declared_normal_hours");
+
+                    b.Property<decimal?>("DeclaredOvertimeHours")
+                        .HasColumnType("numeric(9,2)")
+                        .HasColumnName("declared_overtime_hours");
+
+                    b.Property<int?>("DeclaredPaidLeaveDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("declared_paid_leave_days");
+
+                    b.Property<decimal?>("DeclaredUpkeep")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("declared_upkeep");
+
                     b.Property<decimal?>("Deduction")
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("deduction");

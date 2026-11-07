@@ -21,6 +21,8 @@ public static class ChildcareCodes
     public const string AbsenceRequired = "childcare.absence_required";
     public const string AbsenceNotAllowed = "childcare.absence_not_allowed";
     public const string DayReplanned = "childcare.day_replanned";
+    public const string SummaryInvalid = "childcare.summary_invalid";
+    public const string SummaryTooManyDays = "childcare.summary_too_many_days";
     public const string StatementValidated = "childcare.statement_validated";
     public const string StatementIncomplete = "childcare.statement_incomplete";
     public const string NextValidated = "childcare.next_validated";

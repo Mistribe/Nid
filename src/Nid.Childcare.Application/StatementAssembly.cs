@@ -77,11 +77,11 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
 
     /// <summary>The figures of these days, or the problems and missing June months that withhold them.</summary>
     public async Task<MonthEvaluation> EvaluateAsync(
-        MonthContext context, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, decimal mileage, decimal? cmg, CancellationToken ct)
+        MonthContext context, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, decimal mileage, decimal? cmg, DeclaredFigures? declared, CancellationToken ct)
     {
         var previous = context.Month.PlusMonths(-1);
         var stored = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
-        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, stored, mileage, cmg);
+        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, stored, mileage, cmg, declared);
     }
 
     public async Task<ChildcareStatementView> ViewAsync(PersonId reader, MonthContext context, CancellationToken ct)
@@ -92,7 +92,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var canWrite = (await policy.CheckManyAsync(reader, [context.Arrangement.ItemId], AccessKind.Write, ct)).Contains(context.Arrangement.ItemId);
         MonthEvaluation evaluation = stored is { Validated: true, Figures: { } frozen }
             ? new(frozen, [], [])
-            : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, ct);
+            : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, ct);
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);
         var plan = context.Terms.Plan;
@@ -107,7 +107,8 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
             canWrite, canWrite && stored is { Validated: true } && !context.Stored.Any(s => s.Month == next && s.Validated),
             stored?.Version ?? 0,
             StatementContext.CmgEstimate(context.Stored.Where(s => s is { Validated: true, Figures: not null }).Select(s => (s.Month, s.Figures!.Cmg)).ToList()) is { } estimate
-                ? Amount(estimate) : null);
+                ? Amount(estimate) : null,
+            stored?.Declared is { } entered ? DeclaredOf(entered) : null);
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)
@@ -128,6 +129,8 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         ChildcareCodes.AbsenceRequired => "An absent planned day needs a reason.",
         ChildcareCodes.AbsenceNotAllowed => "A reason goes on an absent planned day only.",
         ChildcareCodes.DayReplanned => "The template or the weeks without care changed this day since it was saved.",
+        ChildcareCodes.SummaryInvalid => "Care days and hours go together, and each day must fit within the day.",
+        ChildcareCodes.SummaryTooManyDays => "The month has fewer working days than that.",
         _ => ChildcareCheck.Message(code),
     };
 
@@ -143,6 +146,13 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
     private static string? Time(LocalTime? t) => t is { } v ? ChildcareReader.Time.Format(v) : null;
 
     private static string Amount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    private static DeclaredView DeclaredOf(DeclaredFigures d)
+    {
+        static string? Optional(decimal? value) => value is { } v ? Amount(v) : null;
+        return new DeclaredView(d.NormalHours, d.ActivityDays, d.PaidLeaveDays, Optional(d.ComplementaryHours), Optional(d.OvertimeHours),
+            Optional(d.NetPay), Optional(d.Upkeep), Optional(d.Meals));
+    }
 
     private static StatementFiguresView FiguresView(MonthFigures f, Currency currency, bool beforeCmg)
     {

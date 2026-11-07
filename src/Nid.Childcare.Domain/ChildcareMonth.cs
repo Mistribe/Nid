@@ -8,12 +8,12 @@ public sealed record PaidLeaveInput(int MonthsWithCare, decimal ReferenceNetPay)
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
-/// share a week with it; <c>Cmg</c>: read from the Pajemploi summary.
+/// share a week with it; <c>Cmg</c>: read from the Pajemploi summary; <c>Declared</c>: decision 30, the fields entered by hand.
 /// </summary>
 public sealed record MonthInput(
     YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
-    decimal Mileage, decimal Cmg, PaidLeaveInput? June);
+    decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null);
 
 /// <summary>Childcare spec §3 and §6: a month's Pajemploi declaration, its cost and its childcare tax base. Pure.</summary>
 public static class ChildcareMonth
@@ -30,20 +30,28 @@ public static class ChildcareMonth
         var basePay = partial ? Mensualisation.Round(fullPay * inContract.Sum(d => input.Plan.HoursOn(d.Date)) / input.Days.Sum(d => input.Plan.HoursOn(d.Date))) : fullPay;
 
         var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Plan, input.ChildSickUsedBefore);
-        var (complementary, overtime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan);
+        var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan);
+        var complementary = input.Declared?.ComplementaryHours ?? computedComplementary;
+        var overtime = input.Declared?.OvertimeHours ?? computedOvertime;
         var extraPay = ExtraHours.Pay(complementary, overtime, input.Terms.NetHourlyRate, input.Terms.OvertimeRate);
-        var (upkeep, meals) = Upkeep.Month(input.Days, input.Terms);
+        var (computedUpkeep, computedMeals) = Upkeep.Month(input.Days, input.Terms);
+        var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
+        var meals = input.Declared?.Meals ?? computedMeals;
 
-        int? leaveDays = input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : null;
+        var leaveDays = input.Declared?.PaidLeaveDays ?? (input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : null);
         // The contract's average week over its template weeks (38,389 h for 23 × 39 h + 22 × 37,75 h).
         var weeklyHours = annualHours / input.Plan.ProgrammedWeeks;
         var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
 
-        var netPay = basePay - deduction + extraPay + leavePay;
+        var computedPay = basePay - deduction + extraPay + leavePay;
+        var netPay = input.Declared?.NetPay ?? computedPay;
+        // Decision 30: the difference goes to the extra pay, so that the parts still add up and June's reference pay follows.
+        extraPay += netPay - computedPay;
         // The mensualised days, absences or not, as the household declares them (spec §9). A partial month declares its
         // planned days less the deducted ones instead.
-        var activityDays = partial ? Math.Max(0, input.Days.Count(d => d.Planned) - deductedDays) : Mensualisation.ActivityDays(input.Plan.Types);
-        var declaration = new PajemploiDeclaration(Mensualisation.NormalHours(annualHours), activityDays, leaveDays,
+        var activityDays = input.Declared?.ActivityDays
+            ?? (partial ? Math.Max(0, input.Days.Count(d => d.Planned) - deductedDays) : Mensualisation.ActivityDays(input.Plan.Types));
+        var declaration = new PajemploiDeclaration(input.Declared?.NormalHours ?? Mensualisation.NormalHours(annualHours), activityDays, leaveDays,
             complementary, overtime, netPay, upkeep, meals, input.Mileage);
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
             netPay + upkeep + meals + input.Mileage - input.Cmg, netPay + upkeep - input.Cmg, childSick);

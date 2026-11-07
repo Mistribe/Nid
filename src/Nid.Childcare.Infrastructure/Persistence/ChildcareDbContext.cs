@@ -103,12 +103,14 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
                     "validated = (validated_at is not null) and validated = (net_pay is not null) and validated = (cost is not null) and validated = (child_sick_deducted is not null)");
             });
             e.HasKey(x => new { x.ItemId, x.Month });
-            foreach (var amount in new[] { nameof(StatementRow.Mileage), nameof(StatementRow.Cmg), nameof(StatementRow.NetPay), nameof(StatementRow.Upkeep),
+            foreach (var amount in new[] { nameof(StatementRow.Mileage), nameof(StatementRow.Cmg), nameof(StatementRow.DeclaredNetPay), nameof(StatementRow.DeclaredUpkeep), nameof(StatementRow.DeclaredMeals), nameof(StatementRow.NetPay), nameof(StatementRow.Upkeep),
                          nameof(StatementRow.Meals), nameof(StatementRow.BasePay), nameof(StatementRow.Deduction), nameof(StatementRow.ExtraPay),
                          nameof(StatementRow.PaidLeavePay), nameof(StatementRow.Cost), nameof(StatementRow.TaxBase) })
                 e.Property(amount).HasColumnType("numeric(19,4)");
             e.Property(x => x.ComplementaryHours).HasColumnType("numeric(9,2)");
             e.Property(x => x.OvertimeHours).HasColumnType("numeric(9,2)");
+            e.Property(x => x.DeclaredComplementaryHours).HasColumnType("numeric(9,2)");
+            e.Property(x => x.DeclaredOvertimeHours).HasColumnType("numeric(9,2)");
             e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
             MapXmin(e.Property(x => x.Version));
         });

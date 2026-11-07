@@ -21,7 +21,7 @@ public sealed record Terms(
 /// <c>Days</c> is empty when listed; <c>Version</c> 0 means not stored yet.
 /// </summary>
 public sealed record Statement(
-    ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version, Instant? ValidatedAt = null);
+    ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version, Instant? ValidatedAt = null, DeclaredFigures? Declared = null);
 
 /// <summary>An arrangement an import created, by its file ref.</summary>
 public sealed record ImportedArrangement(ItemId Item, string Hash, PersonId ImportedBy);

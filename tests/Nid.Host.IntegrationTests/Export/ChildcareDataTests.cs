@@ -89,6 +89,34 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
         return months;
     }
 
+    /// <summary>Decision 30: Pajemploi's amounts travel with the month, or its figures would differ on import.</summary>
+    [Fact]
+    public async Task Declared_amounts_round_trip()
+    {
+        await using var source = await NidApp.StartAsync(fixture);
+        await RoundTripTests.PrepareAsync(source, "Personne A");
+        var arrangement = await SourceAsync(source, draftOctober: true);
+        var url = $"{arrangement}/statements/2025-10";
+        var read = await JsonAsync(await source.RawAsync(source.AdultA, HttpMethod.Get, url));
+        Assert.Equal(HttpStatusCode.OK, (await source.RawAsync(source.AdultA, HttpMethod.Put, url, new
+        {
+            days = Array.Empty<object>(), mileage = "0", cmg = "100", version = read.GetProperty("version").GetUInt32(),
+            declared = new { netPay = "612.40", upkeep = "50.10", meals = "40", normalHours = 120, complementaryHours = "2.5" },
+            summary = new { careDays = 12, hours = "100", absence = "family" },
+        })).StatusCode);
+        await ValidateAsync(source, url);
+        var export = await ExportAsync(source);
+
+        await using var target = await NidApp.StartAsync(fixture);
+        await RoundTripTests.PrepareAsync(target, "Personne B");
+        await RoundTripTests.CommitAsync(target, target.AdultA, FileOf(export));
+
+        var october = (await StatementsOfImportedAsync(target))[1];
+        Assert.Equal("612.40", october.GetProperty("figures").GetProperty("declaration").GetProperty("netPay").GetString());
+        Assert.Equal("40.00", october.GetProperty("declared").GetProperty("meals").GetString());
+        Assert.Equal(120, october.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
+    }
+
     [Fact]
     public async Task Childcare_round_trips_with_the_same_figures()
     {

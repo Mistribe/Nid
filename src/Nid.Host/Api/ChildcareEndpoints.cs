@@ -152,8 +152,17 @@ public static class ChildcareEndpoints
     /// <summary>A day as entered; times <c>HH:mm</c> on a present day, <c>absence</c> snake_case (<c>child_sick</c>) on an absent planned one.</summary>
     public sealed record StatementDayBody(string? Date, bool? Present, string? Arrival, string? Departure, bool? Meal, string? Absence);
 
-    /// <summary>Every day of the month, the month's mileage and CMG as decimal strings, and the <c>version</c> read (0 when nothing was stored).</summary>
-    public sealed record StatementBody(IReadOnlyList<StatementDayBody>? Days, string? Mileage, string? Cmg, uint? Version)
+    /// <summary>Decision 29: the month's care days, its total hours as a decimal string, and the reason of the planned days left over.</summary>
+    public sealed record StatementSummaryBody(int? CareDays, string? Hours, string? Absence);
+
+    /// <summary>Decision 30: the declaration's fields entered by hand, null to keep the month's; amounts and hours as decimal strings.</summary>
+    public sealed record DeclaredBody(int? NormalHours, int? ActivityDays, int? PaidLeaveDays, string? ComplementaryHours, string? OvertimeHours, string? NetPay, string? Upkeep, string? Meals);
+
+    /// <summary>
+    /// Every day of the month, the month's mileage and CMG as decimal strings, and the <c>version</c> read (0 when nothing was stored).
+    /// <c>declared</c>: the fields entered by hand; <c>summary</c>: replaces the days.
+    /// </summary>
+    public sealed record StatementBody(IReadOnlyList<StatementDayBody>? Days, string? Mileage, string? Cmg, uint? Version, DeclaredBody? Declared = null, StatementSummaryBody? Summary = null)
     {
         internal SaveStatementCommand? ToCommand(ItemId id, YearMonth? month, FieldReader reader)
         {
@@ -171,8 +180,23 @@ public static class ChildcareEndpoints
             }
             var mileage = reader.Decimal(Mileage, "mileage") ?? 0m;
             var cmg = reader.Decimal(Cmg, "cmg");
+            var declared = Declared is { } e
+                ? new DeclaredFigures(reader.Decimal(e.NetPay, "declared.netPay"), reader.Decimal(e.Upkeep, "declared.upkeep"), reader.Decimal(e.Meals, "declared.meals"),
+                    e.NormalHours, e.ActivityDays, e.PaidLeaveDays, reader.Decimal(e.ComplementaryHours, "declared.complementaryHours"), reader.Decimal(e.OvertimeHours, "declared.overtimeHours"))
+                : null;
+            MonthSummaryInput? summary = null;
+            if (Summary is { } s)
+            {
+                AbsenceReason? reason = null;
+                if (s.Absence is { } name && (reason = AbsenceCodes.TryParse(name)) is null)
+                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent or holiday.");
+                if (s.CareDays is null) reader.Add("summary.careDays", "request.required", "The care days are required.");
+                var hours = reader.Decimal(s.Hours, "summary.hours");
+                if (hours is null) reader.Add("summary.hours", "request.required", "The hours are required.");
+                if (reader.Ok) summary = new MonthSummaryInput(s.CareDays!.Value, hours!.Value, reason);
+            }
             if (Version is null) reader.Add("version", "request.required", "The version read with the statement is required.");
-            return reader.Ok ? new SaveStatementCommand(id, month!.Value, days, mileage, cmg, Version!.Value) : null;
+            return reader.Ok ? new SaveStatementCommand(id, month!.Value, days, mileage, cmg, Version!.Value, declared, summary) : null;
         }
     }
 

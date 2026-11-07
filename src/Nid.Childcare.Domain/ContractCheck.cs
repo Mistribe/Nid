@@ -13,6 +13,8 @@ public static class ContractCheck
     public static class Codes
     {
         public const string ScheduleEmpty = "childcare.schedule_empty";
+        public const string SummaryInvalid = "childcare.summary_invalid";
+        public const string SummaryTooManyDays = "childcare.summary_too_many_days";
         public const string ScheduleDuplicateDay = "childcare.schedule_duplicate_day";
         public const string DepartureBeforeArrival = "childcare.departure_before_arrival";
         public const string WeeksOutOfRange = "childcare.programmed_weeks_out_of_range";

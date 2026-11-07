@@ -167,6 +167,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
 
         row.Mileage = draft.Mileage;
         row.Cmg = draft.Cmg;
+        Declare(row, draft.Declared);
         ReplaceDays(draft.ItemId, first, draft.Days, await db.StatementDays.Where(d => d.ItemId == draft.ItemId.Value && d.Month == first).ToListAsync(ct));
         return await SaveStatementAsync(ct);
     }
@@ -262,7 +263,16 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
                     r.BasePay!.Value, r.Deduction!.Value, r.ExtraPay!.Value, r.PaidLeavePay!.Value, r.Cmg!.Value, r.Cost!.Value, r.TaxBase!.Value,
                     r.ChildSickDeducted!.Value)
                 : null,
-            r.Version, r.ValidatedAt);
+            r.Version, r.ValidatedAt,
+            new DeclaredFigures(r.DeclaredNetPay, r.DeclaredUpkeep, r.DeclaredMeals, r.DeclaredNormalHours, r.DeclaredActivityDays, r.DeclaredPaidLeaveDays,
+                r.DeclaredComplementaryHours, r.DeclaredOvertimeHours));
+
+    private static void Declare(StatementRow row, DeclaredFigures? d)
+    {
+        (row.DeclaredNetPay, row.DeclaredUpkeep, row.DeclaredMeals) = (d?.NetPay, d?.Upkeep, d?.Meals);
+        (row.DeclaredNormalHours, row.DeclaredActivityDays, row.DeclaredPaidLeaveDays) = (d?.NormalHours, d?.ActivityDays, d?.PaidLeaveDays);
+        (row.DeclaredComplementaryHours, row.DeclaredOvertimeHours) = (d?.ComplementaryHours, d?.OvertimeHours);
+    }
 
     private static StatementDay ToDay(StatementDayRow d)
         => new(d.Date, d.Planned, d.Present, d.Arrival, d.Departure, d.Meal, d.Absence is { } a ? AbsenceCodes.Parse(a) : null);
@@ -314,6 +324,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         var figures = statement.Figures!;
         var d = figures.Declaration;
         (row.Validated, row.ValidatedAt, row.Mileage, row.Cmg) = (true, statement.ValidatedAt, d.Mileage, figures.Cmg);
+        Declare(row, statement.Declared);
         (row.NormalHours, row.ActivityDays, row.PaidLeaveDays, row.ComplementaryHours, row.OvertimeHours) =
             (d.NormalHours, d.ActivityDays, d.PaidLeaveDays, d.ComplementaryHours, d.OvertimeHours);
         (row.NetPay, row.Upkeep, row.Meals, row.BasePay, row.Deduction, row.ExtraPay) =

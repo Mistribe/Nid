@@ -11,8 +11,15 @@ namespace Nid.Childcare.Application;
 /// <summary>A day as entered: times and meal count only on a present day, a reason only on an absent planned one.</summary>
 public sealed record DayInput(LocalDate Date, bool Present, LocalTime? Arrival, LocalTime? Departure, bool Meal, AbsenceReason? Absence);
 
-/// <summary>Decision 13: saves the month as a draft (created on its first save). <paramref name="Version"/>: the one read, 0 when nothing was stored.</summary>
-public sealed record SaveStatementCommand(ItemId ItemId, YearMonth Month, IReadOnlyList<DayInput> Days, decimal Mileage, decimal? Cmg, uint Version)
+/// <summary>Decision 29: a month entered as its care days and total hours; <c>Absence</c>: the reason of the planned days left over.</summary>
+public sealed record MonthSummaryInput(int CareDays, decimal Hours, AbsenceReason? Absence);
+
+/// <summary>
+/// Decision 13: saves the month as a draft (created on its first save). <paramref name="Version"/>: the one read, 0 when nothing was
+/// stored. <paramref name="Summary"/>: decision 29, replaces <paramref name="Days"/>. <paramref name="Declared"/>: decision 30.
+/// </summary>
+public sealed record SaveStatementCommand(
+    ItemId ItemId, YearMonth Month, IReadOnlyList<DayInput> Days, decimal Mileage, decimal? Cmg, uint Version, DeclaredFigures? Declared = null, MonthSummaryInput? Summary = null)
     : ICommand<ChildcareStatementView>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -47,9 +54,17 @@ public sealed class SaveStatementHandler(StatementAssembly assembly, IChildcareS
             return Result.Failure<ChildcareStatementView>(failure!);
         loaded.TryGetValue(out var context);
 
-        var days = assembly.Replanned(context!, context!.Chosen, command.Days
+        var entered = command.Days
             .Select(d => new StatementDay(d.Date, false, d.Present, d.Present ? d.Arrival : null, d.Present ? d.Departure : null, d.Present && d.Meal, d.Absence))
-            .ToList());
+            .ToList();
+        if (command.Summary is { } summary)
+        {
+            var (spread, problems) = Domain.StatementSummary.Spread(assembly.Prepared(context!), context!.Contract, summary.CareDays, summary.Hours, summary.Absence);
+            if (ChildcareCheck.Fail(problems.Select(p => new FieldError(p.Field, p.Code, StatementAssembly.Message(p.Code))).ToList()).TryGetFailure(out failure))
+                return Result.Failure<ChildcareStatementView>(failure!);
+            entered = [.. spread];
+        }
+        var days = assembly.Replanned(context!, context!.Chosen, entered);
         // Decision 14: a correction the plan changed under, sent back untouched, gives way to the template's day.
         var prepared = assembly.Prepared(context).ToDictionary(d => d.Date);
         var saved = context.StoredMonth is { Validated: false } && await store.FindStatementAsync(command.ItemId, command.Month, ct) is { } draft
@@ -59,12 +74,13 @@ public sealed class SaveStatementHandler(StatementAssembly assembly, IChildcareS
         var errors = Domain.StatementCheck.Days(command.Month, days).Select(p => new FieldError(p.Field, p.Code, StatementAssembly.Message(p.Code))).ToList();
         if (command.Mileage < 0) errors.Add(new("mileage", FieldErrors.ShapeCode, "Zero or more."));
         if (command.Cmg < 0) errors.Add(new("cmg", FieldErrors.ShapeCode, "Zero or more."));
+        if (command.Declared is { AnyNegative: true }) errors.Add(new("declared", FieldErrors.ShapeCode, "Zero or more."));
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ChildcareStatementView>(failure!);
 
         var written = await StatementResult.InTransactionAsync(unitOfWork,
             () => store.SaveDraftAsync(new Statement(command.ItemId, command.Month, false, command.Mileage, command.Cmg,
-                days.Where(d => !prepared.TryGetValue(d.Date, out var p) || p != d).ToList(), null, command.Version), ct), ct);
+                days.Where(d => !prepared.TryGetValue(d.Date, out var p) || p != d).ToList(), null, command.Version, null, command.Declared), ct), ct);
         if (written.TryGetFailure(out failure))
             return Result.Failure<ChildcareStatementView>(failure!);
         return await StatementResult.ViewAsync(assembly, actor, command.ItemId, command.Month, ct);
@@ -96,7 +112,7 @@ public sealed class ValidateStatementHandler(StatementAssembly assembly, IChildc
             return Result.Failure<ChildcareStatementView>(FieldErrors.Shape([new("cmg", ChildcareCodes.CmgRequired, "Enter the CMG of the Pajemploi summary, 0 if none.")]));
 
         var (days, stale) = await assembly.DaysAsync(context, ct);
-        var evaluation = await assembly.EvaluateAsync(context, days, stale, stored.Mileage, stored.Cmg, ct);
+        var evaluation = await assembly.EvaluateAsync(context, days, stale, stored.Mileage, stored.Cmg, stored.Declared, ct);
         if (evaluation.Figures is not { } figures)
             return Result.Failure<ChildcareStatementView>(new Failure(ChildcareCodes.StatementIncomplete,
                 "A day is inconsistent or a month of the reference period is not validated.", null));

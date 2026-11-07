@@ -29649,6 +29649,16 @@
               "null",
               "string"
             ]
+          },
+          "declared": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeclaredView"
+              }
+            ]
           }
         }
       },
@@ -32184,6 +32194,118 @@
           },
           "mileage": {
             "type": "string"
+          }
+        }
+      },
+      "DeclaredBody": {
+        "type": "object",
+        "properties": {
+          "normalHours": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "activityDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "paidLeaveDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "complementaryHours": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "overtimeHours": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netPay": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "upkeep": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "meals": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DeclaredView": {
+        "type": "object",
+        "properties": {
+          "normalHours": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "activityDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "paidLeaveDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "complementaryHours": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "overtimeHours": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netPay": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "upkeep": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "meals": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -49129,6 +49251,26 @@
               "integer"
             ],
             "format": "uint32"
+          },
+          "declared": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeclaredBody"
+              }
+            ]
+          },
+          "summary": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StatementSummaryBody"
+              }
+            ]
           }
         }
       },
@@ -49377,6 +49519,30 @@
           },
           "written": {
             "type": "boolean"
+          }
+        }
+      },
+      "StatementSummaryBody": {
+        "type": "object",
+        "properties": {
+          "careDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "hours": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "absence": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
