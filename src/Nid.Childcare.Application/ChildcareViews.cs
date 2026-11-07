@@ -72,7 +72,7 @@ public sealed record StatementDayView(
     LocalDate Date, bool Planned, bool Present, string? Arrival, string? Departure, bool Meal, string? Absence, string? TemplateArrival,
     string? TemplateDeparture, bool Changed, string? WeekType = null);
 
-/// <summary>Spec §3: the Pajemploi fields, hours as <c>"1.50"</c>, amounts as <c>"598.02"</c>.</summary>
+/// <summary>Spec §3: the Pajemploi fields, hours as <c>"1.50"</c>, amounts as <c>"612.50"</c>.</summary>
 public sealed record DeclarationView(
     int NormalHours, int ActivityDays, int? PaidLeaveDays, string ComplementaryHours, string OvertimeHours, string NetPay, string Upkeep, string Meals,
     string Mileage);

@@ -1,5 +1,16 @@
 # Nid
 
+The repository is public. Two rules hold everywhere: in code, tests, fixtures, docs, commit messages, issues and pull requests.
+
+- **No real household data.** Never copy the household's own figures, names or documents (amounts, balances, salaries,
+  tax notices, contracts and their numbers, providers they use, places, birth dates, first names) into the repository or
+  onto GitHub. Use invented values: the demo household (Alice, Bob, Léa, `deploy/local/demo/`) or round, made-up figures.
+  To describe a bug seen on real data, give its shape (« a Livret A over its ceiling »), never its numbers.
+- **No mention of Claude in commits or pull requests.** No `Co-authored-by: Claude…`, no `Claude-Session:` link, no
+  « Generated with Claude Code » line (`.claude/settings.json` sets `attribution: false`). Naming Claude as a product the app
+  supports (the MCP help for Claude Desktop) is not attribution and stays.
+- Commit with the GitHub noreply address (`<id>+<login>@users.noreply.github.com`), never a personal email.
+
 ## Issues and pull requests
 
 Issues use the templates in `.github/ISSUE_TEMPLATE/` (bug report, feature request).

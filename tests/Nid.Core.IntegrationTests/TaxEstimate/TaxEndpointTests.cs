@@ -319,7 +319,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var result = PerResultOf(saved, app.AdultA);
         Assert.Equal("8000.00", result.GetProperty("deducted").GetString());
-        Assert.Equal("2920.00", result.GetProperty("remaining").GetString());
+        Assert.Equal("4000.00", result.GetProperty("remaining").GetString());
         Assert.Equal("12000.00", result.GetProperty("ceiling").GetString());
         Assert.Equal("notice", result.GetProperty("source").GetString());
         Assert.Equal("12000.00", saved.GetProperty("profile").GetProperty("perCeilings").GetProperty(app.AdultA.Value.ToString()).GetString());

@@ -101,16 +101,16 @@ public class EnvelopeMathTests
     }
 
     [Fact]
-    public void Issue_20_a_life_insurance_with_large_withdrawals_reads_about_2_7_percent_a_year()
+    public void Issue_20_a_life_insurance_with_large_withdrawals_reads_about_2_2_percent_a_year()
     {
         var flows = Enumerable.Range(0, 30).Select(i => Flow(2020, 8, 1, FlowKind.Contribution, 200m) with { OccurredOn = new LocalDate(2020, 8, 1).PlusMonths(i) })
-            .Append(Flow(2020, 7, 1, FlowKind.Opening, 30_000m)).Append(Flow(2024, 6, 1, FlowKind.Withdrawal, 12_500.00m)).ToList();
+            .Append(Flow(2020, 7, 1, FlowKind.Opening, 30_000m)).Append(Flow(2024, 6, 1, FlowKind.Withdrawal, 12_500m)).ToList();
 
-        var f = At([Value(2026, 10, 1, 27_900.00m)], flows, new LocalDate(2026, 10, 1));
+        var f = At([Value(2026, 10, 1, 27_900m)], flows, new LocalDate(2026, 10, 1));
 
-        Assert.Equal(Eur(4_400.00m), f.Gain);
-        Assert.Equal(15.2m, f.GainPct);
-        Assert.Equal(2.7m, f.AnnualReturnPct);
+        Assert.Equal(Eur(4_400m), f.Gain);
+        Assert.Equal(12.2m, f.GainPct);
+        Assert.Equal(2.2m, f.AnnualReturnPct);
     }
 
     [Fact]

@@ -10,11 +10,11 @@ import { DeclarantTable } from './ResultTable';
 import { ADULT, estimate, result } from './taxTestData';
 
 const declarantPer = (over: Partial<NonNullable<TaxResult['declarants'][number]['per']>> = {}) => ({
-  ceiling: '5843.13', source: 'notice', expiring: '0.00', contributions: '3000.00', deducted: '3000.00', excess: '0.00', remaining: '3220.80', minimum: '0.00', minimumEstimated: false, ...over,
+  ceiling: '5843.13', source: 'notice', expiring: '0.00', contributions: '3000.00', deducted: '3000.00', excess: '0.00', remaining: '2843.13', minimum: '0.00', minimumEstimated: false, ...over,
 });
 const withPer = (over: Partial<TaxResult> = {}, per = declarantPer()) => result({
   declarants: [{ ...result().declarants[0]!, person: ADULT, per }],
-  per: { pooled: false, remaining: '3220.80', taxSaved: '900.00', roomInBracket: '10421.00' },
+  per: { pooled: false, remaining: '2843.13', taxSaved: '900.00', roomInBracket: '10421.00' },
   ...over,
 });
 const block = (r: TaxResult, names: string[], onProfile: () => void) => (
@@ -29,7 +29,7 @@ describe('PerRows and PerSummary', () => {
     expect(screen.getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
     expect(cell(/Plafond \(avis\)/)).toHaveTextContent('5 843,13 €');
     expect(cell(/^Déduit/)).toHaveTextContent('3 000,00 €');
-    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('3 220,80 €');
+    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('2 843,13 €');
     expect(screen.getByText('PER · Barème 2025')).toBeInTheDocument();
   });
 
@@ -37,7 +37,7 @@ describe('PerRows and PerSummary', () => {
     show(withPer({}, declarantPer({ expiring: '1200.00', minimum: '1700.00' })));
     expect(screen.getByText('dont 1 200,00 € perdus au 31 décembre')).toBeInTheDocument();
     expect(cell(/Minimum à verser avant le 31 décembre/)).toHaveTextContent('1 700,00 €pour ne pas perdre 1 200,00 €');
-    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('3 220,80 €');
+    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('2 843,13 €');
   });
 
   it('drops the loss once the minimum is paid', () => {

@@ -109,7 +109,7 @@ public class RegulatedSavingsTests
     [Fact]
     public void The_room_left_is_the_ceiling_minus_the_balance_and_never_negative()
     {
-        // The household's livrets: Livret A (Alice) can take about 3 600 €, the Livret A (Bob), over through interest, none.
+        // Two livrets: Alice's Livret A can take 3 600 €, Bob's, over through interest, none.
         var alice = new EnvelopeFacts("Livret A Alice", EnvelopeKind.Savings) { Regulated = RegulatedKind.LivretA }.Value(D(2026, 1, 2), 19_350m).Build();
         var bob = new EnvelopeFacts("Livret A Bob", EnvelopeKind.Savings) { Regulated = RegulatedKind.LivretA }.Value(D(2026, 1, 2), 23_104.60m).Build();
         var plain = new EnvelopeFacts("Compte", EnvelopeKind.Savings).Value(D(2026, 1, 2), 30_000m).Build();

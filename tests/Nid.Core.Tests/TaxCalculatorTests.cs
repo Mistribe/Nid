@@ -249,7 +249,7 @@ public class TaxCalculatorTests
         Assert.Equal(1_500m, per.Expiring);
         Assert.Equal(8_000m, per.Contributions);
         Assert.Equal(4_000m, per.Deducted);
-        Assert.Equal(5_080m, per.Excess);
+        Assert.Equal(4_000m, per.Excess);
         Assert.Equal(0m, per.Remaining);
         Assert.Equal(4_000m, result.Declarants[0].PerDeducted);
         Assert.Equal(41_000m, result.NetTaxableIncome); // 45 000 after the allowance − 4 000
@@ -583,7 +583,7 @@ public class TaxCalculatorTests
     [Fact]
     public void The_reference_income_counts_exempt_overtime_after_the_ten_percent_allowance()
     {
-        // The 2025 notice: 52 000 of salaries, 1 250 of exempt overtime declared, 1 125 net in the reference income.
+        // A notice: 52 000 of salaries, 1 250 of exempt overtime declared, 1 125 net in the reference income.
         var result = TaxCalculator.Compute(Inputs([Other(52_000m) with { ExemptIncome = 1_250m }]));
 
         Assert.Equal(46_800m, result.NetTaxableIncome);

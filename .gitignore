@@ -24,5 +24,9 @@ deploy/backups/
 
 # Brainstorming mockups (superpowers visual companion); never committed
 .superpowers/
+
+# Design specs and plans (superpowers): kept on the developers' machines, never committed. The docs that cite
+# `superpowers/specs/…` or `superpowers/plans/…` refer to these local files.
+docs/superpowers/
 # A build host on macOS can write a folder literally named bin\Debug
 bin\\*/
