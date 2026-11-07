@@ -1,0 +1,65 @@
+# Weekly dependency updates, one grouped pull request per ecosystem so the week brings a handful, not dozens. Security updates
+# arrive on their own as soon as an advisory is published. Every pull request carries `technical` and `no-changelog` (the
+# household sees none of it, .claude/CLAUDE.md) and runs the whole of ci.yml before it is merged.
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [technical, backend, no-changelog]
+    commit-message:
+      prefix: 'Deps:'
+    groups:
+      nuget:
+        patterns: ['*']
+
+  - package-ecosystem: npm # pnpm, read from web/pnpm-lock.yaml
+    directory: /web
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [technical, web, no-changelog]
+    commit-message:
+      prefix: 'Deps:'
+    groups:
+      web:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions # keeps the SHA pins and their version comments in step
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [technical, infra, no-changelog]
+    commit-message:
+      prefix: 'Deps:'
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: docker # base images, pinned by digest
+    directories: [/src/Nid.Host, /deploy/backup]
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [technical, infra, no-changelog]
+    commit-message:
+      prefix: 'Deps:'
+    groups:
+      images:
+        patterns: ['*']
+
+  - package-ecosystem: docker-compose # postgres, Pocket ID, Caddy, Mailpit
+    directory: /deploy
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [technical, infra, no-changelog]
+    commit-message:
+      prefix: 'Deps:'
+    groups:
+      compose:
+        patterns: ['*']

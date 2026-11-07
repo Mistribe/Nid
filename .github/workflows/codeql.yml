@@ -1,0 +1,46 @@
+name: codeql
+
+# Static analysis of the C#, the TypeScript and the workflows, free on a public repository. Findings land in the Security tab and
+# as annotations on the pull request. Buildless (`build-mode: none`): no dotnet build, the analysis reads the sources.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  schedule:
+    - cron: '0 5 * * 1' # new queries find old code too
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write # the results, uploaded to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, javascript-typescript, actions]
+    name: analyze (${{ matrix.language }})
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}

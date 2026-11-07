@@ -1,14 +1,20 @@
 name: ci
 
-# The monthly Actions minutes are the budget (1000), so each commit is paid for once:
-#  - a pull request into `main` runs one job, `check`: it builds the solution and checks the web app, each only when its files
-#    change. A pull request into another branch runs nothing; once retargeted to main, its next push runs the check. It
-#    runs no test: the developer runs them before opening it (.claude/CLAUDE.md). The integration tests also run weekly in e2e.yml;
-#  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
-#    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
-#    acted on. The smoke test and the backup test (`deploy/smoke.sh`, `deploy/backup-smoke.sh`) run on the developer's machine;
-#  - a push that only touches docs runs nothing;
-#  - the full Playwright journeys are e2e.yml, weekly.
+# The repository is public: standard GitHub-hosted runners (ubuntu-latest) cost nothing, so a pull request gets the full verdict
+# here instead of on the developer's machine. Larger runners are paid: none is used.
+#  - a pull request into `main` runs, in parallel, the jobs its files call for: `dotnet` (build, openapi.json, unit tests),
+#    `integration` (one job per *.IntegrationTests project, Testcontainers), `web` (API client, types, lint, vitest, build,
+#    budget), `journeys` (deploy/smoke.sh with every Playwright journey), `image` (the two images, scanned by Trivy) and
+#    `dependencies` (dependency review). `ci-ok` sums them up: it is the one check branch protection requires, so a job skipped
+#    because its files did not change never blocks the merge;
+#  - `main` runs only `images` (build the images, push them, tag the release): the pull request already ran its checks on the
+#    tree being merged;
+#  - every Monday the checks run on `main` whatever changed: base images, the identity provider and the browsers move without
+#    a push;
+#  - a push or a pull request that only touches docs runs nothing.
+#
+# Pull requests from forks: `pull_request` only, never `pull_request_target`, so their code runs with a read-only token and no
+# secret. Only `images` holds secrets, and it never runs for a pull request.
 on:
   push:
     branches: [main]
@@ -16,11 +22,14 @@ on:
   pull_request:
     branches: [main]
     paths-ignore: ['docs/**', '**/*.md']
+  schedule:
+    - cron: '0 4 * * 1'
   workflow_dispatch:
 
-# A second push supersedes the first (Auto-fix pushes often): a superseded run reports on a tree nobody has any more.
+# A second push supersedes the first (Auto-fix pushes often): a superseded run reports on a tree nobody has any more. The event is
+# part of the group so the Monday run on main and a release never cancel each other.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 # Least privilege (security/infrastructure.md §5): only `images` writes to the repository (the release tag, below). Actions are
@@ -29,16 +38,18 @@ permissions:
   contents: read
 
 jobs:
-  # One job for the whole pull request: each job is billed rounded up to the minute and sets up its own runner, so the checks
-  # share one. Its steps follow the files the pull request changes (`web` about 12 minutes, `build` about 4): a change to the C#
-  # tests does not lint the web app, nor a change to the web app build the solution. The solution also follows openapi.json, which
-  # it compares with the server's. Without a pull request (workflow_dispatch), both run.
-  check:
+  # What the pull request touches. Without a pull request (schedule, workflow_dispatch), everything runs.
+  changes:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read # the changed files, read from the API
+    outputs:
+      dotnet: ${{ steps.files.outputs.dotnet }}
+      web: ${{ steps.files.outputs.web }}
+      app: ${{ steps.files.outputs.app }}
+      integration: ${{ steps.projects.outputs.integration }}
     steps:
       - id: files
         env:
@@ -46,54 +57,185 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           if [ -z "$PR" ]; then
-            echo "dotnet=true" >> "$GITHUB_OUTPUT"
-            echo "web=true" >> "$GITHUB_OUTPUT"
+            { echo "dotnet=true"; echo "web=true"; echo "app=true"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | .filename, .previous_filename // empty')
+          # The solution: anything outside web/, and openapi.json, which its build compares with the server's.
           if grep -qv '^web/' <<< "$files" || grep -qx 'web/src/api/openapi\.json' <<< "$files"; then dotnet=true; else dotnet=false; fi
           if grep -qE '^(web/|\.github/workflows/ci\.yml$)' <<< "$files"; then web=true; else web=false; fi
-          echo "dotnet=$dotnet" >> "$GITHUB_OUTPUT"
-          echo "web=$web" >> "$GITHUB_OUTPUT"
-      - if: steps.files.outputs.dotnet == 'true' || steps.files.outputs.web == 'true'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+          # The running app (journeys, images): the server, the web app, the compose and the build files.
+          if grep -qE '^(src/|web/|deploy/|Directory\.(Build|Packages)\.props$|global\.json$|\.github/workflows/ci\.yml$)' <<< "$files"; then app=true; else app=false; fi
+          { echo "dotnet=$dotnet"; echo "web=$web"; echo "app=$app"; } >> "$GITHUB_OUTPUT"
+      # The integration projects, read from the tree being tested: a new one joins the matrix without editing this file.
+      - id: projects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          projects=$(gh api "repos/$GITHUB_REPOSITORY/contents/tests?ref=$GITHUB_SHA" \
+            --jq '[.[] | select(.type == "dir" and (.name | endswith(".IntegrationTests"))) | .name]')
+          echo "integration=$projects" >> "$GITHUB_OUTPUT"
 
-      - if: steps.files.outputs.dotnet == 'true'
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+  # Every project, the test projects included, then the unit tests. Nid.Host regenerates web/src/api/openapi.json.
+  dotnet:
+    needs: changes
+    if: needs.changes.outputs.dotnet == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: global.json
-      # Every project, the test projects included: they are compiled here, not run. Nid.Host regenerates web/src/api/openapi.json.
-      - if: steps.files.outputs.dotnet == 'true'
-        run: dotnet build Nid.slnx --configuration Release
-      - if: steps.files.outputs.dotnet == 'true'
-        run: git diff --exit-code -- web/src/api/openapi.json
+      - run: dotnet build Nid.slnx --configuration Release
+      - run: git diff --exit-code -- web/src/api/openapi.json
+      - name: Unit tests
+        run: |
+          status=0
+          for project in tests/*.Tests; do
+            dotnet test --project "$project" --configuration Release --no-build || status=1
+          done
+          exit $status
 
-      - if: steps.files.outputs.web == 'true'
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
+  # Testcontainers needs the runner's Docker. One job per project, in parallel: together they took about 25 minutes in a row.
+  integration:
+    needs: changes
+    if: needs.changes.outputs.dotnet == 'true' && needs.changes.outputs.integration != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false # every project's verdict, whatever the others did
+      matrix:
+        project: ${{ fromJSON(needs.changes.outputs.integration) }}
+    name: integration (${{ matrix.project }})
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - run: dotnet test --project "tests/${{ matrix.project }}" --configuration Release
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
         with:
           package_json_file: web/package.json
-      - if: steps.files.outputs.web == 'true'
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
-      - if: steps.files.outputs.web == 'true'
-        run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web install --frozen-lockfile
       # schema.d.ts against the committed openapi.json; the solution's build compares that one with the server's.
-      - if: steps.files.outputs.web == 'true'
-        run: pnpm --dir web check:api
-      # `check` without vitest.
-      - if: steps.files.outputs.web == 'true'
-        run: pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web build && pnpm --dir web budget
+      - run: pnpm --dir web check:api
+      # `pnpm check`: types, lint, vitest, build, budget.
+      - run: pnpm --dir web check
         env:
           # Typed linting outgrows Node's default heap of about 2 GB.
           NODE_OPTIONS: --max-old-space-size=4096
 
-  # Release: build the two images (nid, nid-backup), push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:
-  # the pull request already ran its checks, and they cost too much CI time to run again on landing.
+  # The reference compose, signed in, every journey (deploy/smoke.sh).
+  journeys:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - name: Smoke test of the reference compose, every journey
+        run: deploy/smoke.sh
+        env:
+          NID_JOURNEYS: all
+      - name: Compose logs
+        if: failure()
+        run: |
+          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color --timestamps | tail -300
+      # Traces and screenshots of the failed journeys (`trace: 'retain-on-failure'`), only invented demo data. A week is enough
+      # to open them (`pnpm --dir web exec playwright show-trace <trace.zip>`).
+      - name: Playwright results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The two images as `images` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails the pull request.
+  image:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: nid
+            build: docker build -f src/Nid.Host/Dockerfile -t nid:local .
+          - name: nid-backup
+            build: docker build -t nid-backup:local deploy/backup
+    name: image (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - run: ${{ matrix.build }}
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.name }}:local
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  # A pull request that adds a dependency with a known high or critical vulnerability fails.
+  dependencies:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  # The required check (branch protection): fails if any job failed or was cancelled; a skipped job is a pass.
+  ci-ok:
+    if: always() && github.event_name != 'push'
+    needs: [changes, dotnet, integration, web, journeys, image, dependencies]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
+
+  # Release: build the two images (nid, nid-backup), push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test:
+  # the pull request already ran them on the tree being merged.
   images:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write # the vX.Y.Z tag, pushed once the images are
@@ -111,11 +253,10 @@ jobs:
           search_commit_body: true
       - name: Version
         env:
-          NEXT: ${{ steps.semver.outputs.version }}
+          VERSION: ${{ steps.semver.outputs.version }}
         run: |
-          if [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" = push ]; then version=$NEXT; else version="$NEXT-ci.$GITHUB_RUN_NUMBER"; fi
-          echo "VERSION=$version" >> "$GITHUB_ENV"
-          echo "Version: $version" >> "$GITHUB_STEP_SUMMARY"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Version: $VERSION" >> "$GITHUB_STEP_SUMMARY"
       # The version list a click on the version shows: web/changelog/ dated by the tags (web/changelog/README.md).
       - name: Changelog
         run: node web/scripts/changelog.mjs "$VERSION" > web/public/changelog.json
@@ -126,14 +267,12 @@ jobs:
       # The Azure login is the organisation's AZURE_* secrets and the federated credential of the « Github Actions » app for
       # repo:Mistribe/Nid:ref:refs/heads/main; the app is Contributor on the subscription, which includes AcrPush.
       - name: Log in to Azure
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Push the images to the ACR
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           registry=oriondev.azurecr.io/mistribe
           az acr login --name oriondev
@@ -144,7 +283,7 @@ jobs:
             done
           done
       - name: Tag the release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.semver.outputs.is_tagged != 'true'
+        if: steps.semver.outputs.is_tagged != 'true'
         run: |
           git tag "v$VERSION" "$GITHUB_SHA"
           git push origin "v$VERSION"

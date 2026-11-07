@@ -47,7 +47,7 @@ echo "ok: nid runs with a read-only root, no capability and user 1654"
 [ "$(curl -sk -o /dev/null -w '%{content_type}' "$URL/mcp")" != "text/html; charset=utf-8" ]
 echo "ok: a missing asset is a 404 and /mcp is not the SPA"
 
-# NID_JOURNEYS=sample (ci.yml) runs the subscriptions journeys, which sign alice and bob in (the persons check below needs both); the full set is e2e.yml.
+# NID_JOURNEYS=sample runs only the subscriptions journeys, which sign alice and bob in (the persons check below needs both): a quick local run. CI (ci.yml) runs them all.
 if [ "${NID_JOURNEYS:-all}" = "all" ]; then playwright; else playwright e2e/subscriptions.spec.ts; fi
 echo "ok: journeys (${NID_JOURNEYS:-all})"
 
