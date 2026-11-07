@@ -64,5 +64,6 @@ test('alice exports what she sees, and the import assistant reads the file back'
     name: download.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.from(text),
   });
   await expect(page.getByText(/^Lots à envoyer : \d+\.$/)).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  // No error from the import; the shell's banner (an important notification other journeys raised) is not the import's.
+  await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
 });
