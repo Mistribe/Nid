@@ -59,7 +59,7 @@ test('alice keeps a private salary up to date and bob never sees it', async ({ b
   await expect(bob.getByRole('heading', { name: 'Revenus' })).toBeVisible();
   await expect(bob.getByText(name)).toHaveCount(0);
   await bob.goto(url);
-  await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();
+  await expect(bob.getByRole('heading', { name: 'Page introuvable', level: 1 })).toBeVisible();
 });
 
 test('alice changes an amount, records a one-off, ends a source and reopens it', async ({ browser }) => {

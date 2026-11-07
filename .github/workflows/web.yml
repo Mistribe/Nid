@@ -1,0 +1,35 @@
+name: web
+
+# The web app: API client, types, lint, vitest, build, size budget. Called by ci.yml when a pull request touches web/ (ci.yml says
+# why the filter lives there and not in a `paths:` here); `gh workflow run web.yml` runs it alone.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      # schema.d.ts against the committed openapi.json; the backend's build compares that one with the server's.
+      - run: pnpm --dir web check:api
+      # `pnpm check`: types, lint, vitest, build, budget.
+      - run: pnpm --dir web check
+        env:
+          # Typed linting outgrows Node's default heap of about 2 GB.
+          NODE_OPTIONS: --max-old-space-size=4096

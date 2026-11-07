@@ -107,7 +107,9 @@ export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobi
         </TableHeader>
         <TableBody>
           {lines.map(({ row: r, depth, expandable, unfolded }) => (
-            <TableRow key={rowKey(r)} className={cn(rowLink && !expandable && 'relative', expandable && 'cursor-pointer', rowClassName?.(r))}
+            // A linked row: the first cell's link stretches over the whole row (its ::after), so the row's own controls (a
+            // checkbox, the ⋯ menu) are lifted above it, or a click on them would open the row.
+            <TableRow key={rowKey(r)} className={cn(rowLink && !expandable && 'relative [&_button]:relative [&_button]:z-10 [&_input]:relative [&_input]:z-10', expandable && 'cursor-pointer', rowClassName?.(r))}
               onClick={expandable ? onRowClick(rowKey(r)) : undefined}>
               {selection ? <TableCell className="w-8">{box(r, depth)}</TableCell> : null}
               {columns.map((c, i) => (
