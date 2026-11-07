@@ -418,7 +418,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 /tests/…
 ```
 
-- CI (`ci.yml`, qui appelle `backend.yml`, `web.yml` et `e2e.yml` ; runners GitHub standards, gratuits pour un dépôt public) : à chaque pull request, selon les fichiers touchés, build, contrôle du client OpenAPI, tests unitaires, tests d'intégration (un job par projet), typecheck, lint, vitest, budget web, tous les parcours Playwright sur le compose de référence, images analysées par Trivy et revue des dépendances ; `ci-ok` est le contrôle requis. CodeQL (`codeql.yml`) sur chaque pull request. Chaque lundi, le tout sur `main`. Dependabot propose les mises à jour chaque semaine.
+- CI (`ci.yml`, qui appelle `backend.yml`, `web.yml` et `e2e.yml` ; runners GitHub standards, gratuits pour un dépôt public) : à chaque pull request, selon les fichiers touchés, build, contrôle du client OpenAPI, tests unitaires, tests d'intégration (un job par projet), typecheck, lint, vitest, budget web, tous les parcours Playwright sur le compose de référence, images analysées par Trivy et revue des dépendances ; `ci-ok` est le contrôle requis. CodeQL (`codeql.yml`) sur chaque pull request. Chaque lundi, le tout sur `main`. Renovate (`.github/renovate.json`) propose les mises à jour chaque lundi, groupées par écosystème, et sans attendre pour une vulnérabilité.
 - **ADR** dans `docs/adr/` : une décision structurante par fichier (stack, monolithe modulaire, OIDC, workers par table de jobs, registre `Item` central…), pour rendre les décisions de ce document traçables.
 
 ## 15. PWA et notifications

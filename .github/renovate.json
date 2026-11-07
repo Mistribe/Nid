@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Weekly dependency updates, one grouped pull request per ecosystem. Every pull request carries `technical`, its area and `no-changelog` (the household sees none of it, .claude/CLAUDE.md) and runs the whole of ci.yml before it is merged.",
+  "extends": ["config:best-practices", "schedule:earlyMondays", ":semanticCommitsDisabled"],
+  "timezone": "Europe/Paris",
+  "branchPrefix": "deps/",
+  "commitMessagePrefix": "Deps:",
+  "labels": ["technical", "no-changelog", "Small"],
+  "packageRules": [
+    { "matchManagers": ["nuget"], "groupName": "NuGet", "addLabels": ["backend"] },
+    { "matchManagers": ["npm"], "groupName": "web", "addLabels": ["web"] },
+    { "matchManagers": ["github-actions"], "groupName": "GitHub Actions", "addLabels": ["infra"] },
+    { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "images", "addLabels": ["infra"] }
+  ],
+  "lockFileMaintenance": { "enabled": true, "addLabels": ["web"] },
+  "vulnerabilityAlerts": { "schedule": ["at any time"], "addLabels": ["bug"] }
+}
