@@ -23,6 +23,8 @@ async function expectOpaque(page: Page) {
 
 test('by default the sidebar is translucent glass over the halos', async ({ page }) => {
   await signIn(page, 'alice', '/dashboard');
+  // Read once the shell is drawn: right after sign-in the sidebar may not be in the page yet.
+  await expect(page.locator('[data-pane="sidebar"]')).toBeVisible();
   const { alpha, backdrop, halo } = await opaque(page);
   expect(alpha).toBeLessThan(1);
   expect(backdrop).not.toBe('none');
@@ -53,7 +55,21 @@ test('« Réduire la transparence » makes them opaque and survives a reload', a
 });
 
 test('a focused element is never hidden under the floating top bar', async ({ page }) => {
-  await signIn(page, 'alice', '/investments');
+  await signIn(page, 'alice', '/dashboard');
+  // A list long enough to scroll, whatever the other journeys created before this one: twenty envelopes of its own.
+  const stamp = Date.now();
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string; person: { id: string } };
+  for (let i = 1; i <= 20; i++) {
+    const created = await page.request.post('/api/v1/investments/envelopes', {
+      headers: { 'X-Nid-Csrf': session.csrf },
+      data: {
+        displayName: `Défilement ${stamp} ${i}`, kind: 'savings', currency: 'EUR', visibility: 'private',
+        owners: [{ personId: session.person.id, shareBp: 10000 }], firstValuation: { asOf: '2026-01-01', amount: { amount: '1000', currency: 'EUR' } },
+      },
+    });
+    expect(created.status()).toBe(201);
+  }
+  await page.goto('/investments?tab=list');
   const links = page.locator('main').getByRole('link');
   await expect(links.first()).toBeVisible();
   const viewport = page.viewportSize()!;

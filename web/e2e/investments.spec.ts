@@ -67,7 +67,8 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(period.getByText('Versements nets de la période')).toBeVisible();
   await expect(period.getByText('Performance', { exact: true })).toBeVisible();
   // The last value on or before the period's start and end is the one of 30 September 2025, 25 000 €; nothing was contributed.
-  await expect(period).toContainText('25 000,00 € · 30 septembre 2025');
+  await expect(period).toContainText('Valeur de départ25 000,00 €30 septembre 2025');
+  await expect(period).toContainText('Valeur d’arrivée25 000,00 €30 septembre 2025');
   await expect(period.getByText('Pas de valeur au début de la période.')).toHaveCount(0);
 
   await alice.goto(livretUrl);
@@ -97,7 +98,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(bob.getByRole('table', { name: 'Liste des enveloppes' }).or(bob.getByRole('heading', { name: 'Aucune enveloppe pour l’instant' }))).toBeVisible();
   await expect(bob.getByText(name)).toHaveCount(0);
   await bob.goto(url);
-  await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();
+  await expect(bob.getByRole('heading', { name: 'Page introuvable', level: 1 })).toBeVisible();
 });
 
 test('a withdrawal classed as a dividend shows in the Income tab', async ({ browser }) => {

@@ -39,7 +39,7 @@ test('alice creates a private loan and reads its schedule; bob never sees it', a
   await expect(bob.locator('[aria-busy="true"]')).toHaveCount(0);
   await expect(bob.getByText(name)).toHaveCount(0);
   await bob.goto(url);
-  await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();
+  await expect(bob.getByRole('heading', { name: 'Page introuvable', level: 1 })).toBeVisible();
 });
 
 test('alice simulates an early repayment, records it from the simulation, then changes her contract’s rate', async ({ browser }) => {

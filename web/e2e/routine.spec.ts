@@ -17,9 +17,9 @@ test('alice does her routine on a new envelope, reads the gain, then cancels', a
   await due.getByLabel(`Valeur de ${name}`).fill('1000');
   await due.getByLabel(`Versements du mois sur ${name}`).fill('100');
   // Other journeys add envelopes of alice's: skip every other due line so only this one is recorded.
+  // The visible label is « Passer » alone; the envelope's name is in the checkbox's aria-label.
   for (const skip of await due.getByRole('checkbox').all()) {
-    const label = await alice.locator(`label[for="${await skip.getAttribute('id')}"]`).textContent();
-    if (label !== `Passer ${name}`) await skip.check();
+    if ((await skip.getAttribute('aria-label')) !== `Passer ${name}`) await skip.check();
   }
   await alice.getByRole('button', { name: 'Enregistrer les placements' }).click();
 

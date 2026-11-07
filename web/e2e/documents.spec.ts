@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { pick, toasts } from './controls';
 import { signIn } from './session';
 
-const pdf = (name: string) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n') });
+// The name in a comment line: the same bytes twice are one document (duplicate check), across journeys too.
+const pdf = (name: string) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from(`%PDF-1.4\n% ${name}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`) });
 
 /** A subscription is a Core item: the page links to it. */
 async function addItem(page: Page, displayName: string, visibility: 'shared' | 'private'): Promise<void> {

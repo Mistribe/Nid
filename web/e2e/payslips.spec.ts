@@ -3,7 +3,8 @@ import { fillDate } from './controls';
 import { aMonthAgo, plusMonths } from './dates';
 import { signIn } from './session';
 
-const pdf = (name: string) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n') });
+// The name in a comment line: the same bytes twice are one document (duplicate check), across journeys too.
+const pdf = (name: string) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from(`%PDF-1.4\n% ${name}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`) });
 /** « septembre 2026 », as the history's month column and the payslip title write it. */
 const label = (iso: string) => new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(iso));
 

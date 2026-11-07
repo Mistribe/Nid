@@ -78,7 +78,7 @@ test('alice records a shared property, its estimate, its works and her loan; bob
 
   const flat = await createProperty(alice, `Studio ${stamp}`, 'Non, privé');
   await bob.goto(flat);
-  await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();
+  await expect(bob.getByRole('heading', { name: 'Page introuvable', level: 1 })).toBeVisible();
 });
 
 test('alice lets her property: a tenancy under way, a yearly property tax, and its gross yield over twelve rents', async ({ page }) => {
