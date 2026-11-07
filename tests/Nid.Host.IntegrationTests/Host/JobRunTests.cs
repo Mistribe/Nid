@@ -150,6 +150,10 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         Assert.DoesNotContain("prices-daily", irlLog);
         Assert.Contains("prices-daily crashed", pricesLog);
         Assert.DoesNotContain("irl-weekly", pricesLog);
+        // The purge runs after the run is recorded as finished: wait for it rather than race it.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (File.Exists(oldestFile) && DateTime.UtcNow < deadline)
+            await Task.Delay(100, TestContext.Current.CancellationToken);
         Assert.False(File.Exists(oldestFile));
     }
 
