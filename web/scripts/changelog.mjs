@@ -1,5 +1,5 @@
 // The version list shown on a click on the version (src/app/Changelog.tsx), written to public/changelog.json by the
-// images job of ci.yml before the image is built. Each change the household sees has its own file in web/changelog/,
+// build job of ci.yml before the image is built. Each change the household sees has its own file in web/changelog/,
 // { "en": "…", "fr": "…" }; its version is the first vX.Y.Z tag holding the commit that added the file, or the version
 // being built when no tag holds it yet. One file per change, so two pull requests never conflict on it. A file written
 // after its release (the history from before this list) names it: "version": "0.13.0".

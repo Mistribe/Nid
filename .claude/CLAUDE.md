@@ -76,9 +76,10 @@ Every screen follows one page grammar (`docs/frontend/design-system.md` §6.1, `
 
 ## Versioning
 
-Every push to `main` is a release: the `images` job of `.github/workflows/ci.yml` computes the version with
-[`PaulHatch/semantic-version`](https://github.com/marketplace/actions/git-semantic-version), builds the API with it
-(`-p:Version`), pushes the images tagged with it and pushes the git tag `vX.Y.Z`. Nothing to do by hand.
+Every push to `main` is a release: the release jobs of `.github/workflows/ci.yml` compute the version with
+[`PaulHatch/semantic-version`](https://github.com/marketplace/actions/git-semantic-version), build the images with it
+(`-p:Version`) for amd64 and arm64, publish them on `ghcr.io/mistribe/{nid,nid-backup}` (`X.Y.Z`, `X.Y`, `latest`, `sha-…`,
+with a provenance attestation) and push the git tag `vX.Y.Z`. Nothing to do by hand.
 
 The bump comes from the commit messages since the last `vX.Y.Z` tag, so it comes from the PR title (the squash-merge subject) and
 body:

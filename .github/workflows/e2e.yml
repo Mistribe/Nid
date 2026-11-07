@@ -48,7 +48,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # The two images as ci.yml's `images` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails.
+  # The two images as ci.yml's `build` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails.
   image:
     runs-on: ubuntu-latest
     timeout-minutes: 30

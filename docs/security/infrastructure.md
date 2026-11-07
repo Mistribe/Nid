@@ -64,7 +64,7 @@ Voir aussi `../architecture.md` §11.
 | **NuGet** | Gestion centralisée des versions, fichiers de verrouillage, restauration verrouillée en CI |
 | **npm** | `npm ci`, fichier de verrouillage, **scripts d'installation désactivés en CI** quand possible |
 | **Python** (workers) | Dépendances avec empreintes (`--require-hashes`), peu de dépendances |
-| **Images** | Épinglées par **empreinte**, bases minimales, analysées par Trivy à chaque pull request (échec sur une vulnérabilité CRITICAL corrigée), mises à jour par Renovate ; SBOM CycloneDX et signature (cosign) optionnels |
+| **Images** | Épinglées par **empreinte**, bases minimales, analysées par Trivy à chaque pull request (échec sur une vulnérabilité CRITICAL corrigée), mises à jour par Renovate ; publiées sur `ghcr.io/mistribe` (amd64, arm64) par le jeton du workflow, sans secret, avec une attestation de provenance signée (Sigstore, `gh attestation verify`) ; SBOM CycloneDX optionnel |
 | **CI** | Jetons à moindre privilège, actions **épinglées par SHA**, protection de branche, aucun secret exposé aux forks (`pull_request` seulement, jamais `pull_request_target` ; seul le job `images` de `main` tient des secrets), CodeQL et revue des dépendances sur chaque pull request ; seul artefact : les traces Playwright d'un parcours en échec, gardées 7 jours (données de démo) |
 | **Modèles** | Épinglés par empreinte, mise à jour manuelle |
 | **Nouvelle dépendance** | **Revue obligatoire** : ancienneté, adoption, mainteneurs, licence, et **existence réelle du paquet**. Les assistants de code peuvent inventer des noms de paquets |

@@ -21,7 +21,7 @@ x-hardened: &hardened
 services:
   nid:
     <<: *hardened
-    image: ${NID_IMAGE:-oriondev.azurecr.io/mistribe/nid:latest}
+    image: ${NID_IMAGE:-ghcr.io/mistribe/nid:latest}
     environment:
       Auth__PublicUrl: ${NID_URL:?set NID_URL in .env (https://nid.example.org)}
       Auth__Authority: ${AUTH_URL:?set AUTH_URL in .env (https://auth.example.org)}
