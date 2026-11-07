@@ -51007,6 +51007,12 @@
                 "$ref": "#/components/schemas/DashboardMoneyView"
               }
             ]
+          },
+          "effectiveAverageRate": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

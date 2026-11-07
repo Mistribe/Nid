@@ -31408,6 +31408,7 @@ export interface components {
             rentalDeficitOnGlobalIncome?: null | components["schemas"]["DashboardMoneyView"];
             pinelReduction?: null | components["schemas"]["DashboardMoneyView"];
             childcareExpenses?: null | components["schemas"]["DashboardMoneyView"];
+            effectiveAverageRate?: null | string;
         };
         TaxCarryView: {
             /** Format: int32 */
