@@ -1,0 +1,59 @@
+name: backend
+
+# The solution: build, openapi.json, unit tests, integration tests. Called by ci.yml when a pull request touches it (ci.yml says
+# why the filter lives there and not in a `paths:` here); `gh workflow run backend.yml` runs it alone.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Every project, the test projects included, then the unit tests. Nid.Host regenerates web/src/api/openapi.json.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      integration: ${{ steps.projects.outputs.integration }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - run: dotnet build Nid.slnx --configuration Release
+      - run: git diff --exit-code -- web/src/api/openapi.json
+      - name: Unit tests
+        run: |
+          status=0
+          for project in tests/*.Tests; do
+            dotnet test --project "$project" --configuration Release --no-build || status=1
+          done
+          exit $status
+      # The integration projects of the tree: a new one joins the matrix below without editing this file.
+      - id: projects
+        run: |
+          projects=$(find tests -maxdepth 1 -type d -name '*.IntegrationTests' -printf '%f\n' | sort | jq -Rsc 'split("\n") | map(select(. != ""))')
+          echo "integration=$projects" >> "$GITHUB_OUTPUT"
+
+  # Testcontainers needs the runner's Docker. One job per project, in parallel: together they took about 25 minutes in a row.
+  integration:
+    needs: build
+    if: needs.build.outputs.integration != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false # every project's verdict, whatever the others did
+      matrix:
+        project: ${{ fromJSON(needs.build.outputs.integration) }}
+    name: integration (${{ matrix.project }})
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - run: dotnet test --project "tests/${{ matrix.project }}" --configuration Release

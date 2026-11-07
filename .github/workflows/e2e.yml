@@ -1,0 +1,74 @@
+name: e2e
+
+# The running app: the reference compose with every Playwright journey, and the two images scanned by Trivy. Called by ci.yml when
+# a pull request touches the server, the web app or the compose (ci.yml says why the filter lives there and not in a `paths:`
+# here); `gh workflow run e2e.yml` runs it alone.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # The reference compose, signed in, every journey (deploy/smoke.sh).
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - name: Smoke test of the reference compose, every journey
+        run: deploy/smoke.sh
+        env:
+          NID_JOURNEYS: all
+      - name: Compose logs
+        if: failure()
+        run: |
+          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color --timestamps | tail -300
+      # Traces and screenshots of the failed journeys (`trace: 'retain-on-failure'`), only invented demo data. A week is enough
+      # to open them (`pnpm --dir web exec playwright show-trace <trace.zip>`).
+      - name: Playwright results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The two images as ci.yml's `images` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: nid
+            build: docker build -f src/Nid.Host/Dockerfile -t nid:local .
+          - name: nid-backup
+            build: docker build -t nid-backup:local deploy/backup
+    name: image (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - run: ${{ matrix.build }}
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.name }}:local
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

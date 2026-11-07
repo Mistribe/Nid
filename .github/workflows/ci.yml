@@ -1,17 +1,21 @@
 name: ci
 
-# The repository is public: standard GitHub-hosted runners (ubuntu-latest) cost nothing, so a pull request gets the full verdict
-# here instead of on the developer's machine. Larger runners are paid: none is used.
-#  - a pull request into `main` runs, in parallel, the jobs its files call for: `dotnet` (build, openapi.json, unit tests),
-#    `integration` (one job per *.IntegrationTests project, Testcontainers), `web` (API client, types, lint, vitest, build,
-#    budget), `journeys` (deploy/smoke.sh with every Playwright journey), `image` (the two images, scanned by Trivy) and
-#    `dependencies` (dependency review). `ci-ok` sums them up: it is the one check branch protection requires, so a job skipped
-#    because its files did not change never blocks the merge;
+# The entry point of every check. The repository is public: standard GitHub-hosted runners (ubuntu-latest) cost nothing, so a
+# pull request gets the full verdict here. Larger runners are paid: none is used.
+#  - a pull request into `main` calls, in parallel, the workflows its files concern: backend.yml (build, openapi.json, unit and
+#    integration tests), web.yml (API client, types, lint, vitest, build, budget), e2e.yml (every Playwright journey, images
+#    scanned by Trivy); and reviews its new dependencies;
+#  - `ci-ok` sums them up: it is the one check the `main` ruleset requires (with `changelog`);
 #  - `main` runs only `images` (build the images, push them, tag the release): the pull request already ran its checks on the
 #    tree being merged;
-#  - every Monday the checks run on `main` whatever changed: base images, the identity provider and the browsers move without
+#  - every Monday, every check runs on `main` whatever changed: base images, the identity provider and the browsers move without
 #    a push;
 #  - a push or a pull request that only touches docs runs nothing.
+#
+# Why the area filter is a job here and not `paths:` in each workflow: a workflow skipped by `paths:` reports no status, so a
+# required check would wait for it forever and block the merge. GitHub's advice is not to require a workflow that can be
+# skipped (« Troubleshooting required status checks »). Here the workflow always runs; a call skipped by its `if:` reports
+# `skipped`, which counts as a pass, and `ci-ok` always reports.
 #
 # Pull requests from forks: `pull_request` only, never `pull_request_target`, so their code runs with a read-only token and no
 # secret. Only `images` holds secrets, and it never runs for a pull request.
@@ -27,7 +31,8 @@ on:
   workflow_dispatch:
 
 # A second push supersedes the first (Auto-fix pushes often): a superseded run reports on a tree nobody has any more. The event is
-# part of the group so the Monday run on main and a release never cancel each other.
+# part of the group so the Monday run on main and a release never cancel each other. The called workflows have no group of their
+# own: theirs would be this one's name and cancel this run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
@@ -46,10 +51,9 @@ jobs:
       contents: read
       pull-requests: read # the changed files, read from the API
     outputs:
-      dotnet: ${{ steps.files.outputs.dotnet }}
+      backend: ${{ steps.files.outputs.backend }}
       web: ${{ steps.files.outputs.web }}
-      app: ${{ steps.files.outputs.app }}
-      integration: ${{ steps.projects.outputs.integration }}
+      e2e: ${{ steps.files.outputs.e2e }}
     steps:
       - id: files
         env:
@@ -57,159 +61,31 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           if [ -z "$PR" ]; then
-            { echo "dotnet=true"; echo "web=true"; echo "app=true"; } >> "$GITHUB_OUTPUT"
+            { echo "backend=true"; echo "web=true"; echo "e2e=true"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | .filename, .previous_filename // empty')
           # The solution: anything outside web/, and openapi.json, which its build compares with the server's.
-          if grep -qv '^web/' <<< "$files" || grep -qx 'web/src/api/openapi\.json' <<< "$files"; then dotnet=true; else dotnet=false; fi
-          if grep -qE '^(web/|\.github/workflows/ci\.yml$)' <<< "$files"; then web=true; else web=false; fi
-          # The running app (journeys, images): the server, the web app, the compose and the build files.
-          if grep -qE '^(src/|web/|deploy/|Directory\.(Build|Packages)\.props$|global\.json$|\.github/workflows/ci\.yml$)' <<< "$files"; then app=true; else app=false; fi
-          { echo "dotnet=$dotnet"; echo "web=$web"; echo "app=$app"; } >> "$GITHUB_OUTPUT"
-      # The integration projects, read from the tree being tested: a new one joins the matrix without editing this file.
-      - id: projects
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          projects=$(gh api "repos/$GITHUB_REPOSITORY/contents/tests?ref=$GITHUB_SHA" \
-            --jq '[.[] | select(.type == "dir" and (.name | endswith(".IntegrationTests"))) | .name]')
-          echo "integration=$projects" >> "$GITHUB_OUTPUT"
+          if grep -qv '^web/' <<< "$files" || grep -qx 'web/src/api/openapi\.json' <<< "$files"; then backend=true; else backend=false; fi
+          if grep -qE '^(web/|\.github/workflows/(ci|web)\.yml$)' <<< "$files"; then web=true; else web=false; fi
+          # The running app: the server, the web app, the compose and the build files.
+          if grep -qE '^(src/|web/|deploy/|Directory\.(Build|Packages)\.props$|global\.json$|\.github/workflows/(ci|e2e)\.yml$)' <<< "$files"; then e2e=true; else e2e=false; fi
+          { echo "backend=$backend"; echo "web=$web"; echo "e2e=$e2e"; } >> "$GITHUB_OUTPUT"
 
-  # Every project, the test projects included, then the unit tests. Nid.Host regenerates web/src/api/openapi.json.
-  dotnet:
+  backend:
     needs: changes
-    if: needs.changes.outputs.dotnet == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          global-json-file: global.json
-      - run: dotnet build Nid.slnx --configuration Release
-      - run: git diff --exit-code -- web/src/api/openapi.json
-      - name: Unit tests
-        run: |
-          status=0
-          for project in tests/*.Tests; do
-            dotnet test --project "$project" --configuration Release --no-build || status=1
-          done
-          exit $status
-
-  # Testcontainers needs the runner's Docker. One job per project, in parallel: together they took about 25 minutes in a row.
-  integration:
-    needs: changes
-    if: needs.changes.outputs.dotnet == 'true' && needs.changes.outputs.integration != '[]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false # every project's verdict, whatever the others did
-      matrix:
-        project: ${{ fromJSON(needs.changes.outputs.integration) }}
-    name: integration (${{ matrix.project }})
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          global-json-file: global.json
-      - run: dotnet test --project "tests/${{ matrix.project }}" --configuration Release
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend.yml
 
   web:
     needs: changes
     if: needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
-        with:
-          package_json_file: web/package.json
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm --dir web install --frozen-lockfile
-      # schema.d.ts against the committed openapi.json; the solution's build compares that one with the server's.
-      - run: pnpm --dir web check:api
-      # `pnpm check`: types, lint, vitest, build, budget.
-      - run: pnpm --dir web check
-        env:
-          # Typed linting outgrows Node's default heap of about 2 GB.
-          NODE_OPTIONS: --max-old-space-size=4096
+    uses: ./.github/workflows/web.yml
 
-  # The reference compose, signed in, every journey (deploy/smoke.sh).
-  journeys:
+  e2e:
     needs: changes
-    if: needs.changes.outputs.app == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
-        with:
-          package_json_file: web/package.json
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm --dir web install --frozen-lockfile
-      - run: pnpm --dir web exec playwright install --with-deps chromium
-      - name: Smoke test of the reference compose, every journey
-        run: deploy/smoke.sh
-        env:
-          NID_JOURNEYS: all
-      - name: Compose logs
-        if: failure()
-        run: |
-          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color --timestamps | tail -300
-      # Traces and screenshots of the failed journeys (`trace: 'retain-on-failure'`), only invented demo data. A week is enough
-      # to open them (`pnpm --dir web exec playwright show-trace <trace.zip>`).
-      - name: Playwright results
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: playwright-results
-          path: web/test-results/
-          retention-days: 7
-          if-no-files-found: ignore
-
-  # The two images as `images` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails the pull request.
-  image:
-    needs: changes
-    if: needs.changes.outputs.app == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: nid
-            build: docker build -f src/Nid.Host/Dockerfile -t nid:local .
-          - name: nid-backup
-            build: docker build -t nid-backup:local deploy/backup
-    name: image (${{ matrix.name }})
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - run: ${{ matrix.build }}
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ matrix.name }}:local
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+    if: needs.changes.outputs.e2e == 'true'
+    uses: ./.github/workflows/e2e.yml
 
   # A pull request that adds a dependency with a known high or critical vulnerability fails.
   dependencies:
@@ -220,10 +96,10 @@ jobs:
         with:
           fail-on-severity: high
 
-  # The required check (branch protection): fails if any job failed or was cancelled; a skipped job is a pass.
+  # The required check: fails if any part failed or was cancelled; a skipped part is a pass.
   ci-ok:
     if: always() && github.event_name != 'push'
-    needs: [changes, dotnet, integration, web, journeys, image, dependencies]
+    needs: [changes, backend, web, e2e, dependencies]
     runs-on: ubuntu-latest
     steps:
       - env:
