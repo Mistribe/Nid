@@ -72,7 +72,7 @@ public sealed class SubscriptionProposal(
         var lines = new JsonArray();
         foreach (var id in p.Lines)
             if (await transactions.FindAsync(id, ct) is { } line && line.Account == p.Account)
-                lines.Add(new JsonObject
+                lines.Add((JsonNode)new JsonObject
                 {
                     ["bookedOn"] = TransactionLinker.Day(line.BookedOn), ["amount"] = TransactionLinker.Amount(line.Amount), ["currency"] = line.Currency.Code,
                 });

@@ -86,6 +86,22 @@ public sealed partial class WriteTools
     [JsonSerializable(typeof(InvoiceArguments))]
     [JsonSerializable(typeof(AmortizationArguments))]
     [JsonSerializable(typeof(BankLinkArguments))]
+    // The tools' parameters: under NativeAOT the SDK finds no metadata for them by reflection.
+    [JsonSerializable(typeof(string))]
+    [JsonSerializable(typeof(bool))]
+    [JsonSerializable(typeof(int?))]
+    [JsonSerializable(typeof(uint))]
+    [JsonSerializable(typeof(Guid?))]
+    [JsonSerializable(typeof(MoneyArgument))]
+    [JsonSerializable(typeof(StatementMovement[]))]
+    [JsonSerializable(typeof(HoldingsLine[]))]
+    [JsonSerializable(typeof(HoldingsMovement[]))]
+    [JsonSerializable(typeof(BreakdownShare[]))]
+    [JsonSerializable(typeof(AmortizationRow[]))]
+    [JsonSerializable(typeof(Nid.Core.Application.Projection.ProjectionOverridesView))]
+    [JsonSerializable(typeof(IReadOnlyList<Nid.Core.Application.Projection.ProjectionEventView>))]
+    [JsonSerializable(typeof(IReadOnlyList<Api.RealEstateEndpoints.InsuranceQuoteBody>))]
+    [JsonSerializable(typeof(IReadOnlyList<Api.RealEstateEndpoints.LoanPenaltyBody>))]
     private sealed partial class ArgumentsJson : JsonSerializerContext;
 
     /// <summary>The tools' own parameter types, for the SDK's options (McpSetup).</summary>

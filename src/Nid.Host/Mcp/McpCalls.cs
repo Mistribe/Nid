@@ -176,7 +176,7 @@ public static partial class McpCalls
     /// <summary>A read's result above <c>Mcp:MaxResultBytes</c> is refused whole; a write's answer (<paramref name="limited"/> false) only echoes its input, bounded per field, and is never refused after the write.</summary>
     internal static CallToolResult Answer<TOut>(IServiceProvider services, TOut value, bool limited = true)
     {
-        var json = JsonSerializer.Serialize(value, services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions);
+        var json = JsonSerializer.Serialize(value, services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions.GetTypeInfo(typeof(TOut)));
         var limit = services.GetRequiredService<IConfiguration>().GetValue("Mcp:MaxResultBytes", 102_400);
         return limited && System.Text.Encoding.UTF8.GetByteCount(json) > limit
             ? Error(TooLarge)

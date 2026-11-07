@@ -12,7 +12,15 @@ namespace Nid.Host.Mcp;
 /// </summary>
 public sealed class RouteTool(RouteAction action) : McpServerTool
 {
-    private static readonly JsonSerializerOptions Json = JsonSerializerOptions.Web;
+    // The web defaults over the API's source-generated metadata: JsonSerializerOptions.Web resolves by reflection, absent under NativeAOT.
+    private static readonly JsonSerializerOptions Json = WebOptions();
+
+    private static JsonSerializerOptions WebOptions()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        Api.Json.NidJsonContexts.AddTo(options);
+        return options;
+    }
 
     public override Tool ProtocolTool { get; } = new()
     {

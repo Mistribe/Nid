@@ -28,8 +28,8 @@ public static class ProposalEndpoints
                     return result.ToHttp(s => s.Proposal);
                 return submitted!.Proposal is null
                     ? Results.NoContent() // spec 4D1 D3: the document matches what Nid expects, nothing is created
-                    : Results.Json((await HideDocumentsAsync(invoker, [submitted.Proposal], ct))[0],
-                        statusCode: submitted.Created ? StatusCodes.Status201Created : StatusCodes.Status200OK);
+                    : ResultHttp.Json((await HideDocumentsAsync(invoker, [submitted.Proposal], ct))[0],
+                        submitted.Created ? StatusCodes.Status201Created : StatusCodes.Status200OK);
             })
             .Returns<ProposalView>(StatusCodes.Status201Created)
             .Produces<ProposalView>(StatusCodes.Status200OK) // a deduplicated submission
@@ -73,5 +73,5 @@ public static class ProposalEndpoints
 
     private static async Task<Microsoft.AspNetCore.Http.IResult> ShownAsync<T>(Result<T> result, Func<T, Task<T>> hide)
         where T : notnull
-        => result.TryGetValue(out var value) ? Results.Json(await hide(value!)) : result.ToHttp(v => v);
+        => result.TryGetValue(out var value) ? ResultHttp.Json(await hide(value!)) : result.ToHttp(v => v);
 }

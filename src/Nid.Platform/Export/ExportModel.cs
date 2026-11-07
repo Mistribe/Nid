@@ -84,7 +84,7 @@ public sealed record ExportModel(IReadOnlyList<ExportSection> Sections, string R
             var entities = new JsonArray();
             foreach (var entity in section.Entities)
                 entities.Add(JsonNode.Parse(entity.GetRawText()));
-            array.Add(new JsonObject { ["section"] = section.Name, ["entities"] = entities });
+            array.Add((JsonNode)new JsonObject { ["section"] = section.Name, ["entities"] = entities });
         }
         using var document = JsonDocument.Parse(array.ToJsonString());
         return Rfc8785.Hash(document.RootElement);

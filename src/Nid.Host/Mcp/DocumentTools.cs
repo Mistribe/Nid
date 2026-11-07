@@ -54,7 +54,7 @@ public sealed class DocumentTools
                     Year: year, Page: 1, PageSize: limit),
             list =>
             {
-                var answer = JsonSerializer.SerializeToNode(list, http)!.AsObject();
+                var answer = JsonSerializer.SerializeToNode(list, http.GetTypeInfo(typeof(DocumentList)))!.AsObject();
                 if (list.Total > limit)
                     answer["truncated"] = $"{limit} of {list.Total} documents shown, newest first: narrow with year, inbox or a target, or raise limit.";
                 return answer;
@@ -76,7 +76,7 @@ public sealed class DocumentTools
         if (detail!.Document.SizeBytes > cap)
         {
             var http = services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions;
-            var omitted = JsonSerializer.SerializeToNode(detail, http)!.AsObject();
+            var omitted = JsonSerializer.SerializeToNode(detail, http.GetTypeInfo(typeof(DocumentDetail)))!.AsObject();
             omitted["content"] = $"omitted: larger than {cap} bytes";
             return McpCalls.Answer(services, omitted);
         }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
 using Nid.Core.Contracts;
+using Nid.Host.Api;
 using Nid.Platform.Contracts;
 
 namespace Nid.Host.Auth;
@@ -49,11 +50,11 @@ public static class AuthEndpoints
             var personId = SessionClaims.ReadPersonId(http.User);
             var person = personId is { } id ? await persons.FindAsync(id, http.RequestAborted) : null;
             if (person is null)
-                return Results.Json(new SessionResponse(false, null, null, null, null, options.Value.Authority));
+                return ResultHttp.Json(new SessionResponse(false, null, null, null, null, options.Value.Authority));
 
             var preferences = await persons.PreferencesAsync(person.Id, http.RequestAborted);
 
-            return Results.Json(new SessionResponse(
+            return ResultHttp.Json(new SessionResponse(
                 true,
                 new SessionPerson(person.Id.Value, person.DisplayName, person.Kind.ToString().ToLowerInvariant()),
                 SessionClaims.CsrfToken(options.Value.CsrfKey, person.Id, person.SessionEpoch),

@@ -167,8 +167,24 @@ public static class ResultHttp
     public static IResult ToHttp<T, TOut>(this Result<T> result, Func<T, TOut> map, int successStatus = StatusCodes.Status200OK)
         where T : notnull
         => result.TryGetValue(out var value)
-            ? Results.Json(map(value), statusCode: successStatus)
+            ? Json(map(value), successStatus)
             : ProblemFor(result.TryGetFailure(out var failure) ? failure! : new Failure("ERROR", "Unknown failure.", null));
+
+    /// <summary>
+    /// <c>Results.Json</c> through the host's JSON options and their source-generated metadata: the framework's overload
+    /// asks for reflection, which a NativeAOT build does not have.
+    /// </summary>
+    public static IResult Json<T>(T value, int statusCode = StatusCodes.Status200OK) => new JsonBody<T>(value, statusCode);
+
+    private sealed class JsonBody<T>(T value, int statusCode) : IResult
+    {
+        public Task ExecuteAsync(HttpContext http)
+        {
+            var options = http.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions;
+            http.Response.StatusCode = statusCode;
+            return http.Response.WriteAsJsonAsync(value, (System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T)), contentType: null, http.RequestAborted);
+        }
+    }
 
     private static IResult ProblemFor(Failure failure)
     {
