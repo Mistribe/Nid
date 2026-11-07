@@ -157,7 +157,7 @@ describe('DashboardPage', () => {
     const labels = within(within(month).getByRole('list', { name: 'Où il part' })).getAllByRole('listitem').map((li) => li.textContent?.replace(/[\u00a0\u202f]/g, ' '));
     expect(labels).toEqual(['Abonnements 125,00 €', 'Crédits 2 250,00 €', 'Charges des biens 230,00 €', 'Impôts estimés 310,00 €', 'Reste 1 185,00 €']);
     const widths = Array.from(month.querySelectorAll<HTMLElement>('[data-segment]')).map((el) => el.style.flexGrow);
-    expect(widths).toEqual(['125.00', '2250.00', '230.00', '310', '1185.00']);
+    expect(widths).toEqual(['125', '2250', '230', '310', '1185']);
     await expectNoAxeViolations(container);
   });
 
