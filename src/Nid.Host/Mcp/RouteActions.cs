@@ -235,7 +235,7 @@ public static class RouteActions
         new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
             "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
             + "changed (present with arrival and departure HH:mm and meal, or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
-            + "holiday), the mileage and the CMG of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
+            + "holiday), the mileage, the CMG and the contributions left to the household (contributions, absent when all are covered) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
             + "left over) replaces the days, and declared gives the declaration fields entered by hand (normalHours, activityDays, paidLeaveDays, complementaryHours, overtimeHours, netPay, upkeep, meals). Validating it stays the person's gesture in the web app. "
             + Ids + Versioned + Amounts),
 

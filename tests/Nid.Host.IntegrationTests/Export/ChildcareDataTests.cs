@@ -100,7 +100,7 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
         var read = await JsonAsync(await source.RawAsync(source.AdultA, HttpMethod.Get, url));
         Assert.Equal(HttpStatusCode.OK, (await source.RawAsync(source.AdultA, HttpMethod.Put, url, new
         {
-            days = Array.Empty<object>(), mileage = "0", cmg = "100", version = read.GetProperty("version").GetUInt32(),
+            days = Array.Empty<object>(), mileage = "0", cmg = "100", contributions = "25.50", version = read.GetProperty("version").GetUInt32(),
             declared = new { netPay = "612.40", upkeep = "50.10", meals = "40", normalHours = 120, complementaryHours = "2.5" },
             summary = new { careDays = 12, hours = "100", absence = "family" },
         })).StatusCode);
@@ -115,6 +115,8 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("612.40", october.GetProperty("figures").GetProperty("declaration").GetProperty("netPay").GetString());
         Assert.Equal("40.00", october.GetProperty("declared").GetProperty("meals").GetString());
         Assert.Equal(120, october.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
+        // #30: the contributions left to the household come back with the same cost.
+        Assert.Equal("25.50", october.GetProperty("contributions").GetString());
     }
 
     [Fact]

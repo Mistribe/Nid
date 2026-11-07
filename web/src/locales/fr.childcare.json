@@ -171,6 +171,7 @@
     "cost": "Coût du mois",
     "before_cmg": "avant CMG",
     "cmg": "CMG",
+    "contributions": "Cotisations à charge",
     "validate": "Valider le relevé",
     "validate_confirm": "Le relevé de {{month}} sera figé ; vous pourrez le rouvrir tant que le mois suivant n'est pas validé.",
     "validate_confirm_vowel": "Le relevé d’{{month}} sera figé ; vous pourrez le rouvrir tant que le mois suivant n'est pas validé.",
@@ -200,6 +201,8 @@
     "costs": "Frais du mois",
     "mileage": "Indemnités kilométriques (€)",
     "cmg_field": "CMG du récapitulatif Pajemploi (€)",
+    "contributions_field": "Cotisations à votre charge (€)",
+    "contributions_hint": "Celles que le récapitulatif Pajemploi laisse au foyer, au-delà du plafond horaire de la CMG ; vide quand tout est pris en charge. Comptées dans le coût.",
     "entry_of": "Saisie : {{field}}",
     "entry_hint": "Saisie manuelle : le chiffre retenu par Pajemploi, à la place de celui de Nid. Vide : le chiffre de Nid.",
     "column": { "computed": "Calculé par Nid", "used": "Valeur retenue", "entry": "Saisie manuelle" },
@@ -287,6 +290,7 @@
     "net_pay": "Salaire net versé",
     "contributions": "Cotisations sociales",
     "contributions_value": "Prises en charge",
+    "contributions_paid": "À la charge du foyer",
     "cmg": "CMG perçu",
     "upkeep": "Indemnités d’entretien",
     "meals": "Indemnités de repas",
@@ -295,11 +299,11 @@
     "box_none": "Plus de trois enfants gardés : voir la notice de la déclaration 2042 RICI.",
     "hint": {
       "net_pay": "Le salaire déclaré chaque mois sur Pajemploi.",
-      "contributions": "Prises en charge par la CMG pour une assistante maternelle agréée : ni payées par le foyer, ni retenues. Pajemploi les détaille sur son attestation fiscale.",
+      "contributions": "Prises en charge par la CMG pour une assistante maternelle agréée, jusqu’au plafond horaire ; au-delà, la part laissée au foyer par le récapitulatif Pajemploi est retenue. Pajemploi les détaille sur son attestation fiscale.",
       "cmg": "Relevé sur le récapitulatif Pajemploi de chaque mois ; déduit des frais retenus.",
       "upkeep": "Retenues avec le salaire.",
       "meals": "Non retenues pour le crédit d’impôt.",
-      "retained": "Salaire net + entretien − CMG : le montant que prend l’estimation d’impôt."
+      "retained": "Salaire net + entretien + cotisations à la charge du foyer − CMG : le montant que prend l’estimation d’impôt."
     },
     "csv_header": {
       "line": "Ligne",

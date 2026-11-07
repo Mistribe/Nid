@@ -29669,6 +29669,12 @@
                 "$ref": "#/components/schemas/DeclarationView"
               }
             ]
+          },
+          "contributions": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -29887,6 +29893,16 @@
             "items": {
               "type": "string"
             }
+          },
+          "contributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
           }
         }
       },
@@ -49280,6 +49296,12 @@
               {
                 "$ref": "#/components/schemas/StatementSummaryBody"
               }
+            ]
+          },
+          "contributions": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }

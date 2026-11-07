@@ -167,6 +167,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
 
         row.Mileage = draft.Mileage;
         row.Cmg = draft.Cmg;
+        row.Contributions = draft.Contributions;
         Declare(row, draft.Declared);
         ReplaceDays(draft.ItemId, first, draft.Days, await db.StatementDays.Where(d => d.ItemId == draft.ItemId.Value && d.Month == first).ToListAsync(ct));
         return await SaveStatementAsync(ct);
@@ -198,6 +199,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.ExtraPay = figures.ExtraPay;
         row.PaidLeavePay = figures.PaidLeavePay;
         row.Cmg = figures.Cmg;
+        row.Contributions = figures.Contributions;
         row.Cost = figures.Cost;
         row.TaxBase = figures.TaxBase;
         row.ChildSickDeducted = figures.ChildSickDeducted;
@@ -261,11 +263,11 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
                     new PajemploiDeclaration(r.NormalHours!.Value, r.ActivityDays!.Value, r.PaidLeaveDays, r.ComplementaryHours!.Value, r.OvertimeHours!.Value,
                         r.NetPay!.Value, r.Upkeep!.Value, r.Meals!.Value, r.Mileage),
                     r.BasePay!.Value, r.Deduction!.Value, r.ExtraPay!.Value, r.PaidLeavePay!.Value, r.Cmg!.Value, r.Cost!.Value, r.TaxBase!.Value,
-                    r.ChildSickDeducted!.Value)
+                    r.ChildSickDeducted!.Value, r.Contributions ?? 0m)
                 : null,
             r.Version, r.ValidatedAt,
             new DeclaredFigures(r.DeclaredNetPay, r.DeclaredUpkeep, r.DeclaredMeals, r.DeclaredNormalHours, r.DeclaredActivityDays, r.DeclaredPaidLeaveDays,
-                r.DeclaredComplementaryHours, r.DeclaredOvertimeHours));
+                r.DeclaredComplementaryHours, r.DeclaredOvertimeHours), r.Contributions);
 
     private static void Declare(StatementRow row, DeclaredFigures? d)
     {
@@ -323,7 +325,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         }
         var figures = statement.Figures!;
         var d = figures.Declaration;
-        (row.Validated, row.ValidatedAt, row.Mileage, row.Cmg) = (true, statement.ValidatedAt, d.Mileage, figures.Cmg);
+        (row.Validated, row.ValidatedAt, row.Mileage, row.Cmg, row.Contributions) = (true, statement.ValidatedAt, d.Mileage, figures.Cmg, figures.Contributions);
         Declare(row, statement.Declared);
         (row.NormalHours, row.ActivityDays, row.PaidLeaveDays, row.ComplementaryHours, row.OvertimeHours) =
             (d.NormalHours, d.ActivityDays, d.PaidLeaveDays, d.ComplementaryHours, d.OvertimeHours);

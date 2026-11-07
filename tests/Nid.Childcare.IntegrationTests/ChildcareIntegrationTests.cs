@@ -81,6 +81,28 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(october.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), source.GetProperty("amortized").GetProperty("amount").GetString());
     }
 
+    /// <summary>#30, #31: the contributions the CMG leaves to the household count in the cost, the year and the next months' estimate.</summary>
+    [Fact]
+    public async Task Contributions_left_to_the_household_count_in_the_cost()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var arrangement = await CreateAsync(app);
+        static decimal Amount(System.Text.Json.JsonElement e) => decimal.Parse(e.GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+        var draft = Amount((await GetAsync(app, $"{arrangement}/statements/2025-09")).GetProperty("figures").GetProperty("cost"));
+
+        var september = await ValidateAsync(app, arrangement, "2025-09", cmg: "100", contributions: "40");
+        Assert.Equal("40.00", september.GetProperty("contributions").GetString());
+        Assert.Equal(draft - 100m + 40m, Amount(september.GetProperty("figures").GetProperty("cost")));
+
+        var year = await GetAsync(app, $"{arrangement}/summary?year=2025");
+        Assert.Equal(40m, Amount(year.GetProperty("contributions")));
+        Assert.Equal(Amount(year.GetProperty("netPay")) + Amount(year.GetProperty("upkeep")) + 40m - 100m, Amount(year.GetProperty("retained")));
+
+        // October is not declared yet: the dashboard estimates its CMG and its contributions from September.
+        var october = Amount((await GetAsync(app, $"{arrangement}/statements/2025-10")).GetProperty("figures").GetProperty("cost"));
+        Assert.Equal(october - 100m + 40m, Amount((await ChildcareSourceAsync(app))!.Value.GetProperty("amortized")));
+    }
+
     [Fact]
     public async Task Validated_month_is_not_estimated()
     {

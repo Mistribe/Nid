@@ -77,11 +77,12 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
 
     /// <summary>The figures of these days, or the problems and missing June months that withhold them.</summary>
     public async Task<MonthEvaluation> EvaluateAsync(
-        MonthContext context, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, decimal mileage, decimal? cmg, DeclaredFigures? declared, CancellationToken ct)
+        MonthContext context, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, decimal mileage, decimal? cmg, DeclaredFigures? declared,
+        decimal contributions, CancellationToken ct)
     {
         var previous = context.Month.PlusMonths(-1);
         var stored = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
-        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, stored, mileage, cmg, declared);
+        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, stored, mileage, cmg, declared, contributions);
     }
 
     public async Task<ChildcareStatementView> ViewAsync(PersonId reader, MonthContext context, CancellationToken ct)
@@ -92,11 +93,11 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var canWrite = (await policy.CheckManyAsync(reader, [context.Arrangement.ItemId], AccessKind.Write, ct)).Contains(context.Arrangement.ItemId);
         MonthEvaluation evaluation = stored is { Validated: true, Figures: { } frozen }
             ? new(frozen, [], [])
-            : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, ct);
+            : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, stored?.Contributions ?? 0m, ct);
         // #32: Nid's own figures are the month's without the fields entered by hand; a validated month's days follow the template as it now is.
         var computed = stored?.Declared is not { } typed || typed == new DeclaredFigures() || evaluation.Figures is null
             ? evaluation.Figures
-            : (await EvaluateAsync(context, stored!.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, ct)).Figures;
+            : (await EvaluateAsync(context, stored!.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, ct)).Figures;
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);
         var plan = context.Terms.Plan;
@@ -113,7 +114,8 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
             StatementContext.CmgEstimate(context.Stored.Where(s => s is { Validated: true, Figures: not null }).Select(s => (s.Month, s.Figures!.Cmg)).ToList()) is { } estimate
                 ? Amount(estimate) : null,
             stored?.Declared is { } entered ? DeclaredOf(entered) : null,
-            computed is { } n ? DeclarationOf(n.Declaration) : null);
+            computed is { } n ? DeclarationOf(n.Declaration) : null,
+            stored?.Contributions is { } k ? Amount(k) : null);
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)

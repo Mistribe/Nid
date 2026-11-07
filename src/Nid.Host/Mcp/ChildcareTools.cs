@@ -31,7 +31,7 @@ public sealed class ChildcareTools
         => McpCalls.RunAsync(services, () => new ListStatementsQuery(new ItemId(id)), ct);
 
     [McpServerTool(Name = "get_childcare_statement", ReadOnly = true)]
-    [Description("One month's statement: every day (planned, present, times, meal, absence reason), the mileage, the CMG, the Pajemploi declaration "
+    [Description("One month's statement: every day (planned, present, times, meal, absence reason), the mileage, the CMG, the contributions left to the household, the Pajemploi declaration "
         + "field by field and its version. Its days are what propose_save_childcare_statement sends back, the deviations changed. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetChildcareStatement(IServiceProvider services, [Description("The arrangement's id.")] Guid id,
         [Description("The month, yyyy-MM.")] string month, CancellationToken ct = default)

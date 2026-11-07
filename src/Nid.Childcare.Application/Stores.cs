@@ -18,10 +18,11 @@ public sealed record Terms(
 
 /// <summary>
 /// Spec §2, decisions 13–14: a month's statement. A draft has its corrected days and no figures; a validated one has every day and its figures, frozen.
-/// <c>Days</c> is empty when listed; <c>Version</c> 0 means not stored yet.
+/// <c>Days</c> is empty when listed; <c>Version</c> 0 means not stored yet. <c>Contributions</c>: #30, those the Pajemploi summary leaves to the household.
 /// </summary>
 public sealed record Statement(
-    ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version, Instant? ValidatedAt = null, DeclaredFigures? Declared = null);
+    ItemId ItemId, YearMonth Month, bool Validated, decimal Mileage, decimal? Cmg, IReadOnlyList<StatementDay> Days, MonthFigures? Figures, uint Version, Instant? ValidatedAt = null, DeclaredFigures? Declared = null,
+    decimal? Contributions = null);
 
 /// <summary>An arrangement an import created, by its file ref.</summary>
 public sealed record ImportedArrangement(ItemId Item, string Hash, PersonId ImportedBy);

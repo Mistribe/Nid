@@ -148,6 +148,19 @@ describe('StatementPage', () => {
     expect(await screen.findByText('Estimé d’après les derniers mois : 120,33')).toBeInTheDocument();
   });
 
+  it('the contributions left to the household go with the CMG and show beside it', async () => {
+    const writes: Write[] = [];
+    serve(statement({ cmg: '100.00', contributions: '25.50' }), writes);
+    const { user } = await renderApp(url);
+    expect(await screen.findByRole('region', { name: 'Chiffres du mois' })).toHaveTextContent('Cotisations à charge25,50 €');
+    const field = screen.getByLabelText('Cotisations à votre charge (€)');
+    await user.clear(field);
+    await user.type(field, '30,10');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les frais' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]!.body).toMatchObject({ cmg: '100.00', contributions: '30.10' });
+  });
+
   it('a problem hides the declaration and blocks validation', async () => {
     serve(statement({ figures: null, cmg: '0.00', problems: [{ field: 'days[7].planned', code: 'childcare.day_replanned' }] }));
     await renderApp(url);

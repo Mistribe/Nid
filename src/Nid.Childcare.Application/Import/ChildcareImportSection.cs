@@ -223,7 +223,7 @@ public sealed class ChildcareImportSection(
                 var previous = known.FirstOrDefault(s => s.Month == month.PlusMonths(-1));
                 if (previous is { Days.Count: 0 })
                     previous = await store.FindStatementAsync(plan.Id, previous.Month, ct);
-                var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared));
+                var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m);
                 if (evaluation.Figures is not { } figures)
                 {
                     foreach (var (field, code) in evaluation.Problems)
@@ -240,7 +240,7 @@ public sealed class ChildcareImportSection(
                 }
                 // Validated at the start of the next month: about when its Pajemploi declaration was made (decision 22's due date).
                 var statement = new Statement(plan.Id, month, true, record.Mileage, record.Cmg, days, figures, 0,
-                    month.PlusMonths(1).OnDayOfMonth(1).AtStartOfDayInZone(DateTimeZone.Utc).ToInstant(), DeclaredOf(record.Declared));
+                    month.PlusMonths(1).OnDayOfMonth(1).AtStartOfDayInZone(DateTimeZone.Utc).ToInstant(), DeclaredOf(record.Declared), record.Contributions ?? 0m);
                 var already = stored.FirstOrDefault(s => s.Month == month);
                 Mode mode;
                 if (already is null)
@@ -290,7 +290,7 @@ public sealed class ChildcareImportSection(
                 var full = (await store.FindStatementAsync(plan.Id, month.Month, ct))!;
                 var terms = MonthTerms.For(plan.Parsed.Revisions, plan.Parsed.Gaps, plan.Parsed.Overrides, month.Month);
                 var evaluation = MonthAssembler.Evaluate(terms, MonthAssembler.Replanned(terms, full.Days), [], known,
-                    known.LastOrDefault(s => s.Month == month.Month.PlusMonths(-1)), full.Mileage, full.Cmg, full.Declared);
+                    known.LastOrDefault(s => s.Month == month.Month.PlusMonths(-1)), full.Mileage, full.Cmg, full.Declared, full.Contributions ?? 0m);
                 if (evaluation.Figures is not { } figures || !Same(full.Figures!, FiguresOf(figures)))
                 {
                     issues.Add(ImportIssue.Error(ChildcareCodes.FiguresDiffer,
@@ -422,6 +422,7 @@ public sealed class ChildcareImportSection(
         return new StatementRecord
         {
             Arrangement = arrangement, Month = MonthPattern.Format(s.Month), Mileage = Exact(s.Mileage), Cmg = Exact(f.Cmg),
+            Contributions = f.Contributions == 0m ? null : Exact(f.Contributions),
             Declared = s.Declared is { } entered && entered != new DeclaredFigures() ? RecordOf(entered) : null,
             Days = s.Days.Select(x => new DayRecord
             {
@@ -585,7 +586,7 @@ public sealed class ChildcareImportSection(
         var parsedMonth = MonthPattern.Parse(r.Month);
         month = parsedMonth.Success ? parsedMonth.Value : default;
         if (!parsedMonth.Success) { issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "A month is written YYYY-MM.", path + ".month")); ok = false; }
-        if (r.Mileage < 0 || r.Cmg < 0 || DeclaredOf(r.Declared) is { AnyNegative: true }) { issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "The mileage, the CMG and the declared amounts are zero or more.", path)); ok = false; }
+        if (r.Mileage < 0 || r.Cmg < 0 || r.Contributions < 0 || DeclaredOf(r.Declared) is { AnyNegative: true }) { issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "The mileage, the CMG, the contributions and the declared amounts are zero or more.", path)); ok = false; }
         var list = new List<StatementDay>();
         for (var j = 0; j < r.Days.Count; j++)
         {

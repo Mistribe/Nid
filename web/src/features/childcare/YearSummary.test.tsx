@@ -49,6 +49,14 @@ describe('YearSummary', () => {
     expect(screen.getByRole('link', { name: 'Voir l’estimation d’impôt' })).toHaveAttribute('href', expect.stringMatching(/^\/tax\?year=.*2025/));
   });
 
+  it('shows the contributions left to the household as an amount', async () => {
+    serve(yearSummary({ contributions: { amount: '40.00', currency: 'EUR' } }));
+    await renderApp(url);
+    const lines = await screen.findByRole('region', { name: 'Récapitulatif 2025' });
+    expect(lines).toHaveTextContent('Cotisations sociales · À la charge du foyer');
+    expect(lines).toHaveTextContent('40,00 €');
+  });
+
   it('asks the year picked', async () => {
     const asked = serve();
     const { user } = await renderApp(url);

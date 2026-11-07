@@ -7,13 +7,15 @@ import '@/locales/childcare';
 export type YearLine = { key: string; label: string; hint: string; amount?: MoneyValue; text?: string; box?: string };
 
 /**
- * #411: the year summary's lines in the issue's order: pay, social contributions (covered, no amount: Pajemploi computes
- * them), CMG, upkeep, meals, then the retained cost with its 2042 box. Amounts are the server's.
+ * #411: the year summary's lines in the issue's order: pay, social contributions (covered, or #30 the share left to the household),
+ * CMG, upkeep, meals, then the retained cost with its 2042 box. Amounts are the server's.
  */
 export function yearLines(t: TFunction, view: ChildcareYear): YearLine[] {
   return [
     { key: 'net_pay', label: t('childcare_year.net_pay'), hint: t('childcare_year.hint.net_pay'), amount: view.netPay },
-    { key: 'contributions', label: t('childcare_year.contributions'), hint: t('childcare_year.hint.contributions'), text: t('childcare_year.contributions_value') },
+    view.contributions && !/^0(\.0+)?$/.test(view.contributions.amount)
+      ? { key: 'contributions', label: `${t('childcare_year.contributions')} · ${t('childcare_year.contributions_paid')}`, hint: t('childcare_year.hint.contributions'), amount: view.contributions }
+      : { key: 'contributions', label: t('childcare_year.contributions'), hint: t('childcare_year.hint.contributions'), text: t('childcare_year.contributions_value') },
     { key: 'cmg', label: t('childcare_year.cmg'), hint: t('childcare_year.hint.cmg'), amount: view.cmg },
     { key: 'upkeep', label: t('childcare_year.upkeep'), hint: t('childcare_year.hint.upkeep'), amount: view.upkeep },
     { key: 'meals', label: t('childcare_year.meals'), hint: t('childcare_year.hint.meals'), amount: view.meals },

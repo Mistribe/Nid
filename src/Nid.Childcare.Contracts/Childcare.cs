@@ -36,10 +36,13 @@ public sealed record PajemploiDeclaration(
     int NormalHours, int ActivityDays, int? PaidLeaveDays, decimal ComplementaryHours, decimal OvertimeHours,
     decimal NetPay, decimal Upkeep, decimal Meals, decimal Mileage);
 
-/// <summary>Spec §3 and §6: the declaration with the pay's parts, the month's cost and the childcare tax base.</summary>
+/// <summary>
+/// Spec §3 and §6: the declaration with the pay's parts, the month's cost and the childcare tax base. <c>Contributions</c>: #30, the
+/// contributions the CMG leaves to the household, as the Pajemploi summary shows them; in the cost and the tax base.
+/// </summary>
 public sealed record MonthFigures(
     PajemploiDeclaration Declaration, decimal BasePay, decimal Deduction, decimal ExtraPay, decimal PaidLeavePay,
-    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted);
+    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted, decimal Contributions = 0m);
 
 /// <summary>The snake_case names of <see cref="AbsenceReason"/>, on the wire and in the database.</summary>
 public static class AbsenceCodes

@@ -38,8 +38,8 @@ internal static class ChildcareApi
         return await JsonAsync(response);
     }
 
-    /// <summary>Saves the month as read with this CMG, then validates it; answers the validated month.</summary>
-    public static async Task<JsonElement> ValidateAsync(NidApp app, string arrangement, string month, string cmg = "100")
+    /// <summary>Saves the month as read with this CMG and these contributions, then validates it; answers the validated month.</summary>
+    public static async Task<JsonElement> ValidateAsync(NidApp app, string arrangement, string month, string cmg = "100", string? contributions = null)
     {
         var url = $"{arrangement}/statements/{month}";
         var read = await GetAsync(app, url);
@@ -48,7 +48,7 @@ internal static class ChildcareApi
             date = d.GetProperty("date").GetString(), present = d.GetProperty("present").GetBoolean(), arrival = d.GetProperty("arrival").GetString(),
             departure = d.GetProperty("departure").GetString(), meal = d.GetProperty("meal").GetBoolean(), absence = d.GetProperty("absence").GetString(),
         }).ToList();
-        var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", cmg, version = read.GetProperty("version").GetUInt32() });
+        var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", cmg, contributions, version = read.GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var validated = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/validate", new { version = (await JsonAsync(saved)).GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, validated.StatusCode);

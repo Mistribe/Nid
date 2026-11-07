@@ -65,6 +65,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
   const [editing, setEditing] = useState<number | null>(null);
   const [mileage, setMileage] = useState(frenchNumber(view.mileage));
   const [cmg, setCmg] = useState(view.cmg == null ? '' : frenchNumber(view.cmg));
+  const [contributions, setContributions] = useState(view.contributions == null ? '' : frenchNumber(view.contributions));
   const [entered, setEntered] = useState<Entered>(() => {
     const d = view.declared;
     return {
@@ -82,16 +83,17 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
   const send = (days: StatementDayBody[], then?: () => void, summary?: MonthSummary) => {
     const m = amountBody(mileage);
     const c = optional(cmg, amountBody);
+    const k = optional(contributions, amountBody);
     const wellFormed = COUNTS.every((k) => entered[k].trim() === '' || countBody(entered[k]) !== null)
       && AMOUNTS.every((k) => entered[k].trim() === '' || amountBody(entered[k]) !== null);
-    if (m === null || (cmg.trim() !== '' && c === null) || !wellFormed) { setError(t('childcare_statement.error.amount_format')); return; }
+    if (m === null || (cmg.trim() !== '' && c === null) || (contributions.trim() !== '' && k === null) || !wellFormed) { setError(t('childcare_statement.error.amount_format')); return; }
     const declared = {
       normalHours: optional(entered.normalHours, countBody), activityDays: optional(entered.activityDays, countBody), paidLeaveDays: optional(entered.paidLeaveDays, countBody),
       complementaryHours: optional(entered.complementaryHours, amountBody), overtimeHours: optional(entered.overtimeHours, amountBody),
       netPay: optional(entered.netPay, amountBody), upkeep: optional(entered.upkeep, amountBody), meals: optional(entered.meals, amountBody),
     };
     setError('');
-    save.mutate({ ...path, body: { days, mileage: m, cmg: c, version: view.version, declared, summary } },
+    save.mutate({ ...path, body: { days, mileage: m, cmg: c, contributions: k, version: view.version, declared, summary } },
       { onSuccess: () => { toast.success(t('childcare_statement.saved')); then?.(); }, onError: failed });
   };
   const days = view.days.map(dayBody);
@@ -139,6 +141,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
               { label: t('childcare_statement.cost'), value: <Money value={view.figures.cost} tabular />,
                 hint: view.figures.costBeforeCmg ? t('childcare_statement.before_cmg') : null },
               { label: t('childcare_statement.cmg'), value: view.cmg == null ? '—' : formatCurrency(view.cmg, 'EUR') },
+              ...(view.contributions == null ? [] : [{ label: t('childcare_statement.contributions'), value: formatCurrency(view.contributions, 'EUR') }]),
             ]} />
           ) : <p className="text-sm text-muted-foreground">{t('childcare_statement.declaration_withheld')}</p>}
         </section>
@@ -174,6 +177,9 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
             <Field label={t('childcare_statement.cmg_field')}
               hint={cmg.trim() === '' && view.cmgEstimate ? t('childcare_statement.cmg_estimate', { amount: frenchNumber(view.cmgEstimate) }) : undefined}>
               {(c) => <Input {...c} inputMode="decimal" className="w-36" value={cmg} onChange={(e) => setCmg(e.target.value)} />}
+            </Field>
+            <Field label={t('childcare_statement.contributions_field')} hint={t('childcare_statement.contributions_hint')}>
+              {(c) => <Input {...c} inputMode="decimal" className="w-36" value={contributions} onChange={(e) => setContributions(e.target.value)} />}
             </Field>
             <Button type="submit" variant="outline" disabled={save.isPending}>{t('childcare_statement.save_costs')}</Button>
           </form>
