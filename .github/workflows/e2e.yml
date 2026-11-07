@@ -1,70 +1,24 @@
 name: e2e
 
-# The full Playwright journeys against the reference compose. They were most of the time of the `images` job in ci.yml, which
-# now runs one journey only (NID_JOURNEYS=sample). The cost, stated plainly: a browser regression is found by a scheduled run
-# up to a week after it landed, not by the push that caused it. `gh workflow run e2e.yml` gives a verdict on demand.
-#
-# The integration tests run here too, for the same reason and at the same cost: about 25 minutes against the budget in ci.yml.
+# The running app: the reference compose with every Playwright journey, and the two images scanned by Trivy. Called by ci.yml when
+# a pull request touches the server, the web app or the compose (ci.yml says why the filter lives there and not in a `paths:`
+# here); `gh workflow run e2e.yml` runs it alone.
 on:
-  schedule:
-    - cron: '0 4 * * 1'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
-
 jobs:
-  # A schedule fires whether or not anything changed: skip re-proving last week's tree.
-  gate:
-    runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.check.outputs.changed }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0 # `git log --since` needs history
-      - id: check
-        env:
-          EVENT: ${{ github.event_name }}
-        run: |
-          # Dispatched by hand: you already decided it is worth the time.
-          if [ "$EVENT" = "workflow_dispatch" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          # Eight days against a seven-day cron: the windows overlap by one, so no commit falls between two runs.
-          commits=$(git log --since='8 days ago' --format=%H -- src web deploy tests Directory.Build.props Directory.Packages.props global.json)
-          if [ -n "$commits" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
-
-  # Testcontainers needs the runner's Docker. One project at a time (`dotnet test --solution Nid.slnx --max-parallel-test-modules 1`), every project whatever the last
-  # one did.
-  integration:
-    needs: gate
-    if: needs.gate.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          global-json-file: global.json
-      - run: dotnet build Nid.slnx --configuration Release
-      - name: Integration tests
-        run: |
-          status=0
-          for project in tests/*.IntegrationTests; do
-            dotnet test --project "$project" --configuration Release --no-build || status=1
-          done
-          exit $status
-
+  # The reference compose, signed in, every journey (deploy/smoke.sh).
   journeys:
-    needs: gate
-    if: needs.gate.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
         with:
           package_json_file: web/package.json
@@ -83,12 +37,38 @@ jobs:
         if: failure()
         run: |
           docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color --timestamps | tail -300
-      # Printed rather than uploaded (no artifact storage in this repository, see ci.yml).
-      - name: Playwright error context
+      # Traces and screenshots of the failed journeys (`trace: 'retain-on-failure'`), only invented demo data. A week is enough
+      # to open them (`pnpm --dir web exec playwright show-trace <trace.zip>`).
+      - name: Playwright results
         if: failure()
-        run: |
-          find web/test-results -name 'error-context.md' 2>/dev/null | while read -r file; do
-            echo "::group::$file"
-            cat "$file"
-            echo "::endgroup::"
-          done
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The two images as ci.yml's `build` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: nid
+            build: docker build -f src/Nid.Host/Dockerfile -t nid:local .
+          - name: nid-backup
+            build: docker build -t nid-backup:local deploy/backup
+    name: image (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - run: ${{ matrix.build }}
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.name }}:local
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

@@ -17,5 +17,5 @@ Say what changes for them, not how. The files of the versions released before th
 (`"version": "0.13.0"`) and start with it (`0.13.0-goals.json`); a new file names none. A change they do not see (CI, refactor, docs) adds no file.
 
 Nothing else to do: `scripts/changelog.mjs` gives each file the version of the first release that holds the commit
-which added it, and the images job of `ci.yml` writes the result to `public/changelog.json` before building the image.
+which added it, and the `build` job of `ci.yml` writes the result to `public/changelog.json` before building the image.
 `scripts/changelog.test.js` checks every file has a non-empty line in each language the app knows.

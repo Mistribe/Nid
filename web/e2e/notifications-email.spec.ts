@@ -28,7 +28,7 @@ test('alice turns email on, gets a test email and the lease reminder', async ({ 
   const email = page.getByRole('checkbox', { name: 'Email' });
   await expect(email).toBeEnabled();
   if (!(await email.isChecked())) await email.click();
-  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await expect(page.getByText('Réglages enregistrés.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Envoyer un test' }).click();

@@ -32,7 +32,7 @@ test('alice adds a recurring subscription and sees its cost; bob cannot reach he
   await expect(bob.getByRole('heading', { level: 1, name: 'Abonnements' })).toBeVisible();
   await expect(bob.getByText(name)).toHaveCount(0);
   await bob.goto(detailUrl);
-  await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();
+  await expect(bob.getByRole('heading', { name: 'Page introuvable', level: 1 })).toBeVisible();
 });
 
 test('alice records a free trial followed by a monthly price', async ({ browser }) => {

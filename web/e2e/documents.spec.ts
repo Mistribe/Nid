@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { pick, toasts } from './controls';
 import { signIn } from './session';
 
-const pdf = (name: string) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n') });
+// The name in a comment line: the same bytes twice are one document (duplicate check), across journeys too.
+const pdf = (name: string) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from(`%PDF-1.4\n% ${name}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`) });
 
 /** A subscription is a Core item: the page links to it. */
 async function addItem(page: Page, displayName: string, visibility: 'shared' | 'private'): Promise<void> {
@@ -19,7 +20,7 @@ const searching = (path: string, text: string) => `${path}${path.includes('?') ?
 
 async function uploadAndOpen(page: Page, title: string): Promise<void> {
   await page.goto(searching('/documents?tab=inbox', title));
-  await page.getByLabel('Déposer').setInputFiles(pdf(`${title}.pdf`));
+  await page.getByLabel('Déposer', { exact: true }).setInputFiles(pdf(`${title}.pdf`));
   await expect(page.getByRole('list', { name: 'Dépôts' })).toContainText('Déposé');
   await page.getByRole('table', { name: 'Liste des documents' }).getByRole('link', { name: title }).click();
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
@@ -75,7 +76,7 @@ test('alice files two uploaded documents at once from « À classer »', async (
   await addItem(page, item, 'private');
 
   await page.goto(searching('/documents?tab=inbox', String(stamp)));
-  await page.getByLabel('Déposer').setInputFiles([pdf(`${first}.pdf`), pdf(`${second}.pdf`)]);
+  await page.getByLabel('Déposer', { exact: true }).setInputFiles([pdf(`${first}.pdf`), pdf(`${second}.pdf`)]);
   await expect(page.getByRole('list', { name: 'Dépôts' }).getByText('Déposé')).toHaveCount(2);
   const table = page.getByRole('table', { name: 'Liste des documents' });
   await table.getByRole('checkbox', { name: `Sélectionner ${first}` }).check();
@@ -91,6 +92,7 @@ test('alice files two uploaded documents at once from « À classer »', async (
   await expect(toasts(page)).toContainText('2 documents classés.');
   await expect(table.getByRole('link', { name: first })).toHaveCount(0);
   await expect(table.getByRole('link', { name: second })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Tous' }).click();
+  // Filed under a private item, they are alice's own now: the household view no longer lists them, her own view does.
+  await page.goto(searching('/documents?scope=me', String(stamp)));
   for (const title of [first, second]) await expect(table.getByRole('row').filter({ hasText: title })).toContainText(item);
 });

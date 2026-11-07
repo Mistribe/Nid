@@ -8,6 +8,10 @@ sur la même origine et le même port) et `backup` (la sauvegarde chiffrée, §6
 tourne toujours ; Postgres et Pocket ID sont des profils (`--profile postgres`, `--profile pocket-id`) qu'on laisse de côté
 quand on les a déjà ailleurs. Pas de sauvegarde ni de `restore.sh` : le reste de ce document décrit la forme de référence.
 
+Les images sont publiques sur `ghcr.io/mistribe/nid` et `ghcr.io/mistribe/nid-backup`, pour amd64 et arm64, sans compte :
+`latest`, `X.Y.Z` ou `X.Y` (le dernier correctif). Chacune porte une attestation de provenance signée :
+`gh attestation verify oci://ghcr.io/mistribe/nid:latest --repo Mistribe/Nid` vérifie qu'elle sort de ce dépôt.
+
 ## 1. Prérequis
 
 - Docker avec compose v2, `openssl` et `bash` sur l'hôte.

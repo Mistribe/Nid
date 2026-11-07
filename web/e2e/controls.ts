@@ -1,8 +1,12 @@
 import type { Locator, Page } from '@playwright/test';
 
-/** Opens the combobox labelled `label` and clicks the option. */
-export async function pick(page: Page | Locator, label: string | RegExp, option: string | RegExp): Promise<void> {
-  await page.getByRole('combobox', { name: label }).click();
+/**
+ * Opens the combobox labelled `label` (inside `scope`) and clicks the option. The options are looked for in the whole page: a
+ * searchable combobox opens its list in a popover of its own, outside the dialog that holds the field.
+ */
+export async function pick(scope: Page | Locator, label: string | RegExp, option: string | RegExp): Promise<void> {
+  await scope.getByRole('combobox', { name: label }).click();
+  const page = 'goto' in scope ? scope : scope.page();
   await page.getByRole('option', { name: option, exact: typeof option === 'string' }).click();
 }
 

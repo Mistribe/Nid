@@ -22,7 +22,7 @@ Pull requests use `.github/pull_request_template.md`.
 - `gh issue create` and `gh pr create` do not apply templates on their own: read the template file and pass its filled-in content as `--body`.
 - Link the issue a PR resolves with `Closes #N` in the Summary.
 - Keep the PR to one concern; list follow-ups in « Notes for the reviewer » instead of folding them in.
-- CI runs no test on a pull request: before opening one, run the tests of the areas it changes, `dotnet test --solution Nid.slnx --configuration Release --max-parallel-test-modules 1` for `src/` or `tests/`, `pnpm --dir web check` for `web/`, and fix what fails. A PR that only changes docs or workflows has nothing to run.
+- CI runs every test on a pull request: `.github/workflows/ci.yml` calls `backend.yml` (build, unit and integration tests), `web.yml` (`pnpm --dir web check`) and `e2e.yml` (every Playwright journey, image scan) for the areas the PR touches; CodeQL in `codeql.yml`. `ci-ok` is the required check: never put `paths:` on a workflow whose check is required (a skipped workflow reports nothing and blocks the merge). Still run the tests of the areas a PR changes before opening it, `dotnet test --solution Nid.slnx --configuration Release --max-parallel-test-modules 1` for `src/` or `tests/`, `pnpm --dir web check` for `web/`: CI confirms, it does not replace them. A PR that only changes docs has nothing to run.
 - Open a pull request as soon as a branch is pushed, without waiting to be asked.
 - A PR the household would notice adds one `web/changelog/<slug>.json` (`{ "en": …, "fr": … }`, see its README): the
   version list behind the version number. The French lives there only, never in a commit message or a PR. A PR the
@@ -76,9 +76,10 @@ Every screen follows one page grammar (`docs/frontend/design-system.md` §6.1, `
 
 ## Versioning
 
-Every push to `main` is a release: the `images` job of `.github/workflows/ci.yml` computes the version with
-[`PaulHatch/semantic-version`](https://github.com/marketplace/actions/git-semantic-version), builds the API with it
-(`-p:Version`), pushes the images tagged with it and pushes the git tag `vX.Y.Z`. Nothing to do by hand.
+Every push to `main` is a release: the release jobs of `.github/workflows/ci.yml` compute the version with
+[`PaulHatch/semantic-version`](https://github.com/marketplace/actions/git-semantic-version), build the images with it
+(`-p:Version`) for amd64 and arm64, publish them on `ghcr.io/mistribe/{nid,nid-backup}` (`X.Y.Z`, `X.Y`, `latest`, `sha-…`,
+with a provenance attestation) and push the git tag `vX.Y.Z`. Nothing to do by hand.
 
 The bump comes from the commit messages since the last `vX.Y.Z` tag, so it comes from the PR title (the squash-merge subject) and
 body:

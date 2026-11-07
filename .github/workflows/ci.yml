@@ -1,14 +1,24 @@
 name: ci
 
-# The monthly Actions minutes are the budget (1000), so each commit is paid for once:
-#  - a pull request into `main` runs one job, `check`: it builds the solution and checks the web app, each only when its files
-#    change. A pull request into another branch runs nothing; once retargeted to main, its next push runs the check. It
-#    runs no test: the developer runs them before opening it (.claude/CLAUDE.md). The integration tests also run weekly in e2e.yml;
-#  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
-#    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
-#    acted on. The smoke test and the backup test (`deploy/smoke.sh`, `deploy/backup-smoke.sh`) run on the developer's machine;
-#  - a push that only touches docs runs nothing;
-#  - the full Playwright journeys are e2e.yml, weekly.
+# The entry point of every check. The repository is public: standard GitHub-hosted runners (ubuntu-latest) cost nothing, so a
+# pull request gets the full verdict here. Larger runners are paid: none is used.
+#  - a pull request into `main` calls, in parallel, the workflows its files concern: backend.yml (build, openapi.json, unit and
+#    integration tests), web.yml (API client, types, lint, vitest, build, budget), e2e.yml (every Playwright journey, images
+#    scanned by Trivy); and reviews its new dependencies;
+#  - `ci-ok` sums them up: it is the one check the `main` ruleset requires (with `changelog`);
+#  - `main` runs only the release (`version`, `build`, `publish`, `release`: the images on ghcr.io, then the tag): the pull
+#    request already ran its checks on the tree being merged;
+#  - every Monday, every check runs on `main` whatever changed: base images, the identity provider and the browsers move without
+#    a push;
+#  - a push or a pull request that only touches docs runs nothing.
+#
+# Why the area filter is a job here and not `paths:` in each workflow: a workflow skipped by `paths:` reports no status, so a
+# required check would wait for it forever and block the merge. GitHub's advice is not to require a workflow that can be
+# skipped (« Troubleshooting required status checks »). Here the workflow always runs; a call skipped by its `if:` reports
+# `skipped`, which counts as a pass, and `ci-ok` always reports.
+#
+# Pull requests from forks: `pull_request` only, never `pull_request_target`, so their code runs with a read-only token and no
+# secret. No job holds a secret: the release publishes with the workflow's own token, and never runs for a pull request.
 on:
   push:
     branches: [main]
@@ -16,29 +26,35 @@ on:
   pull_request:
     branches: [main]
     paths-ignore: ['docs/**', '**/*.md']
+  schedule:
+    - cron: '0 4 * * 1'
   workflow_dispatch:
 
-# A second push supersedes the first (Auto-fix pushes often): a superseded run reports on a tree nobody has any more.
+# A second push supersedes the first (Auto-fix pushes often): a superseded run reports on a tree nobody has any more. The event is
+# part of the group so the Monday run on main and a release never cancel each other. The called workflows have no group of their
+# own: theirs would be this one's name and cancel this run. A release is never cancelled: half published, one image would be
+# out without the other; the next push waits for it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
-# Least privilege (security/infrastructure.md §5): only `images` writes to the repository (the release tag, below). Actions are
-# pinned by SHA.
+# Least privilege (security/infrastructure.md §5): only `release` writes to the repository (the tag), only `build` and
+# `publish` to the packages. Actions are pinned by SHA.
 permissions:
   contents: read
 
 jobs:
-  # One job for the whole pull request: each job is billed rounded up to the minute and sets up its own runner, so the checks
-  # share one. Its steps follow the files the pull request changes (`web` about 12 minutes, `build` about 4): a change to the C#
-  # tests does not lint the web app, nor a change to the web app build the solution. The solution also follows openapi.json, which
-  # it compares with the server's. Without a pull request (workflow_dispatch), both run.
-  check:
+  # What the pull request touches. Without a pull request (schedule, workflow_dispatch), everything runs.
+  changes:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read # the changed files, read from the API
+    outputs:
+      backend: ${{ steps.files.outputs.backend }}
+      web: ${{ steps.files.outputs.web }}
+      e2e: ${{ steps.files.outputs.e2e }}
     steps:
       - id: files
         env:
@@ -46,105 +62,227 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           if [ -z "$PR" ]; then
-            echo "dotnet=true" >> "$GITHUB_OUTPUT"
-            echo "web=true" >> "$GITHUB_OUTPUT"
+            { echo "backend=true"; echo "web=true"; echo "e2e=true"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | .filename, .previous_filename // empty')
-          if grep -qv '^web/' <<< "$files" || grep -qx 'web/src/api/openapi\.json' <<< "$files"; then dotnet=true; else dotnet=false; fi
-          if grep -qE '^(web/|\.github/workflows/ci\.yml$)' <<< "$files"; then web=true; else web=false; fi
-          echo "dotnet=$dotnet" >> "$GITHUB_OUTPUT"
-          echo "web=$web" >> "$GITHUB_OUTPUT"
-      - if: steps.files.outputs.dotnet == 'true' || steps.files.outputs.web == 'true'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+          # The solution: anything outside web/, and openapi.json, which its build compares with the server's.
+          if grep -qv '^web/' <<< "$files" || grep -qx 'web/src/api/openapi\.json' <<< "$files"; then backend=true; else backend=false; fi
+          if grep -qE '^(web/|\.github/workflows/(ci|web)\.yml$)' <<< "$files"; then web=true; else web=false; fi
+          # The running app: the server, the web app, the compose and the build files.
+          if grep -qE '^(src/|web/|deploy/|Directory\.(Build|Packages)\.props$|global\.json$|\.github/workflows/(ci|e2e)\.yml$)' <<< "$files"; then e2e=true; else e2e=false; fi
+          { echo "backend=$backend"; echo "web=$web"; echo "e2e=$e2e"; } >> "$GITHUB_OUTPUT"
 
-      - if: steps.files.outputs.dotnet == 'true'
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          global-json-file: global.json
-      # Every project, the test projects included: they are compiled here, not run. Nid.Host regenerates web/src/api/openapi.json.
-      - if: steps.files.outputs.dotnet == 'true'
-        run: dotnet build Nid.slnx --configuration Release
-      - if: steps.files.outputs.dotnet == 'true'
-        run: git diff --exit-code -- web/src/api/openapi.json
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend.yml
 
-      - if: steps.files.outputs.web == 'true'
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
-        with:
-          package_json_file: web/package.json
-      - if: steps.files.outputs.web == 'true'
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - if: steps.files.outputs.web == 'true'
-        run: pnpm --dir web install --frozen-lockfile
-      # schema.d.ts against the committed openapi.json; the solution's build compares that one with the server's.
-      - if: steps.files.outputs.web == 'true'
-        run: pnpm --dir web check:api
-      # `check` without vitest.
-      - if: steps.files.outputs.web == 'true'
-        run: pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web build && pnpm --dir web budget
-        env:
-          # Typed linting outgrows Node's default heap of about 2 GB.
-          NODE_OPTIONS: --max-old-space-size=4096
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    uses: ./.github/workflows/web.yml
 
-  # Release: build the two images (nid, nid-backup), push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:
-  # the pull request already ran its checks, and they cost too much CI time to run again on landing.
-  images:
-    if: github.event_name != 'pull_request'
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    uses: ./.github/workflows/e2e.yml
+
+  # A pull request that adds a dependency with a known high or critical vulnerability fails.
+  dependencies:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # the vX.Y.Z tag, pushed once the images are
-      id-token: write # OIDC to Azure for the push below; the federated credential only trusts refs/heads/main
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  # The required check: fails if any part failed or was cancelled; a skipped part is a pass.
+  ci-ok:
+    if: always() && github.event_name != 'push'
+    needs: [changes, backend, web, e2e, dependencies]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
+
+  # Release, on a push to main: the two images (nid, nid-backup) for amd64 and arm64, published on ghcr.io with their provenance,
+  # then the vX.Y.Z tag. No test: the pull request already ran them on the tree being merged. Each architecture builds on a
+  # runner of its own (ubuntu-24.04-arm is a standard runner, free for a public repository): no QEMU, so the ReadyToRun publish
+  # of the .NET host runs natively. The public pulls them anonymously: ghcr.io/mistribe/nid, ghcr.io/mistribe/nid-backup.
+  version:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semver.outputs.version }}
+      tagged: ${{ steps.semver.outputs.is_tagged }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0 # the action reads the whole history and the tags
+          persist-credentials: false
       # Semver: the version one ahead of the latest vX.Y.Z tag (patch; `feat:` in a commit is a minor, `!:` or
-      # `BREAKING CHANGE:` a major, see .claude/CLAUDE.md). It only computes it: the tag is pushed at the end, once the images are.
+      # `BREAKING CHANGE:` a major, see .claude/CLAUDE.md). It only computes it: `release` pushes the tag once the images are out.
       - name: Next version
         id: semver
         uses: PaulHatch/semantic-version@9f72830310d5ed81233b641ee59253644cd8a8fc # v6.0.2
         with:
           search_commit_body: true
-      - name: Version
-        env:
-          NEXT: ${{ steps.semver.outputs.version }}
+      - env:
+          VERSION: ${{ steps.semver.outputs.version }}
         run: |
-          if [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" = push ]; then version=$NEXT; else version="$NEXT-ci.$GITHUB_RUN_NUMBER"; fi
-          echo "VERSION=$version" >> "$GITHUB_ENV"
-          echo "Version: $version" >> "$GITHUB_STEP_SUMMARY"
-      # The version list a click on the version shows: web/changelog/ dated by the tags (web/changelog/README.md).
-      - name: Changelog
-        run: node web/scripts/changelog.mjs "$VERSION" > web/public/changelog.json
-      - name: Build images
-        run: |
-          docker build -f src/Nid.Host/Dockerfile --build-arg VERSION="$VERSION" -t nid:local .
-          docker build -t nid-backup:local deploy/backup
-      # The Azure login is the organisation's AZURE_* secrets and the federated credential of the « Github Actions » app for
-      # repo:Mistribe/Nid:ref:refs/heads/main; the app is Contributor on the subscription, which includes AcrPush.
-      - name: Log in to Azure
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+          echo "Version: $VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+  # One image for one architecture, pushed by digest only: `publish` names it once both architectures are there.
+  build:
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write # the digests, pushed to ghcr.io
+    strategy:
+      fail-fast: true # one architecture missing is no release
+      matrix:
+        image: [nid, nid-backup]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - image: nid
+            context: .
+            file: src/Nid.Host/Dockerfile
+          - image: nid-backup
+            context: deploy/backup
+            file: deploy/backup/Dockerfile
+    name: build (${{ matrix.image }}, ${{ matrix.arch }})
+    env:
+      IMAGE: ghcr.io/mistribe/${{ matrix.image }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Push the images to the ACR
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+          fetch-depth: 0 # the changelog dates its lines by the tags
+          persist-credentials: false
+      # The version list a click on the version shows: web/changelog/ dated by the tags (web/changelog/README.md).
+      - if: matrix.image == 'nid'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - if: matrix.image == 'nid'
+        name: Changelog
+        run: node web/scripts/changelog.mjs "$VERSION" > web/public/changelog.json
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # OCI labels: source (links the package to this repository), revision, version, created, licence, description.
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: type=semver,pattern={{version}},value=${{ env.VERSION }}
+      - id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/${{ matrix.arch }}
+          build-args: VERSION=${{ env.VERSION }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          # The provenance is GitHub's attestation on the published index (`publish`), not BuildKit's per platform.
+          provenance: false
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+      - env:
+          DIGEST: ${{ steps.push.outputs.digest }}
         run: |
-          registry=oriondev.azurecr.io/mistribe
-          az acr login --name oriondev
-          for image in nid nid-backup; do
-            for tag in "$GITHUB_SHA" latest "$VERSION"; do
-              docker tag "$image:local" "$registry/$image:$tag"
-              docker push "$registry/$image:$tag"
-            done
-          done
-      - name: Tag the release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.semver.outputs.is_tagged != 'true'
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # One multi-architecture index per image, its tags (X.Y.Z, X.Y, latest, sha-…), its annotations, and a signed provenance
+  # attestation (`gh attestation verify oci://ghcr.io/mistribe/nid:X.Y.Z --repo Mistribe/Nid`).
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # the index and its tags
+      id-token: write # the attestation's signing certificate (Sigstore)
+      attestations: write # the attestation, stored by GitHub
+    strategy:
+      matrix:
+        image: [nid, nid-backup]
+    name: publish (${{ matrix.image }})
+    env:
+      IMAGE: ghcr.io/mistribe/${{ matrix.image }}
+      VERSION: ${{ needs.version.outputs.version }}
+      DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digests-${{ matrix.image }}-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.VERSION }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.VERSION }}
+            type=raw,value=latest
+            type=sha
+      - id: index
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          ANNOTATIONS: ${{ steps.meta.outputs.annotations }}
+        run: |
+          args=()
+          while IFS= read -r tag; do [ -n "$tag" ] && args+=(-t "$tag"); done <<< "$TAGS"
+          while IFS= read -r note; do [ -n "$note" ] && args+=(--annotation "$note"); done <<< "$ANNOTATIONS"
+          for digest in "$RUNNER_TEMP"/digests/*; do args+=("$IMAGE@sha256:$(basename "$digest")"); done
+          docker buildx imagetools create "${args[@]}"
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "$IMAGE:$VERSION ($digest)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.index.outputs.digest }}
+          push-to-registry: true
+
+  # The vX.Y.Z tag, once both images are published.
+  release:
+    needs: [version, publish]
+    if: needs.version.outputs.tagged != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the vX.Y.Z tag
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           git tag "v$VERSION" "$GITHUB_SHA"
           git push origin "v$VERSION"
