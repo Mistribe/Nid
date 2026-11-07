@@ -92,6 +92,7 @@ test('alice files two uploaded documents at once from « À classer »', async (
   await expect(toasts(page)).toContainText('2 documents classés.');
   await expect(table.getByRole('link', { name: first })).toHaveCount(0);
   await expect(table.getByRole('link', { name: second })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Tous' }).click();
+  // Filed under a private item, they are alice's own now: the household view no longer lists them, her own view does.
+  await page.goto(searching('/documents?scope=me', String(stamp)));
   for (const title of [first, second]) await expect(table.getByRole('row').filter({ hasText: title })).toContainText(item);
 });
