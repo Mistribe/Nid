@@ -26,14 +26,15 @@ read -r CLIENT_ID CLIENT_SECRET < <(node local/bootstrap-pocket-id.mjs)
 api_ready
 echo "ok: every service is up and healthy"
 
-curl -skf "$URL/auth/session" | grep -q '"authenticated":false'
+curl -skf "$URL/auth/session" | grep '"authenticated":false' >/dev/null
 echo "ok: the session route answers"
 
 # Hardening (1F1 final review): the key folder is private, only nid reaches the Internet, the SPA fallback never
 # answers for an asset or an API path.
 [ "$(docker run --rm -v nid_dataprotection-keys:/k busybox:1.37 stat -c %a /k)" = "700" ]
 echo "ok: the Data Protection key folder is 0700"
-docker run --rm -v nid_logs:/l:ro busybox:1.37 sh -c 'test "$(stat -c %a /l)" = 700 && cat /l/nid-*.log' | grep -q "Now listening on"
+# grep reads to the end (no -q): with pipefail, -q closes the pipe at the first match and the writer dies of SIGPIPE.
+docker run --rm -v nid_logs:/l:ro busybox:1.37 sh -c 'test "$(stat -c %a /l)" = 700 && cat /l/nid-*.log' | grep "Now listening on" >/dev/null
 echo "ok: nid writes its log file to the logs volume"
 if "${COMPOSE[@]}" exec -T pocket-id wget -q -T 5 -O /dev/null https://raw.githubusercontent.com 2>/dev/null; then
   echo "FAIL: pocket-id reaches the Internet" >&2; exit 1
