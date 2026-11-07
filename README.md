@@ -138,18 +138,13 @@ docs/      the design documents (in French): Project.md, architecture.md, the da
 
 ## Contributing
 
-Issues and pull requests are welcome, in English, using the templates in [`.github/`](.github). The conventions
-(branch names, labels, versioning from the pull request title, the UI rules) are written down in
-[`.claude/CLAUDE.md`](.claude/CLAUDE.md). CI does not run the tests on a pull request: run the ones for the areas you
-change before opening it.
-
-Never paste real financial data (yours or anyone's) into an issue, a pull request, a test or a fixture: describe the
-shape of the problem with invented figures.
+Issues and pull requests are welcome, in English. [CONTRIBUTING.md](CONTRIBUTING.md) explains the templates, branch
+names, the tests to run before opening a pull request (CI does not run them), the changelog and how the version is
+set. Never paste real financial data, yours or anyone's: describe the shape of a problem with invented figures.
 
 ## Security
 
-Please do not report a vulnerability in a public issue. Use **Report a vulnerability** in the repository's
-[Security tab](https://github.com/Mistribe/Nid/security) instead.
+Do not report a vulnerability in a public issue: see [SECURITY.md](SECURITY.md) to report it privately.
 
 ## License
 
