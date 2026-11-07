@@ -36,7 +36,8 @@ test('an adult creates a token, calls the API with it, and revokes it', async ({
 
   const row = page.getByRole('row', { name: new RegExp(name) });
   await expect(row).toContainText('Lecture seule');
-  await row.getByRole('button', { name: 'Révoquer' }).click();
+  await row.getByRole('button', { name: `Actions du jeton ${name}` }).click();
+  await page.getByRole('menuitem', { name: 'Révoquer' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Confirmer' }).click();
   await expect(toasts(page)).toContainText('Jeton révoqué.');
   await expect(row).toContainText('Révoqué');
