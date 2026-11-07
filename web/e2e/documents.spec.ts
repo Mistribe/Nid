@@ -20,7 +20,7 @@ const searching = (path: string, text: string) => `${path}${path.includes('?') ?
 
 async function uploadAndOpen(page: Page, title: string): Promise<void> {
   await page.goto(searching('/documents?tab=inbox', title));
-  await page.getByLabel('Déposer').setInputFiles(pdf(`${title}.pdf`));
+  await page.getByLabel('Déposer', { exact: true }).setInputFiles(pdf(`${title}.pdf`));
   await expect(page.getByRole('list', { name: 'Dépôts' })).toContainText('Déposé');
   await page.getByRole('table', { name: 'Liste des documents' }).getByRole('link', { name: title }).click();
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
@@ -76,7 +76,7 @@ test('alice files two uploaded documents at once from « À classer »', async (
   await addItem(page, item, 'private');
 
   await page.goto(searching('/documents?tab=inbox', String(stamp)));
-  await page.getByLabel('Déposer').setInputFiles([pdf(`${first}.pdf`), pdf(`${second}.pdf`)]);
+  await page.getByLabel('Déposer', { exact: true }).setInputFiles([pdf(`${first}.pdf`), pdf(`${second}.pdf`)]);
   await expect(page.getByRole('list', { name: 'Dépôts' }).getByText('Déposé')).toHaveCount(2);
   const table = page.getByRole('table', { name: 'Liste des documents' });
   await table.getByRole('checkbox', { name: `Sélectionner ${first}` }).check();

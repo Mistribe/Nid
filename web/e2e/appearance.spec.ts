@@ -70,7 +70,8 @@ test('a focused element is never hidden under the floating top bar', async ({ pa
     expect(created.status()).toBe(201);
   }
   await page.goto('/investments?tab=list&scope=me'); // private envelopes: alice's own view lists them, the household's does not
-  const links = page.locator('main').getByRole('link');
+  // The table's links: the phone list below it holds the same links, hidden on a wide screen.
+  const links = page.locator('main').getByRole('table').getByRole('link');
   await expect(links.first()).toBeVisible();
   const viewport = page.viewportSize()!;
   const state = () =>
