@@ -93,6 +93,10 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         MonthEvaluation evaluation = stored is { Validated: true, Figures: { } frozen }
             ? new(frozen, [], [])
             : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, ct);
+        // #32: Nid's own figures are the month's without the fields entered by hand; a validated month's days follow the template as it now is.
+        var computed = stored?.Declared is not { } typed || typed == new DeclaredFigures() || evaluation.Figures is null
+            ? evaluation.Figures
+            : (await EvaluateAsync(context, stored!.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, ct)).Figures;
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);
         var plan = context.Terms.Plan;
@@ -108,7 +112,8 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
             stored?.Version ?? 0,
             StatementContext.CmgEstimate(context.Stored.Where(s => s is { Validated: true, Figures: not null }).Select(s => (s.Month, s.Figures!.Cmg)).ToList()) is { } estimate
                 ? Amount(estimate) : null,
-            stored?.Declared is { } entered ? DeclaredOf(entered) : null);
+            stored?.Declared is { } entered ? DeclaredOf(entered) : null,
+            computed is { } n ? DeclarationOf(n.Declaration) : null);
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)
@@ -156,11 +161,13 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
 
     private static StatementFiguresView FiguresView(MonthFigures f, Currency currency, bool beforeCmg)
     {
-        var d = f.Declaration;
         return new StatementFiguresView(
-            new DeclarationView(d.NormalHours, d.ActivityDays, d.PaidLeaveDays, Amount(d.ComplementaryHours), Amount(d.OvertimeHours), Amount(d.NetPay),
-                Amount(d.Upkeep), Amount(d.Meals), Amount(d.Mileage)),
+            DeclarationOf(f.Declaration),
             ChildcareMoneyView.Of(f.BasePay, currency), ChildcareMoneyView.Of(f.Deduction, currency), ChildcareMoneyView.Of(f.ExtraPay, currency),
             ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg);
     }
+
+    private static DeclarationView DeclarationOf(PajemploiDeclaration d)
+        => new(d.NormalHours, d.ActivityDays, d.PaidLeaveDays, Amount(d.ComplementaryHours), Amount(d.OvertimeHours), Amount(d.NetPay),
+            Amount(d.Upkeep), Amount(d.Meals), Amount(d.Mileage));
 }

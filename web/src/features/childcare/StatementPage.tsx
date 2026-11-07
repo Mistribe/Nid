@@ -180,7 +180,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
         </Section>
       ) : null}
 
-      <Declaration declaration={view.figures?.declaration ?? null} missing={view.missingReferenceMonths} entry={entry} />
+      <Declaration declaration={view.figures?.declaration ?? null} computed={view.computed} missing={view.missingReferenceMonths} entry={entry} />
 
       {summarising ? (
         <MonthSummaryDialog error={error} pending={save.isPending} onClose={() => { setSummarising(false); setError(''); }}

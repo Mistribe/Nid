@@ -56,8 +56,10 @@ describe('StatementPage', () => {
     serve(statement());
     await renderApp(url);
     const declaration = await screen.findByRole('region', { name: 'Déclaration Pajemploi' });
-    expect(within(declaration).getByText('626,37')).toBeInTheDocument();
-    expect(within(declaration).getByText('146')).toBeInTheDocument();
+    // Nid's figure and the value used, the same while nothing is typed by hand.
+    expect(within(declaration).getAllByText('626,37')).toHaveLength(2);
+    expect(within(declaration).getAllByText('146')).toHaveLength(2);
+    expect(within(declaration).queryByText('≠ Nid')).not.toBeInTheDocument();
     // Pajemploi asks these as Oui / Non; none this month, no paid leave outside June.
     expect(within(declaration).getByText('Congés payés versés ?').nextSibling).toHaveTextContent('Non');
     expect(within(declaration).getByText('Heures majorées effectuées ?').nextSibling).toHaveTextContent('Non');
@@ -114,6 +116,21 @@ describe('StatementPage', () => {
     await user.click(within(declaration).getByRole('button', { name: 'Enregistrer la saisie' }));
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]!.body).toMatchObject({ declared: { netPay: '612.40', normalHours: 120, upkeep: null } });
+  });
+
+  it("keeps Nid's figure beside the one typed by hand and marks the difference", async () => {
+    const base = statement();
+    serve(statement({
+      figures: { ...base.figures!, declaration: { ...base.figures!.declaration, normalHours: 120 } },
+      computed: base.figures!.declaration,
+      declared: { normalHours: 120, activityDays: null, paidLeaveDays: null, complementaryHours: null, overtimeHours: null, netPay: null, upkeep: null, meals: null },
+    }));
+    await renderApp(url);
+    const declaration = await screen.findByRole('region', { name: 'Déclaration Pajemploi' });
+    const row = within(declaration).getByText('Heures normales').parentElement!;
+    expect(row).toHaveTextContent('Calculé par Nid146');
+    expect(row).toHaveTextContent('Valeur retenue120≠ Nid');
+    expect(within(declaration).getAllByText('≠ Nid')).toHaveLength(1);
   });
 
   it('copy puts the French value on the clipboard', async () => {

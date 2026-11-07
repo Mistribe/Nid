@@ -117,6 +117,9 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         var month = await JsonAsync(saved);
         Assert.Equal(10, month.GetProperty("days").EnumerateArray().Count(d => d.GetProperty("present").GetBoolean()));
         Assert.Contains(month.GetProperty("days").EnumerateArray(), d => d.GetProperty("absence").GetString() == "family");
+        // #32: Nid's own figures stay beside the ones entered by hand.
+        Assert.Equal(120, month.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
+        Assert.Equal(146, month.GetProperty("computed").GetProperty("normalHours").GetInt32());
 
         Assert.Equal(HttpStatusCode.OK, (await ValidateAsync(app, url)).StatusCode);
         var frozen = await GetAsync(app, url);
@@ -127,6 +130,21 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(120, declaration.GetProperty("normalHours").GetInt32());
         Assert.Equal(11, declaration.GetProperty("activityDays").GetInt32());
         Assert.Equal("600.00", frozen.GetProperty("declared").GetProperty("netPay").GetString());
+        Assert.Equal(146, frozen.GetProperty("computed").GetProperty("normalHours").GetInt32());
+    }
+
+    /// <summary>#32: clearing the fields entered by hand brings the month back to Nid's figures.</summary>
+    [Fact]
+    public async Task Clearing_the_declared_figures_brings_back_Nids()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var url = $"{await CreateAsync(app)}/statements/2025-09";
+        var days = (await GetAsync(app, url)).GetProperty("days").EnumerateArray().Select(Day).ToList();
+        var saved = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", version = 0u, declared = new { normalHours = 120 } }));
+        Assert.Equal(120, saved.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
+        var cleared = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", version = saved.GetProperty("version").GetUInt32() }));
+        Assert.Equal(146, cleared.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
+        Assert.Equal(cleared.GetProperty("figures").GetProperty("declaration").ToString(), cleared.GetProperty("computed").ToString());
     }
 
     [Fact]

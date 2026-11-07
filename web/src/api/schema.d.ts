@@ -26598,6 +26598,7 @@ export interface components {
             version: number;
             cmgEstimate?: null | string;
             declared?: null | components["schemas"]["DeclaredView"];
+            computed?: null | components["schemas"]["DeclarationView"];
         };
         ChildcareSummary: {
             /** Format: uuid */
