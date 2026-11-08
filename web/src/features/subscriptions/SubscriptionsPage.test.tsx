@@ -173,8 +173,9 @@ describe('Abonnements › liste', () => {
 
     // VIDEO #E50914 is a red (slot 8), VPN #6D4AFF a blue-violet (slot 1).
     const dot = (name: string) => within(menu).getByRole('menuitemcheckbox', { name }).querySelector<HTMLElement>('span[aria-hidden="true"].rounded-full');
-    expect(dot('Video')).toHaveStyle({ backgroundColor: 'var(--chart-8)' });
-    expect(dot('VPN')).toHaveStyle({ backgroundColor: 'var(--chart-1)' });
+    // The inline style, not the computed one: jsdom 31 resolves var() and the theme's tokens are not loaded here.
+    expect(dot('Video')?.style.backgroundColor).toBe('var(--chart-8)');
+    expect(dot('VPN')?.style.backgroundColor).toBe('var(--chart-1)');
   });
 
   it('offers every label in a multi-select menu, writes the ones on into the address and the request, and clears them', async () => {
