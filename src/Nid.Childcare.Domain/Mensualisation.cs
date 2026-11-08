@@ -20,6 +20,9 @@ public static class Mensualisation
 
     public static int NormalHours(decimal annualHours) => (int)Math.Round(annualHours / 12m, MidpointRounding.AwayFromZero);
 
+    /// <summary>The normal hours of a reduced month (Urssaf, salaire minoré): the pay due over the contract's hourly rate.</summary>
+    public static int NormalHours(decimal payDue, decimal netHourlyRate) => (int)Math.Round(payDue / netHourlyRate, MidpointRounding.AwayFromZero);
+
     /// <summary>The Pajemploi activity days of a month: the year's days over twelve.</summary>
     public static int ActivityDays(IReadOnlyList<WeekType> types)
         => (int)Math.Ceiling(types.Sum(t => t.Schedule.Count * t.Weeks) / 12m);

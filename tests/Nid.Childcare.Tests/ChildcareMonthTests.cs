@@ -19,10 +19,9 @@ public class ChildcareMonthWeekTypeTests
     {
         var terms = HouseholdTerms with { Start = D(2026, 9, 16) };
         var figures = Month(new YearMonth(2026, 9), Household(terms.Start), terms);
-        // Weeks from Monday 14 September: Long, Short, Long. From the 16th: Thu 17 + Fri 18 (19.5 h) + Short week 37.75 h
-        // + Mon, Tue 28-29 (19.5 h, the Thursday is 1 October) = 76.75 h. The whole month: 29.25 + 37.75 + 39 + 37.75 + 19.5 = 163.25 h.
-        Assert.Equal(Mensualisation.Round(698.20m * 76.75m / 163.25m), figures.BasePay);
-        Assert.Equal(328.25m, figures.BasePay);
+        // From the 16th: Thu 17, Fri 18, Mon 21, Tue 22, Thu 24, Fri 25, Mon 28, Tue 29 = 8 of the month's 17 template days.
+        Assert.Equal(Mensualisation.Round(698.20m * 8m / 17m), figures.BasePay);
+        Assert.Equal(328.56m, figures.BasePay);
     }
 
     [Fact]
@@ -58,6 +57,7 @@ public class ChildcareMonthTests
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11),
             days => AbsenceDeductionTests.Absent(days, (2, AbsenceReason.CarerAbsent), (3, AbsenceReason.CarerAbsent))));
         Assert.Equal(552.68m, figures.Declaration.NetPay);
+        Assert.Equal(129, figures.Declaration.NormalHours); // 552.68 / 4.30
         Assert.Equal(16, figures.Declaration.ActivityDays);
         Assert.Equal(61.95m, figures.Declaration.Upkeep);
         Assert.Equal(48.00m, figures.Declaration.Meals);
@@ -136,6 +136,27 @@ public class ChildcareMonthValidationTests
         Assert.Equal(331.61m, figures.BasePay);
         Assert.Equal(9, figures.Declaration.ActivityDays);
         Assert.Equal(9 * 4.13m, figures.Declaration.Upkeep);
+        Assert.Equal(77, figures.Declaration.NormalHours); // 331.61 / 4.30
+    }
+
+    [Fact]
+    public void Contract_ending_mid_month_declares_the_hours_of_its_pay()
+    {
+        var terms = Terms with { End = D(2026, 11, 15) };
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps, d => d, terms: terms));
+        Assert.Equal(294.76m, figures.BasePay);
+        Assert.Equal(69, figures.Declaration.NormalHours); // 294.76 / 4.30
+    }
+
+    [Fact]
+    public void A_deducted_day_of_a_partial_month_leaves_its_normal_hours()
+    {
+        var terms = Terms with { Start = D(2026, 11, 16) };
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps,
+            d => d.Date.Day == 17 ? d with { Present = false, Arrival = null, Departure = null, Absence = AbsenceReason.CarerAbsent } : d, terms: terms));
+        Assert.True(figures.Deduction > 0m);
+        Assert.Equal((int)Math.Round((figures.BasePay - figures.Deduction) / 4.30m, MidpointRounding.AwayFromZero), figures.Declaration.NormalHours);
+        Assert.True(figures.Declaration.NormalHours < 77);
     }
 
     [Fact]

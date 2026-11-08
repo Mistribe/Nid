@@ -24,10 +24,10 @@ public static class ChildcareMonth
         var annualHours = Mensualisation.AnnualHours(input.Plan.Types);
         var fullPay = Mensualisation.BasePay(input.Terms.NetHourlyRate, annualHours);
 
-        // A month the contract enters or leaves pays its share of the template hours (the deduction's own ratio, art. 111).
+        // A month the contract enters or leaves pays its share of the template days (the deduction's own ratio, art. 111).
         var inContract = input.Days.Where(d => StatementPreparation.InContract(d.Date, input.Terms)).ToList();
         var partial = inContract.Count < input.Days.Count;
-        var basePay = partial ? Mensualisation.Round(fullPay * inContract.Sum(d => input.Plan.HoursOn(d.Date)) / input.Days.Sum(d => input.Plan.HoursOn(d.Date))) : fullPay;
+        var basePay = partial ? Mensualisation.Round(fullPay * inContract.Count(d => input.Plan.HoursOn(d.Date) > 0m) / input.Days.Count(d => input.Plan.HoursOn(d.Date) > 0m)) : fullPay;
 
         var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Plan, input.ChildSickUsedBefore);
         var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan);
@@ -51,7 +51,10 @@ public static class ChildcareMonth
         // planned days less the deducted ones instead.
         var activityDays = input.Declared?.ActivityDays
             ?? (partial ? Math.Max(0, input.Days.Count(d => d.Planned) - deductedDays) : Mensualisation.ActivityDays(input.Plan.Types));
-        var declaration = new PajemploiDeclaration(input.Declared?.NormalHours ?? Mensualisation.NormalHours(annualHours), activityDays, leaveDays,
+        // #26: a month with reduced pay declares the hours that pay stands for; any other keeps the mensualised hours.
+        var normalHours = input.Declared?.NormalHours
+            ?? (partial || deduction > 0m ? Mensualisation.NormalHours(basePay - deduction, input.Terms.NetHourlyRate) : Mensualisation.NormalHours(annualHours));
+        var declaration = new PajemploiDeclaration(normalHours, activityDays, leaveDays,
             complementary, overtime, netPay, upkeep, meals, input.Mileage);
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
             netPay + upkeep + meals + input.Mileage - input.Cmg, netPay + upkeep - input.Cmg, childSick);
