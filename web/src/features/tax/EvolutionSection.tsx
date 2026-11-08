@@ -28,7 +28,7 @@ export function EvolutionSection({ years, assessments, scope, current, adults }:
   const answers = useQueries({ queries: estimated.map((y) => $api.queryOptions('get', TAX, { params: { query: { year: Number(y), scope } } })) });
   const rows: Row[] = years.flatMap((year): Row[] => {
     const a = notice(year);
-    if (a?.netTax) return [{ year, source: 'assessment', netTaxable: a.taxableIncome?.amount, tax: a.netTax.amount, rate: a.averageRate }];
+    if (a?.netTax) return [{ year, source: 'assessment', netTaxable: a.taxableIncome?.amount, tax: a.netTax.amount, rate: a.effectiveAverageRate }];
     const r = answers[estimated.indexOf(year)]?.data?.result;
     if (!r) return [];
     return [{ year, source: 'estimate', netTaxable: r.netTaxableIncome, tax: r.incomeTax, flatTax: ZERO.test(r.capitalFlatTax) ? undefined : r.capitalFlatTax, rate: r.averageRate }];

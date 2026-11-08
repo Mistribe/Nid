@@ -66,6 +66,20 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task A_notice_without_an_average_rate_shows_its_net_tax_over_its_taxable_income()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(2023, [Declarant(app.AdultA, 1)], new { netTax = Eur("1234.00"), taxableIncome = Eur("40000.00") });
+
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, Route, body);
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var view = await JsonOf(created);
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("averageRate").ValueKind);
+        Assert.Equal("3.09", view.GetProperty("effectiveAverageRate").GetString());
+    }
+
+    [Fact]
     public async Task Adds_reads_and_lists_a_joint_notice()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -79,6 +93,7 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
         var id = view.GetProperty("id").GetGuid();
         Assert.Equal("-312.00", view.GetProperty("balance").GetProperty("amount").GetString());
         Assert.Equal("14.2", view.GetProperty("averageRate").GetString());
+        Assert.Equal("14.2", view.GetProperty("effectiveAverageRate").GetString());
         Assert.Equal(2024, view.GetProperty("issuedYear").GetInt32());
         Assert.Equal(JsonValueKind.Null, view.GetProperty("scaleTax").ValueKind);
         Assert.Equal(JsonValueKind.Null, view.GetProperty("documentId").ValueKind);

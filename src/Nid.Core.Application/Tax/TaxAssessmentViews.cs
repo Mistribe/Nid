@@ -15,7 +15,11 @@ public sealed record TaxAssessmentDeclarantView(
     DashboardMoneyView? PerCeilingComputed, DashboardMoneyView? PerCeilingNext, DashboardMoneyView? OvertimeExempt, DashboardMoneyView? Withholding,
     DashboardMoneyView? CreditsAdvance);
 
-/// <summary>Tax assessments spec §2: a stored notice, its <c>Version</c> to send back with a correction. Rates are percent strings.</summary>
+/// <summary>
+/// Tax assessments spec §2: a stored notice, its <c>Version</c> to send back with a correction. Rates are percent strings.
+/// <c>EffectiveAverageRate</c>: the notice's average rate, else its net tax over its taxable income, as the estimate computes it;
+/// null without either figure. Read-only: a correction sends back <c>AverageRate</c>.
+/// </summary>
 public sealed record TaxAssessmentView(
     Guid Id, uint Version, int Year, int IssuedYear, IReadOnlyList<TaxAssessmentDeclarantView> Declarants, string? Shares, DashboardMoneyView? ReferenceIncome,
     string? AverageRate, string? MarginalRate, DashboardMoneyView? GrossIncome, DashboardMoneyView? TaxableIncome, DashboardMoneyView? CapitalIncomeDeclared,
@@ -24,7 +28,8 @@ public sealed record TaxAssessmentView(
     DashboardMoneyView? CreditsDeclared, DashboardMoneyView? CreditsRetained, DashboardMoneyView? NetTax, DashboardMoneyView? Withholding,
     DashboardMoneyView? Balance, DashboardMoneyView? RentalDeficitCarried, Guid? DocumentId, DashboardMoneyView? DividendsEligible,
     DashboardMoneyView? CapitalIncomeAlreadyLevied, DashboardMoneyView? FlatRatePrepaidCredit, DashboardMoneyView? RentalDeficitOnRentalIncome,
-    DashboardMoneyView? RentalDeficitOnGlobalIncome, DashboardMoneyView? PinelReduction, DashboardMoneyView? ChildcareExpenses) : IExposesDocuments
+    DashboardMoneyView? RentalDeficitOnGlobalIncome, DashboardMoneyView? PinelReduction, DashboardMoneyView? ChildcareExpenses,
+    string? EffectiveAverageRate) : IExposesDocuments
 {
     public IEnumerable<Guid> ExposedDocuments() => DocumentId is { } d ? [d] : [];
 
@@ -40,8 +45,13 @@ public sealed record TaxAssessmentView(
             Euros(a.ScaleTax), Euros(a.ProportionalTax), Euros(a.TaxBeforeCredits), Euros(a.CreditsDeclared), Euros(a.CreditsRetained), Euros(a.NetTax),
             Euros(a.Withholding), Euros(a.Balance), Euros(a.RentalDeficitCarried), a.DocumentId, Euros(a.DividendsEligible),
             Euros(a.CapitalIncomeAlreadyLevied), Euros(a.FlatRatePrepaidCredit), Euros(a.RentalDeficitOnRentalIncome),
-            Euros(a.RentalDeficitOnGlobalIncome), Euros(a.PinelReduction), Euros(a.ChildcareExpenses));
+            Euros(a.RentalDeficitOnGlobalIncome), Euros(a.PinelReduction), Euros(a.ChildcareExpenses), Plain(AverageRateOf(a)));
     }
+
+    private static decimal? AverageRateOf(TaxAssessment a)
+        => a.AverageRate ?? (a is { NetTax: { } tax, TaxableIncome: > 0m and var taxable }
+            ? Math.Round(Math.Max(0m, tax) / taxable * 100m, 2, MidpointRounding.AwayFromZero)
+            : null);
 
     private static TaxAssessmentDeclarantView Of(TaxAssessmentDeclarant d)
         => new(d.Person.Value, d.Rank, Euros(d.GrossSalaries), d.Deduction?.ToString().ToLowerInvariant(), Euros(d.DeductionAmount), Euros(d.NetSalaries),
