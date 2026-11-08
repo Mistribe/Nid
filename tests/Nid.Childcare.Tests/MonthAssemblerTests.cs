@@ -32,6 +32,22 @@ public class MonthAssemblerTests
         Assert.Equal(16, figures.Declaration.ActivityDays);
     }
 
+    /// <summary>Friday 2026-05-01 belongs to April's last week: the hours really worked that day are April's extra hours.</summary>
+    [Fact]
+    public void Real_days_of_the_next_month_count_in_the_shared_week()
+    {
+        var month = new YearMonth(2026, 4);
+        var terms = TermsOf(month);
+        var may = MonthAssembler.Prepared(TermsOf(new YearMonth(2026, 5)))
+            .Select(d => d.Date.Day == 1 ? d with { Present = true, Arrival = Arrival, Departure = Departure.PlusHours(2), Absence = null } : d).ToList();
+        var days = MonthAssembler.Prepared(terms);
+
+        var without = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+        var with = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m, next: new Statement(Item, month.PlusMonths(1), false, 0m, null, [may[0]], null, 1)).Figures!;
+
+        Assert.Equal(2m, with.Declaration.ComplementaryHours - without.Declaration.ComplementaryHours);
+    }
+
     /// <summary>Decision 30.</summary>
     [Fact]
     public void Declared_amounts_replace_the_computed_ones_and_the_parts_still_add_up()

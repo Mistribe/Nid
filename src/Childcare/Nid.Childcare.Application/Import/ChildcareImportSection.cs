@@ -224,6 +224,10 @@ public sealed class ChildcareImportSection(
                 if (previous is { Days.Count: 0 })
                     previous = await store.FindStatementAsync(plan.Id, previous.Month, ct);
                 var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m);
+                // A month may have been validated before or after the next one's days were corrected: either way its figures stand.
+                var following = group.Where(e => e.Month == month.PlusMonths(1) && possible.Contains(e.Month)).Select(e => new Statement(plan.Id, e.Month, true, 0m, null, e.Days, null, 0)).FirstOrDefault();
+                if (following is not null && evaluation.Figures is { } alone && !Same(alone, record.Figures))
+                    evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, following);
                 if (evaluation.Figures is not { } figures)
                 {
                     foreach (var (field, code) in evaluation.Problems)
