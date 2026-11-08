@@ -129,7 +129,7 @@ Ce qu'on garde de l'idée :
 
 ### 5.1 Règle de base
 
-Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`, `Infrastructure`), de son **schéma Postgres** et de son `DbContext`. Aucun module ne lit les tables d'un autre ni ne référence son domaine ; ils communiquent par leurs `Contracts` (interfaces et DTO). Un **test d'architecture** (`tests/Nid.Platform.Tests/ModuleBoundaryTests.cs`) le vérifie sur chaque pull request, à partir des `ProjectReference` et `PackageReference` de `src/*/*.csproj` : un module ne référence que ses propres projets, `Core.Contracts` et `Platform` (`Platform`, `Platform.Contracts`, `Platform.Infrastructure`), et son `Application` peut en plus référencer le `Contracts` d'un autre module, sans cycle entre modules ; un `Domain` ne référence que son `Contracts` et aucun paquet ; un `Contracts` ne référence aucun `Domain`, `Application` ni `Infrastructure` ; seuls `Nid.Host` et `Nid.AppHost` référencent les projets d'un module depuis l'extérieur, en dehors de ces `Contracts`.
+Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`, `Infrastructure`), de son **schéma Postgres** et de son `DbContext`. Aucun module ne lit les tables d'un autre ni ne référence son domaine ; ils communiquent par leurs `Contracts` (interfaces et DTO). Un **test d'architecture** (`tests/Nid.Platform.Tests/ModuleBoundaryTests.cs`) le vérifie sur chaque pull request, à partir des `ProjectReference` et `PackageReference` de `src/*/*/*.csproj` : un module ne référence que ses propres projets, `Core.Contracts` et `Platform` (`Platform`, `Platform.Contracts`, `Platform.Infrastructure`), et son `Application` peut en plus référencer le `Contracts` d'un autre module, sans cycle entre modules ; un `Domain` ne référence que son `Contracts` et aucun paquet ; un `Contracts` ne référence aucun `Domain`, `Application` ni `Infrastructure` ; seuls `Nid.Host` et `Nid.AppHost` référencent les projets d'un module depuis l'extérieur, en dehors de ces `Contracts`.
 
 **Où va un contrat.** `Core.Contracts` n'accueille que le noyau partagé (`Money`, `ItemId`, registre, visibilité, faits, propositions…) et les points d'extension que Core agrège (contributions au tableau de bord, `ITaxContribution`, `IFactConventions`). Un contrat qu'un module lit chez un seul autre va dans le `Contracts` du module qui le fournit, et le lecteur le référence : `IRentIncome` est dans `RealEstate.Contracts`, et Income le lit. Sans cette règle, Core finirait par connaître le vocabulaire de chaque module.
 
@@ -332,7 +332,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 - Images multi-architecture (amd64/arm64), utilisateur non-root, système de fichiers en lecture seule sauf volumes, healthchecks.
 - **Migrations** EF Core par module, appliquées au démarrage de `nid` sous verrou advisory Postgres. Migrations rétro-compatibles (expand/contract) pour permettre un retour arrière d'image.
 - Volumes : `pgdata`, `pocket-id` (sa base SQLite et ses images), `dataprotection-keys` (clés Data Protection de `nid`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/` (dont la clé de chiffrement de Pocket ID) et `deploy/.env`. S'y ajoute `logs` (journaux de `nid`), hors sauvegarde.
-- Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et `.env`, puis le secret du client OIDC une fois créé dans Pocket ID), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
+- Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et `.env`, puis le secret du client OIDC une fois créé dans Pocket ID), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Hosting/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
 - Mises à jour : tags d'image épinglés, procédure documentée (sauvegarde → pull → up). Pas de mise à jour automatique.
 
 ### 10.2 Hypothèses envers l'hébergeur
@@ -349,7 +349,7 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 
 ### 10.3 Environnement de développement local (Aspire)
 
-Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement et la lance d'une seule commande, `aspire run` (ou `dotnet run --project src/Nid.AppHost`). Il **remplace** un compose de développement écrit à la main : dépendances, ordre de démarrage, ports et chaînes de connexion sont déclarés une fois, dans le code.
+Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement et la lance d'une seule commande, `aspire run` (ou `dotnet run --project src/Hosting/Nid.AppHost`). Il **remplace** un compose de développement écrit à la main : dépendances, ordre de démarrage, ports et chaînes de connexion sont déclarés une fois, dans le code.
 
 | Ressource | Nature | Rôle |
 |---|---|---|

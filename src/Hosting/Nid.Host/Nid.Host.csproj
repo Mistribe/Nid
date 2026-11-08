@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- The SPA's client is generated from this file (design §3); CI fails when the committed copy drifts. -->
+    <OpenApiGenerateDocumentsOnBuild>true</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../../web/src/api</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
+    <!-- Endpoint delegates generated at build time, not compiled when a host starts: every integration test starts one. -->
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="UnambitiousFx.Synapse" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Quartz" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="PDFtoImage" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <ProjectReference Include="..\..\Platform\Nid.Platform\Nid.Platform.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\Nid.ServiceDefaults\Nid.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\Banking\Nid.Banking.Application\Nid.Banking.Application.csproj" />
+    <ProjectReference Include="..\..\Banking\Nid.Banking.Infrastructure\Nid.Banking.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Application\Nid.Core.Application.csproj" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Subscriptions\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />
+    <ProjectReference Include="..\..\Subscriptions\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Investments\Nid.Investments.Application\Nid.Investments.Application.csproj" />
+    <ProjectReference Include="..\..\Investments\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Documents\Nid.Documents.Application\Nid.Documents.Application.csproj" />
+    <ProjectReference Include="..\..\Documents\Nid.Documents.Infrastructure\Nid.Documents.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Childcare\Nid.Childcare.Application\Nid.Childcare.Application.csproj" />
+    <ProjectReference Include="..\..\Childcare\Nid.Childcare.Infrastructure\Nid.Childcare.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Goals\Nid.Goals.Application\Nid.Goals.Application.csproj" />
+    <ProjectReference Include="..\..\Goals\Nid.Goals.Infrastructure\Nid.Goals.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Income\Nid.Income.Application\Nid.Income.Application.csproj" />
+    <ProjectReference Include="..\..\Income\Nid.Income.Infrastructure\Nid.Income.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\RealEstate\Nid.RealEstate.Application\Nid.RealEstate.Application.csproj" />
+    <ProjectReference Include="..\..\RealEstate\Nid.RealEstate.Infrastructure\Nid.RealEstate.Infrastructure.csproj" />
+    <PackageReference Include="UnambitiousFx.Synapse.Generator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

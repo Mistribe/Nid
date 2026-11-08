@@ -8,9 +8,9 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Nid.Core.Application\Nid.Core.Application.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Core.Domain\Nid.Core.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Core\Nid.Core.Application\Nid.Core.Application.csproj" />
+    <ProjectReference Include="..\..\src\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Core\Nid.Core.Domain\Nid.Core.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\cpi\*" LinkBase="vectors\cpi" CopyToOutputDirectory="PreserveNewest" />

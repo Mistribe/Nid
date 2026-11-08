@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="UnambitiousFx.Synapse" />
+    <ProjectReference Include="..\Nid.Income.Contracts\Nid.Income.Contracts.csproj" />
+    <ProjectReference Include="..\Nid.Income.Domain\Nid.Income.Domain.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <!-- Phases and one-offs as document targets (IDocumentTargets), and their links following the rows (IDocumentLinks). -->
+    <ProjectReference Include="..\..\Documents\Nid.Documents.Contracts\Nid.Documents.Contracts.csproj" />
+    <!-- Reads RealEstate's rents (IRentIncome) for the household overview. -->
+    <ProjectReference Include="..\..\RealEstate\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
+    <PackageReference Include="UnambitiousFx.Synapse.Generator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

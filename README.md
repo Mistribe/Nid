@@ -61,7 +61,7 @@ proxy that terminates TLS, and a device able to create a **passkey**: sign-in go
 There is no public image yet: build it from this repository.
 
 ```bash
-docker build -f src/Nid.Host/Dockerfile -t nid:local .
+docker build -f src/Hosting/Nid.Host/Dockerfile -t nid:local .
 ```
 
 Then pick one of the two setups:
@@ -127,9 +127,10 @@ node deploy/local/demo/sign-in-link.mjs alice   # a one-time sign-in link (the d
 Nid is a modular monolith: one process serves the web app, the API, the MCP endpoint and the scheduled jobs.
 
 ```
-src/       Nid.<Module>.{Domain,Application,Contracts,Infrastructure} for each module (Subscriptions, Investments,
-           RealEstate, Income, Childcare, Goals, Documents, Banking), Nid.Core for what they share (people, items,
-           ownership, tax, dashboard, proposals), Nid.Platform, Nid.Host (the single executable) and Nid.AppHost (Aspire)
+src/       one folder per module, <Module>/Nid.<Module>.{Domain,Application,Contracts,Infrastructure} (Subscriptions,
+           Investments, RealEstate, Income, Childcare, Goals, Documents, Banking), Core/ for what they share (people,
+           items, ownership, tax, dashboard, proposals), Platform/, and Hosting/ for Nid.Host (the single executable),
+           Nid.AppHost (Aspire) and Nid.ServiceDefaults
 web/       the React app
 tests/     unit and integration tests per module, and shared test vectors
 deploy/    the Compose setups, backups, and the demo household

@@ -4,7 +4,7 @@ namespace Nid.Platform.Tests;
 
 /// <summary>
 /// The module boundaries of <c>docs/architecture.md</c> §5.1, read from the <c>ProjectReference</c> and <c>PackageReference</c>
-/// items of <c>src/*/*.csproj</c>: a forbidden reference fails here before any code uses it. CI runs this class on every pull request.
+/// items of <c>src/*/*/*.csproj</c>: a forbidden reference fails here before any code uses it. CI runs this class on every pull request.
 /// </summary>
 public class ModuleBoundaryTests
 {
@@ -128,7 +128,7 @@ public class ModuleBoundaryTests
     }
 
     private static Project[] Load()
-        => Directory.EnumerateDirectories(Path.Combine(Vectors.RepositoryRoot(), "src"))
+        => Directory.EnumerateDirectories(Path.Combine(Vectors.RepositoryRoot(), "src")).SelectMany(Directory.EnumerateDirectories)
             .SelectMany(directory => Directory.EnumerateFiles(directory, "*.csproj"))
             .Select(path =>
             {

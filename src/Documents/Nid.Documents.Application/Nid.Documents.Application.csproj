@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="UnambitiousFx.Synapse" />
+    <ProjectReference Include="..\Nid.Documents.Contracts\Nid.Documents.Contracts.csproj" />
+    <ProjectReference Include="..\Nid.Documents.Domain\Nid.Documents.Domain.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <!-- Issue #414: a life insurance expects its yearly statement; the kind is the envelope's (IEnvelopeStore). -->
+    <ProjectReference Include="..\..\Investments\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />
+    <PackageReference Include="UnambitiousFx.Synapse.Generator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NodaTime" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <ProjectReference Include="..\Nid.Income.Contracts\Nid.Income.Contracts.csproj" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform\Nid.Platform.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

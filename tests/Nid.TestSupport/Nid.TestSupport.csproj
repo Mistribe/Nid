@@ -9,16 +9,16 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <!-- NidApp: the real host over a test database, shared by every module's integration tests. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
-    <ProjectReference Include="..\..\src\Nid.Banking.Contracts\Nid.Banking.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Income.Infrastructure\Nid.Income.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Nid.RealEstate.Infrastructure\Nid.RealEstate.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Documents.Application\Nid.Documents.Application.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Documents.Infrastructure\Nid.Documents.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Host\Nid.Host.csproj" />
+    <ProjectReference Include="..\..\src\Banking\Nid.Banking.Contracts\Nid.Banking.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Core\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Subscriptions\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Investments\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Income\Nid.Income.Infrastructure\Nid.Income.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\RealEstate\Nid.RealEstate.Infrastructure\Nid.RealEstate.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Platform\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Documents\Nid.Documents.Application\Nid.Documents.Application.csproj" />
+    <ProjectReference Include="..\..\src\Documents\Nid.Documents.Infrastructure\Nid.Documents.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Hosting\Nid.Host\Nid.Host.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Copied into the output of every integration test project that references this one. -->

@@ -8,8 +8,8 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Nid.Banking.Contracts\Nid.Banking.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Banking.Domain\Nid.Banking.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Banking\Nid.Banking.Contracts\Nid.Banking.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Banking\Nid.Banking.Domain\Nid.Banking.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\bankfiles\*" LinkBase="vectors\bankfiles" CopyToOutputDirectory="PreserveNewest" />

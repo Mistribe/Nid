@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="NodaTime" />
+    <PackageReference Include="UnambitiousFx.Synapse.Abstractions" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+  </ItemGroup>
+</Project>

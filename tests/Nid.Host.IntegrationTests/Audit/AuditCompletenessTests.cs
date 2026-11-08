@@ -53,33 +53,33 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
     /// </summary>
     private static readonly Dictionary<string, int> AllowedBulkStatements = new()
     {
-        ["src/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
-        ["src/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written
-        ["src/Nid.Banking.Infrastructure/Persistence/RuleStore.cs"] = 2,     // last_used_at (not audited); recurring_group: excluded (the job's memory)
-        ["src/Nid.Banking.Infrastructure/Persistence/SyncRunLog.cs"] = 3,    // sync_run: excluded
-        ["src/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 3, // transaction: excluded; the account's advisory lock; reconciled_at (the job's mark, données brutes de la banque, ni décision ni réglage)
-        ["src/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
-        ["src/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
-        ["src/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 1, // advisory lock
-        ["src/Nid.Core.Infrastructure/Persistence/PersonalAccessTokenStore.cs"] = 3, // lock; revoked_at (token_revoked) and last_used_at (not audited)
-        ["src/Nid.Core.Infrastructure/Persistence/ProposalStore.cs"] = 3, // the target's (or, without one, the submitter's) row lock; warnings append (not a decision, not in the write log)
-        ["src/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)
-        ["src/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
-        ["src/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
-        ["src/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
-        ["src/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 2, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited)
-        ["src/Nid.Investments.Infrastructure/Persistence/SecurityBreakdownStore.cs"] = 1, // security_breakdown: excluded from the item audit
-        ["src/Nid.Investments.Infrastructure/Persistence/SecurityPriceStore.cs"] = 3, // security_price: excluded
-        ["src/Nid.Platform.Infrastructure/Notifications/NotificationStore.cs"] = 8, // notification, notification_run: excluded (+1: the ExecuteUpdateAsync of ResolveKeyAsync)
-        ["src/Nid.Platform.Infrastructure/Admin/JobRunStore.cs"] = 3, // job_run: excluded (a technical journal)
-        ["src/Nid.Platform.Infrastructure/Notifications/DeliveryStore.cs"] = 7, // notification_delivery, notification_digest, notification: excluded (the outbox)
-        ["src/Nid.Platform.Infrastructure/Persistence/ImportStagingStore.cs"] = 4, // import staging: excluded
-        ["src/Nid.Core.Infrastructure/Persistence/CpiRunLog.cs"] = 3, // cpi_run: excluded
-        ["src/Nid.Core.Infrastructure/Persistence/CpiStore.cs"] = 1, // cpi: excluded (reference data, like fx_rate)
-        ["src/Nid.RealEstate.Infrastructure/Persistence/IrlRunLog.cs"] = 3, // irl_run: excluded
-        ["src/Nid.RealEstate.Infrastructure/Persistence/IrlStore.cs"] = 1, // irl: excluded (reference data, like fx_rate)
-        ["src/Nid.RealEstate.Infrastructure/Persistence/LoanStore.cs"] = 1, // the loan's row lock (3A2 precision 5): writes nothing
-        ["src/Nid.RealEstate.Infrastructure/Persistence/PropertyStore.cs"] = 1, // the property's row lock (3C1 precision 4): writes nothing
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/RuleStore.cs"] = 2,     // last_used_at (not audited); recurring_group: excluded (the job's memory)
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/SyncRunLog.cs"] = 3,    // sync_run: excluded
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 3, // transaction: excluded; the account's advisory lock; reconciled_at (the job's mark, données brutes de la banque, ni décision ni réglage)
+        ["src/Core/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
+        ["src/Core/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
+        ["src/Core/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 1, // advisory lock
+        ["src/Core/Nid.Core.Infrastructure/Persistence/PersonalAccessTokenStore.cs"] = 3, // lock; revoked_at (token_revoked) and last_used_at (not audited)
+        ["src/Core/Nid.Core.Infrastructure/Persistence/ProposalStore.cs"] = 3, // the target's (or, without one, the submitter's) row lock; warnings append (not a decision, not in the write log)
+        ["src/Core/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)
+        ["src/Subscriptions/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
+        ["src/Subscriptions/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
+        ["src/Investments/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
+        ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 2, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited)
+        ["src/Investments/Nid.Investments.Infrastructure/Persistence/SecurityBreakdownStore.cs"] = 1, // security_breakdown: excluded from the item audit
+        ["src/Investments/Nid.Investments.Infrastructure/Persistence/SecurityPriceStore.cs"] = 3, // security_price: excluded
+        ["src/Platform/Nid.Platform.Infrastructure/Notifications/NotificationStore.cs"] = 8, // notification, notification_run: excluded (+1: the ExecuteUpdateAsync of ResolveKeyAsync)
+        ["src/Platform/Nid.Platform.Infrastructure/Admin/JobRunStore.cs"] = 3, // job_run: excluded (a technical journal)
+        ["src/Platform/Nid.Platform.Infrastructure/Notifications/DeliveryStore.cs"] = 7, // notification_delivery, notification_digest, notification: excluded (the outbox)
+        ["src/Platform/Nid.Platform.Infrastructure/Persistence/ImportStagingStore.cs"] = 4, // import staging: excluded
+        ["src/Core/Nid.Core.Infrastructure/Persistence/CpiRunLog.cs"] = 3, // cpi_run: excluded
+        ["src/Core/Nid.Core.Infrastructure/Persistence/CpiStore.cs"] = 1, // cpi: excluded (reference data, like fx_rate)
+        ["src/RealEstate/Nid.RealEstate.Infrastructure/Persistence/IrlRunLog.cs"] = 3, // irl_run: excluded
+        ["src/RealEstate/Nid.RealEstate.Infrastructure/Persistence/IrlStore.cs"] = 1, // irl: excluded (reference data, like fx_rate)
+        ["src/RealEstate/Nid.RealEstate.Infrastructure/Persistence/LoanStore.cs"] = 1, // the loan's row lock (3A2 precision 5): writes nothing
+        ["src/RealEstate/Nid.RealEstate.Infrastructure/Persistence/PropertyStore.cs"] = 1, // the property's row lock (3C1 precision 4): writes nothing
     };
 
     [GeneratedRegex(@"\.Execute(SqlRaw|SqlInterpolated|Sql|Update|Delete)Async\(")]
