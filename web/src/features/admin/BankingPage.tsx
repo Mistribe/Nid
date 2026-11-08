@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 
 const HOUSEHOLD = '/api/v1/admin/household';

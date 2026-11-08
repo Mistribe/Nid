@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
-import { toPlot } from '../../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { LoanScheduleYear } from '../api';
 import { money } from '../format';
 import '@/locales/loans';

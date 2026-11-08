@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import { checkOwnership, ownershipPath, ownershipShape, ownershipToWire, type OwnerRow } from '@/components/ownership/ownership';
-import { AMOUNT, ISO_DATE, toFieldAmount, toWireAmount } from '../subscriptions/edits/amount';
+import { AMOUNT, ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import type { ChildcareDetail, ChildcareTerms, CreateChildcareBody, TermsBody } from './api';
 import '@/locales/childcare';
 import '@/locales/forms';

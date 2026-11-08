@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSession } from '@/app/Providers';
 import { formatMoney } from '@/components/Money';
 import type { DashboardView } from '../api';
-import { percent } from '../format';
+import { percent } from '@/lib/format';
 import { Value } from '../KeyFigures';
 
 const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs', 'tax', 'childcare'] as const;

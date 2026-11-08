@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
-import type { DashboardSearch, RootSearch } from '@/app/router';
+import type { DashboardSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Segmented } from '@/components/form/Segmented';
@@ -13,8 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { monthText } from '@/components/LocalDate';
-import { monthLabel } from '../income/expected/months';
-import { toPlot } from '../investments/chart/plot';
+import { monthLabel } from '@/lib/format';
+import { toPlot } from '@/lib/plot';
 import { NET_WORTH, type NetWorthHistory, type NetWorthPointView } from './api';
 import { TableToggle } from '@/components/page/TableToggle';
 

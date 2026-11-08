@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModuleTile } from '@/components/ModuleTile';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { visibleNav } from './nav';
+import { visibleNav } from '@/components/nav';
 import { useSession } from './Providers';
 import '@/locales/palette';
 

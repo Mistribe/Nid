@@ -6,7 +6,7 @@ import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2 };
 const run = {

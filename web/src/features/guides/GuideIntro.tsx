@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NAV } from '@/app/nav';
+import { NAV } from '@/components/nav';
 import { ModalDialog } from '@/components/ModalDialog';
 import { Button } from '@/components/ui/button';
 import { findTarget, type Guide } from './guideData';

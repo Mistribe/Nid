@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { csvAmount, csvText } from '../export/csv';
+import { csvAmount, csvText } from '@/lib/csv';
 import type { Rental2044 } from './api';
 import { deficitLines, lineText } from './format';
 import '@/locales/tax';

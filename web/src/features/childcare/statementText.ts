@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { fieldErrorsOf } from '../subscriptions/fieldErrors';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { toProblem } from '@/api/errors';
 import '@/locales/childcare';
 

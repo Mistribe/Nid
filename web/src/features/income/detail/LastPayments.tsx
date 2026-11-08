@@ -1,7 +1,8 @@
 import { Link, useParams } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { IncomeDetailSearch, RootSearch } from '@/app/router';
+import type { IncomeDetailSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { seeAllClass } from '@/components/page/seeAll';

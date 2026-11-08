@@ -1,7 +1,8 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PropertiesSearch, RootSearch } from '@/app/router';
+import type { PropertiesSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { SelectField } from '@/components/form/SelectField';
 import { Segmented } from '@/components/form/Segmented';
 import '@/locales/properties';

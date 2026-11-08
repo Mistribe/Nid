@@ -12,7 +12,7 @@ import { PageTrail } from '@/components/page/trail';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { money } from '../../loans/format';
-import { todayIso } from '../../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_RECEIPTS } from '../api';
 import { elision } from '@/lib/elision';

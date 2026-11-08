@@ -13,7 +13,7 @@ import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { money } from '../../loans/format';
-import { todayIso } from '../../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { usePropertyTrail } from '../propertyTrail';
 import { PROPERTY_ARREARS } from '../api';
 import '@/locales/properties';

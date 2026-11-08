@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { downloadBlob } from './download';
+import { downloadBlob } from '@/lib/download';
 
 describe('downloadBlob', () => {
   const revoke = vi.fn();

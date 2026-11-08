@@ -6,7 +6,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { fieldErrorsOf } from '../subscriptions/fieldErrors';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { discordFieldText } from './channelErrors';
 import '@/locales/notifications';
 

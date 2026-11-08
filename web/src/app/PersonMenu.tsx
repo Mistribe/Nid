@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { visibleNav } from './nav';
+import { visibleNav } from '@/components/nav';
 import { useSession } from './Providers';
 import { AVATAR, initials } from './sidebar';
 

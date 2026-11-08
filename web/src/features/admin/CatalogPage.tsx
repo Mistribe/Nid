@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 
 type Run = components['schemas']['CatalogSyncRunView'];

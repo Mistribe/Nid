@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button';
 import { channelErrorText, discordFieldText, throttledText } from '@/features/notifications/channelErrors';
 import { DiscordWebhookControl } from '@/features/notifications/DiscordWebhookControl';
 import { DISCORD_HOUSEHOLD, useWebhook } from '@/features/notifications/preferences';
-import { fieldErrorsOf } from '@/features/subscriptions/fieldErrors';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 import '@/locales/notifications';
 

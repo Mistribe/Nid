@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema';
-import { AMOUNT, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
+import { AMOUNT, toFieldAmount, toWireAmount } from '@/lib/amount';
 import type { PinelCommitment, TaxEstimate } from '../api';
 import { ZERO } from '../format';
 

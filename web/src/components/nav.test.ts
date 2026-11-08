@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { Landmark } from 'lucide-react';
-import { NAV, placeOf, tileOf } from './nav';
+import { NAV, placeOf, tileOf } from '@/components/nav';
 
 it('every entry names its tile, and no two modules share a slot', () => {
   for (const item of NAV) expect(item.tile, item.to).toBeDefined();

@@ -11,12 +11,13 @@ import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toWireAmount } from '../../subscriptions/edits/amount';
-import { Reload } from '../../subscriptions/edits/Reload';
-import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
-import { todayIso } from '../../subscriptions/today';
+import { toWireAmount, POSITIVE_AMOUNT } from '@/lib/amount';
+import { Reload } from '@/components/form/Reload';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
+import { todayIso } from '@/lib/today';
 import { invalidateInvestments, MOVEMENTS, type EnvelopeDetail, type Holding } from '../api';
-import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
+import { pastDate } from '@/components/form/pastDate';
+import { placeFieldError, presentConflict } from '@/components/form/fieldErrors';
 import { hasUnits, MOVEMENT_KINDS, movementKindText, signedUnits, UNITS } from './holdingFormat';
 import '@/locales/investments';
 

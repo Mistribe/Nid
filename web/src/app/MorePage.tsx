@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Button } from '@/components/ui/button';
 import { PendingBadge } from '@/features/proposals/PendingBadge';
-import { visibleNav } from './nav';
+import { visibleNav } from '@/components/nav';
 import { useSession } from './Providers';
 
 /** screens.md §1: the sections that do not fit the phone's tab bar. */

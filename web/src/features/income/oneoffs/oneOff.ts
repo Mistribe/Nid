@@ -1,9 +1,8 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { POSITIVE_AMOUNT, trimAmount } from '../../investments/entries/entries';
-import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
-import { todayIso } from '../../subscriptions/today';
+import { POSITIVE_AMOUNT, trimAmount, ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
+import { todayIso } from '@/lib/today';
 import type { IncomeOneOff } from '../api';
 import '@/locales/investments';
 import '@/locales/forms';

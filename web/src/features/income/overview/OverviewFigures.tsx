@@ -6,8 +6,8 @@ import { formatMoney } from '@/components/Money';
 import { Hero, HeroUnknown } from '@/components/page/Hero';
 import { StatLine } from '@/components/page/StatLine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { percent } from '@/features/dashboard/format';
-import { toPlot } from '@/features/investments/chart/plot';
+import { percent } from '@/lib/format';
+import { toPlot } from '@/lib/plot';
 import { monthText } from '@/components/LocalDate';
 import type { IncomeOverview, IncomeOverviewFigures } from '../api';
 

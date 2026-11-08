@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Money } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { percent } from '@/features/dashboard/format';
+import { percent } from '@/lib/format';
 import { useLiquidityName } from '@/features/dashboard/panels/allocationNames';
 import type { ScenarioResult } from './api';
 import { warningText } from './new/CapacitySummary';

@@ -9,9 +9,9 @@ import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PERSONS } from '../subscriptions/api';
-import { fieldErrorsOf, messageFor } from '../subscriptions/fieldErrors';
-import { todayIso } from '../subscriptions/today';
+import { PERSONS } from '@/api/persons';
+import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
+import { todayIso } from '@/lib/today';
 import { PERSON_RETIREMENT, PROJECTION } from './api';
 
 /** A whole number as the server checks it: anything else goes as -1, which it refuses on that field. */

@@ -5,7 +5,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { RowActions as SharedRowActions } from '@/components/page/RowActions';
 import { FLOW, invalidateInvestments, VALUATION, type EnvelopeDetail, type Flow, type Valuation } from '../api';
 import { flowKindText, isTransferLeg } from '../format';
-import { presentConflict } from './entries';
+import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/investments';
 
 type RowActionsProps = {

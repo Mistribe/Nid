@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { todayIso } from '../../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { detail, eur, figures, list, PEA, summary } from '../testData';
 
 type Answer = (body: { closedOn: string }) => Response | undefined;

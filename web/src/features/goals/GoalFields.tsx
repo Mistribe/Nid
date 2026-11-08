@@ -1,14 +1,14 @@
 import { useSearch } from '@tanstack/react-router';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import type { RootSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { Money } from '@/components/Money';
 import { Segmented } from '@/components/form/Segmented';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Folded } from '../loans/new/Folded';
+import { Folded } from '@/components/form/Folded';
 import { useEmergencyTarget } from './api';
 import { kindText } from './format';
 import { KINDS, type GoalValues } from './goalSchema';

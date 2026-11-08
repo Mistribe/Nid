@@ -5,6 +5,12 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import nid from './eslint-rules/index.js';
 
+/** A `no-restricted-imports` pattern refusing the given src/ folders, by alias or by relative path. */
+const layer = (folders, from) => ({
+  group: folders.flatMap((f) => [`@/${f}`, `@/${f}/**`, `**/${f}/**`]),
+  message: `${from} below ${folders.join(', ')}: move what both need down to components/ or lib/.`,
+});
+
 export default defineConfig(
   { ignores: ['dist', 'src/api/schema.d.ts'] },
   js.configs.recommended,
@@ -35,6 +41,18 @@ export default defineConfig(
     files: ['src/**/*.{ts,tsx}'],
     plugins: { nid },
     rules: { 'nid/no-amount-arithmetic': 'error', 'nid/no-literal-jsx-text': 'error' },
+  },
+  // Layers (frontend/architecture.md §2): app → features → components → lib / api. A lower layer never imports a higher
+  // one: what two features share lives in components/ or lib/, never in one of them. Tests may cross (renderApp mounts it all).
+  {
+    files: ['src/components/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', { patterns: [layer(['features', 'app'], 'components/ sits')] }] },
+  },
+  {
+    files: ['src/lib/**/*.{ts,tsx}', 'src/api/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', { patterns: [layer(['components', 'features', 'app'], 'lib/ and api/ sit')] }] },
   },
   {
     files: ['src/**/*.test.{ts,tsx}', 'src/test/**'],

@@ -6,7 +6,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { invalidateIncome, ONE_OFF, type IncomeOneOff, type IncomeSourceDetail } from '../api';
 import { RowActions } from '@/components/page/RowActions';
-import { presentConflict } from '../../investments/entries/entries';
+import { presentConflict } from '@/components/form/fieldErrors';
 import { oneOffTitle } from '../payslips/payslip';
 import { FileInput } from '../payslips/PayslipCell';
 import type { PayslipWrites } from '../payslips/usePayslipWrites';

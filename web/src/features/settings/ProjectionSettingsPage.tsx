@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthText } from '@/components/LocalDate';
-import { PERSONS } from '../subscriptions/api';
+import { PERSONS } from '@/api/persons';
 import { AssumptionsDialog } from './AssumptionsDialog';
 import { RetirementDialog } from './RetirementDialog';
 import { SettingsFrame } from './SettingsFrame';

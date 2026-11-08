@@ -3,7 +3,7 @@ import type { Path, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { checkOwnership, ownershipShape, ownershipToWire } from '@/components/ownership/ownership';
-import { CURRENCY, ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
+import { CURRENCY, ISO_DATE, toWireAmount } from '@/lib/amount';
 import { FIRST_PERIODS, INSURANCE_MODES, PHASE_MODES, RATE_TYPES, ROUNDINGS } from '../format';
 import { isPercentRate, percentToFraction } from '../rate';
 import '@/locales/investments';

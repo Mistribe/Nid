@@ -14,18 +14,10 @@ export const FLOW_KINDS = ['contribution', 'withdrawal', 'expense', 'income', 'o
 /** The currencies a response could not convert, from its `core.fx_rate_missing` findings (reference `USD:2025-10-15`). */
 export const missingRateCodes = (findings: { code: string; reference?: string | null }[]) =>
   [...new Set(findings.filter((f) => f.code === 'core.fx_rate_missing').map((f) => (f.reference ?? '').split(':')[0]))].join(', ');
-export type Direction = 'up' | 'down' | 'flat';
-
 /** A kind the server added later reads as its raw name rather than breaking the page (as subscriptions' kindText). */
 export function kindText(t: TFunction, kind: string): string {
   const known = KINDS.find((k) => k === kind);
   return known ? t(`investments.kind.${known}`) : kind;
-}
-
-/** The gain's sign read from its decimal string, never parsed to a number. */
-export function directionOf(amount: string): Direction {
-  if (/^-/.test(amount)) return /^-0*(\.0*)?$/.test(amount) ? 'flat' : 'down';
-  return /^0*(\.0*)?$/.test(amount) ? 'flat' : 'up';
 }
 
 export const isTransferLeg = (flow: { category?: string | null }) => flow.category === 'transfer';

@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
-import { todayIso } from '../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { serveDocument } from './serveDocument';
 import { DOC } from './testData';
 

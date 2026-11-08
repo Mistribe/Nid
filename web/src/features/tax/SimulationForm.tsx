@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Section } from '@/components/page/Section';
 import { REGIMES, regimeText } from './format';
-import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
+import { AMOUNT, toWireAmount } from '@/lib/amount';
 import { STATUSES, TAX_SIMULATE, type TaxEstimate, type TaxInputs, type TaxResult } from './api';
 import { RATE } from './profile/draft';
 import { ResultTable } from './ResultTable';

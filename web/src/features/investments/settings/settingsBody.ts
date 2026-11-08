@@ -1,6 +1,6 @@
 import type { components } from '@/api/schema';
 import type { EnvelopeDetail } from '../api';
-import { toWireAmount } from '../../subscriptions/edits/amount';
+import { toWireAmount } from '@/lib/amount';
 import { hasPremiumsBefore2017 } from '../format';
 
 /** What the settings form holds: every field as the text typed, compared and sent trimmed. */

@@ -4,7 +4,7 @@ import { formatMoney } from '@/components/Money';
 import { HeroBody, HeroChange, HeroUnknown } from '@/components/page/Hero';
 import { cn } from '@/lib/utils';
 import type { DashboardFigure, DashboardView } from './api';
-import { percent } from './format';
+import { percent } from '@/lib/format';
 import { Sparkline } from './Sparkline';
 
 export type Panel = 'net_worth' | 'income' | 'commitments' | 'margin';

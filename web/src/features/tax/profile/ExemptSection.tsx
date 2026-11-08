@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Field } from '@/components/form/Field';
 import { Section } from '@/components/page/Section';
-import { Folded } from '../../loans/new/Folded';
+import { Folded } from '@/components/form/Folded';
 import { ZERO } from '../format';
 import { AdultInput, errorText, type SectionProps } from './fields';
 import '@/locales/tax';

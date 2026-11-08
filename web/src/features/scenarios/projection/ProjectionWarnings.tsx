@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { monthLabel } from '../../income/expected/months';
+import { monthLabel } from '@/lib/format';
 import type { Projection } from '@/features/dashboard/api';
 import '@/locales/scenarios';
 

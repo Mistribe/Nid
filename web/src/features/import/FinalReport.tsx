@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { formatInstant } from '@/features/admin/format';
+import { formatInstant } from '@/lib/format';
 import { downloadReport } from './report';
 import { IssueList, SectionCounts } from './ReportView';
 import { StepCard } from './StepCard';

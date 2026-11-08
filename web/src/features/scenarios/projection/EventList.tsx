@@ -8,7 +8,7 @@ import { RowMenu } from '@/components/page/RowMenu';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { PERSONS } from '../../subscriptions/api';
+import { PERSONS } from '@/api/persons';
 import { ESTATE_KINDS, EVENT_KINDS, isEventKind, type EventDate, type EventKind, type ProjectionEvent } from './api';
 import type { EventFieldError } from './EventDialog';
 import { usePickOptions } from './pickOptions';

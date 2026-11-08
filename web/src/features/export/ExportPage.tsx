@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { runExport } from './assemble';
-import { downloadBlob } from './download';
+import { downloadBlob } from '@/lib/download';
 import '@/locales/export';
 
 type State =

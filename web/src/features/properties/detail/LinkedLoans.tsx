@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { tileOf } from '@/app/nav';
+import { tileOf } from '@/components/nav';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { money } from '../../loans/format';
 import type { PropertyDetail } from '../api';

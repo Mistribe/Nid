@@ -9,7 +9,7 @@ import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import type { EnvelopeDetail } from './api';
-import { todayIso } from '../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { serve as serveWritable, type Call } from './serveEnvelope';
 import { detail, eur, figures, PEA } from './testData';
 

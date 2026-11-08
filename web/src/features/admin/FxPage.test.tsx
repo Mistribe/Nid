@@ -6,7 +6,7 @@ import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 
 const run = {
   id: '01926b9e-0000-7000-8000-0000000000f1', kind: 'backfill', startedAt: '2026-09-24T07:00:00+00:00',

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem, type FieldError, type Presentation } from '@/api/errors';
-import { fieldErrorsOf, messageFor } from '../fieldErrors';
+import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 
 /**
  * A failed write, shown where it belongs (1E2a design §2.1): each field the server names on its field, anything else

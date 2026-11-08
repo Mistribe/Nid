@@ -2,7 +2,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toPlot } from '../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from './api';
 import { ChangesSection } from './ChangesSection';
 import type { TaxAssessment } from './assessments/api';

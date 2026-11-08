@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defaultEffectiveDate, expectedRange, monthLabel, paymentDates, paymentWindow, sinceWindows } from './months';
+import { defaultEffectiveDate, expectedRange, paymentDates, paymentWindow, sinceWindows } from './months';
+import { monthLabel } from '@/lib/format';
 
 describe('expectedRange', () => {
   it.each([

@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { personColor } from '@/features/dashboard/colors';
-import { percent } from '@/features/dashboard/format';
-import { PERSONS } from '@/features/subscriptions/api';
+import { personColor } from '@/components/colors';
+import { percent } from '@/lib/format';
+import { PERSONS } from '@/api/persons';
 
 export type ItemOwner = { personId: string; shareBp: number };
 

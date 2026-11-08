@@ -4,8 +4,8 @@ import { Area, AreaChart, CartesianGrid, DefaultZIndexes, ReferenceLine, usePlot
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { monthLabel } from '../../income/expected/months';
-import { toPlot } from '../../investments/chart/plot';
+import { monthLabel } from '@/lib/format';
+import { toPlot } from '@/lib/plot';
 import type { LoansOverview } from '../api';
 import { loanColor } from './colors';
 import { SectionCard } from '@/components/page/SectionCard';

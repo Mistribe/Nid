@@ -3,7 +3,7 @@ import { formatCurrency } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { HouseholdPoint } from '@/features/dashboard/api';
-import { monthLabel } from '../../income/expected/months';
+import { monthLabel } from '@/lib/format';
 import type { ProjectionComparison } from './api';
 import { ProjectionComparisonChart, useMilestoneText } from './ProjectionComparisonChart';
 import { baseAndScenario } from './chartSeries';

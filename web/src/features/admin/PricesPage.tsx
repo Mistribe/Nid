@@ -9,7 +9,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 
 const HOUSEHOLD = '/api/v1/admin/household';

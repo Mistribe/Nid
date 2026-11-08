@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { PROPERTIES } from '../../properties/api';
 import { INSURANCE, invalidateSubscriptions, type Detail } from '../api';
 import { Reload } from '../edits/Reload';
-import { useSubmitErrors } from '../edits/useSubmitErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { INSURANCE_KINDS } from './InsuranceSection';
 import '@/locales/forms';
 import '@/locales/subscriptions';

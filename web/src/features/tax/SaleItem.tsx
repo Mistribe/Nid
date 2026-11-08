@@ -6,7 +6,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Terms } from '../loans/detail/Terms';
-import { PERSONS } from '../subscriptions/api';
+import { PERSONS } from '@/api/persons';
 import type { SaleItemView } from './api';
 import { ZERO, percentText } from './format';
 import { eur } from './ResultTable';

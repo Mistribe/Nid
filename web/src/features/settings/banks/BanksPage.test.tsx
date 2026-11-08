@@ -6,7 +6,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { formatInstant, formatInstantDay } from '../../admin/format';
+import { formatInstant, formatInstantDay } from '@/lib/format';
 import { summary } from '../../investments/testData';
 import { account, CONNECTION, connection, rule, serveBanks } from './testData';
 

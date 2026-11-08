@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import type { Projection } from '@/features/dashboard/api';
 import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNames';
 import { YEARLY_CLASSES, projectionYears } from '../../settings/api';
-import { toWireAmount } from '../../subscriptions/edits/amount';
+import { toWireAmount } from '@/lib/amount';
 import type { ProjectionOverrides } from './api';
 import '@/locales/forms';
 import '@/locales/scenarios';

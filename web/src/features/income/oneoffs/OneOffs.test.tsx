@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { link, summary } from '../../documents/testData';
-import { todayIso } from '../../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import type { IncomeSourceDetail } from '../api';
 import { detail, eur, SALARY } from '../testData';
 

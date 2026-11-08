@@ -5,7 +5,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { PHASE_MODES, RATE_TYPES } from '../format';
-import { Folded } from './Folded';
+import { Folded } from '@/components/form/Folded';
 import type { ContractValues } from './loanForm';
 import '@/locales/loans';
 

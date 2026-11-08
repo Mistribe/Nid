@@ -9,9 +9,9 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { components } from '@/api/schema';
-import { monthLabel } from '../../income/expected/months';
+import { monthLabel } from '@/lib/format';
 import { SERIES } from '../api';
-import { toPlot } from './plot';
+import { toPlot } from '@/lib/plot';
 import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/investments';
 

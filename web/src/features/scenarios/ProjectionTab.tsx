@@ -5,7 +5,7 @@ import { formatMoney, Money } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toPlot } from '@/features/investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { ScenarioResult } from './api';
 import '@/locales/scenarios';
 

@@ -6,9 +6,9 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { SECTIONS } from '@/features/import/prepare';
 import fr from '@/locales/fr.export.json';
-import { downloadBlob } from './download';
+import { downloadBlob } from '@/lib/download';
 
-vi.mock('./download', () => ({ downloadBlob: vi.fn() }));
+vi.mock('@/lib/download', () => ({ downloadBlob: vi.fn() }));
 
 const pages = () => ({
   persons: [[{ ref: 'adult-1' }, { ref: 'adult-2' }]],

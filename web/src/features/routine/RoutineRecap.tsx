@@ -8,7 +8,7 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Direction } from '../investments/Figures';
+import { Direction } from '@/components/Direction';
 import { invalidateInvestments } from '../investments/api';
 import { ROUTINE, ROUTINE_UNDO, type RoutineRecap } from './api';
 

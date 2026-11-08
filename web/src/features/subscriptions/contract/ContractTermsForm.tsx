@@ -11,9 +11,9 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '../api';
-import { ISO_DATE } from '../edits/amount';
+import { ISO_DATE } from '@/lib/amount';
 import { Reload } from '../edits/Reload';
-import { useSubmitErrors } from '../edits/useSubmitErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import '@/locales/forms';
 import '@/locales/subscriptions';
 

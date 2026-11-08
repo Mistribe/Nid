@@ -4,9 +4,9 @@ import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import { formatMoney } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
-import { toPlot } from '../../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { IncomeOverview } from '../api';
-import { monthLabel } from '../expected/months';
+import { monthLabel } from '@/lib/format';
 import { MonthsTable } from './MonthsTable';
 import { TableToggle } from '@/components/page/TableToggle';
 

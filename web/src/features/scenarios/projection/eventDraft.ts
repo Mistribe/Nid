@@ -1,5 +1,5 @@
 import type { Path } from 'react-hook-form';
-import { toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount, toWireAmount } from '@/lib/amount';
 import type { EventDate, EventKind, ProjectionEvent } from './api';
 
 /** A date as typed: a day, or a person's age (spec §4); an end may also be none. Every figure a string, as typed. */

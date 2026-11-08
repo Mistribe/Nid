@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
-import { formatInstant } from '@/features/admin/format';
+import { formatInstant } from '@/lib/format';
 import { expectNoAxeViolations } from '@/test/axe';
 import { expectOnePrimary } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';

@@ -20,7 +20,7 @@ import { PageTrail } from '@/components/page/trail';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Terms } from '../../loans/detail/Terms';
-import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { SALE_SCENARIO, SCENARIOS, type SaleResult, type SaleScenario } from '../api';
 import { fromSale, SaleFields, salePath, toSaleDocument, type SaleDraft } from './SaleFields';
 import '@/locales/scenarios';

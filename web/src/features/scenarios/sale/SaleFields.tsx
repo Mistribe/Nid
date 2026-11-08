@@ -6,7 +6,7 @@ import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { Input } from '@/components/ui/input';
-import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import type { SaleDocument, SaleScenario } from '../api';
 import { usePickOptions } from '../projection/pickOptions';
 import '@/locales/forms';

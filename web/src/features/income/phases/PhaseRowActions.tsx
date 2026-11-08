@@ -4,7 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { invalidateIncome, PHASE, type IncomePhase, type IncomeSourceDetail } from '../api';
 import { RowActions } from '@/components/page/RowActions';
-import { presentConflict } from '../../investments/entries/entries';
+import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/income';
 
 /**

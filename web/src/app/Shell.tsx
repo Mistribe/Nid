@@ -13,7 +13,7 @@ import { NotificationBell } from './NotificationBell';
 import { RoutineBadge } from './RoutineBadge';
 import { TopBarTrail } from './TopBarTrail';
 import { TrailProvider } from '@/components/page/trail';
-import { section, TAB_ORDER, visibleNav, type NavItem } from './nav';
+import { section, TAB_ORDER, visibleNav, type NavItem } from '@/components/nav';
 import { useSession } from './Providers';
 import { AVATAR, initials, useSidebar } from './sidebar';
 

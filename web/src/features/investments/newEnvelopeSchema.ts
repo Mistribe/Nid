@@ -1,9 +1,8 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import { checkOwnership, ownershipShape, ownershipToWire, type OwnershipValues } from '@/components/ownership/ownership';
-import { CURRENCY, ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
-import { todayIso } from '../subscriptions/today';
-import { POSITIVE_AMOUNT, SIGNED_AMOUNT } from './entries/entries';
+import { CURRENCY, ISO_DATE, toWireAmount, POSITIVE_AMOUNT, SIGNED_AMOUNT } from '@/lib/amount';
+import { todayIso } from '@/lib/today';
 import { CADENCES, KINDS, REGULATED } from './format';
 import '@/locales/investments';
 import '@/locales/forms';

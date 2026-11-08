@@ -11,7 +11,7 @@ import { Section } from '@/components/page/Section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatInstant } from '@/features/admin/format';
+import { formatInstant } from '@/lib/format';
 import { NewTokenDialog } from './NewTokenDialog';
 import { TOKEN, TOKENS } from './tokens';
 
