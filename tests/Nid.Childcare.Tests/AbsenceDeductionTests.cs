@@ -31,12 +31,12 @@ public class AbsenceDeductionTests
         => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((9, AbsenceReason.ParentRtt), (10, AbsenceReason.Family)), Plan, 0));
 
     [Fact]
-    public void A_deduction_on_a_short_tuesday_uses_8_5_hours()
+    public void A_short_day_weighs_as_much_as_a_long_one()
     {
         var plan = Household(D(2026, 9, 1));
         var days = Absent(StatementPreparation.Prepare(new YearMonth(2026, 11), plan, []), (3, AbsenceReason.CarerAbsent));
-        // November plans 37.75 + 39 + 37.75 + 39 + 9.75 (Monday 30th alone) = 163.25 h; the short Tuesday is 08:15-16:45 = 8.5 h.
-        Assert.Equal((Mensualisation.Round(698.20m * 8.5m / 163.25m), 1, 0), AbsenceDeduction.Compute(698.20m, days, plan, 0));
+        // Art. 111, 46 weeks or fewer: one day of November's 17 template days, whatever its hours.
+        Assert.Equal((Mensualisation.Round(698.20m / 17m), 1, 0), AbsenceDeduction.Compute(698.20m, days, plan, 0));
     }
 
     [Fact]
