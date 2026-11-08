@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.28@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b
 # nid: the backend and the web app in one image (single-image design §2). Build context: the repository root (docker build -f src/Nid.Host/Dockerfile .).
-FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:0d99ebf1ccad15037b5c98c9fe8979d6b8dbac23812feae2277a0b277b5c5ffa AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e AS build
 ARG TARGETARCH
 # The semver of the release (CI passes it); 0.0.0 for a local build.
 ARG VERSION=0.0.0
@@ -24,7 +24,7 @@ RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets /volumes/var/
  && chown -R 1654:1654 /volumes/var/lib/nid && chmod 0700 /volumes/var/lib/nid/keys /volumes/var/lib/nid/logs && chmod 0750 /volumes/var/lib/nid/documents
 
 # The web app: its build and the security headers file the host answers the SPA with (frontend/architecture.md §9: one source).
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS web
+FROM node:24-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS web
 WORKDIR /web
 RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.npmrc ./
@@ -38,7 +38,7 @@ RUN pnpm build && node scripts/security-headers.mjs > /security-headers.json
 
 # -extra: ICU and time zone data. Globalization is not invariant (Directory.Build.props), so .NET needs ICU;
 # glibc, libstdc++ and libgcc_s, all SkiaSharp needs, are in every chiseled variant.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:3ed6558056b54d5c9dfefb7ff473728e022ff2bf1d976cbf8ee07b05ec594374
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:a9298ccc39c6258ae71228479e2f3f8d2ceb6639a9927262a4b0ff7d319a0e7e
 WORKDIR /app
 COPY --from=build /app ./
 # The SPA the host serves (Web:Root) and its headers (Web:SecurityHeaders), both under the content root.

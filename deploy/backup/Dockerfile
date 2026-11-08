@@ -3,7 +3,7 @@
 # from the repository. Not postgres:18-alpine: its VOLUME would give every backup container an anonymous volume.
 FROM restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510 AS restic
 
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+FROM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a
 RUN apk add --no-cache postgresql18-client sqlite jq ca-certificates tzdata
 COPY --from=restic /usr/bin/restic /usr/local/bin/restic
 COPY lib.sh /usr/local/lib/nid-backup/lib.sh

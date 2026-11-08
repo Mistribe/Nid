@@ -2,7 +2,7 @@
 # docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml up -d --build
 services:
   proxy:
-    image: caddy:2-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    image: caddy:2-alpine@sha256:78bd35025c7ba85961dd149ae670315129954e77abe2383ac47c89106b35ade9
     volumes: [./local/Caddyfile:/etc/caddy/Caddyfile:ro]
     ports: ["443:443"]
     networks:
@@ -21,7 +21,7 @@ services:
   # The mail catcher: nid sends its notification emails here and the journeys read them from its API (8025). Never on a real
   # deployment. `edge` is internal, so `outside` carries the published port.
   mailpit:
-    image: axllent/mailpit:v1.31.4
+    image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
     ports: ["127.0.0.1:8025:8025"]
     networks: [edge, outside]
 
