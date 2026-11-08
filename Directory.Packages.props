@@ -31,7 +31,7 @@
     <PackageVersion Include="xunit.v3.assert" Version="4.0.2" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.4" />
-    <PackageVersion Include="Quartz" Version="4.6.2" />
+    <PackageVersion Include="Quartz" Version="4.7.2" />
     <!-- Rotated log files (#267): Microsoft.Extensions.Logging has no file provider. -->
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
