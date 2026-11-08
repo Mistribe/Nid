@@ -153,7 +153,7 @@ function RevisionNotes({ property, tenancy, history, onRevise, onUndone }: {
       {revision?.lostAnniversary ? <p>{t('property_rental.revision_lost', { date: formatLocalDate(revision.lostAnniversary) })}</p> : null}
       {undo.error ? <ProblemMessage problem={presentRefusal(t, undo.error)} /> : null}
       <div className="flex flex-wrap items-center gap-2">
-        {writable && revision?.state === 'due' ? <Button type="button" size="sm" onClick={onRevise}>{t('property_rental.revise')}</Button> : null}
+        {writable && revision && tenancy.current && revision.state !== 'forbidden_dpe' ? <Button type="button" size="sm" variant={revision.state === 'due' ? 'default' : 'outline'} onClick={onRevise}>{t('property_rental.revise')}</Button> : null}
         {writable && tenancy.revisedFrom ? (
           <ConfirmAction label={t('property_rental.undo_revision')} confirmation={t('property_rental.undo_confirm')} pending={undo.isPending}
             onConfirm={() => undo.mutate({ params: { path: { id: property.id, tenancyId: tenancy.id } } })} />

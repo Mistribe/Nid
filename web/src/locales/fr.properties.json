@@ -83,6 +83,8 @@
     "revision_compare": "IRL {{irl}} % · inflation sur la même période {{cpi}} % (jusqu’à fin {{month}})",
     "revision_cpi_missing": { "unavailable": "inflation observée indisponible", "not_published": "inflation pas encore publiée pour cette période" },
     "revision_rents": "Loyer actuel {{current}} · nouveau loyer {{next}}",
+    "revision_new_rent": "Nouveau loyer mensuel",
+    "revision_current_rent": "Loyer actuel {{current}}",
     "revision_date": "Date d’effet",
     "revision_date_hint": "Les loyers dus à partir de cette date passent au nouveau montant.",
     "revision_dpe_unknown": "DPE non renseigné : la révision est interdite en F ou G",

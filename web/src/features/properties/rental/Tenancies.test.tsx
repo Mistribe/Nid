@@ -417,16 +417,16 @@ describe('tenancies', () => {
   });
 
   it.each([
-    ['irl_missing', 'IRL du 2ᵉ trimestre 2026 manquant', '2026-Q2'],
-    ['irl_missing', 'IRL du 1ᵉʳ trimestre 2027 manquant', '2027-Q1'],
-    ['forbidden_dpe', 'Révision interdite (DPE F/G)', null],
-  ])('says why a revision is not offered: %s', async (state, text, missingQuarter) => {
+    ['irl_missing', 'IRL du 2ᵉ trimestre 2026 manquant', '2026-Q2', true],
+    ['irl_missing', 'IRL du 1ᵉʳ trimestre 2027 manquant', '2027-Q1', true],
+    ['forbidden_dpe', 'Révision interdite (DPE F/G)', null, false],
+  ])('says why no IRL revision is offered, a free one staying open but in F or G: %s', async (state, text, missingQuarter, free) => {
     const revision = { state, dpeUnknown: false, missingQuarter, cpi: { percent: null, inflationTo: null, missing: null } };
     serve(propertyDetail({ figures: rentedFigures(), tenancies: [tenancy({ indexed: true, irlReferenceQuarter: 2, revision })] }));
     await renderApp(PAGE);
 
     expect((await rows())[0]).toHaveTextContent(text);
-    expect(screen.queryByRole('button', { name: 'Réviser le loyer' })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: 'Réviser le loyer' })).toHaveLength(free ? 1 : 0);
   });
 
   it('says a revision was missed', async () => {

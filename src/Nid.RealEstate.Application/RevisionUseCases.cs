@@ -17,8 +17,11 @@ public sealed record GetTenancyRevisionQuery(ItemId ItemId, Guid Tenancy) : IQue
     public AccessKind Access => AccessKind.Read;
 }
 
-/// <summary>Rental spec §3.3: the old tenancy ends on <paramref name="EffectiveOn"/>, a new one at the revised rent starts there; its id.</summary>
-public sealed record AcceptRentRevisionCommand(ItemId ItemId, Guid Tenancy, LocalDate EffectiveOn) : ICommand<Guid>, IItemScoped
+/// <summary>
+/// Rental spec §3.3: the old tenancy ends on <paramref name="EffectiveOn"/>, a new one at the revised rent starts there; its id.
+/// <paramref name="NewRent"/> makes it a free revision: no IRL or anniversary, any current last link but in energy class F or G.
+/// </summary>
+public sealed record AcceptRentRevisionCommand(ItemId ItemId, Guid Tenancy, LocalDate EffectiveOn, decimal? NewRent = null) : ICommand<Guid>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -151,19 +154,37 @@ public sealed class AcceptRentRevisionHandler(
             return Result.Failure<Guid>(new NotFoundFailure("tenancy", command.Tenancy.ToString()));
 
         var today = await calendar.TodayAsync(ct);
-        var state = RentRevisions.Of(found.Property, current, await irl.ListAsync(ct), today).State;
-        if (state is RevisionForbiddenDpe)
-            return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionForbiddenDpe, "A property in energy class F or G is not revised."));
-        if (state is not RevisionDue due)
-            return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionNotDue, "This tenancy has no revision due."));
         var old = current.Tenancy;
-        if (!RentRevision.EffectiveOnAllowed(command.EffectiveOn, due.Anniversary, today, old.EndsOn))
-            return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionEffectiveOn,
-                "The effective date lies between the anniversary and today, on or before the tenancy's end.", "effectiveOn"));
+        decimal newRent;
+        if (command.NewRent is { } typed)
+        {
+            if (found.Property.Tenancies.Any(t => t.RevisedFrom == current.Id) || old.EndsOn is { } end && end < today)
+                return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionNotDue, "Only the last link of a running tenancy is revised."));
+            if (found.Property.Details.EnergyClass is "F" or "G")
+                return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionForbiddenDpe, "A property in energy class F or G is not revised."));
+            if (typed <= 0)
+                return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.InvalidPropertyField, "The new rent is positive.", "newRent"));
+            if (!RentRevision.EffectiveOnAllowed(command.EffectiveOn, old.StartsOn.PlusDays(1), today, old.EndsOn))
+                return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionFreeEffectiveOn,
+                    "The effective date lies after the tenancy's start, up to today, on or before its end.", "effectiveOn"));
+            newRent = typed;
+        }
+        else
+        {
+            var state = RentRevisions.Of(found.Property, current, await irl.ListAsync(ct), today).State;
+            if (state is RevisionForbiddenDpe)
+                return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionForbiddenDpe, "A property in energy class F or G is not revised."));
+            if (state is not RevisionDue due)
+                return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionNotDue, "This tenancy has no revision due."));
+            if (!RentRevision.EffectiveOnAllowed(command.EffectiveOn, due.Anniversary, today, old.EndsOn))
+                return Result.Failure<Guid>(RentRevisions.Refusal(PropertyCodes.RevisionEffectiveOn,
+                    "The effective date lies between the anniversary and today, on or before the tenancy's end.", "effectiveOn"));
+            newRent = due.NewRent;
+        }
 
         var id = Guid.CreateVersion7();
         await properties.UpdateTenancyAsync(command.ItemId, current.Id, old with { EndsOn = command.EffectiveOn.PlusDays(-1) }, ct);
-        await properties.AddTenancyAsync(command.ItemId, id, old with { StartsOn = command.EffectiveOn, RentMonthly = due.NewRent }, ct, revisedFrom: current.Id);
+        await properties.AddTenancyAsync(command.ItemId, id, old with { StartsOn = command.EffectiveOn, RentMonthly = newRent }, ct, revisedFrom: current.Id);
         await transaction.CommitAsync(ct);
         return Result.Success(id);
     }

@@ -47,6 +47,7 @@ public static class PropertyCodes
     /// <summary>Rental spec §3.3: accepting a revision that is not due, on a date outside its window, in F or G; undoing one too late.</summary>
     public const string RevisionNotDue = "realestate.revision_not_due";
     public const string RevisionEffectiveOn = "realestate.revision_effective_on";
+    public const string RevisionFreeEffectiveOn = "realestate.revision_free_effective_on";
     public const string RevisionForbiddenDpe = "realestate.revision_forbidden_dpe";
     public const string RevisionUndoRefused = "realestate.revision_undo_refused";
 
