@@ -10,7 +10,15 @@
     { "matchManagers": ["nuget"], "groupName": "NuGet", "addLabels": ["backend"] },
     { "matchManagers": ["npm"], "groupName": "web", "addLabels": ["web"] },
     { "matchManagers": ["github-actions"], "groupName": "GitHub Actions", "addLabels": ["infra"] },
-    { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "images", "addLabels": ["infra"] }
+    { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "images", "addLabels": ["infra"] },
+    {
+      "description": "openapi-typescript and typescript-eslint use the TypeScript JS API, which TypeScript 7 no longer has; the type check already runs TypeScript 7 as typescript-native. Lift once both support it.",
+      "matchPackageNames": ["typescript"], "allowedVersions": "<7"
+    },
+    {
+      "description": "A Postgres major cannot read the previous major's data: it needs pg_upgrade or a dump and restore of the household's database, and the image's volume path changes with 18. Done by hand, with that migration.",
+      "matchPackageNames": ["postgres"], "matchUpdateTypes": ["major"], "enabled": false
+    }
   ],
   "lockFileMaintenance": { "enabled": true, "addLabels": ["web"] },
   "vulnerabilityAlerts": { "schedule": ["at any time"], "addLabels": ["bug"] }
