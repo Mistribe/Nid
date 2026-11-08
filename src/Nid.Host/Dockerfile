@@ -26,7 +26,8 @@ RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets /volumes/var/
 # The web app: its build and the security headers file the host answers the SPA with (frontend/architecture.md §9: one source).
 FROM node:24-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS web
 WORKDIR /web
-RUN corepack enable
+# Node 25+ no longer ships corepack: install it, it then runs the pnpm of package.json's packageManager.
+RUN npm install --global corepack@0.36.0 && corepack enable
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.npmrc ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm pnpm install --frozen-lockfile
 COPY web/ ./
