@@ -47005,6 +47005,12 @@
               "null",
               "string"
             ]
+          },
+          "newRent": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

@@ -28,7 +28,8 @@ export function Declaration({ declaration, computed, missing, entry }: {
 }) {
   const { t } = useTranslation();
   const nid = computed ?? declaration;
-  const columns = entry ? 'sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,auto)_7rem]' : 'sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,auto)]';
+  // Each row is its own grid: only fixed tracks line the rows up.
+  const columns = entry ? 'sm:grid-cols-[minmax(0,1fr)_7rem_16rem_7rem]' : 'sm:grid-cols-[minmax(0,1fr)_7rem_16rem]';
   const caption = (key: 'computed' | 'used') => <span className="text-xs text-muted-foreground sm:sr-only">{t(`childcare_statement.column.${key}`)}</span>;
   const shown = (key: Key, value: DeclarationView[Key]) => (isQuestion(key) && none(value)
     ? t('childcare_statement.answer_no')
@@ -47,7 +48,7 @@ export function Declaration({ declaration, computed, missing, entry }: {
           <div aria-hidden="true" className={`hidden gap-3 px-3 py-2 text-xs text-muted-foreground sm:grid ${columns}`}>
             <span />
             <span>{t('childcare_statement.column.computed')}</span>
-            <span>{t('childcare_statement.column.used')}</span>
+            <span className="px-2">{t('childcare_statement.column.used')}</span>
             {entry ? <span>{t('childcare_statement.column.entry')}</span> : null}
           </div>
           {ORDER.filter((key) => declaration[key] !== null || isQuestion(key)).map((key) => {
@@ -59,13 +60,13 @@ export function Declaration({ declaration, computed, missing, entry }: {
               <div key={key} className={`grid grid-cols-2 items-center gap-x-3 gap-y-1 px-3 py-2 ${columns}`}>
                 <dt className="col-span-2 text-sm sm:col-span-1">{title}</dt>
                 <dd className="flex flex-col">{caption('computed')}<span className="tabular-nums">{shown(key, nid![key])}</span></dd>
-                <dd className={`flex flex-col rounded-md ${differs ? 'bg-status-warning/10 px-2 py-1' : ''}`}>
+                <dd className={`flex flex-col rounded-md px-2 py-1 ${differs ? 'bg-status-warning/10' : ''}`}>
                   {caption('used')}
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_2.75rem_auto]">
                     <span className="tabular-nums font-medium">{shown(key, declaration[key])}</span>
                     {differs ? <span className="text-xs text-status-warning-text">{t('childcare_statement.differs')}</span> : null}
                     {isQuestion(key) && none(declaration[key]) ? null : (
-                      <Button type="button" variant="outline" size="sm" aria-label={t('childcare_statement.copy_of', { field: label })}
+                      <Button type="button" variant="outline" size="sm" className="sm:col-start-3" aria-label={t('childcare_statement.copy_of', { field: label })}
                         onClick={() => { void navigator.clipboard.writeText(value).then(() => toast.success(t('childcare_statement.copied', { field: label }))); }}>
                         {t('childcare_statement.copy')}
                       </Button>

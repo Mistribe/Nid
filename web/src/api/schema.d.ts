@@ -30557,6 +30557,7 @@ export interface components {
         };
         RentRevisionBody: {
             effectiveOn?: null | string;
+            newRent?: null | string;
         };
         RetirementBody: {
             birthDate?: null | string;

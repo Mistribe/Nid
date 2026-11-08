@@ -70,6 +70,33 @@ describe('revision dialog', () => {
     expect((await open(user)).getByText('DPE non renseigné : la révision est interdite en F ou G')).toBeInTheDocument();
   });
 
+  it('sends the rent typed over the IRL one', async () => {
+    const sent = serve();
+    const { user } = await renderApp(PAGE);
+
+    const dialog = await open(user);
+    const rent = dialog.getByLabelText('Nouveau loyer mensuel');
+    expect(rent).toHaveValue('919.84');
+    await user.clear(rent);
+    await user.type(rent, '950');
+    await user.click(dialog.getByRole('button', { name: 'Réviser' }));
+
+    await waitFor(() => expect(sent).toEqual([{ effectiveOn: '2026-09-01', newRent: '950' }]));
+  });
+
+  it('revises a tenancy with no revision due, by hand', async () => {
+    const sent = serve({ state: 'none', currentRent: '900.00', dpeUnknown: false, cpi: { percent: null, inflationTo: null, missing: null } });
+    const { user } = await renderApp(PAGE);
+
+    const dialog = await open(user);
+    expect(dialog.getByLabelText('Nouveau loyer mensuel')).toHaveAccessibleDescription(/Loyer actuel 900,00/);
+    await user.type(dialog.getByLabelText('Nouveau loyer mensuel'), '950');
+    await user.click(dialog.getByRole('button', { name: 'Réviser' }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({ newRent: '950' });
+  });
+
   it('shows the server’s refusal of the date on the field', async () => {
     serve(due, () => HttpResponse.json({
       status: 422, code: 'realestate.revision_effective_on', title: 'x',

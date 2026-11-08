@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { monthText } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { money } from '../../loans/format';
 import { presentRefusal } from '../../loans/refusal';
 import { todayIso } from '../../subscriptions/today';
@@ -26,7 +27,8 @@ const signed = new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minim
 
 /**
  * « Réviser le loyer »: the two IRL values and the rents as the server worked them out, and the date the new rent takes
- * effect (the server's default, never after today). The server refuses a date outside its window on the field.
+ * effect (the server's default, never after today). The server refuses a date outside its window on the field. Without a revision
+ * due, or with its rent changed, the rent typed is sent: a free revision.
  */
 export function RevisionDialog({ property, tenancy, onClose, onDone }: {
   property: PropertyDetail; tenancy: PropertyTenancy; onClose: () => void; onDone: (message: string) => void;
@@ -36,7 +38,9 @@ export function RevisionDialog({ property, tenancy, onClose, onDone }: {
   const queryClient = useQueryClient();
   const revision = tenancy.revision;
   const [effectiveOn, setEffectiveOn] = useState(revision?.defaultEffectiveOn ?? todayIso());
+  const [rent, setRent] = useState(revision?.newRent ?? '');
   const [error, setError] = useState<string | undefined>();
+  const [rentError, setRentError] = useState<string | undefined>();
   const [problem, setProblem] = useState(false);
   const accept = $api.useMutation('post', REVISION);
   if (!revision) return null;
@@ -49,11 +53,17 @@ export function RevisionDialog({ property, tenancy, onClose, onDone }: {
           ev.stopPropagation();
           setProblem(false);
           setError(undefined);
-          accept.mutate({ params: { path: { id: property.id, tenancyId: tenancy.id } }, body: { effectiveOn } }, {
+          setRentError(undefined);
+          const body = rent === revision.newRent ? { effectiveOn } : { effectiveOn, newRent: rent };
+          accept.mutate({ params: { path: { id: property.id, tenancyId: tenancy.id } }, body }, {
             onSuccess: () => { void invalidateProperties(queryClient); done(t('property_rental.revision_done')); },
             onError: (e) => {
-              const field = fieldErrorsOf(e).find((f) => f.path === 'effectiveOn');
-              if (field) setError(messageFor(t, field)); else setProblem(true);
+              const fields = fieldErrorsOf(e);
+              const date = fields.find((f) => f.path === 'effectiveOn');
+              const amount = fields.find((f) => f.path === 'newRent');
+              if (date) setError(messageFor(t, date));
+              if (amount) setRentError(messageFor(t, amount));
+              if (!date && !amount) setProblem(true);
             },
           });
         }}>
@@ -78,6 +88,10 @@ export function RevisionDialog({ property, tenancy, onClose, onDone }: {
             })}</p>
           ) : null}
           {revision.dpeUnknown ? <p role="note" className="text-sm text-muted-foreground">{t('property_rental.revision_dpe_unknown')}</p> : null}
+          <Field label={t('property_rental.revision_new_rent')} error={rentError}
+            hint={revision.newRent || !revision.currentRent ? undefined : t('property_rental.revision_current_rent', { current: money(property.currency, revision.currentRent) })}>
+            {(c) => <Input inputMode="decimal" {...c} value={rent} onChange={(ev) => setRent(ev.target.value)} />}
+          </Field>
           <Field label={t('property_rental.revision_date')} hint={t('property_rental.revision_date_hint')} error={error}>
             {(c) => <DateField {...c} max={todayIso()} value={effectiveOn} onChange={setEffectiveOn} />}
           </Field>

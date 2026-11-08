@@ -97,7 +97,8 @@ public static class RouteActions
             "Remove a tenancy. " + Ids + Versioned, Destructive: true, Query: ["version"]),
         new("rent_revision", "POST", "/api/v1/realestate/properties/{id:guid}/tenancies/{tenancyId:guid}/revision", typeof(RentRevisionBody),
             "Accept a tenancy's yearly rent revision (get_rent_revisions lists those due): the rent changes from effectiveOn, between the "
-            + "anniversary and today. " + Ids + Amounts),
+            + "anniversary and today. With newRent, a free revision of a running tenancy: that rent from effectiveOn, after the tenancy's start "
+            + "and up to today. " + Ids + Amounts),
         new("undo_rent_revision", "DELETE", "/api/v1/realestate/properties/{id:guid}/tenancies/{tenancyId:guid}/revision", null,
             "Undo a tenancy's last rent revision, while no rent is recorded from its start. " + Ids, Destructive: true),
         new("record_property_routine", "POST", "/api/v1/realestate/routine", typeof(PropertyRoutineBody),
