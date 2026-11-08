@@ -2,7 +2,7 @@ namespace Nid.Platform.Infrastructure.Persistence;
 
 /// <summary>
 /// The tables of Quartz.NET 4.1.1 (<c>database/tables/tables_postgres.sql</c> at tag v4.1.1), in the platform
-/// schema, brought to 4.6.2 by <see cref="Upgrade46"/>. Created by migrations so the schema has one owner (EF);
+/// schema, brought to 4.6.2 by <see cref="Upgrade46"/> and to 4.7.2 by <see cref="Upgrade47"/>. Created by migrations so the schema has one owner (EF);
 /// Quartz only validates it at startup. A Quartz upgrade that changes the schema needs a new migration with the
 /// upstream migration scripts.
 /// </summary>
@@ -124,6 +124,11 @@ public static class QuartzSchema
         ALTER TABLE platform.qrtz_paused_job_grps DROP COLUMN pause_reason, DROP COLUMN paused_by, DROP COLUMN paused_at;
         ALTER TABLE platform.qrtz_scheduler_state DROP COLUMN quartz_version;
         """;
+
+    /// <summary>Quartz.NET 4.7: <c>database/migrations/4.7/add_trigger_fixed_delay_postgres.sql</c> at tag v4.7.2.</summary>
+    public const string Upgrade47 = "ALTER TABLE platform.qrtz_triggers ADD COLUMN fixed_delay BOOL NULL;";
+
+    public const string Downgrade47 = "ALTER TABLE platform.qrtz_triggers DROP COLUMN fixed_delay;";
 
     public const string Drop = """
         DROP TABLE IF EXISTS platform.qrtz_fired_triggers, platform.qrtz_paused_trigger_grps, platform.qrtz_paused_job_grps,
