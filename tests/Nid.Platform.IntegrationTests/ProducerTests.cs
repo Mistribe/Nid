@@ -113,7 +113,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await cancelled.CancelAsync();
 
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], cancelled.Token);
+            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], new Nid.Platform.AccessViolationCause(Nid.Platform.AccessViolationReasons.OutsideVisibleSet), cancelled.Token);
 
         Assert.All(await RowsAsync(app, "access_violation"), r => Assert.Equal("access_violation:GetX:2025-10-15", r.Key));
         Assert.Equal(2, (await RowsAsync(app, "access_violation")).Count);
@@ -129,7 +129,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         });
 
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], TestContext.Current.CancellationToken);
+            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], new Nid.Platform.AccessViolationCause(Nid.Platform.AccessViolationReasons.OutsideVisibleSet), TestContext.Current.CancellationToken);
 
         var rows = await RowsAsync(app, "access_violation");
         Assert.Equal(2, rows.Count);

@@ -48648,6 +48648,30 @@
           }
         }
       },
+      "SecurityEventItem": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "SecurityEventPage": {
         "required": [
           "entries"
@@ -48675,7 +48699,8 @@
           "at",
           "event",
           "actor",
-          "details"
+          "details",
+          "items"
         ],
         "type": "object",
         "properties": {
@@ -48704,6 +48729,12 @@
             "type": "object",
             "additionalProperties": {
               "type": "string"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityEventItem"
             }
           }
         }

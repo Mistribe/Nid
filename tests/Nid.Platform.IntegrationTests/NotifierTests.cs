@@ -272,7 +272,7 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         async Task ViolateAsync()
         {
             await using var scope = app.Services.CreateAsyncScope();
-            await scope.ServiceProvider.GetRequiredService<IAccessViolations>().RecordAsync("GetX", app.AdultA, [], default);
+            await scope.ServiceProvider.GetRequiredService<IAccessViolations>().RecordAsync("GetX", app.AdultA, [], new AccessViolationCause(AccessViolationReasons.OutsideVisibleSet), default);
         }
 
         for (var i = 0; i < 3; i++)

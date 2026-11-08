@@ -9,24 +9,42 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Platform;
 
+/// <summary>Why the guard withheld a response (#28): the journal and the log say the same.</summary>
+public static class AccessViolationReasons
+{
+    public const string NoActor = "no_actor";
+    public const string VisibilityLookupFailed = "visibility_lookup_failed";
+    public const string OutsideVisibleSet = "outside_visible_set";
+}
+
+/// <param name="Reason">One of <see cref="AccessViolationReasons"/>.</param>
+/// <param name="Error">What the visible-set lookup threw; logged, and only its type reaches the event.</param>
+public sealed record AccessViolationCause(string Reason, Exception? Error = null);
+
 /// <summary>Where an access violation is recorded: the log and the audit (1F3a); every adult is notified (spec U14, lifted).</summary>
 public interface IAccessViolations
 {
-    ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct);
+    ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, AccessViolationCause cause, CancellationToken ct);
 }
 
 /// <summary>Logs the violation without ever logging the leaked item's contents.</summary>
 public sealed partial class LoggingAccessViolations(ILogger<LoggingAccessViolations> logger) : IAccessViolations
 {
-    public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
+    public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, AccessViolationCause cause, CancellationToken ct)
     {
-        LogViolation(request, leaked.Count);
+        if (cause.Error is { } error)
+            LogLookupFailed(error, request);
+        LogViolation(request, leaked.Count, cause.Reason);
         return ValueTask.CompletedTask;
     }
 
     [LoggerMessage(Level = LogLevel.Critical, EventId = 4001,
-        Message = "access_violation: {Request} exposed {Count} item(s) outside the actor's visible set")]
-    private partial void LogViolation(string request, int count);
+        Message = "access_violation: {Request} withheld with {Count} item(s), reason {Reason}")]
+    private partial void LogViolation(string request, int count, string reason);
+
+    [LoggerMessage(Level = LogLevel.Error, EventId = 4002,
+        Message = "access_violation: the visible set could not be read for {Request}")]
+    private partial void LogLookupFailed(Exception exception, string request);
 }
 
 /// <summary>
@@ -39,13 +57,21 @@ public sealed partial class AuditedAccessViolations(
 {
     private static readonly TimeSpan CalendarBound = TimeSpan.FromSeconds(5);
 
-    public async ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
+    public async ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, AccessViolationCause cause, CancellationToken ct)
     {
-        await log.RecordAsync(request, actor, leaked, ct);
-        var data = new Dictionary<string, string> { ["request"] = request };
+        await log.RecordAsync(request, actor, leaked, cause, ct);
+        var data = new Dictionary<string, string>
+        {
+            ["request"] = request,
+            ["reason"] = cause.Reason,
+            ["count"] = leaked.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        // The type only: an exception's message may carry data.
+        if (cause.Error is { } error)
+            data["error"] = error.GetType().Name;
         await events.RecordAsync(new SecurityEvent(SecurityEventNames.AccessViolation, actor == default ? null : actor, leaked.ToList(), data, Guid.CreateVersion7()), ct);
         var day = (await HouseholdDayAsync()).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-        await notifier.PublishAsync(new Notice("access_violation", new Recipients.AllAdults(), $"access_violation:{request}:{day}", [], data), ct);
+        await notifier.PublishAsync(new Notice("access_violation", new Recipients.AllAdults(), $"access_violation:{request}:{day}", [], new Dictionary<string, string> { ["request"] = request }), ct);
     }
 
     /// <summary>
@@ -103,7 +129,7 @@ public sealed class OutputGuardBehavior<TRequest, TResponse>(
         // which returns PersonInfo. But the pass-through would silently bypass the guard the day one does.)
         if (accessor.Current?.PersonId is not { } actor)
         {
-            await violations.RecordAsync(typeof(TRequest).Name, default, exposed, cancellationToken);
+            await violations.RecordAsync(typeof(TRequest).Name, default, exposed, new AccessViolationCause(AccessViolationReasons.NoActor), cancellationToken);
             return Violation();
         }
 
@@ -112,9 +138,9 @@ public sealed class OutputGuardBehavior<TRequest, TResponse>(
         {
             allowed = await visible.ForAsync(actor, VisibilityScope.Me, includeArchived: true, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            await violations.RecordAsync(typeof(TRequest).Name, actor, exposed, cancellationToken);
+            await violations.RecordAsync(typeof(TRequest).Name, actor, exposed, new AccessViolationCause(AccessViolationReasons.VisibilityLookupFailed, e), cancellationToken);
             return Violation();
         }
 
@@ -122,7 +148,7 @@ public sealed class OutputGuardBehavior<TRequest, TResponse>(
         if (leaked.Count == 0)
             return result;
 
-        await violations.RecordAsync(typeof(TRequest).Name, actor, leaked, cancellationToken);
+        await violations.RecordAsync(typeof(TRequest).Name, actor, leaked, new AccessViolationCause(AccessViolationReasons.OutsideVisibleSet), cancellationToken);
         return Violation();
     }
 

@@ -69,9 +69,16 @@ public sealed record ItemHistoryPage(IReadOnlyList<ItemHistoryEntry> Entries, lo
     }
 }
 
-/// <summary>No item id, ever (spec §5.1): <see cref="Details"/> holds only what each event may show.</summary>
+/// <summary>An item a withheld response carried; <paramref name="Kind"/> and <paramref name="Name"/> only when the reading admin may see it.</summary>
+public sealed record SecurityEventItem(Guid Id, string? Kind, string? Name);
+
+/// <summary>
+/// <see cref="Details"/> holds only what each event may show. <see cref="Items"/> is filled by the admin journal alone, for a response
+/// withheld for items outside the visible set (#28); no other view carries an item id (spec §5.1).
+/// </summary>
 public sealed record SecurityEventView(
-    long Seq, DateTimeOffset At, string Event, AuditActorView Actor, Guid? SubjectPersonId, IReadOnlyDictionary<string, string> Details);
+    long Seq, DateTimeOffset At, string Event, AuditActorView Actor, Guid? SubjectPersonId, IReadOnlyDictionary<string, string> Details,
+    IReadOnlyList<SecurityEventItem> Items);
 
 public sealed record SecurityEventPage(IReadOnlyList<SecurityEventView> Entries, long? Next);
 
@@ -91,7 +98,7 @@ public static partial class SecurityEventViews
         [SecurityEventNames.AdminGranted] = ["source"],
         [SecurityEventNames.AdminRevoked] = ["source"],
         [SecurityEventNames.AccessDenied] = ["access"],
-        [SecurityEventNames.AccessViolation] = ["request"],
+        [SecurityEventNames.AccessViolation] = ["request", "reason", "count", "error"],
         [SecurityEventNames.HouseholdSettingsChanged] = ["fields"],
         [SecurityEventNames.TokenCreated] = ["preset"],
         [SecurityEventNames.TokenRevoked] = ["count"],
@@ -111,7 +118,7 @@ public static partial class SecurityEventViews
         var details = Shown.GetValueOrDefault(r.Action, [])
             .Where(k => data.TryGetValue(k, out var v) && v.ValueKind == JsonValueKind.String)
             .ToDictionary(k => k, k => data[k].GetString()!);
-        return new SecurityEventView(r.Seq, r.At.ToDateTimeOffset(), r.Action, new AuditActorView(r.ActorKind, r.PersonId, r.Via, r.TokenId), r.SubjectPersonId, details);
+        return new SecurityEventView(r.Seq, r.At.ToDateTimeOffset(), r.Action, new AuditActorView(r.ActorKind, r.PersonId, r.Via, r.TokenId), r.SubjectPersonId, details, []);
     }
 
     public static SecurityEventPage Page(IReadOnlyList<AuditRecord> records, int limit)

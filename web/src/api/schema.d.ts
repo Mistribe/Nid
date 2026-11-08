@@ -30953,6 +30953,12 @@ export interface components {
              */
             replaced: number;
         };
+        SecurityEventItem: {
+            /** Format: uuid */
+            id: string;
+            kind?: null | string;
+            name?: null | string;
+        };
         SecurityEventPage: {
             entries: components["schemas"]["SecurityEventView"][];
             /** Format: int64 */
@@ -30970,6 +30976,7 @@ export interface components {
             details: {
                 [key: string]: string;
             };
+            items: components["schemas"]["SecurityEventItem"][];
         };
         SeriesPoint: {
             /** Format: date */
