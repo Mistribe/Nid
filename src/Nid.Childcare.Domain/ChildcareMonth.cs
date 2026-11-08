@@ -8,12 +8,13 @@ public sealed record PaidLeaveInput(int MonthsWithCare, decimal ReferenceNetPay)
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
-/// share a week with it; <c>Cmg</c>: read from the Pajemploi summary; <c>Declared</c>: decision 30, the fields entered by hand.
+/// share a week with it; <c>Cmg</c>: read from the Pajemploi summary; <c>Declared</c>: decision 30, the fields entered by hand;
+/// <c>Contributions</c>: #30, the contributions left to the household on the Pajemploi summary.
 /// </summary>
 public sealed record MonthInput(
     YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
-    decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null);
+    decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null, decimal Contributions = 0m);
 
 /// <summary>Childcare spec §3 and §6: a month's Pajemploi declaration, its cost and its childcare tax base. Pure.</summary>
 public static class ChildcareMonth
@@ -56,8 +57,9 @@ public static class ChildcareMonth
             ?? (partial || deduction > 0m ? Mensualisation.NormalHours(basePay - deduction, input.Terms.NetHourlyRate) : Mensualisation.NormalHours(annualHours));
         var declaration = new PajemploiDeclaration(normalHours, activityDays, leaveDays,
             complementary, overtime, netPay, upkeep, meals, input.Mileage);
+        // #30: the CMG covers the contributions only up to an hourly ceiling; past it the household pays the rest, read from the summary.
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
-            netPay + upkeep + meals + input.Mileage - input.Cmg, netPay + upkeep - input.Cmg, childSick);
+            netPay + upkeep + meals + input.Mileage + input.Contributions - input.Cmg, netPay + upkeep + input.Contributions - input.Cmg, childSick, input.Contributions);
     }
 
     /// <summary>

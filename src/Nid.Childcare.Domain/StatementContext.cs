@@ -69,6 +69,10 @@ public static class StatementContext
         return Mensualisation.Round(validated.OrderByDescending(v => v.Month).Take(3).Average(v => v.Cmg));
     }
 
+    /// <summary>#30: the mean of the three latest validated months' contributions left to the household, to the cent; 0 without any.</summary>
+    public static decimal ContributionsEstimate(IReadOnlyList<(YearMonth Month, decimal Contributions)> validated)
+        => validated.Count == 0 ? 0m : Mensualisation.Round(validated.OrderByDescending(v => v.Month).Take(3).Average(v => v.Contributions));
+
     private static bool Overlaps(YearMonth month, LocalDate start, LocalDate? end)
         => month.OnDayOfMonth(1) <= (end ?? LocalDate.MaxIsoValue) && month.OnDayOfMonth(month.Calendar.GetDaysInMonth(month.Year, month.Month)) >= start;
 

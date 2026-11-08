@@ -117,6 +117,10 @@ public sealed record StatementRecord
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public required decimal Cmg { get; init; }
 
+    /// <summary>#30: the contributions the Pajemploi summary leaves to the household; absent for none.</summary>
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? Contributions { get; set; }
+
     public DeclaredRecord? Declared { get; set; }
 
     public required IReadOnlyList<DayRecord> Days { get; init; }

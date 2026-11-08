@@ -7,7 +7,8 @@ namespace Nid.Childcare.Application;
 
 /// <summary>
 /// Childcare decision 20: the current month's cost of each arrangement running this month — frozen once validated, else computed from its
-/// days with the CMG entered or estimated (decision 19), and the last validated cost when the month cannot be computed.
+/// days with the CMG and the contributions left to the household entered or estimated (decision 19, #30), and the last validated cost when the
+/// month cannot be computed.
 /// </summary>
 public sealed class ChildcareCommitments(IVisibleItems visible, IChildcareStore store, StatementAssembly assembly, IHouseholdSettings household)
     : ICommitmentsContribution
@@ -33,7 +34,9 @@ public sealed class ChildcareCommitments(IVisibleItems visible, IChildcareStore 
             {
                 var (days, stale) = await assembly.DaysAsync(context, ct);
                 var cmg = context.StoredMonth?.Cmg ?? StatementContext.CmgEstimate(validated.Select(s => (s.Month, s.Figures!.Cmg)).ToList()) ?? 0m;
-                var evaluation = await assembly.EvaluateAsync(context, days, stale, context.StoredMonth?.Mileage ?? 0m, cmg, context.StoredMonth?.Declared, ct);
+                var contributions = context.StoredMonth?.Contributions
+                    ?? StatementContext.ContributionsEstimate(validated.Select(s => (s.Month, s.Figures!.Contributions)).ToList());
+                var evaluation = await assembly.EvaluateAsync(context, days, stale, context.StoredMonth?.Mileage ?? 0m, cmg, context.StoredMonth?.Declared, contributions, ct);
                 cost = evaluation.Figures?.Cost ?? (validated.Count > 0 ? validated[^1].Figures!.Cost : null);
                 estimated |= cost is not null;
             }

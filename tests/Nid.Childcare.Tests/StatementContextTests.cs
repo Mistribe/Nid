@@ -95,5 +95,12 @@ public class StatementContextTests
     }
 
     [Fact]
+    public void Contributions_estimate_is_the_mean_of_the_three_latest()
+    {
+        Assert.Equal(20m, StatementContext.ContributionsEstimate([(M(2025, 8), 90m), (M(2025, 9), 0m), (M(2025, 10), 30m), (M(2025, 11), 30m)]));
+        Assert.Equal(0m, StatementContext.ContributionsEstimate([]));
+    }
+
+    [Fact]
     public void Rules_cover_2025() => Assert.Equal(4.22m, ChildcareRules.For(D(2025, 9, 1)).MinimumGuaranteed);
 }

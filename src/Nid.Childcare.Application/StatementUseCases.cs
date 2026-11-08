@@ -17,9 +17,11 @@ public sealed record MonthSummaryInput(int CareDays, decimal Hours, AbsenceReaso
 /// <summary>
 /// Decision 13: saves the month as a draft (created on its first save). <paramref name="Version"/>: the one read, 0 when nothing was
 /// stored. <paramref name="Summary"/>: decision 29, replaces <paramref name="Days"/>. <paramref name="Declared"/>: decision 30.
+/// <paramref name="Contributions"/>: #30, the contributions the Pajemploi summary leaves to the household.
 /// </summary>
 public sealed record SaveStatementCommand(
-    ItemId ItemId, YearMonth Month, IReadOnlyList<DayInput> Days, decimal Mileage, decimal? Cmg, uint Version, DeclaredFigures? Declared = null, MonthSummaryInput? Summary = null)
+    ItemId ItemId, YearMonth Month, IReadOnlyList<DayInput> Days, decimal Mileage, decimal? Cmg, uint Version, DeclaredFigures? Declared = null, MonthSummaryInput? Summary = null,
+    decimal? Contributions = null)
     : ICommand<ChildcareStatementView>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -74,13 +76,14 @@ public sealed class SaveStatementHandler(StatementAssembly assembly, IChildcareS
         var errors = Domain.StatementCheck.Days(command.Month, days).Select(p => new FieldError(p.Field, p.Code, StatementAssembly.Message(p.Code))).ToList();
         if (command.Mileage < 0) errors.Add(new("mileage", FieldErrors.ShapeCode, "Zero or more."));
         if (command.Cmg < 0) errors.Add(new("cmg", FieldErrors.ShapeCode, "Zero or more."));
+        if (command.Contributions < 0) errors.Add(new("contributions", FieldErrors.ShapeCode, "Zero or more."));
         if (command.Declared is { AnyNegative: true }) errors.Add(new("declared", FieldErrors.ShapeCode, "Zero or more."));
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ChildcareStatementView>(failure!);
 
         var written = await StatementResult.InTransactionAsync(unitOfWork,
             () => store.SaveDraftAsync(new Statement(command.ItemId, command.Month, false, command.Mileage, command.Cmg,
-                days.Where(d => !prepared.TryGetValue(d.Date, out var p) || p != d).ToList(), null, command.Version, null, command.Declared), ct), ct);
+                days.Where(d => !prepared.TryGetValue(d.Date, out var p) || p != d).ToList(), null, command.Version, null, command.Declared, command.Contributions), ct), ct);
         if (written.TryGetFailure(out failure))
             return Result.Failure<ChildcareStatementView>(failure!);
         return await StatementResult.ViewAsync(assembly, actor, command.ItemId, command.Month, ct);
@@ -112,7 +115,7 @@ public sealed class ValidateStatementHandler(StatementAssembly assembly, IChildc
             return Result.Failure<ChildcareStatementView>(FieldErrors.Shape([new("cmg", ChildcareCodes.CmgRequired, "Enter the CMG of the Pajemploi summary, 0 if none.")]));
 
         var (days, stale) = await assembly.DaysAsync(context, ct);
-        var evaluation = await assembly.EvaluateAsync(context, days, stale, stored.Mileage, stored.Cmg, stored.Declared, ct);
+        var evaluation = await assembly.EvaluateAsync(context, days, stale, stored.Mileage, stored.Cmg, stored.Declared, stored.Contributions ?? 0m, ct);
         if (evaluation.Figures is not { } figures)
             return Result.Failure<ChildcareStatementView>(new Failure(ChildcareCodes.StatementIncomplete,
                 "A day is inconsistent or a month of the reference period is not validated.", null));

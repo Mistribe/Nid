@@ -26599,6 +26599,7 @@ export interface components {
             cmgEstimate?: null | string;
             declared?: null | components["schemas"]["DeclaredView"];
             computed?: null | components["schemas"]["DeclarationView"];
+            contributions?: null | string;
         };
         ChildcareSummary: {
             /** Format: uuid */
@@ -26656,6 +26657,7 @@ export interface components {
             retained: components["schemas"]["ChildcareMoneyView"];
             validatedMonths: string[];
             notValidated: string[];
+            contributions?: null | components["schemas"]["ChildcareMoneyView"];
         };
         CloseBody: {
             closedOn: string;
@@ -31099,6 +31101,7 @@ export interface components {
             version?: null | number;
             declared?: null | components["schemas"]["DeclaredBody"];
             summary?: null | components["schemas"]["StatementSummaryBody"];
+            contributions?: null | string;
         };
         StatementDayBody: {
             date?: null | string;

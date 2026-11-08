@@ -51,6 +51,17 @@ public class ChildcareMonthTests
         Assert.Equal(396.58m, figures.TaxBase);
     }
 
+    /// <summary>#30, #31: the contributions the CMG leaves to the household (a month past the hourly ceiling) count in the cost and the tax base.</summary>
+    [Fact]
+    public void Contributions_left_to_the_household_count_in_the_cost()
+    {
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11)) with { Contributions = 40m });
+        Assert.Equal(626.37m, figures.Declaration.NetPay);
+        Assert.Equal(40m, figures.Contributions);
+        Assert.Equal(490.98m, figures.Cost);
+        Assert.Equal(436.58m, figures.TaxBase);
+    }
+
     [Fact]
     public void November_with_two_carer_absences()
     {

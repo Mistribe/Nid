@@ -92,25 +92,26 @@ public sealed record DeclaredView(
 /// Spec §5 « Relevé du mois ». <c>Figures</c> null while a day is inconsistent (<c>Problems</c>) or, in June, a month of the
 /// reference period is not validated (<c>MissingReferenceMonths</c>). <c>Version</c> 0: nothing stored yet. <c>CmgEstimate</c>: decision 19. <c>Declared</c>: decision 30.
 /// <c>Computed</c>: #32, the declaration as Nid computes it without the fields entered by hand, beside <c>Figures</c>' (the one the month uses).
+/// <c>Contributions</c>: #30, the contributions left to the household on the Pajemploi summary, in the cost; null while not entered (0 in the cost).
 /// </summary>
 public sealed record ChildcareStatementView(
     Guid Id, string Name, string Month, string State, IReadOnlyList<StatementDayView> Days, string Mileage, string? Cmg, StatementFiguresView? Figures,
     IReadOnlyList<FieldProblemView> Problems, IReadOnlyList<string> MissingReferenceMonths, bool CanWrite, bool CanReopen, uint Version,
-    string? CmgEstimate = null, DeclaredView? Declared = null, DeclarationView? Computed = null) : IExposesItems
+    string? CmgEstimate = null, DeclaredView? Declared = null, DeclarationView? Computed = null, string? Contributions = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }
 
 /// <summary>
 /// #411 « Récapitulatif {année} »: the year's validated months summed, as the tax estimate counts them. <c>Retained</c> is the
-/// « reste à charge retenu pour le crédit d'impôt » (net pay + upkeep − CMG), to write in <c>Box</c> (7GA, 7GB or 7GC; null past the
+/// « reste à charge retenu pour le crédit d'impôt » (net pay + upkeep + contributions left to the household − CMG), to write in <c>Box</c> (7GA, 7GB or 7GC; null past the
 /// third child). <c>NotValidated</c>: the year's months, <c>yyyy-MM</c>, left out because they are not validated. <c>Years</c>: those the
-/// arrangement has months in, newest first.
+/// arrangement has months in, newest first. <c>Contributions</c>: #30, those the CMG left to the household, in <c>Retained</c>.
 /// </summary>
 public sealed record ChildcareYearView(
     Guid Id, string Name, string ChildName, string CarerName, int Year, IReadOnlyList<int> Years, string? Box, ChildcareMoneyView NetPay,
     ChildcareMoneyView Cmg, ChildcareMoneyView Upkeep, ChildcareMoneyView Meals, ChildcareMoneyView Retained, IReadOnlyList<string> ValidatedMonths,
-    IReadOnlyList<string> NotValidated) : IExposesItems
+    IReadOnlyList<string> NotValidated, ChildcareMoneyView? Contributions = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }
