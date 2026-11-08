@@ -81,8 +81,10 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         decimal contributions, CancellationToken ct)
     {
         var previous = context.Month.PlusMonths(-1);
-        var stored = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
-        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, stored, mileage, cmg, declared, contributions);
+        var following = context.Month.PlusMonths(1);
+        var before = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
+        var after = context.Stored.Any(s => s.Month == following) ? await store.FindStatementAsync(context.Arrangement.ItemId, following, ct) : null;
+        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, before, mileage, cmg, declared, contributions, after);
     }
 
     public async Task<ChildcareStatementView> ViewAsync(PersonId reader, MonthContext context, CancellationToken ct)
@@ -94,10 +96,10 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         MonthEvaluation evaluation = stored is { Validated: true, Figures: { } frozen }
             ? new(frozen, [], [])
             : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, stored?.Contributions ?? 0m, ct);
-        // #32: Nid's own figures are the month's without the fields entered by hand; a validated month's days follow the template as it now is.
-        var computed = stored?.Declared is not { } typed || typed == new DeclaredFigures() || evaluation.Figures is null
+        // #32: Nid's own figures are always computed, without the fields entered by hand and never frozen; a validated month's days follow the template as it now is.
+        var computed = evaluation.Figures is null || stored is null || (!stored.Validated && (stored.Declared is null || stored.Declared == new DeclaredFigures()))
             ? evaluation.Figures
-            : (await EvaluateAsync(context, stored!.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, ct)).Figures;
+            : (await EvaluateAsync(context, stored.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, ct)).Figures;
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);
         var plan = context.Terms.Plan;
