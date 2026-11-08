@@ -29659,6 +29659,16 @@
                 "$ref": "#/components/schemas/DeclaredView"
               }
             ]
+          },
+          "computed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeclarationView"
+              }
+            ]
           }
         }
       },

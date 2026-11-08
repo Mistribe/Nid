@@ -91,11 +91,12 @@ public sealed record DeclaredView(
 /// <summary>
 /// Spec §5 « Relevé du mois ». <c>Figures</c> null while a day is inconsistent (<c>Problems</c>) or, in June, a month of the
 /// reference period is not validated (<c>MissingReferenceMonths</c>). <c>Version</c> 0: nothing stored yet. <c>CmgEstimate</c>: decision 19. <c>Declared</c>: decision 30.
+/// <c>Computed</c>: #32, the declaration as Nid computes it without the fields entered by hand, beside <c>Figures</c>' (the one the month uses).
 /// </summary>
 public sealed record ChildcareStatementView(
     Guid Id, string Name, string Month, string State, IReadOnlyList<StatementDayView> Days, string Mileage, string? Cmg, StatementFiguresView? Figures,
     IReadOnlyList<FieldProblemView> Problems, IReadOnlyList<string> MissingReferenceMonths, bool CanWrite, bool CanReopen, uint Version,
-    string? CmgEstimate = null, DeclaredView? Declared = null) : IExposesItems
+    string? CmgEstimate = null, DeclaredView? Declared = null, DeclarationView? Computed = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }

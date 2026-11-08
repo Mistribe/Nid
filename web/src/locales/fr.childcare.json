@@ -201,7 +201,9 @@
     "mileage": "Indemnités kilométriques (€)",
     "cmg_field": "CMG du récapitulatif Pajemploi (€)",
     "entry_of": "Saisie : {{field}}",
-    "entry_hint": "Seconde colonne : le chiffre retenu par Pajemploi, à la place de celui de Nid. Vide : le chiffre de Nid.",
+    "entry_hint": "Saisie manuelle : le chiffre retenu par Pajemploi, à la place de celui de Nid. Vide : le chiffre de Nid.",
+    "column": { "computed": "Calculé par Nid", "used": "Valeur retenue", "entry": "Saisie manuelle" },
+    "differs": "≠ Nid",
     "entry_save": "Enregistrer la saisie",
     "entered_by_hand": "saisi à la main",
     "summary": {
