@@ -1,4 +1,4 @@
-import type { DocumentDetail, DocumentLink, DocumentList, DocumentSummary, DocumentTargetList, DocumentTargetView } from './api';
+import type { DocumentDetail, DocumentLink, DocumentList, DocumentSummary, DocumentTargetList, DocumentTargetView } from '@/api/documents';
 
 export const DOC = '0192f0aa-0000-7000-8000-00000000d001';
 export const ITEM = '0192f0aa-0000-7000-8000-00000000e001';

@@ -3,7 +3,7 @@ import { Money } from '@/components/Money';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import type { GoalSummary } from './api';
+import type { GoalSummary } from '@/api/goals';
 import { pctText, statusText } from './format';
 import '@/locales/goals';
 

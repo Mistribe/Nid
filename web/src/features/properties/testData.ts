@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { CostRow, PropertyArrears, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertiesValuation, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyReturn, PropertyTenancy } from './api';
+import type { CostRow, PropertyArrears, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertiesValuation, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyReturn, PropertyTenancy } from '@/api/properties';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 

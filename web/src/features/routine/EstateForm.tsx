@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { LOAN_AMOUNT } from '../loans/new/loanForm';
-import { invalidateProperties } from '../properties/api';
+import { invalidateProperties } from '@/api/properties';
 import { categoryText } from '../properties/format';
 import { ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { Field, FieldLabel } from '@/components/form/Field';

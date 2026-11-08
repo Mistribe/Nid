@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { LoanSchedule, LoanScheduleRow } from '../api';
+import type { LoanSchedule, LoanScheduleRow } from '@/api/loans';
 import { money } from '../format';
 import { monthsOf } from '../schedule';
 import '@/locales/loans';

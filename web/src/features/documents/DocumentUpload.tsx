@@ -8,7 +8,8 @@ import type { FieldControl } from '@/components/form/Field';
 import { LocalDate } from '@/components/LocalDate';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { invalidateDocuments, uploadDocument, type DocumentSummary } from './api';
+import { invalidateDocuments, type DocumentSummary } from '@/api/documents';
+import { uploadDocument } from './api';
 import { shownDate } from './format';
 import '@/locales/documents';
 

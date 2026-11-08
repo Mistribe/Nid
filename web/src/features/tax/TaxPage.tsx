@@ -19,7 +19,7 @@ import { toPlot } from '@/lib/plot';
 import { Section } from '@/components/page/Section';
 import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
-import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from './api';
+import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from '@/api/tax';
 import { useTaxAssessments, type TaxAssessment } from './assessments/api';
 import { GapTable } from './assessments/GapTable';
 import { AssessmentView } from './assessments/AssessmentView';

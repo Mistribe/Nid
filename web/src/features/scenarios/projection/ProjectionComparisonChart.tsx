@@ -3,7 +3,7 @@ import { CartesianGrid, Line, LineChart, ReferenceDot, XAxis, YAxis } from 'rech
 import { formatCurrency } from '@/components/Money';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { cn } from '@/lib/utils';
-import type { HouseholdPoint, ProjectionMilestone } from '@/features/dashboard/api';
+import type { HouseholdPoint, ProjectionMilestone } from '@/api/dashboard';
 import { toPlot } from '@/lib/plot';
 import type { ChartSeries } from './chartSeries';
 import '@/locales/scenarios';

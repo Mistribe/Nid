@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { Charges } from '../api';
+import type { Charges } from '@/api/subscriptions';
 import { eur } from '../testData';
 
 const SPOTIFY = '0192f0aa-0000-7000-8000-0000000000d1';

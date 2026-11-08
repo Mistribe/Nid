@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Section } from '@/components/page/Section';
 import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
-import { BANK_PREVIEW, BANK_SCHEDULE, invalidateLoans, LOAN, type BankRow, type LoanComparison, type LoanDetail } from '../api';
+import { BANK_PREVIEW, BANK_SCHEDULE, invalidateLoans, LOAN, type BankRow, type LoanComparison, type LoanDetail } from '@/api/loans';
 import { money, signedMoney } from '../format';
 import { presentRefusal } from '../refusal';
 import { toWireBody } from '../settings/settingsBody';

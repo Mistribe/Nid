@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
-import { invalidateIncome, PHASE, type IncomePhase, type IncomeSourceDetail } from '../api';
+import { invalidateIncome, PHASE, type IncomePhase, type IncomeSourceDetail } from '@/api/income';
 import { RowActions } from '@/components/page/RowActions';
 import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/income';

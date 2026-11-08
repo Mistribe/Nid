@@ -6,7 +6,7 @@ import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { formatCurrency } from '@/components/Money';
 import { Input } from '@/components/ui/input';
-import type { Projection } from '@/features/dashboard/api';
+import type { Projection } from '@/api/dashboard';
 import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNames';
 import { YEARLY_CLASSES, projectionYears } from '../../settings/api';
 import { toWireAmount } from '@/lib/amount';

@@ -13,7 +13,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { invalidateIncome, ONE_OFF, ONE_OFFS, type IncomeOneOff, type IncomeSourceDetail } from '../api';
+import { invalidateIncome, ONE_OFF, ONE_OFFS, type IncomeOneOff, type IncomeSourceDetail } from '@/api/income';
 import { ONE_OFF_FALLBACK, ONE_OFF_PATHS, oneOffSchema, oneOffValuesOf, toWireOneOff, type OneOffValues } from './oneOff';
 import '@/locales/income';
 

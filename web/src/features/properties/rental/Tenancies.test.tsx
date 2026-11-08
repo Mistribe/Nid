@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { todayIso } from '@/lib/today';
-import type { PropertyDetail, PropertyTenancy } from '../api';
+import type { PropertyDetail, PropertyTenancy } from '@/api/properties';
 import { PROPERTY, propertyDetail, rentedFigures, tenancy } from '../testData';
 
 type Body = components['schemas']['PropertyTenancyBody'];

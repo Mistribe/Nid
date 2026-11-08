@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema';
-import type { IncomeSourceDetail } from '../api';
+import type { IncomeSourceDetail } from '@/api/income';
 
 /** What the settings form holds: every field as typed, compared and sent trimmed. */
 export type SettingsValues = { displayName: string; kind: string; payerLabel: string; note: string };

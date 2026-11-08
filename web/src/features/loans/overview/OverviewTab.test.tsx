@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { LoansOverview } from '../api';
+import type { LoansOverview } from '@/api/loans';
 import { CAR, household, LOAN, overview, overviewRow } from '../testData';
 import { expectOnePrimary } from '@/test/headerActions';
 

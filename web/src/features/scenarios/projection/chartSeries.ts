@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { HouseholdPoint } from '@/features/dashboard/api';
+import type { HouseholdPoint } from '@/api/dashboard';
 import type { ProjectionComparison } from './api';
 import '@/locales/scenarios';
 

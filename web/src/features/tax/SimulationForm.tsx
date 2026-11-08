@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Section } from '@/components/page/Section';
 import { REGIMES, regimeText } from './format';
 import { AMOUNT, toWireAmount } from '@/lib/amount';
-import { STATUSES, TAX_SIMULATE, type TaxEstimate, type TaxInputs, type TaxResult } from './api';
+import { STATUSES, TAX_SIMULATE, type TaxEstimate, type TaxInputs, type TaxResult } from '@/api/tax';
 import { RATE } from './profile/draft';
 import { ResultTable } from './ResultTable';
 import '@/locales/tax';

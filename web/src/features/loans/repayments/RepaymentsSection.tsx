@@ -8,7 +8,7 @@ import { RowActions } from '@/components/page/RowActions';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
-import { invalidateLoans, REPAYMENT, type LoanDetail, type LoanRepayment } from '../api';
+import { invalidateLoans, REPAYMENT, type LoanDetail, type LoanRepayment } from '@/api/loans';
 import { effectText, money } from '../format';
 import { presentRefusal } from '../refusal';
 import type { RepaymentPrefill } from './repayment';

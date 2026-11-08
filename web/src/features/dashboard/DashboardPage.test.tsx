@@ -1,4 +1,4 @@
-import { invalidateInvestments } from '../investments/api';
+import { invalidateInvestments } from '@/api/investments';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { delay } from 'msw/utils/delay';
@@ -7,7 +7,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { DashboardView } from './api';
+import type { DashboardView } from '@/api/dashboard';
 import { eur, overview, SALARY } from '../income/testData';
 import { curvePoint, dashboard, emptyDashboard, figure, netWorth, todoItem } from './testData';
 

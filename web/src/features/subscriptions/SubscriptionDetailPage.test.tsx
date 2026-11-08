@@ -9,7 +9,7 @@ import { expectHeaderActionRule, openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { Detail } from './api';
+import type { Detail } from '@/api/subscriptions';
 import { detail, eur, persons, SUB } from './testData';
 
 export function serveDetail(body: Detail | null) {

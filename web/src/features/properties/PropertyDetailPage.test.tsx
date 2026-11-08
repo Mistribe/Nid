@@ -10,7 +10,7 @@ import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { LOAN } from '../loans/testData';
-import type { PropertyDetail } from './api';
+import type { PropertyDetail } from '@/api/properties';
 import { PROPERTY, propertyDetail, rentedFigures } from './testData';
 
 const CHF = '0192f0aa-0000-7000-8000-00000000d002';

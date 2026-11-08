@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { HouseholdPerformance } from '../api';
+import type { HouseholdPerformance } from '@/api/investments';
 import { householdPerformance, overview, PEA, performance } from '../testData';
 
 const serve = (body: HouseholdPerformance, seen: string[] = []) =>

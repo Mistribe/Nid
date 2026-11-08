@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
 import { HeroBody, HeroChange, HeroUnknown } from '@/components/page/Hero';
 import { cn } from '@/lib/utils';
-import type { DashboardFigure, DashboardView } from './api';
+import type { DashboardFigure, DashboardView } from '@/api/dashboard';
 import { percent } from '@/lib/format';
 import { Sparkline } from './Sparkline';
 

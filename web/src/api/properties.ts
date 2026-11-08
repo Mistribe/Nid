@@ -1,8 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { components } from '@/api/schema';
-import { DASHBOARD } from '../dashboard/api';
-import { OVERVIEW } from '../income/api';
-import { TAX_SALE } from '../tax/api';
+import { DASHBOARD } from './dashboard';
+import { OVERVIEW } from './income';
+import { TAX_SALE } from './tax';
 
 export type PropertySummary = components['schemas']['PropertySummary'];
 export type PropertyArrears = components['schemas']['PropertyArrearsView'];

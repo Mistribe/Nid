@@ -22,7 +22,7 @@ import { Folded } from '@/components/form/Folded';
 import { PERSONS } from '@/api/persons';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateIncome, SOURCES } from './api';
+import { invalidateIncome, SOURCES } from '@/api/income';
 import { KINDS } from './format';
 import { newIncomePath, newIncomeSchema, toCreateBody, type NewIncomeValues } from './newIncomeSchema';
 import { newPhase } from './phases/phase';

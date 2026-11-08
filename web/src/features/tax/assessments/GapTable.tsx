@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { eur } from '../ResultTable';
-import type { TaxEstimate } from '../api';
+import type { TaxEstimate } from '@/api/tax';
 import '@/locales/tax';
 
 const CODES = ['net_tax', 'taxable_income', 'reference_income', 'withholding', 'balance'] as const;

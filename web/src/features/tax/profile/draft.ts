@@ -1,6 +1,6 @@
 import type { components } from '@/api/schema';
 import { AMOUNT, toFieldAmount, toWireAmount } from '@/lib/amount';
-import type { PinelCommitment, TaxEstimate } from '../api';
+import type { PinelCommitment, TaxEstimate } from '@/api/tax';
 import { ZERO } from '../format';
 
 /** A Pinel commitment as one choice: the initial years, then the total after the extensions. */

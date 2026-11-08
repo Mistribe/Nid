@@ -17,7 +17,7 @@ import { ISO_DATE, toWireAmount } from '@/lib/amount';
 import { Field } from '@/components/form/Field';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { SIMULATIONS, type LoanDetail, type LoanOutcome, type LoanSimulation } from '../api';
+import { SIMULATIONS, type LoanDetail, type LoanOutcome, type LoanSimulation } from '@/api/loans';
 import { EFFECTS, money, signedMoney } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import { presentRefusal } from '../refusal';

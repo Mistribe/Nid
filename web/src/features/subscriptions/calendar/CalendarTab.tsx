@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton';
 import board from '@/locales/fr.subscriptions-board.json';
 import { cn } from '@/lib/utils';
-import { CHARGES, type Charges } from '../api';
+import { CHARGES, type Charges } from '@/api/subscriptions';
 import { todayIso } from '@/lib/today';
 import { monthGrid, shiftMonth } from './monthGrid';
 import { Loading, StatLineSkeleton } from '@/components/page/skeletons';

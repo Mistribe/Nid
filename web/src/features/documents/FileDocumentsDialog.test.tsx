@@ -6,7 +6,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { DocumentSummary } from './api';
+import type { DocumentSummary } from '@/api/documents';
 import { list, summary, targets } from './testData';
 
 const BOX = '0192f0aa-0000-7000-8000-00000000e002';

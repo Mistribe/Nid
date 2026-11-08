@@ -19,7 +19,7 @@ import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ErrorPage } from '@/components/ErrorPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { SOURCE, SOURCE_OVERVIEW } from './api';
+import { SOURCE, SOURCE_OVERVIEW } from '@/api/income';
 import { EndDialog } from './closing/EndDialog';
 import { EndedBanner } from './closing/EndedBanner';
 import { CHANGE_AMOUNT_ID, ChangeAmountAction } from './detail/ChangeAmountAction';

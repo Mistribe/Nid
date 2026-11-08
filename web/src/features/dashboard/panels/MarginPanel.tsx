@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
-import type { DashboardView } from '../api';
+import type { DashboardView } from '@/api/dashboard';
 import { HouseholdMonth } from '../HouseholdMonth';
 
 /** Spec §4.2: the margin and the month it comes from, repeated from the home. */

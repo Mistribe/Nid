@@ -1,6 +1,6 @@
 import { useApi } from '@/api/ApiProvider';
-import { LOANS } from '../../loans/api';
-import { PROPERTIES } from '../../properties/api';
+import { LOANS } from '@/api/loans';
+import { PROPERTIES } from '@/api/properties';
 import { SCENARIOS } from '../api';
 
 /** The targets an event may name, each list read only by the kind that needs it; the event list names its targets from them too. */

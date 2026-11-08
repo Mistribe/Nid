@@ -22,7 +22,7 @@ import { toPlot } from '@/lib/plot';
 import { Direction } from '@/components/Direction';
 import { monthLabel } from '@/lib/format';
 import { money, percent, signedMoney } from '@/features/loans/format';
-import { PROPERTIES_RENTAL, type PropertiesRental, type RentalMonth, type RentalRow } from '../api';
+import { PROPERTIES_RENTAL, type PropertiesRental, type RentalMonth, type RentalRow } from '@/api/properties';
 import { TableToggle } from '@/components/page/TableToggle';
 import { PropertyFilter } from './PropertyFilter';
 import '@/locales/properties';

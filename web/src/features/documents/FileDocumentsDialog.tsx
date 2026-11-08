@@ -9,7 +9,8 @@ import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { invalidateDocuments, linkDocument, previewLink, useDocumentTargets, type DocumentSummary } from './api';
+import { invalidateDocuments, type DocumentSummary } from '@/api/documents';
+import { linkDocument, previewLink, useDocumentTargets } from './api';
 import { linkKey, roleText, ROLES } from './format';
 import '@/locales/documents';
 

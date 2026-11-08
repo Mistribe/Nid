@@ -30,7 +30,7 @@ import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
 import { cn } from '@/lib/utils';
-import { EARLY, type LoansOverview, type LoansSimulation, type SimulatedLoan } from '../api';
+import { EARLY, type LoansOverview, type LoansSimulation, type SimulatedLoan } from '@/api/loans';
 import { EFFECTS, money, percent, signedMoney } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import { monthText, useLoanNames } from '../overview/BalanceChart';

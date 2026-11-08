@@ -4,7 +4,7 @@ import type { UseFormSetError } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toProblem, type Problem } from '@/api/errors';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateGoals } from './api';
+import { invalidateGoals } from '@/api/goals';
 import { pctText } from './format';
 import { goalPath, type GoalValues } from './goalSchema';
 import '@/locales/goals';

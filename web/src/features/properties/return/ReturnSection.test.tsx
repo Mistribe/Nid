@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { pick } from '@/test/controls';
-import type { PropertyReturn } from '../api';
+import type { PropertyReturn } from '@/api/properties';
 import { PROPERTY, propertyDetail, propertyReturn } from '../testData';
 
 const PAGE = `/properties/${PROPERTY}?tab=return`;

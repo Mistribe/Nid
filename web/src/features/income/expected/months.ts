@@ -1,4 +1,4 @@
-import type { IncomeExpected } from '../api';
+import type { IncomeExpected } from '@/api/income';
 
 /** A calendar month as numbers: arithmetic on a year and a month index, never on an amount. */
 type Month = { year: number; month: number };

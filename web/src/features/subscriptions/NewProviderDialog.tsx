@@ -9,7 +9,7 @@ import { present, toProblem, type Presentation } from '@/api/errors';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { LABELS, PROVIDERS } from './api';
+import { LABELS, PROVIDERS } from '@/api/subscriptions';
 import { Field } from '@/components/form/Field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';

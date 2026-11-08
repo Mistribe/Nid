@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { percent } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
 import { monthText } from '@/components/LocalDate';
-import type { IncomeOverview, IncomeOverviewFigures } from '../api';
+import type { IncomeOverview, IncomeOverviewFigures } from '@/api/income';
 
 /** A change in words and an arrow (never the colour alone), the sign as the server gave it. */
 export function Change({ value, label }: { value: number; label?: string }) {

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { SelectField } from '@/components/form/SelectField';
 import { Section } from '@/components/page/Section';
 import { Button } from '@/components/ui/button';
-import { STATUSES } from '../api';
+import { STATUSES } from '@/api/tax';
 import { percentText } from '../format';
 import { DeclarantGrid } from './DeclarantGrid';
 import { AdultInput, errorText, type SectionProps } from './fields';

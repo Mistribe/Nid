@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { POSITIVE_AMOUNT, trimAmount, ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import type { IncomeGap, IncomePhase } from '../api';
+import type { IncomeGap, IncomePhase } from '@/api/income';
 import '@/locales/income';
 import '@/locales/investments';
 import '@/locales/forms';

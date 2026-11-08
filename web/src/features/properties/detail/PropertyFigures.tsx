@@ -4,7 +4,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { monthLabel } from '@/lib/format';
 import { Terms } from '../../loans/detail/Terms';
 import { money, percent, signedMoney } from '../../loans/format';
-import type { PropertyDetail } from '../api';
+import type { PropertyDetail } from '@/api/properties';
 import { costLineText } from '../format';
 import { rentalFigures } from '../rental/RentalFigures';
 import '@/locales/properties';

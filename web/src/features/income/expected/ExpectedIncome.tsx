@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { IncomeExpected, IncomeOneOff } from '../api';
+import type { IncomeExpected, IncomeOneOff } from '@/api/income';
 import { monthLabel } from '@/lib/format';
 import '@/locales/income';
 

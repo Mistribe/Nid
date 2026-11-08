@@ -11,7 +11,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '../api';
+import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '@/api/subscriptions';
 import { ProviderPicker } from '../ProviderPicker';
 import { ISO_DATE } from '@/lib/amount';
 import { Field } from '@/components/form/Field';

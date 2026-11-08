@@ -12,7 +12,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Notice, Upcoming } from './Agenda';
-import { DASHBOARD, type DashboardView } from './api';
+import { DASHBOARD, type DashboardView } from '@/api/dashboard';
 import { HouseholdMonth } from './HouseholdMonth';
 import { KeyFigures, type Panel } from './KeyFigures';
 

@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { money, percent, signedMoney } from '../../loans/format';
-import { PROPERTY_RETURN, type PropertyDetail, type PropertyReturn } from '../api';
+import { PROPERTY_RETURN, type PropertyDetail, type PropertyReturn } from '@/api/properties';
 import { AssumptionsDialog } from './AssumptionsDialog';
 import '@/locales/loans';
 import '@/locales/properties';

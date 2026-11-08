@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { tileOf } from '@/components/nav';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { money } from '../../loans/format';
-import type { PropertyDetail } from '../api';
+import type { PropertyDetail } from '@/api/properties';
 
 /** Spec §6: the readable linked loans as a grouped list, each with its balance, and in the property's currency when it differs. */
 export function LinkedLoans({ property }: { property: PropertyDetail }) {

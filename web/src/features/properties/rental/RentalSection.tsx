@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
 import { money } from '../../loans/format';
-import { invalidateProperties, TENANCY, type PropertyDetail, type PropertyTenancy } from '../api';
+import { invalidateProperties, TENANCY, type PropertyDetail, type PropertyTenancy } from '@/api/properties';
 import { RowActions } from '@/components/page/RowActions';
 import { RowMenu } from '@/components/page/RowMenu';
 import { presentRefusal } from '../../loans/refusal';

@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { monthLabel } from '@/lib/format';
 import { ISO_DATE } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import { HOUSEHOLD_PERFORMANCE, OVERVIEW, type HouseholdPerformance } from '../api';
+import { HOUSEHOLD_PERFORMANCE, OVERVIEW, type HouseholdPerformance } from '@/api/investments';
 import { toPlot } from '@/lib/plot';
 import { missingRateCodes } from '../format';
 import { Direction } from '@/components/Direction';

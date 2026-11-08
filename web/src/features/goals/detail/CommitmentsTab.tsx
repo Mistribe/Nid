@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Money } from '@/components/Money';
 import { SortableTable } from '@/components/page/SortableTable';
-import type { GoalCommitment } from '../api';
+import type { GoalCommitment } from '@/api/goals';
 import { Dash } from '../GoalStatus';
 import '@/locales/goals';
 

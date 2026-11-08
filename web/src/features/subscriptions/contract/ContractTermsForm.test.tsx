@@ -5,7 +5,7 @@ import { pick } from '@/test/controls';
 import { openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { Detail } from '../api';
+import type { Detail } from '@/api/subscriptions';
 import { detail, persons, SUB } from '../testData';
 
 const TERMS = { anniversaryOn: '2026-12-01', notice: { count: 2, unit: 'month' }, commitmentEndsOn: null, cancellableFrom: null };

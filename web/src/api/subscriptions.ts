@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { DASHBOARD } from '../dashboard/api';
+import { DASHBOARD } from './dashboard';
 import type { components } from '@/api/schema';
 
 export type Summary = components['schemas']['SubscriptionSummary'];

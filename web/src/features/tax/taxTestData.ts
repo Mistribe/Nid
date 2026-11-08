@@ -1,4 +1,4 @@
-import type { TaxEstimate, TaxResult } from './api';
+import type { TaxEstimate, TaxResult } from '@/api/tax';
 
 export const ADULT = '0192f0aa-0000-7000-8000-0000000000a1';
 

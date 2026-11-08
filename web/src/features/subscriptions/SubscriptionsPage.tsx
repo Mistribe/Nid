@@ -25,7 +25,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Input } from '@/components/ui/input';
 import { labelColour } from '@/lib/labelColour';
 import type { components } from '@/api/schema';
-import { LABELS, LIST, type ListResponse, type Summary } from './api';
+import { LABELS, LIST, type ListResponse, type Summary } from '@/api/subscriptions';
 import { PERSONS } from '@/api/persons';
 import { labelParam, labelsOf } from './filter';
 import '@/locales/forms';

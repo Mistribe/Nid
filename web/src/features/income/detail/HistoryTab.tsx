@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { useAnchoredDocuments } from '../../documents/api';
 import { todayIso } from '@/lib/today';
-import { EXPECTED, type IncomeSourceDetail } from '../api';
+import { EXPECTED, type IncomeSourceDetail } from '@/api/income';
 import { ExpectedTable, type PayslipColumn } from '../expected/ExpectedIncome';
 import { EXPECTED_PRESETS, expectedRange, type ExpectedPreset } from '../expected/months';
 import { BulkPayslipsDialog } from '../payslips/BulkPayslipsDialog';

@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatCurrency, formatMoney } from '@/components/Money';
-import type { LoanDetail, LoanWarning } from './api';
+import type { LoanDetail, LoanWarning } from '@/api/loans';
 import { fractionToPercent } from './rate';
 import '@/locales/loans';
 

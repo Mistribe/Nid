@@ -15,8 +15,8 @@ import { presentConflict, knownConflictMessage } from '@/components/form/fieldEr
 import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateProperties } from '../../properties/api';
-import { invalidateLoans, LOAN, type LoanDetail } from '../api';
+import { invalidateProperties } from '@/api/properties';
+import { invalidateLoans, LOAN, type LoanDetail } from '@/api/loans';
 import { PropertySelect } from '../PropertySelect';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/investments';

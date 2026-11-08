@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { PropertyDetail } from '../api';
+import type { PropertyDetail } from '@/api/properties';
 import { PROPERTY, propertyDetail } from '../testData';
 
 type Body = components['schemas']['EditPropertyBody'];

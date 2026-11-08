@@ -13,7 +13,7 @@ import { percent } from '../../loans/format';
 import { fractionToPercent } from '../../loans/rate';
 import { presentRefusal } from '../../loans/refusal';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateProperties, RETURN_ASSUMPTIONS, type PropertyDetail, type PropertyReturn } from '../api';
+import { invalidateProperties, RETURN_ASSUMPTIONS, type PropertyDetail, type PropertyReturn } from '@/api/properties';
 import { assumptionsBody, EMPTY, type AssumptionsForm } from './assumptionsBody';
 import '@/locales/properties';
 

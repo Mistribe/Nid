@@ -20,7 +20,7 @@ import { Folded } from '@/components/form/Folded';
 import { PERSONS } from '@/api/persons';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateProperties, PROPERTIES } from '../api';
+import { invalidateProperties, PROPERTIES } from '@/api/properties';
 import { newPropertyPath, newPropertySchema, toCreateBody, type NewPropertyValues } from './propertyForm';
 import { IdentityFields, PurchaseFields } from './PropertyFields';
 import '@/locales/loans';

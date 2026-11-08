@@ -3,7 +3,7 @@ import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import type { PropertyArrears } from '../api';
+import type { PropertyArrears } from '@/api/properties';
 import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { expectTrailBack } from '@/test/trail';

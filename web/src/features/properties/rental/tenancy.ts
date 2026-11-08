@@ -4,7 +4,7 @@ import type { components } from '@/api/schema';
 import { LOAN_AMOUNT } from '../../loans/new/loanForm';
 import { ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import type { PropertyTenancy } from '../api';
+import type { PropertyTenancy } from '@/api/properties';
 import { FEE_AMOUNT } from '../new/propertyForm';
 import '@/locales/investments';
 import '@/locales/loans';

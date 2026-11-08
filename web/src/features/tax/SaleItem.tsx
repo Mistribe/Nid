@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Terms } from '../loans/detail/Terms';
 import { PERSONS } from '@/api/persons';
-import type { SaleItemView } from './api';
+import type { SaleItemView } from '@/api/tax';
 import { ZERO, percentText } from './format';
 import { eur } from './ResultTable';
 import { feesMethodText, saleFindingText, saleFlagsText, saleNoteText, saleStatusText, worksMethodText } from './saleFormat';

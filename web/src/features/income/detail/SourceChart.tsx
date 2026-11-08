@@ -11,7 +11,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { percent, monthLabel } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
-import type { IncomeChange, IncomeSourceOverview } from '../api';
+import type { IncomeChange, IncomeSourceOverview } from '@/api/income';
 import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/income';
 

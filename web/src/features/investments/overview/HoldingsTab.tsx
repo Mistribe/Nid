@@ -22,7 +22,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FEE_REFERENCES, HOUSEHOLD_HOLDINGS, type FeeReferences, type FeesCost, type HoldingOverviewRow, type HouseholdHoldings } from '../api';
+import { FEE_REFERENCES, HOUSEHOLD_HOLDINGS, type FeeReferences, type FeesCost, type HoldingOverviewRow, type HouseholdHoldings } from '@/api/investments';
 import { toPlot } from '@/lib/plot';
 import { pct } from '../Figures';
 import { KINDS } from '../format';

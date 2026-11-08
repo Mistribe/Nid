@@ -5,7 +5,7 @@ import { formatMoney } from '@/components/Money';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { TaxEstimate, TaxResult } from './api';
+import type { TaxEstimate, TaxResult } from '@/api/tax';
 import { METHODS, ORIGINS, partsText, percentText, regimeText, ZERO } from './format';
 import '@/locales/tax';
 

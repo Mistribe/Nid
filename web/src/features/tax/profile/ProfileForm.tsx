@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { AlertTriangle } from 'lucide-react';
-import type { TaxEstimate } from '../api';
+import type { TaxEstimate } from '@/api/tax';
 import { ActivitySection } from './ActivitySection';
 import { ExemptSection } from './ExemptSection';
 import { ExpensesSection } from './ExpensesSection';

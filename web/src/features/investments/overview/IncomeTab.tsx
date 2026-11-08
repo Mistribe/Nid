@@ -13,7 +13,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '@/lib/format';
-import { HOUSEHOLD_INCOME, type PassiveIncome } from '../api';
+import { HOUSEHOLD_INCOME, type PassiveIncome } from '@/api/investments';
 import { toPlot } from '@/lib/plot';
 import { kindText, missingRateCodes } from '../format';
 import { incomeColor } from './colors';

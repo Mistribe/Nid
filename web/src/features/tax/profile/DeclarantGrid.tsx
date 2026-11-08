@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FieldControl } from '@/components/form/Field';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { TaxEstimate } from '../api';
+import type { TaxEstimate } from '@/api/tax';
 import '@/locales/tax';
 
 type Adult = TaxEstimate['adults'][number];

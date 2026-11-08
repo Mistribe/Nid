@@ -23,7 +23,7 @@ import { clearDraft, loadDraft } from './draft';
 import { EstateSection } from './EstateSection';
 import { RoutineRecapPanel } from './RoutineRecap';
 import { RoutineForm, startValues, type Banked, type RoutineValues } from './RoutineForm';
-import { useBankAccounts } from '../settings/banks/api';
+import { useBankAccounts } from '@/api/banking';
 
 /** screens.md §5 / 2E2 spec §3: the monthly routine. */
 export function RoutinePage() {

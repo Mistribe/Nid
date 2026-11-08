@@ -4,7 +4,8 @@ import { present, toProblem } from '@/api/errors';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { useSetLinkRole, useUnlinkDocument, type DocumentLink, type DocumentSummary } from './api';
+import { type DocumentLink, type DocumentSummary } from '@/api/documents';
+import { useSetLinkRole, useUnlinkDocument } from './api';
 import { linkKey, roleText, ROLES } from './format';
 import '@/locales/documents';
 

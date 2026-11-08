@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema';
-import type { LoanDetail } from '../api';
+import type { LoanDetail } from '@/api/loans';
 
 /** What the settings form holds: every field as typed, compared and sent trimmed; `propertyId` is '' for « Aucun ». */
 export type SettingsValues = { name: string; lender: string; note: string; propertyId: string };

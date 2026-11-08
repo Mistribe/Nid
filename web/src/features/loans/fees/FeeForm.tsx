@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { FEE, FEES, invalidateLoans, type LoanDetail, type LoanFee } from '../api';
+import { FEE, FEES, invalidateLoans, type LoanDetail, type LoanFee } from '@/api/loans';
 import { presentRefusal } from '../refusal';
 import { FEE_PATHS, feeSchema, feeValuesOf, NEW_FEE_KINDS, toFeeBody, type FeeValues } from './fee';
 import '@/locales/loans';

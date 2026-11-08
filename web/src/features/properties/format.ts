@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { formatLocalDate } from '@/components/LocalDate';
-import type { PropertyDetail, PropertyWarning } from './api';
+import type { PropertyDetail, PropertyWarning } from '@/api/properties';
 
 export const PROPERTY_TYPES = ['primary_residence', 'secondary_residence', 'rental', 'parking', 'land', 'other'] as const;
 export const CADENCES = ['yearly', 'manual'] as const;

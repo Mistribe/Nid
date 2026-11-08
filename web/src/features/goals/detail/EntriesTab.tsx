@@ -6,7 +6,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { Button } from '@/components/ui/button';
 import { useRowDialog } from '@/components/page/useRowDialog';
-import { type GoalEntry } from '../api';
+import { type GoalEntry } from '@/api/goals';
 import { EntryDialog } from './EntryDialog';
 import { EntryRowActions } from './EntryRowActions';
 import '@/locales/goals';

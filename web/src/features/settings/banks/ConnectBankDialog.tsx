@@ -8,7 +8,7 @@ import { ComboboxField } from '@/components/form/ComboboxField';
 import { Field } from '@/components/form/Field';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { ASPSPS, CONNECTIONS } from './api';
+import { ASPSPS, CONNECTIONS } from '@/api/banking';
 import '@/locales/banks';
 
 /** « Relier une banque »: the bank picked, the connection started, then the browser leaves for the bank's authorisation page. */

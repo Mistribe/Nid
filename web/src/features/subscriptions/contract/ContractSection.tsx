@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Section } from '@/components/page/Section';
-import type { Detail } from '../api';
+import type { Detail } from '@/api/subscriptions';
 import { durationText } from '../format';
 import '@/locales/subscriptions';
 

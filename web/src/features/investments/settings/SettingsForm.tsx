@@ -19,7 +19,7 @@ import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { knownConflictMessage, placeFieldError, presentConflict } from '@/components/form/fieldErrors';
 import { todayIso } from '@/lib/today';
-import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '../api';
+import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '@/api/investments';
 import { CADENCES, hasPremiumsBefore2017, KINDS, REGULATED, regulatedOptions } from '../format';
 import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './settingsBody';
 import '@/locales/investments';

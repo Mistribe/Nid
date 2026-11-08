@@ -17,15 +17,13 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatInstant, formatInstantDay } from '@/lib/format';
-import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '../../investments/api';
-import { LOANS } from '../../loans/api';
-import { PROPERTIES } from '../../properties/api';
+import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '@/api/investments';
+import { LOANS } from '@/api/loans';
+import { PROPERTIES } from '@/api/properties';
 import { SettingsFrame } from '../SettingsFrame';
 import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
-import {
-  ACCOUNTS, bankErrorText, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection,
-} from './api';
+import { ACCOUNTS, bankErrorText, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
 import '@/locales/banks';
 
 // Loaded when opened: most visits import no statement.

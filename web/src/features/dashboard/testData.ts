@@ -1,4 +1,4 @@
-import type { Allocation, AllocationLine, DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, HouseholdPoint, MonthChanges, MonthFigure, NetWorthHistory, NetWorthPointView, Projection } from './api';
+import type { Allocation, AllocationLine, DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, HouseholdPoint, MonthChanges, MonthFigure, NetWorthHistory, NetWorthPointView, Projection } from '@/api/dashboard';
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
 

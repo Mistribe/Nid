@@ -2,7 +2,7 @@ import { Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Direction } from '@/components/Direction';
 import { Badge } from '@/components/ui/badge';
-import type { Figures } from './api';
+import type { Figures } from '@/api/investments';
 
 export const pct = (value: number) => new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 

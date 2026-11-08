@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { DASHBOARD } from '../dashboard/api';
-import { invalidateDocuments } from '../documents/api';
+import { DASHBOARD } from './dashboard';
+import { invalidateDocuments } from './documents';
 import type { components } from '@/api/schema';
 
 export type IncomeSourceSummary = components['schemas']['IncomeSourceSummary'];

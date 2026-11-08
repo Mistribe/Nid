@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
-import type { TaxEstimate } from './api';
+import type { TaxEstimate } from '@/api/tax';
 import { percentText, ZERO } from './format';
 import { eur } from './ResultTable';
 import '@/locales/tax';

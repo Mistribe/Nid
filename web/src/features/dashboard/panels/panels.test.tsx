@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { overview, sourceRow } from '../../income/testData';
-import type { DashboardView } from '../api';
+import type { DashboardView } from '@/api/dashboard';
 import { allocation, allocationLine, commitment, dashboard, envelope, person } from '../testData';
 import { NetWorthCharts } from './NetWorthCharts';
 

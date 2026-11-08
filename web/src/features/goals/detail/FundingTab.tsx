@@ -4,7 +4,7 @@ import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
-import { type GoalFunding } from '../api';
+import { type GoalFunding } from '@/api/goals';
 import { pctText } from '../format';
 import { Dash } from '../GoalStatus';
 import '@/locales/goals';

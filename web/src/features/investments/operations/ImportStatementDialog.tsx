@@ -10,10 +10,10 @@ import { formatCurrency } from '@/components/Money';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ACCOUNTS, CONNECTIONS } from '@/features/settings/banks/api';
+import { ACCOUNTS, CONNECTIONS, TRANSACTIONS, type StatementImport } from '@/api/banking';
 import { UploadZone } from '../../documents/DocumentUpload';
-import { invalidateInvestments } from '../api';
-import { importStatement, statementErrorText, TRANSACTIONS, type StatementImport } from './api';
+import { invalidateInvestments } from '@/api/investments';
+import { importStatement, statementErrorText } from './api';
 import '@/locales/banks';
 
 const ACCEPT = '.ofx,.qfx,.xml,application/x-ofx,application/xml,text/xml';

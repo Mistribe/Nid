@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { LoansOverview } from '../api';
+import type { LoansOverview } from '@/api/loans';
 import { ALICE, BOB, CAR, household } from '../testData';
 
 const serve = (body: LoansOverview) => server.use(http.get('*/api/v1/realestate/loans/overview', () => HttpResponse.json(body)));

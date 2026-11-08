@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Section } from '@/components/page/Section';
 import { todayIso } from '@/lib/today';
 import { SourceLink } from '../documents/SourceLink';
-import { ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from './api';
+import { ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from '@/api/investments';
 import { ValueChart } from './chart/ValueChart';
 import { PeriodPerformance } from './period/PeriodPerformance';
 import { presetRange } from './period/periods';
@@ -41,7 +41,7 @@ import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/investments';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
-import { ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/features/settings/banks/api';
+import { ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/api/banking';
 import '@/locales/banks';
 import { PageSkeleton } from '@/components/page/skeletons';
 

@@ -13,7 +13,7 @@ import { money } from '../../loans/format';
 import { presentRefusal } from '../../loans/refusal';
 import { todayIso } from '@/lib/today';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
-import { invalidateProperties, type PropertyDetail, type PropertyTenancy } from '../api';
+import { invalidateProperties, type PropertyDetail, type PropertyTenancy } from '@/api/properties';
 import '@/locales/loans';
 import '@/locales/properties';
 

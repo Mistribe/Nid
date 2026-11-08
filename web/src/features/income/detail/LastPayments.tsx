@@ -8,7 +8,7 @@ import { Money } from '@/components/Money';
 import { seeAllClass } from '@/components/page/seeAll';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import type { IncomeSourceOverview } from '../api';
+import type { IncomeSourceOverview } from '@/api/income';
 import '@/locales/income';
 
 /** Income dashboard §4: the last payments due (the server's five, newest first), and the way to the whole history. */

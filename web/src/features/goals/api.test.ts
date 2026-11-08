@@ -1,8 +1,8 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { DASHBOARD } from '../dashboard/api';
-import { invalidateInvestments } from '../investments/api';
-import { GOAL, GOALS, invalidateGoals } from './api';
+import { DASHBOARD } from '@/api/dashboard';
+import { invalidateInvestments } from '@/api/investments';
+import { GOAL, GOALS, invalidateGoals } from '@/api/goals';
 
 const invalidated = async (run: (q: QueryClient) => Promise<void>) => {
   const queryClient = new QueryClient();

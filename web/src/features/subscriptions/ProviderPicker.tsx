@@ -7,7 +7,7 @@ import { Field } from '@/components/form/Field';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
-import { PROVIDERS } from './api';
+import { PROVIDERS } from '@/api/subscriptions';
 import { NewProviderDialog } from './NewProviderDialog';
 import '@/locales/forms';
 

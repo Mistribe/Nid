@@ -8,7 +8,7 @@ import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { todayIso } from '@/lib/today';
-import type { PropertyDetail, PropertyFlow } from '../api';
+import type { PropertyDetail, PropertyFlow } from '@/api/properties';
 import { categoriesOf } from '../format';
 import { PROPERTY, propertyDetail } from '../testData';
 

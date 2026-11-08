@@ -7,7 +7,7 @@ import { trimAmount, toFieldAmount } from '@/lib/amount';
 import { valueSchema, type ValueFormValues } from '../investments/entries/entries';
 import { Field } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
-import type { ProposalView } from './api';
+import type { ProposalView } from '@/api/proposals';
 import { DateInput, ValueComparison, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 import { amortization } from './amortizationKind';
 import { breakdown } from './breakdownKind';

@@ -7,7 +7,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { detail, PEA } from '../testData';
-import type { StatementImport } from './api';
+import type { StatementImport } from '@/api/banking';
 
 const preview = (over: Partial<StatementImport> = {}): StatementImport => ({
   format: 'ofx', accountId: null, newAccount: true, accountName: 'Relevé ·8901', ibanMasked: null, from: '2026-10-01', to: '2026-10-28',

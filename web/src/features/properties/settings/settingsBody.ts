@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { toFieldAmount, toWireAmount } from '@/lib/amount';
-import type { PropertyDetail } from '../api';
+import type { PropertyDetail } from '@/api/properties';
 import { propertyFieldPath, propertyFieldsSchema } from '../new/propertyForm';
 
 /** Only the fields that changed; an emptied optional field says so with its `clear*` flag. */

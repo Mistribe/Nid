@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { IncomeSourceDetail } from '../api';
+import type { IncomeSourceDetail } from '@/api/income';
 import { detail, eur, phase, SALARY } from '../testData';
 
 type ChangeBody = components['schemas']['IncomePhaseChangeBody'];

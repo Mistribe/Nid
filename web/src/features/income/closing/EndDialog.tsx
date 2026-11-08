@@ -15,7 +15,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { CLOSE_SOURCE, invalidateIncome, type IncomeSourceDetail } from '../api';
+import { CLOSE_SOURCE, invalidateIncome, type IncomeSourceDetail } from '@/api/income';
 import '@/locales/income';
 import '@/locales/forms';
 

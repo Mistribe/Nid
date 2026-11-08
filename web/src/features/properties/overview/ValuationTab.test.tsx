@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { PropertiesValuation } from '../api';
+import type { PropertiesValuation } from '@/api/properties';
 import { householdValuation, PROPERTY, RENTAL } from '../testData';
 
 const serve = (body: PropertiesValuation, seen: string[] = []) =>

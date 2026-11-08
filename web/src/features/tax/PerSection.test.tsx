@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { TaxResult } from './api';
+import type { TaxResult } from '@/api/tax';
 import { PerRows, PerSummary } from './PerSection';
 import { DeclarantTable } from './ResultTable';
 import { ADULT, estimate, result } from './taxTestData';

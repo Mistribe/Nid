@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw/http';
 import { server } from '@/test/server';
-import type { DocumentDetail, DocumentTargetList } from './api';
+import type { DocumentDetail, DocumentTargetList } from '@/api/documents';
 import { detail, targets as allTargets } from './testData';
 
 export type Sent = { method: string; path: string; search: string; body: unknown };

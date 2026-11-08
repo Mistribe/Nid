@@ -15,7 +15,8 @@ import { StepForm } from '@/components/page/StepForm';
 import { PageTrail } from '@/components/page/trail';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Input } from '@/components/ui/input';
-import { DOCUMENT, invalidateDocuments, uploadDocument, useDocuments } from '../../documents/api';
+import { DOCUMENT, invalidateDocuments } from '@/api/documents';
+import { uploadDocument, useDocuments } from '../../documents/api';
 import { refusal, UNSUPPORTED, UploadZone } from '../../documents/DocumentUpload';
 import { Folded } from '@/components/form/Folded';
 import { DeclarantGrid, type GridRow } from '../profile/DeclarantGrid';
@@ -24,7 +25,7 @@ import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { AMOUNT, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import { FIRST_ESTIMATE_YEAR } from '../api';
+import { FIRST_ESTIMATE_YEAR } from '@/api/tax';
 import {
   assessmentDefaults, assessmentPath, assessmentSchema, fromView, NOTICE_AMOUNTS, PER_TYPED, perLineYear, RATES, stepFields, stepOf, toBody,
   type AssessmentValues, type StepId,

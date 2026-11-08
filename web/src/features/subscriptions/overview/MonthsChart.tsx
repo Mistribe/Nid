@@ -7,7 +7,7 @@ import { formatMoney, type MoneyValue } from '@/components/Money';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/lib/plot';
-import type { MonthView } from '../api';
+import type { MonthView } from '@/api/subscriptions';
 
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);
 

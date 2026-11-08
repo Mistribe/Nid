@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import type { LoanRepayment } from '../api';
+import type { LoanRepayment } from '@/api/loans';
 import type { EFFECTS } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import '@/locales/investments';

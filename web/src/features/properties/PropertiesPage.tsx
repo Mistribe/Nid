@@ -17,7 +17,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { money, percent } from '../loans/format';
-import { PROPERTIES, PROPERTIES_RENTAL, type PropertySummary } from './api';
+import { PROPERTIES, PROPERTIES_RENTAL, type PropertySummary } from '@/api/properties';
 import { typeText } from './format';
 import '@/locales/properties';
 import '@/locales/forms';

@@ -16,7 +16,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { FLOW, FLOWS, invalidateProperties, type PropertyDetail, type PropertyFlow } from '../api';
+import { FLOW, FLOWS, invalidateProperties, type PropertyDetail, type PropertyFlow } from '@/api/properties';
 import { categoriesOf, FLOW_KINDS } from '../format';
 import { FLOW_PATHS, flowSchema, flowValuesOf, toFlowBody, type FlowValues } from './flow';
 import '@/locales/loans';

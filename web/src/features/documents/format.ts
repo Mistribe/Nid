@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { DocumentSummary } from './api';
+import type { DocumentSummary } from '@/api/documents';
 import '@/locales/documents';
 
 const KO = 1024;

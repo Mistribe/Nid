@@ -6,7 +6,7 @@ import { openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { propertyList, propertySummary } from '../../properties/testData';
-import type { Detail } from '../api';
+import type { Detail } from '@/api/subscriptions';
 import { detail, persons, SUB } from '../testData';
 
 const NANTES = propertySummary();

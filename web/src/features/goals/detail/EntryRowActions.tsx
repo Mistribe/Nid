@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { RowActions } from '@/components/page/RowActions';
-import { invalidateGoals, PROGRESS, type GoalEntry } from '../api';
+import { invalidateGoals, PROGRESS, type GoalEntry } from '@/api/goals';
 import { presentGoalConflict } from '../format';
 import '@/locales/goals';
 

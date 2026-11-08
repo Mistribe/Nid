@@ -14,7 +14,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { FLOW, FLOWS, invalidateInvestments, type EnvelopeDetail, type Flow } from '../api';
+import { FLOW, FLOWS, invalidateInvestments, type EnvelopeDetail, type Flow } from '@/api/investments';
 import { FLOW_KINDS, INCOME_CATEGORIES } from '../format';
 import { flowSchema } from './entries';
 import { placeFieldError, presentConflict } from '@/components/form/fieldErrors';

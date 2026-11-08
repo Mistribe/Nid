@@ -12,7 +12,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/lib/plot';
 import { monthLabel } from '@/lib/format';
-import type { PropertiesOverview, PropertyPoint } from '../api';
+import type { PropertiesOverview, PropertyPoint } from '@/api/properties';
 import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/properties';
 

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Section } from '@/components/page/Section';
 import { SourceLink } from '../../documents/SourceLink';
 import { money } from '../../loans/format';
-import { invalidateProperties, VALUATION, type PropertyDetail, type PropertyValuation } from '../api';
+import { invalidateProperties, VALUATION, type PropertyDetail, type PropertyValuation } from '@/api/properties';
 import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';
 import '@/locales/loans';

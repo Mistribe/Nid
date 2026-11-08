@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { HoldingWarning } from '../api';
+import type { HoldingWarning } from '@/api/investments';
 import { formatMoney } from '@/components/Money';
 import { formatLocalDate } from '@/components/LocalDate';
 import '@/locales/investments';

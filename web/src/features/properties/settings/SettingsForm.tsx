@@ -16,7 +16,7 @@ import { presentRefusal } from '../../loans/refusal';
 import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateProperties, PROPERTY, type PropertyDetail } from '../api';
+import { invalidateProperties, PROPERTY, type PropertyDetail } from '@/api/properties';
 import { PropertyFields } from '../new/PropertyFields';
 import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/loans';

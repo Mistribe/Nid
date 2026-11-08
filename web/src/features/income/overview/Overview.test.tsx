@@ -6,7 +6,7 @@ import { expectLabelBefore } from '@/test/filters';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { IncomeOverview } from '../api';
+import type { IncomeOverview } from '@/api/income';
 import { overview, SALARY, sourceRow } from '../testData';
 import { Change } from './OverviewFigures';
 import '@/locales/income';

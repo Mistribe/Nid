@@ -7,7 +7,7 @@ import { expectHeaderActionRule } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
-import type { Rental2044, TaxEstimate } from './api';
+import type { Rental2044, TaxEstimate } from '@/api/tax';
 import { jointAssessment, soloAssessment } from './assessments/testData';
 import { ADULT, estimate, result } from './taxTestData';
 

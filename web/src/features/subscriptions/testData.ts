@@ -1,6 +1,6 @@
 import type { components } from '@/api/schema';
 import { aliceSession } from '@/test/fixtures';
-import type { Detail, ListResponse, Overview, Summary } from './api';
+import type { Detail, ListResponse, Overview, Summary } from '@/api/subscriptions';
 
 export const ALICE = aliceSession.person.id;
 export const BOB = '01926b9e-0000-7000-8000-00000000000b';

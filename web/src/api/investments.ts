@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { DASHBOARD, NET_WORTH, PROJECTION } from '../dashboard/api';
-import { TAX_SALE } from '../tax/api';
+import { DASHBOARD, NET_WORTH, PROJECTION } from './dashboard';
+import { TAX_SALE } from './tax';
 import type { components } from '@/api/schema';
 
 export type EnvelopeSummary = components['schemas']['EnvelopeSummary'];
@@ -72,7 +72,7 @@ export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),
     queryClient.invalidateQueries({ queryKey: ['get', SERIES] }),
     queryClient.invalidateQueries({ queryKey: ['get', PERFORMANCE] }),
-    // A goal's figures are its envelopes' values and flows (paths inline: goals/api stays out of the initial chunk).
+    // A goal's figures are its envelopes' values and flows (paths inline: importing api/goals here would split it into a chunk of its own).
     ...[HOLDINGS, MOVEMENTS, HOLDING_SERIES, HOLDING_BREAKDOWN, COST_REPORTS, SNAPSHOTS, '/api/v1/goals', '/api/v1/goals/{id}'].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
   ]).then(() => undefined);
 }

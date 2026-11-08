@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Problem } from '@/api/errors';
 import { UNSUPPORTED } from '../../documents/DocumentUpload';
-import { invalidateDocuments, uploadDocument, useUnlinkDocument, type DocumentLink, type DocumentSummary } from '../../documents/api';
+import { invalidateDocuments, type DocumentLink, type DocumentSummary } from '@/api/documents';
+import { uploadDocument, useUnlinkDocument } from '../../documents/api';
 
 type Target = { kind: string; id: string };
 /** Where an attached payslip goes: its target, its document date and its title. */

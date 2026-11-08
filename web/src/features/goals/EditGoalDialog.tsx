@@ -6,7 +6,7 @@ import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { useEditGoal, useGoal, type GoalDetail } from './api';
+import { useEditGoal, useGoal, type GoalDetail } from '@/api/goals';
 import { FundingFields, useEnvelopeOptions } from './FundingFields';
 import { GoalFields } from './GoalFields';
 import { goalDefaults, goalSchema, toEditBody, type GoalValues } from './goalSchema';

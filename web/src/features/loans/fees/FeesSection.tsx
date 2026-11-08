@@ -8,7 +8,7 @@ import { RowActions } from '@/components/page/RowActions';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
-import { FEE, invalidateLoans, type LoanDetail, type LoanFee } from '../api';
+import { FEE, invalidateLoans, type LoanDetail, type LoanFee } from '@/api/loans';
 import { feeKindText, money } from '../format';
 import { presentRefusal } from '../refusal';
 import { FeeDialog } from './FeeForm';

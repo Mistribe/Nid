@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { LoanScheduleYear } from '../api';
+import type { LoanScheduleYear } from '@/api/loans';
 import { money } from '../format';
 import '@/locales/loans';
 

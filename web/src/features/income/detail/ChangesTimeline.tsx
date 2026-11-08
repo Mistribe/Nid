@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { cn } from '@/lib/utils';
-import type { IncomeChange, IncomePhase } from '../api';
+import type { IncomeChange, IncomePhase } from '@/api/income';
 import { cadenceText } from '../format';
 import { Change } from '../overview/OverviewFigures';
 import '@/locales/income';

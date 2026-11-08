@@ -3,7 +3,7 @@ import { useSearch } from '@tanstack/react-router';
 import { useApi } from '@/api/ApiProvider';
 import type { IncomeSearch } from '@/app/router';
 import type { RootSearch } from '@/lib/search';
-import { OVERVIEW, type IncomeOverview } from '../api';
+import { OVERVIEW, type IncomeOverview } from '@/api/income';
 
 /** The overview the URL asks for; the previous answer stays up while a filter reloads, so the controls keep their focus. */
 export function useOverview(over: { ended?: boolean; enabled?: boolean } = {}): { data?: IncomeOverview; error: unknown } {

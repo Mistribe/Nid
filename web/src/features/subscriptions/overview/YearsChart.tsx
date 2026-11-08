@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { labelColour } from '@/lib/labelColour';
 import board from '@/locales/fr.subscriptions-board.json';
 import { toPlot } from '@/lib/plot';
-import type { Overview } from '../api';
+import type { Overview } from '@/api/subscriptions';
 
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);
 

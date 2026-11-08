@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TAX_CHANGES, type TaxEstimate } from './api';
+import { TAX_CHANGES, type TaxEstimate } from '@/api/tax';
 import { partsText, ZERO } from './format';
 import { eur } from './ResultTable';
 import '@/locales/tax';

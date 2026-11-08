@@ -2,7 +2,7 @@ import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModalDialog } from '@/components/ModalDialog';
 import { Button } from '@/components/ui/button';
-import { contentUrl } from './api';
+import { contentUrl } from '@/api/documents';
 import { DocumentViewer } from './DocumentViewer';
 import type { Previewed } from './preview';
 import '@/locales/documents';

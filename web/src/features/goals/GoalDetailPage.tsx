@@ -19,7 +19,7 @@ import { ErrorPage } from '@/components/ErrorPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useCloseGoal, useGoal, useReopenGoal, type GoalDetail, type GoalMoney } from './api';
+import { useCloseGoal, useGoal, useReopenGoal, type GoalDetail, type GoalMoney } from '@/api/goals';
 import { EditGoalDialog } from './EditGoalDialog';
 import { CommitmentsTab } from './detail/CommitmentsTab';
 import { EntriesTab } from './detail/EntriesTab';

@@ -18,7 +18,7 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
-import { HOLDINGS, type EnvelopeDetail, type Holding } from '../api';
+import { HOLDINGS, type EnvelopeDetail, type Holding } from '@/api/investments';
 import { AnnualReturn, pct } from '../Figures';
 import { Direction } from '@/components/Direction';
 import { directionOf } from '@/lib/amount';

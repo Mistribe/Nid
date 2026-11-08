@@ -17,7 +17,7 @@ import { toWireAmount, POSITIVE_AMOUNT } from '@/lib/amount';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { invalidateInvestments, SWITCHES, type EnvelopeDetail, type Holding } from '../api';
+import { invalidateInvestments, SWITCHES, type EnvelopeDetail, type Holding } from '@/api/investments';
 import { pastDate } from '@/components/form/pastDate';
 import { placeFieldError, presentConflict } from '@/components/form/fieldErrors';
 import { hasUnits, signedUnits, UNITS } from './holdingFormat';

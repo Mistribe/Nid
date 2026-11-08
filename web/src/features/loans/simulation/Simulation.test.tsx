@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { LoanDetail, LoanSimulation } from '../api';
+import type { LoanDetail, LoanSimulation } from '@/api/loans';
 import { LOAN, loanDetail, schedule, simulation } from '../testData';
 
 type User = Awaited<ReturnType<typeof renderApp>>['user'];

@@ -13,7 +13,7 @@ import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { PERSONS } from '@/api/persons';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
-import { useCreateGoal } from './api';
+import { useCreateGoal } from '@/api/goals';
 import { FundingFields, useEnvelopeOptions } from './FundingFields';
 import { GoalFields } from './GoalFields';
 import { goalDefaults, goalPath, goalSchema, toCreateBody, type GoalValues } from './goalSchema';

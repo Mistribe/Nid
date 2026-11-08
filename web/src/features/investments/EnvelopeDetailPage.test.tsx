@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp';
 import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { EnvelopeDetail } from './api';
+import type { EnvelopeDetail } from '@/api/investments';
 import { todayIso } from '@/lib/today';
 import { serve as serveWritable, type Call } from './serveEnvelope';
 import { detail, eur, figures, PEA } from './testData';

@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { ListResponse, Summary } from './api';
+import type { ListResponse, Summary } from '@/api/subscriptions';
 import { eur, list, overview, summary } from './testData';
 import { expectOnePrimary } from '@/test/headerActions';
 

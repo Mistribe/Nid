@@ -11,7 +11,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { formatInstantDay } from '@/lib/format';
 import { ToLinkLink } from '../operations/ToLinkLink';
-import { PROPOSALS, type ProposalView } from './api';
+import { PROPOSALS, type ProposalView } from '@/api/proposals';
 import { kindOf, originText } from './kinds';
 import { isRouteKind, routeSummary, useNames } from './routeKind';
 import '@/locales/forms';

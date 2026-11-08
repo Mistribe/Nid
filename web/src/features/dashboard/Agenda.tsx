@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { PendingLine } from '../proposals/PendingLine';
-import { usePendingCount } from '../proposals/api';
+import { usePendingCount } from '@/api/proposals';
 import { useExpectedDocuments } from '../documents/api';
 import { categoryText } from '../properties/format';
 import { SectionCard } from '@/components/page/SectionCard';
@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { placeOf, tileOf } from '@/components/nav';
 import { todayIso } from '@/lib/today';
-import type { DashboardEvent, DashboardView } from './api';
-import { itemRoute } from './ItemLink';
+import type { DashboardEvent, DashboardView } from '@/api/dashboard';
+import { itemRoute } from '@/components/ItemLink';
 import { incomeGaps, isRoutineTodo } from './todo';
 
 function EventText({ e }: { e: DashboardEvent }) {

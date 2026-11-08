@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { PropertyArrears } from '../api';
+import type { PropertyArrears } from '@/api/properties';
 import { arrears, PROPERTY, propertyDetail, rentedFigures, tenancy } from '../testData';
 
 const open = async (view: PropertyArrears) => {

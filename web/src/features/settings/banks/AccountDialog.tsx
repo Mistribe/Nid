@@ -9,9 +9,9 @@ import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
-import type { EnvelopeSummary } from '../../investments/api';
+import type { EnvelopeSummary } from '@/api/investments';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
-import { ACCOUNT, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from './api';
+import { ACCOUNT, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from '@/api/banking';
 import '@/locales/banks';
 
 /** Refusals about the envelope that come as a conflict or a plain 422, not on a field: shown on it all the same. */

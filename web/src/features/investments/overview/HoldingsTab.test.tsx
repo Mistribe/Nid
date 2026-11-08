@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { HouseholdHoldings, HoldingsExposure } from '../api';
+import type { HouseholdHoldings, HoldingsExposure } from '@/api/investments';
 import { holdingRow, householdHoldings, LIFE, PEA, WORLD_PEA } from '../testData';
 
 const serve = (body: HouseholdHoldings, seen: string[] = []) =>

@@ -18,7 +18,7 @@ import { Field } from '@/components/form/Field';
 import { PERSONS } from '@/api/persons';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateProperties, TENANCIES, TENANCY, type PropertyDetail, type PropertyTenancy } from '../api';
+import { invalidateProperties, TENANCIES, TENANCY, type PropertyDetail, type PropertyTenancy } from '@/api/properties';
 import { monthText } from '@/components/LocalDate';
 import { todayIso } from '@/lib/today';
 import { chainStart, TENANCY_PATHS, tenancySchema, tenancyValuesOf, toTenancyBody, trackedMonths, type TenancyValues } from './tenancy';

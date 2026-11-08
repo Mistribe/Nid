@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { todayIso } from '@/lib/today';
-import type { IncomeSourceDetail } from '../api';
+import type { IncomeSourceDetail } from '@/api/income';
 import { detail, phase, SALARY } from '../testData';
 
 function serve(initial: IncomeSourceDetail = detail()) {

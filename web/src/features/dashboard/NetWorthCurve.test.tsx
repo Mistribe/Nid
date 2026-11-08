@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { NetWorthHistory } from './api';
+import type { NetWorthHistory } from '@/api/dashboard';
 import { curvePoint, dashboard, netWorth } from './testData';
 
 // The default dashboard handler serves an empty household (welcome state): the curve needs envelopes.

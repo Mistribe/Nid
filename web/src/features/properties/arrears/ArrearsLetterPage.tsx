@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { money } from '../../loans/format';
 import { todayIso } from '@/lib/today';
 import { usePropertyTrail } from '../propertyTrail';
-import { PROPERTY_ARREARS } from '../api';
+import { PROPERTY_ARREARS } from '@/api/properties';
 import '@/locales/properties';
 import { PageSkeleton } from '@/components/page/skeletons';
 
