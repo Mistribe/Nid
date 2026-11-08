@@ -54,11 +54,11 @@ public static class MonthAssembler
 
     /// <summary>
     /// The figures of these days, or the problems and missing June months that withhold them. <paramref name="stored"/>: the
-    /// arrangement's statements (the validated ones' figures count); <paramref name="previous"/>: the previous month's, with its days.
+    /// arrangement's statements (the validated ones' figures count); <paramref name="previous"/>, <paramref name="next"/>: the adjacent months', with their days.
     /// </summary>
     public static MonthEvaluation Evaluate(
         MonthTerms terms, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, IReadOnlyList<Statement> stored,
-        Statement? previous, decimal mileage, decimal? cmg, DeclaredFigures? declared = null, decimal contributions = 0m)
+        Statement? previous, decimal mileage, decimal? cmg, DeclaredFigures? declared = null, decimal contributions = 0m, Statement? next = null)
     {
         IReadOnlyList<(string Field, string Code)> problems = [.. StatementCheck.Days(terms.Month, days), .. stale];
         var validated = stored.Where(s => s.Validated && s.Figures is not null && s.Month.CompareTo(terms.Month) < 0).ToList();
@@ -71,27 +71,22 @@ public static class MonthAssembler
             return new MonthEvaluation(null, problems, missing);
 
         var input = new MonthInput(terms.Month, terms.Contract, terms.Plan, terms.Gaps, days,
-            Neighbours(terms, previous), StatementContext.ChildSickUsedBefore(terms.Contract.Start, terms.Month,
+            [.. Neighbour(terms, terms.Month.PlusMonths(-1), previous), .. Neighbour(terms, terms.Month.PlusMonths(1), next)], StatementContext.ChildSickUsedBefore(terms.Contract.Start, terms.Month,
                 validated.Select(s => (s.Month, s.Figures!.ChildSickDeducted)).ToList()),
             mileage, cmg ?? 0m, june, declared, contributions);
         return new MonthEvaluation(ChildcareMonth.Compute(input), problems, missing);
     }
 
     /// <summary>
-    /// The adjacent months' days, prepared from this month's terms; the previous month's days replace them when that month used the
-    /// same revision and still fits the template (they decide the first week's extra hours).
+    /// An adjacent month's days, prepared from this month's terms; its real days replace them when that month used the same
+    /// revision and still fits the template (they decide the extra hours of the weeks the two months share).
     /// </summary>
-    private static IReadOnlyList<StatementDay> Neighbours(MonthTerms terms, Statement? previous)
+    private static IReadOnlyList<StatementDay> Neighbour(MonthTerms terms, YearMonth month, Statement? stored)
     {
-        var month = terms.Month.PlusMonths(-1);
-        var before = Prepared(terms, month);
-        var sameTerms = MonthTerms.For(terms.Revisions, terms.Gaps, terms.Overrides, month).Chosen.From == terms.Chosen.From;
-        if (sameTerms && previous is { } p && p.Month == month)
-        {
-            var days = p.Validated ? Replanned(terms, p.Days) : Overlay(terms, month, p.Days).Days;
-            if (StatementCheck.Days(month, days).Count == 0)
-                before = days;
-        }
-        return [.. before, .. Prepared(terms, terms.Month.PlusMonths(1))];
+        var prepared = Prepared(terms, month);
+        if (stored is not { } s || s.Month != month || MonthTerms.For(terms.Revisions, terms.Gaps, terms.Overrides, month).Chosen.From != terms.Chosen.From)
+            return prepared;
+        var days = s.Validated ? Replanned(terms, s.Days) : Overlay(terms, month, s.Days).Days;
+        return StatementCheck.Days(month, days).Count == 0 ? days : prepared;
     }
 }
