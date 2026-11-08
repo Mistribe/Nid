@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ISO_DATE, toWireAmount } from '@/lib/amount';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { RENEGOTIATION, type LoanDetail, type LoanRenegotiation, type RenegotiationSide } from '../api';
+import { RENEGOTIATION, type LoanDetail, type LoanRenegotiation, type RenegotiationSide } from '@/api/loans';
 import { money, signedMoney } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import { isPercentRate, percentToFraction } from '../rate';

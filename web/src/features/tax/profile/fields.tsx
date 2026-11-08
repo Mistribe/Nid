@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Field, type FieldControl } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
 import { toFieldAmount } from '@/lib/amount';
-import type { TaxEstimate } from '../api';
+import type { TaxEstimate } from '@/api/tax';
 import type { DraftErrors, DraftField, ProfileDraft } from './draft';
 import type { Draft } from './useProfileDraft';
 import '@/locales/tax';

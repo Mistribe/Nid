@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '@/app/Providers';
 import { formatMoney } from '@/components/Money';
-import type { DashboardView } from '../api';
+import type { DashboardView } from '@/api/dashboard';
 import { percent } from '@/lib/format';
 import { Value } from '../KeyFigures';
 

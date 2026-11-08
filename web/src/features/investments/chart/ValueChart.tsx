@@ -10,7 +10,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { components } from '@/api/schema';
 import { monthLabel } from '@/lib/format';
-import { SERIES } from '../api';
+import { SERIES } from '@/api/investments';
 import { toPlot } from '@/lib/plot';
 import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/investments';

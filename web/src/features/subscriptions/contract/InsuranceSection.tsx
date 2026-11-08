@@ -7,7 +7,7 @@ import { ConfirmAction } from '@/components/ConfirmAction';
 import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { INSURANCE, invalidateSubscriptions, type Detail } from '../api';
+import { INSURANCE, invalidateSubscriptions, type Detail } from '@/api/subscriptions';
 import '@/locales/subscriptions';
 
 /** The insurance kinds the API knows; an unknown one is shown as « Autre ». */

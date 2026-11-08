@@ -6,7 +6,7 @@ import { useApi } from '@/api/ApiProvider';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Reload } from '@/components/form/Reload';
-import { invalidateInvestments, REOPEN, type EnvelopeDetail } from '../api';
+import { invalidateInvestments, REOPEN, type EnvelopeDetail } from '@/api/investments';
 import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/investments';
 

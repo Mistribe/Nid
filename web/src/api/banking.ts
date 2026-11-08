@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
-import { useApi } from '@/api/ApiProvider';
-import type { components } from '@/api/schema';
+import { useApi } from './ApiProvider';
 import '@/locales/banks';
+import type { components } from './schema';
 
 export type BankAccount = components['schemas']['BankAccountView'];
 export type Connection = components['schemas']['ConnectionView'];
@@ -41,6 +41,16 @@ export function useBankAccounts(envelopeId?: string): BankAccount[] | undefined 
   if (status.error || accounts.error || (status.data && !on)) return NONE;
   return accounts.data;
 }
+
+/** An envelope's bank lines, the statement import and the lines left to link (`features/operations`). */
+export type BankTransaction = components['schemas']['BankTransactionView'];
+export type BankTransactionPage = components['schemas']['BankTransactionPage'];
+export type ExpectedCharge = components['schemas']['ExpectedChargeView'];
+export type StatementImport = components['schemas']['StatementImportView'];
+export const TRANSACTIONS = '/api/v1/banking/envelopes/{envelopeId}/transactions' as const;
+export const STATEMENTS = '/api/v1/banking/statements' as const;
+export const UNLINKED_LINES = '/api/v1/banking/transactions' as const;
+export const CANDIDATES = '/api/v1/banking/transactions/{id}/candidates' as const;
 
 /** « 2026-09-30 » as « 30/09 »: the day of a balance, as the notes and the routine write it (a string swap, nothing computed). */
 export const dayMonth = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;

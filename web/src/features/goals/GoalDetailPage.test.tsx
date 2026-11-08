@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
-import type { GoalDetail } from './api';
+import type { GoalDetail } from '@/api/goals';
 import { detail, ENVELOPE, eur, funding, GOAL } from './testData';
 
 const serve = (body: GoalDetail) => server.use(http.get('*/api/v1/goals/:id', () => HttpResponse.json(body)));

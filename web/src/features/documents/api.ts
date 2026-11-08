@@ -1,40 +1,11 @@
-import { keepPreviousData, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { Api } from '@/api/client';
 import { ProblemError, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
-
-export type DocumentList = components['schemas']['DocumentList'];
-export type DocumentFacets = components['schemas']['DocumentFacets'];
-export type DocumentSummary = components['schemas']['DocumentSummary'];
-export type DocumentDetail = components['schemas']['DocumentDetail'];
-export type DocumentLink = components['schemas']['DocumentLinkView'];
-export type DocumentTargetView = components['schemas']['DocumentTargetView'];
-export type DocumentTargetList = components['schemas']['DocumentTargetList'];
-export type LinkPreview = components['schemas']['LinkPreview'];
-export type ExpectedDocument = components['schemas']['ExpectedDocumentView'];
-
-export const DOCUMENTS = '/api/v1/documents' as const;
-export const DOCUMENT = '/api/v1/documents/{id}' as const;
-export const DOCUMENT_CONTENT = '/api/v1/documents/{id}/content' as const;
-export const DOCUMENT_LINKS = '/api/v1/documents/{id}/links' as const;
-export const DOCUMENT_LINK = '/api/v1/documents/{id}/links/{targetKind}/{targetId}' as const;
-export const DOCUMENT_LINK_PREVIEW = '/api/v1/documents/{id}/links/preview' as const;
-export const DOCUMENT_TARGETS = '/api/v1/documents/targets' as const;
-export const ARCHIVE = '/api/v1/documents/{id}/archive' as const;
-export const UNARCHIVE = '/api/v1/documents/{id}/unarchive' as const;
-export const EXPECTED = '/api/v1/documents/expected' as const;
-export const EXPECTED_DISMISSALS = '/api/v1/documents/expected/dismissals' as const;
+import { ARCHIVE, DOCUMENT, DOCUMENT_LINK, DOCUMENT_LINK_PREVIEW, DOCUMENT_LINKS, DOCUMENT_TARGETS, DOCUMENTS, EXPECTED, EXPECTED_DISMISSALS, invalidateDocuments, UNARCHIVE, type LinkPreview } from '@/api/documents';
 
 export type Scope = 'me' | 'household';
-
-/** The download is a plain same-origin link: the session cookie goes with it. */
-export const contentUrl = (id: string) => DOCUMENT_CONTENT.replace('{id}', encodeURIComponent(id));
-
-/** Every write invalidates the list, every document (a link changes both) and the expected documents (#414). */
-export function invalidateDocuments(queryClient: QueryClient): Promise<void> {
-  return Promise.all([DOCUMENTS, DOCUMENT, EXPECTED].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
-}
 
 /** The documents page's own narrowing (issue #420), applied by the server; `page` from 1, absent for every document (a picker). */
 export type DocumentQuery = { role?: string; year?: number; linked?: string; q?: string; page?: number };

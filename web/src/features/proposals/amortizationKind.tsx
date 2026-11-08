@@ -2,7 +2,7 @@ import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { formatLocalDate } from '@/components/LocalDate';
-import type { BankRow, LoanComparison } from '../loans/api';
+import type { BankRow, LoanComparison } from '@/api/loans';
 import { Comparison, PreviewRows } from '../loans/bank/BankScheduleSection';
 import { Controller } from 'react-hook-form';
 import { Field } from '@/components/form/Field';

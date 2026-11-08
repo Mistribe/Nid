@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { PropertiesCosts } from '../api';
+import type { PropertiesCosts } from '@/api/properties';
 import { householdCosts, PROPERTY, propertiesCosts, RENTAL } from '../testData';
 
 const serve = (body: PropertiesCosts, seen: string[] = []) =>

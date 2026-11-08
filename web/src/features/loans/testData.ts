@@ -1,4 +1,4 @@
-import type { BankRow, LoanComparison, LoanDetail, LoanList, LoanOverviewRow, LoansOverview, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoansSimulation, LoanSummary } from './api';
+import type { BankRow, LoanComparison, LoanDetail, LoanList, LoanOverviewRow, LoansOverview, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoansSimulation, LoanSummary } from '@/api/loans';
 
 export const LOAN = '0192f0aa-0000-7000-8000-00000000d001';
 

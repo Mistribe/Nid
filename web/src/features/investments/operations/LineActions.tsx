@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
 import { RowMenu } from '@/components/page/RowMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { useLineActions, type BankTransaction } from './api';
+import { type BankTransaction } from '@/api/banking';
+import { useLineActions } from './api';
 import '@/locales/banks';
 
 const LinkDialog = lazy(() => import('./LinkDialog'));

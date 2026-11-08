@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
-import { PROJECTION, type HouseholdPoint, type Projection, type ProjectionMilestone } from './api';
+import { PROJECTION, type HouseholdPoint, type Projection, type ProjectionMilestone } from '@/api/dashboard';
 
 const YEARS = ['5y', '10y', '20y', '30y'] as const;
 const DEFAULT_HORIZON = '10y';

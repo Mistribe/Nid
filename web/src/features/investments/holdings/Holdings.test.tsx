@@ -8,7 +8,7 @@ import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
-import type { CostReport, Holding, HoldingBreakdown, HoldingsView, Movement, Snapshot } from '../api';
+import type { CostReport, Holding, HoldingBreakdown, HoldingsView, Movement, Snapshot } from '@/api/investments';
 import { detail, eur, PEA } from '../testData';
 import { signedUnits, trimUnits } from './holdingFormat';
 import { startLines } from './SnapshotDialog';

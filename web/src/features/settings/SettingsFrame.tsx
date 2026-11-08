@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/page/PageHeader';
 import { tabsListVariants } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { useBankingStatus } from './banks/api';
+import { useBankingStatus } from '@/api/banking';
 import '@/locales/notifications';
 
 const SECTIONS = [

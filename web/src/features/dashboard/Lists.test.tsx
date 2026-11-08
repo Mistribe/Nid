@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { todayIso } from '@/lib/today';
-import type { DashboardView } from './api';
+import type { DashboardView } from '@/api/dashboard';
 import { dashboard, event } from './testData';
 
 function serve(body: DashboardView) {

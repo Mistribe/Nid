@@ -1,6 +1,6 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useApi } from '@/api/ApiProvider';
-import type { components } from '@/api/schema';
+import { useApi } from './ApiProvider';
+import type { components } from './schema';
 
 export type GoalSummary = components['schemas']['GoalSummary'];
 export type GoalList = components['schemas']['GoalList'];
@@ -33,6 +33,7 @@ export function useGoals(scope: Scope, closed: boolean) {
   const { $api } = useApi();
   return $api.useQuery('get', GOALS, { params: { query: { scope, closed } } });
 }
+
 
 export function useGoal(id: string, scope: Scope) {
   const { $api } = useApi();

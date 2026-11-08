@@ -1,6 +1,6 @@
 import { percentToFraction } from '../../loans/rate';
 import { toWireAmount } from '@/lib/amount';
-import type { ReturnAssumptionsBody } from '../api';
+import type { ReturnAssumptionsBody } from '@/api/properties';
 
 /** The dialog's fields as typed: percents with a comma, amounts in euros, counts in digits; empty means « by default ». */
 export interface AssumptionsForm {

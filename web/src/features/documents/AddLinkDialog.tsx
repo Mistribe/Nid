@@ -8,7 +8,8 @@ import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { previewLink, useDocumentTargets, useLinkDocument, type DocumentSummary } from './api';
+import { type DocumentSummary } from '@/api/documents';
+import { previewLink, useDocumentTargets, useLinkDocument } from './api';
 import { linkKey, roleText, ROLES } from './format';
 import '@/locales/documents';
 

@@ -6,7 +6,7 @@ import { present, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
 import { RowMenu } from '@/components/page/RowMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { invalidateSubscriptions, type Detail, type Purchase } from '../api';
+import { invalidateSubscriptions, type Detail, type Purchase } from '@/api/subscriptions';
 import '@/locales/forms';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));

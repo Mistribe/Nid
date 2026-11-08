@@ -8,7 +8,7 @@ import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { todayIso } from '@/lib/today';
-import type { PropertyDetail, PropertyRecurringCost } from '../api';
+import type { PropertyDetail, PropertyRecurringCost } from '@/api/properties';
 import { PROPERTY, propertyDetail, recurringCost } from '../testData';
 
 type Body = components['schemas']['PropertyRecurringCostBody'];

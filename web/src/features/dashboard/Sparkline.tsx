@@ -1,7 +1,7 @@
 import { useApi } from '@/api/ApiProvider';
 import { HeroCurve } from '@/components/page/Hero';
 import { toPlot } from '@/lib/plot';
-import { NET_WORTH } from './api';
+import { NET_WORTH } from '@/api/dashboard';
 
 /** The net worth over 12 months beside the hero figure; an unknown month is skipped. */
 export function Sparkline({ scope }: { scope: 'me' | 'household' }) {

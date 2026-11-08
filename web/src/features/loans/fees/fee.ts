@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import type { LoanFee } from '../api';
+import type { LoanFee } from '@/api/loans';
 import { FEE_KINDS } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import '@/locales/investments';

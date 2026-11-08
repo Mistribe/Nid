@@ -3,7 +3,7 @@ import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { formatMoney } from '@/components/Money';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { toPlot } from '@/lib/plot';
-import type { AllocationLine, DashboardEnvelope, DashboardPerson } from '../api';
+import type { AllocationLine, DashboardEnvelope, DashboardPerson } from '@/api/dashboard';
 import { classColor, liquidityColor, personColor } from '@/components/colors';
 import { useClassName, useLiquidityName } from './allocationNames';
 

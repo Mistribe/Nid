@@ -8,7 +8,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { presentConflict } from '@/components/form/fieldErrors';
 import { Reload } from '@/components/form/Reload';
-import { invalidateIncome, REOPEN_SOURCE, type IncomeSourceDetail } from '../api';
+import { invalidateIncome, REOPEN_SOURCE, type IncomeSourceDetail } from '@/api/income';
 import '@/locales/income';
 
 /**

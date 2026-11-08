@@ -10,7 +10,7 @@ import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { todayIso } from '@/lib/today';
-import type { IncomeSourceDetail, IncomeSourceOverview } from './api';
+import type { IncomeSourceDetail, IncomeSourceOverview } from '@/api/income';
 import { detail, eur, phase, SALARY, sourceOverview } from './testData';
 
 const serve = (body: IncomeSourceDetail, overview?: IncomeSourceOverview) => server.use(

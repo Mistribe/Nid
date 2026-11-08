@@ -17,7 +17,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { LOANS, OVERVIEW, type LoanSummary } from './api';
+import { LOANS, OVERVIEW, type LoanSummary } from '@/api/loans';
 import { money, percent } from './format';
 import '@/locales/loans';
 import '@/locales/forms';

@@ -3,7 +3,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { render as rtlRender, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { reduceMotion } from '@/test/motion';
-import type { MonthView } from '../api';
+import type { MonthView } from '@/api/subscriptions';
 import { eur } from '../testData';
 import { MonthsChart } from './MonthsChart';
 

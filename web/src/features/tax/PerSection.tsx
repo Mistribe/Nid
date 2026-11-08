@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '@/components/Money';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableHead, TableRow } from '@/components/ui/table';
-import type { TaxResult } from './api';
+import type { TaxResult } from '@/api/tax';
 import { percentText, ZERO } from './format';
 import { eur } from './ResultTable';
 import '@/locales/tax';

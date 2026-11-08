@@ -1,4 +1,4 @@
-import type { TaxEstimate } from '../api';
+import type { TaxEstimate } from '@/api/tax';
 
 export type ProfileSectionId = 'foyer' | 'activite' | 'retraite' | 'depenses' | 'location' | 'exoneres';
 /** The profile tab's sections, in page order; each is the anchor of its region. */

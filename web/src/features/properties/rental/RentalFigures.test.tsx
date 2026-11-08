@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { PropertyDetail } from '../api';
+import type { PropertyDetail } from '@/api/properties';
 import { PROPERTY, propertyDetail, rentedFigures } from '../testData';
 
 // « Location » shows for a rental only.

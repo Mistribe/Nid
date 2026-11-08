@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DocumentSummary } from '../../documents/api';
+import type { DocumentSummary } from '@/api/documents';
 import { PayslipLink } from './PayslipCell';
 import '@/locales/income';
 

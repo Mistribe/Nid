@@ -23,7 +23,7 @@ import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
-import { ENVELOPES, invalidateInvestments } from './api';
+import { ENVELOPES, invalidateInvestments } from '@/api/investments';
 import { CADENCES, KINDS, regulatedOptions } from './format';
 import { newEnvelopeSchema, NEW_ENVELOPE_PATHS, toCreateBody, type NewEnvelopeValues } from './newEnvelopeSchema';
 import '@/locales/investments';

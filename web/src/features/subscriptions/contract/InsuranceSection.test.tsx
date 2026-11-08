@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { Detail } from '../api';
+import type { Detail } from '@/api/subscriptions';
 import { detail, persons, SUB } from '../testData';
 
 type Insurance = NonNullable<Detail['insurance']>;

@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import '@/app/i18n';
 import '@/locales/subscriptions';
-import type { Detail } from '../api';
+import type { Detail } from '@/api/subscriptions';
 import { detail } from '../testData';
 import { ContractSection } from './ContractSection';
 

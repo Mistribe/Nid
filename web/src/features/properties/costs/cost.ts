@@ -4,7 +4,7 @@ import type { components } from '@/api/schema';
 import { LOAN_AMOUNT } from '../../loans/new/loanForm';
 import { ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import type { PropertyRecurringCost } from '../api';
+import type { PropertyRecurringCost } from '@/api/properties';
 import { EVERY_UNITS, RECURRING_CATEGORIES } from '../format';
 import '@/locales/investments';
 import '@/locales/loans';

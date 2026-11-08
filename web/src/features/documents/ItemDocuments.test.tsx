@@ -13,7 +13,7 @@ import { pick } from '@/test/controls';
 import { aliceSession, allCapabilities } from '@/test/fixtures';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { DocumentSummary } from './api';
+import type { DocumentSummary } from '@/api/documents';
 import { ItemDocuments } from './ItemDocuments';
 import { ITEM, link, list, summary } from './testData';
 

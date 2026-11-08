@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { monthLabel } from '@/lib/format';
-import type { Projection } from '@/features/dashboard/api';
+import type { Projection } from '@/api/dashboard';
 import '@/locales/scenarios';
 
 type Warning = Projection['warnings'][number];

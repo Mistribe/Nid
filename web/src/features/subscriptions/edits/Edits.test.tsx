@@ -6,7 +6,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { Detail } from '../api';
+import type { Detail } from '@/api/subscriptions';
 import { BOB, detail, persons, PURCHASE, SUB } from '../testData';
 
 function serve(body: Detail, extra: Parameters<typeof server.use> = []) {

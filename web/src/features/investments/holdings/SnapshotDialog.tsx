@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { AMOUNT, ISO_DATE, toWireAmount } from '@/lib/amount';
 import { messageFor } from '@/components/form/fieldErrors';
 import { todayIso } from '@/lib/today';
-import { invalidateInvestments, SNAPSHOTS, type EnvelopeDetail, type Holding, type Snapshot } from '../api';
+import { invalidateInvestments, SNAPSHOTS, type EnvelopeDetail, type Holding, type Snapshot } from '@/api/investments';
 import { hasUnits, trimUnits, UNITS } from './holdingFormat';
 import '@/locales/investments';
 import '@/locales/forms';

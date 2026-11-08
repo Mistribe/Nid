@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
 import { percent } from '@/lib/format';
-import type { IncomeSourceOverview } from '../api';
+import type { IncomeSourceOverview } from '@/api/income';
 import '@/locales/income';
 
 /**

@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { GoalList } from './api';
+import type { GoalList } from '@/api/goals';
 import { list, summary } from './testData';
 import { expectOnePrimary } from '@/test/headerActions';
 

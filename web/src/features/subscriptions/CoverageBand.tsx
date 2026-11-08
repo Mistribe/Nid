@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Coverage } from './api';
+import type { Coverage } from '@/api/subscriptions';
 import { lastDay, sourceText } from './format';
 import '@/locales/subscriptions';
 

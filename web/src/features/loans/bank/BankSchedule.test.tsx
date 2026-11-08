@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { LoanDetail } from '../api';
+import type { LoanDetail } from '@/api/loans';
 import { agreeing, bankRows, bankTable, LOAN, loanDetail, schedule, withTable } from '../testData';
 
 /** A spreadsheet's copy: a header, then the golden case's first payment. */

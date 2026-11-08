@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { money } from '../../loans/format';
 import { todayIso } from '@/lib/today';
 import { usePropertyTrail } from '../propertyTrail';
-import { PROPERTY_RECEIPTS } from '../api';
+import { PROPERTY_RECEIPTS } from '@/api/properties';
 import { elision } from '@/lib/elision';
 import '@/locales/properties';
 import { PageSkeleton } from '@/components/page/skeletons';

@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'rec
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { toPlot } from '@/lib/plot';
-import type { LoanScheduleYear } from '../api';
+import type { LoanScheduleYear } from '@/api/loans';
 import { money } from '../format';
 import '@/locales/loans';
 

@@ -9,7 +9,7 @@ import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { link, summary } from '../../documents/testData';
 import { todayIso } from '@/lib/today';
-import type { IncomeSourceDetail } from '../api';
+import type { IncomeSourceDetail } from '@/api/income';
 import { detail, eur, SALARY } from '../testData';
 
 type Sent = { method: string; path: string; form?: Record<string, string> };

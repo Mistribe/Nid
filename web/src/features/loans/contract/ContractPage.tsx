@@ -14,7 +14,7 @@ import { FormActions, FormPage } from '@/components/page/FormPage';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
-import { CONTRACT, invalidateLoans, LOAN, type LoanContractView, type LoanDetail } from '../api';
+import { CONTRACT, invalidateLoans, LOAN, type LoanContractView, type LoanDetail } from '@/api/loans';
 import { money } from '../format';
 import { ContractFields } from '../new/ContractFields';
 import { contractPath, contractSchema, toContractBody, type ContractValues } from '../new/loanForm';

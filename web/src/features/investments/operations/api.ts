@@ -3,17 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { Api } from '@/api/client';
 import { ProblemError, toProblem, type Problem } from '@/api/errors';
-import type { components } from '@/api/schema';
-import { bankErrorText } from '@/features/settings/banks/api';
+import { bankErrorText, STATEMENTS, TRANSACTIONS, type BankTransactionPage, type StatementImport } from '@/api/banking';
 import '@/locales/banks';
-
-export type BankTransaction = components['schemas']['BankTransactionView'];
-export type BankTransactionPage = components['schemas']['BankTransactionPage'];
-export type ExpectedCharge = components['schemas']['ExpectedChargeView'];
-export type StatementImport = components['schemas']['StatementImportView'];
-
-export const TRANSACTIONS = '/api/v1/banking/envelopes/{envelopeId}/transactions' as const;
-export const STATEMENTS = '/api/v1/banking/statements' as const;
 
 /** The lines of an envelope's bank account and its cards, newest first, 50 a page; `from`/`to` (ISO, or absent) bound the period. */
 export function useTransactions(envelopeId: string, from?: string, to?: string) {
@@ -50,8 +41,6 @@ export function statementErrorText(t: TFunction, problem: Problem & { line?: num
   return bankErrorText(t, problem.code ?? '', t('banks.import.failed'));
 }
 
-export const UNLINKED_LINES = '/api/v1/banking/transactions' as const;
-export const CANDIDATES = '/api/v1/banking/transactions/{id}/candidates' as const;
 const LINK = '/api/v1/banking/transactions/{id}/link' as const;
 const UNLINK = '/api/v1/banking/transactions/{id}/unlink' as const;
 const IGNORE = '/api/v1/banking/transactions/{id}/ignore' as const;

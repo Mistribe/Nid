@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { LoansSimulation } from '../api';
+import type { LoansSimulation } from '@/api/loans';
 import { CAR, earlySimulation, household, LOAN, loanDetail, overview, schedule } from '../testData';
 
 /** Each body the simulation was sent, and its answer (`answer` may depend on the body). */

@@ -7,7 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { todayIso } from '@/lib/today';
-import type { LoanDetail, LoanRepayment } from '../api';
+import type { LoanDetail, LoanRepayment } from '@/api/loans';
 import { LOAN, loanDetail, schedule } from '../testData';
 
 type Body = components['schemas']['LoanRepaymentBody'];

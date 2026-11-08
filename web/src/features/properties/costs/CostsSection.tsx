@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
 import { money } from '../../loans/format';
-import { invalidateProperties, RECURRING_COST, type PropertyDetail, type PropertyRecurringCost } from '../api';
+import { invalidateProperties, RECURRING_COST, type PropertyDetail, type PropertyRecurringCost } from '@/api/properties';
 import { categoryText, everyText } from '../format';
 import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';

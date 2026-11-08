@@ -5,7 +5,7 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { LoanContractView, LoanDetail, LoanInsuranceComparison, LoanRenegotiation } from '../api';
+import type { LoanContractView, LoanDetail, LoanInsuranceComparison, LoanRenegotiation } from '@/api/loans';
 import { LOAN, loanDetail, schedule } from '../testData';
 
 type Contract = components['schemas']['LoanContractBody'];

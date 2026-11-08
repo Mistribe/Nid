@@ -7,8 +7,8 @@ import { formatMoney } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Skeleton } from '@/components/ui/skeleton';
-import { OVERVIEW } from '../../income/api';
-import type { DashboardView } from '../api';
+import { OVERVIEW } from '@/api/income';
+import type { DashboardView } from '@/api/dashboard';
 import { Value } from '../KeyFigures';
 
 /** Spec §4.2: the sources and rents behind « Revenus nets / mois », each with its monthly equivalent and owners. */

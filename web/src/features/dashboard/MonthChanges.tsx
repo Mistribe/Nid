@@ -3,7 +3,7 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatCurrency, type MoneyValue } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
-import { MONTH_CHANGES } from './api';
+import { MONTH_CHANGES } from '@/api/dashboard';
 
 const FIGURES = ['netWorth', 'commitments', 'income'] as const;
 

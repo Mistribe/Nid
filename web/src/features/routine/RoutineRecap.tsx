@@ -9,7 +9,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Direction } from '@/components/Direction';
-import { invalidateInvestments } from '../investments/api';
+import { invalidateInvestments } from '@/api/investments';
 import { ROUTINE, ROUTINE_UNDO, type RoutineRecap } from './api';
 
 export const UNDO_MS = 10_000;

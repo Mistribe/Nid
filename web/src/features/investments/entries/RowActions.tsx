@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { RowActions as SharedRowActions } from '@/components/page/RowActions';
-import { FLOW, invalidateInvestments, VALUATION, type EnvelopeDetail, type Flow, type Valuation } from '../api';
+import { FLOW, invalidateInvestments, VALUATION, type EnvelopeDetail, type Flow, type Valuation } from '@/api/investments';
 import { flowKindText, isTransferLeg } from '../format';
 import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/investments';

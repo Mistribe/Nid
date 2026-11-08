@@ -6,7 +6,7 @@ import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
-import type { LoansOverview } from '../api';
+import type { LoansOverview } from '@/api/loans';
 import { loanColor } from './colors';
 import { SectionCard } from '@/components/page/SectionCard';
 import { TableToggle } from '@/components/page/TableToggle';

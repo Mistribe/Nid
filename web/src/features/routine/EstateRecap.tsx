@@ -8,7 +8,7 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { invalidateProperties } from '../properties/api';
+import { invalidateProperties } from '@/api/properties';
 import { categoryText } from '../properties/format';
 import { ESTATE_ROUTINE, ESTATE_ROUTINE_UNDO, type EstateRecap } from './api';
 import { UNDO_MS } from './RoutineRecap';

@@ -1,9 +1,9 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { components } from '@/api/schema';
-import { invalidateDocuments } from '@/features/documents/api';
-import { DASHBOARD } from '@/features/dashboard/api';
-import { TAX, TAX_2044 } from '../api';
+import { invalidateDocuments } from '@/api/documents';
+import { DASHBOARD } from '@/api/dashboard';
+import { TAX, TAX_2044 } from '@/api/tax';
 
 export type TaxAssessment = components['schemas']['TaxAssessmentView'];
 export type TaxAssessmentBody = components['schemas']['AddTaxAssessmentBody'];

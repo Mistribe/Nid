@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { SelectField } from '@/components/form/SelectField';
-import { PROPERTIES } from '../properties/api';
+import { PROPERTIES } from '@/api/properties';
 import { Field } from '@/components/form/Field';
 import '@/locales/loans';
 

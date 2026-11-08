@@ -21,7 +21,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { PERSONS } from '@/api/persons';
-import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from './api';
+import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from '@/api/proposals';
 import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
 import { RoutePayload, isRouteKind, routeElement, routeLabel, routeLink, useNames } from './routeKind';

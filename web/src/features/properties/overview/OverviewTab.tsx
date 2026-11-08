@@ -26,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { toPlot } from '@/lib/plot';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PERSONS } from '@/api/persons';
-import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow, type PropertyWatch } from '../api';
+import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow, type PropertyWatch } from '@/api/properties';
 import { typeText } from '../format';
 import { typeColor } from './colors';
 import { missingCodes, NetValueChart } from './NetValueChart';

@@ -1,4 +1,4 @@
-import type { ProposalView } from './api';
+import type { ProposalView } from '@/api/proposals';
 
 let n = 0;
 /** A pending valuation proposal; override any field. */

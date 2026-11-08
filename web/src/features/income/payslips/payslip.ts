@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { DocumentLink, DocumentSummary } from '../../documents/api';
+import type { DocumentLink, DocumentSummary } from '@/api/documents';
 import '@/locales/income';
 
 /** `'YYYY-MM'`: compared as a string, never computed with. */

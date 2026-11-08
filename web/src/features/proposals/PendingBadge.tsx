@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { CountBadge } from '@/components/CountBadge';
-import { usePendingCount } from './api';
+import { usePendingCount } from '@/api/proposals';
 
 /** Spec D3: the count beside « À valider »; nothing at zero. Its text is also the link's accessible description. */
 export function PendingBadge({ dot = false }: { dot?: boolean }) {

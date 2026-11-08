@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw/http';
 import { server } from '@/test/server';
-import type { EnvelopeDetail } from './api';
+import type { EnvelopeDetail } from '@/api/investments';
 
 export type Call = { method: string; path: string; body?: unknown };
 

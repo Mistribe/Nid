@@ -13,7 +13,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { EXPECTED, invalidateIncome, PHASE_CHANGES, type IncomePhase, type IncomeSourceDetail } from '../api';
+import { EXPECTED, invalidateIncome, PHASE_CHANGES, type IncomePhase, type IncomeSourceDetail } from '@/api/income';
 import { defaultEffectiveDate, paymentDates, paymentWindow } from '../expected/months';
 import { phaseChangeFieldOf, phaseChangeSchema, phaseChangeValuesOf, toWirePhaseChange, type PhaseChangeValues } from './phase';
 import { PhaseFields } from './PhaseFields';

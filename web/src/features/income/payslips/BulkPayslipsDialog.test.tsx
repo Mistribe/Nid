@@ -6,9 +6,9 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { DocumentSummary } from '../../documents/api';
+import type { DocumentSummary } from '@/api/documents';
 import { link, summary } from '../../documents/testData';
-import type { IncomeExpected } from '../api';
+import type { IncomeExpected } from '@/api/income';
 import { detail, eur, SALARY } from '../testData';
 
 type Month = IncomeExpected['months'][number];

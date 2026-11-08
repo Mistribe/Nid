@@ -9,7 +9,7 @@ import { Segmented } from '@/components/form/Segmented';
 import type { Option } from '@/components/form/options';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ENVELOPES } from '../investments/api';
+import { ENVELOPES } from '@/api/investments';
 import type { GoalValues } from './goalSchema';
 import '@/locales/goals';
 

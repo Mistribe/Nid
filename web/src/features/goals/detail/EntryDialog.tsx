@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AMOUNT, ISO_DATE, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import { usePutProgress } from '../api';
+import { usePutProgress } from '@/api/goals';
 import '@/locales/goals';
 
 /** A dated reading of a free goal; a reading on a date already entered replaces it (the server keeps one per date). */

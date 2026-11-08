@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { tileOf } from '@/components/nav';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { SectionCard } from '@/components/page/SectionCard';
-import { useGoals } from '../goals/api';
+import { useGoals } from '@/api/goals';
 import { Amounts, GoalProgress, GoalStatus } from '../goals/GoalStatus';
 import '@/locales/goals';
 

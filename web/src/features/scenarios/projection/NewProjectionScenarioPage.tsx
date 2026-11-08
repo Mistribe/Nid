@@ -16,7 +16,7 @@ import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PROJECTION, type Projection } from '@/features/dashboard/api';
+import { PROJECTION, type Projection } from '@/api/dashboard';
 import { Folded } from '@/components/form/Folded';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { PROJECTION_SCENARIOS, PROJECTION_SIMULATE, SCENARIOS } from '../api';

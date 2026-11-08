@@ -1,4 +1,4 @@
-import { contentUrl } from './api';
+import { contentUrl } from '@/api/documents';
 import type { Previewed } from './preview';
 
 /** Issue #413: a PDF in the browser's own viewer, an image as an image, from the inline variant of the download. */

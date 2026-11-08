@@ -16,7 +16,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { HouseholdPoint } from '@/features/dashboard/api';
+import type { HouseholdPoint } from '@/api/dashboard';
 import { monthLabel } from '@/lib/format';
 import { SCENARIO_COMPARE, SCENARIOS, type ScenarioCompare } from '../api';
 import type { ChartSeries } from '../projection/chartSeries';

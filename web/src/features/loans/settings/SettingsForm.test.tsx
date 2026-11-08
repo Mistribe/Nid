@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { PROPERTY, propertyList, propertySummary } from '../../properties/testData';
-import type { LoanDetail } from '../api';
+import type { LoanDetail } from '@/api/loans';
 import { LOAN, loanDetail, schedule } from '../testData';
 
 function serve(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: LOAN }), detail: LoanDetail = loanDetail()) {

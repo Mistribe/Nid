@@ -18,7 +18,7 @@ import { ISO_DATE, toWireAmount } from '@/lib/amount';
 import { Field } from '@/components/form/Field';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { invalidateProperties, VALUATIONS, type PropertyDetail } from '../api';
+import { invalidateProperties, VALUATIONS, type PropertyDetail } from '@/api/properties';
 import '@/locales/investments';
 import '@/locales/loans';
 import '@/locales/properties';

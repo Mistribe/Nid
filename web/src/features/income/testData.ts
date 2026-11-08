@@ -1,4 +1,4 @@
-import type { IncomeOverview, IncomePhase, IncomeSourceDetail, IncomeSourceList, IncomeSourceOverview, IncomeSourceSummary } from './api';
+import type { IncomeOverview, IncomePhase, IncomeSourceDetail, IncomeSourceList, IncomeSourceOverview, IncomeSourceSummary } from '@/api/income';
 
 export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 export const SALARY = '0192f0aa-0000-7000-8000-00000000c001';

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw/http';
 import { server } from '@/test/server';
-import type { BankAccount, BankRule, Connection } from './api';
+import type { BankAccount, BankRule, Connection } from '@/api/banking';
 
 export const CONNECTION = '00000000-0000-7000-8000-0000000000b1';
 export const CHECKING = '00000000-0000-7000-8000-0000000000b2';

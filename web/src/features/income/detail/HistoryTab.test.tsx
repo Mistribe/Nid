@@ -5,9 +5,9 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { todayIso } from '@/lib/today';
-import { contentUrl, type DocumentSummary } from '../../documents/api';
+import { contentUrl, type DocumentSummary } from '@/api/documents';
 import { link, summary } from '../../documents/testData';
-import type { IncomeExpected, IncomeSourceDetail } from '../api';
+import type { IncomeExpected, IncomeSourceDetail } from '@/api/income';
 import { detail, eur, SALARY } from '../testData';
 import { expectedRange } from '../expected/months';
 

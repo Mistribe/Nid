@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
-import { LIST } from '../../api';
+import { LIST } from '@/api/subscriptions';
 import { AmountField, DateField, DurationFields, LabelField, PayerFields, type Form, type Person } from './fields';
 import '@/locales/forms';
 

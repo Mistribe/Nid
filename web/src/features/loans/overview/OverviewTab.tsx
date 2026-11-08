@@ -22,7 +22,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { todayIso } from '@/lib/today';
 import { toPlot } from '@/lib/plot';
-import { OVERVIEW, type LoanOverviewRow, type LoansOverview } from '../api';
+import { OVERVIEW, type LoanOverviewRow, type LoansOverview } from '@/api/loans';
 import { money, percent } from '../format';
 import { BalanceChart, monthText, useLoanNames } from './BalanceChart';
 import { loanColor } from './colors';

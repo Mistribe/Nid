@@ -17,7 +17,7 @@ import { Folded } from '@/components/form/Folded';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { HOLDING, HOLDINGS, invalidateInvestments, type EnvelopeDetail, type Holding, type HoldingBody } from '../api';
+import { HOLDING, HOLDINGS, invalidateInvestments, type EnvelopeDetail, type Holding, type HoldingBody } from '@/api/investments';
 import { pastDate } from '@/components/form/pastDate';
 import { placeFieldError, presentConflict } from '@/components/form/fieldErrors';
 import { HOLDING_KINDS, holdingKindText } from './holdingFormat';

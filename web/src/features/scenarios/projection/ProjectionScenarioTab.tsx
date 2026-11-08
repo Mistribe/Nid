@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { HouseholdPoint } from '@/features/dashboard/api';
+import type { HouseholdPoint } from '@/api/dashboard';
 import { monthLabel } from '@/lib/format';
 import type { ProjectionComparison } from './api';
 import { ProjectionComparisonChart, useMilestoneText } from './ProjectionComparisonChart';

@@ -6,7 +6,7 @@ import { PROPERTY, propertyDetail } from '../properties/testData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { SaleItemView, SaleTax } from './api';
+import type { SaleItemView, SaleTax } from '@/api/tax';
 
 const ALICE = '0192f0aa-0000-7000-8000-0000000000a1';
 const BOB = '0192f0aa-0000-7000-8000-0000000000b2';

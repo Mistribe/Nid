@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { ISO_DATE, toWireAmount } from '@/lib/amount';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { INSURANCE_QUOTE, type LoanDetail, type LoanInsuranceComparison } from '../api';
+import { INSURANCE_QUOTE, type LoanDetail, type LoanInsuranceComparison } from '@/api/loans';
 import { INSURANCE_MODES, insuranceModeText, money, signedMoney } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import { isPercentRate, percentToFraction } from '../rate';

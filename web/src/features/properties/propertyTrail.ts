@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import type { Crumb } from '@/components/page/trail';
-import { PROPERTY, type PropertyDetail } from './api';
+import { PROPERTY, type PropertyDetail } from '@/api/properties';
 
 /** A property sub-page's trail before its view loads: the property named from the cache if already read (no request), else « Bien ». */
 export function usePropertyTrail(id: string): Crumb[] {

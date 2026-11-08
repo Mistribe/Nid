@@ -1,4 +1,4 @@
-import type { HouseholdPoint, Projection } from '@/features/dashboard/api';
+import type { HouseholdPoint, Projection } from '@/api/dashboard';
 import { projection, projectionPoint } from '@/features/dashboard/testData';
 import type { ProjectionComparison } from './api';
 

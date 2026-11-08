@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { todayIso } from '@/lib/today';
-import { useEditDocument, type DocumentDetail } from './api';
+import { type DocumentDetail } from '@/api/documents';
+import { useEditDocument } from './api';
 import '@/locales/documents';
 
 type Values = { title: string; documentDate: string; note: string };

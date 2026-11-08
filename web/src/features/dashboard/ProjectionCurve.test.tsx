@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { Projection } from './api';
+import type { Projection } from '@/api/dashboard';
 import { dashboard, emptyProjection, projection } from './testData';
 
 const ALICE = '00000000-0000-7000-8000-0000000000a1';

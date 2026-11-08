@@ -22,7 +22,7 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
-import { DETAIL } from './api';
+import { DETAIL } from '@/api/subscriptions';
 import { PERSONS } from '@/api/persons';
 import { ContractSection } from './contract/ContractSection';
 import { ContractTermsForm } from './contract/ContractTermsForm';

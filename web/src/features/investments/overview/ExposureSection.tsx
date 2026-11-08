@@ -3,7 +3,7 @@ import { formatMoney, type MoneyValue } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
-import type { HouseholdHoldings, HoldingsExposure } from '../api';
+import type { HouseholdHoldings, HoldingsExposure } from '@/api/investments';
 import { regionText, sectorText, sharePct } from '../holdings/breakdown';
 import { regionColor, sectorColor } from './colors';
 import '@/locales/investments';

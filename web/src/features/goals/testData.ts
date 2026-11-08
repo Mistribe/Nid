@@ -1,4 +1,4 @@
-import type { GoalDetail, GoalFunding, GoalList, GoalMoney, GoalSummary } from './api';
+import type { GoalDetail, GoalFunding, GoalList, GoalMoney, GoalSummary } from '@/api/goals';
 
 export const eur = (amount: string): GoalMoney => ({ amount, currency: 'EUR' });
 

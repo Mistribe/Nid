@@ -11,7 +11,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ALLOCATION_TARGET, DASHBOARD, type Allocation as AllocationData, type AllocationLine, type DashboardView } from '../api';
+import { ALLOCATION_TARGET, DASHBOARD, type Allocation as AllocationData, type AllocationLine, type DashboardView } from '@/api/dashboard';
 import { classColor, liquidityColor } from '@/components/colors';
 import { percent } from '@/lib/format';
 import { CLASSES, useClassName, useLiquidityName } from './allocationNames';

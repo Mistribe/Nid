@@ -16,7 +16,7 @@ import { presentConflict, knownConflictMessage } from '@/components/form/fieldEr
 import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateIncome, SOURCE, type IncomeSourceDetail } from '../api';
+import { invalidateIncome, SOURCE, type IncomeSourceDetail } from '@/api/income';
 import { KINDS } from '../format';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/income';

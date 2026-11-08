@@ -4,7 +4,7 @@ import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import type { IncomeSourceOverview } from '../api';
+import type { IncomeSourceOverview } from '@/api/income';
 import { LastCard } from './LastPayments';
 import '@/locales/income';
 

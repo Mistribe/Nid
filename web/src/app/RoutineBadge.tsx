@@ -2,7 +2,7 @@ import { useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { CountBadge } from '@/components/CountBadge';
-import { DASHBOARD } from '@/features/dashboard/api';
+import { DASHBOARD } from '@/api/dashboard';
 import { isRoutineTodo } from '@/features/dashboard/todo';
 import type { RootSearch } from '@/lib/search';
 import { useSession } from './Providers';

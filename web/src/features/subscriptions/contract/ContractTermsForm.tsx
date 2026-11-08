@@ -10,7 +10,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '../api';
+import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '@/api/subscriptions';
 import { ISO_DATE } from '@/lib/amount';
 import { Reload } from '../edits/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';

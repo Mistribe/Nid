@@ -6,9 +6,9 @@ import { pick } from '@/test/controls';
 import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { EnvelopeDetail } from '../api';
+import type { EnvelopeDetail } from '@/api/investments';
 import { detail, PEA } from '../testData';
-import type { BankTransaction } from './api';
+import type { BankTransaction } from '@/api/banking';
 
 const line = (over: Partial<BankTransaction> = {}): BankTransaction => ({
   id: 't1', bookedOn: '2026-10-27', valueOn: null, amount: '2450.00', currency: 'EUR', label: 'VIR SEPA SOCIETE EXEMPLE SAS',

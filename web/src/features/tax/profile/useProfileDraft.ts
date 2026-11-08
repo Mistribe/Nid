@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
-import { DASHBOARD } from '../../dashboard/api';
-import { invalidateGoals } from '../../goals/api';
-import { TAX, TAX_2044, TAX_PROFILE, type TaxEstimate } from '../api';
+import { DASHBOARD } from '@/api/dashboard';
+import { invalidateGoals } from '@/api/goals';
+import { TAX, TAX_2044, TAX_PROFILE, type TaxEstimate } from '@/api/tax';
 import { countChanges, draftErrors, initialDraft, profileBody, type DraftErrors, type ProfileDraft } from './draft';
 import '@/locales/tax';
 

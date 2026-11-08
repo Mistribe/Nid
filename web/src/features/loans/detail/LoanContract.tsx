@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { LoanDetail } from '../api';
+import type { LoanDetail } from '@/api/loans';
 import { firstPeriodText, insuranceModeText, modeText, money, percent, rateTypeText, roundingText } from '../format';
 import { Terms } from './Terms';
 import '@/locales/loans';

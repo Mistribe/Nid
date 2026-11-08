@@ -10,7 +10,7 @@ import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { FormPage } from '@/components/page/FormPage';
 import { StepForm } from '@/components/page/StepForm';
-import { invalidateSubscriptions, LIST } from './api';
+import { invalidateSubscriptions, LIST } from '@/api/subscriptions';
 import { PERSONS } from '@/api/persons';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';

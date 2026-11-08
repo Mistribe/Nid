@@ -10,7 +10,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { LineActions } from '../investments/operations/LineActions';
-import { UNLINKED_LINES, type BankTransaction, type BankTransactionPage } from '../investments/operations/api';
+import { UNLINKED_LINES, type BankTransaction, type BankTransactionPage } from '@/api/banking';
 import '@/locales/banks';
 
 /** Bank sync spec §6.5: the lines of every readable account still to link, newest first; the server refuses what the reader cannot write. */

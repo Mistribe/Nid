@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema';
-import type { EnvelopeDetail } from '../api';
+import type { EnvelopeDetail } from '@/api/investments';
 import { toWireAmount } from '@/lib/amount';
 import { hasPremiumsBefore2017 } from '../format';
 

@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp';
 import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { LoanDetail, LoanSchedule } from './api';
+import type { LoanDetail, LoanSchedule } from '@/api/loans';
 import { PROPERTY } from '../properties/testData';
 import { pick } from '@/test/controls';
 import { agreeing, LOAN, loanDetail, rows, schedule, withTable, year } from './testData';

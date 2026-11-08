@@ -3,7 +3,7 @@ import { SelectField, type Option } from '@/components/form/SelectField';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Input } from '@/components/ui/input';
-import type { DocumentFacets } from './api';
+import type { DocumentFacets } from '@/api/documents';
 import { roleText } from './format';
 import '@/locales/documents';
 

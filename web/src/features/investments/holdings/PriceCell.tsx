@@ -4,7 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Badge } from '@/components/ui/badge';
-import { HOLDINGS, PRICE_ACCEPT, type Holding } from '../api';
+import { HOLDINGS, PRICE_ACCEPT, type Holding } from '@/api/investments';
 import { formatUnits } from './holdingFormat';
 import '@/locales/investments';
 

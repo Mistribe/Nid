@@ -12,7 +12,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { aliceSession, allCapabilities } from '@/test/fixtures';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { ExpectedDocument } from './api';
+import type { ExpectedDocument } from '@/api/documents';
 import { ExpectedDocuments } from './ExpectedDocuments';
 import { ALICE, ITEM } from './testData';
 

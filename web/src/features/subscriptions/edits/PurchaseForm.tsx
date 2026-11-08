@@ -9,7 +9,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { invalidateSubscriptions, type Detail } from '../api';
+import { invalidateSubscriptions, type Detail } from '@/api/subscriptions';
 import { AMOUNT, CURRENCY, ISO_DATE, toWireAmount } from '@/lib/amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';

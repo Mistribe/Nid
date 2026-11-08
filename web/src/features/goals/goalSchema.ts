@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ownershipPath, ownershipShape, checkOwnership, ownershipToWire, percentToBp, type OwnerRow } from '@/components/ownership/ownership';
 import { AMOUNT, ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import type { CreateGoalBody, EditGoalBody, GoalDetail } from './api';
+import type { CreateGoalBody, EditGoalBody, GoalDetail } from '@/api/goals';
 import '@/locales/goals';
 import '@/locales/forms';
 

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { presentConflict } from '@/components/form/fieldErrors';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateIncome, PHASE, PHASES, type IncomePhase, type IncomeSourceDetail } from '../api';
+import { invalidateIncome, PHASE, PHASES, type IncomePhase, type IncomeSourceDetail } from '@/api/income';
 import { phaseFieldOf, phaseSchema, toWirePhase, type PhaseValues } from './phase';
 import { PhaseFields } from './PhaseFields';
 import '@/locales/income';

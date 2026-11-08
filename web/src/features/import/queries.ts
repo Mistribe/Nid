@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { DASHBOARD, NET_WORTH, PROJECTION } from '../dashboard/api';
+import { DASHBOARD, NET_WORTH, PROJECTION } from '@/api/dashboard';
 
 /**
  * Marks the import list and every session as stale after a step changed one on the server (start, cancel,

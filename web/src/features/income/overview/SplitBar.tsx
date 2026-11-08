@@ -4,7 +4,7 @@ import { SectionCard } from '@/components/page/SectionCard';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { percent } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { IncomeOverviewShare } from '../api';
+import type { IncomeOverviewShare } from '@/api/income';
 
 const isolable = (s: IncomeOverviewShare) => s.kind !== 'one_off' && s.kind !== 'other' && s.item != null;
 

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalDialog } from '@/components/ModalDialog';
-import type { EnvelopeDetail, Flow, Valuation } from '../api';
+import type { EnvelopeDetail, Flow, Valuation } from '@/api/investments';
 import { FlowForm } from './FlowForm';
 import { ValueForm } from './ValueForm';
 import '@/locales/investments';

@@ -17,7 +17,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { ENVELOPES, HOUSEHOLD_HOLDINGS, type EnvelopeSummary } from './api';
+import { ENVELOPES, HOUSEHOLD_HOLDINGS, type EnvelopeSummary } from '@/api/investments';
 import { kindText } from './format';
 import { Gain } from './Figures';
 import '@/locales/investments';

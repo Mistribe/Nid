@@ -8,7 +8,8 @@ import { Field } from '@/components/form/Field';
 import { formatCurrency } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { CANDIDATES, useLineActions, type BankTransaction, type ExpectedCharge } from './api';
+import { CANDIDATES, type BankTransaction, type ExpectedCharge } from '@/api/banking';
+import { useLineActions } from './api';
 import '@/locales/banks';
 
 /** « 2026-10-27 » as « 27/10/2026 » (a string swap, nothing computed). */

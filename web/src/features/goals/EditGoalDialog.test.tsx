@@ -5,7 +5,7 @@ import { list as envelopeList, summary as envelope } from '../investments/testDa
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { GoalDetail } from './api';
+import type { GoalDetail } from '@/api/goals';
 import { detail, ENVELOPE, GOAL } from './testData';
 
 function serve(body: GoalDetail, puts: unknown[], answer: () => Response = () => HttpResponse.json(body)) {

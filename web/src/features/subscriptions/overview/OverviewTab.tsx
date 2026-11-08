@@ -20,7 +20,7 @@ import { toPlot } from '@/lib/plot';
 import i18n from '@/app/i18n';
 import board from '@/locales/fr.subscriptions-board.json';
 import { cn } from '@/lib/utils';
-import { LIST, OVERVIEW, type Overview } from '../api';
+import { LIST, OVERVIEW, type Overview } from '@/api/subscriptions';
 import { PERSONS } from '@/api/persons';
 import { durationText } from '../format';
 import { OverviewSkeleton } from '@/components/page/skeletons';

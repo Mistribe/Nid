@@ -7,7 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { todayIso } from '@/lib/today';
-import type { PropertyDetail } from '../api';
+import type { PropertyDetail } from '@/api/properties';
 import { PROPERTY, propertyDetail } from '../testData';
 
 type Body = components['schemas']['PropertyValuationBody'];

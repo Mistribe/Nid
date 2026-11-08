@@ -15,7 +15,7 @@ import { percent as sharePercent } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
 import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
-import type { LoansOverview } from '../api';
+import type { LoansOverview } from '@/api/loans';
 import { modeText, percent } from '../format';
 import { monthAfter, timeAxis, yearsLater } from './axis';
 import { monthText, useLoanNames } from './BalanceChart';

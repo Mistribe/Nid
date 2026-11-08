@@ -16,10 +16,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
-import { invalidateInvestments } from '../investments/api';
+import { invalidateInvestments } from '@/api/investments';
 import { ROUTINE, type RoutineLine, type RoutineRecap, type RoutineView } from './api';
 import { clearDraft, saveDraft } from './draft';
-import { dayMonth } from '../settings/banks/api';
+import { dayMonth } from '@/api/banking';
 import '@/locales/banks';
 
 export type RoutineValues = { lines: { id: string; value: string; contribution: string; skip: boolean }[] };

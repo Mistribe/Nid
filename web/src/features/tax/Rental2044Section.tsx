@@ -10,7 +10,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/lib/download';
-import { TAX_2044, type Rental2044 } from './api';
+import { TAX_2044, type Rental2044 } from '@/api/tax';
 import { deficitLines, lineNote, lineText, noticeAmount, noticeText } from './format';
 import { rental2044Csv } from './rental2044Csv';
 import { eur } from './ResultTable';

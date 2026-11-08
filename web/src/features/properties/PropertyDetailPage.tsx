@@ -15,7 +15,7 @@ import { SharingMenu } from '@/components/ownership/SharingMenu';
 import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Section } from '@/components/page/Section';
-import { PROPERTY } from './api';
+import { PROPERTY } from '@/api/properties';
 import { CostsSection } from './costs/CostsSection';
 import { LinkedLoans } from './detail/LinkedLoans';
 import { PropertyCostDetail, PropertyStats } from './detail/PropertyFigures';

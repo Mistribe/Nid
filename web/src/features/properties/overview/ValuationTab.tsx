@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toPlot } from '@/lib/plot';
 import { Direction } from '@/components/Direction';
 import { money, signedMoney } from '@/features/loans/format';
-import { PROPERTIES_VALUATION, type PropertiesValuation, type ValuationRow } from '../api';
+import { PROPERTIES_VALUATION, type PropertiesValuation, type ValuationRow } from '@/api/properties';
 import { typeText } from '../format';
 import '@/locales/properties';
 import { OverviewSkeleton } from '@/components/page/skeletons';

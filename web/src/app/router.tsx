@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import type { RootSearch } from '@/lib/search';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import type { Panel } from '@/features/dashboard/KeyFigures';
-import type { LoanContractView } from '@/features/loans/api';
+import type { LoanContractView } from '@/api/loans';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
 import { ErrorPage } from '@/components/ErrorPage';
 import { PageSkeleton } from '@/components/page/skeletons';

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
-import { invalidateIncome, ONE_OFF, type IncomeOneOff, type IncomeSourceDetail } from '../api';
+import { invalidateIncome, ONE_OFF, type IncomeOneOff, type IncomeSourceDetail } from '@/api/income';
 import { RowActions } from '@/components/page/RowActions';
 import { presentConflict } from '@/components/form/fieldErrors';
 import { oneOffTitle } from '../payslips/payslip';

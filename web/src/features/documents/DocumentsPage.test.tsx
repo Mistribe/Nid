@@ -7,7 +7,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { stubLocalDay } from '@/test/timeZone';
-import type { DocumentList } from './api';
+import type { DocumentList } from '@/api/documents';
 import { ALICE, DOC, ITEM, link, list, summary } from './testData';
 
 /** As the server (issue #420): the facets of every row, the rows the filters keep, one page of `size`. */

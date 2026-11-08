@@ -8,7 +8,7 @@ import { OwnerChips } from '@/components/OwnerChips';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { percent } from '@/lib/format';
-import type { IncomeOverview } from '../api';
+import type { IncomeOverview } from '@/api/income';
 import '@/locales/forms';
 
 type Row = IncomeOverview['sources'][number];

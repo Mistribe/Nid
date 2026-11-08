@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import type { DocumentSummary } from '../../documents/api';
-import type { IncomeOneOff, IncomeSourceDetail } from '../api';
+import type { DocumentSummary } from '@/api/documents';
+import type { IncomeOneOff, IncomeSourceDetail } from '@/api/income';
 import { oneOffDocuments, oneOffTitle } from './payslip';
 import { PayslipLink, PayslipMenu, PayslipProblem } from './PayslipCell';
 import { usePayslipWrites } from './usePayslipWrites';

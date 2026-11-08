@@ -16,7 +16,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { monthText } from '@/components/LocalDate';
 import { monthLabel } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
-import { NET_WORTH, type NetWorthHistory, type NetWorthPointView } from './api';
+import { NET_WORTH, type NetWorthHistory, type NetWorthPointView } from '@/api/dashboard';
 import { TableToggle } from '@/components/page/TableToggle';
 
 const PERIODS = ['12m', '3y', 'all'] as const;

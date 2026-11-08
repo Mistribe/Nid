@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Folded } from '@/components/form/Folded';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { COST_REPORT, invalidateInvestments, type CostReport, type EnvelopeDetail, type Holding } from '../api';
+import { COST_REPORT, invalidateInvestments, type CostReport, type EnvelopeDetail, type Holding } from '@/api/investments';
 import { placeFieldError } from '@/components/form/fieldErrors';
 import '@/locales/investments';
 import '@/locales/forms';

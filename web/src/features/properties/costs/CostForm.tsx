@@ -15,7 +15,7 @@ import { presentRefusal } from '../../loans/refusal';
 import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateProperties, RECURRING_COST, RECURRING_COSTS, type PropertyDetail, type PropertyRecurringCost } from '../api';
+import { invalidateProperties, RECURRING_COST, RECURRING_COSTS, type PropertyDetail, type PropertyRecurringCost } from '@/api/properties';
 import { EVERY_UNITS, RECURRING_CATEGORIES } from '../format';
 import { COST_PATHS, costSchema, costValuesOf, toCostBody, type CostValues } from './cost';
 import '@/locales/loans';

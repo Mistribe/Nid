@@ -27,7 +27,8 @@
 ```
 /web/src
   /app          routeur, providers, layout, amorçage de session, i18n, PWA, thème
-  /api          schema.d.ts généré, client, intercepteurs, mappage des erreurs
+  /api          schema.d.ts généré, client, intercepteurs, mappage des erreurs,
+                contrats partagés par domaine (dashboard, properties, banking…)
   /features     dashboard, subscriptions, investments, real-estate, inbox, routine,
                 items, documents, import-export, security, settings
   /components   ui/ (shadcn), Money, LocalDate, AccessBadge, StaleValue,
@@ -40,7 +41,8 @@
   theme-init.js   script externe bloquant (voir §9)
 ```
 
-- Couches : `app` → `features` → `components` → `lib` / `api`. Une couche n'importe jamais une couche au-dessus d'elle : `components/` n'importe ni `features/` ni `app/`, et `lib/` et `api/` n'importent ni `components/`, ni `features/`, ni `app/` (`no-restricted-imports` dans `web/eslint.config.js` ; les tests en sont exemptés, puisque `renderApp` monte l'application entière). Ce que deux features partagent sans relever du métier de l'une ou de l'autre (dates, montants saisis, erreurs de formulaire, `Reload`, `Folded`, `toPlot`, couleurs, CSV, `nav`) vit dans `components/` ou `lib/`, jamais dans l'une d'elles. Une feature peut en revanche importer le contrat métier d'une autre (son `api.ts`, une section qu'elle compose).
+- Couches : `app` → `features` → `components` → `lib` / `api`. Une couche n'importe jamais une couche au-dessus d'elle : `components/` n'importe ni `features/` ni `app/`, et `lib/` et `api/` n'importent ni `components/`, ni `features/`, ni `app/` (`no-restricted-imports` dans `web/eslint.config.js` ; les tests en sont exemptés, puisque `renderApp` monte l'application entière). Ce que deux features partagent sans relever du métier de l'une ou de l'autre (dates, montants saisis, erreurs de formulaire, `Reload`, `Folded`, `toPlot`, couleurs, CSV, `nav`) vit dans `components/` ou `lib/`, jamais dans l'une d'elles.
+- Les features dépendent les unes des autres dans un seul sens : le graphe de leurs imports est sans cycle (`web/src/featureCycles.test.ts` échoue sur un cycle et nomme les imports qui le forment ; les tests en sont exemptés, ils chargent les jeux de données ou la page d'une autre feature). Ce qu'une feature lit du contrat d'une autre vit dans `src/api/<domaine>.ts`, jamais dans le `api.ts` de l'autre : chemins de requête, qui servent aussi de clés d'invalidation (`DASHBOARD`, `PROJECTION`, `PROPERTIES`…), alias des types du schéma (`HouseholdPoint`, `EnvelopeSummary`…), helpers `invalidate…`, hooks de lecture qu'une autre feature appelle (`useGoals`, `usePendingCount`, `useBankAccounts`) et mappage des codes d'erreur du domaine (`bankErrorText`). Le `api.ts` d'une feature garde ce qu'elle seule utilise (ses mutations, ses envois de fichiers) ; quand ce reste est minuscule, le domaine le reprend (`api/goals.ts`) : une moitié isolée deviendrait un chunk de plus, et chaque chunk ajoute son nom au JS initial (§12). Une feature peut encore composer une section ou un format d'une autre (`tax/SaleTaxSection` dans une enveloppe ou un bien, `loans/format` dans les biens) tant que l'autre ne l'importe pas en retour ; sinon la pièce partagée descend dans `components/` (`ItemLink`).
 - Les dossiers de `/features` reprennent les modules du backend. Un module désactivé disparaît de la navigation : le SPA lit `GET /api/v1/platform/capabilities`. Ses champs : `modules` et `admin` (l'acteur est-il admin ; la feature `admin` n'est routée et affichée que si vrai, le serveur refusant de toute façon en `403 platform.admin_required`).
 - `schema.d.ts` est généré par le développeur depuis l'OpenAPI (`dotnet build` réécrit `src/api/openapi.json`, puis `pnpm --dir web gen:api`), **versionné** ; la CI vérifie qu'il est à jour (`pnpm check:api`, `../architecture.md` §13).
 

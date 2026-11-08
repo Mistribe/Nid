@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ISO_DATE } from '@/lib/amount';
 import { Field } from '@/components/form/Field';
 import { todayIso } from '@/lib/today';
-import { PERFORMANCE } from '../api';
+import { PERFORMANCE } from '@/api/investments';
 import { Direction } from '@/components/Direction';
 import { presetRange, type Preset } from './periods';
 import '@/locales/investments';

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { messageFor } from '@/components/form/fieldErrors';
 import { todayIso } from '@/lib/today';
-import { HOLDING_BREAKDOWN, invalidateInvestments, type EnvelopeDetail, type Holding, type HoldingBreakdown } from '../api';
+import { HOLDING_BREAKDOWN, invalidateInvestments, type EnvelopeDetail, type Holding, type HoldingBreakdown } from '@/api/investments';
 import { REGIONS, regionText, SECTORS, sectorText } from './breakdown';
 import '@/locales/investments';
 import '@/locales/forms';

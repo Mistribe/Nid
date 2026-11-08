@@ -11,7 +11,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
-import type { InvestmentsOverview, OverviewPoint } from '../api';
+import type { InvestmentsOverview, OverviewPoint } from '@/api/investments';
 import { kindText } from '../format';
 import { KIND_ORDER, kindColor } from './colors';
 import { TableToggle } from '@/components/page/TableToggle';

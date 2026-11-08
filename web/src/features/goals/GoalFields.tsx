@@ -9,7 +9,7 @@ import { Segmented } from '@/components/form/Segmented';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Folded } from '@/components/form/Folded';
-import { useEmergencyTarget } from './api';
+import { useEmergencyTarget } from '@/api/goals';
 import { kindText } from './format';
 import { KINDS, type GoalValues } from './goalSchema';
 import '@/locales/goals';

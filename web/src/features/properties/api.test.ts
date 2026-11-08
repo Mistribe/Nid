@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { invalidateProperties, PROPERTY, PROPERTY_RECEIPTS } from './api';
+import { invalidateProperties, PROPERTY, PROPERTY_RECEIPTS } from '@/api/properties';
 
 describe('invalidateProperties', () => {
   it('drops the receipts with the detail: a flow or a lease changed changes the receipt', async () => {

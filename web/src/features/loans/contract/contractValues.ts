@@ -1,4 +1,4 @@
-import type { LoanDetail } from '../api';
+import type { LoanDetail } from '@/api/loans';
 import type { ContractValues, InsuranceLine, PhaseLine } from '../new/loanForm';
 import { fractionToPercent } from '../rate';
 import { toFieldAmount } from '@/lib/amount';

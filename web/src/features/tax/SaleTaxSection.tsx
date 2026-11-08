@@ -3,7 +3,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { TAX_SALE } from './api';
+import { TAX_SALE } from '@/api/tax';
 import { SaleItem } from './SaleItem';
 import '@/locales/tax';
 

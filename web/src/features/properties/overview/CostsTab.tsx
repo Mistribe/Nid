@@ -18,7 +18,7 @@ import { toPlot } from '@/lib/plot';
 import { monthLabel } from '@/lib/format';
 import { money } from '@/features/loans/format';
 import { fractionToPercent } from '@/features/loans/rate';
-import { PROPERTIES_COSTS, type CostDue, type CostRow, type PropertiesCosts } from '../api';
+import { PROPERTIES_COSTS, type CostDue, type CostRow, type PropertiesCosts } from '@/api/properties';
 import { categoryText } from '../format';
 import { PropertyFilter } from './PropertyFilter';
 import '@/locales/properties';

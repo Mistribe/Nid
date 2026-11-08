@@ -5,7 +5,7 @@ import { PROPERTY } from '../properties/testData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { SaleItemView, SaleTax } from './api';
+import type { SaleItemView, SaleTax } from '@/api/tax';
 import { estimate } from './taxTestData';
 
 const ENVELOPE = '0192f0aa-0000-7000-8000-0000000000e1';

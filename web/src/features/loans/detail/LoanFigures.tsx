@@ -3,7 +3,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { StatLine } from '@/components/page/StatLine';
 import { Progress } from '@/components/ui/progress';
 import { toPlot } from '@/lib/plot';
-import type { LoanDetail } from '../api';
+import type { LoanDetail } from '@/api/loans';
 import { money } from '../format';
 import { fractionToPercent } from '../rate';
 import { Terms } from './Terms';

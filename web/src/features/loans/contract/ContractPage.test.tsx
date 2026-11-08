@@ -7,7 +7,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import type { LoanDetail } from '../api';
+import type { LoanDetail } from '@/api/loans';
 import { LOAN, loanDetail, schedule } from '../testData';
 
 type Body = components['schemas']['LoanContractBody'];

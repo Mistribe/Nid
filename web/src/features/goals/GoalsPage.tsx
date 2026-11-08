@@ -14,7 +14,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { type GoalSummary, useCloseGoal, useGoals, useReopenGoal } from './api';
+import { useCloseGoal, useGoals, useReopenGoal, type GoalSummary } from '@/api/goals';
 import { Amounts, Dash, GoalProgress, GoalStatus } from './GoalStatus';
 import { presentGoalConflict, statusText } from './format';
 import '@/locales/goals';

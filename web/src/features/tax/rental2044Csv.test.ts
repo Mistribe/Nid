@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import i18n from '@/app/i18n';
-import type { Rental2044 } from './api';
+import type { Rental2044 } from '@/api/tax';
 import { rental2044Csv } from './rental2044Csv';
 
 const view = (over: Partial<Rental2044> = {}): Rental2044 => ({

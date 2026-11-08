@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Terms } from '../../loans/detail/Terms';
 import { money, percent, signedMoney } from '../../loans/format';
-import type { PropertyDetail } from '../api';
+import type { PropertyDetail } from '@/api/properties';
 import '@/locales/properties';
 
 /**

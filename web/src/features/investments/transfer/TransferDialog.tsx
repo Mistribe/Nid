@@ -18,7 +18,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { ENVELOPES, invalidateInvestments, TRANSFERS, type EnvelopeDetail, type EnvelopeSummary } from '../api';
+import { ENVELOPES, invalidateInvestments, TRANSFERS, type EnvelopeDetail, type EnvelopeSummary } from '@/api/investments';
 import { pastDate } from '@/components/form/pastDate';
 import { placeFieldError, presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/investments';

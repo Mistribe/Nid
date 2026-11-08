@@ -4,7 +4,7 @@ import { formatMoney } from '@/components/Money';
 import { StatLine } from '@/components/page/StatLine';
 import { percent } from '@/lib/format';
 import { todayIso } from '@/lib/today';
-import type { IncomeSourceOverview } from '../api';
+import type { IncomeSourceOverview } from '@/api/income';
 import { Change, RealChange, Sub } from '../overview/OverviewFigures';
 import { Withholding } from './Withholding';
 import '@/locales/income';

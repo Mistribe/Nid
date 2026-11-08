@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import type { DashboardView } from '../api';
+import type { DashboardView } from '@/api/dashboard';
 import type { Panel } from '../KeyFigures';
 import { CommitmentsPanel } from './CommitmentsPanel';
 import { IncomePanel } from './IncomePanel';

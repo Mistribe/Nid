@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { PassiveIncome } from '../api';
+import type { PassiveIncome } from '@/api/investments';
 import { passiveIncome, PEA, RENTAL } from '../testData';
 
 const serve = (body: PassiveIncome, seen: string[] = []) =>

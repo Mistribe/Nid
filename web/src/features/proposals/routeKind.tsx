@@ -6,11 +6,11 @@ import { formatMoney } from '@/components/Money';
 import strings from '@/locales/fr.proposals.json';
 import { Table, TableBody } from '@/components/ui/table';
 import { percent } from '@/lib/format';
-import { DOCUMENTS } from '../documents/api';
+import { DOCUMENTS } from '@/api/documents';
 import { TAX_ASSESSMENTS, type TaxAssessment } from '../tax/assessments/api';
 import { AssessmentChanges, AssessmentView } from '../tax/assessments/AssessmentView';
 import { PERSONS } from '@/api/persons';
-import type { ProposalView } from './api';
+import type { ProposalView } from '@/api/proposals';
 import { Row, type LinkTarget } from './kindParts';
 import '@/locales/proposals';
 

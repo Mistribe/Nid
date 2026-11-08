@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
-import { invalidateLoans, REPAYMENT, REPAYMENTS, type LoanDetail, type LoanRepayment } from '../api';
+import { invalidateLoans, REPAYMENT, REPAYMENTS, type LoanDetail, type LoanRepayment } from '@/api/loans';
 import { EFFECTS } from '../format';
 import { presentRefusal } from '../refusal';
 import { REPAYMENT_PATHS, repaymentSchema, repaymentValuesOf, toRepaymentBody, type RepaymentPrefill, type RepaymentValues } from './repayment';

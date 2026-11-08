@@ -24,7 +24,7 @@ import { seeAllClass } from '@/components/page/seeAll';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PERSONS } from '@/api/persons';
-import { OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '../api';
+import { OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '@/api/investments';
 import { toPlot } from '@/lib/plot';
 import { AnnualReturn, Gain, pct } from '../Figures';
 import { Direction } from '@/components/Direction';

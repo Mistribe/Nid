@@ -1,4 +1,4 @@
-import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, HoldingOverviewRow, HouseholdHoldings, HouseholdPerformance, InvestmentsOverview, PassiveIncome } from './api';
+import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, HoldingOverviewRow, HouseholdHoldings, HouseholdPerformance, InvestmentsOverview, PassiveIncome } from '@/api/investments';
 
 export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { MonthChanges } from './api';
+import type { MonthChanges } from '@/api/dashboard';
 import { dashboard, emptyMonthChanges, monthChanges, monthFigure } from './testData';
 
 function serve(changes: MonthChanges, seen: string[] = []) {

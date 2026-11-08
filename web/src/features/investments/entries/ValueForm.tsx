@@ -13,7 +13,7 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
-import { invalidateInvestments, VALUATIONS, type EnvelopeDetail, type Valuation } from '../api';
+import { invalidateInvestments, VALUATIONS, type EnvelopeDetail, type Valuation } from '@/api/investments';
 import { placeFieldError, presentConflict } from '@/components/form/fieldErrors';
 import { valueSchema } from './entries';
 import '@/locales/investments';
