@@ -105,6 +105,72 @@ public class RentRevisionTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal((HttpStatusCode.UnprocessableEntity, NotDue, (string?)null), await RefusalAsync(await AcceptAsync(app, property, old, "2026-10-01")));
     }
 
+    private static Task<HttpResponseMessage> ReviseFreelyAsync(NidApp app, Guid property, Guid tenancy, string effectiveOn, string newRent)
+        => app.RawAsync(app.AdultA, HttpMethod.Post, Revision(property, tenancy), new { effectiveOn, newRent });
+
+    /// <summary>A property of A with one tenancy that is not indexed; its id and the tenancy's.</summary>
+    private static async Task<(Guid Property, Guid Tenancy)> LetFreeAsync(NidApp app, string startsOn = "2026-03-01", string? dpe = null)
+    {
+        var body = Home(app, "Locatif", "shared", app.AdultA);
+        if (dpe is not null) body["energyClass"] = dpe;
+        var property = await NewPropertyAsync(app, body, app.AdultA);
+        return (property, await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{property}/tenancies", new
+        {
+            label = "T2", startsOn, rentMonthly = "800", chargesMonthly = "50",
+        })));
+    }
+
+    [Fact]
+    public async Task A_free_revision_of_a_tenancy_not_indexed_keeps_the_past_rent_and_is_undone()
+    {
+        await using var app = await StartAsync(fixture);
+        var (property, old) = await LetFreeAsync(app);
+
+        var revised = await CreatedAsync(await ReviseFreelyAsync(app, property, old, "2026-09-16", "900"));
+
+        var tenancies = Tenancies(await PropertyAsync(app, property));
+        Assert.Equal((old, "800.00", "2026-09-15"), (tenancies[0].GetProperty("id").GetGuid(), S(tenancies[0], "rentMonthly"), S(tenancies[0], "endsOn")));
+        Assert.Equal((revised, old, "900.00", "2026-09-16"),
+            (tenancies[1].GetProperty("id").GetGuid(), tenancies[1].GetProperty("revisedFrom").GetGuid(), S(tenancies[1], "rentMonthly"), S(tenancies[1], "startsOn")));
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/realestate/routine?on=2026-09-30");
+        var rents = (await JsonAsync(response)).GetProperty("rents").EnumerateArray().Where(r => S(r, "category") == "rent");
+        Assert.Equal([(old, "400.00"), (revised, "450.00")], rents.Select(r => (r.GetProperty("tenancyId").GetGuid(), S(r, "amount"))));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, Revision(property, revised))).StatusCode);
+        var only = Assert.Single(Tenancies(await PropertyAsync(app, property)));
+        Assert.Equal((old, "800.00", JsonValueKind.Null), (only.GetProperty("id").GetGuid(), S(only, "rentMonthly"), only.GetProperty("endsOn").ValueKind));
+    }
+
+    [Fact]
+    public async Task A_free_revision_overrides_the_irl_rent_of_a_due_one()
+    {
+        await using var app = await StartAsync(fixture);
+        var (property, old) = await LetAsync(app);
+
+        await CreatedAsync(await ReviseFreelyAsync(app, property, old, "2026-08-01", "850"));
+
+        Assert.Equal(("2026-08-01", "850.00"), (S(Tenancies(await PropertyAsync(app, property))[1], "startsOn"), S(Tenancies(await PropertyAsync(app, property))[1], "rentMonthly")));
+    }
+
+    [Fact]
+    public async Task A_free_revision_is_refused_on_its_date_its_rent_a_past_link_and_in_F_or_G()
+    {
+        await using var app = await StartAsync(fixture);
+        var (property, old) = await LetFreeAsync(app);
+        const string FreeDate = "realestate.revision_free_effective_on";
+
+        foreach (var effectiveOn in new[] { "2026-03-01", "2026-10-16" })
+            Assert.Equal((HttpStatusCode.UnprocessableEntity, FreeDate, "effectiveOn"), await RefusalAsync(await ReviseFreelyAsync(app, property, old, effectiveOn, "900")));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.invalid_property_field", "newRent"), await RefusalAsync(await ReviseFreelyAsync(app, property, old, "2026-09-01", "0")));
+
+        await CreatedAsync(await ReviseFreelyAsync(app, property, old, "2026-09-01", "900"));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, NotDue, (string?)null), await RefusalAsync(await ReviseFreelyAsync(app, property, old, "2026-08-01", "950")));
+
+        var (passoire, tenancy) = await LetFreeAsync(app, dpe: "G");
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, ForbiddenDpe, (string?)null), await RefusalAsync(await ReviseFreelyAsync(app, passoire, tenancy, "2026-09-01", "900")));
+    }
+
     [Fact]
     public async Task Revision_compares_the_irl_with_the_cpi_of_the_same_quarters()
     {

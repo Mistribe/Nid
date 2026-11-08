@@ -419,9 +419,10 @@ public static class RealEstateEndpoints
             {
                 var reader = new FieldReader();
                 var effectiveOn = reader.Date(body.EffectiveOn, "effectiveOn");
-                return effectiveOn is null
+                var newRent = LoanBodies.Number(reader, body.NewRent, "newRent", required: false);
+                return !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new AcceptRentRevisionCommand(new ItemId(id), tenancyId, effectiveOn.Value), ct))
+                    : (await invoker.InvokeAsync(new AcceptRentRevisionCommand(new ItemId(id), tenancyId, effectiveOn!.Value, newRent), ct))
                         .ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
@@ -845,7 +846,7 @@ public static class RealEstateEndpoints
         }
     }
 
-    public sealed record RentRevisionBody(string? EffectiveOn);
+    public sealed record RentRevisionBody(string? EffectiveOn, string? NewRent = null);
 
     public sealed record PropertyRoutineEstimateBody(Guid? Property, string? Amount);
 
