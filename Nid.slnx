@@ -1,47 +1,67 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Nid.AppHost/Nid.AppHost.csproj" />
-    <Project Path="src/Nid.Banking.Application/Nid.Banking.Application.csproj" />
-    <Project Path="src/Nid.Banking.Contracts/Nid.Banking.Contracts.csproj" />
-    <Project Path="src/Nid.Banking.Domain/Nid.Banking.Domain.csproj" />
-    <Project Path="src/Nid.Banking.Infrastructure/Nid.Banking.Infrastructure.csproj" />
-    <Project Path="src/Nid.Childcare.Application/Nid.Childcare.Application.csproj" />
-    <Project Path="src/Nid.Childcare.Contracts/Nid.Childcare.Contracts.csproj" />
-    <Project Path="src/Nid.Childcare.Domain/Nid.Childcare.Domain.csproj" />
-    <Project Path="src/Nid.Childcare.Infrastructure/Nid.Childcare.Infrastructure.csproj" />
-    <Project Path="src/Nid.Core.Application/Nid.Core.Application.csproj" />
-    <Project Path="src/Nid.Core.Contracts/Nid.Core.Contracts.csproj" />
-    <Project Path="src/Nid.Core.Domain/Nid.Core.Domain.csproj" />
-    <Project Path="src/Nid.Core.Infrastructure/Nid.Core.Infrastructure.csproj" />
-    <Project Path="src/Nid.Documents.Application/Nid.Documents.Application.csproj" />
-    <Project Path="src/Nid.Documents.Contracts/Nid.Documents.Contracts.csproj" />
-    <Project Path="src/Nid.Documents.Domain/Nid.Documents.Domain.csproj" />
-    <Project Path="src/Nid.Documents.Infrastructure/Nid.Documents.Infrastructure.csproj" />
-    <Project Path="src/Nid.Goals.Application/Nid.Goals.Application.csproj" />
-    <Project Path="src/Nid.Goals.Contracts/Nid.Goals.Contracts.csproj" />
-    <Project Path="src/Nid.Goals.Domain/Nid.Goals.Domain.csproj" />
-    <Project Path="src/Nid.Host/Nid.Host.csproj" />
-    <Project Path="src/Nid.Goals.Infrastructure/Nid.Goals.Infrastructure.csproj" />
-    <Project Path="src/Nid.Income.Application/Nid.Income.Application.csproj" />
-    <Project Path="src/Nid.Income.Contracts/Nid.Income.Contracts.csproj" />
-    <Project Path="src/Nid.Income.Domain/Nid.Income.Domain.csproj" />
-    <Project Path="src/Nid.Income.Infrastructure/Nid.Income.Infrastructure.csproj" />
-    <Project Path="src/Nid.Investments.Application/Nid.Investments.Application.csproj" />
-    <Project Path="src/Nid.Investments.Contracts/Nid.Investments.Contracts.csproj" />
-    <Project Path="src/Nid.Investments.Domain/Nid.Investments.Domain.csproj" />
-    <Project Path="src/Nid.Investments.Infrastructure/Nid.Investments.Infrastructure.csproj" />
-    <Project Path="src/Nid.RealEstate.Application/Nid.RealEstate.Application.csproj" />
-    <Project Path="src/Nid.RealEstate.Contracts/Nid.RealEstate.Contracts.csproj" />
-    <Project Path="src/Nid.RealEstate.Domain/Nid.RealEstate.Domain.csproj" />
-    <Project Path="src/Nid.RealEstate.Infrastructure/Nid.RealEstate.Infrastructure.csproj" />
-    <Project Path="src/Nid.Platform.Contracts/Nid.Platform.Contracts.csproj" />
-    <Project Path="src/Nid.Platform.Infrastructure/Nid.Platform.Infrastructure.csproj" />
-    <Project Path="src/Nid.ServiceDefaults/Nid.ServiceDefaults.csproj" />
-    <Project Path="src/Nid.Platform/Nid.Platform.csproj" />
-    <Project Path="src/Nid.Subscriptions.Application/Nid.Subscriptions.Application.csproj" />
-    <Project Path="src/Nid.Subscriptions.Contracts/Nid.Subscriptions.Contracts.csproj" />
-    <Project Path="src/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj" />
-    <Project Path="src/Nid.Subscriptions.Infrastructure/Nid.Subscriptions.Infrastructure.csproj" />
+  <Folder Name="/src/Banking/">
+    <Project Path="src/Banking/Nid.Banking.Application/Nid.Banking.Application.csproj" />
+    <Project Path="src/Banking/Nid.Banking.Contracts/Nid.Banking.Contracts.csproj" />
+    <Project Path="src/Banking/Nid.Banking.Domain/Nid.Banking.Domain.csproj" />
+    <Project Path="src/Banking/Nid.Banking.Infrastructure/Nid.Banking.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Childcare/">
+    <Project Path="src/Childcare/Nid.Childcare.Application/Nid.Childcare.Application.csproj" />
+    <Project Path="src/Childcare/Nid.Childcare.Contracts/Nid.Childcare.Contracts.csproj" />
+    <Project Path="src/Childcare/Nid.Childcare.Domain/Nid.Childcare.Domain.csproj" />
+    <Project Path="src/Childcare/Nid.Childcare.Infrastructure/Nid.Childcare.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/Nid.Core.Application/Nid.Core.Application.csproj" />
+    <Project Path="src/Core/Nid.Core.Contracts/Nid.Core.Contracts.csproj" />
+    <Project Path="src/Core/Nid.Core.Domain/Nid.Core.Domain.csproj" />
+    <Project Path="src/Core/Nid.Core.Infrastructure/Nid.Core.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Documents/">
+    <Project Path="src/Documents/Nid.Documents.Application/Nid.Documents.Application.csproj" />
+    <Project Path="src/Documents/Nid.Documents.Contracts/Nid.Documents.Contracts.csproj" />
+    <Project Path="src/Documents/Nid.Documents.Domain/Nid.Documents.Domain.csproj" />
+    <Project Path="src/Documents/Nid.Documents.Infrastructure/Nid.Documents.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Goals/">
+    <Project Path="src/Goals/Nid.Goals.Application/Nid.Goals.Application.csproj" />
+    <Project Path="src/Goals/Nid.Goals.Contracts/Nid.Goals.Contracts.csproj" />
+    <Project Path="src/Goals/Nid.Goals.Domain/Nid.Goals.Domain.csproj" />
+    <Project Path="src/Goals/Nid.Goals.Infrastructure/Nid.Goals.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Hosting/">
+    <Project Path="src/Hosting/Nid.AppHost/Nid.AppHost.csproj" />
+    <Project Path="src/Hosting/Nid.Host/Nid.Host.csproj" />
+    <Project Path="src/Hosting/Nid.ServiceDefaults/Nid.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/Income/">
+    <Project Path="src/Income/Nid.Income.Application/Nid.Income.Application.csproj" />
+    <Project Path="src/Income/Nid.Income.Contracts/Nid.Income.Contracts.csproj" />
+    <Project Path="src/Income/Nid.Income.Domain/Nid.Income.Domain.csproj" />
+    <Project Path="src/Income/Nid.Income.Infrastructure/Nid.Income.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Investments/">
+    <Project Path="src/Investments/Nid.Investments.Application/Nid.Investments.Application.csproj" />
+    <Project Path="src/Investments/Nid.Investments.Contracts/Nid.Investments.Contracts.csproj" />
+    <Project Path="src/Investments/Nid.Investments.Domain/Nid.Investments.Domain.csproj" />
+    <Project Path="src/Investments/Nid.Investments.Infrastructure/Nid.Investments.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Platform/">
+    <Project Path="src/Platform/Nid.Platform/Nid.Platform.csproj" />
+    <Project Path="src/Platform/Nid.Platform.Contracts/Nid.Platform.Contracts.csproj" />
+    <Project Path="src/Platform/Nid.Platform.Infrastructure/Nid.Platform.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/RealEstate/">
+    <Project Path="src/RealEstate/Nid.RealEstate.Application/Nid.RealEstate.Application.csproj" />
+    <Project Path="src/RealEstate/Nid.RealEstate.Contracts/Nid.RealEstate.Contracts.csproj" />
+    <Project Path="src/RealEstate/Nid.RealEstate.Domain/Nid.RealEstate.Domain.csproj" />
+    <Project Path="src/RealEstate/Nid.RealEstate.Infrastructure/Nid.RealEstate.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Subscriptions/">
+    <Project Path="src/Subscriptions/Nid.Subscriptions.Application/Nid.Subscriptions.Application.csproj" />
+    <Project Path="src/Subscriptions/Nid.Subscriptions.Contracts/Nid.Subscriptions.Contracts.csproj" />
+    <Project Path="src/Subscriptions/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj" />
+    <Project Path="src/Subscriptions/Nid.Subscriptions.Infrastructure/Nid.Subscriptions.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Banking.IntegrationTests/Nid.Banking.IntegrationTests.csproj" />

@@ -8,8 +8,8 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Nid.Platform\Nid.Platform.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Platform\Nid.Platform\Nid.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Platform\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\**\*" LinkBase="vectors" CopyToOutputDirectory="PreserveNewest" />

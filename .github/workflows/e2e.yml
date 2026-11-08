@@ -57,7 +57,7 @@ jobs:
       matrix:
         include:
           - name: nid
-            build: docker build -f src/Nid.Host/Dockerfile -t nid:local .
+            build: docker build -f src/Hosting/Nid.Host/Dockerfile -t nid:local .
           - name: nid-backup
             build: docker build -t nid-backup:local deploy/backup
     name: image (${{ matrix.name }})

@@ -8,10 +8,10 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Investments.Domain\Nid.Investments.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Investments.Application\Nid.Investments.Application.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Investments\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Investments\Nid.Investments.Domain\Nid.Investments.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Investments\Nid.Investments.Application\Nid.Investments.Application.csproj" />
+    <ProjectReference Include="..\..\src\Investments\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\prices\*" LinkBase="vectors\prices" CopyToOutputDirectory="PreserveNewest" />

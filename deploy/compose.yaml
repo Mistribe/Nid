@@ -73,7 +73,7 @@ services:
   # points at nid (README, « Mise à jour »).
   nid:
     <<: *hardened
-    build: { context: .., dockerfile: src/Nid.Host/Dockerfile }
+    build: { context: .., dockerfile: src/Hosting/Nid.Host/Dockerfile }
     image: ${NID_IMAGE:-nid:local}
     environment:
       Auth__PublicUrl: https://${NID_HOST:?run deploy/setup.sh first}

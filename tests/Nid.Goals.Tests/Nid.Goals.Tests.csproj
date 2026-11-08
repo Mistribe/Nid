@@ -8,7 +8,7 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Nid.Goals.Contracts\Nid.Goals.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Goals.Domain\Nid.Goals.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Goals\Nid.Goals.Contracts\Nid.Goals.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Goals\Nid.Goals.Domain\Nid.Goals.Domain.csproj" />
   </ItemGroup>
 </Project>

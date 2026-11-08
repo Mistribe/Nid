@@ -112,7 +112,7 @@ Toujours valables : pas de déconnexion standard, pas d'enregistrement dynamique
 
 ## 8bis. Pile de développement Aspire (vérifiée le 2026-09-22, Aspire 13.5.4)
 
-L'AppHost (`src/Nid.AppHost`) démarre PostgreSQL, Authelia, l'API et Caddy, et le test de fumée OIDC complet
+L'AppHost (`src/Hosting/Nid.AppHost`) démarre PostgreSQL, Authelia, l'API et Caddy, et le test de fumée OIDC complet
 passe à travers lui. Le repli `compose.yml` envisagé par le plan de l'étape 1A n'a **pas** été nécessaire :
 aucun conteneur n'a eu besoin de résoudre `auth.localtest.me`, l'API sur l'hôte suffit. Trois contraintes à
 retenir pour les sous-plans suivants :
@@ -138,7 +138,7 @@ retenir pour les sous-plans suivants :
 
 ## 9bis. `IsAotCompatible` sur `Nid.Subscriptions.Domain` (vérifié le 2026-09-22)
 
-`dotnet build src/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj` avec `IsAotCompatible=true`
+`dotnet build src/Subscriptions/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj` avec `IsAotCompatible=true`
 (analyseurs de trim et d'AOT actifs) : **0 warning**. Le risque cité en §9 pour les projets `Domain` est levé
 pour `Nid.Subscriptions.Domain` ; les autres projets `Domain` restent à vérifier au fur et à mesure.
 

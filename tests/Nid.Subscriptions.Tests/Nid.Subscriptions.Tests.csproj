@@ -8,9 +8,9 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Subscriptions.Domain\Nid.Subscriptions.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />
+    <ProjectReference Include="..\..\src\Subscriptions\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Subscriptions\Nid.Subscriptions.Domain\Nid.Subscriptions.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Subscriptions\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\fixtures\**\*" LinkBase="fixtures" CopyToOutputDirectory="PreserveNewest" />

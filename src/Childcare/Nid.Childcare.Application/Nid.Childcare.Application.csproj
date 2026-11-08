@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="UnambitiousFx.Synapse" />
+    <ProjectReference Include="..\Nid.Childcare.Contracts\Nid.Childcare.Contracts.csproj" />
+    <ProjectReference Include="..\Nid.Childcare.Domain\Nid.Childcare.Domain.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <PackageReference Include="UnambitiousFx.Synapse.Generator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

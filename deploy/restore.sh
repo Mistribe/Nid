@@ -86,7 +86,7 @@ migrations=$(tool migrations "$id") || die "impossible de lire le manifeste de l
 [ -n "$migrations" ] || die "l'instantané $id ne liste aucune migration : ce n'est pas une sauvegarde de Nid lisible"
 missing=0
 for migration in $migrations; do
-  if ! ls ../src/*/Persistence/Migrations/"$migration".cs >/dev/null 2>&1; then
+  if ! ls ../src/*/*/Persistence/Migrations/"$migration".cs >/dev/null 2>&1; then
     echo "migration inconnue de ce code : $migration" >&2; missing=1
   fi
 done
