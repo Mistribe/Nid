@@ -2,6 +2,8 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Host.IntegrationTests.Audit;
@@ -143,20 +145,64 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     [Fact]
-    public async Task The_journal_shows_an_access_violation_without_its_item_ids()
+    public async Task The_journal_names_the_items_outside_the_visible_set_only_when_the_admin_may_see_them()
     {
         await using var app = await NidApp.StartAsync(fixture);
         var hidden = await app.NewSubscriptionAsync("hidden", app.AdultB, Visibility.Private);
+        var shown = await app.NewSubscriptionAsync("shown", app.AdultB, Visibility.Shared);
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>()
-                .RecordAsync("ProbeQuery", app.AdultB, [hidden], TestContext.Current.CancellationToken);
+            await scope.ServiceProvider.GetRequiredService<IAccessViolations>().RecordAsync(
+                "ProbeQuery", app.AdultB, [hidden, shown], new AccessViolationCause(AccessViolationReasons.OutsideVisibleSet), TestContext.Current.CancellationToken);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/admin/security-journal?event=access_violation");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        Assert.DoesNotContain(hidden.Value.ToString(), body);
+        Assert.DoesNotContain("\"hidden\"", body);
         var entry = Assert.Single(Json(body).GetProperty("entries").EnumerateArray());
-        Assert.Equal("ProbeQuery", entry.GetProperty("details").GetProperty("request").GetString());
+        var details = entry.GetProperty("details");
+        Assert.Equal("ProbeQuery", details.GetProperty("request").GetString());
+        Assert.Equal("outside_visible_set", details.GetProperty("reason").GetString());
+        Assert.Equal("2", details.GetProperty("count").GetString());
+        var items = entry.GetProperty("items").EnumerateArray().ToDictionary(i => i.GetProperty("id").GetGuid());
+        Assert.Equal(JsonValueKind.Null, items[hidden.Value].GetProperty("name").ValueKind);
+        Assert.Equal(JsonValueKind.Null, items[hidden.Value].GetProperty("kind").ValueKind);
+        Assert.Equal("shown", items[shown.Value].GetProperty("name").GetString());
+        Assert.Equal("subscription", items[shown.Value].GetProperty("kind").GetString());
+    }
+
+    [Fact]
+    public async Task A_lookup_failure_shows_the_type_of_its_exception_never_its_message_nor_any_item()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var item = await app.NewSubscriptionAsync("kept", app.AdultA, Visibility.Shared);
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IAccessViolations>().RecordAsync(
+                "ProbeQuery", app.AdultA, [item],
+                new AccessViolationCause(AccessViolationReasons.VisibilityLookupFailed, new TimeoutException("secret detail")), TestContext.Current.CancellationToken);
+
+        var body = await (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/admin/security-journal?event=access_violation"))
+            .Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("secret detail", body);
+        var entry = Assert.Single(Json(body).GetProperty("entries").EnumerateArray());
+        Assert.Equal("TimeoutException", entry.GetProperty("details").GetProperty("error").GetString());
+        Assert.Empty(entry.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task An_older_violation_without_a_reason_still_reads()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<ISecurityEvents>().RecordAsync(
+                new SecurityEvent(SecurityEventNames.AccessViolation, app.AdultA, [], new Dictionary<string, string> { ["request"] = "OldQuery" }),
+                Actor.Browser(app.AdultA), TestContext.Current.CancellationToken);
+
+        var journal = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?event=access_violation"));
+
+        var entry = Assert.Single(journal.GetProperty("entries").EnumerateArray());
+        Assert.Equal("OldQuery", entry.GetProperty("details").GetProperty("request").GetString());
+        Assert.False(entry.GetProperty("details").TryGetProperty("reason", out _));
     }
 }

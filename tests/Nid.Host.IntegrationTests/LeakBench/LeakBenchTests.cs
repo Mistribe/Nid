@@ -561,7 +561,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     {
         public List<string> Recorded { get; } = [];
 
-        public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
+        public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, AccessViolationCause cause, CancellationToken ct)
         {
             Recorded.Add(request);
             return ValueTask.CompletedTask;

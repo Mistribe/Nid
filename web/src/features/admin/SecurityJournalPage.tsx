@@ -1,9 +1,11 @@
 import { SelectField } from '@/components/form/SelectField';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import type { components } from '@/api/schema';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -18,7 +20,33 @@ const JOURNAL_EVENTS = [
   'admin_granted', 'admin_revoked', 'session_revoked', 'household_settings_changed', 'admin_command', 'subject_rebound',
 ] as const;
 
-/** screens.md §12, Journal de sécurité: identifiers only, adults by name. */
+type JournalEntry = components['schemas']['SecurityEventView'];
+
+const rawDetails = (details: JournalEntry['details']) => Object.entries(details).map(([k, v]) => `${k}: ${v}`).join(', ');
+
+const REASONS = new Set(['no_actor', 'visibility_lookup_failed', 'outside_visible_set']);
+const ITEM_KINDS = new Set(['envelope', 'loan', 'property', 'scenario', 'source', 'subscription']);
+
+/** #28: why the response was withheld, in words; the raw identifiers stay one click away. */
+function ViolationDetails({ entry }: { entry: JournalEntry }) {
+  const { t } = useTranslation();
+  const { reason = '' } = entry.details;
+  const items = entry.items.map((item) => {
+    if (!item.name) return item.id;
+    const kind = item.kind && ITEM_KINDS.has(item.kind) ? t(`admin.security.item_kind.${item.kind}` as 'admin.security.item_kind.loan') : item.kind;
+    return kind ? `${item.name} (${kind})` : item.name;
+  });
+  return (
+    <Collapsible className="space-y-1 font-sans">
+      <p>{REASONS.has(reason) ? t(`admin.security.reason.${reason}` as 'admin.security.reason.no_actor') : reason}</p>
+      {items.length > 0 && <p>{items.join(', ')}</p>}
+      <CollapsibleTrigger className="text-muted-foreground underline">{t('admin.security.raw')}</CollapsibleTrigger>
+      <CollapsibleContent className="font-mono">{rawDetails(entry.details)}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/** screens.md §12, Journal de sécurité: identifiers only, adults by name; a withheld response says why (#28). */
 export function SecurityJournalPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -67,7 +95,9 @@ export function SecurityJournalPage() {
                 <TableCell>{eventLabel(t, entry.event)}</TableCell>
                 <TableCell>{name(entry.subjectPersonId)}</TableCell>
                 <TableCell>{entry.actor.personId ? name(entry.actor.personId) : t('admin.security.system')}</TableCell>
-                <TableCell className="font-mono">{Object.entries(entry.details).map(([k, v]) => `${k}: ${v}`).join(', ')}</TableCell>
+                <TableCell className="font-mono">
+                  {entry.event === 'access_violation' && entry.details.reason ? <ViolationDetails entry={entry} /> : rawDetails(entry.details)}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

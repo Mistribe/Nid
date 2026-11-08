@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Nid.Core.Contracts;
 using Nid.Platform;
 using Nid.Platform.Contracts;
@@ -112,7 +113,47 @@ public class OutputGuardTests
         await guard.HandleAsync(new AnyQuery(),
             (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))), TestContext.Current.CancellationToken);
 
-        Assert.Single(recorder.Recorded);
+        Assert.Equal(AccessViolationReasons.OutsideVisibleSet, Assert.Single(recorder.Recorded).Reason);
+    }
+
+    [Fact]
+    public async Task A_refusal_without_an_actor_says_so()
+    {
+        var recorder = new RecordingViolations();
+        var guard = new OutputGuardBehavior<AnyQuery, LeakyResponse>(new SystemAccessor(), new FixedVisibleItems(), recorder);
+
+        await guard.HandleAsync(new AnyQuery(),
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))), TestContext.Current.CancellationToken);
+
+        Assert.Equal(AccessViolationReasons.NoActor, Assert.Single(recorder.Recorded).Reason);
+    }
+
+    [Fact]
+    public async Task A_failed_lookup_says_so_and_keeps_its_exception()
+    {
+        var recorder = new RecordingViolations();
+        var guard = new OutputGuardBehavior<AnyQuery, LeakyResponse>(
+            new Accessor(new PersonId(Guid.CreateVersion7())), new ThrowingVisibleItems(), recorder);
+
+        await guard.HandleAsync(new AnyQuery(),
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))), TestContext.Current.CancellationToken);
+
+        var cause = Assert.Single(recorder.Recorded);
+        Assert.Equal(AccessViolationReasons.VisibilityLookupFailed, cause.Reason);
+        Assert.IsType<InvalidOperationException>(cause.Error);
+    }
+
+    [Fact]
+    public async Task The_log_carries_the_reason_and_the_lookup_exception()
+    {
+        var logger = new CapturingLogger();
+        var error = new TimeoutException();
+
+        await new LoggingAccessViolations(logger).RecordAsync("ProbeQuery", default, [],
+            new AccessViolationCause(AccessViolationReasons.VisibilityLookupFailed, error), TestContext.Current.CancellationToken);
+
+        Assert.Same(error, Assert.Single(logger.Entries, e => e.Level == LogLevel.Error).Error);
+        Assert.Contains(AccessViolationReasons.VisibilityLookupFailed, Assert.Single(logger.Entries, e => e.Level == LogLevel.Critical).Message);
     }
 
     [Fact]
@@ -144,20 +185,32 @@ public class OutputGuardTests
 
     private sealed class RecordingViolations : IAccessViolations
     {
-        public List<string> Recorded { get; } = [];
+        public List<AccessViolationCause> Recorded { get; } = [];
 
-        public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
+        public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, AccessViolationCause cause, CancellationToken ct)
         {
-            Recorded.Add(request);
+            Recorded.Add(cause);
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class CapturingLogger : ILogger<LoggingAccessViolations>
+    {
+        public List<(LogLevel Level, string Message, Exception? Error)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            => Entries.Add((logLevel, formatter(state, exception), exception));
     }
 
     private sealed class NullViolations : IAccessViolations
     {
         public static NullViolations Instance { get; } = new();
 
-        public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
+        public ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, AccessViolationCause cause, CancellationToken ct)
             => ValueTask.CompletedTask;
     }
 }

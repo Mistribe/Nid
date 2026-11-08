@@ -56,6 +56,31 @@ describe('Administration › Journal de sécurité', () => {
     expect(within(list).getByRole('option', { name: 'Identité rattachée' })).toBeInTheDocument();
   });
 
+  // #28: a withheld response says why, and which items when the admin may see them.
+  it('explains why a response was withheld', async () => {
+    const violation = { seq: 1, event: 'access_violation', at: '2026-09-26T07:00:00+00:00', actor: { kind: 'person', personId: 'a', via: 'ui' }, subjectPersonId: 'a' };
+    server.use(
+      http.get('*/api/v1/admin/users', () => HttpResponse.json(adults)),
+      http.get('*/api/v1/admin/security-journal', () => HttpResponse.json({
+        entries: [
+          { ...violation, seq: 3, details: { request: 'GetDashboardQuery', reason: 'outside_visible_set', count: '2' }, items: [{ id: 'id-shown', kind: 'loan', name: 'Prêt maison' }, { id: 'id-hidden', kind: null, name: null }] },
+          { ...violation, seq: 2, details: { request: 'GetProjectionQuery', reason: 'visibility_lookup_failed', count: '1', error: 'TimeoutException' }, items: [] },
+          { ...violation, seq: 1, details: { request: 'OldQuery' }, items: [] },
+        ],
+        next: null,
+      })),
+    );
+    const { user } = await renderApp('/admin/security', { capabilities: adminCapabilities });
+
+    const outside = await screen.findByRole('row', { name: /hors du périmètre/ });
+    expect(outside).toHaveTextContent('Prêt maison (prêt), id-hidden');
+    expect(outside).not.toHaveTextContent('GetDashboardQuery');
+    await user.click(within(outside).getByRole('button', { name: 'Détails bruts' }));
+    expect(outside).toHaveTextContent('request: GetDashboardQuery');
+    expect(screen.getByRole('row', { name: /calcul des droits a échoué/ })).toBeInTheDocument();
+    expect(screen.getByText('request: OldQuery')).toBeInTheDocument();
+  });
+
   it('puts its event filter in the filter row, the label before it', async () => {
     server.use(
       http.get('*/api/v1/admin/users', () => HttpResponse.json(adults)),

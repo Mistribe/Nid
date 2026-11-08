@@ -376,7 +376,21 @@
       "actor": "Auteur",
       "details": "Identifiants",
       "system": "système",
-      "empty": "Aucun événement dans le journal."
+      "empty": "Aucun événement dans le journal.",
+      "raw": "Détails bruts",
+      "reason": {
+        "no_actor": "La requête n'était rattachée à aucune personne",
+        "visibility_lookup_failed": "Le calcul des droits a échoué",
+        "outside_visible_set": "Éléments hors du périmètre de la personne"
+      },
+      "item_kind": {
+        "envelope": "enveloppe",
+        "loan": "prêt",
+        "property": "bien",
+        "scenario": "scénario",
+        "source": "revenu",
+        "subscription": "abonnement"
+      }
     }
   }
 }
