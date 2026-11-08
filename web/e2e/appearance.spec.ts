@@ -35,6 +35,7 @@ test.describe('fallbacks', () => {
   for (const [name, media] of [['Increase Contrast', { contrast: 'more' }], ['forced colours', { forcedColors: 'active' }]] as const) {
     test(`${name} makes the surfaces opaque`, async ({ page }) => {
       await signIn(page, 'alice', '/dashboard');
+      await expect(page.locator('[data-pane="sidebar"]')).toBeVisible();
       await page.emulateMedia(media);
       await expectOpaque(page);
     });
