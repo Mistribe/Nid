@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { Path } from 'react-hook-form';
 import { z } from 'zod';
-import { AMOUNT, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
+import { AMOUNT, toFieldAmount, toWireAmount } from '@/lib/amount';
 import type { TaxAssessment, TaxAssessmentBody } from './api';
 import '@/locales/tax';
 import '@/locales/taxAssessments';

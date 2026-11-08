@@ -1,6 +1,6 @@
 import { useApi } from '@/api/ApiProvider';
 import { HeroCurve } from '@/components/page/Hero';
-import { toPlot } from '../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import { NET_WORTH } from './api';
 
 /** The net worth over 12 months beside the hero figure; an unknown month is skipped. */

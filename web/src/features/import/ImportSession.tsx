@@ -4,7 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { formatInstant } from '@/features/admin/format';
+import { formatInstant } from '@/lib/format';
 import { useDraft } from './draft';
 import { FileStep } from './FileStep';
 import { CancelImport } from './CancelImport';

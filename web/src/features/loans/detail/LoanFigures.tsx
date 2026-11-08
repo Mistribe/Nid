@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { StatLine } from '@/components/page/StatLine';
 import { Progress } from '@/components/ui/progress';
-import { toPlot } from '../../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { LoanDetail } from '../api';
 import { money } from '../format';
 import { fractionToPercent } from '../rate';

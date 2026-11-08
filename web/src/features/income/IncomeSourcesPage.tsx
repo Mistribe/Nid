@@ -1,7 +1,8 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
-import type { IncomeSearch, RootSearch } from '@/app/router';
+import type { IncomeSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/page/PageHeader';
 import { SectionCard } from '@/components/page/SectionCard';

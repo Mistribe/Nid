@@ -3,7 +3,7 @@ import { CircleHelp } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentProps, type ComponentType } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { section } from '@/app/nav';
+import { section } from '@/components/nav';
 import { useSession } from '@/app/Providers';
 import { Button } from '@/components/ui/button';
 import type { GuideIntro as Intro } from './GuideIntro';

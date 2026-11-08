@@ -5,7 +5,7 @@ import { present, toProblem } from '@/api/errors';
 import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { todayIso } from '../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { useDismissExpected, useExpectedDocuments, type ExpectedDocument } from './api';
 import { ItemUploadDialog } from './ItemUploadDialog';
 import '@/locales/documents';

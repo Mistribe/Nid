@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { durationText } from '../format';
 import { ProviderPicker } from '../ProviderPicker';
-import { ISO_DATE } from '../edits/amount';
+import { ISO_DATE } from '@/lib/amount';
 import { addDuration } from './offers';
 import { AmountField, Choice, DateField, PersonSelect, UnitSelect } from './offers/fields';
 import type { Unit, WizardValues } from './schema';

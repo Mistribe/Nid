@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
-import { percent } from '@/features/dashboard/format';
+import { percent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { IncomeOverviewShare } from '../api';
 

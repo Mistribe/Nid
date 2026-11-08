@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 import '@/locales/forms';
 

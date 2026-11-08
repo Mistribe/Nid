@@ -10,7 +10,7 @@ import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { todayIso } from '../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { invalidateDocuments, linkDocument, uploadDocument } from './api';
 import { DuplicateNotice, duplicateOf, refusal, UNSUPPORTED, UploadZone } from './DocumentUpload';
 import { fileSize, roleText, ROLES } from './format';

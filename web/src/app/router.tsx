@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { RootSearch } from '@/lib/search';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import type { LoanContractView } from '@/features/loans/api';
@@ -25,8 +26,6 @@ const PANELS: readonly Panel[] = ['net_worth', 'income', 'commitments', 'margin'
 
 export type RouterContext = { capabilities: Capabilities };
 
-/** Foyer is the default and stays out of the URL; Moi is `?scope=me` (screens.md §1). */
-export type RootSearch = { scope?: 'me' };
 /** The tax page's tab and the year of its figures (absent: the tab's own default). */
 export type TaxSearch = RootSearch & DetailSearch & { year?: string };
 /** A childcare arrangement's tab and the year of its summary (#411; absent: the year just ended). */

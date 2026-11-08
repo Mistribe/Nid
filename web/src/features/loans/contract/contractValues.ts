@@ -1,7 +1,7 @@
 import type { LoanDetail } from '../api';
 import type { ContractValues, InsuranceLine, PhaseLine } from '../new/loanForm';
 import { fractionToPercent } from '../rate';
-import { toFieldAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount } from '@/lib/amount';
 
 type Contract = LoanDetail['contract'];
 

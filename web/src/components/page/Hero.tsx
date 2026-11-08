@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from 'react';
 import type { MoneyValue } from '@/components/Money';
-import { Direction } from '@/features/investments/Figures';
+import { Direction } from '@/components/Direction';
 import { SparkPath } from './SparkPath';
 
 /**

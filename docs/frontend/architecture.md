@@ -40,6 +40,7 @@
   theme-init.js   script externe bloquant (voir §9)
 ```
 
+- Couches : `app` → `features` → `components` → `lib` / `api`. Une couche n'importe jamais une couche au-dessus d'elle : `components/` n'importe ni `features/` ni `app/`, et `lib/` et `api/` n'importent ni `components/`, ni `features/`, ni `app/` (`no-restricted-imports` dans `web/eslint.config.js` ; les tests en sont exemptés, puisque `renderApp` monte l'application entière). Ce que deux features partagent sans relever du métier de l'une ou de l'autre (dates, montants saisis, erreurs de formulaire, `Reload`, `Folded`, `toPlot`, couleurs, CSV, `nav`) vit dans `components/` ou `lib/`, jamais dans l'une d'elles. Une feature peut en revanche importer le contrat métier d'une autre (son `api.ts`, une section qu'elle compose).
 - Les dossiers de `/features` reprennent les modules du backend. Un module désactivé disparaît de la navigation : le SPA lit `GET /api/v1/platform/capabilities`. Ses champs : `modules` et `admin` (l'acteur est-il admin ; la feature `admin` n'est routée et affichée que si vrai, le serveur refusant de toute façon en `403 platform.admin_required`).
 - `schema.d.ts` est généré par le développeur depuis l'OpenAPI (`dotnet build` réécrit `src/api/openapi.json`, puis `pnpm --dir web gen:api`), **versionné** ; la CI vérifie qu'il est à jour (`pnpm check:api`, `../architecture.md` §13).
 

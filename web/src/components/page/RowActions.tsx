@@ -4,7 +4,7 @@ import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Reload } from '@/features/subscriptions/edits/Reload';
+import { Reload } from '@/components/form/Reload';
 import { RowMenu } from './RowMenu';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));

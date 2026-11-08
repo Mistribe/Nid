@@ -4,7 +4,7 @@ import { formatCurrency } from '@/components/Money';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { cn } from '@/lib/utils';
 import type { HouseholdPoint, ProjectionMilestone } from '@/features/dashboard/api';
-import { toPlot } from '../../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { ChartSeries } from './chartSeries';
 import '@/locales/scenarios';
 

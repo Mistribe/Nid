@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { tileOf, type Place } from '@/app/nav';
+import { tileOf, type Place } from '@/components/nav';
 import { ModuleTile } from '@/components/ModuleTile';
 import { NestArcs } from '@/components/Logo';
 

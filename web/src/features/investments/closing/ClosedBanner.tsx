@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { Reload } from '../../subscriptions/edits/Reload';
+import { Reload } from '@/components/form/Reload';
 import { invalidateInvestments, REOPEN, type EnvelopeDetail } from '../api';
-import { presentConflict } from '../entries/entries';
+import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/investments';
 
 /**

@@ -1,6 +1,6 @@
 import type { Path } from 'react-hook-form';
 import type { components } from '@/api/schema';
-import { toWireAmount } from '../edits/amount';
+import { toWireAmount } from '@/lib/amount';
 import type { Unit, WizardValues } from './schema';
 import '@/locales/subscriptions';
 

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Money } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { IncomeOverview } from '../api';
-import { monthLabel } from '../expected/months';
+import { monthLabel } from '@/lib/format';
 
 type Amount = IncomeOverview['months'][number]['total'];
 

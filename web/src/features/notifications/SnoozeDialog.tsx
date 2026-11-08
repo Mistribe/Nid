@@ -6,9 +6,9 @@ import { Field } from '@/components/form/Field';
 import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { fieldErrorsOf } from '../subscriptions/fieldErrors';
-import { ISO_DATE } from '../subscriptions/edits/amount';
-import { todayIso } from '../subscriptions/today';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
+import { ISO_DATE } from '@/lib/amount';
+import { todayIso } from '@/lib/today';
 import { useSnooze } from './api';
 import '@/locales/notifications';
 

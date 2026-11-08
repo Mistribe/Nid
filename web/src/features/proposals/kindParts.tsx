@@ -9,7 +9,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import type { FieldError, Problem } from '@/api/errors';
-import { trimAmount } from '../investments/entries/entries';
+import { trimAmount } from '@/lib/amount';
 import type { ProposalView } from './api';
 import '@/locales/proposals';
 import '@/locales/forms';

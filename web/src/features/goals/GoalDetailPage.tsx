@@ -3,7 +3,7 @@ import { useParams, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
-import type { RootSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { AccessBadge } from '@/components/AccessBadge';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { LocalDate } from '@/components/LocalDate';

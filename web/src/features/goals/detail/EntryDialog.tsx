@@ -7,8 +7,8 @@ import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AMOUNT, ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
-import { todayIso } from '../../subscriptions/today';
+import { AMOUNT, ISO_DATE, toWireAmount } from '@/lib/amount';
+import { todayIso } from '@/lib/today';
 import { usePutProgress } from '../api';
 import '@/locales/goals';
 

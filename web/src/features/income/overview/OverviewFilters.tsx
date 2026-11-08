@@ -1,11 +1,12 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import type { IncomeSearch, RootSearch } from '@/app/router';
+import type { IncomeSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
-import { PERSONS } from '@/features/subscriptions/api';
+import { PERSONS } from '@/api/persons';
 import { kindText } from '../format';
 import { useOverview } from './useOverview';
 

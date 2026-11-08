@@ -2,7 +2,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { Segmented } from '@/components/form/Segmented';
-import type { RootSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 
 export const PRIVATE_ITEMS = '/api/v1/core/me/private-items' as const;
 

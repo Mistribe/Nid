@@ -6,8 +6,8 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { presentConflict } from '../../investments/entries/entries';
-import { Reload } from '../../subscriptions/edits/Reload';
+import { presentConflict } from '@/components/form/fieldErrors';
+import { Reload } from '@/components/form/Reload';
 import { invalidateIncome, REOPEN_SOURCE, type IncomeSourceDetail } from '../api';
 import '@/locales/income';
 

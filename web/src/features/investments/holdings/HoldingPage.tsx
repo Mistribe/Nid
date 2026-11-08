@@ -18,7 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Section } from '@/components/page/Section';
 import { COST_REPORTS, ENVELOPE, HOLDING_BREAKDOWN, HOLDING_SERIES, HOLDINGS, MOVEMENTS, type CostReport, type Holding } from '../api';
 import { SeriesChart } from '../chart/ValueChart';
-import { AnnualReturn, Direction, pct } from '../Figures';
+import { AnnualReturn, pct } from '../Figures';
+import { Direction } from '@/components/Direction';
 import { realReturnItem } from '../realReturn';
 import { BreakdownDialog } from './BreakdownDialog';
 import { SourceLink } from '@/features/documents/SourceLink';

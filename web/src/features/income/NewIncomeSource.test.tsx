@@ -6,7 +6,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { persons } from '../subscriptions/testData';
-import { todayIso } from '../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { detail, SALARY } from './testData';
 
 function serveCreate(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: SALARY }, { status: 201 })) {

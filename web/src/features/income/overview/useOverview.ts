@@ -1,7 +1,8 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import { useApi } from '@/api/ApiProvider';
-import type { IncomeSearch, RootSearch } from '@/app/router';
+import type { IncomeSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { OVERVIEW, type IncomeOverview } from '../api';
 
 /** The overview the URL asks for; the previous answer stays up while a filter reloads, so the controls keep their focus. */

@@ -9,10 +9,10 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { invalidateSubscriptions, type Detail } from '../api';
-import { AMOUNT, CURRENCY, ISO_DATE, toWireAmount } from './amount';
+import { AMOUNT, CURRENCY, ISO_DATE, toWireAmount } from '@/lib/amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';
-import { useSubmitErrors } from './useSubmitErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import '@/locales/forms';
 
 const PRICE_CHANGES = '/api/v1/subscriptions/{id}/price-changes' as const;

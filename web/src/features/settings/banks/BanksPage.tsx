@@ -16,7 +16,7 @@ import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatInstant, formatInstantDay } from '../../admin/format';
+import { formatInstant, formatInstantDay } from '@/lib/format';
 import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '../../investments/api';
 import { LOANS } from '../../loans/api';
 import { PROPERTIES } from '../../properties/api';

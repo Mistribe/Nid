@@ -4,7 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { CountBadge } from '@/components/CountBadge';
 import { DASHBOARD } from '@/features/dashboard/api';
 import { isRoutineTodo } from '@/features/dashboard/todo';
-import type { RootSearch } from './router';
+import type { RootSearch } from '@/lib/search';
 import { useSession } from './Providers';
 
 /** The number of things to do on the dashboard (same scope as the page); nothing at zero, on error or without the core module. */

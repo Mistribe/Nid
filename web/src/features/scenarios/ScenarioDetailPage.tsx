@@ -14,7 +14,7 @@ import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
 import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
-import { percent } from '@/features/dashboard/format';
+import { percent } from '@/lib/format';
 import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNames';
 import { AssumptionsDialog } from './AssumptionsDialog';
 import { CapacityTab } from './CapacityTab';

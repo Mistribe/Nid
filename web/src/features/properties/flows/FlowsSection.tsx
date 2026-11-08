@@ -12,7 +12,7 @@ import { FLOW, invalidateProperties, type PropertyDetail, type PropertyFlow } fr
 import { categoryText, kindText } from '../format';
 import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';
-import { useRowDialog } from '../useRowDialog';
+import { useRowDialog } from '@/components/page/useRowDialog';
 import { FlowDialog } from './FlowForm';
 import '@/locales/loans';
 import '@/locales/properties';

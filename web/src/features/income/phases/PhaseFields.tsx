@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
-import { Folded } from '../../loans/new/Folded';
+import { Folded } from '@/components/form/Folded';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CADENCES, type PhaseValues } from './phase';

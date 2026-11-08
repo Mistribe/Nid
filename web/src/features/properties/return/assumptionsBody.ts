@@ -1,5 +1,5 @@
 import { percentToFraction } from '../../loans/rate';
-import { toWireAmount } from '../../subscriptions/edits/amount';
+import { toWireAmount } from '@/lib/amount';
 import type { ReturnAssumptionsBody } from '../api';
 
 /** The dialog's fields as typed: percents with a comma, amounts in euros, counts in digits; empty means « by default ». */

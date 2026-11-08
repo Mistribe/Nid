@@ -7,7 +7,7 @@ import { formatMoney } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
-import { percent } from '@/features/dashboard/format';
+import { percent } from '@/lib/format';
 import type { IncomeOverview } from '../api';
 import '@/locales/forms';
 

@@ -2,7 +2,7 @@ import { Link, useSearch } from '@tanstack/react-router';
 import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
-import type { RootSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';

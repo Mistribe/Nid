@@ -2,7 +2,7 @@ import { Link, useRouterState } from '@tanstack/react-router';
 import { CircleAlert, CircleHelp, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Presentation } from '@/api/errors';
-import { moduleOf } from '@/app/nav';
+import { moduleOf } from '@/components/nav';
 import { NestArcs } from '@/components/Logo';
 import { ModuleTile } from '@/components/ModuleTile';
 import { usePageTrail, type Crumb } from '@/components/page/trail';

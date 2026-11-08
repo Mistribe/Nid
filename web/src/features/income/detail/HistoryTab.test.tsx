@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { todayIso } from '../../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import { contentUrl, type DocumentSummary } from '../../documents/api';
 import { link, summary } from '../../documents/testData';
 import type { IncomeExpected, IncomeSourceDetail } from '../api';

@@ -3,7 +3,7 @@ import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { checkOwnership, ownershipPath, ownershipShape, ownershipToWire } from '@/components/ownership/ownership';
-import { AMOUNT, CURRENCY, ISO_DATE } from '../edits/amount';
+import { AMOUNT, CURRENCY, ISO_DATE } from '@/lib/amount';
 import { offerBody, offerFieldOf, thenMode } from './offers';
 import '@/locales/forms';
 

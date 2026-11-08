@@ -15,7 +15,7 @@ import { invalidateProperties, TENANCY, type PropertyDetail, type PropertyTenanc
 import { RowActions } from '@/components/page/RowActions';
 import { RowMenu } from '@/components/page/RowMenu';
 import { presentRefusal } from '../../loans/refusal';
-import { useRowDialog } from '../useRowDialog';
+import { useRowDialog } from '@/components/page/useRowDialog';
 import { ArrearsSection } from '../arrears/ArrearsSection';
 import { RentalFigures } from './RentalFigures';
 import { REVISION, RevisionDialog } from './RevisionDialog';

@@ -11,7 +11,7 @@
 - **Composant `Chart` de shadcn/ui**, qui repose sur **Recharts v3** : `ChartContainer`, `ChartConfig`, `ChartTooltip`, propriété `accessibilityLayer`, couleurs par variables CSS (`var(--color-<clé>)`).
 - **SVG maison** pour ce que Recharts ne couvre pas : la **bande de couverture** d'un abonnement (§5). Les échelles de temps s'appuient sur une bibliothèque d'échelles à choisir.
 - Recharts est chargé **à la demande**, par route (`testing.md`, budgets).
-- ~~Compatibilité de Recharts v3 avec la version de React retenue : à vérifier.~~ Vérifié en 2B2b : Recharts 3.10.1 est installé avec React 19.3.0 ; ses dépendances de pairs acceptent React 19 (`^19.0.0`). Le composant `Chart` de shadcn/ui est dans `web/src/components/ui/chart.tsx`. Seule exception de tracé : `toPlot` (`web/src/features/investments/chart/plot.ts`) convertit un montant en coordonnée, car Recharts positionne ses marques avec des nombres ; rien de ce que la personne lit n’en est dérivé (étiquettes, infobulle et tableau affichent les chaînes du serveur).
+- ~~Compatibilité de Recharts v3 avec la version de React retenue : à vérifier.~~ Vérifié en 2B2b : Recharts 3.10.1 est installé avec React 19.3.0 ; ses dépendances de pairs acceptent React 19 (`^19.0.0`). Le composant `Chart` de shadcn/ui est dans `web/src/components/ui/chart.tsx`. Seule exception de tracé : `toPlot` (`web/src/lib/plot.ts`) convertit un montant en coordonnée, car Recharts positionne ses marques avec des nombres ; rien de ce que la personne lit n’en est dérivé (étiquettes, infobulle et tableau affichent les chaînes du serveur).
 
 ## 2. Formes retenues
 

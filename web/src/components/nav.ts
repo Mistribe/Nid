@@ -1,7 +1,9 @@
 import { Baby, Bell, Building2, Calculator, CalendarCheck, FileText, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Target, Upload, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { components } from '@/api/schema';
 import type { Tile } from '@/components/ModuleTile';
-import type { Capabilities } from './Providers';
+
+type Capabilities = components['schemas']['CapabilitiesView'];
 
 /** The phone's tab order (the other entries sit in « Plus »). */
 export const TAB_ORDER: NavItem['to'][] = ['/dashboard', '/investments', '/subscriptions', '/routine'];

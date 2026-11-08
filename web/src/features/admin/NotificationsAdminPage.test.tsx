@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 
 const configured = { smtpConfigured: true, smtpHost: 'smtp.example.org', failures: [] };
 const failure = { id: '11111111-1111-1111-1111-111111111111', channel: 'email', kind: 'rent.due', at: '2026-10-20T08:00:00+00:00', error: 'notifications.channel_unreachable 421' };

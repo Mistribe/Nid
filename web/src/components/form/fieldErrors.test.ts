@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fieldErrorsOf, messageFor, stepOf } from './fieldErrors';
+import { fieldErrorsOf, messageFor, stepOf } from '@/components/form/fieldErrors';
 
 describe('fieldErrorsOf', () => {
   it('reads the errors of a 422', () =>

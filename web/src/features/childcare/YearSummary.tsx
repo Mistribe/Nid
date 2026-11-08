@@ -10,7 +10,7 @@ import { Money } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { downloadBlob } from '../export/download';
+import { downloadBlob } from '@/lib/download';
 import { SUMMARY } from './api';
 import { childcareYearCsv, yearLines } from './childcareYearCsv';
 import { monthTitle } from './statementText';

@@ -3,8 +3,8 @@ import { useState } from 'react';
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toProblem } from '@/api/errors';
-import { fieldErrorsOf } from '../subscriptions/fieldErrors';
-import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { invalidateChildcare } from './api';
 import '@/locales/childcare';
 

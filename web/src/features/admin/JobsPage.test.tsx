@@ -5,7 +5,8 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { formatDuration, formatInstant } from './format';
+import { formatDuration } from './format';
+import { formatInstant } from '@/lib/format';
 
 const failedRun = { id: '7f0c6b3e-1d1a-4c55-9a43-1f0b9e1c2d3e', trigger: 'scheduled', startedAt: '2026-11-02T04:30:00+00:00', finishedAt: '2026-11-02T04:30:12+00:00', durationMs: 12000, outcome: 'failed', summary: 'InvalidOperationException: boom' };
 

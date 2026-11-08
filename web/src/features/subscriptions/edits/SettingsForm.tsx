@@ -13,10 +13,10 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '../api';
 import { ProviderPicker } from '../ProviderPicker';
-import { ISO_DATE } from './amount';
+import { ISO_DATE } from '@/lib/amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';
-import { useSubmitErrors } from './useSubmitErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import '@/locales/forms';
 
 const PATHS = { autoRenew: 'autoRenew', cancelledAt: 'cancelledAt', note: 'note', providerKey: 'provider' } as const;

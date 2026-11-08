@@ -4,7 +4,7 @@ import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { IncomeExpected, IncomeOneOff } from '../api';
-import { monthLabel } from './months';
+import { monthLabel } from '@/lib/format';
 import '@/locales/income';
 
 type Months = IncomeExpected['months'];

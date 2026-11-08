@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '@/app/i18n';
 import '@/locales/guides';
-import { NAV, section } from '@/app/nav';
+import { NAV, section } from '@/components/nav';
 import { GUIDES, allGuidesSeen, guideFor, isUnseen } from './guideData';
 
 describe('guides', () => {

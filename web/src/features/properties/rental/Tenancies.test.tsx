@@ -7,7 +7,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { todayIso } from '../../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import type { PropertyDetail, PropertyTenancy } from '../api';
 import { PROPERTY, propertyDetail, rentedFigures, tenancy } from '../testData';
 

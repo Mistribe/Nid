@@ -3,8 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { formatMoney, Money } from '@/components/Money';
-import { percent } from '@/features/dashboard/format';
-import { monthLabel } from '../../income/expected/months';
+import { percent, monthLabel } from '@/lib/format';
 import type { ScenarioResult } from '../api';
 import '@/locales/scenarios';
 

@@ -10,7 +10,7 @@ import { invalidateProperties, RECURRING_COST, type PropertyDetail, type Propert
 import { categoryText, everyText } from '../format';
 import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';
-import { useRowDialog } from '../useRowDialog';
+import { useRowDialog } from '@/components/page/useRowDialog';
 import { CostDialog } from './CostForm';
 import '@/locales/loans';
 

@@ -1,8 +1,8 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { ISO_DATE, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
-import { todayIso } from '../../subscriptions/today';
+import { ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
+import { todayIso } from '@/lib/today';
 import type { LoanFee } from '../api';
 import { FEE_KINDS } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';

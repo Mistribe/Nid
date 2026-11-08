@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { StatLine } from '@/components/page/StatLine';
-import { monthLabel } from '@/features/income/expected/months';
+import { monthLabel } from '@/lib/format';
 import { Terms } from '../../loans/detail/Terms';
 import { money, percent, signedMoney } from '../../loans/format';
 import type { PropertyDetail } from '../api';

@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Field, type FieldControl } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
-import { toFieldAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount } from '@/lib/amount';
 import type { TaxEstimate } from '../api';
 import type { DraftErrors, DraftField, ProfileDraft } from './draft';
 import type { Draft } from './useProfileDraft';

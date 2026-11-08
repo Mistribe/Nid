@@ -3,7 +3,7 @@ import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { checkOwnership, ownershipPath, ownershipShape, ownershipToWire } from '@/components/ownership/ownership';
-import { CURRENCY } from '../subscriptions/edits/amount';
+import { CURRENCY } from '@/lib/amount';
 import { KINDS } from './format';
 import { checkPhase, overlappingLines, phaseFieldOf, phaseShape, toWirePhase } from './phases/phase';
 import '@/locales/income';

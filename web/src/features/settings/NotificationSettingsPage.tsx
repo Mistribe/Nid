@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DiscordWebhookControl } from '../notifications/DiscordWebhookControl';
 import { channelErrorText, discordFieldText, throttledText } from '../notifications/channelErrors';
-import { fieldErrorsOf } from '../subscriptions/fieldErrors';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import {
   DISCORD_PERSON, NOTIFICATION_PREFERENCES, usePreferences, useReloadPreferences, useWebhook, useSavePreferences, useTestChannel,
   type NotificationPreferencesBody, type PreferencesView,

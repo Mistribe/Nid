@@ -5,7 +5,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import type { ProjectionScenario } from '../api';
 import { AssumptionFields, assumptionPath, assumptionsDraft, HorizonField, overridesOf, type AssumptionsDraft } from './AssumptionFields';
 import { bodyOf, useSave } from './save';

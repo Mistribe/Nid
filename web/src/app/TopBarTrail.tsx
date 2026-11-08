@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Wordmark } from '@/components/Logo';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { useTrail, type Crumb } from '@/components/page/trail';
-import { moduleOf } from './nav';
+import { moduleOf } from '@/components/nav';
 
 /**
  * The page's trail in the top bar; on a phone, « ‹ Parent » or the wordmark, its mark alone under 400 px where the person menu,

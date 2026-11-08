@@ -2,9 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { formatMoney } from '@/components/Money';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
-import { toPlot } from '../../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { AllocationLine, DashboardEnvelope, DashboardPerson } from '../api';
-import { classColor, liquidityColor, personColor } from '../colors';
+import { classColor, liquidityColor, personColor } from '@/components/colors';
 import { useClassName, useLiquidityName } from './allocationNames';
 
 type Row = { key: string; name: string; value: number; text: string };

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
-import { Folded } from '../loans/new/Folded';
+import { Folded } from '@/components/form/Folded';
 import type { TermsValues } from './childcareSchema';
 import '@/locales/childcare';
 

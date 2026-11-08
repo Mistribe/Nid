@@ -7,7 +7,7 @@ import { adminCapabilities, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 
 type Run = components['schemas']['CatalogSyncRunView'];
 type Report = components['schemas']['CatalogReport'];

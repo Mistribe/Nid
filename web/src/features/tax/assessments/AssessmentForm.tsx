@@ -17,13 +17,13 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Input } from '@/components/ui/input';
 import { DOCUMENT, invalidateDocuments, uploadDocument, useDocuments } from '../../documents/api';
 import { refusal, UNSUPPORTED, UploadZone } from '../../documents/DocumentUpload';
-import { Folded } from '../../loans/new/Folded';
+import { Folded } from '@/components/form/Folded';
 import { DeclarantGrid, type GridRow } from '../profile/DeclarantGrid';
-import { PERSONS } from '../../subscriptions/api';
-import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
-import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
-import { AMOUNT, toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
-import { todayIso } from '../../subscriptions/today';
+import { PERSONS } from '@/api/persons';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
+import { AMOUNT, toFieldAmount, toWireAmount } from '@/lib/amount';
+import { todayIso } from '@/lib/today';
 import { FIRST_ESTIMATE_YEAR } from '../api';
 import {
   assessmentDefaults, assessmentPath, assessmentSchema, fromView, NOTICE_AMOUNTS, PER_TYPED, perLineYear, RATES, stepFields, stepOf, toBody,

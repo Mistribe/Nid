@@ -1,7 +1,6 @@
 import type { TFunction } from 'i18next';
 import { toProblem, type Presentation } from '@/api/errors';
-import { presentConflict } from '../investments/entries/entries';
-import { knownConflictMessage } from '../subscriptions/fieldErrors';
+import { presentConflict, knownConflictMessage } from '@/components/form/fieldErrors';
 
 /**
  * A loan write's refusal no field owns, in French as the settings form reads it: a conflict by its own sentence, a 422

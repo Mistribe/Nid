@@ -9,7 +9,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { labelColour } from '@/lib/labelColour';
 import board from '@/locales/fr.subscriptions-board.json';
-import { toPlot } from '../../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { Overview } from '../api';
 
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);

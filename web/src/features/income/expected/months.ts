@@ -48,11 +48,6 @@ export function sinceWindows(start: string, today: string): { from: string; to: 
   return windows;
 }
 
-/** « octobre 2026 » or « oct. 2026 », in UTC like `LocalDate`. */
-export function monthLabel(year: number, month: number, style: 'long' | 'short' = 'long', locale = 'fr-FR'): string {
-  return new Intl.DateTimeFormat(locale, { timeZone: 'UTC', month: style, year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
-}
-
 /** Spec §3: a phase's payment dates in an expected-income answer, ascending, without its own start (a change cannot fall on it). */
 export function paymentDates(expected: IncomeExpected, phase: { id: string; startsOn: string }): string[] {
   const dates = expected.months.flatMap((m) => m.occurrences)

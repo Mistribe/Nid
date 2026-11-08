@@ -26,7 +26,6 @@ export const DETAIL = '/api/v1/subscriptions/{id}' as const;
 export const INSURANCE = '/api/v1/subscriptions/{id}/insurance' as const;
 export const PROVIDERS = '/api/v1/subscriptions/providers' as const;
 export const LABELS = '/api/v1/subscriptions/labels' as const;
-export const PERSONS = '/api/v1/core/persons' as const;
 
 /** Every write invalidates the list, the overview, the calendar and every detail (1E2a design §4): pessimistic, then targeted. */
 export function invalidateSubscriptions(queryClient: QueryClient): Promise<void> {

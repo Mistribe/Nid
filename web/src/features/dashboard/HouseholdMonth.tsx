@@ -9,10 +9,10 @@ import { SectionCard } from '@/components/page/SectionCard';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { OVERVIEW } from '../income/api';
-import { toPlot } from '../investments/chart/plot';
+import { toPlot } from '@/lib/plot';
 import type { DashboardView } from './api';
 import { band, spread, stack, type Span } from './flow';
-import { percent } from './format';
+import { percent } from '@/lib/format';
 import { TableToggle } from '@/components/page/TableToggle';
 
 const SOURCES = [

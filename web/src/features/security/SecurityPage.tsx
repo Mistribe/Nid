@@ -9,7 +9,7 @@ import { Section } from '@/components/page/Section';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { formatInstant } from '@/features/admin/format';
+import { formatInstant } from '@/lib/format';
 import { eventLabel, viaLabel } from './eventLabel';
 import { McpHelp } from './McpHelp';
 import { TokensSection } from './TokensSection';

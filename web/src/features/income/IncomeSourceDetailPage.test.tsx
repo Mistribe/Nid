@@ -9,7 +9,7 @@ import { renderApp } from '@/test/renderApp';
 import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { todayIso } from '../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import type { IncomeSourceDetail, IncomeSourceOverview } from './api';
 import { detail, eur, phase, SALARY, sourceOverview } from './testData';
 

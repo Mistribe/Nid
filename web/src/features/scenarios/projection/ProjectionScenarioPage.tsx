@@ -21,7 +21,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNames';
-import { fieldErrorsOf, messageFor } from '../../subscriptions/fieldErrors';
+import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { PROJECTION_SCENARIO, SCENARIO, SCENARIOS, type ProjectionScenario } from '../api';
 import type { ProjectionEvent } from './api';
 import { comma } from './AssumptionFields';

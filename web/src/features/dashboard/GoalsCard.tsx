@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { seeAllClass } from '@/components/page/seeAll';
 import { useTranslation } from 'react-i18next';
-import { tileOf } from '@/app/nav';
+import { tileOf } from '@/components/nav';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { SectionCard } from '@/components/page/SectionCard';
 import { useGoals } from '../goals/api';

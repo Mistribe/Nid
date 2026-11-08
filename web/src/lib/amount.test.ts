@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toFieldAmount, toWireAmount } from './amount';
+import { toFieldAmount, toWireAmount } from '@/lib/amount';
 
 describe('toWireAmount', () => {
   it.each([['15,99', '15.99'], [' 7.49 ', '7.49'], ['12', '12'], ['0,5', '0.5'], ['-120,50', '-120.50']])('writes %s as %s', (typed, wire) =>

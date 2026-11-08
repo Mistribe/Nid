@@ -6,7 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { todayIso } from '../../subscriptions/today';
+import { todayIso } from '@/lib/today';
 import type { PropertyDetail } from '../api';
 import { PROPERTY, propertyDetail } from '../testData';
 

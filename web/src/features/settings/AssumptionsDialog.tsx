@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toFieldAmount } from '../subscriptions/edits/amount';
-import { fieldErrorsOf, messageFor } from '../subscriptions/fieldErrors';
+import { toFieldAmount } from '@/lib/amount';
+import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { monthText } from '@/components/LocalDate';
 import { ASSET_CLASSES, PROJECTION, PROJECTION_ASSUMPTIONS, YEARLY_CLASSES, projectionYears } from './api';
 

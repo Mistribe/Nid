@@ -9,7 +9,7 @@ import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { eventLabel } from '@/features/security/eventLabel';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { formatInstant } from './format';
+import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 
 /** The events the journal can hold (spec §5.1), in the order of the filter. */

@@ -10,7 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import type { EnvelopeSummary } from '../../investments/api';
-import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { ACCOUNT, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from './api';
 import '@/locales/banks';
 

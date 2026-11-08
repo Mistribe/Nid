@@ -9,11 +9,11 @@ import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Folded } from '../../loans/new/Folded';
-import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
-import { todayIso } from '../../subscriptions/today';
+import { Folded } from '@/components/form/Folded';
+import { useSubmitErrors } from '@/components/form/useSubmitErrors';
+import { todayIso } from '@/lib/today';
 import { COST_REPORT, invalidateInvestments, type CostReport, type EnvelopeDetail, type Holding } from '../api';
-import { placeFieldError } from '../entries/entries';
+import { placeFieldError } from '@/components/form/fieldErrors';
 import '@/locales/investments';
 import '@/locales/forms';
 

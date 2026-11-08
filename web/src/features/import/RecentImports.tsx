@@ -6,7 +6,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { RowMenu } from '@/components/page/RowMenu';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatInstant } from '@/features/admin/format';
+import { formatInstant } from '@/lib/format';
 import { StepCard } from './StepCard';
 import { ACTIVE_STATES, effectiveState, useStateLabel } from './states';
 import '@/locales/import';

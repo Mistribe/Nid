@@ -10,7 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PERSONS } from '@/features/subscriptions/api';
+import { PERSONS } from '@/api/persons';
 import { SettingsFrame } from './SettingsFrame';
 import '@/locales/notifications';
 

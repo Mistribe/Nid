@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { MoneyValue } from '@/components/Money';
-import { csvAmount, csvText } from '../export/csv';
+import { csvAmount, csvText } from '@/lib/csv';
 import type { ChildcareYear } from './api';
 import '@/locales/childcare';
 

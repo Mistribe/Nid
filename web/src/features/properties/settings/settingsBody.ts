@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { toFieldAmount, toWireAmount } from '../../subscriptions/edits/amount';
+import { toFieldAmount, toWireAmount } from '@/lib/amount';
 import type { PropertyDetail } from '../api';
 import { propertyFieldPath, propertyFieldsSchema } from '../new/propertyForm';
 
