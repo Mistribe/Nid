@@ -6,8 +6,8 @@ name: ci
 #    integration tests), web.yml (API client, types, lint, vitest, build, budget), e2e.yml (every Playwright journey, images
 #    scanned by Trivy); and reviews its new dependencies;
 #  - `ci-ok` sums them up: it is the one check the `main` ruleset requires (with `changelog`);
-#  - `main` runs only the release (`version`, `build`, `publish`, `release`: the images on ghcr.io, then the tag): the pull
-#    request already ran its checks on the tree being merged;
+#  - `main` runs only the release (`version`, `build`, `publish`, `release`: the images on ghcr.io, then the tag and its
+#    GitHub release): the pull request already ran its checks on the tree being merged;
 #  - every Monday, every check runs on `main` whatever changed: base images, the identity provider and the browsers move without
 #    a push;
 #  - a push or a pull request that only touches docs runs nothing.
@@ -38,8 +38,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name != 'push' }}
 
-# Least privilege (security/infrastructure.md §5): only `release` writes to the repository (the tag), only `build` and
-# `publish` to the packages. Actions are pinned by SHA.
+# Least privilege (security/infrastructure.md §5): only `release` writes to the repository (the tag and its release), only
+# `build` and `publish` to the packages. Actions are pinned by SHA.
 permissions:
   contents: read
 
@@ -272,17 +272,28 @@ jobs:
           subject-digest: ${{ steps.index.outputs.digest }}
           push-to-registry: true
 
-  # The vX.Y.Z tag, once both images are published.
+  # The vX.Y.Z tag and its GitHub release, once both images are published. Here and not in a workflow on tag push: a tag
+  # pushed with the workflow's token triggers no workflow. The notes: this version's lines of web/changelog/ (in English),
+  # the images, then the merged pull requests GitHub lists.
   release:
     needs: [version, publish]
     if: needs.version.outputs.tagged != 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # the vX.Y.Z tag
+      contents: write # the vX.Y.Z tag and its release
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # the changelog dates its lines by the tags
+          persist-credentials: false
       - env:
           VERSION: ${{ needs.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git tag "v$VERSION" "$GITHUB_SHA"
-          git push origin "v$VERSION"
+          notes="$RUNNER_TEMP/notes.md"
+          {
+            node web/scripts/changelog.mjs "$VERSION" \
+              | jq -r --arg v "$VERSION" '.[] | select(.version == $v) | .changes[] | "- " + .en'
+            printf '\n## Images\n\n```sh\ndocker pull ghcr.io/mistribe/nid:%s\ndocker pull ghcr.io/mistribe/nid-backup:%s\n```\n' "$VERSION" "$VERSION"
+          } > "$notes"
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file "$notes" --generate-notes
