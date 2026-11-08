@@ -79,7 +79,8 @@ test('alice simulates an early repayment in a projection scenario, reads the gap
   await expect(alice.getByRole('heading', { name: loan, level: 1 })).toBeVisible();
 
   await alice.goto('/scenarios');
-  await alice.getByRole('button', { name: 'Nouveau scénario' }).click();
+  // An empty list repeats the header's button in its empty state.
+  await alice.getByRole('button', { name: 'Nouveau scénario' }).first().click();
   await alice.getByRole('menuitem', { name: 'Projection' }).click();
   await expect(alice.getByRole('heading', { name: 'Nouvelle projection', level: 1 })).toBeVisible();
   await alice.getByLabel('Nom du scénario').fill(name);
