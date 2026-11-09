@@ -1,20 +1,21 @@
-import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { lazy, Suspense } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import i18n from '@/app/i18n';
 import type { SubscriptionsSearch } from '@/app/router';
-import { formatMoney, Money } from '@/components/Money';
+import { formatMoney } from '@/components/Money';
+import { Segmented } from '@/components/form/Segmented';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import board from '@/locales/fr.subscriptions-board.json';
 import { cn } from '@/lib/utils';
-import { CHARGES, type Charges } from '@/api/subscriptions';
+import { CHARGES } from '@/api/subscriptions';
+import { ChargeLink, DayMore, formatDate as format, type Line } from './charges';
 import { todayIso } from '@/lib/today';
 import { monthGrid, shiftMonth } from './monthGrid';
 import { Loading, StatLineSkeleton } from '@/components/page/skeletons';
@@ -22,19 +23,33 @@ import { Loading, StatLineSkeleton } from '@/components/page/skeletons';
 // Loaded with this lazy chunk, not with the initial bundle.
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);
 
-type Line = Charges['charges'][number];
-
-/** A calendar date as French text, read in UTC so the day never shifts. */
-const format = (iso: string, options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', ...options })
-    .format(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10) || '1')));
+const TimelineView = lazy(() => import('./TimelineView').then((m) => ({ default: m.TimelineView })));
 
 // 2024-01-01 was a Monday.
 const WEEKDAYS = Array.from({ length: 7 }, (_, i) => format(`2024-01-0${i + 1}`, { weekday: 'short' }));
 const SHOWN = 3;
 
-/** Subscriptions dashboard design §5.2: one month of the server's charges, as a grid (desktop) or a list of days (phone). */
+/** The calendar tab: the month calendar, or the timeline (issue #65) under `?view=timeline`. */
 export function CalendarTab({ scope }: { scope: 'household' | 'me' }) {
+  const { t } = useTranslation('subscriptions-board');
+  const navigate = useNavigate();
+  const search: SubscriptionsSearch = useSearch({ strict: false });
+  const view = search.view === 'timeline' ? 'timeline' : 'calendar';
+  return (
+    <div className="space-y-4">
+      <Segmented aria-label={t('view.label')} value={view} options={[
+        { value: 'calendar', label: t('view.calendar') }, { value: 'timeline', label: t('view.timeline') },
+      ]} onValueChange={(v) => void navigate({ to: '.', replace: true, resetScroll: false,
+        search: (prev) => ({ ...prev, view: v === 'timeline' ? 'timeline' : undefined }) })} />
+      {view === 'timeline'
+        ? <Suspense fallback={<Loading label={t('timeline.loading_view')}><Skeleton className="h-64 w-full" /></Loading>}><TimelineView scope={scope} /></Suspense>
+        : <MonthCalendar scope={scope} />}
+    </div>
+  );
+}
+
+/** Subscriptions dashboard design §5.2: one month of the server's charges, as a grid (desktop) or a list of days (phone). */
+function MonthCalendar({ scope }: { scope: 'household' | 'me' }) {
   const { t } = useTranslation('subscriptions-board');
   const { $api } = useApi();
   const navigate = useNavigate();
@@ -90,20 +105,10 @@ export function CalendarTab({ scope }: { scope: 'household' | 'me' }) {
               className={cn('min-h-24 space-y-1 border-t border-l p-1 [&:nth-child(7n+1)]:border-l-0', !cell.inMonth && 'bg-muted/40 text-muted-foreground')}>
               <div aria-hidden="true" className={cn('inline-flex size-6 items-center justify-center rounded-full text-xs',
                 cell.date === today && 'bg-primary font-semibold text-primary-foreground')}>{Number(cell.date.slice(8))}</div>
-              {shown.map((c, i) => <Charge key={`${c.itemId}/${i}`} c={c} compact />)}
+              {shown.map((c, i) => <ChargeLink key={`${c.itemId}/${i}`} c={c} compact />)}
               {lines.length > SHOWN ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="ghost" size="sm" className="h-6 px-1 text-xs"
-                      aria-label={t('calendar.more_label', { count: lines.length - shown.length })}>
-                      {t('calendar.more', { count: lines.length - shown.length })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent aria-label={label} className="max-h-[min(20rem,var(--radix-popover-content-available-height))] w-80 space-y-1 overflow-y-auto p-2">
-                    <p aria-hidden="true" className="px-1 text-sm font-medium first-letter:uppercase">{label}</p>
-                    {lines.map((c, i) => <Charge key={`${c.itemId}/${i}`} c={c} />)}
-                  </PopoverContent>
-                </Popover>
+                <DayMore lines={lines} label={label} more={t('calendar.more', { count: lines.length - shown.length })}
+                  moreLabel={t('calendar.more_label', { count: lines.length - shown.length })} />
               ) : null}
             </div>
           );
@@ -114,22 +119,10 @@ export function CalendarTab({ scope }: { scope: 'household' | 'me' }) {
         {[...byDay].map(([date, lines]) => (
           <li key={date} className="space-y-1">
             <h3 className="text-sm font-semibold">{format(date, { weekday: 'short', day: 'numeric', month: 'short' })}</h3>
-            {lines.map((c, i) => <Charge key={`${c.itemId}/${i}`} c={c} />)}
+            {lines.map((c, i) => <ChargeLink key={`${c.itemId}/${i}`} c={c} />)}
           </li>
         ))}
       </ul> : null}
     </div>
-  );
-}
-
-/** A charge, linked to its subscription: the converted amount when the server has one, its own price otherwise. */
-function Charge({ c, compact = false }: { c: Line; compact?: boolean }) {
-  return (
-    <Link to="/subscriptions/$id" params={{ id: c.itemId }}
-      className={cn('flex min-w-0 items-center gap-2 rounded-sm px-1 hover:bg-accent', compact ? 'text-xs' : 'py-1 text-sm')}>
-      <ProviderIcon name={c.provider?.name ?? c.displayName} iconUrl={c.provider?.iconUrl} color={c.provider?.labels[0]?.color} />
-      <span className="min-w-0 flex-1 truncate font-medium">{c.displayName}</span>
-      <span className="whitespace-nowrap"><Money value={c.converted ?? c.price} tabular /></span>
-    </Link>
   );
 }

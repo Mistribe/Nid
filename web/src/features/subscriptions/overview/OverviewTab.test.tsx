@@ -96,8 +96,8 @@ describe('Abonnements › vue d’ensemble', () => {
 
   it('lists the upcoming charges, linked to their subscription, in the converted amount', async () => {
     serve(overview({ activeCount: 1, upcoming: [
-      { date: '2026-10-28', itemId: SPOTIFY, displayName: 'Spotify', provider: null, price: { amount: '9.99', currency: 'USD' }, converted: eur('9.20') },
-      { date: '2026-11-02', itemId: PRIME, displayName: 'Prime', provider: null, price: { amount: '69.90', currency: 'USD' }, converted: null },
+      { date: '2026-10-28', itemId: SPOTIFY, displayName: 'Spotify', provider: null, price: { amount: '9.99', currency: 'USD' }, converted: eur('9.20'), isProjected: true },
+      { date: '2026-11-02', itemId: PRIME, displayName: 'Prime', provider: null, price: { amount: '69.90', currency: 'USD' }, converted: null, isProjected: true },
     ] }));
     await renderApp('/subscriptions');
 
@@ -126,7 +126,7 @@ describe('Abonnements › vue d’ensemble', () => {
   });
 
   it('shows the first eight upcoming charges and counts the others', async () => {
-    const charge = (n: number) => ({ date: '2026-10-28', itemId: SPOTIFY, displayName: `Charge ${n}`, provider: null, price: eur('1.00'), converted: null });
+    const charge = (n: number) => ({ date: '2026-10-28', itemId: SPOTIFY, displayName: `Charge ${n}`, provider: null, price: eur('1.00'), converted: null, isProjected: true });
     serve(overview({ activeCount: 1, upcoming: Array.from({ length: 10 }, (_, n) => charge(n)) }));
     await renderApp('/subscriptions');
 

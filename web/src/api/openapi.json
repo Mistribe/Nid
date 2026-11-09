@@ -29352,7 +29352,8 @@
           "date",
           "itemId",
           "displayName",
-          "price"
+          "price",
+          "isProjected"
         ],
         "type": "object",
         "properties": {
@@ -29389,6 +29390,9 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "isProjected": {
+            "type": "boolean"
           }
         }
       },
@@ -49784,6 +49788,12 @@
             "items": {
               "$ref": "#/components/schemas/FindingView"
             }
+          },
+          "firstMonth": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

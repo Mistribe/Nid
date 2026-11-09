@@ -89,6 +89,38 @@ public class MonthChargesTests
     }
 
     [Fact]
+    public void A_charge_before_today_is_paid_and_after_is_projected()
+    {
+        var monthly = Built([Phase(new LocalDate(2025, 9, 1), null, 9.99m)]);
+
+        Assert.False(Assert.Single(Charges(new YearMonth(2025, 10), false, monthly).Charges).IsProjected);
+        Assert.True(Assert.Single(Charges(new YearMonth(2025, 11), false, monthly).Charges).IsProjected);
+    }
+
+    [Fact]
+    public void The_first_month_is_the_earliest_charge_of_the_set_ended_ones_included()
+    {
+        var result = Charges(May, false,
+            Built([Phase(new LocalDate(2025, 3, 5), new LocalDate(2025, 5, 31), 9m)]),
+            Built([Phase(new LocalDate(2025, 9, 1), null, 9.99m)]));
+
+        Assert.Equal("2025-03", result.FirstMonth);
+    }
+
+    [Fact]
+    public void With_no_subscription_the_first_month_is_null()
+        => Assert.Null(Charges(May).FirstMonth);
+
+    [Fact]
+    public void Beyond_the_horizon_keeps_the_first_month()
+    {
+        var result = Charges(new YearMonth(2040, 1), true, Built([Phase(new LocalDate(2025, 9, 1), null, 9.99m)]));
+
+        Assert.Empty(result.Charges);
+        Assert.Equal("2025-09", result.FirstMonth);
+    }
+
+    [Fact]
     public void A_past_month_shows_the_charges_of_an_ended_subscription()
     {
         var ended = Built([Phase(new LocalDate(2025, 1, 5), new LocalDate(2025, 6, 1), 9m)]);

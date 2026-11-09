@@ -51,6 +51,29 @@
     "more_label_one": "+{{count}} autre prélèvement",
     "more_label_other": "+{{count}} autres prélèvements"
   },
+  "view": {
+    "label": "Affichage",
+    "calendar": "Calendrier",
+    "timeline": "Frise"
+  },
+  "timeline": {
+    "loading_view": "Chargement de la frise",
+    "band": "Frise des prélèvements",
+    "previous": "Mois précédent",
+    "next": "Mois suivant",
+    "today": "Aujourd’hui",
+    "legend": "Légende",
+    "legend_paid": "Prélevé",
+    "legend_projected": "Prévu",
+    "marker": "{{name}}, {{amount}}, {{state}} le {{date}}",
+    "paid": "prélevé",
+    "projected": "prévu",
+    "loading": "Chargement de {{month}}…",
+    "summary_one": "{{total}} · {{count}} prélèvement",
+    "summary_other": "{{total}} · {{count}} prélèvements",
+    "start": "Début de l’historique",
+    "end": "Fin de la prévision affichée"
+  },
   "partial": "partiel",
   "years": {
     "title": "Coût par an",
