@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { pick } from './controls';
 import { signIn } from './session';
 
 /**
@@ -42,7 +41,9 @@ test('alice opens the CPI from Administration › Inflation, adds the IRL then a
   await expect(page.getByRole('button', { name: 'Retirer Indice de référence des loyers (IRL)' })).toBeVisible(); // the points are in
   await expect(page.getByRole('radiogroup', { name: 'Échelle' })).toHaveCount(0); // two indices share one axis
 
-  await pick(page, 'Ajouter une série', 'EUR pour 1 USD');
+  await page.getByRole('combobox', { name: 'Ajouter une série' }).click();
+  await page.getByPlaceholder('Rechercher une série…').fill('eur'); // the stack may hold every currency: past the first page
+  await page.getByRole('option', { name: 'EUR pour 1 USD', exact: true }).click();
   await expect(page.getByText(/^Base 100 le /)).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Base 100' })).toBeChecked();
   await page.goBack();
