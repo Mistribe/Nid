@@ -21,7 +21,7 @@ x-hardened: &hardened
 services:
   nid:
     <<: *hardened
-    image: ${NID_IMAGE:-ghcr.io/mistribe/nid:latest@sha256:e6b4e27f84f13519995093f02f4ce32ea879e5253ad6c12b239fa95700b11b34}
+    image: ${NID_IMAGE:-ghcr.io/mistribe/nid:latest@sha256:ba84a9cb671a1403d4eaa00eed6baea5d8fe9b6872a880f43050c8fbf250364b}
     environment:
       Auth__PublicUrl: ${NID_URL:?set NID_URL in .env (https://nid.example.org)}
       Auth__Authority: ${AUTH_URL:?set AUTH_URL in .env (https://auth.example.org)}
