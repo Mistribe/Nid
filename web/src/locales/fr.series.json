@@ -17,7 +17,18 @@
       "irl": "Indice de référence des loyers (IRL)",
       "fx": "{{name}} pour 1 USD",
       "projection_inflation": "Inflation projetée",
-      "projection_rate": "Rendement projeté : {{name}}"
+      "projection_rate": "Rendement projeté : {{name}}",
+      "income": "Revenu : {{name}}",
+      "income_household": "Revenus du foyer",
+      "envelope_value": "Valeur : {{name}}",
+      "envelope_contributions": "Versements nets : {{name}}",
+      "holding_price": "Cours : {{name}}",
+      "property_value": "Estimation : {{name}}",
+      "property_cost": "Prix de revient : {{name}}",
+      "property_net": "Valeur nette : {{name}}",
+      "tenancy_rent": "Loyer : {{name}}",
+      "loan_remaining": "Capital restant dû : {{name}}",
+      "loan_payment": "Échéance : {{name}}"
     },
     "unit": {
       "index": "indice",

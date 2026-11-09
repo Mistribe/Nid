@@ -109,7 +109,7 @@ describe('Explorer des séries', () => {
     const { user } = await renderApp('/series?s=cpi');
     await user.click(await screen.findByRole('combobox', { name: 'Ajouter une série' }));
     await user.type(await screen.findByRole('combobox', { name: 'Rechercher une série…' }), 'loyer');
-    await waitFor(() => expect(asked.some((a) => a.get('q') === 'loyer' && a.get('kinds') === 'irl')).toBe(true));
+    await waitFor(() => expect(asked.some((a) => a.get('q') === 'loyer' && a.get('kinds') === 'irl,tenancy_rent')).toBe(true));
   });
 
   it('adds a series from the catalogue searched on the server, replacing the URL', async () => {
