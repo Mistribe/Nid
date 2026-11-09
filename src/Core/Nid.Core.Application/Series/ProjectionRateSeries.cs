@@ -17,21 +17,37 @@ public sealed class ProjectionRateSeries(IHouseholdSettings household, IHousehol
     public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(q)) return [];
+        var context = await ReadAsync(ct);
         var list = new List<SeriesInfo>();
         foreach (var key in new[] { InflationKey }.Concat(AllocationClasses.All.Select(c => RatePrefix + c)))
-            if (await PointsAsync(reader, scope, key, null, null, ct) is { Points.Count: > 0 } hit)
+            if (Build(context, key, null, null) is { Points.Count: > 0 } hit)
                 list.Add(hit.Info with { First = hit.Points[0].Date, Last = hit.Points[^1].Date });
         return list;
     }
 
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)
     {
-        var @class = key.StartsWith(RatePrefix, StringComparison.Ordinal) ? key[RatePrefix.Length..] : null;
-        if (key != InflationKey && (@class is null || !AllocationClasses.All.Contains(@class))) return null;
+        if (!IsKnown(key)) return null;
+        return Build(await ReadAsync(ct), key, from, to);
+    }
 
+    private static bool IsKnown(string key)
+        => key == InflationKey || (key.StartsWith(RatePrefix, StringComparison.Ordinal) && AllocationClasses.All.Contains(key[RatePrefix.Length..]));
+
+    private sealed record Context(LocalDate Today, ProjectionAssumptions Assumptions, decimal? Observed);
+
+    private async Task<Context> ReadAsync(CancellationToken ct)
+    {
         var today = await calendar.TodayAsync(ct);
         var a = ProjectionRules.WithoutPastYears(await household.ProjectionAssumptionsAsync(ct), today);
         var observed = await household.ReferenceCurrencyAsync(ct) == Currency.Eur ? (await inflation.ReadAsync(ct)).Last12Months?.Rate : null;
+        return new Context(today, a, observed);
+    }
+
+    private static SeriesPoints Build(Context c, string key, LocalDate? from, LocalDate? to)
+    {
+        var @class = key.StartsWith(RatePrefix, StringComparison.Ordinal) ? key[RatePrefix.Length..] : null;
+        var (today, a, observed) = (c.Today, c.Assumptions, c.Observed);
         var years = ProjectionRates.GridYears(today, ProjectionHorizon.Default.Years!.Value * 12);
 
         var points = years

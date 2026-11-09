@@ -16,9 +16,10 @@ public sealed class CpiSeries(ICpiStore store) : ISeriesContribution
     public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(q)) return [];
+        var stored = await ReadAsync(ct);
         var list = new List<SeriesInfo>();
         foreach (var key in new[] { Index, Yoy })
-            if (await PointsAsync(reader, scope, key, null, null, ct) is { Points.Count: > 0 } hit)
+            if (Build(stored, key, null, null) is { Points.Count: > 0 } hit)
                 list.Add(hit.Info with { First = hit.Points[0].Date, Last = hit.Points[^1].Date });
         return list;
     }
@@ -26,7 +27,14 @@ public sealed class CpiSeries(ICpiStore store) : ISeriesContribution
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)
     {
         if (key is not (Index or Yoy)) return null;
-        var stored = (await store.ListAsync(ct)).ToDictionary(v => v.Month, v => v.Value);
+        return Build(await ReadAsync(ct), key, from, to);
+    }
+
+    private async Task<Dictionary<YearMonth, decimal>> ReadAsync(CancellationToken ct)
+        => (await store.ListAsync(ct)).ToDictionary(v => v.Month, v => v.Value);
+
+    private static SeriesPoints Build(Dictionary<YearMonth, decimal> stored, string key, LocalDate? from, LocalDate? to)
+    {
         var points = key == Index
             ? stored.Select(m => new SeriesPoint(Day(m.Key), m.Value))
             : stored.Where(m => stored.ContainsKey(m.Key.PlusMonths(-12)))

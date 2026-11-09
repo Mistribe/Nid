@@ -97,6 +97,17 @@ public sealed class SeriesUseCasesTests
     }
 
     [Fact]
+    public async Task Points_expose_the_items_behind_an_item_series()
+    {
+        var income = ItemId.New();
+        var owned = Owned(Info($"income:{income.Value}", "income", "Bob salaire", item: income), (D(2025, 1, 1), 100m));
+
+        var view = Value(await Points($"income:{income.Value},cpi", new FakeContribution("core", [MonthlyCpi, owned])));
+
+        Assert.Equal([income], view.ExposedItems());
+    }
+
+    [Fact]
     public async Task Points_never_rebase_a_percent_series()
     {
         var yoy = Owned(Info("cpi:yoy", SeriesKinds.CpiYoy, unit: SeriesUnits.Percent), (D(2025, 1, 1), 2m));

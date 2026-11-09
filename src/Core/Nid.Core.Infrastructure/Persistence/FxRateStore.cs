@@ -74,17 +74,14 @@ public sealed class FxRateStore(CoreDbContext db) : IFxRateStore
             .Select(g => new { Quote = g.Key, First = g.Min(r => r.OnDate), Last = g.Max(r => r.OnDate) })
             .OrderBy(g => g.Quote)
             .ToListAsync(ct);
-        return rows.Select(r => new FxQuoteSpan(
-            Currency.TryCreate(r.Quote.Trim(), out var quote)
-                ? quote
-                : throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"Stored quote '{r.Quote}' is not a currency.")),
-            r.First, r.Last)).ToList();
+        return rows.Select(r => new FxQuoteSpan(QuoteOf(r.Quote), r.First, r.Last)).ToList();
     }
 
+    private static Currency QuoteOf(string stored)
+        => Currency.TryCreate(stored.Trim(), out var quote)
+            ? quote
+            : throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"Stored quote '{stored}' is not a currency."));
+
     private static FxRate ToRate(FxRateRow row)
-        => new(row.OnDate,
-            Currency.TryCreate(row.Quote.Trim(), out var quote)
-                ? quote
-                : throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"Stored quote '{row.Quote}' is not a currency.")),
-            row.Rate, FxRateSourceNames.FromWire(row.Source));
+        => new(row.OnDate, QuoteOf(row.Quote), row.Rate, FxRateSourceNames.FromWire(row.Source));
 }
