@@ -25,7 +25,7 @@ export const detail = (over: Partial<IncomeSourceDetail> = {}): IncomeSourceDeta
     phase({ id: 'p2', label: 'Prime annuelle', startsOn: '2024-12-15', netAmount: eur('1800.00'), every: { count: 1, unit: 'year' }, monthlyEquivalent: eur('150.00') }),
     phase({ id: 'p0', startsOn: '2024-01-01', endsOn: '2025-01-01', netAmount: eur('2200.00'), status: 'past', monthlyEquivalent: eur('2200.00') }),
   ],
-  gapSoon: [], oneOffs: [], ...over,
+  gapSoon: [], oneOffs: [], owners: [], shareLevel: 'view', canChangeOwners: false, ...over,
 });
 
 export const sourceRow = (over: Partial<IncomeOverview['sources'][number]> = {}): IncomeOverview['sources'][number] => ({

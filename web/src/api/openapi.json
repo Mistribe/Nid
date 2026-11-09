@@ -33004,6 +33004,27 @@
           },
           "clearNote": {
             "type": "boolean"
+          },
+          "visibility": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owners": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/OwnerBody"
+            }
           }
         }
       },
@@ -37694,7 +37715,10 @@
           "monthlyEquivalent",
           "phases",
           "gapSoon",
-          "oneOffs"
+          "oneOffs",
+          "owners",
+          "shareLevel",
+          "canChangeOwners"
         ],
         "type": "object",
         "properties": {
@@ -37759,6 +37783,18 @@
             "items": {
               "$ref": "#/components/schemas/IncomeOneOffView"
             }
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "shareLevel": {
+            "type": "string"
+          },
+          "canChangeOwners": {
+            "type": "boolean"
           }
         }
       },

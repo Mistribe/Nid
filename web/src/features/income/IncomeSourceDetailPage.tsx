@@ -9,6 +9,7 @@ import { present, toProblem } from '@/api/errors';
 import type { IncomeDetailSearch } from '@/app/router';
 import type { RootSearch } from '@/lib/search';
 import { AccessBadge } from '@/components/AccessBadge';
+import { OwnerChips } from '@/components/OwnerChips';
 import { FormDialog } from '@/components/FormDialog';
 import { formatLocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
@@ -151,6 +152,7 @@ export function IncomeSourceDetailPage() {
             <span className="text-sm text-muted-foreground">{kindText(t, source.kind)}</span>
             {source.payerLabel ? <span className="text-sm text-muted-foreground">{source.payerLabel}</span> : null}
             <AccessBadge access={source.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
+            <OwnerChips owners={source.owners} />
           </>
         )}>
         {overview.data ? <SourceFigures figures={overview.data.figures} withholding={overview.data.withholding} />

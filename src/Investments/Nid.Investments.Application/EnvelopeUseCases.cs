@@ -137,44 +137,18 @@ public sealed class EditEnvelopeHandler(
             return Result.Failure<ItemId>(failure!);
 
         var item = envelope.Item;
-        var visibility = command.Visibility ?? item.Visibility;
-        var level = visibility == Visibility.Private ? ShareLevel.View : command.ShareLevel ?? item.ShareLevel;
-        var owners = command.Owners ?? item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
-        var reshared = visibility != item.Visibility || level != item.ShareLevel
-            || !item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToHashSet().SetEquals(owners);
-        if (reshared && await OwnershipRefusalAsync(item, visibility, owners, ct) is { } refused)
+        var target = OwnershipEdit.Of(item, command.Visibility, command.ShareLevel, command.Owners);
+        if (await OwnershipEdit.RefusalAsync(rules, persons, actor.Current!.PersonId!.Value, item, target, "envelope", ct) is { } refused)
             return Result.Failure<ItemId>(refused);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var name = command.DisplayName ?? item.DisplayName;
-        if (reshared || name != item.DisplayName)
-        {
-            var replaced = await items.ReplaceAsync(command.ItemId, name, visibility, owners, ct, level);
-            if (replaced.TryGetFailure(out failure))
-                return Result.Failure<ItemId>(reshared ? FieldErrors.At(failure!, "owners") : failure!);
-        }
+        var replaced = await OwnershipEdit.ReplaceAsync(items, item, command.DisplayName ?? item.DisplayName, target, ct);
+        if (replaced.TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
 
         await envelopes.UpdateAsync(command.ItemId, change, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
-    }
-
-    /// <summary>
-    /// #25: the import's guards (<see cref="ImportSectionKit.ReplaceRefusalAsync"/>): editing is not owning (#294), and an edit
-    /// never takes the envelope from another adult nor hides it from one who reads it today.
-    /// </summary>
-    private async Task<Failure?> OwnershipRefusalAsync(ItemAccess item, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct)
-    {
-        var me = actor.Current!.PersonId!.Value;
-        if (!rules.CanCreate(me, item.Owners))
-            return new UnauthorizedFailure("Only the envelope's owners change its sharing or its owners.", null);
-        // Both rules read only the new owners' ids: their kind does not matter here.
-        var after = owners.Select(o => new Owner(o.PersonId, PersonKind.Adult, o.ShareBp)).ToList();
-        if (rules.DropsAnotherAdultOwner(me, item.Owners, after))
-            return FieldErrors.At(new Failure(ItemCodes.DropsAdultOwner, "Another adult cannot be removed from the owners.", null), "owners");
-        if (rules.TakesReadAway(me, item.Visibility, item.Owners, visibility, after, await persons.AdultIdsAsync(ct)))
-            return FieldErrors.At(new Failure(ItemCodes.TakesReadAway, "This hides the envelope from another adult who sees it today.", null), "owners");
-        return null;
     }
 }
 

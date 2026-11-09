@@ -27347,6 +27347,9 @@ export interface components {
             clearPayerLabel: boolean;
             note?: null | string;
             clearNote: boolean;
+            visibility?: null | string;
+            shareLevel?: null | string;
+            owners?: null | components["schemas"]["OwnerBody"][];
         };
         EditLoanBody: {
             name?: null | string;
@@ -28436,6 +28439,9 @@ export interface components {
             phases: components["schemas"]["IncomePhaseView"][];
             gapSoon: components["schemas"]["IncomeGapView"][];
             oneOffs: components["schemas"]["IncomeOneOffView"][];
+            owners: components["schemas"]["ItemOwnerView"][];
+            shareLevel: string;
+            canChangeOwners: boolean;
         };
         IncomeSourceFigures: {
             monthlyNow: components["schemas"]["IncomeAmountView"];

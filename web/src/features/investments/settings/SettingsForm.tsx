@@ -21,7 +21,7 @@ import { knownConflictMessage, placeFieldError, presentConflict } from '@/compon
 import { todayIso } from '@/lib/today';
 import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '@/api/investments';
 import { PERSONS } from '@/api/persons';
-import { bpToPercent, checkOwnership, ownershipPath, ownershipShape, percentToBp, type OwnershipValues } from '@/components/ownership/ownership';
+import { checkEditOwnership, editOwnershipShape, ownershipApplied, ownershipDefaults, ownershipPath, type OwnershipValues } from '@/components/ownership/ownership';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
 import { ITEM_SHARING } from '@/components/ownership/SharingBadges';
 import { CADENCES, hasPremiumsBefore2017, KINDS, REGULATED, regulatedOptions } from '../format';
@@ -54,12 +54,9 @@ const schema = (t: TFunction) => z.object({
   premiumsBefore2017: z.string(),
   regulated: z.enum(REGULATED),
   note: z.string().max(2000, t('investments_form.note_too_long')),
-  // #25: absent where the form does not show them (an adult who may edit without owning).
-  visibility: ownershipShape(t).visibility.optional(),
-  shareLevel: ownershipShape(t).shareLevel,
-  owners: ownershipShape(t).owners.optional(),
+  ...editOwnershipShape(t),
 }).superRefine((v, ctx) => {
-  if (v.visibility && v.owners) checkOwnership({ ...v, visibility: v.visibility, owners: v.owners }, ctx, t);
+  checkEditOwnership(v, ctx, t);
   // A hidden field (another kind picked) never blocks a save.
   const premiums = v.premiumsBefore2017.replace(/\s/g, '');
   if (hasPremiumsBefore2017(v.kind) && premiums !== '' && !AMOUNT.test(premiums))
@@ -91,11 +88,7 @@ function applied(before: EnvelopeDetail, values: SettingsValues): EnvelopeDetail
     staleAfterDays: days === '' ? null : Number(days),
     ucShareFloorPct: floor === '' ? null : Number(floor),
     regulated: values.kind === 'savings' && values.regulated !== 'none' ? values.regulated : null,
-    ...(values.visibility && values.owners ? {
-      visibility: values.visibility,
-      shareLevel: values.visibility === 'shared' && values.shareLevel === 'edit' ? 'edit' : 'view',
-      owners: values.owners.map((o) => ({ personId: o.personId, shareBp: percentToBp(o.share) ?? 0 })),
-    } : {}),
+    ...(values.visibility && values.owners ? ownershipApplied({ visibility: values.visibility, shareLevel: values.shareLevel, owners: values.owners }) : {}),
   };
 }
 
@@ -118,11 +111,7 @@ export function SettingsForm({ envelope, onDone }: {
     openedOn: envelope.openedOn ?? '', premiumsBefore2017: toFieldAmount(envelope.premiumsBefore2017?.amount ?? ''),
     regulated: REGULATED.find((r) => r === envelope.regulated) ?? 'none',
     // #25: shown, and so sent, to its owners only.
-    ...(envelope.canChangeOwners ? {
-      visibility: envelope.visibility === 'private' ? 'private' as const : 'shared' as const,
-      shareLevel: envelope.shareLevel === 'edit' ? 'edit' as const : 'view' as const,
-      owners: envelope.owners.map((o) => ({ personId: o.personId, share: bpToPercent(o.shareBp) })),
-    } : {}),
+    ...(envelope.canChangeOwners ? ownershipDefaults(envelope) : {}),
   };
   const form = useForm({ resolver: zodResolver(schema(t)), defaultValues: defaults });
   // What the form started from (and, after a save, what it saved): a save is diffed against this, never against the

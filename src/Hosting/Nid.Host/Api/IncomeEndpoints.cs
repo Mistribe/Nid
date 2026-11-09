@@ -35,8 +35,13 @@ public static class IncomeEndpoints
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
-        api.MapPatch("/sources/{id:guid}", async (Guid id, EditIncomeSourceBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+        api.MapPatch("/sources/{id:guid}", async (Guid id, EditIncomeSourceBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                return body.ToCommand(new ItemId(id), reader) is { } command
+                    ? (await invoker.InvokeAsync(command, ct)).ToHttp(x => new IdResponse(x.Value))
+                    : reader.Problem();
+            })
             .Returns<IdResponse>();
 
         api.MapPost("/sources/{id:guid}/phases", async (Guid id, IncomePhaseBody body, IInvoker invoker, CancellationToken ct) =>
@@ -260,9 +265,18 @@ public static class IncomeEndpoints
 
     /// <summary>Only what is sent changes; <c>clear…</c> empties an optional field. The currency is not editable.</summary>
     public sealed record EditIncomeSourceBody(
-        string? DisplayName, string? Kind, string? PayerLabel, bool ClearPayerLabel, string? Note, bool ClearNote)
+        string? DisplayName, string? Kind, string? PayerLabel, bool ClearPayerLabel, string? Note, bool ClearNote,
+        string? Visibility = null, string? ShareLevel = null, IReadOnlyList<OwnerBody>? Owners = null)
     {
-        public EditIncomeSourceCommand ToCommand(ItemId id) => new(id, DisplayName, Kind, new IncomeSourceChange(
-            PayerLabel: PayerLabel, ClearPayerLabel: ClearPayerLabel, Note: Note, ClearNote: ClearNote));
+        /// <summary>#69: the sharing and the owners, each omitted kept.</summary>
+        internal EditIncomeSourceCommand? ToCommand(ItemId id, FieldReader reader)
+        {
+            var visibility = Visibility is null ? null : reader.Visibility(Visibility, "visibility");
+            var level = ShareLevel is null ? null : reader.ShareLevel(ShareLevel, "shareLevel");
+            return reader.Ok
+                ? new(id, DisplayName, Kind, new IncomeSourceChange(PayerLabel: PayerLabel, ClearPayerLabel: ClearPayerLabel, Note: Note, ClearNote: ClearNote),
+                    visibility, level, Owners?.Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList())
+                : null;
+        }
     }
 }

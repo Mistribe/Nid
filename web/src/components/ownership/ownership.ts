@@ -58,3 +58,46 @@ export function ownershipPath(path: string): 'visibility' | 'owners' | `owners.$
   if (share) return `owners.${Number(share[1])}.share` as const;
   return undefined;
 }
+
+/** #25: an item's ownership as its detail gives it. */
+export type OwnedDetail = { visibility: string; shareLevel: string; owners: { personId: string; shareBp: number }[] };
+
+/** #25: the edit form's ownership values, from the item's detail. */
+export function ownershipDefaults(detail: OwnedDetail): OwnershipValues {
+  return {
+    visibility: detail.visibility === 'private' ? 'private' : 'shared',
+    shareLevel: detail.shareLevel === 'edit' ? 'edit' : 'view',
+    owners: detail.owners.map((o) => ({ personId: o.personId, share: bpToPercent(o.shareBp) })),
+  };
+}
+
+/** #25: the item's ownership as a save of `values` leaves it. */
+export function ownershipApplied(values: OwnershipValues): OwnedDetail {
+  const wire = ownershipToWire(values);
+  return { visibility: wire.visibility, shareLevel: wire.shareLevel ?? 'view', owners: wire.owners };
+}
+
+/** #25: what an edit sends: the visibility, the level and the owners, each only when it changed; nothing without `values`. */
+export function ownershipChange(before: OwnedDetail, values: Partial<OwnershipValues>): {
+  visibility?: 'shared' | 'private'; shareLevel?: 'view' | 'edit'; owners?: { personId: string; shareBp: number }[];
+} {
+  if (!values.visibility || !values.owners) return {};
+  const next = ownershipApplied({ visibility: values.visibility, shareLevel: values.shareLevel, owners: values.owners });
+  const key = (owners: { personId: string; shareBp: number }[]) => owners.map((o) => `${o.personId}:${o.shareBp}`).sort().join();
+  return {
+    ...(next.visibility !== before.visibility ? { visibility: values.visibility } : {}),
+    ...(next.shareLevel !== (before.visibility === 'shared' ? before.shareLevel : 'view') ? { shareLevel: next.shareLevel as 'view' | 'edit' } : {}),
+    ...(key(next.owners) !== key(before.owners) ? { owners: next.owners } : {}),
+  };
+}
+
+/** #25: an edit form's ownership fields, absent where the form does not show them (an adult who may edit without owning). */
+export function editOwnershipShape(t: TFunction) {
+  const shape = ownershipShape(t);
+  return { visibility: shape.visibility.optional(), shareLevel: shape.shareLevel, owners: shape.owners.optional() };
+}
+
+/** #25: `checkOwnership` where the edit form shows the ownership. */
+export function checkEditOwnership(v: Partial<OwnershipValues>, ctx: z.RefinementCtx, t: TFunction): void {
+  if (v.visibility && v.owners) checkOwnership({ ...v, visibility: v.visibility, owners: v.owners }, ctx, t);
+}
