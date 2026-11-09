@@ -67,6 +67,20 @@ public sealed class FxRateStore(CoreDbContext db) : IFxRateStore
         return dates.ToHashSet();
     }
 
+    public async Task<IReadOnlyList<FxQuoteSpan>> QuotesAsync(CancellationToken ct)
+    {
+        var rows = await db.FxRates.AsNoTracking()
+            .GroupBy(r => r.Quote)
+            .Select(g => new { Quote = g.Key, First = g.Min(r => r.OnDate), Last = g.Max(r => r.OnDate) })
+            .OrderBy(g => g.Quote)
+            .ToListAsync(ct);
+        return rows.Select(r => new FxQuoteSpan(
+            Currency.TryCreate(r.Quote.Trim(), out var quote)
+                ? quote
+                : throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"Stored quote '{r.Quote}' is not a currency.")),
+            r.First, r.Last)).ToList();
+    }
+
     private static FxRate ToRate(FxRateRow row)
         => new(row.OnDate,
             Currency.TryCreate(row.Quote.Trim(), out var quote)
