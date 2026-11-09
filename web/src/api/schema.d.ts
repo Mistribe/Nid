@@ -18983,6 +18983,7 @@ export interface paths {
             parameters: {
                 query?: {
                     q?: string;
+                    kinds?: string;
                     page?: number;
                     scope?: string;
                 };

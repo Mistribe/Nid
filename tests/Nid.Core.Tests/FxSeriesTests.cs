@@ -42,7 +42,7 @@ public sealed class FxSeriesTests
     [Fact]
     public async Task Lists_one_series_per_stored_quote()
     {
-        var listed = await Series().ListAsync(Person, VisibilityScope.Household, null, TestContext.Current.CancellationToken);
+        var listed = await Series().ListAsync(Person, VisibilityScope.Household, null, [], TestContext.Current.CancellationToken);
 
         Assert.Equal(["fx:EUR", "fx:GBP"], listed.Select(i => i.Key));
         Assert.Equal(new SeriesInfo("fx:EUR", SeriesKinds.Fx, "EUR", "rate:EUR", "daily", D(2025, 10, 1), D(2025, 10, 2), null), listed[0]);
@@ -50,7 +50,15 @@ public sealed class FxSeriesTests
 
     [Fact]
     public async Task Search_matches_the_code()
-        => Assert.Equal(["fx:EUR"], (await Series().ListAsync(Person, VisibilityScope.Household, "eu", TestContext.Current.CancellationToken)).Select(i => i.Key));
+        => Assert.Equal(["fx:EUR"], (await Series().ListAsync(Person, VisibilityScope.Household, "eu", [], TestContext.Current.CancellationToken)).Select(i => i.Key));
+
+    [Fact]
+    public async Task A_listed_kind_widens_the_search()
+        => Assert.Equal(["fx:EUR", "fx:GBP"], (await Series().ListAsync(Person, VisibilityScope.Household, "zzz", [SeriesKinds.Fx], TestContext.Current.CancellationToken)).Select(i => i.Key));
+
+    [Fact]
+    public async Task Search_matches_the_key()
+        => Assert.Equal(["fx:EUR", "fx:GBP"], (await Series().ListAsync(Person, VisibilityScope.Household, "fx", [], TestContext.Current.CancellationToken)).Select(i => i.Key));
 
     [Fact]
     public async Task Points_read_the_stored_rates()

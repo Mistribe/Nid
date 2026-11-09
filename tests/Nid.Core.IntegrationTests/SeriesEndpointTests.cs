@@ -43,11 +43,12 @@ public class SeriesEndpointTests(PostgresFixture fixture) : IClassFixture<Postgr
     private static (string?, string?, string?)[] Points(JsonElement series) => series.GetProperty("points").EnumerateArray()
         .Select(p => (p.GetProperty("date").GetString(), p.GetProperty("value").GetString(), p.GetProperty("base100").GetString())).ToArray();
 
-    private static async Task<(HttpStatusCode, string?)> FailureAsync(NidApp app, string query)
+    private static async Task<(HttpStatusCode, string?, string?)> FailureAsync(NidApp app, string query)
     {
         var response = await app.RawAsync(app.AdultB, HttpMethod.Get, Url + "/points" + query);
         var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement;
-        return (response.StatusCode, body.TryGetProperty("code", out var code) ? code.GetString() : null);
+        return (response.StatusCode, body.TryGetProperty("code", out var code) ? code.GetString() : null,
+            body.TryGetProperty("key", out var key) ? key.GetString() : null);
     }
 
     [Fact]
@@ -76,9 +77,25 @@ public class SeriesEndpointTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(["fx:GBP"], Keys(found));
         Assert.Equal(1, found.GetProperty("total").GetInt32());
 
+        Assert.Equal(["irl"], Keys(await GetAsync(app, "?q=irl")));
+        Assert.Equal(["cpi", "cpi:yoy"], Keys(await GetAsync(app, "?q=CPI")));
+        Assert.Equal(["projection:inflation"], Keys(await GetAsync(app, "?q=inflation")));
+        Assert.Equal(["fx:EUR"], Keys(await GetAsync(app, "?q=eur")));
+
         var second = await GetAsync(app, "?page=2");
         Assert.Empty(Keys(second));
         Assert.Equal((14, 2), (second.GetProperty("total").GetInt32(), second.GetProperty("page").GetInt32()));
+    }
+
+    [Fact]
+    public async Task Catalogue_also_lists_the_kinds_asked_for()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedAsync(app);
+
+        Assert.Equal(["irl"], Keys(await GetAsync(app, "?q=loyer&kinds=irl")));
+        Assert.Equal((await GetAsync(app, "")).GetProperty("total").GetInt32(), (await GetAsync(app, "?kinds=cpi")).GetProperty("total").GetInt32());
+        Assert.Empty(Keys(await GetAsync(app, "?q=zzz&kinds=nope")));
     }
 
     [Fact]
@@ -173,20 +190,20 @@ public class SeriesEndpointTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        var (status, code) = await FailureAsync(app, query);
+        var (status, code, _) = await FailureAsync(app, query);
         Assert.Equal(HttpStatusCode.BadRequest, status);
         if (!query.Contains("from=")) Assert.Equal("core.series_invalid_key", code);
     }
 
     [Theory]
-    [InlineData("?s=cpi,nope")]
-    [InlineData("?s=fx:JPY")]
-    [InlineData("?s=projection:rate:nope")]
-    public async Task Unknown_series_are_404(string query)
+    [InlineData("?s=cpi,nope", "nope")]
+    [InlineData("?s=fx:JPY", "fx:JPY")]
+    [InlineData("?s=projection:rate:nope", "projection:rate:nope")]
+    public async Task Unknown_series_are_404(string query, string key)
     {
         await using var app = await NidApp.StartAsync(fixture);
         await SeedAsync(app);
 
-        Assert.Equal((HttpStatusCode.NotFound, "core.series_not_found"), await FailureAsync(app, query));
+        Assert.Equal((HttpStatusCode.NotFound, "core.series_not_found", key), await FailureAsync(app, query));
     }
 }

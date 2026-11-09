@@ -6,12 +6,12 @@ import type { SelectFieldProps } from './SelectField';
 
 const ComboboxList = lazy(() => import('./ComboboxList'));
 
-export function ComboboxField({ value, onValueChange, options, placeholder, disabled, searchPlaceholder, empty, ...control }:
-  SelectFieldProps & { searchPlaceholder: string; empty: string }) {
+export function ComboboxField({ value, onValueChange, options, placeholder, disabled, searchPlaceholder, empty, onSearch, more, ...control }:
+  SelectFieldProps & { searchPlaceholder: string; empty: string; onSearch?: (q: string) => void; more?: string }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) onSearch?.(''); }}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" role="combobox" aria-expanded={open} disabled={disabled}
           className="w-full justify-between font-normal" {...control}>
@@ -21,8 +21,8 @@ export function ComboboxField({ value, onValueChange, options, placeholder, disa
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
         <Suspense fallback={null}>
-          <ComboboxList options={options} searchPlaceholder={searchPlaceholder} empty={empty}
-            onPick={(v) => { onValueChange(v); setOpen(false); }} />
+          <ComboboxList options={options} searchPlaceholder={searchPlaceholder} empty={empty} onSearch={onSearch} more={more}
+            onPick={(v) => { onValueChange(v); setOpen(false); onSearch?.(''); }} />
         </Suspense>
       </PopoverContent>
     </Popover>

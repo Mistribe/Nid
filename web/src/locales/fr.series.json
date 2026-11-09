@@ -5,7 +5,6 @@
     "crumb": "Séries",
     "legend": "Séries affichées",
     "empty": "Aucune donnée sur cette période",
-    "none_selected": "Aucune série choisie : ouvrez-en une depuis une page avec « Voir la série ».",
     "base_date": "Base 100 le {{date}}",
     "no_base": "pas de base 100 possible",
     "today": "Aujourd’hui",
@@ -24,6 +23,28 @@
       "index": "indice",
       "percent": "%",
       "rate": "{{code}} pour 1 USD"
-    }
+    },
+    "add": "+ Ajouter une série…",
+    "add_label": "Ajouter une série",
+    "search": "Rechercher une série…",
+    "no_match": "Aucune série trouvée",
+    "more": "Précisez la recherche pour voir les autres séries",
+    "max": "6 séries au plus",
+    "already": "déjà affichée",
+    "block": {
+      "percent": "un pourcentage ne se compare pas à deux autres unités",
+      "third_unit": "une troisième unité ne rejoint pas un pourcentage"
+    },
+    "remove": "Retirer {{label}}",
+    "invite": "Choisissez une série à afficher, ou ouvrez-en une depuis une page avec « Voir la série ».",
+    "dropped": "Une série de l’adresse n’existe pas ou ne vous est pas accessible : elle a été retirée.",
+    "period": "Période",
+    "period_1y": "1 an",
+    "period_5y": "5 ans",
+    "period_10y": "10 ans",
+    "period_all": "Tout",
+    "scale": "Échelle",
+    "base100": "Base 100",
+    "axes2": "2 axes"
   }
 }

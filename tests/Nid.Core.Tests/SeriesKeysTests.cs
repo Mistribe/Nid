@@ -34,4 +34,22 @@ public sealed class SeriesKeysTests
     [InlineData("EUR", " ", true)]
     public void Search_ignores_case_and_accents(string? name, string? q, bool expected)
         => Assert.Equal(expected, SeriesSearch.Matches(name, q));
+
+    [Theory]
+    [InlineData("cpi", true)] [InlineData("IRL", false)] [InlineData("inflation", false)] [InlineData("eur", true)] [InlineData("Eu", true)] [InlineData(null, true)]
+    public void Search_matches_the_name_or_the_key(string? q, bool expected)
+        => Assert.Equal(expected, SeriesSearch.Matches(new SeriesInfo("cpi", SeriesKinds.Cpi, "EUR", SeriesUnits.Index, SeriesFrequencies.Monthly, null, null, null), q));
+
+    [Theory]
+    [InlineData("zzz", "cpi", true)] [InlineData("zzz", "irl", false)] [InlineData("cpi", "irl", true)] [InlineData("zzz", "", false)]
+    public void Search_also_matches_a_listed_kind(string q, string kind, bool expected)
+        => Assert.Equal(expected, SeriesSearch.Matches(new SeriesInfo("cpi", SeriesKinds.Cpi, "EUR", SeriesUnits.Index, SeriesFrequencies.Monthly, null, null, null), q, [kind]));
+
+    [Fact]
+    public void Kinds_ignore_the_malformed_and_the_duplicates_and_keep_twenty()
+    {
+        Assert.Equal(["cpi", "fx_a"], SeriesKeys.ParseKinds("cpi,CPI,1x,cpi,fx_a,,a:b"));
+        Assert.Empty(SeriesKeys.ParseKinds(null));
+        Assert.Equal(20, SeriesKeys.ParseKinds(string.Join(',', Enumerable.Range(0, 30).Select(i => "k" + new string((char)('a' + i % 26), 1) + new string((char)('a' + i / 26), 1)))).Count);
+    }
 }

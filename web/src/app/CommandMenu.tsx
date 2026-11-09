@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Plus } from 'lucide-react';
+import { ChartLine, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModuleTile } from '@/components/ModuleTile';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -42,6 +42,10 @@ export function CommandMenu({ open, onOpenChange }: { open: boolean; onOpenChang
               {t(item.label)}
             </CommandItem>
           ))}
+          <CommandItem value={t('palette.series')} onSelect={() => go('/series')}>
+            <ModuleTile icon={ChartLine} tile="primary" />
+            {t('palette.series')}
+          </CommandItem>
         </CommandGroup>
         <CommandGroup heading={t('palette.create')}>
           {CREATE.filter((c) => capabilities.modules.includes(c.module)).map((c) => (

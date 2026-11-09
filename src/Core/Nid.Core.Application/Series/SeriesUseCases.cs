@@ -10,8 +10,8 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Series;
 
-/// <summary>The series explorer's catalogue: every module's series the reader can see, filtered by name, 50 to a page.</summary>
-public sealed record ListSeriesQuery(VisibilityScope Scope, string? Search, int Page) : IQuery<SeriesCatalogView>
+/// <summary>The series explorer's catalogue: every module's series the reader can see, those whose name or key match the search or whose kind is in <c>Kinds</c>, 50 to a page.</summary>
+public sealed record ListSeriesQuery(VisibilityScope Scope, string? Search, int Page, IReadOnlyList<string>? Kinds = null) : IQuery<SeriesCatalogView>
 {
     public const int PageSize = 50;
 }
@@ -53,7 +53,7 @@ public sealed class ListSeriesHandler(IEnumerable<ISeriesContribution> contribut
         {
             try
             {
-                all.AddRange((await contribution.ListAsync(reader, query.Scope, query.Search, ct)).Select(i => (contribution.Module, i)));
+                all.AddRange((await contribution.ListAsync(reader, query.Scope, query.Search, query.Kinds ?? [], ct)).Select(i => (contribution.Module, i)));
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -92,7 +92,7 @@ public sealed class GetSeriesPointsHandler(IEnumerable<ISeriesContribution> cont
                 if ((answer = await contribution.PointsAsync(reader, query.Scope, key, query.From, query.To, ct)) is not null)
                     break;
             if (answer is null)
-                return Result.Failure<SeriesPointsView>(new Failure(SeriesCodes.NotFound, $"No series '{key}'.", null));
+                return Result.Failure<SeriesPointsView>(new Failure(SeriesCodes.NotFound, $"No series '{key}'.", new Dictionary<string, object?> { ["key"] = key }));
             found.Add(answer);
         }
 

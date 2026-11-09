@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SeriesPointsItem } from '@/api/series';
-import { axisOf, defaultMode, drawable, pointsAt, seriesRows } from './seriesRows';
+import { axisOf, defaultMode, drawable, hasModeSwitch, pointsAt, seriesRows } from './seriesRows';
 
 const item = (unit: string, points: SeriesPointsItem['points'] = []): SeriesPointsItem => ({ key: unit, kind: 'cpi', unit, frequency: 'monthly', points });
 
@@ -44,5 +44,10 @@ describe('series rows', () => {
     expect(pointsAt(rows, 1).map((p) => p?.value)).toEqual(['101', '140', '9']);
     expect(pointsAt(rows, 0).map((p) => p?.value)).toEqual(['100', '140', undefined]);
     expect(pointsAt(rows, 2).map((p) => p?.value)).toEqual(['102', '141', undefined]);
+  });
+
+  it('offers the mode switch for exactly two units, none a percent', () => {
+    expect(hasModeSwitch(['index', 'rate:EUR'])).toBe(true);
+    for (const u of [['index'], ['index', 'index'], ['index', 'percent'], ['index', 'rate:EUR', 'currency:EUR']]) expect(hasModeSwitch(u)).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 using Nid.Core.Application.Series;
+using Nid.Core.Contracts;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Api;
@@ -11,8 +12,8 @@ public static class SeriesEndpoints
         var api = routes.MapGroup("/api/v1/series").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
-        api.MapGet("", async (string? q, int? page, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListSeriesQuery(SubscriptionEndpoints.ParseScope(scope), q, page ?? 1), ct)).ToHttp(r => r))
+        api.MapGet("", async (string? q, string? kinds, int? page, string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListSeriesQuery(SubscriptionEndpoints.ParseScope(scope), q, page ?? 1, SeriesKeys.ParseKinds(kinds)), ct)).ToHttp(r => r))
             .Returns<SeriesCatalogView>();
 
         api.MapGet("/points", async (string? s, string? from, string? to, string? scope, IInvoker invoker, CancellationToken ct)

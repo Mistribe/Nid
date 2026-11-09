@@ -35,4 +35,14 @@ describe('the ⌘K palette', () => {
     for (const option of within(group('Aller à')).getAllByRole('option')) expect(option.querySelector('[data-tile]'), option.textContent).not.toBeNull();
     for (const option of within(group('Créer')).getAllByRole('option')) expect(option.querySelector('[data-tile]'), option.textContent).toBeNull();
   });
+
+  it('opens the series explorer', async () => {
+    server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard())));
+    const { router, user } = await renderApp('/dashboard');
+    await user.click(await screen.findByRole('button', { name: 'Rechercher ou aller à…' }));
+    const palette = await screen.findByRole('dialog', { name: 'Aller à' });
+    await user.type(within(palette).getByRole('combobox'), 'séries');
+    await user.click(within(palette).getByRole('option', { name: 'Explorer les séries' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+  });
 });

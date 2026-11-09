@@ -17,11 +17,12 @@ const monthYear = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', month: 'sh
 const chip = (i: number) => CHIPS[i % CHIPS.length];
 const colour = (i: number) => `var(--chart-${(i % 6) + 1})`;
 
-const Chip = ({ i }: { i: number }) => <span aria-hidden="true" className={`inline-block size-2.5 shrink-0 rounded-full ${chip(i)}`} />;
+/** The colour dot of series `i`, as in the chart. */
+export const SeriesChip = ({ i }: { i: number }) => <span aria-hidden="true" className={`inline-block size-2.5 shrink-0 rounded-full ${chip(i)}`} />;
 
 /** One or several series of the explorer: a chart, or the same values as a table. Every figure read is the server's string. */
-export function SeriesView({ answer, mode, asTable, onToggle, caption }: {
-  answer: SeriesPoints; mode: SeriesMode; asTable: boolean; onToggle?: () => void; caption: string;
+export function SeriesView({ answer, mode, asTable, onToggle, caption, legend = true }: {
+  answer: SeriesPoints; mode: SeriesMode; asTable: boolean; onToggle?: () => void; caption: string; legend?: boolean;
 }) {
   const { t } = useTranslation();
   const { series } = answer;
@@ -41,16 +42,16 @@ export function SeriesView({ answer, mode, asTable, onToggle, caption }: {
           {(['left', 'right'] as const).map((side) => (
             <span key={side} className="inline-flex flex-wrap items-center gap-1.5">
               {unitOn(side)}
-              {series.map((s, i) => (axes[i] === side ? <Chip key={s.key} i={i} /> : null))}
+              {series.map((s, i) => (axes[i] === side ? <SeriesChip key={s.key} i={i} /> : null))}
             </span>
           ))}
         </div>
       ) : null}
-      {series.length >= 1 ? (
+      {legend && series.length >= 1 ? (
         <ul aria-label={t('series.legend')} className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           {series.map((s, i) => (
             <li key={s.key} className="inline-flex items-center gap-1.5">
-              <Chip i={i} />{seriesLabel(t, s)}
+              <SeriesChip i={i} />{seriesLabel(t, s)}
               {drawable(s, mode) ? null : <span className="text-muted-foreground">({t('series.no_base')})</span>}
             </li>
           ))}
@@ -126,7 +127,7 @@ function Tip({ active, payload, rows, series, mode, t }: {
         const p = at[i];
         return p ? (
           <span key={s.key} className="flex items-center gap-1.5">
-            <Chip i={i} />{seriesLabel(t, s)}
+            <SeriesChip i={i} />{seriesLabel(t, s)}
             <span className="ml-auto pl-3 tabular-nums">
               {formatSeriesValue(s.unit, p.value)}
               {mode === 'base100' && p.base100 != null ? ` · ${formatSeriesValue('index', p.base100)}` : null}

@@ -16,6 +16,7 @@ export const handlers = [
   // Every list row names its owners from the household's persons.
   http.get('*/api/v1/core/persons', () => HttpResponse.json([])),
   // The series explorer asks for the points of the keys of its address; none by default.
+  http.get('*/api/v1/series', () => HttpResponse.json({ items: [], total: 0, page: 1 })),
   http.get('*/api/v1/series/points', () => HttpResponse.json({ series: [], baseDate: null })),
   // The tax page's year selector reads the past notices.
   http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [] })),

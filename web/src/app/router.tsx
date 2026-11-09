@@ -263,15 +263,17 @@ const positive = (value: unknown): number | undefined => {
   return Number.isInteger(n) && n > 0 ? n : undefined;
 };
 
-export type SeriesSearch = { s?: string; view?: 'table' };
+export type SeriesSearch = { s?: string; view?: 'table'; p?: '1y' | '10y' | 'all'; axes?: '2' };
 
-// The series explorer (#21): `?s=` names the series, `?view=table` shows the values as a table. Any member reads reference series.
+// The series explorer (#21): `?s=` names the series, `?view=table` shows the values as a table, `?p=` the period (5 years is the default, dropped), `?axes=2` the two-axes mode. Any member reads reference series.
 const seriesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/series',
   validateSearch: (search: Record<string, unknown>): SeriesSearch => ({
     ...(typeof search.s === 'string' && search.s !== '' ? { s: search.s } : {}),
     ...(search.view === 'table' ? { view: 'table' as const } : {}),
+    ...(search.p === '1y' || search.p === '10y' || search.p === 'all' ? { p: search.p } : {}),
+    ...(search.axes === '2' ? { axes: '2' as const } : {}),
   }),
   component: lazyRouteComponent(() => import('@/features/series/ExplorerPage'), 'ExplorerPage'),
 });

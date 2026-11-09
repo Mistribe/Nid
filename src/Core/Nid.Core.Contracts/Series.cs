@@ -17,7 +17,11 @@ public interface ISeriesContribution
 {
     string Module { get; }
 
-    Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct);
+    /// <summary>
+    /// The series the reader can see whose name or key contains <c>q</c>, or whose kind is in <c>kinds</c>; every series when <c>q</c> is blank.
+    /// Filter in the module's own query (SQL <c>WHERE</c>, read rights included), never by loading the catalogue whole: see <see cref="SeriesSearch.Matches(SeriesInfo, string?, IReadOnlyCollection{string}?)"/> for the rule.
+    /// </summary>
+    Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, IReadOnlyCollection<string> kinds, CancellationToken ct);
 
     /// <summary>Null when the key is not this contribution's, unknown, or not visible; answers at once (no I/O) for a key outside its kinds.</summary>
     Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct);
@@ -65,6 +69,13 @@ public static partial class SeriesKeys
     [GeneratedRegex("^[a-z][a-z_]*(:[A-Za-z0-9_-]+){0,3}$")]
     private static partial Regex KeyShape();
 
+    [GeneratedRegex("^[a-z][a-z_]*$")]
+    private static partial Regex KindShape();
+
+    /// <summary>The comma-separated <c>kinds</c> parameter: malformed codes are ignored, duplicates kept once, at most 20.</summary>
+    public static IReadOnlyList<string> ParseKinds(string? kinds)
+        => (kinds ?? "").Split(',').Where(k => k.Length <= 40 && KindShape().IsMatch(k)).Distinct().Take(20).ToList();
+
     /// <summary>The comma-separated <c>s</c> parameter: 1 to <see cref="MaxKeys"/> distinct well-formed keys, no trimming.</summary>
     public static bool TryParse(string? s, out IReadOnlyList<string> keys)
     {
@@ -83,6 +94,10 @@ public static partial class SeriesKeys
 
 public static class SeriesSearch
 {
+    /// <summary>The query matches the series' name or its key, or the series' kind is one of <paramref name="kinds"/>.</summary>
+    public static bool Matches(SeriesInfo info, string? q, IReadOnlyCollection<string>? kinds = null)
+        => Matches(info.Name, q) || Matches(info.Key, q) || kinds?.Contains(info.Kind) == true;
+
     /// <summary>Case- and accent-insensitive substring; a blank query matches everything.</summary>
     public static bool Matches(string? name, string? q)
         => string.IsNullOrWhiteSpace(q)
