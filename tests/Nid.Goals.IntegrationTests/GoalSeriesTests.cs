@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Goals.IntegrationTests;
@@ -46,13 +47,17 @@ public class GoalSeriesTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var hidden = await app.NewEnvelopeAsync("Secret", app.AdultA, Visibility.Private);
         var funded = await app.NewGoalAsync("Financé", app.AdultA, funding: [(shared, 10_000)]);
         var partial = await app.NewGoalAsync("Partiel", app.AdultA, funding: [(hidden, 10_000)]);
+        var free = await app.NewGoalAsync("Libre", app.AdultA);
 
         var asA = await GetAsync(app, app.AdultA, "/api/v1/series?scope=me");
+        Assert.True(Has(asA, free)); // positive control: the catalogue does list free goals
         Assert.False(Has(asA, funded));
         await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=goal:{funded.Value}&scope=me", HttpStatusCode.NotFound);
 
         // Bob sees the shared goal but not its private envelope: the page says partial, so it is no free goal.
-        Assert.False(Has(await GetAsync(app, app.AdultB, "/api/v1/series"), partial));
+        var asB = await GetAsync(app, app.AdultB, "/api/v1/series");
+        Assert.True(Has(asB, free));
+        Assert.False(Has(asB, partial));
         await GetAsync(app, app.AdultB, $"/api/v1/series/points?s=goal:{partial.Value}", HttpStatusCode.NotFound);
     }
 
@@ -65,6 +70,14 @@ public class GoalSeriesTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.False(Has(await GetAsync(app, app.AdultB, "/api/v1/series?scope=me"), id));
         var failure = await GetAsync(app, app.AdultB, $"/api/v1/series/points?s=goal:{id.Value}", HttpStatusCode.NotFound);
         Assert.Equal(("core.series_not_found", $"goal:{id.Value}"), (failure.GetProperty("code").GetString(), failure.GetProperty("key").GetString()));
+
+        var denied = await AuditApi.EventsAsync(app, SecurityEventNames.AccessDenied);
+        Assert.NotEmpty(denied); // the journal folds repeats
+        Assert.All(denied, d =>
+        {
+            Assert.Equal(app.AdultB.Value, d.PersonId!.Value);
+            Assert.Equal([id.Value], d.ItemIds);
+        });
     }
 
     [Fact]

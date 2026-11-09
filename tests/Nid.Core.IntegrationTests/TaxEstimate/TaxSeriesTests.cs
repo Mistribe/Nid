@@ -72,5 +72,6 @@ public class TaxSeriesTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var asB = await GetAsync(app, app.AdultB, "/api/v1/series/points?s=tax:yearly");
 
         Assert.Equal([("2024-01-01", 1100m)], Points(asB));
+        Assert.Equal([("2024-01-01", 1100m)], Points(await GetAsync(app, app.AdultB, "/api/v1/series/points?s=tax:yearly&scope=me"))); // the reader filter, not InHousehold alone
     }
 }
