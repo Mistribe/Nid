@@ -263,6 +263,19 @@ const positive = (value: unknown): number | undefined => {
   return Number.isInteger(n) && n > 0 ? n : undefined;
 };
 
+export type SeriesSearch = { s?: string; view?: 'table' };
+
+// The series explorer (#21): `?s=` names the series, `?view=table` shows the values as a table. Any member reads reference series.
+const seriesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/series',
+  validateSearch: (search: Record<string, unknown>): SeriesSearch => ({
+    ...(typeof search.s === 'string' && search.s !== '' ? { s: search.s } : {}),
+    ...(search.view === 'table' ? { view: 'table' as const } : {}),
+  }),
+  component: lazyRouteComponent(() => import('@/features/series/ExplorerPage'), 'ExplorerPage'),
+});
+
 // Documents design §2.2: « Tous », then « À classer » under `?tab=inbox`.
 const documentsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -620,7 +633,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
