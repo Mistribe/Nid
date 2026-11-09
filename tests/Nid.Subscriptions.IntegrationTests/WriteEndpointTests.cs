@@ -39,6 +39,24 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task A_subscription_is_not_created_with_a_blank_or_long_name()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        foreach (var name in new[] { "  ", new string('x', 101) })
+        {
+            var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions", new
+            {
+                displayName = name, visibility = "shared", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, autoRenew = true,
+            });
+            var body = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.UnprocessableContent, refused.StatusCode);
+            Assert.Contains("\"path\":\"displayName\"", body);
+        }
+        Assert.Equal(0, (await app.GetAsync<System.Text.Json.JsonElement>(app.AdultA, "/api/v1/subscriptions")).GetProperty("items").GetArrayLength());
+    }
+
+    [Fact]
     public async Task A_price_change_closes_one_phase_and_opens_another()
     {
         await using var app = await NidApp.StartAsync(fixture);

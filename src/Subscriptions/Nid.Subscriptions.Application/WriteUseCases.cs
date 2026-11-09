@@ -57,6 +57,17 @@ public sealed record DeletePurchaseCommand(ItemId ItemId, PurchaseId PurchaseId)
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>#24: the rule of an envelope's or a source's name, 1 to 100 characters, not only whitespace; stored as sent.</summary>
+public static class SubscriptionName
+{
+    public const int Max = 100;
+
+    public static Failure? Refusal(string? name)
+        => name is null || name.Trim().Length is < 1 or > Max
+            ? FieldErrors.At(new Failure("subscriptions.invalid_name", $"A name is 1 to {Max} characters, and not only whitespace.", null), "displayName")
+            : null;
+}
+
 [RequestHandler<CreateSubscriptionCommand, ItemId>]
 public sealed class CreateSubscriptionHandler(
     IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IAccessPolicy policy,
@@ -65,6 +76,9 @@ public sealed class CreateSubscriptionHandler(
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateSubscriptionCommand command, CancellationToken ct = default)
     {
+        if (SubscriptionName.Refusal(command.DisplayName) is { } badName)
+            return Result.Failure<ItemId>(badName);
+
         var phases = command.Phases ?? [];
         var drafts = command.Purchases ?? [];
 
@@ -133,14 +147,10 @@ public sealed class EditSubscriptionHandler(
     IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IActorAccessor actor)
     : IRequestHandler<EditSubscriptionCommand, ItemId>
 {
-    public const int NameMax = 100;
-
     public async ValueTask<Result<ItemId>> HandleAsync(EditSubscriptionCommand command, CancellationToken ct = default)
     {
-        // #24: the rule of an envelope's or a source's name, stored as sent.
-        if (command.DisplayName is { } name && name.Trim().Length is < 1 or > NameMax)
-            return Result.Failure<ItemId>(FieldErrors.At(new Failure(
-                "subscriptions.invalid_name", $"A name is 1 to {NameMax} characters, and not only whitespace.", null), "displayName"));
+        if (command.DisplayName is not null && SubscriptionName.Refusal(command.DisplayName) is { } badName)
+            return Result.Failure<ItemId>(badName);
 
         if (command.ProviderKey is { } key && !command.ClearProviderKey)
         {
