@@ -191,6 +191,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsOverviewReader>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Subscriptions.Application.SubscriptionsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
+        services.AddScoped<ISeriesContribution, Nid.Subscriptions.Application.SubscriptionSeries>();
 
         services.AddDbContext<InvestmentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
