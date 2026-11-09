@@ -11,12 +11,12 @@ namespace Nid.Childcare.Application;
 public sealed record CarerInput(string Name, string? Pajemploi, string? Approval);
 
 public sealed record TermsInput(
-    LocalDate From, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? MealPrice,
-    IReadOnlyList<WeekType> WeekTypes)
+    LocalDate From, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? LunchPrice,
+    IReadOnlyList<WeekType> WeekTypes, decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny)
 {
     /// <summary>Week type names are stored trimmed.</summary>
     public Terms For(ItemId id)
-        => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, MealPrice, [.. WeekTypes.Select(w => w with { Name = w.Name.Trim() })]);
+        => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, LunchPrice, [.. WeekTypes.Select(w => w with { Name = w.Name.Trim() })], SnackPrice, LunchProvider, SnackProvider);
 
     public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
 }

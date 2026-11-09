@@ -56,7 +56,7 @@ describe('ChildcareDetailPage', () => {
     expect(figures).toHaveTextContent('Semaines sans accueil6 semainesà placer');
     await user.click(screen.getByRole('tab', { name: 'Planning' }));
     const planning = screen.getByRole('list', { name: 'Planning type' });
-    expect(within(planning).getAllByRole('listitem')[0]).toHaveTextContent('Lundi 08:00 – 17:30 · repas');
+    expect(within(planning).getAllByRole('listitem')[0]).toHaveTextContent('Lundi 08:00 – 17:30 · déjeuner');
   });
 
   it('one week type shows no weeks list', async () => {
@@ -195,9 +195,9 @@ describe('ChildcareDetailPage', () => {
     await user.type(within(dialog).getByLabelText('Taux horaire net (€)'), '4,20');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la révision' }));
     await waitFor(() => expect(writes).toHaveLength(1));
-    const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', meal: true });
+    const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', lunch: true, snack: false });
     expect(writes[0]).toEqual({ path: `/api/v1/childcare/${ARRANGEMENT_ID}/revisions`, body: { terms: {
-      from: '2026-01-01', netHourlyRate: '4.20', overtimePct: '10', upkeepPer9h: '3.80', mealPrice: '3.2',
+      from: '2026-01-01', netHourlyRate: '4.20', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.2', lunchProvider: 'nanny', snackProvider: 'nanny',
       weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map(slot) }],
     } } });
   });

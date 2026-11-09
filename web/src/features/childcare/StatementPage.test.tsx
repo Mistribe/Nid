@@ -88,7 +88,7 @@ describe('StatementPage', () => {
     const body = writes[0]!.body as { days: { date: string }[]; version: number; cmg: string | null };
     expect(body.version).toBe(3);
     expect(body.days).toHaveLength(30);
-    expect(body.days[7]).toEqual({ date: '2025-09-08', present: false, arrival: null, departure: null, meal: false, absence: 'child_sick' });
+    expect(body.days[7]).toEqual({ date: '2025-09-08', present: false, arrival: null, departure: null, lunch: false, snack: false, absence: 'child_sick' });
   });
 
   it('the total of the month goes to the server with the days as they are', async () => {

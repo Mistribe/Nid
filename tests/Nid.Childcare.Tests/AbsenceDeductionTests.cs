@@ -12,7 +12,7 @@ public class AbsenceDeductionTests
 
     internal static IReadOnlyList<StatementDay> Absent(IReadOnlyList<StatementDay> days, params (int Day, AbsenceReason Reason)[] absences)
         => [.. days.Select(d => absences.Any(a => a.Day == d.Date.Day)
-            ? d with { Present = false, Arrival = null, Departure = null, Meal = false, Absence = absences.First(a => a.Day == d.Date.Day).Reason }
+            ? d with { Present = false, Arrival = null, Departure = null, Lunch = false, Absence = absences.First(a => a.Day == d.Date.Day).Reason }
             : d)];
 
     [Fact]

@@ -119,12 +119,14 @@ function Tabs({ detail, terms, onGaps }: { detail: ChildcareDetail; terms: Child
 function Planning({ detail, terms }: { detail: ChildcareDetail; terms: ChildcareTerms }) {
   const { t } = useTranslation();
   const several = terms.weekTypes.length > 1;
+  const mealText = (price: string | null | undefined, provider: string) => (provider === 'employer' ? t('childcare_form.provider_employer') : price ? price.replace('.', ',') : t('childcare_detail.dash'));
   return (
     <div className="space-y-4">
       <StatLine items={[
         { label: t('childcare_form.net'), value: terms.netHourlyRate.replace('.', ',') },
         { label: t('childcare_form.upkeep'), value: terms.upkeepPer9h.replace('.', ',') },
-        { label: t('childcare_form.meal_price'), value: terms.mealPrice ? terms.mealPrice.replace('.', ',') : t('childcare_detail.dash') },
+        { label: t('childcare_form.lunch_price'), value: mealText(terms.lunchPrice, terms.lunchProvider) },
+        { label: t('childcare_form.snack_price'), value: mealText(terms.snackPrice, terms.snackProvider) },
         { label: t('childcare_form.overtime'), value: terms.overtimePct.replace('.', ',') },
         { label: t('childcare_detail.since'), value: <LocalDate value={terms.from} style="short" /> },
       ]} />
@@ -133,7 +135,7 @@ function Planning({ detail, terms }: { detail: ChildcareDetail; terms: Childcare
           {several ? <h3 className="text-sm font-medium">{t('childcare_detail.week_type', { name: w.name, hours: hoursText(w.weeklyHours), count: w.weeks })}</h3> : null}
           <ul aria-label={several ? w.name : t('childcare_detail.template')} className="space-y-1">
             {w.schedule.map((s) => (
-              <li key={s.day}>{t('childcare_detail.slot', { day: dayName(t, s.day), arrival: s.arrival, departure: s.departure })}{s.meal ? t('childcare_detail.with_meal') : ''}</li>
+              <li key={s.day}>{t('childcare_detail.slot', { day: dayName(t, s.day), arrival: s.arrival, departure: s.departure })}{s.lunch ? t('childcare_detail.with_lunch') : ''}{s.snack ? t('childcare_detail.with_snack') : ''}</li>
             ))}
           </ul>
         </div>

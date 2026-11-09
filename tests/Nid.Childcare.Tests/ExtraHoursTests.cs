@@ -77,7 +77,7 @@ public class ExtraHoursAbsenceTests
         var month = new YearMonth(2026, 11);
         var days = StatementPreparation.Prepare(month, Plan, Gaps).Select(d => d.Date.Day switch
         {
-            2 => d with { Present = false, Arrival = null, Departure = null, Meal = false, Absence = AbsenceReason.CarerAbsent },
+            2 => d with { Present = false, Arrival = null, Departure = null, Lunch = false, Absence = AbsenceReason.CarerAbsent },
             3 => d with { Departure = new LocalTime(19, 30) },
             _ => d,
         }).ToList();

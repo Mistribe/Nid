@@ -17,7 +17,15 @@ public static class Upkeep
     public static (decimal Upkeep, decimal Meals) Month(IReadOnlyList<StatementDay> monthDays, ContractTerms terms)
     {
         var present = monthDays.Where(d => d.Present).ToList();
-        return (present.Sum(d => ForDay(d.Date, d.Arrival!.Value, d.Departure!.Value, terms.UpkeepPer9h)),
-            Mensualisation.Round(present.Count(d => d.Meal) * (terms.MealPrice ?? 0m)));
+        var (lunch, snack) = MealCharges(present, terms);
+        return (present.Sum(d => ForDay(d.Date, d.Arrival!.Value, d.Departure!.Value, terms.UpkeepPer9h)), lunch + snack);
+    }
+
+    /// <summary>Each meal ticked on a present day at its own price; a meal the employer provides stays ticked and costs nothing.</summary>
+    public static (decimal Lunch, decimal Snack) MealCharges(IReadOnlyList<StatementDay> days, ContractTerms terms)
+    {
+        decimal Charge(Func<StatementDay, bool> ticked, decimal? price, MealProvider provider)
+            => provider == MealProvider.Nanny ? Mensualisation.Round(days.Count(d => d.Present && ticked(d)) * (price ?? 0m)) : 0m;
+        return (Charge(d => d.Lunch, terms.LunchPrice, terms.LunchProvider), Charge(d => d.Snack, terms.SnackPrice, terms.SnackProvider));
     }
 }

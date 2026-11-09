@@ -9,7 +9,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Childcare.Application;
 
 /// <summary>A day as entered: times and meal count only on a present day, a reason only on an absent planned one.</summary>
-public sealed record DayInput(LocalDate Date, bool Present, LocalTime? Arrival, LocalTime? Departure, bool Meal, AbsenceReason? Absence);
+public sealed record DayInput(LocalDate Date, bool Present, LocalTime? Arrival, LocalTime? Departure, bool Lunch, AbsenceReason? Absence, bool Snack = false);
 
 /// <summary>Decision 29: a month entered as its care days and total hours; <c>Absence</c>: the reason of the planned days left over.</summary>
 public sealed record MonthSummaryInput(int CareDays, decimal Hours, AbsenceReason? Absence);
@@ -57,7 +57,7 @@ public sealed class SaveStatementHandler(StatementAssembly assembly, IChildcareS
         loaded.TryGetValue(out var context);
 
         var entered = command.Days
-            .Select(d => new StatementDay(d.Date, false, d.Present, d.Present ? d.Arrival : null, d.Present ? d.Departure : null, d.Present && d.Meal, d.Absence))
+            .Select(d => new StatementDay(d.Date, false, d.Present, d.Present ? d.Arrival : null, d.Present ? d.Departure : null, d.Present && d.Lunch, d.Absence, d.Present && d.Snack))
             .ToList();
         if (command.Summary is { } summary)
         {
@@ -90,7 +90,7 @@ public sealed class SaveStatementHandler(StatementAssembly assembly, IChildcareS
     }
 
     private static bool Same(StatementDay a, StatementDay b)
-        => a.Present == b.Present && a.Arrival == b.Arrival && a.Departure == b.Departure && a.Meal == b.Meal && a.Absence == b.Absence;
+        => a.Present == b.Present && a.Arrival == b.Arrival && a.Departure == b.Departure && a.Lunch == b.Lunch && a.Snack == b.Snack && a.Absence == b.Absence;
 }
 
 [RequestHandler<ValidateStatementCommand, ChildcareStatementView>]

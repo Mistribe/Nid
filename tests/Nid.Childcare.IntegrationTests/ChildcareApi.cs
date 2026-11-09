@@ -21,8 +21,8 @@ internal static class ChildcareApi
             carer = new { name = "Martine", pajemploi = "P123", approval = (string?)null },
             terms = new
             {
-                from = "2025-09-01", netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", mealPrice = "3.20",
-                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", meal = true }).ToArray() } },
+                from = "2025-09-01", netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", lunchPrice = "3.20",
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", lunch = true }).ToArray() } },
             },
             gaps = Array.Empty<object>(), visibility,
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
@@ -46,7 +46,7 @@ internal static class ChildcareApi
         var days = read.GetProperty("days").EnumerateArray().Select(d => new
         {
             date = d.GetProperty("date").GetString(), present = d.GetProperty("present").GetBoolean(), arrival = d.GetProperty("arrival").GetString(),
-            departure = d.GetProperty("departure").GetString(), meal = d.GetProperty("meal").GetBoolean(), absence = d.GetProperty("absence").GetString(),
+            departure = d.GetProperty("departure").GetString(), lunch = d.GetProperty("lunch").GetBoolean(), absence = d.GetProperty("absence").GetString(),
         }).ToList();
         var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", cmg, contributions, version = read.GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);

@@ -22,7 +22,7 @@ public class MonthAssemblerTests
         var terms = TermsOf(month);
         var days = MonthAssembler.Prepared(terms).Select(d => d.Date.Day switch
         {
-            8 => d with { Present = false, Arrival = null, Departure = null, Meal = false, Absence = AbsenceReason.ChildSick },
+            8 => d with { Present = false, Arrival = null, Departure = null, Lunch = false, Absence = AbsenceReason.ChildSick },
             9 => d with { Departure = new LocalTime(19, 0) },
             _ => d,
         }).ToList();

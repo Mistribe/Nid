@@ -26789,6 +26789,7 @@ export interface components {
             declared?: null | components["schemas"]["DeclaredView"];
             computed?: null | components["schemas"]["DeclarationView"];
             contributions?: null | string;
+            mealCharges?: null | components["schemas"]["MealChargesView"];
         };
         ChildcareSummary: {
             /** Format: uuid */
@@ -26820,7 +26821,10 @@ export interface components {
             grossHourlyRate?: null | string;
             overtimePct: string;
             upkeepPer9h: string;
-            mealPrice?: null | string;
+            lunchPrice?: null | string;
+            snackPrice?: null | string;
+            lunchProvider: string;
+            snackProvider: string;
             weekTypes: components["schemas"]["WeekTypeView"][];
             /** Format: int32 */
             programmedWeeks: number;
@@ -29477,6 +29481,10 @@ export interface components {
         ManualRateBody: {
             rate: string;
         };
+        MealChargesView: {
+            lunch: string;
+            snack: string;
+        };
         MoneyBody: {
             amount: string;
             currency: string;
@@ -31364,8 +31372,9 @@ export interface components {
             present?: null | boolean;
             arrival?: null | string;
             departure?: null | string;
-            meal?: null | boolean;
+            lunch?: null | boolean;
             absence?: null | string;
+            snack?: null | boolean;
         };
         StatementDayView: {
             /** Format: date */
@@ -31374,7 +31383,8 @@ export interface components {
             present: boolean;
             arrival?: null | string;
             departure?: null | string;
-            meal: boolean;
+            lunch: boolean;
+            snack: boolean;
             absence?: null | string;
             templateArrival?: null | string;
             templateDeparture?: null | string;
@@ -31987,8 +31997,11 @@ export interface components {
             grossHourlyRate?: null | string;
             overtimePct?: null | string;
             upkeepPer9h?: null | string;
-            mealPrice?: null | string;
+            lunchPrice?: null | string;
             weekTypes?: null | components["schemas"]["WeekTypeBody"][];
+            snackPrice?: null | string;
+            lunchProvider?: null | string;
+            snackProvider?: null | string;
         };
         TestChannelBody: {
             channel?: null | string;
@@ -32113,14 +32126,16 @@ export interface components {
             day?: null | number;
             arrival?: null | string;
             departure?: null | string;
-            meal?: null | boolean;
+            lunch?: null | boolean;
+            snack?: null | boolean;
         };
         WeekdaySlotView: {
             /** Format: int32 */
             day: number;
             arrival: string;
             departure: string;
-            meal: boolean;
+            lunch: boolean;
+            snack: boolean;
         };
         WeekOverrideBody: {
             /**

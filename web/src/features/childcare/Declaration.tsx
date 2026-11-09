@@ -23,8 +23,8 @@ const none = (value: DeclarationView[Key]) => value === null || /^0(\.0+)?$/.tes
  * #32: three columns per field, Nid's figure (<c>computed</c>, the server's without the fields typed by hand), the value the month
  * uses, marked when it differs from Nid's, and the entry. The column names show above the rows, beside each cell on a phone.
  */
-export function Declaration({ declaration, computed, missing, entry }: {
-  declaration: DeclarationView | null; computed?: DeclarationView | null; missing: string[]; entry?: DeclarationEntry | null;
+export function Declaration({ declaration, computed, mealCharges, missing, entry }: {
+  declaration: DeclarationView | null; computed?: DeclarationView | null; mealCharges?: { lunch: string; snack: string } | null; missing: string[]; entry?: DeclarationEntry | null;
 }) {
   const { t } = useTranslation();
   const nid = computed ?? declaration;
@@ -58,7 +58,10 @@ export function Declaration({ declaration, computed, missing, entry }: {
             const value = frenchNumber(String(declaration[key]));
             return (
               <div key={key} className={`grid grid-cols-2 items-center gap-x-3 gap-y-1 px-3 py-2 ${columns}`}>
-                <dt className="col-span-2 text-sm sm:col-span-1">{title}</dt>
+                <dt className="col-span-2 text-sm sm:col-span-1">
+                  {title}
+                  {key === 'meals' && mealCharges ? <span className="block text-xs text-muted-foreground">{t('childcare_statement.meal_parts', { lunch: frenchNumber(mealCharges.lunch), snack: frenchNumber(mealCharges.snack) })}</span> : null}
+                </dt>
                 <dd className="flex flex-col">{caption('computed')}<span className="tabular-nums">{shown(key, nid![key])}</span></dd>
                 <dd className="flex flex-col">
                   {caption('used')}

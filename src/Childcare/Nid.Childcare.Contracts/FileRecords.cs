@@ -58,8 +58,21 @@ public sealed record TermsRecord
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public required decimal UpkeepPer9h { get; init; }
 
+    /// <summary>The old form, one meal: read as the lunch price, never written.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public decimal? MealPrice { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? LunchPrice { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? SnackPrice { get; set; }
+
+    /// <summary><c>nanny</c> or <c>employer</c>; absent from an older file: the nanny.</summary>
+    public string? LunchProvider { get; set; }
+
+    public string? SnackProvider { get; set; }
 
     /// <summary>The old form, one template week: read, never written. Either it and <c>schedule</c>, or <c>week_types</c>.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -93,7 +106,13 @@ public sealed record SlotRecord
     public required int Day { get; init; }
     public required string Arrival { get; init; }
     public required string Departure { get; init; }
-    public bool Meal { get; set; }
+    /// <summary>The old form, one meal: read as the lunch, never written.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Meal { get; set; }
+
+    public bool? Lunch { get; set; }
+
+    public bool Snack { get; set; }
 }
 
 public sealed record GapRecord
@@ -158,7 +177,13 @@ public sealed record DayRecord
     public bool Present { get; set; }
     public string? Arrival { get; set; }
     public string? Departure { get; set; }
-    public bool Meal { get; set; }
+    /// <summary>The old form, one meal: read as the lunch, never written.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Meal { get; set; }
+
+    public bool? Lunch { get; set; }
+
+    public bool Snack { get; set; }
     public string? Absence { get; set; }
 }
 

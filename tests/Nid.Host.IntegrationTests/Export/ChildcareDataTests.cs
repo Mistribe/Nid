@@ -22,8 +22,8 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
             name = "Garde de Léa", childId = app.Dependent.Value, carer = new { name = "Martine", pajemploi = "P1", approval = (string?)null },
             terms = new
             {
-                from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", mealPrice = "3.50",
-                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", meal = true }).ToArray() } },
+                from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", lunchPrice = "3.50",
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", lunch = true }).ToArray() } },
             },
             gaps = Array.Empty<object>(), visibility, owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
         });
@@ -42,12 +42,12 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         var read = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, url));
         var days = read.GetProperty("days").EnumerateArray().Select(d => d.GetProperty("date").GetString() == sick
-            ? new { date = sick, present = false, arrival = (string?)null, departure = (string?)null, meal = false, absence = (string?)"child_sick" }
+            ? new { date = sick, present = false, arrival = (string?)null, departure = (string?)null, lunch = false, absence = (string?)"child_sick" }
             : new
             {
                 date = d.GetProperty("date").GetString(), present = d.GetProperty("present").GetBoolean(), arrival = d.GetProperty("arrival").GetString(),
                 departure = d.GetProperty("date").GetString() == lateOn ? "17:35" : d.GetProperty("departure").GetString(),
-                meal = d.GetProperty("meal").GetBoolean(), absence = d.GetProperty("absence").GetString(),
+                lunch = d.GetProperty("lunch").GetBoolean(), absence = d.GetProperty("absence").GetString(),
             }).ToList();
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url,
             new { days, mileage = "0", cmg = "100", version = read.GetProperty("version").GetUInt32() })).StatusCode);
@@ -275,6 +275,31 @@ public class ChildcareDataTests(PostgresFixture fixture) : IClassFixture<Postgre
         """;
 
     private const string Monday = """[{"day":1,"arrival":"08:00","departure":"17:30","meal":false}]""";
+
+    [Fact]
+    public async Task An_older_file_imports_its_meal_as_a_lunch_the_nanny_provides()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RoundTripTests.PrepareAsync(app, "Personne B");
+        var file = new Dictionary<string, string>
+        {
+            ["persons"] = Persons,
+            ["childcare_arrangements"] = Arrangement("""
+                [{"from":"2025-09-01","net_hourly_rate":"4","overtime_pct":"10","upkeep_per_9h":"4","meal_price":"3.20","programmed_weeks":46,
+                  "schedule":[{"day":1,"arrival":"08:00","departure":"17:30","meal":true}]}]
+                """),
+        };
+        var validated = await RunAsync(app, file);
+        Assert.Empty(Errors(validated));
+        (await new ImportClient(app).CommitRawAsync(app.AdultA, validated.Id)).EnsureSuccessStatusCode();
+        var terms = (await ExportAsync(app))["childcare_arrangements"][0].GetProperty("terms")[0];
+        Assert.Equal(3.20m, decimal.Parse(terms.GetProperty("lunch_price").GetString()!, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("nanny", terms.GetProperty("lunch_provider").GetString());
+        var slot = terms.GetProperty("week_types")[0].GetProperty("schedule")[0];
+        Assert.True(slot.GetProperty("lunch").GetBoolean());
+        Assert.False(slot.GetProperty("snack").GetBoolean());
+        Assert.False(slot.TryGetProperty("meal", out _));
+    }
 
     [Fact]
     public async Task Each_contract_year_keeps_the_weeks_then_in_force()

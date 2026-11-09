@@ -11,12 +11,12 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
     private const string Url = "/api/v1/childcare";
 
     private static object[] Schedule(string departure = "17:30")
-        => [.. new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure, meal = true })];
+        => [.. new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure, lunch = true })];
 
     private static Dictionary<string, object?> Terms(string from = "2025-09-01", string rate = "4.30", object[]? schedule = null, int weeks = 46) => new()
     {
         ["from"] = from, ["netHourlyRate"] = rate, ["grossHourlyRate"] = null, ["overtimePct"] = "10", ["upkeepPer9h"] = "3.80",
-        ["mealPrice"] = "3.20", ["weekTypes"] = new[] { new { name = "Semaine type", weeks, schedule = schedule ?? Schedule() } },
+        ["lunchPrice"] = "3.20", ["weekTypes"] = new[] { new { name = "Semaine type", weeks, schedule = schedule ?? Schedule() } },
     };
 
     private static Dictionary<string, object?> Body(NidApp app, PersonId? child = null, object? terms = null, object[]? gaps = null,
@@ -88,7 +88,7 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
     public async Task Bad_schedule_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        object[] schedule = [new { day = 1, arrival = "08:00", departure = "07:00", meal = false }, new { day = 1, arrival = "08:00", departure = "17:00", meal = false }];
+        object[] schedule = [new { day = 1, arrival = "08:00", departure = "07:00", lunch = false }, new { day = 1, arrival = "08:00", departure = "17:00", lunch = false }];
         await AssertFieldAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Url, Body(app, terms: Terms(schedule: schedule))),
             ("terms.weekTypes[0].schedule[1].day", "childcare.schedule_duplicate_day"), ("terms.weekTypes[0].schedule[0].departure", "childcare.departure_before_arrival"));
     }

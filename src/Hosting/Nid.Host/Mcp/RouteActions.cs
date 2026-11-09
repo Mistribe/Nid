@@ -217,7 +217,7 @@ public static class RouteActions
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
             "Record a childminder's contract (assistante maternelle, année incomplète): childId is a dependent (list_persons); carer name, "
             + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, "
-            + "the meal price, weekTypes (each a name, its weeks and its weekly schedule: day 1 = Monday, arrival and departure HH:mm, meal; together 1 to 46 weeks); "
+            + "lunchPrice, snackPrice, lunchProvider and snackProvider (nanny or employer, only the nanny's meals are paid), weekTypes (each a name, its weeks and its weekly schedule: day 1 = Monday, arrival and departure HH:mm, lunch, snack; together 1 to 46 weeks); "
             + "gaps are weeks without care, each from a Monday. " + Owners + Amounts),
         new("edit_childcare", "PUT", "/api/v1/childcare/{id:guid}", typeof(EditChildcareBody),
             "Correct an arrangement's name, carer and current terms in place (terms.from stays the current one's; a change from a date is propose_revise_childcare). "
@@ -235,7 +235,7 @@ public static class RouteActions
             "Reopen an ended arrangement. " + Ids),
         new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
             "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
-            + "changed (present with arrival and departure HH:mm and meal, or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
+            + "changed (present with arrival and departure HH:mm, lunch and snack, or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
             + "holiday), the mileage, the CMG and the contributions left to the household (contributions, absent when all are covered) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
             + "left over) replaces the days, and declared gives the declaration fields entered by hand (normalHours, activityDays, paidLeaveDays, complementaryHours, overtimeHours, netPay, upkeep, meals). Validating it stays the person's gesture in the web app. "
             + Ids + Versioned + Amounts),
