@@ -20,7 +20,17 @@ function serve(initial: PropertyDetail = propertyDetail()) {
   let next = 3;
   const voided = new Set<string>();
   const sent: { method: string; url: string; body?: Body }[] = [];
+  const asked: URLSearchParams[] = [];
+  const stepped = (key: string, kind: string, points: { date: string; value: string }[]) =>
+    ({ key, kind, name: 'Maison', unit: 'currency:EUR', frequency: 'step', item: null, points });
   server.use(
+    http.get('*/api/v1/series/points', ({ request }) => {
+      asked.push(new URL(request.url).searchParams);
+      return HttpResponse.json({ baseDate: null, series: [
+        stepped(`property:${PROPERTY}:value`, 'property_value', current.valuations.map((v) => ({ date: v.asOf, value: v.amount }))),
+        stepped(`property:${PROPERTY}:cost`, 'property_cost', [{ date: '2024-03-01', value: '281000.00' }]),
+      ] });
+    }),
     http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(current)),
     http.post('*/api/v1/realestate/properties/:id/valuations', async ({ request }) => {
       const body = (await request.json()) as Body;
@@ -43,7 +53,7 @@ function serve(initial: PropertyDetail = propertyDetail()) {
   );
   /** Deleted by someone else: retired, and gone from the next read. */
   const voidElsewhere = (id: string) => { voided.add(id); current = { ...current, valuations: current.valuations.filter((v) => v.id !== id) }; };
-  return { sent, voidElsewhere };
+  return { sent, asked, voidElsewhere };
 }
 
 const PAGE = `/properties/${PROPERTY}?tab=valuations`;
@@ -85,11 +95,55 @@ describe('estimates', () => {
     expect(within(last!).queryByRole('link', { name: 'Source du chiffre' })).not.toBeInTheDocument();
   });
 
-  it('says when there is none', async () => {
-    serve(propertyDetail({ valuations: [] }));
-    await renderApp(PAGE);
+  it('says when there is none, and asks for no series', async () => {
+    const { asked } = serve(propertyDetail({ valuations: [] }));
+    const { container } = await renderApp(PAGE);
 
     expect(await within(await region()).findByText('Aucune estimation')).toBeInTheDocument();
+    expect(asked).toHaveLength(0);
+    expect(container.querySelector('.recharts-wrapper')).toBeNull();
+  });
+
+  it('draws the whole history above the table', async () => {
+    const { asked } = serve();
+    await renderApp(PAGE);
+
+    const section = await region();
+    await waitFor(() => expect(within(section).getAllByRole('table', { hidden: true })).toHaveLength(2));
+    expect(asked[0]!.get('s')).toBe(`property:${PROPERTY}:value,property:${PROPERTY}:cost`);
+    expect(asked[0]!.has('from')).toBe(false);
+    expect(asked[0]!.has('scope')).toBe(false);
+    const [chartTable] = within(section).getAllByRole('table', { hidden: true });
+    expect(chartTable).toHaveTextContent('1 juin 2025');
+    expect(chartTable).toHaveTextContent('1 juin 2026');
+    expect(await rows()).toHaveLength(2);
+  });
+
+  it('draws a single estimate as a dot', async () => {
+    const base = propertyDetail();
+    serve({ ...base, valuations: [base.valuations[0]!] });
+    const { container } = await renderApp(PAGE);
+
+    await waitFor(() => expect(container.querySelectorAll('.recharts-dot').length).toBe(2));
+  });
+
+  it('redraws after an estimate is deleted', async () => {
+    const { asked } = serve();
+    const { user } = await renderApp(PAGE);
+
+    await rowAction(user, (await rows())[0]!, '1 juin 2026', 'Supprimer');
+    await waitFor(() => expect(asked).toHaveLength(1));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(asked.length).toBeGreaterThan(1));
+  });
+
+  it('opens the explorer on the property series', async () => {
+    serve();
+    const { user, router } = await renderApp(PAGE);
+
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `property:${PROPERTY}:value,property:${PROPERTY}:cost,property:${PROPERTY}:net` });
   });
 
   it('adds an estimate, dated today unless changed, announces it and focuses the section', async () => {
@@ -198,7 +252,8 @@ describe('estimates', () => {
 
     const section = await region();
     await rows();
-    expect(within(section).queryByRole('button')).not.toBeInTheDocument();
+    // The chart's own table header sorts; no row action, no add.
+    expect(within(await screen.findByRole('table', { name: 'Estimations du bien' })).queryByRole('button')).not.toBeInTheDocument();
     expect(within(section).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
   });
 });
