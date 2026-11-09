@@ -8,4 +8,8 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
   </PropertyGroup>
+  <!-- A hung integration test names itself in CI (the hang dump of backend.yml) instead of running into the job timeout. -->
+  <ItemGroup Condition="$(MSBuildProjectName.EndsWith('.IntegrationTests'))">
+    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
+  </ItemGroup>
 </Project>
