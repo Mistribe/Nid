@@ -18,6 +18,41 @@ public class ProjectionRatesTests
     private static void Near(double expected, decimal actual) => Assert.True(Math.Abs((decimal)expected - actual) < 1e-12m, $"{expected} ≠ {actual}");
 
     [Fact]
+    public void GridYears_start_with_next_month()
+    {
+        Assert.Equal(Enumerable.Range(2026, 11), ProjectionRates.GridYears(Today, 120));
+        Assert.Equal([2027], ProjectionRates.GridYears(new LocalDate(2026, 12, 10), 12));
+    }
+
+    [Fact]
+    public void InflationIn_prefers_the_typed_year_then_the_observed_current_year_then_the_long_term()
+    {
+        var a = Long(0.02m) with { InflationByYear = new Dictionary<int, decimal> { [2027] = 0.03m } };
+
+        Assert.Equal(0.031m, ProjectionRates.InflationIn(a, 0.031m, Today, 2026));
+        Assert.Equal(0.03m, ProjectionRates.InflationIn(a, 0.031m, Today, 2027));
+        Assert.Equal(0.02m, ProjectionRates.InflationIn(a, 0.031m, Today, 2028));
+        Assert.Equal(0.02m, ProjectionRates.InflationIn(a, null, Today, 2026));
+    }
+
+    [Fact]
+    public void ClassRateIn_prefers_the_typed_year_then_the_long_term()
+    {
+        var a = Long() with
+        {
+            ClassRates = new Dictionary<string, decimal> { [AllocationClasses.Cash] = 0.02m, [AllocationClasses.Equity] = 0.06m },
+            ClassRatesByYear = new Dictionary<string, IReadOnlyDictionary<int, decimal>>
+            {
+                [AllocationClasses.Cash] = new Dictionary<int, decimal> { [2027] = 0.025m },
+            },
+        };
+
+        Assert.Equal(0.025m, ProjectionRates.ClassRateIn(a, AllocationClasses.Cash, 2027));
+        Assert.Equal(0.02m, ProjectionRates.ClassRateIn(a, AllocationClasses.Cash, 2028));
+        Assert.Equal(0.06m, ProjectionRates.ClassRateIn(a, AllocationClasses.Equity, 2027));
+    }
+
+    [Fact]
     public void Resolve_with_flat_rates_matches_the_old_compounding()
     {
         var rates = ProjectionRates.Resolve(Long(), null, Today, 120, Classes);
