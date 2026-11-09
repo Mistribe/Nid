@@ -100,6 +100,20 @@ describe('ChildcareDetailPage', () => {
     await waitFor(() => expect(within(rows[0]!).getByRole('radio', { name: 'Semaine courte' })).toBeEnabled());
   });
 
+  it('opens the validated months in the explorer, and shows no link without one', async () => {
+    serve(detail());
+    const { user, router } = await renderApp(url);
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `childcare:${ARRANGEMENT_ID}:monthly` });
+    cleanup();
+
+    server.use(http.get('*/api/v1/childcare/:id/statements', () => HttpResponse.json({ id: ARRANGEMENT_ID, months: [{ month: '2025-10', state: 'none', cost: null }] })));
+    await renderApp(url);
+    await screen.findByRole('table', { name: 'Relevés' });
+    expect(screen.queryByRole('link', { name: 'Voir la série' })).not.toBeInTheDocument();
+  });
+
   it('statements tab lists the months', async () => {
     serve(detail());
     await renderApp(url);

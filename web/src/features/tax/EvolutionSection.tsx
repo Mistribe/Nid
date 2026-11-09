@@ -1,6 +1,7 @@
 import { useQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/lib/plot';
 import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from '@/api/tax';
@@ -40,7 +41,10 @@ export function EvolutionSection({ years, assessments, scope, current, adults }:
   if (!rows.length) return loading ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
   return (
     <>
-      <p className="text-sm text-muted-foreground">{t('tax.evolution.intro')}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">{t('tax.evolution.intro')}</p>
+        {assessments.some((a) => a.netTax) ? <SeriesLink keys={['tax:yearly']} /> : null}
+      </div>
       <Table aria-label={t('tax.evolution.title')} aria-busy={loading || undefined}>
         <TableHeader>
           <TableRow>

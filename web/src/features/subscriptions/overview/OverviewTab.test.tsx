@@ -261,6 +261,15 @@ describe('Abonnements › vue d’ensemble', () => {
     expect(within(months).getByRole('button', { name: 'Afficher le graphique' })).toBeInTheDocument();
   });
 
+  it('Years_open_in_the_explorer', async () => {
+    serve(overview({ activeCount: 1, years: [{ year: 2026, paid: eur('100.00'), upcoming: eur('20.00'), total: eur('120.00'), byLabel: [] }] }));
+    const { user, router } = await renderApp('/subscriptions');
+
+    await user.click(await within(await region('Coût par an')).findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: 'subscriptions:yearly' });
+  });
+
   it('Years_switch_between_labels_and_total_and_show_a_table', async () => {
     const label = (paid: string) => [{ key: 'video', name: 'Vidéo', color: '#E50914', paid: eur(paid) }];
     serve(overview({ activeCount: 1, years: [

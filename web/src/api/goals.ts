@@ -1,6 +1,7 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApi } from './ApiProvider';
 import type { components } from './schema';
+import { SERIES_CATALOGUE, SERIES_POINTS } from './series';
 
 export type GoalSummary = components['schemas']['GoalSummary'];
 export type GoalList = components['schemas']['GoalList'];
@@ -25,7 +26,7 @@ export type Scope = 'me' | 'household';
 
 /** Every write invalidates the list (the dashboard's goals card reads it too) and every goal. */
 export function invalidateGoals(queryClient: QueryClient): Promise<void> {
-  return Promise.all([GOALS, GOAL].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([GOALS, GOAL, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }
 
 /** `closed` lists the open goals and the closed ones; the page keeps the rows it needs. */

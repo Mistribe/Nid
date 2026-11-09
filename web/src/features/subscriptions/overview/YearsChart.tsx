@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import i18n from '@/app/i18n';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { Segmented } from '@/components/form/Segmented';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { TableToggle } from '@/components/page/TableToggle';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -53,6 +54,7 @@ export function YearsChart({ years }: { years: Year[] }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
+        <SeriesLink keys={['subscriptions:yearly']} />
         <span id={viewId} className="sr-only">{t('years.view')}</span>
         <Segmented value={view} onValueChange={(v) => setView(v === 'label' ? 'label' : 'total')} aria-labelledby={viewId}
           options={[{ value: 'label', label: t('years.by_label') }, { value: 'total', label: t('years.total') }]} />

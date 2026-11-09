@@ -3,6 +3,7 @@ import { useApi } from '@/api/ApiProvider';
 import type { components } from '@/api/schema';
 import { invalidateDocuments } from '@/api/documents';
 import { DASHBOARD } from '@/api/dashboard';
+import { SERIES_CATALOGUE, SERIES_POINTS } from '@/api/series';
 import { TAX, TAX_2044 } from '@/api/tax';
 
 export type TaxAssessment = components['schemas']['TaxAssessmentView'];
@@ -28,7 +29,7 @@ export function invalidateAssessments(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     // The list is refetched even when no page shows it: the Tax page remounts on it right after the save and must not read the old one.
     queryClient.invalidateQueries({ queryKey: ['get', TAX_ASSESSMENTS], refetchType: 'all' }),
-    ...[TAX_ASSESSMENT, TAX, TAX_2044, DASHBOARD].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
+    ...[TAX_ASSESSMENT, TAX, TAX_2044, DASHBOARD, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
     invalidateDocuments(queryClient),
   ]).then(() => undefined);
 }

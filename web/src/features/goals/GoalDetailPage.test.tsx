@@ -74,6 +74,20 @@ describe('GoalDetailPage', () => {
       expect(row).toHaveTextContent(label);
   });
 
+  it('opens a free goal’s readings in the explorer, and a funded goal has no link', async () => {
+    serve(free({ entries: [{ on: '2026-09-01', amount: eur('1500.0000') }] }));
+    const { user, router } = await renderApp(`/goals/${GOAL}`);
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `goal:${GOAL}` });
+    cleanup();
+
+    serve(detail());
+    await renderApp(`/goals/${GOAL}`);
+    await screen.findByRole('heading', { name: 'Voyage', level: 1 });
+    expect(screen.queryByRole('link', { name: 'Voir la série' })).not.toBeInTheDocument();
+  });
+
   it('adds an entry with a PUT on its date, and deletes one', async () => {
     const puts: { url: string; body: unknown }[] = [];
     const deletes: string[] = [];

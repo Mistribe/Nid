@@ -1,5 +1,6 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
+import { SERIES_CATALOGUE, SERIES_POINTS } from '@/api/series';
 import type { components } from '@/api/schema';
 
 export type ChildcareSummary = components['schemas']['ChildcareSummary'];
@@ -37,7 +38,7 @@ export type Scope = 'me' | 'household';
 
 /** Every write invalidates the list and every arrangement. */
 export function invalidateChildcare(queryClient: QueryClient): Promise<void> {
-  return Promise.all([CHILDCARE, ARRANGEMENT].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([CHILDCARE, ARRANGEMENT, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }
 
 /** `closed` lists the open arrangements and the closed ones; the page keeps the rows it needs. */
@@ -102,11 +103,13 @@ export function useStatement(id: string, month: string) {
 }
 
 /** A statement write answers with the month as it now reads: the month and the list are refetched. */
+export function invalidateStatements(queryClient: QueryClient): Promise<void> {
+  return Promise.all([STATEMENTS, STATEMENT, SUMMARY, SERIES_POINTS].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+}
+
 function useStatementWrite() {
   const queryClient = useQueryClient();
-  return {
-    onSuccess: () => Promise.all([STATEMENTS, STATEMENT, SUMMARY].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined),
-  };
+  return { onSuccess: () => invalidateStatements(queryClient) };
 }
 
 export function useSaveStatement() {

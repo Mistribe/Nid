@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -687,6 +687,20 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(current).toHaveAttribute('aria-current', 'true');
       expect(years).not.toContain('2025');
       await expectNoAxeViolations(container);
+    });
+
+    it('opens the notices’ net tax in the explorer, and shows no link without a notice', async () => {
+      server.use(notices(soloAssessment({ year: 2024 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      const { user, router } = await renderApp('/tax?tab=evolution');
+      await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+      expect(router.state.location.search).toMatchObject({ s: 'tax:yearly' });
+      cleanup();
+
+      server.use(notices(soloAssessment({ year: 2024, netTax: undefined })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      await renderApp('/tax?tab=evolution');
+      await screen.findByRole('table', { name: 'Évolution de l’impôt d’une année à l’autre' });
+      expect(screen.queryByRole('link', { name: 'Voir la série' })).not.toBeInTheDocument();
     });
 
     it('says what changed since last year, line by line, sorted by the server', async () => {

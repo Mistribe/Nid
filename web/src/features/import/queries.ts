@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { SERIES_CATALOGUE, SERIES_POINTS } from '@/api/series';
 import { DASHBOARD, NET_WORTH, PROJECTION } from '@/api/dashboard';
 
 /**
@@ -15,5 +16,7 @@ export function useRefreshImports(): () => void {
     void queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] });
     void queryClient.invalidateQueries({ queryKey: ['get', NET_WORTH] });
     void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
+    void queryClient.invalidateQueries({ queryKey: ['get', SERIES_POINTS] });
+    void queryClient.invalidateQueries({ queryKey: ['get', SERIES_CATALOGUE] });
   }, [queryClient]);
 }

@@ -11,6 +11,8 @@ import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
+import { SeriesLink } from '@/components/page/SeriesLink';
+import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ErrorPage } from '@/components/ErrorPage';
@@ -232,6 +234,8 @@ function Statements({ id }: { id: string }) {
   if (!answer.data) return <div aria-busy="true" className="h-24 shimmer rounded-md border bg-muted" />;
   const state = (r: StatementRow) => stateLabel(t, r.state);
   return (
+    <Section title={t('childcare_detail.tab_statements')} srTitle
+      actions={answer.data.months.some((r) => r.cost) ? <SeriesLink keys={[`childcare:${id}:monthly`]} /> : undefined}>
     <SortableTable<StatementRow> caption={t('childcare_detail.tab_statements')} rows={answer.data.months} rowKey={(r) => r.month}
       rowLink={(r) => ({ to: '/childcare/$id/statements/$month', params: { id, month: r.month } })}
       columns={[
@@ -247,5 +251,6 @@ function Statements({ id }: { id: string }) {
           {r.cost ? <Money value={r.cost} tabular /> : null}
         </div>
       )} />
+    </Section>
   );
 }

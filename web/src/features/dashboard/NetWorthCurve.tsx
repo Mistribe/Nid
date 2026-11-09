@@ -17,6 +17,7 @@ import { monthText } from '@/components/LocalDate';
 import { monthLabel } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
 import { NET_WORTH, type NetWorthHistory, type NetWorthPointView } from '@/api/dashboard';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { TableToggle } from '@/components/page/TableToggle';
 
 const PERIODS = ['12m', '3y', 'all'] as const;
@@ -50,6 +51,7 @@ export function NetWorthCurve() {
   return (
     <SectionCard title={t('dashboard.curve.title')} actions={
       <>
+        {known > 0 ? <SeriesLink keys={['networth', 'networth:projected']} /> : null}
         <span id={periodId} className="sr-only">{t('dashboard.curve.period')}</span>
         <Segmented value={period} onValueChange={choose} aria-labelledby={periodId}
           options={PERIODS.map((p) => ({ value: p, label: t(`dashboard.curve.period_${p}`) }))} />
