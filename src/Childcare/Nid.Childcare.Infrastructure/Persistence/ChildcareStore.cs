@@ -59,9 +59,10 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         var types = (await db.WeekTypes.AsNoTracking().Where(w => wanted.Contains(w.ItemId)).OrderBy(w => w.Rank).ToListAsync(ct))
             .ToLookup(w => (w.ItemId, w.TermsFrom));
         return rows.Select(r => new Terms(new ItemId(r.ItemId), r.From, r.To, r.NetHourlyRate, r.GrossHourlyRate, r.OvertimeRate, r.UpkeepPer9h,
-            r.MealPrice,
+            r.LunchPrice,
             types[(r.ItemId, r.From)].Select(w => new WeekType(w.Name, w.Weeks,
-                days[(r.ItemId, r.From, w.Rank)].OrderBy(d => d.Day).Select(d => new WeekdaySlot((IsoDayOfWeek)d.Day, d.Arrival, d.Departure, d.Meal)).ToList())).ToList())).ToList();
+                days[(r.ItemId, r.From, w.Rank)].OrderBy(d => d.Day).Select(d => new WeekdaySlot((IsoDayOfWeek)d.Day, d.Arrival, d.Departure, d.Lunch, d.Snack)).ToList())).ToList(),
+            r.SnackPrice, MealProviderCodes.Parse(r.LunchProvider), MealProviderCodes.Parse(r.SnackProvider))).ToList();
     }
 
     public async Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct)
@@ -235,7 +236,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         db.StatementDays.AddRange(days.Select(d => new StatementDayRow
         {
             ItemId = id.Value, Month = month, Date = d.Date, Planned = d.Planned, Present = d.Present, Arrival = d.Arrival,
-            Departure = d.Departure, Meal = d.Meal, Absence = d.Absence is { } a ? AbsenceCodes.Of(a) : null,
+            Departure = d.Departure, Lunch = d.Lunch, Snack = d.Snack, Absence = d.Absence is { } a ? AbsenceCodes.Of(a) : null,
         }));
     }
 
@@ -277,7 +278,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
     }
 
     private static StatementDay ToDay(StatementDayRow d)
-        => new(d.Date, d.Planned, d.Present, d.Arrival, d.Departure, d.Meal, d.Absence is { } a ? AbsenceCodes.Parse(a) : null);
+        => new(d.Date, d.Planned, d.Present, d.Arrival, d.Departure, d.Lunch, d.Absence is { } a ? AbsenceCodes.Parse(a) : null, d.Snack);
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedArrangement>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct)
     {
@@ -362,7 +363,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             db.WeekTypes.Add(new WeekTypeRow { ItemId = terms.ItemId.Value, TermsFrom = terms.From, Rank = rank, Name = type.Name, Weeks = type.Weeks });
             db.Weekdays.AddRange(type.Schedule.Select(s => new WeekdayRow
             {
-                ItemId = terms.ItemId.Value, TermsFrom = terms.From, WeekType = rank, Day = (short)s.Day, Arrival = s.Arrival, Departure = s.Departure, Meal = s.Meal,
+                ItemId = terms.ItemId.Value, TermsFrom = terms.From, WeekType = rank, Day = (short)s.Day, Arrival = s.Arrival, Departure = s.Departure, Lunch = s.Lunch, Snack = s.Snack,
             }));
         }
     }
@@ -381,7 +382,10 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.GrossHourlyRate = t.GrossHourlyRate;
         row.OvertimeRate = t.OvertimeRate;
         row.UpkeepPer9h = t.UpkeepPer9h;
-        row.MealPrice = t.MealPrice;
+        row.LunchPrice = t.LunchPrice;
+        row.SnackPrice = t.SnackPrice;
+        row.LunchProvider = MealProviderCodes.Of(t.LunchProvider);
+        row.SnackProvider = MealProviderCodes.Of(t.SnackProvider);
     }
 
     private static Arrangement ToArrangement(ArrangementRow r)

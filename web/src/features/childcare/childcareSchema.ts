@@ -8,13 +8,14 @@ import '@/locales/childcare';
 import '@/locales/forms';
 
 /** One weekday of the template: ISO day (1 = Monday), shown whether it is a day of care or not. */
-export type DayRow = { day: number; on: boolean; arrival: string; departure: string; meal: boolean };
+export type MealProvider = 'nanny' | 'employer';
+export type DayRow = { day: number; on: boolean; arrival: string; departure: string; lunch: boolean; snack: boolean };
 /** One template week: its name, how many weeks of the year it covers, and its weekdays. */
 export type WeekTypeRow = { name: string; weeks: string; days: DayRow[] };
 export type GapRow = { monday: string; weeks: string };
 
 export type TermsValues = {
-  from: string; net: string; gross: string; overtimePct: string; upkeep: string; meal: string; weekTypes: WeekTypeRow[];
+  from: string; net: string; gross: string; overtimePct: string; upkeep: string; lunch: string; snack: string; lunchProvider: MealProvider; snackProvider: MealProvider; weekTypes: WeekTypeRow[];
 };
 
 export type ChildcareValues = TermsValues & {
@@ -29,14 +30,15 @@ const WEEKS = /^\d{1,2}$/;
 export const DEFAULT_WEEK_TYPE = 'Semaine type';
 
 /** The seven weekdays of a template: the slots given are checked, the others kept off with the usual hours. */
-export const daysOf = (schedule?: { day: number; arrival: string; departure: string; meal: boolean }[]): DayRow[] => DAYS.map((day) => {
+export const daysOf = (schedule?: { day: number; arrival: string; departure: string; lunch: boolean; snack: boolean }[]): DayRow[] => DAYS.map((day) => {
   const slot = schedule?.find((s) => s.day === day);
-  return { day, on: Boolean(slot), arrival: slot?.arrival ?? '08:00', departure: slot?.departure ?? '17:30', meal: slot?.meal ?? true };
+  return { day, on: Boolean(slot), arrival: slot?.arrival ?? '08:00', departure: slot?.departure ?? '17:30', lunch: slot?.lunch ?? true, snack: slot?.snack ?? false };
 });
 
 export const termsDefaults = (terms?: ChildcareTerms): TermsValues => ({
   from: '', net: toFieldAmount(terms?.netHourlyRate ?? ''), gross: toFieldAmount(terms?.grossHourlyRate ?? ''), overtimePct: toFieldAmount(terms?.overtimePct ?? '10'),
-  upkeep: toFieldAmount(terms?.upkeepPer9h ?? ''), meal: toFieldAmount(terms?.mealPrice ?? ''), weekTypes: terms
+  upkeep: toFieldAmount(terms?.upkeepPer9h ?? ''), lunch: toFieldAmount(terms?.lunchPrice ?? ''), snack: toFieldAmount(terms?.snackPrice ?? ''),
+  lunchProvider: (terms?.lunchProvider ?? 'nanny') as MealProvider, snackProvider: (terms?.snackProvider ?? 'nanny') as MealProvider, weekTypes: terms
     ? terms.weekTypes.map((w) => ({ name: w.name, weeks: String(w.weeks), days: daysOf(w.schedule) }))
     : [{ name: DEFAULT_WEEK_TYPE, weeks: '46', days: daysOf() }],
 });
@@ -57,7 +59,8 @@ function checkTerms(v: TermsValues, add: Add, withFrom: boolean) {
   if (v.gross.trim() && !AMOUNT.test(v.gross.trim())) add(['gross'], 'amount_format');
   if (!AMOUNT.test(v.overtimePct.trim())) add(['overtimePct'], 'amount_format');
   if (!AMOUNT.test(v.upkeep.trim())) add(['upkeep'], 'amount_format');
-  if (v.meal.trim() && !AMOUNT.test(v.meal.trim())) add(['meal'], 'amount_format');
+  if (v.lunch.trim() && !AMOUNT.test(v.lunch.trim())) add(['lunch'], 'amount_format');
+  if (v.snack.trim() && !AMOUNT.test(v.snack.trim())) add(['snack'], 'amount_format');
   // The sum of the weeks (46 at most) and the duplicate names are the server's to refuse.
   v.weekTypes.forEach((w, k) => {
     if (v.weekTypes.length > 1 && !(w.name.trim().length >= 1 && w.name.trim().length <= 40)) add(['weekTypes', k, 'name'], 'name_range');
@@ -80,10 +83,10 @@ function checkGaps(gaps: GapRow[], add: Add) {
 }
 
 const termsShape = {
-  from: z.string(), net: z.string(), gross: z.string(), overtimePct: z.string(), upkeep: z.string(), meal: z.string(),
+  from: z.string(), net: z.string(), gross: z.string(), overtimePct: z.string(), upkeep: z.string(), lunch: z.string(), snack: z.string(), lunchProvider: z.enum(['nanny', 'employer']), snackProvider: z.enum(['nanny', 'employer']),
   weekTypes: z.array(z.object({
     name: z.string(), weeks: z.string(),
-    days: z.array(z.object({ day: z.number(), on: z.boolean(), arrival: z.string(), departure: z.string(), meal: z.boolean() })),
+    days: z.array(z.object({ day: z.number(), on: z.boolean(), arrival: z.string(), departure: z.string(), lunch: z.boolean(), snack: z.boolean() })),
   })),
 };
 const gapShape = z.array(z.object({ monday: z.string(), weeks: z.string() }));
@@ -129,10 +132,11 @@ export function gapsSchema(t: TFunction) {
 export function termsToWire(v: TermsValues, from: string): TermsBody {
   return {
     from, netHourlyRate: toWireAmount(v.net), ...(v.gross.trim() ? { grossHourlyRate: toWireAmount(v.gross) } : {}),
-    overtimePct: toWireAmount(v.overtimePct), upkeepPer9h: toWireAmount(v.upkeep), ...(v.meal.trim() ? { mealPrice: toWireAmount(v.meal) } : {}),
+    overtimePct: toWireAmount(v.overtimePct), upkeepPer9h: toWireAmount(v.upkeep), ...(v.lunch.trim() ? { lunchPrice: toWireAmount(v.lunch) } : {}),
+    ...(v.snack.trim() ? { snackPrice: toWireAmount(v.snack) } : {}), lunchProvider: v.lunchProvider, snackProvider: v.snackProvider,
     weekTypes: v.weekTypes.map((w) => ({
       name: w.name.trim() || DEFAULT_WEEK_TYPE, weeks: Number(w.weeks),
-      schedule: w.days.filter((d) => d.on).map((d) => ({ day: d.day, arrival: d.arrival, departure: d.departure, meal: d.meal })),
+      schedule: w.days.filter((d) => d.on).map((d) => ({ day: d.day, arrival: d.arrival, departure: d.departure, lunch: d.lunch, snack: d.snack })),
     })),
   };
 }
@@ -155,7 +159,7 @@ export function childcarePath(path: string, weekTypes: WeekTypeRow[]): Path<Chil
   const top: Record<string, Path<ChildcareValues>> = {
     name: 'name', childId: 'childId', 'carer.name': 'carerName', 'carer.pajemploi': 'carerPajemploi', 'carer.approval': 'carerApproval',
     'terms.from': 'from', 'terms.netHourlyRate': 'net', 'terms.grossHourlyRate': 'gross', 'terms.overtimePct': 'overtimePct',
-    'terms.upkeepPer9h': 'upkeep', 'terms.mealPrice': 'meal', 'terms.weekTypes': 'weekTypes', weekTypes: 'weekTypes', gaps: 'gaps',
+    'terms.upkeepPer9h': 'upkeep', 'terms.lunchPrice': 'lunch', 'terms.snackPrice': 'snack', 'terms.weekTypes': 'weekTypes', weekTypes: 'weekTypes', gaps: 'gaps',
   };
   if (Object.hasOwn(top, path)) return top[path];
   if (path.startsWith('weekOverrides')) return 'weekTypes';

@@ -2,22 +2,32 @@ import { Controller, type FieldValues, type Path, type UseFormReturn } from 'rea
 import { useTranslation } from 'react-i18next';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { Input } from '@/components/ui/input';
 import { Folded } from '@/components/form/Folded';
 import type { TermsValues } from './childcareSchema';
 import '@/locales/childcare';
 
+type TextField = Exclude<keyof TermsValues, 'weekTypes' | 'lunchProvider' | 'snackProvider'>;
 type WithTerms = FieldValues & TermsValues;
 type Message = { message?: string } | undefined;
 
 /** The terms' figures, shared by the creation page and the edit and revision dialogs; `withFrom` asks for the start date. */
 export function RateFields<T extends WithTerms>({ form, withFrom, fromLabel }: { form: UseFormReturn<T>; withFrom: boolean; fromLabel?: string }) {
   const { t } = useTranslation();
-  const e = form.formState.errors as Record<Exclude<keyof TermsValues, 'weekTypes'>, Message> & { weekTypes?: { weeks?: Message }[] };
-  const text = (name: Exclude<keyof TermsValues, 'weekTypes'>, label: string, mode: 'decimal' | 'numeric' = 'decimal', hint?: string) => (
+  const e = form.formState.errors as Record<TextField, Message> & { weekTypes?: { weeks?: Message }[] };
+  const text = (name: TextField, label: string, mode: 'decimal' | 'numeric' = 'decimal', hint?: string) => (
     <Field label={label} hint={hint} error={e[name]?.message}>
       {(c) => <Input inputMode={mode} {...c} {...form.register(name as Path<T>)} />}
     </Field>
+  );
+  const provider = (name: 'lunchProvider' | 'snackProvider', label: string) => (
+    <Controller control={form.control} name={name as Path<T>} render={({ field }) => (
+      <Field label={label}>
+        {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+          options={[{ value: 'nanny', label: t('childcare_form.provider_nanny') }, { value: 'employer', label: t('childcare_form.provider_employer') }]} />}
+      </Field>
+    )} />
   );
   return (
     <>
@@ -30,7 +40,10 @@ export function RateFields<T extends WithTerms>({ form, withFrom, fromLabel }: {
       ) : null}
       {text('net', t('childcare_form.net'))}
       {text('upkeep', t('childcare_form.upkeep'), 'decimal', t('childcare_form.upkeep_hint'))}
-      {text('meal', t('childcare_form.meal_price'))}
+      {text('lunch', t('childcare_form.lunch_price'))}
+      {provider('lunchProvider', t('childcare_form.lunch_provider'))}
+      {text('snack', t('childcare_form.snack_price'))}
+      {provider('snackProvider', t('childcare_form.snack_provider'))}
       {/* Several template weeks ask for their weeks with their days, in the schedule step. */}
       {form.watch('weekTypes' as Path<T>).length === 1 ? (
         <Field label={t('childcare_form.weeks')} hint={t('childcare_form.weeks_hint')} error={e.weekTypes?.[0]?.weeks?.message}>

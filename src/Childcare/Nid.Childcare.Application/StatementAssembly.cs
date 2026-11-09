@@ -100,6 +100,9 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var computed = evaluation.Figures is null || stored is null || (!stored.Validated && (stored.Declared is null || stored.Declared == new DeclaredFigures()))
             ? evaluation.Figures
             : (await EvaluateAsync(context, stored.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, ct)).Figures;
+        // Shown only while the parts add up to the line: a figure typed by hand, or frozen under other prices, may not.
+        var (lunch, snack) = Upkeep.MealCharges(days, context.Contract);
+        var mealCharges = snack > 0m && evaluation.Figures?.Declaration.Meals == lunch + snack ? new MealChargesView(Amount(lunch), Amount(snack)) : null;
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);
         var plan = context.Terms.Plan;
@@ -117,7 +120,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
                 ? Amount(estimate) : null,
             stored?.Declared is { } entered ? DeclaredOf(entered) : null,
             computed is { } n ? DeclarationOf(n.Declaration) : null,
-            stored?.Contributions is { } k ? Amount(k) : null);
+            stored?.Contributions is { } k ? Amount(k) : null, mealCharges);
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)
@@ -148,7 +151,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
     {
         var slot = d.Planned ? plan.SlotOn(d.Date) : null;
         var name = plan.Types.Count > 1 && (d.Date.DayOfWeek == IsoDayOfWeek.Monday || d.Date.Day == 1) ? plan.Types[plan.TypeOf(d.Date)].Name : null;
-        return new StatementDayView(d.Date, d.Planned, d.Present, Time(d.Arrival), Time(d.Departure), d.Meal,
+        return new StatementDayView(d.Date, d.Planned, d.Present, Time(d.Arrival), Time(d.Departure), d.Lunch, d.Snack,
             d.Absence is { } a ? AbsenceCodes.Of(a) : null, Time(slot?.Arrival), Time(slot?.Departure), prepared is not null && prepared != d, name);
     }
 

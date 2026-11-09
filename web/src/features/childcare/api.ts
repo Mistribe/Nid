@@ -134,5 +134,5 @@ export function useDiscardStatement() {
 
 /** A day of the view as the body sends it back. */
 export const dayBody = (d: StatementDay): StatementDayBody => ({
-  date: d.date, present: d.present, arrival: d.arrival, departure: d.departure, meal: d.meal, absence: d.absence,
+  date: d.date, present: d.present, arrival: d.arrival, departure: d.departure, lunch: d.lunch, snack: d.snack, absence: d.absence,
 });

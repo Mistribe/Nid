@@ -9,7 +9,7 @@ type Message = { message?: string } | undefined;
 type DayErrors = { message?: string; root?: Message; [i: number]: { arrival?: Message; departure?: Message } };
 
 /**
- * One template week (`name` is the path of its `days`, `weekTypes.${i}.days`), one row per weekday: « accueilli », arrival, departure, meal. The times are `Input type="time"`:
+ * One template week (`name` is the path of its `days`, `weekTypes.${i}.days`), one row per weekday: « accueilli », arrival, departure, lunch, snack. The times are `Input type="time"`:
  * shadcn/ui has no time picker.
  */
 export function ScheduleFields<T extends FieldValues>({ form, name: base }: { form: UseFormReturn<T>; name: string }) {
@@ -38,12 +38,14 @@ export function ScheduleFields<T extends FieldValues>({ form, name: base }: { fo
                 <>
                   <Input type="time" className="w-28" aria-label={t('childcare_form.arrival_of', { day: name })} aria-invalid={rowErrors?.arrival ? true : undefined} {...form.register(path(i, 'arrival'))} />
                   <Input type="time" className="w-28" aria-label={t('childcare_form.departure_of', { day: name })} aria-invalid={rowErrors?.departure ? true : undefined} {...form.register(path(i, 'departure'))} />
-                  <label className="flex items-center gap-2 text-sm">
-                    <Controller control={form.control} name={path(i, 'meal')} render={({ field }) => (
-                      <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} aria-label={t('childcare_form.meal_of', { day: name })} />
-                    )} />
-                    <span aria-hidden="true">{t('childcare_form.meal')}</span>
-                  </label>
+                  {(['lunch', 'snack'] as const).map((meal) => (
+                    <label key={meal} className="flex items-center gap-2 text-sm">
+                      <Controller control={form.control} name={path(i, meal)} render={({ field }) => (
+                        <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} aria-label={t(`childcare_form.${meal}_of`, { day: name })} />
+                      )} />
+                      <span aria-hidden="true">{t(`childcare_form.${meal}`)}</span>
+                    </label>
+                  ))}
                   {rowErrors?.arrival?.message ?? rowErrors?.departure?.message
                     ? <span className="basis-full text-sm text-destructive">{rowErrors?.arrival?.message ?? rowErrors?.departure?.message}</span> : null}
                 </>

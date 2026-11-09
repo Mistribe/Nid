@@ -29898,6 +29898,16 @@
               "null",
               "string"
             ]
+          },
+          "mealCharges": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MealChargesView"
+              }
+            ]
           }
         }
       },
@@ -29980,6 +29990,8 @@
           "netHourlyRate",
           "overtimePct",
           "upkeepPer9h",
+          "lunchProvider",
+          "snackProvider",
           "weekTypes",
           "programmedWeeks",
           "monthlyBasePay",
@@ -30014,11 +30026,23 @@
           "upkeepPer9h": {
             "type": "string"
           },
-          "mealPrice": {
+          "lunchPrice": {
             "type": [
               "null",
               "string"
             ]
+          },
+          "snackPrice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lunchProvider": {
+            "type": "string"
+          },
+          "snackProvider": {
+            "type": "string"
           },
           "weekTypes": {
             "type": "array",
@@ -41711,6 +41735,21 @@
           }
         }
       },
+      "MealChargesView": {
+        "required": [
+          "lunch",
+          "snack"
+        ],
+        "type": "object",
+        "properties": {
+          "lunch": {
+            "type": "string"
+          },
+          "snack": {
+            "type": "string"
+          }
+        }
+      },
       "MoneyBody": {
         "required": [
           "amount",
@@ -49860,7 +49899,7 @@
               "string"
             ]
           },
-          "meal": {
+          "lunch": {
             "type": [
               "null",
               "boolean"
@@ -49871,6 +49910,12 @@
               "null",
               "string"
             ]
+          },
+          "snack": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -49879,7 +49924,8 @@
           "date",
           "planned",
           "present",
-          "meal",
+          "lunch",
+          "snack",
           "changed"
         ],
         "type": "object",
@@ -49906,7 +49952,10 @@
               "string"
             ]
           },
-          "meal": {
+          "lunch": {
+            "type": "boolean"
+          },
+          "snack": {
             "type": "boolean"
           },
           "absence": {
@@ -52791,7 +52840,7 @@
               "string"
             ]
           },
-          "mealPrice": {
+          "lunchPrice": {
             "type": [
               "null",
               "string"
@@ -52805,6 +52854,24 @@
             "items": {
               "$ref": "#/components/schemas/WeekTypeBody"
             }
+          },
+          "snackPrice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lunchProvider": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "snackProvider": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -53323,7 +53390,13 @@
               "string"
             ]
           },
-          "meal": {
+          "lunch": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "snack": {
             "type": [
               "null",
               "boolean"
@@ -53336,7 +53409,8 @@
           "day",
           "arrival",
           "departure",
-          "meal"
+          "lunch",
+          "snack"
         ],
         "type": "object",
         "properties": {
@@ -53350,7 +53424,10 @@
           "departure": {
             "type": "string"
           },
-          "meal": {
+          "lunch": {
+            "type": "boolean"
+          },
+          "snack": {
             "type": "boolean"
           }
         }

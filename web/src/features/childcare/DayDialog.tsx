@@ -12,7 +12,7 @@ import { ABSENCE_REASONS, dayTitle, reasonLabel } from './statementText';
 import '@/locales/childcare';
 
 /**
- * One day's deviation: present with its times and meal, or absent with a reason when it was planned. The time inputs are
+ * One day's deviation: present with its times and meals, or absent with a reason when it was planned. The time inputs are
  * `Input type="time"`, as the template's: shadcn/ui has no time picker.
  */
 export function DayDialog({ day, error, pending, onSave, onClose }: {
@@ -22,7 +22,8 @@ export function DayDialog({ day, error, pending, onSave, onClose }: {
   const [present, setPresent] = useState(day.present);
   const [arrival, setArrival] = useState(day.arrival ?? day.templateArrival ?? '');
   const [departure, setDeparture] = useState(day.departure ?? day.templateDeparture ?? '');
-  const [meal, setMeal] = useState(day.meal);
+  const [lunch, setLunch] = useState(day.lunch);
+  const [snack, setSnack] = useState(day.snack);
   const [absence, setAbsence] = useState(day.absence ?? '');
   const [local, setLocal] = useState('');
   return (
@@ -35,8 +36,8 @@ export function DayDialog({ day, error, pending, onSave, onClose }: {
           if (!present && day.planned && !absence) { setLocal(t('childcare_statement.problem.childcare_absence_required')); return; }
           setLocal('');
           onSave(present
-            ? { date: day.date, present: true, arrival, departure, meal, absence: null }
-            : { date: day.date, present: false, arrival: null, departure: null, meal: false, absence: day.planned ? absence : null });
+            ? { date: day.date, present: true, arrival, departure, lunch, snack, absence: null }
+            : { date: day.date, present: false, arrival: null, departure: null, lunch: false, snack: false, absence: day.planned ? absence : null });
         }}>
           {local || error ? <p role="alert" className="text-sm text-destructive">{local || error}</p> : null}
           <Segmented aria-label={t('childcare_statement.presence')} value={present ? 'present' : 'absent'} onValueChange={(v) => setPresent(v === 'present')}
@@ -46,8 +47,12 @@ export function DayDialog({ day, error, pending, onSave, onClose }: {
               <Field label={t('childcare_statement.arrival')}>{(c) => <Input {...c} type="time" className="w-28" value={arrival} onChange={(e) => setArrival(e.target.value)} />}</Field>
               <Field label={t('childcare_statement.departure')}>{(c) => <Input {...c} type="time" className="w-28" value={departure} onChange={(e) => setDeparture(e.target.value)} />}</Field>
               <label className="flex items-center gap-2 self-end pb-2 text-sm">
-                <Checkbox checked={meal} onCheckedChange={(v) => setMeal(v === true)} />
-                {t('childcare_statement.meal')}
+                <Checkbox checked={lunch} onCheckedChange={(v) => setLunch(v === true)} />
+                {t('childcare_statement.lunch')}
+              </label>
+              <label className="flex items-center gap-2 self-end pb-2 text-sm">
+                <Checkbox checked={snack} onCheckedChange={(v) => setSnack(v === true)} />
+                {t('childcare_statement.snack')}
               </label>
             </div>
           ) : day.planned ? (

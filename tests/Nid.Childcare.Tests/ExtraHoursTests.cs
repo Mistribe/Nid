@@ -9,6 +9,19 @@ public class ExtraHoursTests
 {
     private static readonly StatementDay ExtraWednesday = new(D(2026, 11, 11), false, true, new LocalTime(8, 0), new LocalTime(17, 0), false, null);
 
+    /// <summary>Friday 2027-10-01 starts the contract: its week's Thursday has no statement, so the week is October's.</summary>
+    [Fact]
+    public void The_first_week_of_a_contract_counts_when_its_thursday_comes_before()
+    {
+        var month = new YearMonth(2027, 10);
+        var terms = Terms with { Start = D(2027, 10, 1) };
+        var days = StatementPreparation.Prepare(month, Plan, [], terms)
+            .Select(d => d.Date.Day == 1 ? d with { Departure = d.Departure!.Value.PlusHours(1) } : d).ToList();
+        IReadOnlyList<StatementDay> all = [.. StatementPreparation.Prepare(month.PlusMonths(-1), Plan, [], terms), .. days];
+
+        Assert.Equal((1m, 0m), ExtraHours.Compute(month, all, Plan, terms));
+    }
+
     private static IReadOnlyList<StatementDay> Around(YearMonth month)
         => [.. StatementPreparation.Prepare(month.PlusMonths(-1), Plan, Gaps), .. StatementPreparation.Prepare(month, Plan, Gaps),
             .. StatementPreparation.Prepare(month.PlusMonths(1), Plan, Gaps)];
@@ -64,7 +77,7 @@ public class ExtraHoursAbsenceTests
         var month = new YearMonth(2026, 11);
         var days = StatementPreparation.Prepare(month, Plan, Gaps).Select(d => d.Date.Day switch
         {
-            2 => d with { Present = false, Arrival = null, Departure = null, Meal = false, Absence = AbsenceReason.CarerAbsent },
+            2 => d with { Present = false, Arrival = null, Departure = null, Lunch = false, Absence = AbsenceReason.CarerAbsent },
             3 => d with { Departure = new LocalTime(19, 30) },
             _ => d,
         }).ToList();

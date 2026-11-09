@@ -304,9 +304,9 @@ du fichier (`target_ref`).
 | `name` | string | 1 à 120 caractères |
 | `child` | string | `ref` d'une personne de `persons` de genre `dependent` (`childcare.child_not_dependent`) |
 | `carer` | objet | `{ name, pajemploi?, approval? }` |
-| `terms` | tableau | Les révisions, la plus ancienne d'abord : `{ from, to?, net_hourly_rate, gross_hourly_rate?, overtime_pct, upkeep_per_9h, meal_price?, week_types }` ; chacune finit la veille de la suivante, seule la dernière peut rester ouverte ; `overtime_pct` en pour cent (10 = 10 %) ; la somme des `weeks` des semaines types va de 1 à 46 |
+| `terms` | tableau | Les révisions, la plus ancienne d'abord : `{ from, to?, net_hourly_rate, gross_hourly_rate?, overtime_pct, upkeep_per_9h, lunch_price?, snack_price?, lunch_provider?, snack_provider?, week_types }`, `lunch_provider` et `snack_provider` parmi `nanny` (par défaut) et `employer`, seuls les repas fournis par `nanny` étant payés ; un fichier plus ancien porte `meal_price`, lu comme `lunch_price` ; chacune finit la veille de la suivante, seule la dernière peut rester ouverte ; `overtime_pct` en pour cent (10 = 10 %) ; la somme des `weeks` des semaines types va de 1 à 46 |
 | `terms[].week_types` | tableau | Les semaines types de la révision, au moins une : `{ name, weeks, schedule }` ; `name` de 1 à 40 caractères, unique sans tenir compte de la casse ; `weeks` d'au moins 1. L'ancienne forme `programmed_weeks` + `schedule` (une seule semaine) est encore lue, comme une semaine type « Semaine type » ; l'export n'écrit que `week_types`. Les deux formes ensemble sont refusées (`childcare.terms_both_formats`), aucune aussi (`import.invalid_value`) |
-| `terms[].week_types[].schedule` | tableau | `{ day, arrival, departure, meal }` : `day` de 1 (lundi) à 7, heures `HH:mm`, un jour au plus une fois |
+| `terms[].week_types[].schedule` | tableau | `{ day, arrival, departure, lunch, snack }` (un fichier plus ancien porte `meal`, lu comme `lunch`) : `day` de 1 (lundi) à 7, heures `HH:mm`, un jour au plus une fois |
 | `week_overrides` | tableau | Les exceptions `{ monday, week_type }` : la semaine de ce lundi suit la semaine type de ce rang (à partir de 0) dans la révision en vigueur cette semaine-là (`childcare.override_invalid_monday`, `childcare.override_unknown_week_type`). Absent, il vaut `[]` ; un import qui remplace remplace aussi les exceptions |
 | `gaps` | tableau | Semaines sans accueil `{ monday, weeks }`, contrôlées par année de contrat comme dans l'interface |
 | `visibility`, `share_level`, `ownership`, `closed` | | Comme `goals` |
@@ -319,7 +319,7 @@ du fichier (`target_ref`).
 | `month` | string | `YYYY-MM`, dans les mois de la garde (`childcare.month_out_of_contract`), une fois par garde (`childcare.statement_twice`) |
 | `mileage`, `cmg` | chaînes décimales | Frais kilométriques et CMG du récapitulatif Pajemploi |
 | `contributions` | chaîne décimale, facultative | Cotisations restant à la charge du foyer sur le récapitulatif Pajemploi (au-delà du plafond horaire de prise en charge) ; absente : aucune. Comptées dans `cost` et `tax_base` |
-| `days` | tableau | Chaque jour du mois : `{ date, planned, present, arrival?, departure?, meal, absence? }`, `absence` parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `holiday` ; `planned` est recalculé |
+| `days` | tableau | Chaque jour du mois : `{ date, planned, present, arrival?, departure?, lunch, snack, absence? }` (un fichier plus ancien porte `meal`, lu comme `lunch`), `absence` parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `holiday` ; `planned` est recalculé |
 | `figures` | objet | Les chiffres figés : `normal_hours`, `activity_days`, `paid_leave_days?`, `complementary_hours`, `overtime_hours`, `net_pay`, `upkeep`, `meals`, `base_pay`, `deduction`, `extra_pay`, `paid_leave_pay`, `cost`, `tax_base`, `child_sick_deducted` |
 
 **Règles** : les relevés d'une garde sont repris dans l'ordre des mois, chacun **recalculé** depuis le fichier (révision du mois,

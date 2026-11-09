@@ -45,16 +45,16 @@ public static class StatementContext
         var missing = months.Where(m => m.CompareTo(first) >= 0 && validated.All(v => v.Month != m)).ToList();
         return missing.Count > 0
             ? (null, missing)
-            : (new PaidLeaveInput(months.Count, validated.Where(v => months.Contains(v.Month)).Sum(v => v.ReferencePay)), missing);
+            : (new PaidLeaveInput(months.Sum(m => CareShare(m, start, end)), validated.Where(v => months.Contains(v.Month)).Sum(v => v.ReferencePay)), missing);
     }
 
     /// <summary>Decision 16: days accrued in the current reference period, months within the dates up to today's.</summary>
     public static int LeaveDaysAccrued(LocalDate start, LocalDate? end, LocalDate today)
     {
         var from = new YearMonth(today.Month >= 6 ? today.Year : today.Year - 1, 6);
-        var months = 0;
+        var months = 0m;
         for (var m = from; m.CompareTo(today.ToYearMonth()) <= 0; m = m.PlusMonths(1))
-            if (Overlaps(m, start, end)) months++;
+            months += CareShare(m, start, end);
         return PaidLeave.Accrued(months);
     }
 
@@ -72,6 +72,17 @@ public static class StatementContext
     /// <summary>#30: the mean of the three latest validated months' contributions left to the household, to the cent; 0 without any.</summary>
     public static decimal ContributionsEstimate(IReadOnlyList<(YearMonth Month, decimal Contributions)> validated)
         => validated.Count == 0 ? 0m : Mensualisation.Round(validated.OrderByDescending(v => v.Month).Take(3).Average(v => v.Contributions));
+
+    /// <summary>A month's weight in the leave count: 1 when the contract covers it, else its days over the 4 weeks that earn a month's leave, at most 1.</summary>
+    private static decimal CareShare(YearMonth month, LocalDate start, LocalDate? end)
+    {
+        if (!Overlaps(month, start, end)) return 0m;
+        var first = LocalDate.Max(month.OnDayOfMonth(1), start);
+        var length = month.Calendar.GetDaysInMonth(month.Year, month.Month);
+        var last = LocalDate.Min(month.OnDayOfMonth(length), end ?? LocalDate.MaxIsoValue);
+        var days = Period.DaysBetween(first, last) + 1;
+        return days == length ? 1m : Math.Min(1m, days / 28m);
+    }
 
     private static bool Overlaps(YearMonth month, LocalDate start, LocalDate? end)
         => month.OnDayOfMonth(1) <= (end ?? LocalDate.MaxIsoValue) && month.OnDayOfMonth(month.Calendar.GetDaysInMonth(month.Year, month.Month)) >= start;

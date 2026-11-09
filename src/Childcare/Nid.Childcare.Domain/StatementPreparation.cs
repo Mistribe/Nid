@@ -18,7 +18,7 @@ public static class StatementPreparation
             else if (holidays.Contains(day))
                 days.Add(new(day, true, false, null, null, false, AbsenceReason.Holiday));
             else
-                days.Add(new(day, true, true, slot.Arrival, slot.Departure, slot.Meal, null));
+                days.Add(new(day, true, true, slot.Arrival, slot.Departure, slot.Lunch, null, slot.Snack));
         }
         return days;
     }

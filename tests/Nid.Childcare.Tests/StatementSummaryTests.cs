@@ -50,7 +50,7 @@ public class StatementSummaryTests
         Assert.Empty(problems);
         var extra = days.Where(d => d.Present && !d.Planned).ToList();
         Assert.Equal(2, extra.Count);
-        Assert.All(extra, d => { Assert.Equal(IsoDayOfWeek.Friday, d.Date.DayOfWeek); Assert.False(d.Meal); });
+        Assert.All(extra, d => { Assert.Equal(IsoDayOfWeek.Friday, d.Date.DayOfWeek); Assert.False(d.Lunch); });
         Assert.Equal(200m, Total(days), 6);
     }
 

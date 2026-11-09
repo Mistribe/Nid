@@ -29,7 +29,7 @@ import '@/locales/childcare';
  */
 const stepFields = (many: boolean) => ({
   who: ['name', 'childId', 'carerName', 'carerPajemploi', 'carerApproval'],
-  rates: ['from', 'net', 'gross', 'overtimePct', 'upkeep', 'meal', ...(many ? [] : ['weekTypes.0.weeks'])],
+  rates: ['from', 'net', 'gross', 'overtimePct', 'upkeep', 'lunch', 'snack', ...(many ? [] : ['weekTypes.0.weeks'])],
   schedule: many ? ['weekTypes'] : ['weekTypes.0.days'],
   gaps: ['gaps'],
   owners: ['visibility', 'owners'],

@@ -54,7 +54,8 @@ public static class ChildcareCheck
         Positive(terms.GrossHourlyRate, "grossHourlyRate", zero: false);
         Positive(terms.OvertimeRate, "overtimePct", zero: true);
         Positive(terms.UpkeepPer9h, "upkeepPer9h", zero: true);
-        Positive(terms.MealPrice, "mealPrice", zero: true);
+        Positive(terms.LunchPrice, "lunchPrice", zero: true);
+        Positive(terms.SnackPrice, "snackPrice", zero: true);
         errors.AddRange(ContractCheck.WeekTypes(terms.WeekTypes).Select(p => new FieldError($"terms.{p.Field}", p.Code, Message(p.Code))));
         return errors;
     }
