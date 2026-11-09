@@ -10,6 +10,12 @@ export function defaultMode(units: readonly string[]): SeriesMode {
   return distinct.length === 2 && distinct.includes('percent') ? 'axes2' : 'base100';
 }
 
+/** The switch between base 100 and two axes only exists for two units, none a percent. */
+export const hasModeSwitch = (units: readonly string[]): boolean => {
+  const distinct = new Set(units);
+  return distinct.size === 2 && !distinct.has('percent');
+};
+
 /** `axes2`: the series of the first unit (in selection order) on the left axis, the other on the right. */
 export function axisOf(series: readonly SeriesPointsItem[], mode: SeriesMode): ('left' | 'right')[] {
   return series.map((s) => (mode === 'axes2' && s.unit !== series[0]?.unit ? 'right' : 'left'));
