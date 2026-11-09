@@ -12,11 +12,11 @@ public sealed class IrlSeries(IIrlStore store) : ISeriesContribution
 
     public string Module => "realestate";
 
-    public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
+    public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, IReadOnlyCollection<string> kinds, CancellationToken ct)
     {
         if (await PointsAsync(reader, scope, Key, null, null, ct) is not { Points.Count: > 0 } hit) return [];
         var info = hit.Info with { First = hit.Points[0].Date, Last = hit.Points[^1].Date };
-        return SeriesSearch.Matches(info, q) ? [info] : [];
+        return SeriesSearch.Matches(info, q, kinds) ? [info] : [];
     }
 
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)

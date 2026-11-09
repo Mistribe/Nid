@@ -11,8 +11,8 @@ public sealed class FxSeries(IFxRateStore rates) : ISeriesContribution
 
     public string Module => "core";
 
-    public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
-        => (await rates.QuotesAsync(ct)).Select(s => Info(s.Quote) with { First = s.First, Last = s.Last }).Where(i => SeriesSearch.Matches(i, q)).ToList();
+    public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, IReadOnlyCollection<string> kinds, CancellationToken ct)
+        => (await rates.QuotesAsync(ct)).Select(s => Info(s.Quote) with { First = s.First, Last = s.Last }).Where(i => SeriesSearch.Matches(i, q, kinds)).ToList();
 
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)
     {

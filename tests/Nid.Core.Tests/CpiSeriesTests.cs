@@ -63,12 +63,13 @@ public sealed class CpiSeriesTests
     [Fact]
     public async Task List_omits_series_without_points_and_matches_the_key()
     {
-        Assert.Empty(await new CpiSeries(new FakeCpiStore([])).ListAsync(Person, Scope, null, TestContext.Current.CancellationToken));
-        Assert.Empty(await Full().ListAsync(Person, Scope, "x", TestContext.Current.CancellationToken));
-        Assert.Equal(["cpi", "cpi:yoy"], (await Full().ListAsync(Person, Scope, "cpi", TestContext.Current.CancellationToken)).Select(i => i.Key));
-        Assert.Equal(["cpi:yoy"], (await Full().ListAsync(Person, Scope, "YOY", TestContext.Current.CancellationToken)).Select(i => i.Key));
+        Assert.Empty(await new CpiSeries(new FakeCpiStore([])).ListAsync(Person, Scope, null, [], TestContext.Current.CancellationToken));
+        Assert.Empty(await Full().ListAsync(Person, Scope, "x", [], TestContext.Current.CancellationToken));
+        Assert.Equal(["cpi", "cpi:yoy"], (await Full().ListAsync(Person, Scope, "cpi", [], TestContext.Current.CancellationToken)).Select(i => i.Key));
+        Assert.Equal(["cpi:yoy"], (await Full().ListAsync(Person, Scope, "YOY", [], TestContext.Current.CancellationToken)).Select(i => i.Key));
+        Assert.Equal(["cpi:yoy"], (await Full().ListAsync(Person, Scope, "loyer", [SeriesKinds.CpiYoy], TestContext.Current.CancellationToken)).Select(i => i.Key));
 
-        var listed = await Full().ListAsync(Person, Scope, null, TestContext.Current.CancellationToken);
+        var listed = await Full().ListAsync(Person, Scope, null, [], TestContext.Current.CancellationToken);
         Assert.Equal(["cpi", "cpi:yoy"], listed.Select(i => i.Key));
         Assert.Equal((D(2024, 9, 1), D(2025, 9, 1)), (listed[0].First!.Value, listed[0].Last!.Value));
         Assert.Equal((D(2025, 9, 1), D(2025, 9, 1)), (listed[1].First!.Value, listed[1].Last!.Value));

@@ -49,14 +49,11 @@ public sealed class ListSeriesHandler(IEnumerable<ISeriesContribution> contribut
     {
         var reader = actor.Current!.PersonId!.Value;
         var all = new List<(string Module, SeriesInfo Info)>();
-        // A kind can match what the search does not: ask the contributions for everything, then filter here.
-        var byKind = query.Kinds is { Count: > 0 } kinds && !string.IsNullOrWhiteSpace(query.Search);
         foreach (var contribution in contributions)
         {
             try
             {
-                all.AddRange((await contribution.ListAsync(reader, query.Scope, byKind ? null : query.Search, ct))
-                    .Where(i => !byKind || SeriesSearch.Matches(i, query.Search) || query.Kinds!.Contains(i.Kind)).Select(i => (contribution.Module, i)));
+                all.AddRange((await contribution.ListAsync(reader, query.Scope, query.Search, query.Kinds ?? [], ct)).Select(i => (contribution.Module, i)));
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

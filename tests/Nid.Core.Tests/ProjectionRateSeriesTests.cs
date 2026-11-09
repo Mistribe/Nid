@@ -98,13 +98,15 @@ public sealed class ProjectionRateSeriesTests
     [Fact]
     public async Task The_nine_series_match_their_key_or_class()
     {
-        var all = await Series().ListAsync(Person, VisibilityScope.Household, null, Ct);
+        var all = await Series().ListAsync(Person, VisibilityScope.Household, null, [], Ct);
 
         Assert.Equal(9, all.Count);
         Assert.All(all, i => Assert.Equal((new LocalDate(2025, 1, 1), new LocalDate(2035, 1, 1)), (i.First!.Value, i.Last!.Value)));
-        Assert.Equal(["projection:rate:equity"], (await Series().ListAsync(Person, VisibilityScope.Household, "equity", Ct)).Select(i => i.Key));
-        Assert.Equal(["projection:inflation"], (await Series().ListAsync(Person, VisibilityScope.Household, "inflation", Ct)).Select(i => i.Key));
-        Assert.Equal(9, (await Series().ListAsync(Person, VisibilityScope.Household, "projection", Ct)).Count);
-        Assert.Equal(9, (await Series().ListAsync(Person, VisibilityScope.Household, "  ", Ct)).Count);
+        Assert.Equal(["projection:rate:equity"], (await Series().ListAsync(Person, VisibilityScope.Household, "equity", [], Ct)).Select(i => i.Key));
+        Assert.Equal(["projection:inflation"], (await Series().ListAsync(Person, VisibilityScope.Household, "inflation", [], Ct)).Select(i => i.Key));
+        Assert.Equal(9, (await Series().ListAsync(Person, VisibilityScope.Household, "projection", [], Ct)).Count);
+        Assert.Equal(9, (await Series().ListAsync(Person, VisibilityScope.Household, "  ", [], Ct)).Count);
+        Assert.Equal(["projection:inflation"], (await Series().ListAsync(Person, VisibilityScope.Household, "zzz", [SeriesKinds.ProjectionInflation], Ct)).Select(i => i.Key));
+        Assert.Equal(8, (await Series().ListAsync(Person, VisibilityScope.Household, "zzz", [SeriesKinds.ProjectionRate], Ct)).Count);
     }
 }

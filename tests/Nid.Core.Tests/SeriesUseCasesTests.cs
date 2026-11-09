@@ -24,10 +24,10 @@ public sealed class SeriesUseCasesTests
     {
         public string Module => module;
 
-        public Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
+        public Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, IReadOnlyCollection<string> kinds, CancellationToken ct)
             => throws
                 ? throw new InvalidOperationException("boom")
-                : Task.FromResult<IReadOnlyList<SeriesInfo>>(owned.Select(o => o.Info).Where(i => SeriesSearch.Matches(i.Name, q)).ToList());
+                : Task.FromResult<IReadOnlyList<SeriesInfo>>(owned.Select(o => o.Info).Where(i => SeriesSearch.Matches(i, q, kinds)).ToList());
 
         public Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)
             => Task.FromResult(owned.FirstOrDefault(o => o.Info.Key == key) is { } hit
