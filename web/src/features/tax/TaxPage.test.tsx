@@ -181,6 +181,15 @@ describe('TaxPage', () => {
     expect(link).toHaveAttribute('href', expect.stringMatching(new RegExp(`^/childcare/c1\\?tab=summary&year=.*${loaded.year}`)));
   });
 
+  it('says how many childcare months are validated and how the rest of the year is counted', async () => {
+    const loaded = estimate();
+    loaded.notices = [{ code: 'childcare_projected', item: 'c1', name: 'Garde de Léa', amount: '900.00', monthsValidated: 7, monthsEstimated: 5 }];
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    await renderApp('/tax');
+
+    expect(await screen.findByText('Reste de l’année pour « Garde de Léa » : 900,00 € (mois validés : 7 ; mois estimés à leur moyenne : 5).')).toBeInTheDocument();
+  });
+
   it('offers the rate seen on the payslips and shows the status’s rate as the default', async () => {
     const loaded = estimate();
     loaded.observedRates = { [ADULT]: '22.85' };

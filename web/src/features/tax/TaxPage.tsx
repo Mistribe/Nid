@@ -228,7 +228,7 @@ function Notes({ estimate }: { estimate: TaxEstimate }) {
     ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !perWarningsInBlock(estimate.result).has(w))
       .map((w) => ({ text: t(w === 'per_over_ceiling' ? 'tax.warning.per_over_ceiling' : 'tax.warning.per_ceiling_estimated') })),
     ...estimate.notices.map((n) => ({
-      text: noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur)), childcare: n.code === 'childcare_from_statements' ? n.item : undefined,
+      text: noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur), n.monthsValidated, n.monthsEstimated), childcare: n.code === 'childcare_from_statements' ? n.item : undefined,
     })),
   ];
   if (!notes.length) return null;

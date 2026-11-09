@@ -52218,6 +52218,20 @@
           },
           "amount": {
             "type": "string"
+          },
+          "monthsValidated": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "monthsEstimated": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
           }
         }
       },

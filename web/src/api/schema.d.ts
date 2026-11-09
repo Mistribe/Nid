@@ -31833,6 +31833,10 @@ export interface components {
             item: string;
             name: string;
             amount: string;
+            /** Format: int32 */
+            monthsValidated?: null | number;
+            /** Format: int32 */
+            monthsEstimated?: null | number;
         };
         TaxPerView: {
             pooled: boolean;
