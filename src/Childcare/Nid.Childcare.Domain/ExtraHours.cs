@@ -12,12 +12,13 @@ public static class ExtraHours
     /// <summary><paramref name="days"/> covers every ISO week touching <paramref name="month"/>.</summary>
     public static (decimal Complementary, decimal Overtime) Compute(YearMonth month, IReadOnlyList<StatementDay> days, WeekPlan plan, ContractTerms? terms = null)
     {
+        var reasons = terms?.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid;
         decimal complementary = 0m, overtime = 0m;
         foreach (var week in days.GroupBy(d => d.Date.PlusDays(1 - (int)d.Date.DayOfWeek)))
         {
             if (Owner(week.Key.PlusDays(3), terms) != month) continue;
-            // The week's own plan, not a template's fixed hours: a paid absence stays planned, a deducted one and a gap week do not.
-            var planned = week.Where(d => d.Planned && d.Absence is not (AbsenceReason.CarerAbsent or AbsenceReason.ChildSick)).Sum(d => plan.HoursOn(d.Date));
+            // The week's own plan, not a template's fixed hours: a paid absence stays planned, an unpaid one and a gap week do not.
+            var planned = week.Where(d => d.Planned && !(d.Absence is { } r && reasons.Contains(r))).Sum(d => plan.HoursOn(d.Date));
             var actual = week.Where(d => d.Present).Sum(d => Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value));
             var extra = Math.Max(0m, actual - planned);
             var under = Math.Min(extra, Math.Max(0m, ChildcareRules.OvertimeThresholdHours - planned));

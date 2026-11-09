@@ -66,7 +66,8 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
             t.WeekTypes.Select(w => new WeekTypeView(w.Name, w.Weeks,
                 w.Schedule.Select(s => new WeekdaySlotView((int)s.Day, Time.Format(s.Arrival), Time.Format(s.Departure), s.Lunch, s.Snack)).ToList(),
                 Hours(Mensualisation.WeeklyHours(w.Schedule)))).ToList(),
-            t.ProgrammedWeeks, ChildcareMoneyView.Of(Mensualisation.BasePay(t.NetHourlyRate, annual), currency), Hours(annual / 12m), Mensualisation.NormalHours(annual));
+            t.ProgrammedWeeks, ChildcareMoneyView.Of(Mensualisation.BasePay(t.NetHourlyRate, annual), currency), Hours(annual / 12m), Mensualisation.NormalHours(annual),
+            (t.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid).Select(AbsenceCodes.Of).ToList());
     }
 
     private static string Hours(decimal hours) => hours.ToString("0.00", CultureInfo.InvariantCulture);

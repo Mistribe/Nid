@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Folded } from '@/components/form/Folded';
 import type { TermsValues } from './childcareSchema';
+import { ABSENCE_REASONS, reasonLabel } from './statementText';
 import '@/locales/childcare';
 
-type TextField = Exclude<keyof TermsValues, 'weekTypes' | 'lunchProvider' | 'snackProvider'>;
+type TextField = Exclude<keyof TermsValues, 'weekTypes' | 'lunchProvider' | 'snackProvider' | 'unpaid'>;
 type WithTerms = FieldValues & TermsValues;
 type Message = { message?: string } | undefined;
 
@@ -50,6 +52,19 @@ export function RateFields<T extends WithTerms>({ form, withFrom, fromLabel }: {
           {(c) => <Input inputMode="numeric" {...c} {...form.register('weekTypes.0.weeks' as Path<T>)} />}
         </Field>
       ) : null}
+      <Controller control={form.control} name={'unpaid' as Path<T>} render={({ field }) => (
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">{t('childcare_form.unpaid_absences')}</legend>
+          <p className="text-sm text-muted-foreground">{t('childcare_form.unpaid_absences_hint')}</p>
+          {ABSENCE_REASONS.map((reason) => (
+            <label key={reason} className="flex items-center gap-2 text-sm">
+              <Checkbox checked={(field.value as string[]).includes(reason)}
+                onCheckedChange={(on) => field.onChange(on === true ? [...(field.value as string[]), reason] : (field.value as string[]).filter((r) => r !== reason))} />
+              {reasonLabel(t, reason)}
+            </label>
+          ))}
+        </fieldset>
+      )} />
       <Folded label={t('childcare_form.rates_more')} hasError={Boolean(e.gross ?? e.overtimePct)}>
         {text('overtimePct', t('childcare_form.overtime'))}
         {text('gross', t('childcare_form.gross'))}

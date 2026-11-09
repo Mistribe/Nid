@@ -28,6 +28,7 @@ public sealed class TermsRow
     public decimal? SnackPrice { get; set; }
     public string LunchProvider { get; set; } = "nanny";
     public string SnackProvider { get; set; } = "nanny";
+    public string[] UnpaidAbsences { get; set; } = [];
 }
 
 public sealed class WeekTypeRow

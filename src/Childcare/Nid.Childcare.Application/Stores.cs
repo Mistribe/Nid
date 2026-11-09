@@ -12,7 +12,7 @@ public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName
 public sealed record Terms(
     ItemId ItemId, LocalDate From, LocalDate? To, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h,
     decimal? LunchPrice, IReadOnlyList<WeekType> WeekTypes,
-    decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny)
+    decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny, IReadOnlyList<AbsenceReason>? UnpaidAbsences = null)
 {
     public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
 }

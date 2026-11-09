@@ -15,7 +15,7 @@ export type WeekTypeRow = { name: string; weeks: string; days: DayRow[] };
 export type GapRow = { monday: string; weeks: string };
 
 export type TermsValues = {
-  from: string; net: string; gross: string; overtimePct: string; upkeep: string; lunch: string; snack: string; lunchProvider: MealProvider; snackProvider: MealProvider; weekTypes: WeekTypeRow[];
+  from: string; net: string; gross: string; overtimePct: string; upkeep: string; lunch: string; snack: string; lunchProvider: MealProvider; snackProvider: MealProvider; weekTypes: WeekTypeRow[]; unpaid: string[];
 };
 
 export type ChildcareValues = TermsValues & {
@@ -41,6 +41,7 @@ export const termsDefaults = (terms?: ChildcareTerms): TermsValues => ({
   lunchProvider: (terms?.lunchProvider ?? 'nanny') as MealProvider, snackProvider: (terms?.snackProvider ?? 'nanny') as MealProvider, weekTypes: terms
     ? terms.weekTypes.map((w) => ({ name: w.name, weeks: String(w.weeks), days: daysOf(w.schedule) }))
     : [{ name: DEFAULT_WEEK_TYPE, weeks: '46', days: daysOf() }],
+  unpaid: terms?.unpaidAbsences ?? ['child_sick', 'carer_absent'],
 });
 
 export const gapsDefaults = (detail?: ChildcareDetail): GapRow[] => (detail?.gaps ?? []).map((g) => ({ monday: g.monday, weeks: String(g.weeks) }));
@@ -83,7 +84,7 @@ function checkGaps(gaps: GapRow[], add: Add) {
 }
 
 const termsShape = {
-  from: z.string(), net: z.string(), gross: z.string(), overtimePct: z.string(), upkeep: z.string(), lunch: z.string(), snack: z.string(), lunchProvider: z.enum(['nanny', 'employer']), snackProvider: z.enum(['nanny', 'employer']),
+  from: z.string(), net: z.string(), gross: z.string(), overtimePct: z.string(), upkeep: z.string(), unpaid: z.array(z.string()), lunch: z.string(), snack: z.string(), lunchProvider: z.enum(['nanny', 'employer']), snackProvider: z.enum(['nanny', 'employer']),
   weekTypes: z.array(z.object({
     name: z.string(), weeks: z.string(),
     days: z.array(z.object({ day: z.number(), on: z.boolean(), arrival: z.string(), departure: z.string(), lunch: z.boolean(), snack: z.boolean() })),
@@ -133,7 +134,7 @@ export function termsToWire(v: TermsValues, from: string): TermsBody {
   return {
     from, netHourlyRate: toWireAmount(v.net), ...(v.gross.trim() ? { grossHourlyRate: toWireAmount(v.gross) } : {}),
     overtimePct: toWireAmount(v.overtimePct), upkeepPer9h: toWireAmount(v.upkeep), ...(v.lunch.trim() ? { lunchPrice: toWireAmount(v.lunch) } : {}),
-    ...(v.snack.trim() ? { snackPrice: toWireAmount(v.snack) } : {}), lunchProvider: v.lunchProvider, snackProvider: v.snackProvider,
+    ...(v.snack.trim() ? { snackPrice: toWireAmount(v.snack) } : {}), lunchProvider: v.lunchProvider, snackProvider: v.snackProvider, unpaidAbsences: v.unpaid,
     weekTypes: v.weekTypes.map((w) => ({
       name: w.name.trim() || DEFAULT_WEEK_TYPE, weeks: Number(w.weeks),
       schedule: w.days.filter((d) => d.on).map((d) => ({ day: d.day, arrival: d.arrival, departure: d.departure, lunch: d.lunch, snack: d.snack })),
@@ -159,7 +160,7 @@ export function childcarePath(path: string, weekTypes: WeekTypeRow[]): Path<Chil
   const top: Record<string, Path<ChildcareValues>> = {
     name: 'name', childId: 'childId', 'carer.name': 'carerName', 'carer.pajemploi': 'carerPajemploi', 'carer.approval': 'carerApproval',
     'terms.from': 'from', 'terms.netHourlyRate': 'net', 'terms.grossHourlyRate': 'gross', 'terms.overtimePct': 'overtimePct',
-    'terms.upkeepPer9h': 'upkeep', 'terms.lunchPrice': 'lunch', 'terms.snackPrice': 'snack', 'terms.weekTypes': 'weekTypes', weekTypes: 'weekTypes', gaps: 'gaps',
+    'terms.upkeepPer9h': 'upkeep', 'terms.lunchPrice': 'lunch', 'terms.snackPrice': 'snack', 'terms.unpaidAbsences': 'unpaid', 'terms.weekTypes': 'weekTypes', weekTypes: 'weekTypes', gaps: 'gaps',
   };
   if (Object.hasOwn(top, path)) return top[path];
   if (path.startsWith('weekOverrides')) return 'weekTypes';

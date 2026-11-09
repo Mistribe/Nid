@@ -2,8 +2,8 @@ using NodaTime;
 
 namespace Nid.Childcare.Contracts;
 
-/// <summary>Childcare spec §2: why a planned day was not worked; decides whether the salary is deducted.</summary>
-public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday }
+/// <summary>Childcare spec §2: why a planned day was not worked; the contract decides which reasons are not paid.</summary>
+public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday, PaidLeave }
 
 /// <summary>Who provides a meal, set per meal in the contract terms: only the nanny's are paid.</summary>
 public enum MealProvider { Nanny, Employer }
@@ -22,7 +22,8 @@ public sealed record CareGap(LocalDate Monday, int Weeks);
 
 /// <summary>The contract's figures the month needs (spec §2), all in net.</summary>
 public sealed record ContractTerms(LocalDate Start, LocalDate? End, decimal NetHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? LunchPrice,
-    decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny);
+    decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny,
+    IReadOnlyList<AbsenceReason>? UnpaidAbsences = null);
 
 /// <summary>One calendar day of a statement. <c>Planned</c>: in the template and not in a gap.</summary>
 public sealed record StatementDay(LocalDate Date, bool Planned, bool Present, LocalTime? Arrival, LocalTime? Departure, bool Lunch, AbsenceReason? Absence, bool Snack = false);
@@ -61,10 +62,13 @@ public static class MealProviderCodes
 /// <summary>The snake_case names of <see cref="AbsenceReason"/>, on the wire and in the database.</summary>
 public static class AbsenceCodes
 {
+    /// <summary>The reasons a contract does not pay unless it says otherwise.</summary>
+    public static readonly IReadOnlyList<AbsenceReason> DefaultUnpaid = [AbsenceReason.ChildSick, AbsenceReason.CarerAbsent];
+
     private static readonly Dictionary<AbsenceReason, string> Names = new()
     {
         [AbsenceReason.Family] = "family", [AbsenceReason.ParentRtt] = "parent_rtt", [AbsenceReason.ChildSick] = "child_sick",
-        [AbsenceReason.CarerAbsent] = "carer_absent", [AbsenceReason.Holiday] = "holiday",
+        [AbsenceReason.CarerAbsent] = "carer_absent", [AbsenceReason.Holiday] = "holiday", [AbsenceReason.PaidLeave] = "paid_leave",
     };
 
     public static string Of(AbsenceReason reason) => Names[reason];

@@ -74,6 +74,10 @@ public sealed record TermsRecord
 
     public string? SnackProvider { get; set; }
 
+    /// <summary>The absence reasons deducted from the salary; absent for the default ones (child_sick and carer_absent).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? UnpaidAbsences { get; set; }
+
     /// <summary>The old form, one template week: read, never written. Either it and <c>schedule</c>, or <c>week_types</c>.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? ProgrammedWeeks { get; set; }

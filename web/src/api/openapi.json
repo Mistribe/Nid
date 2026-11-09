@@ -29996,7 +29996,8 @@
           "programmedWeeks",
           "monthlyBasePay",
           "monthlyHours",
-          "normalHours"
+          "normalHours",
+          "unpaidAbsences"
         ],
         "type": "object",
         "properties": {
@@ -30063,6 +30064,12 @@
           "normalHours": {
             "type": "integer",
             "format": "int32"
+          },
+          "unpaidAbsences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -52886,6 +52893,15 @@
               "null",
               "string"
             ]
+          },
+          "unpaidAbsences": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

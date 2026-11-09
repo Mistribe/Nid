@@ -27,6 +27,14 @@ public class AbsenceDeductionTests
         => Assert.Equal((36.85m, 1, 1), AbsenceDeduction.Compute(BasePay, November((5, AbsenceReason.ChildSick), (6, AbsenceReason.ChildSick)), Plan, 4));
 
     [Fact]
+    public void Paid_leave_is_paid_by_default()
+        => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.PaidLeave)), Plan, 0));
+
+    [Fact]
+    public void The_contract_decides_which_reasons_are_unpaid()
+        => Assert.Equal((36.85m, 1, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.Family), (5, AbsenceReason.ChildSick)), Plan, 0, [AbsenceReason.Family]));
+
+    [Fact]
     public void Rtt_and_family_are_paid()
         => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((9, AbsenceReason.ParentRtt), (10, AbsenceReason.Family)), Plan, 0));
 

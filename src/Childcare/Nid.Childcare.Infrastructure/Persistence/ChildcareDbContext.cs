@@ -60,6 +60,7 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.Property(x => x.SnackPrice).HasColumnType("numeric(19,4)");
             e.Property(x => x.LunchProvider).HasMaxLength(8).HasDefaultValue("nanny");
             e.Property(x => x.SnackProvider).HasMaxLength(8).HasDefaultValue("nanny");
+            e.Property(x => x.UnpaidAbsences).HasColumnType("text[]").HasDefaultValueSql("'{child_sick,carer_absent}'");
             e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -123,7 +124,7 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
         {
             e.ToTable("statement_day", t =>
             {
-                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday')");
+                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave')");
                 t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
             });
             e.HasKey(x => new { x.ItemId, x.Date });

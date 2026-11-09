@@ -28,6 +28,7 @@ import { EditChildcareDialog, EndDialog, GapsDialog, ReviseDialog } from './Chil
 import { dayName } from './childcareSchema';
 import { monthTitle, stateLabel } from './statementText';
 import { YearSummary } from './YearSummary';
+import { reasonLabel } from './statementText';
 import '@/locales/childcare';
 import '@/locales/forms';
 import { PageSkeleton } from '@/components/page/skeletons';
@@ -128,6 +129,7 @@ function Planning({ detail, terms }: { detail: ChildcareDetail; terms: Childcare
         { label: t('childcare_form.lunch_price'), value: mealText(terms.lunchPrice, terms.lunchProvider) },
         { label: t('childcare_form.snack_price'), value: mealText(terms.snackPrice, terms.snackProvider) },
         { label: t('childcare_form.overtime'), value: terms.overtimePct.replace('.', ',') },
+        { label: t('childcare_form.unpaid_absences'), value: terms.unpaidAbsences.map((r) => reasonLabel(t, r)).join(', ') || t('childcare_detail.dash') },
         { label: t('childcare_detail.since'), value: <LocalDate value={terms.from} style="short" /> },
       ]} />
       {terms.weekTypes.map((w) => (
