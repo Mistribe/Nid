@@ -42,6 +42,15 @@ public sealed partial class PropertyStore(RealEstateDbContext db) : IPropertySto
     public async Task<StoredProperty?> FindAsync(ItemId item, CancellationToken ct)
         => (await FindManyAsync([item], ct)).SingleOrDefault();
 
+    public async Task<IReadOnlyList<ItemId>> WithTenancyLabelAsync(IReadOnlyCollection<ItemId> items, string labelContains, CancellationToken ct)
+    {
+        var ids = items.Select(i => i.Value).ToList();
+        var pattern = LikePattern.Contains(labelContains);
+        var found = await db.Tenancies.AsNoTracking().Where(t => ids.Contains(t.PropertyItemId) && EF.Functions.ILike(t.Label, pattern, @"\"))
+            .Select(t => t.PropertyItemId).Distinct().ToListAsync(ct);
+        return found.Select(i => new ItemId(i)).ToList();
+    }
+
     public async Task<IReadOnlyList<StoredProperty>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
     {
         var ids = items.Select(i => i.Value).ToList();

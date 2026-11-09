@@ -136,6 +136,9 @@ public interface IPropertyStore
 
     Task<IReadOnlyList<StoredProperty>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
 
+    /// <summary>Those of <paramref name="items"/> that have a tenancy whose label contains the text (case-insensitive, literal).</summary>
+    Task<IReadOnlyList<ItemId>> WithTenancyLabelAsync(IReadOnlyCollection<ItemId> items, string labelContains, CancellationToken ct);
+
     /// <summary>Locks the property's row until the transaction ends: a PATCH compares its version with what is now stored (precision 4).</summary>
     Task LockAsync(ItemId item, CancellationToken ct);
 

@@ -105,4 +105,15 @@ public class TenancySeriesTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=tenancy:{other}:{last}:rent", HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task A_lease_is_found_by_its_own_label_literally()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (id, _, last) = await NewAsync(app);
+
+        Assert.Equal([$"tenancy:{id}:{last}:rent"], Keys(await GetAsync(app, app.AdultB, "/api/v1/series?q=t2")).Where(k => k.StartsWith("tenancy:")));
+        Assert.DoesNotContain(Keys(await GetAsync(app, app.AdultB, "/api/v1/series?q=t3")), k => k.StartsWith("tenancy:"));
+        Assert.DoesNotContain(Keys(await GetAsync(app, app.AdultB, "/api/v1/series?q=%25")), k => k.StartsWith("tenancy:"));
+    }
 }

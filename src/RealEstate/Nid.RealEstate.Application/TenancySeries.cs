@@ -16,11 +16,14 @@ public sealed class TenancySeries(IVisibleItems visible, IItemRegistry items, IA
     public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, IReadOnlyCollection<string> kinds, CancellationToken ct)
     {
         var ids = await visible.ForAsync(reader, scope, ct);
-        var found = await items.SearchAsync(ids, Module, "property", SeriesSearch.NameFilter(q, kinds, SeriesKinds.TenancyRent, "tenancy", "rent"), ct);
+        var filter = SeriesSearch.NameFilter(q, kinds, SeriesKinds.TenancyRent, "tenancy", "rent");
+        // The series is named « property · lease label »: a property matches by its name or by one of its leases' labels, both in SQL.
+        IReadOnlyCollection<ItemId> matching = filter is null ? ids : (await items.SearchAsync(ids, Module, "property", filter, ct)).Select(p => p.Id).Union(await properties.WithTenancyLabelAsync(ids, filter, ct)).ToList();
+        var found = await items.SearchAsync(matching, Module, "property", null, ct);
         var stored = await properties.FindManyAsync(found.Select(p => p.Id).ToList(), ct);
         var byId = found.ToDictionary(p => p.Id);
-        return stored.Where(p => byId.ContainsKey(p.ItemId))
-            .SelectMany(p => RentRevisions.LastLinks(p).Select(last => Info(byId[p.ItemId], last)))
+        return stored.SelectMany(p => RentRevisions.LastLinks(p).Select(last => Info(byId[p.ItemId], last)))
+            .Where(i => filter is null || SeriesSearch.Matches(i.Name, filter))
             .ToList();
     }
 
@@ -39,8 +42,7 @@ public sealed class TenancySeries(IVisibleItems visible, IItemRegistry items, IA
         // A tenancy of another property is not found here, whatever the property's access says.
         if (property.Tenancies.FirstOrDefault(s => s.Id == tenancyId) is not { } link) return null;
         var chain = RentRevisions.Chain(property, link);
-        var points = chain.Select(l => new SeriesPoint(l.Tenancy.StartsOn, l.Tenancy.RentMonthly))
-            .Where(c => (from is null || c.Date >= from) && (to is null || c.Date <= to)).OrderBy(c => c.Date).ToList();
+        var points = SeriesWindow.Within(chain.Select(l => new SeriesPoint(l.Tenancy.StartsOn, l.Tenancy.RentMonthly)), from, to);
         return new SeriesPoints(Info(item, chain[^1]), points);
     }
 
