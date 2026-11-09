@@ -711,11 +711,14 @@ public static class RealEstateEndpoints
         string? OtherAcquisitionCosts, string? SurfaceM2, bool ClearSurfaceM2, string? LocationLabel, bool ClearLocationLabel,
         string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays, string? RentalStartsOn, bool ClearRentalStartsOn,
         string? Note, bool ClearNote, string? EnergyClass = null, bool ClearEnergyClass = false, string? PostalAddress = null,
-        bool ClearPostalAddress = false)
+        bool ClearPostalAddress = false, string? Visibility = null, string? ShareLevel = null, IReadOnlyList<OwnerBody>? Owners = null)
     {
         internal EditPropertyCommand? ToCommand(ItemId id, FieldReader reader)
         {
             var version = RequireVersion(reader, Version);
+            // #70: the sharing and the owners, each omitted kept.
+            var visibility = Visibility is null ? null : reader.Visibility(Visibility, "visibility");
+            var level = ShareLevel is null ? null : reader.ShareLevel(ShareLevel, "shareLevel");
             var change = new PropertyChange(
                 PropertyBodies.Wire<PropertyType>(reader, Type, "type", required: false),
                 reader.Date(PurchaseDate, "purchaseDate", required: false),
@@ -729,7 +732,10 @@ public static class RealEstateEndpoints
                 StaleAfterDays, ClearStaleAfterDays,
                 reader.Date(RentalStartsOn, "rentalStartsOn", required: false), ClearRentalStartsOn,
                 Note, ClearNote, EnergyClass, ClearEnergyClass, PostalAddress?.Trim(), ClearPostalAddress);
-            return reader.Ok ? new EditPropertyCommand(id, Name, change, version!.Value) : null;
+            return reader.Ok
+                ? new EditPropertyCommand(id, Name, change, version!.Value, visibility, level,
+                    Owners?.Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList())
+                : null;
         }
     }
 

@@ -40,8 +40,12 @@ public sealed record PropertyChange(
         ClearEnergyClass ? null : EnergyClass ?? d.EnergyClass, ClearPostalAddress ? null : PostalAddress ?? d.PostalAddress);
 }
 
-/// <summary>Spec 3C1 §4: the <paramref name="Version"/> read, and only what changes; the name is the Core item's.</summary>
-public sealed record EditPropertyCommand(ItemId ItemId, string? Name, PropertyChange Change, uint Version) : ICommand<ItemId>, IItemScoped
+/// <summary>
+/// Spec 3C1 §4: the <paramref name="Version"/> read, and only what changes; the name is the Core item's. #70: <paramref name="Visibility"/>,
+/// <paramref name="ShareLevel"/> and <paramref name="Owners"/> null keep the property's.
+/// </summary>
+public sealed record EditPropertyCommand(ItemId ItemId, string? Name, PropertyChange Change, uint Version,
+    Visibility? Visibility = null, ShareLevel? ShareLevel = null, IReadOnlyList<OwnerShare>? Owners = null) : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -79,7 +83,7 @@ public sealed class ListPropertiesHandler(
 [RequestHandler<GetPropertyQuery, PropertyDetail>]
 public sealed class GetPropertyHandler(
     IPropertyStore properties, IItemRegistry items, PropertyReading reading, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
-    IIrlStore irl, IInflation inflation)
+    IIrlStore irl, IInflation inflation, IItemRules rules)
     : IRequestHandler<GetPropertyQuery, PropertyDetail>
 {
     public async ValueTask<Result<PropertyDetail>> HandleAsync(GetPropertyQuery query, CancellationToken ct = default)
@@ -95,7 +99,8 @@ public sealed class GetPropertyHandler(
             return Result.Failure<PropertyDetail>(failure!);
         read.TryGetValue(out var r);
         var canWrite = (await policy.CheckAsync(person, query.ItemId, AccessKind.Write, ct)).IsSuccess;
-        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, today, await irl.ListAsync(ct), await inflation.ReadAsync(ct)));
+        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, canWrite && rules.CanCreate(person, found.Item.Owners), today,
+            await irl.ListAsync(ct), await inflation.ReadAsync(ct)));
     }
 }
 
@@ -121,7 +126,9 @@ public sealed class CreatePropertyHandler(IItemRegistry items, IPropertyStore pr
 }
 
 [RequestHandler<EditPropertyCommand, ItemId>]
-public sealed class EditPropertyHandler(IItemRegistry items, IPropertyStore properties, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+public sealed class EditPropertyHandler(
+    IItemRegistry items, IPropertyStore properties, IHouseholdCalendar calendar, IUnitOfWork unitOfWork, IItemRules rules, IActorAccessor actor,
+    IPersonRegistry persons)
     : IRequestHandler<EditPropertyCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditPropertyCommand command, CancellationToken ct = default)
@@ -148,15 +155,14 @@ public sealed class EditPropertyHandler(IItemRegistry items, IPropertyStore prop
         if (found.Property.Tenancies.Count > 0 && details.PurchaseDate > found.Property.Tenancies.Min(t => t.Tenancy.StartsOn))
             return Result.Failure<ItemId>(PropertyRules.Invalid("purchaseDate", "A tenancy of this property starts before this purchase date."));
 
-        // The name is the Core item's: renamed as a loan is, visibility and owners kept.
+        // The name, the sharing and the owners are the Core item's (#70).
         var item = found.Item;
-        if (command.Name is { } name && name != item.DisplayName)
-        {
-            var renamed = await items.ReplaceAsync(command.ItemId, name, item.Visibility,
-                item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
-            if (renamed.TryGetFailure(out failure))
-                return Result.Failure<ItemId>(failure!);
-        }
+        var target = OwnershipEdit.Of(item, command.Visibility, command.ShareLevel, command.Owners);
+        if (await OwnershipEdit.RefusalAsync(rules, persons, actor.Current!.PersonId!.Value, item, target, "property", ct) is { } refusedOwnership)
+            return Result.Failure<ItemId>(refusedOwnership);
+        var replaced = await OwnershipEdit.ReplaceAsync(items, item, command.Name ?? item.DisplayName, target, ct);
+        if (replaced.TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
 
         await properties.UpdateAsync(command.ItemId, details, ct);
         await transaction.CommitAsync(ct);

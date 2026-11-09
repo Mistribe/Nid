@@ -33214,6 +33214,27 @@
           "clearPostalAddress": {
             "type": "boolean",
             "default": false
+          },
+          "visibility": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owners": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/OwnerBody"
+            }
           }
         }
       },
@@ -44448,7 +44469,9 @@
           "recurringCosts",
           "tenancies",
           "loans",
-          "canWrite"
+          "canWrite",
+          "shareLevel",
+          "canChangeOwners"
         ],
         "type": "object",
         "properties": {
@@ -44587,6 +44610,12 @@
             }
           },
           "canWrite": {
+            "type": "boolean"
+          },
+          "shareLevel": {
+            "type": "string"
+          },
+          "canChangeOwners": {
             "type": "boolean"
           }
         }

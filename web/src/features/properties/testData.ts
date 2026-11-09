@@ -43,7 +43,7 @@ export const propertyDetail = (over: Partial<PropertyDetail> = {}): PropertyDeta
   ],
   recurringCosts: [], tenancies: [],
   loans: [{ id: LOAN, name: 'Prêt maison', currency: 'EUR', balance: '193564.23', balanceConverted: '193564.23' }],
-  canWrite: true, ...over,
+  canWrite: true, shareLevel: 'view', canChangeOwners: false, ...over,
 });
 
 /**

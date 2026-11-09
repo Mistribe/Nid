@@ -1,6 +1,8 @@
 import type { TFunction } from 'i18next';
+import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
+import { checkEditOwnership, editOwnershipShape, ownershipChange, ownershipDefaults, ownershipPath } from '@/components/ownership/ownership';
 import { toFieldAmount, toWireAmount } from '@/lib/amount';
 import type { PropertyDetail } from '@/api/properties';
 import { propertyFieldPath, propertyFieldsSchema } from '../new/propertyForm';
@@ -10,17 +12,23 @@ export type EditBody = Partial<components['schemas']['EditPropertyBody']>;
 
 const AMOUNTS = ['purchasePrice', 'notaryFees', 'agencyFees', 'otherAcquisitionCosts'] as const;
 
-/** The settings' fields (3D2 design §5): the property's own, and its rental start — empty, or a date from the date input. */
+/**
+ * The settings' fields (3D2 design §5): the property's own, and its rental start — empty, or a date from the date input; #70: its
+ * visibility, sharing level and owners, for its owners only.
+ */
 export function settingsSchema(t: TFunction) {
   // The energy class (DPE) is a letter A to G, or empty when unknown.
-  return propertyFieldsSchema(t).extend({ rentalStartsOn: z.string(), energyClass: z.string(), postalAddress: z.string().max(400, t('property_form.postal_address_max')) });
+  return propertyFieldsSchema(t).extend({
+    rentalStartsOn: z.string(), energyClass: z.string(), postalAddress: z.string().max(400, t('property_form.postal_address_max')),
+    ...editOwnershipShape(t),
+  }).superRefine((v, ctx) => checkEditOwnership(v, ctx, t));
 }
 
 export type SettingsValues = z.infer<ReturnType<typeof settingsSchema>>;
 
 /** A server path to the field that owns it: the rental start (refused before the purchase), or one of the property's fields. */
-export function settingsPath(path: string): keyof SettingsValues | undefined {
-  return path === 'rentalStartsOn' || path === 'energyClass' || path === 'postalAddress' ? path : propertyFieldPath(path);
+export function settingsPath(path: string): Path<SettingsValues> | undefined {
+  return path === 'rentalStartsOn' || path === 'energyClass' || path === 'postalAddress' ? path : propertyFieldPath(path) ?? ownershipPath(path);
 }
 
 /** The form's values for a property as the server wrote it: amounts as their strings, an absent optional field empty. */
@@ -33,6 +41,8 @@ export function settingsValuesOf(p: PropertyDetail): SettingsValues {
     locationLabel: p.locationLabel ?? '', valuationCadence: p.valuationCadence as SettingsValues['valuationCadence'],
     staleAfterDays: p.staleAfterDays == null ? '' : String(p.staleAfterDays), rentalStartsOn: p.rentalStartsOn ?? '', note: p.note ?? '', energyClass: p.energyClass ?? '',
     postalAddress: p.postalAddress ?? '',
+    // #70: shown, and so sent, to its owners only.
+    ...(p.canChangeOwners ? ownershipDefaults(p) : {}),
   };
 }
 
@@ -59,6 +69,7 @@ export function toEditBody(before: PropertyDetail, v: SettingsValues): EditBody 
   const address = v.postalAddress.trim();
   if (address !== was.postalAddress.trim()) { if (address === '') body.clearPostalAddress = true; else body.postalAddress = address; }
   if (v.note.trim() !== was.note.trim()) { if (v.note.trim() === '') body.clearNote = true; else body.note = v.note; }
+  Object.assign(body, ownershipChange(before, v));
   return Object.keys(body).length === 0 ? null : body;
 }
 
