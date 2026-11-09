@@ -26832,6 +26832,7 @@ export interface components {
             monthlyHours: string;
             /** Format: int32 */
             normalHours: number;
+            unpaidAbsences: string[];
         };
         ChildcareYearView: {
             /** Format: uuid */
@@ -32002,6 +32003,7 @@ export interface components {
             snackPrice?: null | string;
             lunchProvider?: null | string;
             snackProvider?: null | string;
+            unpaidAbsences?: null | string[];
         };
         TestChannelBody: {
             channel?: null | string;

@@ -12,11 +12,12 @@ public sealed record CarerInput(string Name, string? Pajemploi, string? Approval
 
 public sealed record TermsInput(
     LocalDate From, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? LunchPrice,
-    IReadOnlyList<WeekType> WeekTypes, decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny)
+    IReadOnlyList<WeekType> WeekTypes, decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny,
+    IReadOnlyList<AbsenceReason>? UnpaidAbsences = null)
 {
     /// <summary>Week type names are stored trimmed.</summary>
     public Terms For(ItemId id)
-        => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, LunchPrice, [.. WeekTypes.Select(w => w with { Name = w.Name.Trim() })], SnackPrice, LunchProvider, SnackProvider);
+        => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, LunchPrice, [.. WeekTypes.Select(w => w with { Name = w.Name.Trim() })], SnackPrice, LunchProvider, SnackProvider, UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid);
 
     public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
 }
@@ -101,7 +102,7 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         if (arrangement.Version != command.Version)
             return Result.Failure<ItemId>(new Failure(ChildcareCodes.Conflict, "The arrangement changed since it was read.", null));
 
-        var terms = command.Terms with { From = revisions[^1].From }; // a correction keeps the revision's start
+        var terms = command.Terms with { From = revisions[^1].From, UnpaidAbsences = command.Terms.UnpaidAbsences ?? revisions[^1].UnpaidAbsences }; // a correction keeps the revision's start, and its absences when not given
         var errors = ChildcareCheck.Name(command.Name);
         errors.AddRange(ChildcareCheck.Carer(command.Carer));
         errors.AddRange(ChildcareCheck.Terms(terms));
@@ -146,6 +147,7 @@ public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore 
         var (_, item, revisions) = found;
         if (ChildcareCheck.RequireOpen(item).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
+        var kept = command.Terms with { UnpaidAbsences = command.Terms.UnpaidAbsences ?? revisions[^1].UnpaidAbsences };
         var errors = ChildcareCheck.Terms(command.Terms);
         if (command.Terms.From <= revisions[^1].From)
             errors.Add(new("terms.from", ChildcareCodes.RevisionNotAfter, "A revision starts after the current terms' start."));
@@ -153,13 +155,13 @@ public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore 
         {
             errors.AddRange(ChildcareCheck.Gaps(revisions[0].From, command.Terms.ProgrammedWeeks, (await store.GapsOfAsync([command.ItemId], ct)).Select(g => g.Gap).ToList(), command.Terms.From));
             errors.AddRange(ChildcareCheck.Overrides((await store.OverridesOfAsync([command.ItemId], ct)).Select(o => o.Override).ToList(),
-                [.. revisions, command.Terms.For(command.ItemId)]));
+                [.. revisions, kept.For(command.ItemId)]));
         }
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        await store.AddTermsAsync(command.Terms.For(command.ItemId), ct);
+        await store.AddTermsAsync(kept.For(command.ItemId), ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }

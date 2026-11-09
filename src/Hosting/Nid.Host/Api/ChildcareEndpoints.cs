@@ -177,7 +177,7 @@ public static class ChildcareEndpoints
                 var departure = present ? reader.Time(day!.Departure, $"days[{i}].departure") : null;
                 AbsenceReason? absence = null;
                 if (day?.Absence is { } name && (absence = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent or holiday.");
+                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
                 if (date is { } d) days.Add(new DayInput(d, present, arrival, departure, day?.Lunch ?? false, absence, day?.Snack ?? false));
             }
             var mileage = reader.Decimal(Mileage, "mileage") ?? 0m;
@@ -192,7 +192,7 @@ public static class ChildcareEndpoints
             {
                 AbsenceReason? reason = null;
                 if (s.Absence is { } name && (reason = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent or holiday.");
+                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
                 if (s.CareDays is null) reader.Add("summary.careDays", "request.required", "The care days are required.");
                 var hours = reader.Decimal(s.Hours, "summary.hours");
                 if (hours is null) reader.Add("summary.hours", "request.required", "The hours are required.");
@@ -213,7 +213,7 @@ public static class ChildcareEndpoints
     /// <summary>Rates as decimal strings; <c>overtimePct</c> in percent (10 = 10 %).</summary>
     public sealed record TermsBody(
         string? From, string? NetHourlyRate, string? GrossHourlyRate, string? OvertimePct, string? UpkeepPer9h, string? LunchPrice,
-        IReadOnlyList<WeekTypeBody>? WeekTypes, string? SnackPrice = null, string? LunchProvider = null, string? SnackProvider = null);
+        IReadOnlyList<WeekTypeBody>? WeekTypes, string? SnackPrice = null, string? LunchProvider = null, string? SnackProvider = null, IReadOnlyList<string>? UnpaidAbsences = null);
 
     /// <summary>A named weekly pattern and the number of weeks of the contract year it covers.</summary>
     public sealed record WeekTypeBody(string? Name, int? Weeks, IReadOnlyList<WeekdaySlotBody>? Schedule);
@@ -322,7 +322,10 @@ public static class ChildcareEndpoints
                 }
                 if (type?.Name is { } name && type.Weeks is { } weeks) types.Add(new WeekType(name, weeks, schedule));
             }
-            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, lunch, types, snack, lunchProvider, snackProvider) : null;
+            var unpaid = body.UnpaidAbsences?.Select(AbsenceCodes.TryParse).ToList();
+            if (unpaid?.Any(u => u is null) == true)
+                reader.Add("terms.unpaidAbsences", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
+            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, lunch, types, snack, lunchProvider, snackProvider, unpaid?.OfType<AbsenceReason>().Distinct().ToList()) : null;
         }
 
         public static IReadOnlyList<CareGap> Gaps(FieldReader reader, IReadOnlyList<CareGapBody>? body)

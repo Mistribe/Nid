@@ -36,7 +36,7 @@ public sealed record WeekTypeView(string Name, int Weeks, IReadOnlyList<WeekdayS
 /// </summary>
 public sealed record ChildcareTermsView(
     LocalDate From, LocalDate? To, string NetHourlyRate, string? GrossHourlyRate, string OvertimePct, string UpkeepPer9h, string? LunchPrice, string? SnackPrice, string LunchProvider, string SnackProvider,
-    IReadOnlyList<WeekTypeView> WeekTypes, int ProgrammedWeeks, ChildcareMoneyView MonthlyBasePay, string MonthlyHours, int NormalHours);
+    IReadOnlyList<WeekTypeView> WeekTypes, int ProgrammedWeeks, ChildcareMoneyView MonthlyBasePay, string MonthlyHours, int NormalHours, IReadOnlyList<string> UnpaidAbsences);
 
 public sealed record CareGapView(LocalDate Monday, int Weeks, LocalDate Sunday);
 

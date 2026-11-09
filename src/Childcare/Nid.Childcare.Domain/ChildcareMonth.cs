@@ -33,7 +33,7 @@ public static class ChildcareMonth
         var partial = templateDaysInContract < templateDays;
         var basePay = partial ? Mensualisation.Round(fullPay * templateDaysInContract / templateDays) : fullPay;
 
-        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Plan, input.ChildSickUsedBefore);
+        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences);
         var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan, input.Terms);
         var complementary = input.Declared?.ComplementaryHours ?? computedComplementary;
         var overtime = input.Declared?.OvertimeHours ?? computedOvertime;

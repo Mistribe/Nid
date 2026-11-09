@@ -22,6 +22,17 @@ public class ExtraHoursTests
         Assert.Equal((1m, 0m), ExtraHours.Compute(month, all, Plan, terms));
     }
 
+    /// <summary>A sick-child day the contract pays stays planned: hours made up that week are no extra hours.</summary>
+    [Fact]
+    public void A_paid_reason_stays_planned()
+    {
+        var month = new YearMonth(2026, 11);
+        var days = AbsenceDeductionTests.Absent(Around(month).Where(d => d.Date.Month == 11).ToList(), (2, AbsenceReason.ChildSick))
+            .Select(d => d.Date.Day == 3 ? d with { Departure = d.Departure!.Value.PlusHours(1) } : d).ToList();
+
+        Assert.Equal((0m, 0m), ExtraHours.Compute(month, days, Plan, Terms with { UnpaidAbsences = [] }));
+    }
+
     private static IReadOnlyList<StatementDay> Around(YearMonth month)
         => [.. StatementPreparation.Prepare(month.PlusMonths(-1), Plan, Gaps), .. StatementPreparation.Prepare(month, Plan, Gaps),
             .. StatementPreparation.Prepare(month.PlusMonths(1), Plan, Gaps)];

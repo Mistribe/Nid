@@ -36,6 +36,8 @@
     "net": "Taux horaire net (€)",
     "upkeep": "Entretien pour 9 h (€)",
     "upkeep_hint": "Nid applique au moins le minimum légal, au prorata de chaque journée.",
+    "unpaid_absences": "Absences non payées",
+    "unpaid_absences_hint": "Nid retire du salaire les jours d'absence pour ces motifs.",
     "lunch_price": "Prix du déjeuner (€)",
     "lunch_provider": "Déjeuner fourni par",
     "snack_price": "Prix du goûter (€)",
@@ -263,7 +265,8 @@
       "parent_rtt": "RTT d'un parent",
       "child_sick": "Enfant malade",
       "carer_absent": "Absence de l'assistante",
-      "holiday": "Jour férié"
+      "holiday": "Jour férié",
+      "paid_leave": "Congés payés"
     },
     "problem": {
       "childcare_days_incomplete": "Le relevé ne compte pas chaque jour du mois une fois.",

@@ -155,7 +155,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
 
                     b.ToTable("statement_day", "childcare", t =>
                         {
-                            t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday')");
+                            t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave')");
 
                             t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
                         });
@@ -351,6 +351,13 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate?>("To")
                         .HasColumnType("date")
                         .HasColumnName("to");
+
+                    b.PrimitiveCollection<string[]>("UnpaidAbsences")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasColumnName("unpaid_absences")
+                        .HasDefaultValueSql("'{child_sick,carer_absent}'");
 
                     b.Property<decimal>("UpkeepPer9h")
                         .HasColumnType("numeric(19,4)")

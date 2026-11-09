@@ -393,6 +393,7 @@ public sealed class ChildcareImportSection(
                     NetHourlyRate = Exact(t.NetHourlyRate), GrossHourlyRate = t.GrossHourlyRate is { } g ? Exact(g) : null, OvertimePct = Exact(t.OvertimeRate * 100m),
                     UpkeepPer9h = Exact(t.UpkeepPer9h), LunchPrice = t.LunchPrice is { } m ? Exact(m) : null, SnackPrice = t.SnackPrice is { } sn ? Exact(sn) : null,
                     LunchProvider = MealProviderCodes.Of(t.LunchProvider), SnackProvider = MealProviderCodes.Of(t.SnackProvider),
+                    UnpaidAbsences = t.UnpaidAbsences is { } u && !u.Order().SequenceEqual(AbsenceCodes.DefaultUnpaid.Order()) ? u.Select(AbsenceCodes.Of).ToList() : null,
                     WeekTypes = t.WeekTypes.Select(w => new WeekTypeRecord
                     {
                         Name = w.Name, Weeks = w.Weeks,
@@ -557,6 +558,9 @@ public sealed class ChildcareImportSection(
                 if (parsed is null) Error(ImportCodes.InvalidValue, "A meal is provided by the nanny or the employer.", $"{at}.{field}");
                 return parsed ?? MealProvider.Nanny;
             }
+            var unpaid = t.UnpaidAbsences?.Select(AbsenceCodes.TryParse).ToList();
+            if (unpaid?.Any(u => u is null) == true)
+                Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.", at + ".unpaid_absences");
             var (lunchProvider, snackProvider) = (Provider(t.LunchProvider, "lunch_provider"), Provider(t.SnackProvider, "snack_provider"));
             if (from is { } f)
             {
@@ -564,7 +568,7 @@ public sealed class ChildcareImportSection(
                     Error(ImportCodes.InvalidValue, "Each revision ends the day before the next one starts.", $"{path}.terms[{j - 1}].to");
                 if (to is { } end && end < f) Error(ImportCodes.InvalidValue, "A revision ends on or after its start.", at + ".to");
                 revisions.Add(new Terms(new ItemId(Guid.Empty), f, to, t.NetHourlyRate, t.GrossHourlyRate, t.OvertimePct / 100m, t.UpkeepPer9h, t.LunchPrice ?? t.MealPrice,
-                    types, t.SnackPrice, lunchProvider, snackProvider));
+                    types, t.SnackPrice, lunchProvider, snackProvider, UnpaidAbsences: unpaid?.OfType<AbsenceReason>().Distinct().ToList() ?? AbsenceCodes.DefaultUnpaid));
             }
         }
         if (revisions.Count > 0 && revisions.Take(revisions.Count - 1).Any(t => t.To is null))
@@ -611,7 +615,7 @@ public sealed class ChildcareImportSection(
             AbsenceReason? absence = null;
             if (d.Absence is not null && (absence = AbsenceCodes.TryParse(d.Absence)) is null)
             {
-                issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent or holiday.", at + ".absence"));
+                issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.", at + ".absence"));
                 ok = false;
             }
             if (date is { } on)

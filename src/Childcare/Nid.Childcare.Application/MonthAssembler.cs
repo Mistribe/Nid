@@ -16,7 +16,7 @@ public sealed record MonthTerms(
         var chosen = revisions[StatementContext.TermsIndexFor(month, revisions[0].From, revisions.Select(r => (r.From, r.To)).ToList())];
         return new(revisions, gaps, overrides, month, chosen,
             new ContractTerms(revisions[0].From, revisions[^1].To, chosen.NetHourlyRate, chosen.OvertimeRate, chosen.UpkeepPer9h, chosen.LunchPrice,
-                chosen.SnackPrice, chosen.LunchProvider, chosen.SnackProvider));
+                chosen.SnackPrice, chosen.LunchProvider, chosen.SnackProvider, chosen.UnpaidAbsences));
     }
 }
 

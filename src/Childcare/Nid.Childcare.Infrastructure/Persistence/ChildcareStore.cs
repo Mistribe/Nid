@@ -62,7 +62,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             r.LunchPrice,
             types[(r.ItemId, r.From)].Select(w => new WeekType(w.Name, w.Weeks,
                 days[(r.ItemId, r.From, w.Rank)].OrderBy(d => d.Day).Select(d => new WeekdaySlot((IsoDayOfWeek)d.Day, d.Arrival, d.Departure, d.Lunch, d.Snack)).ToList())).ToList(),
-            r.SnackPrice, MealProviderCodes.Parse(r.LunchProvider), MealProviderCodes.Parse(r.SnackProvider))).ToList();
+            r.SnackPrice, MealProviderCodes.Parse(r.LunchProvider), MealProviderCodes.Parse(r.SnackProvider), r.UnpaidAbsences.Select(AbsenceCodes.Parse).ToList())).ToList();
     }
 
     public async Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct)
@@ -386,6 +386,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.SnackPrice = t.SnackPrice;
         row.LunchProvider = MealProviderCodes.Of(t.LunchProvider);
         row.SnackProvider = MealProviderCodes.Of(t.SnackProvider);
+        row.UnpaidAbsences = [.. (t.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid).Select(AbsenceCodes.Of)];
     }
 
     private static Arrangement ToArrangement(ArrangementRow r)

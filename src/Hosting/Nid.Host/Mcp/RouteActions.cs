@@ -216,7 +216,7 @@ public static class RouteActions
         // Childcare (childminder, Pajemploi).
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
             "Record a childminder's contract (assistante maternelle, année incomplète): childId is a dependent (list_persons); carer name, "
-            + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, "
+            + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, unpaidAbsences (the absence reasons deducted from the salary, among family, parent_rtt, child_sick, carer_absent, holiday and paid_leave; absent to keep the current ones), "
             + "lunchPrice, snackPrice, lunchProvider and snackProvider (nanny or employer, only the nanny's meals are paid), weekTypes (each a name, its weeks and its weekly schedule: day 1 = Monday, arrival and departure HH:mm, lunch, snack; together 1 to 46 weeks); "
             + "gaps are weeks without care, each from a Monday. " + Owners + Amounts),
         new("edit_childcare", "PUT", "/api/v1/childcare/{id:guid}", typeof(EditChildcareBody),
@@ -236,7 +236,7 @@ public static class RouteActions
         new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
             "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
             + "changed (present with arrival and departure HH:mm, lunch and snack, or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
-            + "holiday), the mileage, the CMG and the contributions left to the household (contributions, absent when all are covered) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
+            + "holiday, paid_leave), the mileage, the CMG and the contributions left to the household (contributions, absent when all are covered) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
             + "left over) replaces the days, and declared gives the declaration fields entered by hand (normalHours, activityDays, paidLeaveDays, complementaryHours, overtimeHours, netPay, upkeep, meals). Validating it stays the person's gesture in the web app. "
             + Ids + Versioned + Amounts),
 
