@@ -28,39 +28,53 @@ export function SeriesView({ answer, mode, asTable, onToggle, caption }: {
 
   const rows = seriesRows(series, mode);
   const axes = axisOf(series, mode);
+  const first = (side: 'left' | 'right') => series.find((_, i) => axes[i] === side);
+  const unitOn = (side: 'left' | 'right') => { const f = first(side); return f ? unitLabel(t, f.unit) : null; };
   const table = <ValuesTable series={series} rows={rows} mode={mode} caption={caption} />;
   return (
     <div className="space-y-3">
       {onToggle ? <div className="flex justify-end"><TableToggle asTable={asTable} onToggle={onToggle} /></div> : null}
+      {mode === 'base100' && answer.baseDate ? <p className="text-sm text-muted-foreground">{t('series.base_date', { date: formatLocalDate(answer.baseDate, 'short') })}</p> : null}
+      {mode === 'axes2' && !asTable ? (
+        <div className="flex justify-between gap-4 text-sm text-muted-foreground">
+          {(['left', 'right'] as const).map((side) => (
+            <span key={side} className="inline-flex flex-wrap items-center gap-1.5">
+              {unitOn(side)}
+              {series.map((s, i) => (axes[i] === side ? <Chip key={s.key} i={i} /> : null))}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {series.length >= 2 ? (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {series.map((s, i) => (
+            <li key={s.key} className="inline-flex items-center gap-1.5">
+              <Chip i={i} />{seriesLabel(t, s)}
+              {drawable(s, mode) ? null : <span className="text-muted-foreground">({t('series.no_base')})</span>}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {asTable ? table : (
         <>
-          {mode === 'base100' && answer.baseDate ? <p className="text-sm text-muted-foreground">{t('series.base_date', { date: formatLocalDate(answer.baseDate, 'short') })}</p> : null}
-          {mode === 'axes2' ? (
-            <div className="flex justify-between gap-4 text-sm text-muted-foreground">
-              {(['left', 'right'] as const).map((side) => (
-                <span key={side} className="inline-flex flex-wrap items-center gap-1.5">
-                  {series.find((_, i) => axes[i] === side) ? unitLabel(t, series.find((_, i) => axes[i] === side)?.unit ?? '') : null}
-                  {series.map((s, i) => (axes[i] === side ? <Chip key={s.key} i={i} /> : null))}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {series.length >= 2 ? (
-            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {series.map((s, i) => (
-                <li key={s.key} className="inline-flex items-center gap-1.5">
-                  <Chip i={i} />{seriesLabel(t, s)}
-                  {drawable(s, mode) ? null : <span className="text-muted-foreground">({t('series.no_base')})</span>}
-                </li>
-              ))}
-            </ul>
-          ) : null}
           <Chart series={series} rows={rows} axes={axes} mode={mode} />
           <div className="sr-only">{table}</div>
         </>
       )}
     </div>
   );
+}
+
+/** 1 January of each year inside the data's range, so no year label repeats; years only, no amount. */
+function yearStarts(rows: SeriesRow[]): number[] {
+  const first = rows[0]?.date.slice(0, 4), last = rows.at(-1)?.date.slice(0, 4);
+  if (!first || !last) return [];
+  const ticks: number[] = [];
+  for (let y = Number(first); y <= Number(last); y += 1) {
+    const at = Date.parse(`${y}-01-01`);
+    if (at >= (rows[0]?.at ?? 0)) ticks.push(at);
+  }
+  return ticks;
 }
 
 function Chart({ series, rows, axes, mode }: { series: SeriesPoints['series']; rows: SeriesRow[]; axes: ('left' | 'right')[]; mode: SeriesMode }) {
@@ -72,9 +86,9 @@ function Chart({ series, rows, axes, mode }: { series: SeriesPoints['series']; r
   const axis = (n: number) => compact.format(n);
   return (
     <ChartContainer config={config} className="h-72 w-full" aria-hidden="true">
-      <LineChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <LineChart accessibilityLayer data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="at" type="number" scale="time" domain={['dataMin', 'dataMax']} tickLine={false} axisLine={false}
+        <XAxis dataKey="at" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={yearStarts(rows)} tickLine={false} axisLine={false}
           tickFormatter={(n: number) => String(new Date(n).getUTCFullYear())} />
         <YAxis yAxisId="left" width={56} tickLine={false} axisLine={false} domain={['auto', 'auto']} tickFormatter={axis} />
         {mode === 'axes2' ? <YAxis yAxisId="right" orientation="right" width={56} tickLine={false} axisLine={false} domain={['auto', 'auto']} tickFormatter={axis} /> : null}
@@ -98,7 +112,7 @@ function Tip({ active, payload, series, mode, t }: {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <span className="font-medium">{formatLocalDate(row.date, 'short')}</span>
       {series.map((s, i) => {
         const p = row.points[i];

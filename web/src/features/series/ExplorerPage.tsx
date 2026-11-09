@@ -23,7 +23,7 @@ export function ExplorerPage() {
   const { scope }: RootSearch = useSearch({ strict: false });
   const answer = $api.useQuery('get', SERIES_POINTS, { params: { query: { s: s ?? '', from: yearsAgoIso(5), scope: scope === 'me' ? 'me' : 'household' } } }, { enabled: !!s });
   const asTable = view === 'table';
-  const toggle = () => void navigate({ to: '.', replace: true, search: ((prev: SeriesSearch) => ({ ...prev, view: asTable ? undefined : 'table' })) as never });
+  const toggle = () => void navigate({ to: '/series', replace: true, search: (prev) => ({ ...prev, view: asTable ? undefined : ('table' as const) }) });
   const data = answer.data;
   return (
     <div className="space-y-4">

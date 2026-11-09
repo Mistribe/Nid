@@ -24,8 +24,9 @@ export type SeriesRow = { at: number; date: string; plot: (number | null)[]; poi
 /** One row per distinct date, ascending; `plot` places the marks, `points` keeps the server's strings. */
 export function seriesRows(series: readonly SeriesPointsItem[], mode: SeriesMode): SeriesRow[] {
   const dates = [...new Set(series.flatMap((s) => s.points.map((p) => p.date)))].sort();
+  const byDate = series.map((s) => new Map(s.points.map((p) => [p.date, p])));
   return dates.map((date) => {
-    const points = series.map((s) => s.points.find((p) => p.date === date) ?? null);
+    const points = byDate.map((m) => m.get(date) ?? null);
     const plot = points.map((p) => {
       const text = mode === 'base100' ? p?.base100 : p?.value;
       return text == null ? null : toPlot(text);

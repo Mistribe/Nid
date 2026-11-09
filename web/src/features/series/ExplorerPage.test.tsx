@@ -47,8 +47,25 @@ describe('Explorer des séries', () => {
     server.use(http.get('*/api/v1/series/points', () => answer([item('cpi', 'cpi', null, 'index', [cpi.points[0] as Point])])));
     const { container } = await renderApp('/series?s=cpi');
     expect(await screen.findByRole('button', { name: 'Afficher en tableau' })).toBeInTheDocument();
-    await waitFor(() => expect(container.querySelectorAll('.recharts-dot, circle').length).toBeGreaterThanOrEqual(1));
+    await waitFor(() => expect(container.querySelectorAll('.recharts-dot').length).toBe(1));
     expect(within(container.querySelector('div.sr-only') as HTMLElement).getAllByRole('row')).toHaveLength(2);
+  });
+
+  it('keeps the base date and the missing-base note in the table view', async () => {
+    server.use(http.get('*/api/v1/series/points', () => answer([cpi, fx, yoy], '2021-01-01')));
+    await renderApp('/series?s=cpi,fx:EUR,cpi:yoy&view=table');
+    expect(await screen.findByText('Base 100 le 1 janv. 2021')).toBeInTheDocument();
+    expect(screen.getByText(/pas de base 100 possible/)).toBeInTheDocument();
+  });
+
+  it('labels each year once on the time axis', async () => {
+    server.use(http.get('*/api/v1/series/points', () => answer([item('cpi', 'cpi', null, 'index', [
+      { date: '2022-03-01', value: '1' }, { date: '2023-06-01', value: '2' }, { date: '2024-02-01', value: '3' }])])));
+    const { container } = await renderApp('/series?s=cpi');
+    await screen.findByRole('button', { name: 'Afficher en tableau' });
+    await new Promise((r) => setTimeout(r, 500));
+    const labels = [...container.querySelectorAll('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')].map((n) => n.textContent);
+    expect(labels).toEqual(['2023', '2024']);
   });
 
   it('says when the period holds no data', async () => {
