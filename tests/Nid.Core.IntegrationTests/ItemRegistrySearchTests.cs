@@ -46,6 +46,8 @@ public class ItemRegistrySearchTests(PostgresFixture fixture)
         Assert.Equal(["100% actions", "Assurance vie Bob", "PEA Alice"], Names(await registry.SearchAsync(all, "investments", "envelope", null, Ct)));
         Assert.Equal(["100% actions"], Names(await registry.SearchAsync(all, "investments", "envelope", "%", Ct)));
         Assert.Empty(await registry.SearchAsync(all, "investments", "envelope", "_", Ct));
+        Assert.Empty(await registry.SearchAsync(all, "investments", "envelope", "\\", Ct));
+        Assert.Empty(await registry.SearchAsync(all, "investments", "envelope", @"\", Ct));
         Assert.Empty(await registry.SearchAsync([all[0]], "realestate", "loan", null, Ct));
         var loan = Assert.Single(await registry.SearchAsync(all, "realestate", "loan", "maison", Ct));
         Assert.Equal(alice, loan.Owners.Single().PersonId.Value);

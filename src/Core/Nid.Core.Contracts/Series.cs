@@ -103,6 +103,19 @@ public static partial class SeriesKeys
     }
 }
 
+public static class SeriesWindow
+{
+    /// <summary>The points inside the optional <c>from</c>/<c>to</c> window (inclusive), ascending by date.</summary>
+    public static List<SeriesPoint> Within(IEnumerable<SeriesPoint> points, LocalDate? from, LocalDate? to)
+        => points.Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).OrderBy(p => p.Date).ToList();
+}
+
+/// <summary>An ILIKE pattern for typed text: <c>%</c>, <c>_</c> and the backslash match themselves (use <c>\</c> as the escape character).</summary>
+public static class LikePattern
+{
+    public static string Contains(string text) => $"%{text.Trim().Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")}%";
+}
+
 public static class SeriesSearch
 {
     /// <summary>The query matches the series' name or its key, or the series' kind is one of <paramref name="kinds"/>.</summary>

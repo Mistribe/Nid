@@ -62,7 +62,7 @@ public sealed class PropertySeries(
                 : row.CostSteps.Select(c => new SeriesPoint(c.On, Parse(c.CostPrice)));
         }
 
-        return new SeriesPoints(Info(item, suffix), points.Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).OrderBy(p => p.Date).ToList());
+        return new SeriesPoints(Info(item, suffix), SeriesWindow.Within(points, from, to));
     }
 
     private static decimal Parse(string amount) => decimal.Parse(amount, CultureInfo.InvariantCulture);

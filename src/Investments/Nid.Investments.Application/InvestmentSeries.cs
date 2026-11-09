@@ -50,7 +50,7 @@ public sealed class InvestmentSeries(
         var series = await invoker.InvokeAsync(new GetEnvelopeSeriesQuery(id), ct); // item access, denials journaled
         if (!series.TryGetValue(out var view) || await items.FindAsync(id, ct) is not { } item) return null;
         return new SeriesPoints(EnvelopeInfo(item, suffix),
-            Within(view.Points.Select(p => new CoreSeriesPoint(p.AsOf, Parse(suffix == Value ? p.Value.Amount : p.NetContributions.Amount))), from, to));
+            SeriesWindow.Within(view.Points.Select(p => new CoreSeriesPoint(p.AsOf, Parse(suffix == Value ? p.Value.Amount : p.NetContributions.Amount))), from, to));
     }
 
     private async Task<SeriesPoints?> PriceAsync(PersonId reader, ItemId envelope, Guid holdingId, LocalDate? from, LocalDate? to, CancellationToken ct)
@@ -64,9 +64,9 @@ public sealed class InvestmentSeries(
         var holding = (await holdings.HoldingsAsync(envelope, ct)).Select(h => h.Holding).FirstOrDefault(h => h.Id == holdingId);
         if (holding is null || !HoldingWire.HasUnits(holding.Kind) || await items.FindAsync(envelope, ct) is not { } item) return null;
 
-        var points = (await holdings.SnapshotsAsync(envelope, ct)).Reverse()
+        var points = (await holdings.SnapshotsAsync(envelope, ct))
             .SelectMany(s => s.Lines.Where(l => l.HoldingId == holdingId && l.UnitPrice > 0).Select(l => new CoreSeriesPoint(s.AsOf, l.UnitPrice!.Value)));
-        return new SeriesPoints(HoldingInfo(holding, item), Within(points, from, to));
+        return new SeriesPoints(HoldingInfo(holding, item), SeriesWindow.Within(points, from, to));
     }
 
     private static SeriesInfo EnvelopeInfo(ItemAccess item, string suffix)
@@ -78,7 +78,4 @@ public sealed class InvestmentSeries(
             SeriesFrequencies.Irregular, null, null, envelope.Id);
 
     private static decimal Parse(string amount) => decimal.Parse(amount, CultureInfo.InvariantCulture);
-
-    private static List<CoreSeriesPoint> Within(IEnumerable<CoreSeriesPoint> points, LocalDate? from, LocalDate? to)
-        => points.Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).OrderBy(p => p.Date).ToList();
 }

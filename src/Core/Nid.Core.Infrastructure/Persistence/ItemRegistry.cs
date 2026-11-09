@@ -128,7 +128,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         if (!string.IsNullOrWhiteSpace(nameContains))
         {
             // Typed text, not a pattern: % and _ match themselves.
-            var pattern = $"%{nameContains.Trim().Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")}%";
+            var pattern = LikePattern.Contains(nameContains);
             items = items.Where(i => EF.Functions.ILike(i.DisplayName, pattern, @"\"));
         }
 

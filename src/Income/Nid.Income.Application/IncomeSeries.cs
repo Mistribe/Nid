@@ -37,7 +37,7 @@ public sealed class IncomeSeries(IVisibleItems visible, IItemRegistry items, IHo
         {
             var overview = await invoker.InvokeAsync(new GetIncomeOverviewQuery(scope, OverviewPeriod.ThreeYears, null, null, null, false), ct);
             return overview.TryGetValue(out var all)
-                ? new SeriesPoints(await HouseholdInfoAsync(ct), Within(all.Months.Where(m => m.Total is not null).Select(m => Point(m.Year, m.Month, m.Total!.Amount)), from, to))
+                ? new SeriesPoints(await HouseholdInfoAsync(ct), SeriesWindow.Within(all.Months.Where(m => m.Total is not null).Select(m => Point(m.Year, m.Month, m.Total!.Amount)), from, to))
                 : null;
         }
 
@@ -45,8 +45,8 @@ public sealed class IncomeSeries(IVisibleItems visible, IItemRegistry items, IHo
         var id = new ItemId(guid);
         var source = await invoker.InvokeAsync(new GetIncomeSourceOverviewQuery(id, "all"), ct); // item access, denials journaled
         if (!source.TryGetValue(out var view) || await items.FindAsync(id, ct) is not { } item) return null;
-        return new SeriesPoints(SourceInfo(item) with { Unit = $"currency:{view.Currency}" },
-            Within(view.Months.Select(m => Point(m.Year, m.Month, m.Total.Amount)), from, to));
+        return new SeriesPoints(SourceInfo(item),
+            SeriesWindow.Within(view.Months.Select(m => Point(m.Year, m.Month, m.Total.Amount)), from, to));
     }
 
     private async Task<SeriesInfo> HouseholdInfoAsync(CancellationToken ct)
@@ -57,7 +57,4 @@ public sealed class IncomeSeries(IVisibleItems visible, IItemRegistry items, IHo
 
     private static SeriesPoint Point(int year, int month, string amount)
         => new(new LocalDate(year, month, 1), decimal.Parse(amount, CultureInfo.InvariantCulture));
-
-    private static List<SeriesPoint> Within(IEnumerable<SeriesPoint> points, LocalDate? from, LocalDate? to)
-        => points.Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).OrderBy(p => p.Date).ToList();
 }

@@ -29,8 +29,7 @@ public sealed class LoanSeries(IVisibleItems visible, IItemRegistry items, IInvo
         var itemId = new ItemId(guid);
         var schedule = await invoker.InvokeAsync(new GetLoanScheduleQuery(itemId), ct); // item access, denials journaled
         if (!schedule.TryGetValue(out var view) || await items.FindAsync(itemId, ct) is not { } item) return null;
-        var points = view.Rows.Select(r => new SeriesPoint(r.DueDate, decimal.Parse(suffix == Remaining ? r.Balance : r.Payment, CultureInfo.InvariantCulture)))
-            .Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).OrderBy(p => p.Date).ToList();
+        var points = SeriesWindow.Within(view.Rows.Select(r => new SeriesPoint(r.DueDate, decimal.Parse(suffix == Remaining ? r.Balance : r.Payment, CultureInfo.InvariantCulture))), from, to);
         return new SeriesPoints(Info(item, suffix), points);
     }
 
