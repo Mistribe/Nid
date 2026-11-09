@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { DASHBOARD } from './dashboard';
+import { SERIES_CATALOGUE, SERIES_POINTS } from './series';
 import type { components } from '@/api/schema';
 
 export type Summary = components['schemas']['SubscriptionSummary'];
@@ -35,5 +36,7 @@ export function invalidateSubscriptions(queryClient: QueryClient): Promise<void>
     queryClient.invalidateQueries({ queryKey: ['get', CHARGES] }),
     queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] }),
     queryClient.invalidateQueries({ queryKey: ['get', DETAIL] }),
+    queryClient.invalidateQueries({ queryKey: ['get', SERIES_POINTS] }),
+    queryClient.invalidateQueries({ queryKey: ['get', SERIES_CATALOGUE] }),
   ]).then(() => undefined);
 }

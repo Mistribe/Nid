@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { SERIES_POINTS } from '@/api/series';
 import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -42,6 +43,7 @@ export function RetirementDialog({ person, onClose, onDone }: {
             onSuccess: () => {
               void queryClient.invalidateQueries({ queryKey: ['get', PERSONS] });
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
+              void queryClient.invalidateQueries({ queryKey: ['get', SERIES_POINTS] });
               done(t('settings.projection.retirement_saved', { name: person.displayName }));
             },
           });
