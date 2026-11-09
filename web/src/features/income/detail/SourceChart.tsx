@@ -7,6 +7,7 @@ import type { RootSearch } from '@/lib/search';
 import { Segmented } from '@/components/form/Segmented';
 import { formatMoney, Money } from '@/components/Money';
 import { SectionCard } from '@/components/page/SectionCard';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { percent, monthLabel } from '@/lib/format';
@@ -70,6 +71,7 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
   return (
     <SectionCard title={t('income_detail.evolution.title')} actions={
       <>
+        <SeriesLink keys={[`income:${id}`, 'cpi']} />
         <Segmented aria-label={t('income_detail.evolution.period')} value={period} onValueChange={choose}
           options={PERIODS.map((p) => ({ value: p, label: t(`income_detail.evolution.${p}`) }))} />
         <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />

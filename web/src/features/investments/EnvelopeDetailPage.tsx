@@ -20,6 +20,7 @@ import { ErrorPage } from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { todayIso } from '@/lib/today';
 import { SourceLink } from '../documents/SourceLink';
 import { ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from '@/api/investments';
@@ -303,7 +304,8 @@ export function EnvelopeDetailPage() {
           id: 'overview', label: t('envelope.tab.overview'),
           content: (
             <>
-              <Section title={t('envelope.evolution')} guide="investments.evolution">
+              <Section title={t('envelope.evolution')} guide="investments.evolution"
+                actions={<SeriesLink keys={[`envelope:${detail.id}:value`, `envelope:${detail.id}:contributions`]} />}>
                 <ValueChart envelopeId={detail.id} currency={detail.currency} />
               </Section>
               <div className="grid gap-6 lg:grid-cols-2">

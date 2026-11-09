@@ -377,6 +377,21 @@ describe('a holding’s page', () => {
     );
   };
 
+  it('opens a holding\u2019s price in the explorer, and a euro fund has none', async () => {
+    servePage(view());
+    const first = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+    const { user, router } = first;
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `holding:${PEA}:${FUND}:price` });
+    first.unmount();
+
+    servePage(view());
+    await renderApp(`/investments/${PEA}/holdings/${EURO}`);
+    await screen.findByRole('region', { name: 'Chiffres du support' });
+    expect(screen.queryByRole('link', { name: 'Voir la série' })).not.toBeInTheDocument();
+  });
+
   it('shows a refused price with its date and badge, and « Cours automatique » only with the prices on', async () => {
     servePage(view({ holdings: [holding({ price: { value: '210.500000', currency: 'EUR', onDate: '2025-10-01', source: 'auto', status: 'rejected', previous: '200.000000' } })] }));
     const first = await renderApp(`/investments/${PEA}/holdings/${FUND}`);

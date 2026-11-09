@@ -51,6 +51,14 @@ describe('IncomeSourceDetailPage', () => {
     await waitFor(() => expectTrailBack('Revenus', '/income'));
   });
 
+  it('opens the source and the CPI in the explorer', async () => {
+    serve(detail());
+    const { user, router } = await renderApp(`/income/${SALARY}`);
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `income:${SALARY},cpi` });
+  });
+
   it('shows the figures, the chart and the latest payments first', async () => {
     serve(detail());
     const { container } = await renderApp(`/income/${SALARY}`);

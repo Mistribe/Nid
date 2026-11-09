@@ -17,6 +17,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { LOAN, SCHEDULE, type LoanDetail } from '@/api/loans';
 import { LoanContract } from './detail/LoanContract';
 import { LoanCost, LoanProgress, LoanStats } from './detail/LoanFigures';
@@ -228,7 +229,7 @@ function OverviewSchedule({ loan }: { loan: LoanDetail }) {
         </Section>
       ) : null}
       {first && last ? (
-        <Section title={t('loan_detail.chart.title')} actions={<TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />}>
+        <Section title={t('loan_detail.chart.title')} actions={<><SeriesLink keys={[`loan:${loan.id}:remaining`]} /><TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} /></>}>
           {/* Spec §7: the chart's reading for screen readers, outside the lazy chunk so it never waits for it. */}
           <p id={summaryId} className="sr-only">
             {t('loan_detail.chart.summary', {

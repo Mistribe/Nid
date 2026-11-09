@@ -379,6 +379,19 @@ describe('tenancies', () => {
     await waitFor(() => expect(undone).toBe(1));
   });
 
+  it('opens the last link of a revised lease in the explorer', async () => {
+    const first = tenancy({ id: 'a', label: 'Bail', startsOn: '2023-01-01', endsOn: '2024-01-01', rentMonthly: '900.00', current: false });
+    const last = tenancy({ id: 'b', label: 'Bail', startsOn: '2024-01-01', rentMonthly: '927.00', revisedFrom: 'a' });
+    serve(propertyDetail({ figures: rentedFigures(), tenancies: [first, last] }));
+    const { user, router } = await renderApp(PAGE);
+
+    const [row] = await rows();
+    expect(screen.getAllByRole('link', { name: 'Voir la série' })).toHaveLength(1);
+    await user.click(within(row!).getByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `tenancy:${PROPERTY}:b:rent,irl` });
+  });
+
   it('corrects a revised link with its rent and start kept, and never deletes it', async () => {
     const first = tenancy({ id: 'a', label: 'Bail', startsOn: '2023-01-01', endsOn: '2024-01-01', rentMonthly: '900.00', current: false, indexed: true, irlReferenceQuarter: 2 });
     const last = tenancy({ id: 'b', label: 'Bail', startsOn: '2024-01-01', rentMonthly: '927.00', indexed: true, irlReferenceQuarter: 2, revisedFrom: 'a' });

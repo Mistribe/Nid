@@ -32,6 +32,14 @@ describe('EnvelopeDetailPage', () => {
     await waitFor(() => expectTrailBack('Placements', '/investments'));
   });
 
+  it('opens the envelope value and net contributions in the explorer', async () => {
+    serve(detail());
+    const { user, router } = await renderApp(`/investments/${PEA}`);
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `envelope:${PEA}:value,envelope:${PEA}:contributions` });
+  });
+
   it('shows the figures, before tax, and the two tables newest first', async () => {
     serve(detail());
     const { user, container } = await renderApp(`/investments/${PEA}`);
