@@ -66,6 +66,20 @@ describe('form controls', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('ComboboxField in server mode shows the options as given and reports the typed text', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<ComboboxField aria-label="Ajouter" value="" onValueChange={() => {}} options={currencies} onSearch={onSearch}
+      more="Précisez" searchPlaceholder="Rechercher" empty="Aucun résultat" />);
+    await user.click(screen.getByRole('combobox', { name: 'Ajouter' }));
+    await user.type(await screen.findByRole('combobox', { name: 'Rechercher' }), 'us');
+    expect(onSearch).toHaveBeenLastCalledWith('us');
+    expect(screen.getByRole('option', { name: 'EUR' })).toBeInTheDocument(); // not filtered here
+    expect(screen.getByText('Précisez')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(onSearch).toHaveBeenLastCalledWith(''); // a closed list forgets its text
+  });
+
   it('CurrencyField finds a currency by its code or its name, and emits the code', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();
