@@ -344,12 +344,22 @@ public static class InvestmentEndpoints
         string? DisplayName, string? Kind, string? Institution, bool ClearInstitution, string? AccountHint, bool ClearAccountHint,
         string? OpenedOn, bool ClearOpenedOn, string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays,
         string? Note, bool ClearNote, decimal? UcShareFloorPct, bool? ClearUcShareFloorPct,
-        string? PremiumsBefore2017, bool? ClearPremiumsBefore2017, string? Regulated = null, bool? ClearRegulated = null)
+        string? PremiumsBefore2017, bool? ClearPremiumsBefore2017, string? Regulated = null, bool? ClearRegulated = null,
+        string? Visibility = null, string? ShareLevel = null, IReadOnlyList<OwnerBody>? Owners = null)
     {
         internal EditEnvelopeCommand? ToCommand(ItemId id, FieldReader reader)
         {
             var premiums = reader.Decimal(PremiumsBefore2017, "premiumsBefore2017");
-            return reader.Ok ? ToCommand(id, premiums) : null;
+            // #25: each omitted keeps the envelope's.
+            var visibility = Visibility is null ? null : reader.Visibility(Visibility, "visibility");
+            var level = ShareLevel is null ? null : reader.ShareLevel(ShareLevel, "shareLevel");
+            return reader.Ok
+                ? ToCommand(id, premiums) with
+                {
+                    Visibility = visibility, ShareLevel = level,
+                    Owners = Owners?.Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(),
+                }
+                : null;
         }
 
         private EditEnvelopeCommand ToCommand(ItemId id, decimal? premiums) => new(id, DisplayName, Kind, new EnvelopeChange(

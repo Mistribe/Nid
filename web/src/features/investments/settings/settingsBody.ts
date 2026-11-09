@@ -1,5 +1,6 @@
 import type { components } from '@/api/schema';
 import type { EnvelopeDetail } from '@/api/investments';
+import { ownershipToWire, type OwnershipValues } from '@/components/ownership/ownership';
 import { toWireAmount } from '@/lib/amount';
 import { hasPremiumsBefore2017 } from '../format';
 
@@ -8,7 +9,7 @@ export type SettingsValues = {
   displayName: string; kind: string; institution: string; accountHint: string;
   valuationCadence: string; staleAfterDays: string; ucShareFloorPct: string; note: string;
   openedOn: string; premiumsBefore2017: string; regulated: string;
-};
+} & Partial<OwnershipValues>;
 
 /** Only the fields that changed; an emptied optional field says so with its `clear*` flag. */
 export type EditBody = Partial<components['schemas']['EditEnvelopeBody']>;
@@ -65,6 +66,16 @@ export function toEditBody(before: EnvelopeDetail, values: SettingsValues): Edit
   // A savings envelope's livret; off savings the server drops it on its own.
   if (values.kind === 'savings' && values.regulated !== (before.regulated ?? 'none')) {
     if (values.regulated === 'none') body.clearRegulated = true; else body.regulated = values.regulated;
+  }
+
+  // #25: the sharing and the owners, only where the form shows them (the envelope's owners); each one sent when it changed.
+  if (values.visibility && values.owners) {
+    const next = ownershipToWire({ visibility: values.visibility, shareLevel: values.shareLevel, owners: values.owners });
+    const level = next.shareLevel ?? 'view';
+    const key = (owners: { personId: string; shareBp: number }[]) => owners.map((o) => `${o.personId}:${o.shareBp}`).sort().join();
+    if (next.visibility !== before.visibility) body.visibility = next.visibility;
+    if (level !== (before.visibility === 'shared' ? before.shareLevel : 'view')) body.shareLevel = level;
+    if (key(next.owners) !== key(before.owners)) body.owners = next.owners;
   }
 
   return Object.keys(body).length === 0 ? null : body;

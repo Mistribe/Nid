@@ -19,7 +19,9 @@ public sealed record CreateEnvelopeCommand(
     string? Regulated = null)
     : ICommand<ItemId>, ICreatesItem;
 
-public sealed record EditEnvelopeCommand(ItemId ItemId, string? DisplayName, string? Kind, EnvelopeChange Change, string? ValuationCadence, string? Regulated = null)
+/// <summary>#25: <paramref name="Visibility"/>, <paramref name="ShareLevel"/> and <paramref name="Owners"/> null keep the envelope's.</summary>
+public sealed record EditEnvelopeCommand(ItemId ItemId, string? DisplayName, string? Kind, EnvelopeChange Change, string? ValuationCadence, string? Regulated = null,
+    Visibility? Visibility = null, ShareLevel? ShareLevel = null, IReadOnlyList<OwnerShare>? Owners = null)
     : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -80,7 +82,8 @@ public sealed class CreateEnvelopeHandler(
 }
 
 [RequestHandler<EditEnvelopeCommand, ItemId>]
-public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore envelopes, IUnitOfWork unitOfWork)
+public sealed class EditEnvelopeHandler(
+    IItemRegistry items, IEnvelopeStore envelopes, IUnitOfWork unitOfWork, IItemRules rules, IActorAccessor actor, IPersonRegistry persons)
     : IRequestHandler<EditEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditEnvelopeCommand command, CancellationToken ct = default)
@@ -133,24 +136,52 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
                 change.Kind ?? envelope.Envelope.Kind).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
+        var item = envelope.Item;
+        var visibility = command.Visibility ?? item.Visibility;
+        var level = visibility == Visibility.Private ? ShareLevel.View : command.ShareLevel ?? item.ShareLevel;
+        var owners = command.Owners ?? item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
+        var reshared = visibility != item.Visibility || level != item.ShareLevel
+            || !item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToHashSet().SetEquals(owners);
+        if (reshared && await OwnershipRefusalAsync(item, visibility, owners, ct) is { } refused)
+            return Result.Failure<ItemId>(refused);
+
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        if (command.DisplayName is { } name && name != envelope.Item.DisplayName)
+        var name = command.DisplayName ?? item.DisplayName;
+        if (reshared || name != item.DisplayName)
         {
-            var renamed = await items.ReplaceAsync(command.ItemId, name, envelope.Item.Visibility,
-                envelope.Item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
-            if (renamed.TryGetFailure(out failure))
-                return Result.Failure<ItemId>(failure!);
+            var replaced = await items.ReplaceAsync(command.ItemId, name, visibility, owners, ct, level);
+            if (replaced.TryGetFailure(out failure))
+                return Result.Failure<ItemId>(reshared ? FieldErrors.At(failure!, "owners") : failure!);
         }
 
         await envelopes.UpdateAsync(command.ItemId, change, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
+
+    /// <summary>
+    /// #25: the import's guards (<see cref="ImportSectionKit.ReplaceRefusalAsync"/>): editing is not owning (#294), and an edit
+    /// never takes the envelope from another adult nor hides it from one who reads it today.
+    /// </summary>
+    private async Task<Failure?> OwnershipRefusalAsync(ItemAccess item, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct)
+    {
+        var me = actor.Current!.PersonId!.Value;
+        if (!rules.CanCreate(me, item.Owners))
+            return new UnauthorizedFailure("Only the envelope's owners change its sharing or its owners.", null);
+        // Both rules read only the new owners' ids: their kind does not matter here.
+        var after = owners.Select(o => new Owner(o.PersonId, PersonKind.Adult, o.ShareBp)).ToList();
+        if (rules.DropsAnotherAdultOwner(me, item.Owners, after))
+            return FieldErrors.At(new Failure(ItemCodes.DropsAdultOwner, "Another adult cannot be removed from the owners.", null), "owners");
+        if (rules.TakesReadAway(me, item.Visibility, item.Owners, visibility, after, await persons.AdultIdsAsync(ct)))
+            return FieldErrors.At(new Failure(ItemCodes.TakesReadAway, "This hides the envelope from another adult who sees it today.", null), "owners");
+        return null;
+    }
 }
 
 [RequestHandler<GetEnvelopeQuery, EnvelopeDetail>]
 public sealed class GetEnvelopeHandler(
-    EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor, IPersonRegistry persons, IInflation inflation)
+    EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor, IPersonRegistry persons, IInflation inflation,
+    IItemRules rules)
     : IRequestHandler<GetEnvelopeQuery, EnvelopeDetail>
 {
     public async ValueTask<Result<EnvelopeDetail>> HandleAsync(GetEnvelopeQuery query, CancellationToken ct = default)
@@ -164,7 +195,8 @@ public sealed class GetEnvelopeHandler(
         // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure; "closed" is known here.
         if (f.Item.ArchivedAt is not null)
             figures = figures with { StaleDays = null };
-        var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
+        var me = actor.Current!.PersonId!.Value;
+        var canWrite = (await policy.CheckAsync(me, query.ItemId, AccessKind.Write, ct)).IsSuccess;
         var e = f.Envelope;
         var open = f.Item.ArchivedAt is null;
         var latest = Nid.Investments.Domain.EnvelopeMath.LastOnOrBefore(f.Values, today);
@@ -179,6 +211,8 @@ public sealed class GetEnvelopeHandler(
             FiguresView.From(figures),
             f.Values.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, AmountView.From(v.Value), v.Note, v.DocumentId)).ToList(),
             f.Flows.Select(x => new FlowView(x.Id, x.OccurredOn, EnvelopeWire.FlowWire(x.Kind), AmountView.From(x.Amount), x.Category, x.ExternalRef, x.Note, x.DocumentId)).ToList(),
+            f.Item.OwnerViews(), f.Item.Visibility == Visibility.Shared && f.Item.ShareLevel == ShareLevel.Edit ? "edit" : "view",
+            canWrite && rules.CanCreate(me, f.Item.Owners),
             e.Regulated is { } regulated ? EnvelopeWire.Of(regulated) : null,
             open ? EnvelopeInsights.Ceiling(f, today) : null,
             open ? EnvelopeInsights.Interest(f, today) : null,

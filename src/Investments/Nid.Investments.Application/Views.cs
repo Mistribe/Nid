@@ -41,6 +41,7 @@ public sealed record EnvelopeDetail(
     ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string ValuationCadence, int? StaleAfterDays, string? Note,
     decimal? UcShareFloorPct, AmountView? PremiumsBefore2017, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows,
+    IReadOnlyList<ItemOwnerView> Owners, string ShareLevel, bool CanChangeOwners,
     string? Regulated = null, CeilingView? Ceiling = null, InterestEstimateView? Interest = null, TaxMilestoneView? Milestone = null,
     RealPercentView? RealReturn = null) : IExposesItems, IExposesDocuments
 {

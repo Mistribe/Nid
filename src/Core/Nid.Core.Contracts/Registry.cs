@@ -148,6 +148,12 @@ public static class ItemCodes
 {
     /// <summary>#294: a private item has no sharing level. HTTP 422.</summary>
     public const string PrivateHasNoLevel = "core.private_has_no_level";
+
+    /// <summary>#25: an edit removes an adult other than the actor from the owners (<see cref="IItemRules.DropsAnotherAdultOwner"/>). HTTP 422.</summary>
+    public const string DropsAdultOwner = "core.drops_adult_owner";
+
+    /// <summary>#25: an edit hides the item from an adult other than the actor who reads it today (<see cref="IItemRules.TakesReadAway"/>). HTTP 422.</summary>
+    public const string TakesReadAway = "core.takes_read_away";
 }
 
 public interface IAccessPolicy

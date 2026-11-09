@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
+import { OwnerChips } from '@/components/OwnerChips';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
@@ -203,7 +204,7 @@ export function EnvelopeDetailPage() {
   return (
     <article className="space-y-6">
       <PageHeader crumbs={crumbs} title={detail.displayName} actions={actions}
-        meta={<><span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span><AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} /></>}>
+        meta={<><span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span><AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} /><OwnerChips owners={detail.owners} /></>}>
         <section aria-label={t('envelope.figures')} data-guide="investments.figures" className="space-y-2">
           <StatLine items={[
             { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf, 'short') }) : t('envelope.value'),
