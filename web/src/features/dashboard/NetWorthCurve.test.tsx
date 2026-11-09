@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -35,6 +35,15 @@ describe('net worth curve', () => {
     await user.click(within(card).getByRole('radio', { name: '3 ans' }));
     expect(router.state.location.search).toEqual({ scope: 'me', curve: '3y' });
     await expect.poll(() => seen.some((s) => s.includes('period=3y'))).toBe(true);
+  });
+
+  it('opens the curve and its projection in the explorer, keeping the scope', async () => {
+    serveCurve(netWorth([curvePoint({ on: '2025-08-31' }), curvePoint({ on: '2025-10-15' })]));
+    const { router, user } = await renderApp('/dashboard?scope=me');
+
+    await user.click(await within(await curve()).findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: 'networth,networth:projected', scope: 'me' });
   });
 
   it('shows the table with an unknown month and today last', async () => {
