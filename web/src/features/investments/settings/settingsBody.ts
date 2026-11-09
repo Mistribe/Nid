@@ -1,6 +1,6 @@
 import type { components } from '@/api/schema';
 import type { EnvelopeDetail } from '@/api/investments';
-import { ownershipToWire, type OwnershipValues } from '@/components/ownership/ownership';
+import { ownershipChange, type OwnershipValues } from '@/components/ownership/ownership';
 import { toWireAmount } from '@/lib/amount';
 import { hasPremiumsBefore2017 } from '../format';
 
@@ -68,15 +68,8 @@ export function toEditBody(before: EnvelopeDetail, values: SettingsValues): Edit
     if (values.regulated === 'none') body.clearRegulated = true; else body.regulated = values.regulated;
   }
 
-  // #25: the sharing and the owners, only where the form shows them (the envelope's owners); each one sent when it changed.
-  if (values.visibility && values.owners) {
-    const next = ownershipToWire({ visibility: values.visibility, shareLevel: values.shareLevel, owners: values.owners });
-    const level = next.shareLevel ?? 'view';
-    const key = (owners: { personId: string; shareBp: number }[]) => owners.map((o) => `${o.personId}:${o.shareBp}`).sort().join();
-    if (next.visibility !== before.visibility) body.visibility = next.visibility;
-    if (level !== (before.visibility === 'shared' ? before.shareLevel : 'view')) body.shareLevel = level;
-    if (key(next.owners) !== key(before.owners)) body.owners = next.owners;
-  }
+  // #25: the sharing and the owners, only where the form shows them (the envelope's owners).
+  Object.assign(body, ownershipChange(before, values));
 
   return Object.keys(body).length === 0 ? null : body;
 }

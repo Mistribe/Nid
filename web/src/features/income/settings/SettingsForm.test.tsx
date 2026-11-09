@@ -35,6 +35,56 @@ describe('income settings', () => {
     expect(bodies).toEqual([{ kind: 'pension', clearPayerLabel: true, clearNote: false }]);
   });
 
+  describe('#69: its owners and sharing', () => {
+    const ALICE = '01926b9e-0000-7000-8000-00000000000a';
+    const LEA = '01926b9e-0000-7000-8000-0000000000c1';
+    const owned = (bodies: unknown[], answer?: () => Response) => {
+      serve(bodies, answer);
+      server.use(
+        http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail({ owners: [{ personId: ALICE, shareBp: 10000 }], canChangeOwners: true }))),
+        http.get('*/api/v1/core/persons', () => HttpResponse.json([
+          { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: null, retirementAge: 64 },
+          { id: LEA, kind: 'dependent', displayName: 'Léa Dev', email: null, retirementAge: 64 },
+        ])),
+      );
+    };
+
+    it('hands the source to a child, sending only the owners', async () => {
+      const bodies: unknown[] = [];
+      owned(bodies);
+      const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
+
+      await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+      await pick(user, 'Personne', 'Léa Dev');
+      await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
+
+      await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
+      expect(bodies).toEqual([{ clearPayerLabel: false, clearNote: false, owners: [{ personId: LEA, shareBp: 10000 }] }]);
+    });
+
+    it('shows a refusal to hide the source from the other adult under the owners', async () => {
+      owned([], () => HttpResponse.json(
+        { status: 422, code: 'core.takes_read_away', title: 'x', errors: [{ path: 'owners', code: 'core.takes_read_away', message: 'x' }] },
+        { status: 422 }));
+      const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
+
+      await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+      await pick(user, 'Personne', 'Léa Dev');
+      await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
+
+      expect(await within(within(settings()).getByRole('group', { name: 'Propriétaires' })).findByRole('alert'))
+        .toHaveTextContent('L’autre adulte ne verrait plus cet élément');
+    });
+
+    it('is not offered to an adult who may edit without owning', async () => {
+      serve([]);
+      await renderApp(`/income/${SALARY}?tab=settings`);
+
+      await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+      expect(within(settings()).queryByRole('group', { name: 'Propriétaires' })).not.toBeInTheDocument();
+    });
+  });
+
   it('says there is nothing to save rather than sending an empty change', async () => {
     const bodies: unknown[] = [];
     serve(bodies);

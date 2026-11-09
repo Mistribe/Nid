@@ -19,7 +19,9 @@ public sealed record CreateIncomeSourceCommand(
     string DisplayName, string Kind, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
     string? PayerLabel, string? Note, IReadOnlyList<PhaseDraft> Phases, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
-public sealed record EditIncomeSourceCommand(ItemId ItemId, string? DisplayName, string? Kind, IncomeSourceChange Change)
+/// <summary>#69: <paramref name="Visibility"/>, <paramref name="ShareLevel"/> and <paramref name="Owners"/> null keep the source's.</summary>
+public sealed record EditIncomeSourceCommand(ItemId ItemId, string? DisplayName, string? Kind, IncomeSourceChange Change,
+    Visibility? Visibility = null, ShareLevel? ShareLevel = null, IReadOnlyList<OwnerShare>? Owners = null)
     : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -78,7 +80,8 @@ public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore 
 }
 
 [RequestHandler<EditIncomeSourceCommand, ItemId>]
-public sealed class EditIncomeSourceHandler(IItemRegistry items, ISourceStore sources, IUnitOfWork unitOfWork)
+public sealed class EditIncomeSourceHandler(
+    IItemRegistry items, ISourceStore sources, IUnitOfWork unitOfWork, IItemRules rules, IActorAccessor actor, IPersonRegistry persons)
     : IRequestHandler<EditIncomeSourceCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditIncomeSourceCommand command, CancellationToken ct = default)
@@ -105,14 +108,15 @@ public sealed class EditIncomeSourceHandler(IItemRegistry items, ISourceStore so
         if (SourceRules.Check(change.PayerLabel, change.Note).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
+        var item = source.Item;
+        var target = OwnershipEdit.Of(item, command.Visibility, command.ShareLevel, command.Owners);
+        if (await OwnershipEdit.RefusalAsync(rules, persons, actor.Current!.PersonId!.Value, item, target, "income source", ct) is { } refused)
+            return Result.Failure<ItemId>(refused);
+
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        if (command.DisplayName is { } name && name != source.Item.DisplayName)
-        {
-            var renamed = await items.ReplaceAsync(command.ItemId, name, source.Item.Visibility,
-                source.Item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
-            if (renamed.TryGetFailure(out failure))
-                return Result.Failure<ItemId>(failure!);
-        }
+        var replaced = await OwnershipEdit.ReplaceAsync(items, item, command.DisplayName ?? item.DisplayName, target, ct);
+        if (replaced.TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
 
         await sources.UpdateAsync(command.ItemId, change, ct);
         await transaction.CommitAsync(ct);
@@ -123,7 +127,7 @@ public sealed class EditIncomeSourceHandler(IItemRegistry items, ISourceStore so
 [RequestHandler<GetIncomeSourceQuery, IncomeSourceDetail>]
 public sealed class GetIncomeSourceHandler(
     IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables, IHouseholdCalendar calendar,
-    IAccessPolicy policy, IActorAccessor actor)
+    IAccessPolicy policy, IActorAccessor actor, IItemRules rules)
     : IRequestHandler<GetIncomeSourceQuery, IncomeSourceDetail>
 {
     public async ValueTask<Result<IncomeSourceDetail>> HandleAsync(GetIncomeSourceQuery query, CancellationToken ct = default)
@@ -155,7 +159,9 @@ public sealed class GetIncomeSourceHandler(
             canWrite, item.ArchivedAt is not null, s.EndedOn, IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(list, today), currency),
             list.Select(p => IncomePhaseView.Of(p, today, currency)).ToList(),
             IncomeMath.Gaps(list, today).Select(g => new IncomeGapView(g.Label, g.EndsOn)).ToList(),
-            recent!.Select(f => IncomeOneOffView.Of(f, taxable)).ToList()));
+            recent!.Select(f => IncomeOneOffView.Of(f, taxable)).ToList(),
+            item.OwnerViews(), item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view",
+            canWrite && rules.CanCreate(actor.Current!.PersonId!.Value, item.Owners)));
     }
 
     /// <summary>The source's one-off income in <paramref name="range"/>: its Core flows <c>income</c> of category <c>one_off</c>.</summary>

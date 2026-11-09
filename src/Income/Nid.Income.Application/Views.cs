@@ -71,7 +71,8 @@ public sealed record IncomeOneOffView(Guid Id, LocalDate OccurredOn, IncomeMoney
 public sealed record IncomeSourceDetail(
     ItemId Id, string DisplayName, string Kind, string? PayerLabel, string? Note, string Currency, string Visibility,
     bool CanWrite, bool Ended, LocalDate? EndedOn, IncomeAmountView MonthlyEquivalent, IReadOnlyList<IncomePhaseView> Phases,
-    IReadOnlyList<IncomeGapView> GapSoon, IReadOnlyList<IncomeOneOffView> OneOffs) : IExposesItems
+    IReadOnlyList<IncomeGapView> GapSoon, IReadOnlyList<IncomeOneOffView> OneOffs,
+    IReadOnlyList<ItemOwnerView> Owners, string ShareLevel, bool CanChangeOwners) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }

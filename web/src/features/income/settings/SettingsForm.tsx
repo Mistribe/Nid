@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useRef } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
@@ -17,6 +17,10 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { invalidateIncome, SOURCE, type IncomeSourceDetail } from '@/api/income';
+import { PERSONS } from '@/api/persons';
+import { checkEditOwnership, editOwnershipShape, ownershipApplied, ownershipDefaults, ownershipPath, type OwnershipValues } from '@/components/ownership/ownership';
+import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { ITEM_SHARING } from '@/components/ownership/SharingBadges';
 import { KINDS } from '../format';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/income';
@@ -30,17 +34,21 @@ const schema = (t: TFunction) => z.object({
   kind: z.enum(KINDS),
   payerLabel: z.string().max(100, t('income_form.payer_too_long')),
   note: z.string().max(2000, t('investments_form.note_too_long')),
-});
+  ...editOwnershipShape(t),
+}).superRefine((v, ctx) => checkEditOwnership(v, ctx, t));
 
 /** The source as the form left it after a save: trimmed, an emptied optional field back to none. */
 function applied(before: IncomeSourceDetail, values: SettingsValues): IncomeSourceDetail {
   const text = (v: string) => (v.trim() === '' ? null : v.trim());
-  return { ...before, displayName: values.displayName.trim(), kind: values.kind, payerLabel: text(values.payerLabel), note: text(values.note) };
+  return {
+    ...before, displayName: values.displayName.trim(), kind: values.kind, payerLabel: text(values.payerLabel), note: text(values.note),
+    ...(values.visibility && values.owners ? ownershipApplied({ visibility: values.visibility, shareLevel: values.shareLevel, owners: values.owners }) : {}),
+  };
 }
 
 /**
- * 2C2a design §7: name, kind, payer label and note, sending only what changed (currency, owners and visibility are not
- * edited). `onDone` gets the confirmation, which the page shows as a toast.
+ * 2C2a design §7: name, kind, payer label and note, sending only what changed (the currency is not edited); #69: the
+ * visibility, sharing level and owners for the source's owners. `onDone` gets the confirmation, which the page shows as a toast.
  */
 export function SettingsForm({ source, onDone }: { source: IncomeSourceDetail; onDone: (message: string) => void }) {
   const { t } = useTranslation();
@@ -49,12 +57,22 @@ export function SettingsForm({ source, onDone }: { source: IncomeSourceDetail; o
   // The server's kind is a plain string; the select only offers the ones the screen knows.
   const form = useForm({
     resolver: zodResolver(schema(t)),
-    defaultValues: { displayName: source.displayName, kind: source.kind as (typeof KINDS)[number], payerLabel: source.payerLabel ?? '', note: source.note ?? '' },
+    defaultValues: {
+      displayName: source.displayName, kind: source.kind as (typeof KINDS)[number], payerLabel: source.payerLabel ?? '', note: source.note ?? '',
+      // #69: shown, and so sent, to its owners only.
+      ...(source.canChangeOwners ? ownershipDefaults(source) : {}),
+    },
   });
   // Diffed against what the form started from (or last saved), never the live source a refetch may have changed.
   const baseline = useRef(source);
-  const errors = useSubmitErrors(form.setError, PATHS);
-  const save = $api.useMutation('patch', SOURCE, { onSuccess: () => invalidateIncome(queryClient) });
+  const errors = useSubmitErrors(form.setError, (path) => PATHS[path as keyof typeof PATHS] ?? ownershipPath(path));
+  const persons = $api.useQuery('get', PERSONS, {}, { enabled: source.canChangeOwners }).data ?? [];
+  const save = $api.useMutation('patch', SOURCE, {
+    onSuccess: () => {
+      void invalidateIncome(queryClient);
+      void queryClient.invalidateQueries({ queryKey: ['get', ITEM_SHARING] });
+    },
+  });
 
   const submit = form.handleSubmit((values) => {
     errors.clear();
@@ -104,6 +122,8 @@ export function SettingsForm({ source, onDone }: { source: IncomeSourceDetail; o
       <Field label={t('income_form.note')} error={e.note?.message}>
         {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
+      {/* Shown only when the defaults hold the ownership: its values are never undefined here. */}
+      {source.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} /> : null}
       <Button type="submit" disabled={save.isPending}>{t('income_detail.settings.submit')}</Button>
     </form>
   );
