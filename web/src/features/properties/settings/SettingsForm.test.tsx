@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
@@ -53,6 +54,54 @@ const FLAGS = { clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfte
 
 describe('property settings', () => {
   beforeAll(async () => { await import('../PropertyDetailPage'); }, 30_000);
+
+  describe('#70: its owners and sharing', () => {
+    const ALICE = '01926b9e-0000-7000-8000-00000000000a';
+    const LEA = '01926b9e-0000-7000-8000-0000000000c1';
+    const owned = () => {
+      const served = serve(propertyDetail({ owners: [{ personId: ALICE, shareBp: 10000 }], canChangeOwners: true }));
+      server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([
+        { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: null, retirementAge: 64 },
+        { id: LEA, kind: 'dependent', displayName: 'Léa Dev', email: null, retirementAge: 64 },
+      ])));
+      return served;
+    };
+
+    it('hands the property to a child, sending only the owners with the version', async () => {
+      const { sent } = owned();
+      const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
+
+      await heading();
+      await pick(user, 'Personne', 'Léa Dev');
+      await user.click(save());
+
+      await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
+      expect(sent).toEqual([{ ...FLAGS, version: 7, owners: [{ personId: LEA, shareBp: 10000 }] }]);
+    });
+
+    it('shows a refusal to drop the other adult under the owners', async () => {
+      owned();
+      server.use(http.patch('*/api/v1/realestate/properties/:id', () => HttpResponse.json(
+        { status: 422, code: 'core.drops_adult_owner', title: 'x', errors: [{ path: 'owners', code: 'core.drops_adult_owner', message: 'x' }] },
+        { status: 422 })));
+      const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
+
+      await heading();
+      await pick(user, 'Personne', 'Léa Dev');
+      await user.click(save());
+
+      expect(await within(within(settings()).getByRole('group', { name: 'Propriétaires' })).findByRole('alert'))
+        .toHaveTextContent('Vous ne pouvez pas retirer l’autre adulte des propriétaires.');
+    });
+
+    it('is not offered to an adult who may edit without owning', async () => {
+      serve();
+      await renderApp(`/properties/${PROPERTY}?tab=settings`);
+
+      await heading();
+      expect(within(settings()).queryByRole('group', { name: 'Propriétaires' })).not.toBeInTheDocument();
+    });
+  });
 
   it('sends only what changed with the version it opened on, says it is saved and shows the stored property', async () => {
     const { sent, reads } = serve();

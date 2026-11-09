@@ -27390,6 +27390,9 @@ export interface components {
             postalAddress?: null | string;
             /** @default false */
             clearPostalAddress: boolean;
+            visibility?: null | string;
+            shareLevel?: null | string;
+            owners?: null | components["schemas"]["OwnerBody"][];
         };
         EditSubscriptionBody: {
             autoRenew?: null | boolean;
@@ -29983,6 +29986,8 @@ export interface components {
             tenancies: components["schemas"]["PropertyTenancyView"][];
             loans: components["schemas"]["PropertyLoanView"][];
             canWrite: boolean;
+            shareLevel: string;
+            canChangeOwners: boolean;
         };
         PropertyEveryView: {
             /** Format: int32 */

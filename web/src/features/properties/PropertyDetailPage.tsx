@@ -7,6 +7,7 @@ import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
+import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
@@ -89,6 +90,7 @@ export function PropertyDetailPage() {
             <span className="text-sm text-muted-foreground">{typeText(t, property.type)}</span>
             {property.locationLabel ? <span className="text-sm text-muted-foreground">{property.locationLabel}</span> : null}
             <AccessBadge access={property.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
+            <OwnerChips owners={property.owners} />
             {property.type === 'rental' && capabilities.modules.includes('income') ? (
               <Link to="/tax" search={{ tab: '2044' }} className="text-sm hover:underline">{t('property_detail.tax_2044')}</Link>
             ) : null}

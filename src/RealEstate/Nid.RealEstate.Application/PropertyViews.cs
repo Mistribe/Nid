@@ -64,7 +64,7 @@ public sealed record PropertyDetail(
     string? LocationLabel, string ValuationCadence, int? StaleAfterDays, LocalDate? RentalStartsOn, string? Note, string? EnergyClass, string? PostalAddress, IReadOnlyList<string> ReceiptMonths,
     uint Version, PropertyFiguresView Figures, IReadOnlyList<PropertyWarningView> Warnings, IReadOnlyList<PropertyValuationView> Valuations,
     IReadOnlyList<PropertyFlowView> Flows, IReadOnlyList<PropertyRecurringCostView> RecurringCosts, IReadOnlyList<PropertyTenancyView> Tenancies,
-    IReadOnlyList<PropertyLoanView> Loans, bool CanWrite) : IExposesItems, IExposesDocuments
+    IReadOnlyList<PropertyLoanView> Loans, bool CanWrite, string ShareLevel, bool CanChangeOwners) : IExposesItems, IExposesDocuments
 {
     /// <summary>The property and its readable linked loans; every warning's loan is one of them.</summary>
     public IEnumerable<ItemId> ExposedItems() => [Id, .. Loans.Select(l => l.Id)];
@@ -86,7 +86,9 @@ internal static class PropertyViews
             LoanViews.Wire(item.Visibility), Amount(f.Value), f.ValueOn, f.Stale, Amount(f.NetValue), Fraction(f.Rental.GrossYield),
             Fraction(f.Rental.VacancyRate), canWrite, item.OwnerViews());
 
-    public static PropertyDetail Detail(ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite, LocalDate today, IReadOnlyList<IrlValue> irl, InflationSeries inflation)
+    public static PropertyDetail Detail(
+        ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite, bool canChangeOwners, LocalDate today, IReadOnlyList<IrlValue> irl,
+        InflationSeries inflation)
     {
         var revisions = RentRevisions.Of(property, irl, today).ToDictionary(c => c.Last.Id, c => RentRevisions.View(c, inflation));
         var d = property.Details;
@@ -115,7 +117,7 @@ internal static class PropertyViews
                 revisions.GetValueOrDefault(t.Id), t.Tenancy.TenantNames, t.Tenancy.LandlordName, t.Tenancy.LandlordAddress,
                 t.Tenancy.RentsTrackedFrom is { } m ? $"{m.Year:0000}-{m.Month:00}" : null)).ToList(),
             read.Loans.Zip(f.Loans, (l, b) => new PropertyLoanView(l.Id, l.DisplayName, LoanViews.CurrencyOf(l).Code, Amount(b.Balance), Amount(b.Converted))).ToList(),
-            canWrite);
+            canWrite, item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view", canChangeOwners);
     }
 
     /// <summary>Spec 3C2 §4: a rate on the wire, a fraction with four decimals, invariant (<c>"0.0384"</c>), rounded once here.</summary>

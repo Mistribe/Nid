@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { Controller, FormProvider, useForm } from 'react-hook-form';
+import { Controller, FormProvider, useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -17,6 +17,10 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { invalidateProperties, PROPERTY, type PropertyDetail } from '@/api/properties';
+import { PERSONS } from '@/api/persons';
+import type { OwnershipValues } from '@/components/ownership/ownership';
+import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { ITEM_SHARING } from '@/components/ownership/SharingBadges';
 import { PropertyFields } from '../new/PropertyFields';
 import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/loans';
@@ -69,6 +73,7 @@ function SettingsForm({ property, onDone }: { property: PropertyDetail; onDone: 
   const form = useForm<SettingsValues>({ resolver: zodResolver(settingsSchema(t)), defaultValues: settingsValuesOf(opened) });
   const errors = useSubmitErrors(form.setError, settingsPath);
   const save = $api.useMutation('patch', PROPERTY);
+  const persons = $api.useQuery('get', PERSONS, {}, { enabled: opened.canChangeOwners }).data ?? [];
 
   const submit = form.handleSubmit((values) => {
     errors.clear();
@@ -78,7 +83,10 @@ function SettingsForm({ property, onDone }: { property: PropertyDetail; onDone: 
       { params: { path: { id: opened.id } }, body: toWireBody(body, opened.version) },
       {
         // The section remounts this form once the property is read again, on its new values and version.
-        onSuccess: () => void invalidateProperties(queryClient).then(() => onDone(t('loan_detail.settings.saved'))),
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: ['get', ITEM_SHARING] });
+          void invalidateProperties(queryClient).then(() => onDone(t('loan_detail.settings.saved')));
+        },
         onError: (error) => errors.onError(error),
       },
     );
@@ -119,6 +127,8 @@ function SettingsForm({ property, onDone }: { property: PropertyDetail; onDone: 
         <Field label={t('property_form.note')} error={e.note?.message}>
           {(c) => <Textarea {...c} {...form.register('note')} />}
         </Field>
+        {/* Shown only when the defaults hold the ownership: its values are never undefined here. */}
+        {opened.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} /> : null}
       </form>
     </FormProvider>
   );
