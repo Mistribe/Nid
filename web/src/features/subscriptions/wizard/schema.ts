@@ -6,6 +6,7 @@ import { checkOwnership, ownershipPath, ownershipShape, ownershipToWire } from '
 import { AMOUNT, CURRENCY, ISO_DATE } from '@/lib/amount';
 import { offerBody, offerFieldOf, thenMode } from './offers';
 import '@/locales/forms';
+import '@/locales/investments';
 
 const UNITS = ['day', 'week', 'month', 'year'] as const;
 export type Unit = (typeof UNITS)[number];
@@ -18,7 +19,7 @@ const POSITIVE_COUNT = /^[1-9]\d*$/;
 export function wizardSchema(t: TFunction) {
   return z.object({
     provider: z.object({ key: z.string(), name: z.string() }).nullable(),
-    displayName: z.string().trim().min(1, t('edit.required')),
+    displayName: z.string().trim().min(1, t('edit.required')).max(100, t('investments_form.name_too_long')),
     ...ownershipShape(t),
     users: z.array(z.string()),
     note: z.string(),

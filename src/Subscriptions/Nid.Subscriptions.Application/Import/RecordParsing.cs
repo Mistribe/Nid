@@ -49,8 +49,8 @@ internal static class RecordParsing
     {
         parsed = null!;
         var ok = true;
-        if (string.IsNullOrWhiteSpace(r.Name))
-            ok = Invalid(issues, path + ".name", "A subscription has a name.");
+        if (string.IsNullOrWhiteSpace(r.Name) || r.Name.Trim().Length > SubscriptionName.Max)
+            ok = Invalid(issues, path + ".name", $"A subscription's name is 1 to {SubscriptionName.Max} characters, and not only whitespace.");
 
         Visibility visibility = Visibility.Shared;
         if (r.Visibility == "private")

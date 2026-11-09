@@ -30,7 +30,7 @@ public sealed record CreateSubscriptionCommand(
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
-    string? ProviderKey = null, bool ClearProviderKey = false, ContractTermsChange? Terms = null)
+    string? ProviderKey = null, bool ClearProviderKey = false, ContractTermsChange? Terms = null, string? DisplayName = null)
     : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -57,6 +57,17 @@ public sealed record DeletePurchaseCommand(ItemId ItemId, PurchaseId PurchaseId)
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>#24: the rule of an envelope's or a source's name, 1 to 100 characters, not only whitespace; stored as sent.</summary>
+public static class SubscriptionName
+{
+    public const int Max = 100;
+
+    public static Failure? Refusal(string? name)
+        => name is null || name.Trim().Length is < 1 or > Max
+            ? FieldErrors.At(new Failure("subscriptions.invalid_name", $"A name is 1 to {Max} characters, and not only whitespace.", null), "displayName")
+            : null;
+}
+
 [RequestHandler<CreateSubscriptionCommand, ItemId>]
 public sealed class CreateSubscriptionHandler(
     IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IAccessPolicy policy,
@@ -65,6 +76,9 @@ public sealed class CreateSubscriptionHandler(
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateSubscriptionCommand command, CancellationToken ct = default)
     {
+        if (SubscriptionName.Refusal(command.DisplayName) is { } badName)
+            return Result.Failure<ItemId>(badName);
+
         var phases = command.Phases ?? [];
         var drafts = command.Purchases ?? [];
 
@@ -129,11 +143,15 @@ public sealed class CreateSubscriptionHandler(
 }
 
 [RequestHandler<EditSubscriptionCommand, ItemId>]
-public sealed class EditSubscriptionHandler(ISubscriptionStore store, ProviderAccess providers, IActorAccessor actor)
+public sealed class EditSubscriptionHandler(
+    IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IActorAccessor actor)
     : IRequestHandler<EditSubscriptionCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditSubscriptionCommand command, CancellationToken ct = default)
     {
+        if (command.DisplayName is not null && SubscriptionName.Refusal(command.DisplayName) is { } badName)
+            return Result.Failure<ItemId>(badName);
+
         if (command.ProviderKey is { } key && !command.ClearProviderKey)
         {
             // Keeping the provider it already has is not a new link, even an archived one (design §5).
@@ -142,10 +160,19 @@ public sealed class EditSubscriptionHandler(ISubscriptionStore store, ProviderAc
                 return Result.Failure<ItemId>(unknown!);
         }
 
+        // The Core item and the subscription row are two contexts: one transaction, both or neither.
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        if (command.DisplayName is { } renamed && await items.FindAsync(command.ItemId, ct) is { } item
+            && (await OwnershipEdit.ReplaceAsync(items, item, renamed, OwnershipEdit.Of(item, null, null, null), ct)).TryGetFailure(out var notRenamed))
+            return Result.Failure<ItemId>(notRenamed!);
+
         var result = await store.EditAsync(command.ItemId, new SubscriptionEdit(
             command.AutoRenew, command.CancelledAt, command.ClearCancelledAt, command.Note, command.ProviderKey, command.ClearProviderKey,
             command.Terms), ct);
-        return result.TryGetFailure(out var failure) ? Result.Failure<ItemId>(failure!) : Result.Success(command.ItemId);
+        if (result.TryGetFailure(out var failure))
+            return Result.Failure<ItemId>(failure!);
+        await transaction.CommitAsync(ct);
+        return Result.Success(command.ItemId);
     }
 }
 

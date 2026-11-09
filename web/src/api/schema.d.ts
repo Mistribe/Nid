@@ -27603,6 +27603,7 @@ export interface components {
             cancellableFrom?: null | string;
             /** @default false */
             clearCancellableFrom: boolean;
+            displayName?: null | string;
         };
         EmergencyTargetView: {
             /** Format: int32 */

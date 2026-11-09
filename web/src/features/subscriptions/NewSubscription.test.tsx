@@ -104,6 +104,17 @@ describe('Abonnements › ajout', () => {
     expect(await screen.findByRole('dialog', { name: 'Nouveau fournisseur' })).toBeInTheDocument();
   });
 
+  it('refuses a name over 100 characters', async () => {
+    serve(() => HttpResponse.json({ id: NEW_ID }, { status: 201 }));
+    const { user } = await start();
+
+    await user.type(screen.getByLabelText('Nom'), 'x'.repeat(101));
+    await user.click(screen.getByRole('button', { name: 'Continuer' }));
+
+    expect(await screen.findByText('100 caractères au plus.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Début')).not.toBeInTheDocument();
+  });
+
   it('does not go on while the step is not valid', async () => {
     serve(() => HttpResponse.json({ id: NEW_ID }, { status: 201 }));
     const { user } = await start();
