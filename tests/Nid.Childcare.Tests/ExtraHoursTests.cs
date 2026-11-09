@@ -22,6 +22,21 @@ public class ExtraHoursTests
         Assert.Equal((1m, 0m), ExtraHours.Compute(month, all, Plan, terms));
     }
 
+    /// <summary>An hour missing for an unpaid reason, made up on Tuesday: that hour is no longer planned, so it is extra.</summary>
+    [Fact]
+    public void The_missing_hours_of_an_unpaid_reason_are_no_longer_planned()
+    {
+        var month = new YearMonth(2026, 11);
+        var days = Around(month).Where(d => d.Date.Month == 11).Select(d => d.Date.Day switch
+        {
+            2 => d with { Departure = d.Departure!.Value.PlusHours(-1), Absence = AbsenceReason.CarerAbsent },
+            3 => d with { Departure = d.Departure!.Value.PlusHours(1) },
+            _ => d,
+        }).ToList();
+
+        Assert.Equal((1m, 0m), ExtraHours.Compute(month, days, Plan));
+    }
+
     /// <summary>A sick-child day the contract pays stays planned: hours made up that week are no extra hours.</summary>
     [Fact]
     public void A_paid_reason_stays_planned()
