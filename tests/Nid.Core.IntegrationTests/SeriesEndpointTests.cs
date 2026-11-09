@@ -62,9 +62,9 @@ public class SeriesEndpointTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(
             ["cpi", "cpi:yoy", "income:household", "irl", "networth", "networth:projected", "projection:inflation", "projection:rate:bond", "projection:rate:capital_guaranteed", "projection:rate:cash",
                 "projection:rate:equity", "projection:rate:mixed", "projection:rate:money_market", "projection:rate:other", "projection:rate:real_estate",
-                "fx:EUR", "fx:GBP"],
+                "tax:yearly", "fx:EUR", "fx:GBP"],
             Keys(catalogue));
-        Assert.Equal((17, 1), (catalogue.GetProperty("total").GetInt32(), catalogue.GetProperty("page").GetInt32()));
+        Assert.Equal((18, 1), (catalogue.GetProperty("total").GetInt32(), catalogue.GetProperty("page").GetInt32()));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class SeriesEndpointTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         var second = await GetAsync(app, "?page=2");
         Assert.Empty(Keys(second));
-        Assert.Equal((17, 2), (second.GetProperty("total").GetInt32(), second.GetProperty("page").GetInt32()));
+        Assert.Equal((18, 2), (second.GetProperty("total").GetInt32(), second.GetProperty("page").GetInt32()));
     }
 
     [Fact]
