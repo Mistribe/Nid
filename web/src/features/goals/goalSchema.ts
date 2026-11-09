@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { Path } from 'react-hook-form';
 import { z } from 'zod';
-import { ownershipPath, ownershipShape, checkOwnership, ownershipToWire, percentToBp, type OwnerRow } from '@/components/ownership/ownership';
+import { bpToPercent, ownershipPath, ownershipShape, checkOwnership, ownershipToWire, percentToBp, type OwnerRow } from '@/components/ownership/ownership';
 import { AMOUNT, ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
 import type { CreateGoalBody, EditGoalBody, GoalDetail } from '@/api/goals';
@@ -59,12 +59,6 @@ export function goalPath(path: string): Path<GoalValues> | undefined {
   const row = /^funding\[(\d+)\]\.(envelopeId|shareBp)$/.exec(path);
   if (row) return `funding.${Number(row[1])}.${row[2] === 'shareBp' ? 'share' : 'envelopeId'}`;
   return ownershipPath(path);
-}
-
-/** Text of a share in basis points, for the field: `5000` → `50`, `3333` → `33.33` (digits only, no float). */
-export function bpToPercent(bp: number): string {
-  const s = String(bp).padStart(3, '0');
-  return `${s.slice(0, -2)}.${s.slice(-2)}`.replace(/\.?0+$/, '');
 }
 
 function wire(v: GoalValues) {

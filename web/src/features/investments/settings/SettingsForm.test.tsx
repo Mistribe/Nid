@@ -6,7 +6,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { detail, list, PEA, summary } from '../testData';
+import { ALICE, detail, list, PEA, summary } from '../testData';
 
 type Patch = Record<string, unknown>;
 type Answer = (body: Patch) => Response | undefined;
@@ -167,6 +167,53 @@ describe('an envelope\'s settings', () => {
     expect(await form.findByText('Entre 1 et 3650 jours, ou vide pour suivre la cadence.')).toBeInTheDocument();
     expect(form.getByLabelText('Seuil de péremption (jours)')).toBeInvalid();
     expect(bodies).toEqual([]);
+  });
+
+  describe('#25: its owners and sharing', () => {
+    const LEA = '0192f0aa-0000-7000-8000-0000000000c1';
+    const owned = (over = {}) => detail({ owners: [{ personId: ALICE, shareBp: 10000 }], canChangeOwners: true, ...over });
+    const household = () => server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([
+      { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: null, retirementAge: 64 },
+      { id: LEA, kind: 'dependent', displayName: 'Léa Dev', email: null, retirementAge: 64 },
+    ])));
+
+    it('hands the envelope to a child, sending only the owners', async () => {
+      const bodies: Patch[] = [];
+      serve(owned(), bodies);
+      household();
+      const { user, container } = await renderApp(`/investments/${PEA}?tab=settings`);
+
+      const form = await openForm();
+      expect(form.getByRole('group', { name: 'Propriétaires' })).toBeInTheDocument();
+      await pick(user, 'Personne', 'Léa Dev');
+      await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+      await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
+      expect(bodies).toEqual([{ ...CLEARS, owners: [{ personId: LEA, shareBp: 10000 }] }]);
+      await expectNoAxeViolations(container);
+    });
+
+    it('shows a refusal to drop the other adult under the owners', async () => {
+      serve(owned(), [], problem(422, 'core.drops_adult_owner', { errors: [{ path: 'owners', code: 'core.drops_adult_owner', message: 'x' }] }));
+      household();
+      const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
+
+      const form = await openForm();
+      await pick(user, 'Personne', 'Léa Dev');
+      await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+      expect(await within(form.getByRole('group', { name: 'Propriétaires' })).findByRole('alert'))
+        .toHaveTextContent('Vous ne pouvez pas retirer l’autre adulte des propriétaires.');
+      expect(screen.queryByText('Réglages enregistrés.')).not.toBeInTheDocument();
+    });
+
+    it('is not offered to an adult who may edit without owning', async () => {
+      serve(detail({ owners: [{ personId: ALICE, shareBp: 10000 }] }));
+      await renderApp(`/investments/${PEA}?tab=settings`);
+
+      const form = await openForm();
+      expect(form.queryByRole('group', { name: 'Propriétaires' })).not.toBeInTheDocument();
+    });
   });
 
   it('places a refused value on the field the server names', async () => {

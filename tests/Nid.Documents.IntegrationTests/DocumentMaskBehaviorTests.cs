@@ -30,7 +30,7 @@ public class DocumentMaskBehaviorTests
         var amount = new AmountView("100.00", "EUR");
         var detail = new EnvelopeDetail(new ItemId(Guid.NewGuid()), "PEA", "pea", "EUR", "shared", false, true, null, null, null, "monthly", null, null,
             null, null, null!, [new ValuationView(Guid.NewGuid(), new LocalDate(2025, 9, 30), amount, null, document)],
-            [new FlowView(Guid.NewGuid(), new LocalDate(2025, 9, 5), "contribution", amount, null, null, null, document)]);
+            [new FlowView(Guid.NewGuid(), new LocalDate(2025, 9, 5), "contribution", amount, null, null, null, document)], [], "view", false);
         var behavior = new DocumentMaskBehavior<GetEnvelopeQuery, EnvelopeDetail>(
             new ThrowingInvoker(), NullLogger<DocumentMaskBehavior<GetEnvelopeQuery, EnvelopeDetail>>.Instance);
 

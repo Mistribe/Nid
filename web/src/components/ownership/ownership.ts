@@ -17,6 +17,12 @@ export function percentToBp(text: string): number | null {
   return bp <= 10000 ? bp : null;
 }
 
+/** Text of a share in basis points, for the field: `5000` → `50`, `3333` → `33.33` (digits only, no float). */
+export function bpToPercent(bp: number): string {
+  const s = String(bp).padStart(3, '0');
+  return `${s.slice(0, -2)}.${s.slice(-2)}`.replace(/\.?0+$/, '');
+}
+
 /** Zod fields to spread into an object schema. */
 export function ownershipShape(t: TFunction) {
   return {

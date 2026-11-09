@@ -33,6 +33,7 @@ export const detail = (over: Partial<EnvelopeDetail> = {}): EnvelopeDetail => ({
     { id: 'f1', occurredOn: '2024-12-31', kind: 'opening', amount: eur('20000.0000'), category: null, externalRef: null, note: null },
     { id: 'f2', occurredOn: '2025-06-15', kind: 'contribution', amount: eur('2000.0000'), category: null, externalRef: null, note: null },
   ],
+  owners: [], shareLevel: 'view', canChangeOwners: false,
   ...over,
 });
 

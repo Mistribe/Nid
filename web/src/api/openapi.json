@@ -32892,6 +32892,27 @@
               "null",
               "boolean"
             ]
+          },
+          "visibility": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shareLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owners": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/OwnerBody"
+            }
           }
         }
       },
@@ -33307,7 +33328,10 @@
           "valuationCadence",
           "figures",
           "valuations",
-          "flows"
+          "flows",
+          "owners",
+          "shareLevel",
+          "canChangeOwners"
         ],
         "type": "object",
         "properties": {
@@ -33399,6 +33423,18 @@
             "items": {
               "$ref": "#/components/schemas/FlowView"
             }
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "shareLevel": {
+            "type": "string"
+          },
+          "canChangeOwners": {
+            "type": "boolean"
           },
           "regulated": {
             "type": [

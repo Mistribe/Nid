@@ -27325,6 +27325,9 @@ export interface components {
             clearPremiumsBefore2017?: null | boolean;
             regulated?: null | string;
             clearRegulated?: null | boolean;
+            visibility?: null | string;
+            shareLevel?: null | string;
+            owners?: null | components["schemas"]["OwnerBody"][];
         };
         EditGoalBody: {
             name?: null | string;
@@ -27436,6 +27439,9 @@ export interface components {
             figures: components["schemas"]["FiguresView"];
             valuations: components["schemas"]["ValuationView"][];
             flows: components["schemas"]["FlowView"][];
+            owners: components["schemas"]["ItemOwnerView"][];
+            shareLevel: string;
+            canChangeOwners: boolean;
             regulated?: null | string;
             ceiling?: null | components["schemas"]["CeilingView"];
             interest?: null | components["schemas"]["InterestEstimateView"];

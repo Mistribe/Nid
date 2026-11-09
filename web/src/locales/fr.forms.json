@@ -33,6 +33,8 @@
     "subscriptions_unknown_provider": "Ce fournisseur n'existe pas ou ne peut pas être choisi.",
     "core_share_sum": "Les parts des propriétaires doivent faire 100 % au total.",
     "core_private_single_owner": "Un élément privé n'a qu'un seul propriétaire.",
+    "core_drops_adult_owner": "Vous ne pouvez pas retirer l’autre adulte des propriétaires.",
+    "core_takes_read_away": "L’autre adulte ne verrait plus cet élément : gardez-le propriétaire ou laissez l’élément partagé.",
     "subscriptions_not_found": "Cet abonnement est introuvable.",
     "core_date_in_future": "Cette date est dans le futur.",
     "core_currency_mismatch": "Ce montant n’est pas dans la devise de l’enveloppe.",
