@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Charges } from '@/api/subscriptions';
@@ -129,6 +129,14 @@ describe('Abonnements › frise', () => {
     expect(screen.getByRole('button', { name: 'Mois suivant' })).toBeInTheDocument();
   });
 
+  it('A_failed_current_month_still_shows_the_band', async () => {
+    serveMonths({ '2026-11': null, '2026-12': { charges: [line('2026-12-03', 'Spotify', { isProjected: true })] } });
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    expect(await within(await segment('novembre 2026')).findByRole('alert', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await within(await segment('décembre 2026')).findByRole('link', { name: /Spotify/ })).toBeInTheDocument();
+  });
+
   it('Today_is_marked', async () => {
     serveMonths();
     await renderApp('/subscriptions?tab=calendar&view=timeline');
@@ -222,6 +230,54 @@ describe('Abonnements › frise › défilement', () => {
 
     await user.click(disc);
     await waitFor(() => expect(router.state.location.pathname).toBe(`/subscriptions/${SPOTIFY}`));
+  });
+
+  it('Months_added_during_a_drag_do_not_make_the_band_jump', async () => {
+    serveMonths({}, '2020-01');
+    const { user } = await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const region = await band();
+    await segment('septembre 2026');
+    let width = 1000;
+    let left = 500;
+    Object.defineProperty(region, 'scrollWidth', { configurable: true, get: () => width });
+    Object.defineProperty(region, 'scrollLeft', { configurable: true, get: () => left, set: (v: number) => { left = v; } });
+    await user.pointer([
+      { keys: '[MouseLeft>]', target: region, coords: { clientX: 200, clientY: 50 } },
+      { target: region, coords: { clientX: 220, clientY: 50 } },
+    ]);
+    expect(left).toBe(480);
+    act(() => { FakeObserver.trigger(document.querySelector('[data-edge="past"]')!); width = 1960; });
+    await segment('juin 2026');
+    expect(left).toBe(1440);
+    await user.pointer({ target: region, coords: { clientX: 230, clientY: 50 } });
+    expect(left).toBe(1430); // ten more pixels from where the band now is, not from where the drag began
+    await user.pointer({ keys: '[/MouseLeft]', target: region });
+  });
+
+  it('Moving_the_mouse_with_no_button_held_does_not_scroll', async () => {
+    serveMonths();
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const region = await band();
+    await segment('novembre 2026');
+    let left = 500;
+    Object.defineProperty(region, 'scrollLeft', { configurable: true, get: () => left, set: (v: number) => { left = v; } });
+    // A press on the scrollbar: the browser may never send its pointerup to the page.
+    fireEvent.pointerDown(region, { pointerType: 'mouse', button: 0, buttons: 1, clientX: 200 });
+    fireEvent.pointerMove(region, { pointerType: 'mouse', buttons: 0, clientX: 100 });
+    fireEvent.pointerMove(region, { pointerType: 'mouse', buttons: 0, clientX: 50 });
+    expect(left).toBe(500);
+  });
+
+  it('A_short_february_has_no_29_tick', async () => {
+    serveMonths();
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const february = await segment('février 2027');
+    await within(february).findByText('22');
+    expect(within(february).queryByText('29')).not.toBeInTheDocument();
+    expect(within(await segment('janvier 2027')).getByText('29')).toBeInTheDocument();
   });
 
   it('The_buttons_scroll_by_a_month_and_back_to_today', async () => {

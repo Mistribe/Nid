@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { todayIso } from '@/lib/today';
 import { cn } from '@/lib/utils';
 import { DayMore, formatDate, type Line } from './charges';
+import { daysIn } from './monthGrid';
 import { atEnd, atStart, dayOffset, extend, initialRange, months, type Range } from './timeline';
 import { useDragScroll } from './useDragScroll';
 
@@ -35,9 +36,14 @@ export function TimelineView({ scope }: { scope: Scope }) {
   const current = today.slice(0, 7);
   const head = $api.useQuery('get', CHARGES, { params: { query: { scope, month: current } } });
 
-  if (head.error) return <ProblemMessage problem={present(toProblem(head.error))} />;
-  if (!head.data) return <Loading label={t('timeline.loading_view')}><Skeleton className="h-64 w-full" /></Loading>;
-  return <Band key={scope} scope={scope} today={today} first={head.data.firstMonth ?? null} />;
+  // Read once per scope: a failed current month (null: the band starts there, its segment says what went wrong) is
+  // fetched again when its segment mounts, and must not unmount the band meanwhile.
+  const [start, setStart] = useState<{ scope: Scope; first: string | null }>();
+  const known = head.data ? (head.data.firstMonth ?? null) : head.error ? null : undefined;
+  if (known !== undefined && start?.scope !== scope) setStart({ scope, first: known });
+
+  if (start?.scope !== scope) return <Loading label={t('timeline.loading_view')}><Skeleton className="h-64 w-full" /></Loading>;
+  return <Band key={scope} scope={scope} today={today} first={start.first} />;
 }
 
 function Band({ scope, today, first }: { scope: Scope; today: string; first: string | null }) {
@@ -65,7 +71,8 @@ function Band({ scope, today, first }: { scope: Scope; today: string; first: str
     const el = band.current;
     const mark = el?.querySelector('[data-today]');
     if (!el || !mark) return;
-    const at = el.scrollLeft + mark.getBoundingClientRect().left - el.getBoundingClientRect().left;
+    const box = mark.getBoundingClientRect();
+    const at = el.scrollLeft + box.left + box.width / 2 - el.getBoundingClientRect().left;
     el.scrollTo({ left: at - el.clientWidth / 2, behavior });
   }, []);
   useLayoutEffect(() => toToday('auto'), [toToday]);
@@ -73,7 +80,8 @@ function Band({ scope, today, first }: { scope: Scope; today: string; first: str
   const step = (by: number) => band.current?.scrollBy({ left: by * (band.current.querySelector<HTMLElement>('[data-month]')?.offsetWidth || 320), behavior: motion() });
 
   return (
-    <TooltipProvider>
+    // A delay: a disc crossed while dragging does not flash its tooltip.
+    <TooltipProvider delayDuration={400}>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <ul aria-label={t('timeline.legend')} className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
@@ -132,7 +140,8 @@ function EndCap({ children }: { children: ReactNode }) {
 function MonthSegment({ month, scope, today }: { month: string; scope: Scope; today: string }) {
   const { t } = useTranslation('subscriptions-board');
   const { $api } = useApi();
-  const answer = $api.useQuery('get', CHARGES, { params: { query: { scope, month } } });
+  // A past month does not change on its own: no refetch of every mounted month when the window regains focus.
+  const answer = $api.useQuery('get', CHARGES, { params: { query: { scope, month } } }, { refetchOnWindowFocus: month >= today.slice(0, 7) });
   const label = formatDate(month, { month: 'long', year: 'numeric' });
   const d = answer.data;
 
@@ -166,7 +175,7 @@ function Plot({ month, lines, today }: { month: string; lines: Line[]; today: st
     <div className="relative mx-5 h-48">
       {past > 0 ? <div aria-hidden="true" className="absolute top-0 bottom-6 -left-5 bg-muted/60" style={{ width: `calc(${pct(past)} + 1.25rem)` }} /> : null}
       <div aria-hidden="true" className="absolute -inset-x-5 bottom-6 h-px bg-border" />
-      {TICKS.map((day) => {
+      {TICKS.filter((day) => day <= daysIn(Number(month.slice(0, 4)), Number(month.slice(5, 7)))).map((day) => {
         const at = pct(dayOffset(`${month}-${String(day).padStart(2, '0')}`));
         return (
           <div key={day} aria-hidden="true">

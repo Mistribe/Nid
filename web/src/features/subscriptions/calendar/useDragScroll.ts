@@ -11,26 +11,32 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let start: { x: number; left: number } | null = null;
+    // Moves are applied one by one (never from the press's position): months added on the left mid-drag shift the band.
+    let drag: { from: number; last: number } | null = null;
     let dragged = false;
 
     const down = (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse' || e.button !== 0) return;
-      start = { x: e.clientX, left: el.scrollLeft };
+      // The band's own scrollbar (below its content box) scrolls natively.
+      if (e.pointerType !== 'mouse' || e.button !== 0 || e.offsetY > el.clientHeight) return;
+      drag = { from: e.clientX, last: e.clientX };
       dragged = false;
     };
     const move = (e: PointerEvent) => {
-      if (!start) return;
-      const dx = e.clientX - start.x;
-      if (!dragged && Math.abs(dx) > THRESHOLD) {
+      if (!drag) return;
+      // The release happened where the page could not see it (on the scrollbar, outside the window).
+      if (!(e.buttons & 1)) return up();
+      if (!dragged && Math.abs(e.clientX - drag.from) > THRESHOLD) {
         dragged = true;
         el.dataset.dragging = '';
       }
-      if (dragged) el.scrollLeft = start.left - dx;
+      if (dragged) el.scrollLeft -= e.clientX - drag.last;
+      drag.last = e.clientX;
     };
     const up = () => {
-      start = null;
+      drag = null;
       delete el.dataset.dragging;
+      // The click that ends a drag comes right after this; a drag ending elsewhere must not eat a later click.
+      setTimeout(() => { dragged = false; });
     };
     const click = (e: MouseEvent) => {
       if (!dragged) return;
