@@ -168,24 +168,20 @@ public class SeriesEndpointTests(PostgresFixture fixture) : IClassFixture<Postgr
     [InlineData("?s=CPI!")]
     [InlineData("?s=cpi,cpi")]
     [InlineData("?s=cpi,cpi:yoy,irl,fx:EUR,fx:GBP,projection:inflation,projection:rate:cash")]
+    [InlineData("?s=cpi&from=2025-13-01")]
     public async Task Bad_selections_are_400(string query)
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        Assert.Equal((HttpStatusCode.BadRequest, "core.series_invalid_key"), await FailureAsync(app, query));
-    }
-
-    [Fact]
-    public async Task A_malformed_date_is_400()
-    {
-        await using var app = await NidApp.StartAsync(fixture);
-
-        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultB, HttpMethod.Get, Url + "/points?s=cpi&from=2025-13-01")).StatusCode);
+        var (status, code) = await FailureAsync(app, query);
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        if (!query.Contains("from=")) Assert.Equal("core.series_invalid_key", code);
     }
 
     [Theory]
     [InlineData("?s=cpi,nope")]
     [InlineData("?s=fx:JPY")]
+    [InlineData("?s=projection:rate:nope")]
     public async Task Unknown_series_are_404(string query)
     {
         await using var app = await NidApp.StartAsync(fixture);
