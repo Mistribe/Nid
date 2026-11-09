@@ -147,6 +147,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IFxRunLog, FxRunLog>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Core.Infrastructure.Persistence.FxSyncHealth>();
         services.AddScoped<IFxRates, FxRates>();
+        services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.FxSeries>();
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
         services.AddScoped<ITaxProfileStore, TaxProfileStore>();
         services.AddScoped<TaxAssessmentStore>();
@@ -309,11 +310,14 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ILoanStore, LoanStore>();
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<Nid.RealEstate.Domain.IIrlStore, IrlStore>();
+        services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.Irl.IrlSeries>();
         services.AddScoped<IIrlRunLog, IrlRunLog>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.RealEstate.Infrastructure.Persistence.IrlSyncHealth>();
         services.AddScoped<Nid.Core.Domain.Inflation.ICpiStore, Nid.Core.Infrastructure.Persistence.CpiStore>();
         services.AddScoped<Nid.Core.Contracts.ICpiRunLog, Nid.Core.Infrastructure.Persistence.CpiRunLog>();
         services.AddScoped<IInflation, ObservedInflation>();
+        services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.CpiSeries>();
+        services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.ProjectionRateSeries>();
         services.AddScoped<CpiCollector>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Core.Infrastructure.Persistence.CpiSyncHealth>();
         services.AddScoped<Nid.RealEstate.Application.Irl.IrlCollector>();
