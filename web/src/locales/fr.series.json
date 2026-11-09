@@ -28,7 +28,13 @@
       "property_net": "Valeur nette : {{name}}",
       "tenancy_rent": "Loyer : {{name}}",
       "loan_remaining": "Capital restant dû : {{name}}",
-      "loan_payment": "Échéance : {{name}}"
+      "loan_payment": "Échéance : {{name}}",
+      "subscriptions_yearly": "Abonnements par an",
+      "networth": "Patrimoine",
+      "networth_projected": "Patrimoine projeté",
+      "tax_yearly": "Impôt net (avis d’imposition)",
+      "goal": "Objectif : {{name}}",
+      "childcare_monthly": "Garde : {{name}}"
     },
     "unit": {
       "index": "indice",
