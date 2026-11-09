@@ -65,6 +65,17 @@ internal static class RentRevisions
     public static IEnumerable<StoredTenancy> LastLinks(StoredProperty property)
         => property.Tenancies.Where(t => property.Tenancies.All(s => s.RevisedFrom != t.Id));
 
+    /// <summary>The whole chain <paramref name="link"/> belongs to, oldest first: forward to the link no tenancy revises, then back through <c>RevisedFrom</c>.</summary>
+    public static IReadOnlyList<StoredTenancy> Chain(StoredProperty property, StoredTenancy link)
+    {
+        var last = link;
+        while (property.Tenancies.FirstOrDefault(s => s.RevisedFrom == last.Id) is { } next) last = next;
+        var chain = new List<StoredTenancy> { last };
+        while (chain[^1].RevisedFrom is { } previous && property.Tenancies.FirstOrDefault(p => p.Id == previous) is { } before) chain.Add(before);
+        chain.Reverse();
+        return chain;
+    }
+
     public static IEnumerable<ChainRevision> Of(StoredProperty property, IReadOnlyList<IrlValue> irl, LocalDate today)
         => LastLinks(property).Select(t => Of(property, t, irl, today));
 
