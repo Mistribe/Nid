@@ -26538,6 +26538,7 @@ export interface components {
             provider?: null | components["schemas"]["ProviderSummaryView"];
             price: components["schemas"]["MoneyView"];
             converted?: null | components["schemas"]["MoneyView"];
+            isProjected: boolean;
         };
         ChargeView: {
             /** Format: date */
@@ -31205,6 +31206,7 @@ export interface components {
             convertedIsEstimate: boolean;
             charges: components["schemas"]["ChargeLineView"][];
             findings: components["schemas"]["FindingView"][];
+            firstMonth?: null | string;
         };
         SubscriptionDetail: {
             /** Format: uuid */

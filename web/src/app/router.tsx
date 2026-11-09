@@ -46,7 +46,7 @@ const RETIRE = /^retire:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
  */
 export type SubscriptionsSearch = {
   status?: 'active' | 'ended' | 'all'; q?: string; label?: string; group?: 'provider' | 'label' | 'person' | 'none'; tab?: string;
-  month?: string; provider?: string;
+  month?: string; provider?: string; view?: 'timeline';
 };
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
@@ -153,6 +153,7 @@ const subscriptionsRoute = createRoute({
     // A malformed month would be a 400: it is overwritten (the raw key would survive a mere omission), and the calendar
     // shows the current one.
     month: typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : undefined,
+    ...(search.view === 'timeline' ? { view: 'timeline' as const } : {}),
     ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/subscriptions/SubscriptionsPage'), 'SubscriptionsPage'),

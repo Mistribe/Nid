@@ -11,7 +11,7 @@ const SPOTIFY = '0192f0aa-0000-7000-8000-0000000000d1';
 type Line = Charges['charges'][number];
 
 const line = (date: string, displayName: string, over: Partial<Line> = {}): Line =>
-  ({ date, itemId: SPOTIFY, displayName, provider: null, price: eur('9.99'), converted: null, ...over });
+  ({ date, itemId: SPOTIFY, displayName, provider: null, price: eur('9.99'), converted: null, isProjected: false, ...over });
 const charges = (over: Partial<Charges> = {}): Charges =>
   ({ month: '2026-11', total: eur('0.00'), convertedIsEstimate: false, charges: [], findings: [], ...over });
 

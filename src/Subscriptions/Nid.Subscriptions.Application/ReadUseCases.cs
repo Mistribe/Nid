@@ -123,7 +123,8 @@ public sealed class GetSubscriptionChargesHandler(
         var beyond = first > ceiling; // decided before any PlusMonths: it throws past year 9999
         // The walk reaches the 1st of the month after the requested one, capped at the ceiling.
         var truncated = !beyond && first.PlusMonths(1) > ceiling;
-        IReadOnlyList<BuiltSubscription> built = beyond ? [] : await set.LoadAsync(person, query.Scope, today, Horizons.Resolve(today, first.PlusMonths(1)), ct);
+        // Beyond the ceiling the set is still loaded (up to it): the answer gives the month of the first charge.
+        var built = await set.LoadAsync(person, query.Scope, today, beyond ? ceiling : Horizons.Resolve(today, first.PlusMonths(1)), ct);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var rates = await Conversion.LoadAsync(fx, MonthCharges.RatePieces(built, month), reference, today, ct);
         return Result.Success(MonthCharges.Build(built, month, reference, rates, beyond, truncated));
