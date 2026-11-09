@@ -65,7 +65,7 @@ public static class OverviewMath
             .Where(x => x.Charge.Date >= today && x.Charge.Date < today.PlusDays(UpcomingDays))
             .OrderBy(x => x.Charge.Date).ThenBy(x => x.Sub.DisplayName, StringComparer.Ordinal)
             .Select(x => new ChargeLineView(x.Charge.Date, x.Sub.Input.Subscription.Id, x.Sub.DisplayName, x.Sub.Provider,
-                MoneyView.From(x.Charge.Price), View([SpendingHistory.Piece(x.Charge)])))
+                MoneyView.From(x.Charge.Price), View([SpendingHistory.Piece(x.Charge)]), x.Charge.IsProjected))
             .ToList();
 
         var byPerson = ListGrouping.Group(ListGroup.Person, summaries).ToDictionary(g => g.Key);

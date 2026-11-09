@@ -7,7 +7,7 @@ const iso = (y: number, m: number, d: number) => `${pad(y, 4)}-${pad(m)}-${pad(d
 const parse = (month: string) => [Number(month.slice(0, 4)), Number(month.slice(5, 7))] as const;
 
 const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-const daysIn = (y: number, m: number) => (m === 2 ? (isLeap(y) ? 29 : 28) : [4, 6, 9, 11].includes(m) ? 30 : 31);
+export const daysIn = (y: number, m: number) => (m === 2 ? (isLeap(y) ? 29 : 28) : [4, 6, 9, 11].includes(m) ? 30 : 31);
 
 /** Monday 0 … Sunday 6 (Sakamoto's method). */
 function weekday(y: number, m: number, d: number): number {
