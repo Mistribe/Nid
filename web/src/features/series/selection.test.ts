@@ -21,5 +21,8 @@ describe('selection', () => {
     expect(blockOf(['index', 'percent'], 'rate:EUR')).toBe('third_unit');
     expect(blockOf(['index', 'rate:EUR'], 'currency:EUR')).toBeNull();
     expect(blockOf(['index', 'rate:EUR', 'percent'], 'index')).toBeNull();
+    expect(blockOf([], 'percent')).toBeNull();
+    expect(blockOf(['percent'], 'index')).toBeNull();
+    expect(blockOf(['index', 'index'], 'percent')).toBeNull();
   });
 });

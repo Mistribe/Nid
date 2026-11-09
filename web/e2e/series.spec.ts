@@ -39,6 +39,7 @@ test('alice opens the CPI from Administration › Inflation, adds the IRL then a
   await page.getByPlaceholder('Rechercher une série…').fill('irl'); // found by its key on the server
   await page.getByRole('option', { name: 'Indice de référence des loyers (IRL)', exact: true }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get('s')).toBe('cpi,irl');
+  await expect(page.getByRole('button', { name: 'Retirer Indice de référence des loyers (IRL)' })).toBeVisible(); // the points are in
   await expect(page.getByRole('radiogroup', { name: 'Échelle' })).toHaveCount(0); // two indices share one axis
 
   await pick(page, 'Ajouter une série', 'EUR pour 1 USD');
