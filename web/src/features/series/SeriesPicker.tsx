@@ -42,7 +42,7 @@ export function SeriesPicker({ keys, series, mode, focus, onAdd, onRemove }: {
   const options = items.map((item) => {
     const label = seriesLabel(t, item);
     const block = keys.includes(item.key) ? 'already' : blockOf(units, item.unit);
-    const reason = block === 'already' ? t('series.already') : block ? t(`series.block.${block}` as never) : null;
+    const reason = block === 'already' ? t('series.already') : block ? t(`series.block.${block}`) : null;
     return reason ? { value: item.key, label: `${label} — ${reason}`, disabled: true } : { value: item.key, label };
   });
   const full = keys.length >= MAX_SERIES;

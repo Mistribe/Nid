@@ -197,10 +197,12 @@ describe('Explorer des séries', () => {
     server.use(http.get('*/api/v1/series/points', ({ request }) => new URL(request.url).searchParams.get('s')?.includes('nope')
       ? HttpResponse.json({ status: 404, code: 'core.series_not_found', title: 'Not found.', key: 'nope' }, { status: 404 })
       : answer([cpi])));
-    const { router } = await renderApp('/series?s=cpi,nope');
+    const { user, router } = await renderApp('/series?s=cpi,nope');
     await waitFor(() => expect(router.state.location.search).toMatchObject({ s: 'cpi' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Une série de l’adresse');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '1 an' }));
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument()); // the note does not outlive the drop
   });
 
   it('shows any other error', async () => {

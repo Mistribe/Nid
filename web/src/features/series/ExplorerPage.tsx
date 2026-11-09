@@ -36,17 +36,17 @@ export function ExplorerPage() {
     { enabled: !!s, placeholderData: keepPreviousData });
   const asTable = view === 'table';
   const toggle = () => void navigate({ to: '/series', replace: true, search: (prev) => ({ ...prev, view: asTable ? undefined : ('table' as const) }) });
-  const set = (patch: Partial<SeriesSearch>) => void navigate({ to: '/series', replace: true, search: (prev) => ({ ...prev, view: prev.view === 'table' ? ('table' as const) : undefined, ...patch }) });
+  const set = (patch: Partial<SeriesSearch>) => { setDropped(false); void navigate({ to: '/series', replace: true, search: (prev) => ({ ...prev, view: prev.view === 'table' ? ('table' as const) : undefined, ...patch }) }); };
   const edit = (next: string[]) => set({ s: joinKeys(next) });
-  const onAdd = (k: string) => { if (!keys.includes(k)) { setDropped(false); edit([...keys, k]); } };
-  const onRemove = (k: string) => { setDropped(false); edit(keys.filter((x) => x !== k)); };
+  const onAdd = (k: string) => { if (!keys.includes(k)) edit([...keys, k]); };
+  const onRemove = (k: string) => edit(keys.filter((x) => x !== k));
   // A disabled query would otherwise keep the old answer.
   const data = s ? answer.data : undefined;
   const series = data?.series ?? [];
   const problem = s && answer.error ? (toProblem(answer.error) as NotFound) : null;
   const missing = problem?.code === 'core.series_not_found' ? problem.key : undefined;
   useEffect(() => {
-    if (missing && keys.includes(missing)) { setDropped(true); edit(keys.filter((x) => x !== missing)); }
+    if (missing && keys.includes(missing)) { edit(keys.filter((x) => x !== missing)); setDropped(true); }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- once per answer; `keys`/`edit` change with it
   }, [missing]);
   const units = series.map((x) => x.unit);
