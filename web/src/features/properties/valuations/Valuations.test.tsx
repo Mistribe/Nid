@@ -101,6 +101,7 @@ describe('estimates', () => {
 
     expect(await within(await region()).findByText('Aucune estimation')).toBeInTheDocument();
     expect(asked).toHaveLength(0);
+    expect(container.querySelector('[data-slot="skeleton"]')).toBeNull(); // an enabled query would show it at once
     expect(container.querySelector('.recharts-wrapper')).toBeNull();
   });
 
@@ -255,5 +256,7 @@ describe('estimates', () => {
     // The chart's own table header sorts; no row action, no add.
     expect(within(await screen.findByRole('table', { name: 'Estimations du bien' })).queryByRole('button')).not.toBeInTheDocument();
     expect(within(section).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
+    expect(within(section).queryByRole('button', { name: /^Ajouter/ })).not.toBeInTheDocument();
+    expect(within(section).queryByRole('button', { name: /^Actions pour/ })).not.toBeInTheDocument();
   });
 });
