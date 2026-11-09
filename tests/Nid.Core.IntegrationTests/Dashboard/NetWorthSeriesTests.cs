@@ -74,7 +74,7 @@ public class NetWorthSeriesTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(await CurveAsync(app, app.AdultB, "household"), asB);
         Assert.Equal(500m, asB[^1].Item2);
         Assert.Equal(await CurveAsync(app, app.AdultA, "me"), asA);
-        Assert.NotEqual(asB[^1].Item2, asA[^1].Item2); // A sees the private envelope, B does not
+        Assert.Equal(1500m, asA[^1].Item2); // A sees the private envelope and B's shared one
     }
 
     [Fact]

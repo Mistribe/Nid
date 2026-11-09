@@ -51,7 +51,7 @@ export function NetWorthCurve() {
   return (
     <SectionCard title={t('dashboard.curve.title')} actions={
       <>
-        <SeriesLink keys={['networth', 'networth:projected']} />
+        {known > 0 ? <SeriesLink keys={['networth', 'networth:projected']} /> : null}
         <span id={periodId} className="sr-only">{t('dashboard.curve.period')}</span>
         <Segmented value={period} onValueChange={choose} aria-labelledby={periodId}
           options={PERIODS.map((p) => ({ value: p, label: t(`dashboard.curve.period_${p}`) }))} />
