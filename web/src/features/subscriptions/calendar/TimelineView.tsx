@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -15,9 +15,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { todayIso } from '@/lib/today';
 import { cn } from '@/lib/utils';
 import { DayMore, formatDate, type Line } from './charges';
-import { atEnd, atStart, dayOffset, initialRange, months, type Range } from './timeline';
+import { atEnd, atStart, dayOffset, extend, initialRange, months, type Range } from './timeline';
+import { useDragScroll } from './useDragScroll';
 
 type Scope = 'household' | 'me';
+type Side = 'past' | 'future';
 const SHOWN = 3;
 const TICKS = [1, 8, 15, 22, 29];
 const pct = (offset: number) => `${offset * 100}%`;
@@ -41,10 +43,34 @@ export function TimelineView({ scope }: { scope: Scope }) {
 function Band({ scope, today, first }: { scope: Scope; today: string; first: string | null }) {
   const { t } = useTranslation('subscriptions-board');
   const current = today.slice(0, 7);
-  const [range] = useState<Range>(() => initialRange(current, first));
+  const [range, setRange] = useState<Range>(() => initialRange(current, first));
   const band = useRef<HTMLDivElement>(null);
-  const step = (by: number) => band.current?.scrollBy({ left: by * (band.current.querySelector<HTMLElement>('[data-month]')?.offsetWidth ?? 320), behavior: 'smooth' });
-  const toToday = () => band.current?.querySelector('[data-today]')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  const before = useRef<number | null>(null); // the band's width before months were added on the left
+  useDragScroll(band);
+
+  const grow = useCallback((side: Side) => {
+    if (side === 'past' && band.current) before.current = band.current.scrollWidth;
+    setRange((r) => extend(r, side, current, first));
+  }, [current, first]);
+
+  // Months added on the left push everything right: shift back by their width, so what was on screen stays.
+  useLayoutEffect(() => {
+    const el = band.current;
+    if (!el || before.current === null) return;
+    el.scrollLeft += el.scrollWidth - before.current;
+    before.current = null;
+  }, [range.from]);
+
+  const toToday = useCallback((behavior: ScrollBehavior) => {
+    const el = band.current;
+    const mark = el?.querySelector('[data-today]');
+    if (!el || !mark) return;
+    const at = el.scrollLeft + mark.getBoundingClientRect().left - el.getBoundingClientRect().left;
+    el.scrollTo({ left: at - el.clientWidth / 2, behavior });
+  }, []);
+  useLayoutEffect(() => toToday('auto'), [toToday]);
+
+  const step = (by: number) => band.current?.scrollBy({ left: by * (band.current.querySelector<HTMLElement>('[data-month]')?.offsetWidth || 320), behavior: motion() });
 
   return (
     <TooltipProvider>
@@ -57,16 +83,18 @@ function Band({ scope, today, first }: { scope: Scope; today: string; first: str
           </ul>
           <div className="flex items-center gap-1">
             <Button type="button" variant="ghost" size="icon" aria-label={t('timeline.previous')} onClick={() => step(-1)}><ChevronLeftIcon aria-hidden="true" /></Button>
-            <Button type="button" variant="outline" size="sm" onClick={toToday}>{t('timeline.today')}</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => toToday(motion())}>{t('timeline.today')}</Button>
             <Button type="button" variant="ghost" size="icon" aria-label={t('timeline.next')} onClick={() => step(1)}><ChevronRightIcon aria-hidden="true" /></Button>
           </div>
         </div>
         <div ref={band} role="region" aria-label={t('timeline.band')} tabIndex={0}
-          className="overflow-x-auto rounded-lg border bg-card outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+          className="cursor-grab overflow-x-auto rounded-lg border bg-card outline-none select-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[dragging]:cursor-grabbing">
           <div className="flex w-max">
-            {atStart(range, current, first) ? <EndCap>{t('timeline.start')}</EndCap> : <EndCap />}
+            {atStart(range, current, first) ? <EndCap>{t('timeline.start')}</EndCap>
+              : <Edge key={range.from} side="past" root={band} onReach={grow} />}
             {months(range).map((m) => <MonthSegment key={m} month={m} scope={scope} today={today} />)}
-            {atEnd(range, current) ? <EndCap>{t('timeline.end')}</EndCap> : <EndCap />}
+            {atEnd(range, current) ? <EndCap>{t('timeline.end')}</EndCap>
+              : <Edge key={range.to} side="future" root={band} onReach={grow} />}
           </div>
         </div>
       </div>
@@ -74,8 +102,28 @@ function Band({ scope, today, first }: { scope: Scope; today: string; first: str
   );
 }
 
-/** A band's end: what lies beyond, or room for the next months while they load. */
-function EndCap({ children }: { children?: ReactNode }) {
+const motion = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+
+/**
+ * Room at a loading end of the band: coming within a segment of it asks for more months. Keyed by the range's end, it is
+ * a new element after each step, so an end still in view asks again.
+ */
+function Edge({ side, root, onReach }: { side: Side; root: RefObject<HTMLDivElement | null>; onReach: (side: Side) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) onReach(side);
+    }, { root: root.current, rootMargin: '0px 320px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [side, root, onReach]);
+  return <div ref={ref} data-edge={side} aria-hidden="true" className="w-24 shrink-0" />;
+}
+
+/** A band's end: what lies beyond. */
+function EndCap({ children }: { children: ReactNode }) {
   return (
     <div className="flex w-24 shrink-0 items-center justify-center p-3 text-center text-xs text-muted-foreground">{children}</div>
   );

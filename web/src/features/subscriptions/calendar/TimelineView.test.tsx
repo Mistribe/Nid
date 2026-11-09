@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Charges } from '@/api/subscriptions';
@@ -43,6 +43,14 @@ export class FakeObserver {
 }
 
 const band = () => screen.findByRole('region', { name: 'Frise des prélèvements' });
+const scrollBy = vi.fn();
+const scrollTo = vi.fn();
+// jsdom scrolls no element: the band's scrolling is recorded instead.
+beforeEach(() => {
+  scrollBy.mockReset(); scrollTo.mockReset();
+  HTMLElement.prototype.scrollBy = scrollBy;
+  HTMLElement.prototype.scrollTo = scrollTo;
+});
 const segment = async (name: string) => within(await band()).findByRole('group', { name });
 
 describe('Abonnements › frise', () => {
@@ -135,5 +143,113 @@ describe('Abonnements › frise', () => {
 
     await within(await segment('novembre 2026')).findAllByRole('link');
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('Abonnements › frise › défilement', () => {
+  beforeAll(async () => { await import('../SubscriptionsPage'); await import('./CalendarTab'); await import('./TimelineView'); }, 30_000);
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 15, 12));
+    FakeObserver.all = [];
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+  });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+  it('The_left_edge_loads_earlier_months_down_to_the_first_charge', async () => {
+    const seen = serveMonths({}, '2026-07');
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    await segment('septembre 2026');
+    act(() => FakeObserver.trigger(document.querySelector('[data-edge="past"]')!));
+    expect(await segment('juillet 2026')).toBeInTheDocument();
+    expect(await segment('août 2026')).toBeInTheDocument();
+    expect(await within(await band()).findByText('Début de l’historique')).toBeInTheDocument();
+    await waitFor(() => expect(seen).toContain('household/2026-07'));
+    expect(seen).not.toContain('household/2026-06');
+  });
+
+  it('The_right_edge_stops_twelve_months_ahead', async () => {
+    const seen = serveMonths();
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    await segment('février 2027');
+    for (let i = 0; i < 5; i++) {
+      const sentinel = document.querySelector('[data-edge="future"]');
+      if (sentinel) act(() => FakeObserver.trigger(sentinel));
+    }
+    expect(await segment('novembre 2027')).toBeInTheDocument();
+    expect(within(await band()).getByText('Fin de la prévision affichée')).toBeInTheDocument();
+    expect(document.querySelector('[data-edge="future"]')).toBeNull();
+    expect(seen).not.toContain('household/2027-12');
+  });
+
+  it('Without_any_charge_the_band_starts_this_month', async () => {
+    const seen = serveMonths({}, null);
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    expect(await within(await band()).findByText('Début de l’historique')).toBeInTheDocument();
+    expect(document.querySelector('[data-edge="past"]')).toBeNull();
+    expect(seen.filter((m) => m < 'household/2026-11')).toEqual([]);
+  });
+
+  it('Prepending_keeps_the_view_in_place', async () => {
+    serveMonths({}, '2025-01');
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const region = await band();
+    await segment('septembre 2026');
+    let width = 1000;
+    let left = 500;
+    Object.defineProperty(region, 'scrollWidth', { configurable: true, get: () => width });
+    Object.defineProperty(region, 'scrollLeft', { configurable: true, get: () => left, set: (v: number) => { left = v; } });
+    act(() => { FakeObserver.trigger(document.querySelector('[data-edge="past"]')!); width = 1960; });
+    await segment('juin 2026');
+    expect(left).toBe(1460);
+  });
+
+  it('A_drag_does_not_open_a_subscription', async () => {
+    serveMonths({ '2026-11': { charges: [line('2026-11-03', 'Spotify')] } });
+    const { user, router } = await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const disc = await within(await segment('novembre 2026')).findByRole('link', { name: /Spotify/ });
+    await user.pointer([
+      { keys: '[MouseLeft>]', target: disc, coords: { clientX: 200, clientY: 50 } },
+      { target: disc, coords: { clientX: 120, clientY: 50 } },
+      { keys: '[/MouseLeft]', target: disc },
+    ]);
+    expect(router.state.location.pathname).toBe('/subscriptions');
+
+    await user.click(disc);
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/subscriptions/${SPOTIFY}`));
+  });
+
+  it('The_buttons_scroll_by_a_month_and_back_to_today', async () => {
+    serveMonths();
+    const { user } = await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    await segment('novembre 2026');
+    await waitFor(() => expect(scrollTo).toHaveBeenCalled()); // centred on today when it opens
+    await user.click(screen.getByRole('button', { name: 'Mois suivant' }));
+    expect(scrollBy).toHaveBeenLastCalledWith(expect.objectContaining({ left: expect.any(Number) as number }));
+    expect((scrollBy.mock.lastCall![0] as ScrollToOptions).left).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Mois précédent' }));
+    expect((scrollBy.mock.lastCall![0] as ScrollToOptions).left).toBeLessThan(0);
+    scrollTo.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Aujourd’hui' }));
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it('Changing_scope_resets_the_band', async () => {
+    const seen = serveMonths();
+    const { router } = await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    await segment('septembre 2026');
+    act(() => FakeObserver.trigger(document.querySelector('[data-edge="past"]')!));
+    await segment('juin 2026');
+    await act(() => router.navigate({ to: '.', search: (prev) => ({ ...prev, scope: 'me' }) }));
+    await waitFor(() => expect(seen).toContain('me/2026-11'));
+    expect(await segment('septembre 2026')).toBeInTheDocument();
+    expect(within(await band()).queryByRole('group', { name: 'juin 2026' })).not.toBeInTheDocument();
   });
 });
