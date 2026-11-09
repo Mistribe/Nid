@@ -27,7 +27,7 @@ export function ExplorerPage() {
   const data = answer.data;
   return (
     <div className="space-y-4">
-      <PageHeader crumbs={[{ label: t('nav.dashboard'), to: '/dashboard' }]} title={t('series.title')}
+      <PageHeader crumbs={[{ label: t('nav.dashboard'), to: '/dashboard' }]} title={t('series.title')} crumbLabel={t('series.crumb')}
         actions={data?.series.some((x) => x.points.length > 0) ? <TableToggle asTable={asTable} onToggle={toggle} /> : null} />
       {!s ? <p className="text-sm text-muted-foreground">{t('series.none_selected')}</p>
         : answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />

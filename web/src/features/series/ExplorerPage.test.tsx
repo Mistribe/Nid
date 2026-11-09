@@ -78,7 +78,7 @@ describe('Explorer des séries', () => {
   it('puts a percent series on a second axis', async () => {
     server.use(http.get('*/api/v1/series/points', () => answer([cpi, yoy])));
     const { container } = await renderApp('/series?s=cpi,cpi:yoy');
-    await waitFor(() => expect(container.querySelector('main ul')).toHaveTextContent('Inflation sur 12 mois'));
+    await waitFor(() => expect(screen.getByRole('list', { name: 'Séries affichées' })).toHaveTextContent('Inflation sur 12 mois'));
     await waitFor(() => expect(container.querySelectorAll('.recharts-yAxis')).toHaveLength(2));
     expect(screen.queryByText(/Base 100 le/)).not.toBeInTheDocument();
   });
@@ -94,8 +94,8 @@ describe('Explorer des séries', () => {
   it('names a percent series it cannot rebase in a three-unit mix', async () => {
     server.use(http.get('*/api/v1/series/points', () => answer([cpi, fx, yoy], '2021-01-01')));
     const { container } = await renderApp('/series?s=cpi,fx:EUR,cpi:yoy');
-    await waitFor(() => expect(container.querySelector('main ul')).toHaveTextContent('Inflation sur 12 mois'));
-    expect(container.querySelector('main ul')).toHaveTextContent('pas de base 100 possible');
+    await waitFor(() => expect(screen.getByRole('list', { name: 'Séries affichées' })).toHaveTextContent('Inflation sur 12 mois'));
+    expect(screen.getByRole('list', { name: 'Séries affichées' })).toHaveTextContent('pas de base 100 possible');
     await waitFor(() => expect(container.querySelectorAll('.recharts-line')).toHaveLength(2));
   });
 

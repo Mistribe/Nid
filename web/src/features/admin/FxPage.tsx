@@ -127,7 +127,7 @@ function SeriesByCurrency() {
         setError('');
         void navigate({ to: '/series', search: { s: `fx:${code}` } });
       }}>
-        <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} name="quote" maxLength={3} className="uppercase" />}</Field>
+        <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} name="quote" onChange={() => setError('')} maxLength={3} className="uppercase" />}</Field>
         <Button type="submit" className="mt-6">{t('series.see')}</Button>
       </form>
     </section>

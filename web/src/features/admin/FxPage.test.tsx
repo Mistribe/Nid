@@ -112,6 +112,7 @@ describe('Administration › Taux de change', () => {
     await user.click(screen.getByRole('button', { name: 'Voir la série' }));
     expect(await screen.findByText(/Trois lettres, autre que USD/)).toBeInTheDocument();
     await user.clear(field);
+    expect(screen.queryByText(/Trois lettres, autre que USD/)).not.toBeInTheDocument();
     await user.type(field, 'EU');
     await user.click(screen.getByRole('button', { name: 'Voir la série' }));
     expect(screen.getByText(/Trois lettres, autre que USD/)).toBeInTheDocument();
