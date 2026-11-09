@@ -33323,6 +33323,12 @@
           "clearCancellableFrom": {
             "type": "boolean",
             "default": false
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

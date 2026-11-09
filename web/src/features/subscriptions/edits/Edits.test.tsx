@@ -45,6 +45,39 @@ describe('Abonnements › modifications', () => {
     await waitFor(() => expect(sent).toEqual([{ autoRenew: false, clearCancelledAt: false, clearProviderKey: false }]));
   });
 
+  it('renames the subscription, sending only its name', async () => {
+    const sent: unknown[] = [];
+    serve(detail(), [http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: SUB });
+    })]);
+    const { user } = await open();
+
+    await user.clear(screen.getByLabelText('Nom'));
+    await user.type(screen.getByLabelText('Nom'), ' Spotify Famille ');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    await waitFor(() => expect(sent).toEqual([{ displayName: 'Spotify Famille', clearCancelledAt: false, clearProviderKey: false }]));
+  });
+
+  it('refuses an empty or too long name on its field', async () => {
+    const sent: unknown[] = [];
+    serve(detail(), [http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: SUB });
+    })]);
+    const { user } = await open();
+
+    await user.clear(screen.getByLabelText('Nom'));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+    expect(await screen.findByText('Ce champ est obligatoire.')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Nom'), 'x'.repeat(101));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+    expect(await screen.findByText('100 caractères au plus.')).toBeInTheDocument();
+    expect(sent).toEqual([]);
+  });
+
   it('clears a cancellation date', async () => {
     const sent: unknown[] = [];
     serve(detail({ cancelledAt: '2026-03-01' }), [http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {

@@ -9,6 +9,7 @@ import { useApi } from '@/api/ApiProvider';
 import { DateField } from '@/components/form/DateField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { asEditBody, DETAIL, invalidateSubscriptions, type Detail } from '@/api/subscriptions';
@@ -18,21 +19,24 @@ import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import '@/locales/forms';
+import '@/locales/investments';
 
-const PATHS = { autoRenew: 'autoRenew', cancelledAt: 'cancelledAt', note: 'note', providerKey: 'provider' } as const;
+const PATHS = { displayName: 'displayName', autoRenew: 'autoRenew', cancelledAt: 'cancelledAt', note: 'note', providerKey: 'provider' } as const;
 
-/** Auto-renew, cancellation, note and provider (1E2a design §4): only what changed is sent. */
+/** Name (#24), auto-renew, cancellation, note and provider (1E2a design §4): only what changed is sent. */
 export function SettingsForm({ detail }: { detail: Detail }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const schema = z.object({
+    displayName: z.string().trim().min(1, t('edit.required')).max(100, t('investments_form.name_too_long')),
     autoRenew: z.boolean(),
     cancelledAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), t('edit.invalid_date')),
     note: z.string(),
     provider: z.object({ key: z.string(), name: z.string() }).nullable(),
   });
   const initial = useMemo(() => ({
+    displayName: detail.displayName,
     autoRenew: detail.autoRenew,
     cancelledAt: detail.cancelledAt ?? '',
     note: detail.note ?? '',
@@ -53,6 +57,7 @@ export function SettingsForm({ detail }: { detail: Detail }) {
     const body = {
       clearCancelledAt: !!dirty.cancelledAt && values.cancelledAt === '',
       clearProviderKey: !!dirty.provider && values.provider === null,
+      ...(dirty.displayName ? { displayName: values.displayName } : {}),
       ...(dirty.autoRenew ? { autoRenew: values.autoRenew } : {}),
       ...(dirty.cancelledAt && values.cancelledAt !== '' ? { cancelledAt: values.cancelledAt } : {}),
       ...(dirty.note ? { note: values.note } : {}),
@@ -64,6 +69,9 @@ export function SettingsForm({ detail }: { detail: Detail }) {
   return (
     <form aria-label={t('edit.settings_title')} onSubmit={(e) => void submit(e)} className="max-w-xl space-y-3" noValidate>
       {errors.problem ? <><ProblemMessage problem={errors.problem} />{errors.problem.kind === 'conflict' ? <Reload /> : null}</> : null}
+      <Field label={t('wizard.name')} error={form.formState.errors.displayName?.message}>
+        {(c) => <Input {...c} {...form.register('displayName')} />}
+      </Field>
       <Controller control={form.control} name="autoRenew" render={({ field }) => (
         <Field label={t('edit.auto_renew')} inline>{(c) => <Switch {...c} checked={field.value} onCheckedChange={field.onChange} />}</Field>
       )} />

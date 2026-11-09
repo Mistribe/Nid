@@ -19,6 +19,26 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task An_owner_renames_a_subscription_and_a_blank_or_long_name_is_refused_on_its_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        var path = $"/api/v1/subscriptions/{id.Value}";
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, path, new { displayName = "Netflix Premium" })).EnsureSuccessStatusCode();
+        Assert.Equal("Netflix Premium", (await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, path)).DisplayName);
+
+        foreach (var name in new[] { "  ", new string('x', 101) })
+        {
+            var refused = await app.RawAsync(app.AdultA, HttpMethod.Patch, path, new { displayName = name, autoRenew = false });
+            var body = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.UnprocessableContent, refused.StatusCode);
+            Assert.Contains("\"path\":\"displayName\"", body);
+        }
+        Assert.Equal("Netflix Premium", (await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, path)).DisplayName);
+    }
+
+    [Fact]
     public async Task A_price_change_closes_one_phase_and_opens_another()
     {
         await using var app = await NidApp.StartAsync(fixture);

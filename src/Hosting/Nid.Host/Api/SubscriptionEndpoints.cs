@@ -219,7 +219,8 @@ public static class SubscriptionEndpoints
     public sealed record EditSubscriptionBody(
         bool? AutoRenew, string? CancelledAt, bool ClearCancelledAt, string? Note, string? ProviderKey = null, bool ClearProviderKey = false,
         string? AnniversaryOn = null, bool ClearAnniversaryOn = false, DurationBody? Notice = null, bool ClearNotice = false,
-        string? CommitmentEndsOn = null, bool ClearCommitmentEndsOn = false, string? CancellableFrom = null, bool ClearCancellableFrom = false)
+        string? CommitmentEndsOn = null, bool ClearCommitmentEndsOn = false, string? CancellableFrom = null, bool ClearCancellableFrom = false,
+        string? DisplayName = null)
     {
         public EditSubscriptionCommand ToCommand(ItemId id)
         {
@@ -237,7 +238,7 @@ public static class SubscriptionEndpoints
                     OptionalDate(AnniversaryOn), ClearAnniversaryOn, Notice?.ToDuration(), ClearNotice,
                     OptionalDate(CommitmentEndsOn), ClearCommitmentEndsOn, OptionalDate(CancellableFrom), ClearCancellableFrom)
                 : null;
-            return new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note, ProviderKey, ClearProviderKey, terms);
+            return new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note, ProviderKey, ClearProviderKey, terms, DisplayName);
         }
 
         private static void Refuse(bool contradiction, string field)
