@@ -12,7 +12,7 @@ public static class PaidLeave
     public static LocalDate ReferenceStart(LocalDate june) => new(june.Year - 1, 6, 1);
 
     /// <summary>2,5 working days per month with care, rounded up to the whole day, 30 at most.</summary>
-    public static int Accrued(int monthsWithCare)
+    public static int Accrued(decimal monthsWithCare)
         => Math.Min(ChildcareRules.LeaveDaysCap, (int)Math.Ceiling(ChildcareRules.LeaveDaysPerMonth * monthsWithCare));
 
     /// <summary>

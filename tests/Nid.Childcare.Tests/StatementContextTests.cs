@@ -8,6 +8,17 @@ public class StatementContextTests
 {
     private static YearMonth M(int y, int m) => new(y, m);
 
+    /// <summary>November 16 to 30 is 15 days of 4 weeks: 6.54 months, not 7.</summary>
+    [Fact]
+    public void A_month_entered_midway_earns_its_share_of_leave()
+    {
+        var months = Enumerable.Range(0, 7).Select(i => (new YearMonth(2026, 11).PlusMonths(i), 100m)).ToList();
+        var (input, missing) = StatementContext.June(new YearMonth(2027, 6), D(2026, 11, 16), null, months);
+
+        Assert.Empty(missing);
+        Assert.Equal(17, PaidLeave.Accrued(input!.MonthsWithCare));
+    }
+
     [Fact]
     public void Months_run_from_start_to_today()
     {
