@@ -160,6 +160,7 @@
       "contribution_rate_differs": "{{name}} : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins ({{amount}}).",
       "per_without_contributions": "{{name}} : aucun versement enregistré cette année.",
       "childcare_from_statements": "Frais de garde de « {{name}} » : {{amount}} d’après ses relevés validés, à la place du montant du profil.",
+      "childcare_projected": "Reste de l’année pour « {{name}} » : {{amount}} (mois validés : {{validated}} ; mois estimés à leur moyenne : {{estimated}}).",
       "rental_to_check": "{{name}} : {{amount}} de dépenses à vérifier (travaux, autres) non comptées — voir Déclaration 2044."
     },
     "per": {

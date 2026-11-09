@@ -39,6 +39,19 @@ public static class ChildcareYear
     }
 
     /// <summary>
+    /// #14: the current year's months left to validate, up to December or the contract's end, each at the mean tax base of the
+    /// validated months, so the credit is not understated mid-year. None for another year or without a validated month.
+    /// </summary>
+    public static IReadOnlyList<(YearMonth Month, decimal Amount)> Projected(LocalDate start, LocalDate? end, LocalDate today, IReadOnlyList<Statement> statements, int year)
+    {
+        var counted = Counted(statements, year);
+        if (year != today.Year || counted.Count == 0)
+            return [];
+        var mean = Mensualisation.Round(counted.Average(s => s.Figures!.TaxBase));
+        return NotValidated(start, end, new LocalDate(year, 12, 31), statements, year).Select(m => (m, mean)).ToList();
+    }
+
+    /// <summary>
     /// The child's box: its rank among the children with childcare costs that year, the eldest first (birth date, then name; unknown
     /// birth dates last). None past the third child.
     /// </summary>

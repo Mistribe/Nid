@@ -31,7 +31,7 @@ public sealed record TaxSalaryDetailView(Guid Person, ItemId Item, string Name, 
 /// For <c>contribution_rate_differs</c> (a person's typed contribution rate strays from the one seen on their payslips) <c>Amount</c> is a
 /// percent (<c>"22.85"</c>), not euros.
 /// </summary>
-public sealed record TaxNoticeView(string Code, ItemId Item, string Name, string Amount);
+public sealed record TaxNoticeView(string Code, ItemId Item, string Name, string Amount, int? MonthsValidated = null, int? MonthsEstimated = null);
 
 /// <summary>
 /// Rental 2044 spec §5. <c>Regime</c> <c>micro</c> or <c>real</c>; <c>Provisional</c> for the current year and after (the tenancies'

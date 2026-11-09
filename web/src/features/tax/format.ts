@@ -5,7 +5,7 @@ export const REGIMES = ['auto', 'micro', 'real'] as const;
 const WARNINGS = ['rules_carried_forward', 'micro_over_ceiling', 'pinel_requires_real', 'high_income_contribution'] as const;
 /** A server amount that is zero (`0.00`, `-0`). */
 export const ZERO = /^-?0(\.0+)?$/;
-const NOTICES = ['missing_gross', 'unsupported_income', 'withdrawal_not_estimated', 'other_currency', 'not_a_declarant', 'rental_charges_removed', 'rental_fee_not_counted', 'rental_to_check', 'contribution_rate_differs', 'per_without_contributions', 'childcare_from_statements'] as const;
+const NOTICES = ['missing_gross', 'unsupported_income', 'withdrawal_not_estimated', 'other_currency', 'not_a_declarant', 'rental_charges_removed', 'rental_fee_not_counted', 'rental_to_check', 'contribution_rate_differs', 'per_without_contributions', 'childcare_from_statements', 'childcare_projected'] as const;
 
 /** A code the server added later reads as its raw name rather than breaking the page (as income's kindText). */
 export function regimeText(t: TFunction, regime: string): string {
@@ -21,9 +21,9 @@ export function warningText(t: TFunction, code: string, year: number): string {
   return known ? t(`tax.warning.${known}`, { year }) : code;
 }
 
-export function noticeText(t: TFunction, code: string, name: string, amount: string): string {
+export function noticeText(t: TFunction, code: string, name: string, amount: string, validated?: number | null, estimated?: number | null): string {
   const known = NOTICES.find((n) => n === code);
-  return known ? t(`tax.notice.${known}`, { name, amount }) : `${name} : ${code}`;
+  return known ? t(`tax.notice.${known}`, { name, amount, validated, estimated }) : `${name} : ${code}`;
 }
 
 /** The notice's figure: a percent for the contribution-rate warning, euros (through `money`) for every other. */
