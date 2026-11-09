@@ -37,6 +37,14 @@
     },
     "remove": "Retirer {{label}}",
     "invite": "Choisissez une série à afficher, ou ouvrez-en une depuis une page avec « Voir la série ».",
-    "dropped": "Une série de l’adresse n’existe pas ou ne vous est pas accessible : elle a été retirée."
+    "dropped": "Une série de l’adresse n’existe pas ou ne vous est pas accessible : elle a été retirée.",
+    "period": "Période",
+    "period_1y": "1 an",
+    "period_5y": "5 ans",
+    "period_10y": "10 ans",
+    "period_all": "Tout",
+    "scale": "Échelle",
+    "base100": "Base 100",
+    "axes2": "2 axes"
   }
 }

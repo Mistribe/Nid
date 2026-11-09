@@ -2,7 +2,6 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { yearsAgoIso } from '@/lib/today';
@@ -208,5 +207,55 @@ describe('Explorer des séries', () => {
     server.use(http.get('*/api/v1/series/points', () => HttpResponse.json({ status: 500, title: 'Boom' }, { status: 500 })));
     await renderApp('/series?s=cpi');
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('sends the period chosen, dropping the default', async () => {
+    const froms: (string | null)[] = [];
+    const tos: (string | null)[] = [];
+    server.use(http.get('*/api/v1/series/points', ({ request }) => {
+      const u = new URL(request.url); froms.push(u.searchParams.get('from')); tos.push(u.searchParams.get('to')); return answer([cpi]);
+    }));
+    const { user, router } = await renderApp('/series?s=cpi');
+    const search = () => router.state.location.search as { p?: string };
+    await user.click(await screen.findByRole('radio', { name: '1 an' }));
+    await waitFor(() => expect(froms.at(-1)).toBe(yearsAgoIso(1)));
+    expect(search().p).toBe('1y');
+    await user.click(screen.getByRole('radio', { name: 'Tout' }));
+    await waitFor(() => expect(froms.at(-1)).toBeNull());
+    expect(search().p).toBe('all');
+    await user.click(screen.getByRole('radio', { name: '5 ans' }));
+    await waitFor(() => expect(search().p).toBeUndefined());
+    expect(froms[0]).toBe(yearsAgoIso(5)); // the first answer is cached: back on 5 years asks nothing
+    expect(tos.every((x) => x === null)).toBe(true);
+  });
+
+  it('offers base 100 or two axes for two units without a percent', async () => {
+    server.use(http.get('*/api/v1/series/points', () => answer([cpi, fx], '2021-01-01')));
+    const { user, router, container } = await renderApp('/series?s=cpi,fx:EUR');
+    expect(await screen.findByRole('radio', { name: 'Base 100' })).toBeChecked();
+    expect(screen.getByText('Base 100 le 1 janv. 2021')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '2 axes' }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ axes: '2' }));
+    await waitFor(() => expect(container.querySelectorAll('.recharts-yAxis')).toHaveLength(2));
+    expect(screen.queryByText(/Base 100 le/)).not.toBeInTheDocument();
+  });
+
+  it('shows no scale switch for one unit, nor with a percent', async () => {
+    server.use(http.get('*/api/v1/series/points', ({ request }) => answer(new URL(request.url).searchParams.get('s') === 'cpi' ? [cpi] : [cpi, yoy])));
+    const first = await renderApp('/series?s=cpi');
+    await screen.findByRole('button', { name: 'Afficher en tableau' });
+    expect(screen.queryByRole('radiogroup', { name: 'Échelle' })).not.toBeInTheDocument();
+    first.unmount();
+    await renderApp('/series?s=cpi,cpi:yoy');
+    await screen.findByRole('list', { name: 'Séries affichées' });
+    expect(screen.queryByRole('radiogroup', { name: 'Échelle' })).not.toBeInTheDocument();
+  });
+
+  it('ignores axes=2 once the selection has one unit', async () => {
+    server.use(http.get('*/api/v1/series/points', () => answer([cpi])));
+    const { container } = await renderApp('/series?s=cpi&axes=2');
+    await screen.findByRole('button', { name: 'Afficher en tableau' });
+    expect(screen.queryByRole('radiogroup', { name: 'Échelle' })).not.toBeInTheDocument();
+    await waitFor(() => expect(container.querySelectorAll('.recharts-yAxis')).toHaveLength(1));
   });
 });
