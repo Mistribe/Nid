@@ -28,7 +28,7 @@ public sealed class GoalSeries(IVisibleItems visible, IItemRegistry items, IGoal
 
         var funded = (await goals.FundingOfAsync(found.Select(g => g.Id).ToList(), ct)).Select(f => f.Goal).ToHashSet();
         var unit = SeriesUnits.Currency(await household.ReferenceCurrencyAsync(ct));
-        return found.Where(g => !funded.Contains(g.Id)).Select(g => InfoOf(g, unit)).ToList();
+        return found.Where(g => !funded.Contains(g.Id)).Select(g => InfoOf(g.Id, g.DisplayName, unit)).ToList();
     }
 
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)
@@ -36,12 +36,12 @@ public sealed class GoalSeries(IVisibleItems visible, IItemRegistry items, IGoal
         if (!key.StartsWith(Prefix, StringComparison.Ordinal) || !Guid.TryParse(key[Prefix.Length..], out var guid)) return null;
         var id = new ItemId(guid);
         var read = await invoker.InvokeAsync(new GetGoalQuery(id, scope), ct); // item access, denials journaled; null for a non-goal
-        if (!read.TryGetValue(out var detail) || detail.Funding.Count > 0 || detail.Goal.Partial || await items.FindAsync(id, ct) is not { } item) return null;
+        if (!read.TryGetValue(out var detail) || detail.Funding.Count > 0 || detail.Goal.Partial) return null;
         var unit = SeriesUnits.Currency(await household.ReferenceCurrencyAsync(ct));
-        return new SeriesPoints(InfoOf(item, unit),
+        return new SeriesPoints(InfoOf(new ItemId(detail.Goal.Id), detail.Goal.Name, unit),
             SeriesWindow.Within(detail.Entries.Select(e => new SeriesPoint(e.On, decimal.Parse(e.Amount.Amount, CultureInfo.InvariantCulture))), from, to));
     }
 
-    private static SeriesInfo InfoOf(ItemAccess goal, string unit)
-        => new($"{Prefix}{goal.Id.Value}", SeriesKinds.Goal, goal.DisplayName, unit, SeriesFrequencies.Irregular, null, null, goal.Id);
+    private static SeriesInfo InfoOf(ItemId id, string name, string unit)
+        => new($"{Prefix}{id.Value}", SeriesKinds.Goal, name, unit, SeriesFrequencies.Irregular, null, null, id);
 }
