@@ -34,3 +34,11 @@ export function seriesRows(series: readonly SeriesPointsItem[], mode: SeriesMode
     return { at: Date.parse(date), date, plot, points };
   });
 }
+
+/** Per series, its last point on or before the row, only inside its own first..last range; the server's strings, picked not computed. */
+export function pointsAt(rows: readonly SeriesRow[], index: number): SeriesRow['points'] {
+  return (rows[0]?.points ?? []).map((_, i) => {
+    const before = rows.slice(0, index + 1).findLast((r) => r.points[i]);
+    return before && rows.slice(index).some((r) => r.points[i]) ? (before.points[i] ?? null) : null;
+  });
+}

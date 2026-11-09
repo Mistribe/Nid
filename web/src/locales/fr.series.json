@@ -3,6 +3,7 @@
     "see": "Voir la série",
     "title": "Explorer les séries",
     "crumb": "Séries",
+    "legend": "Séries affichées",
     "empty": "Aucune donnée sur cette période",
     "none_selected": "Aucune série choisie : ouvrez-en une depuis une page avec « Voir la série ».",
     "base_date": "Base 100 le {{date}}",

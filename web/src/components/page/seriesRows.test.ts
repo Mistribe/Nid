@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SeriesPointsItem } from '@/api/series';
-import { axisOf, defaultMode, drawable, seriesRows } from './seriesRows';
+import { axisOf, defaultMode, drawable, pointsAt, seriesRows } from './seriesRows';
 
 const item = (unit: string, points: SeriesPointsItem['points'] = []): SeriesPointsItem => ({ key: unit, kind: 'cpi', unit, frequency: 'monthly', points });
 
@@ -34,5 +34,15 @@ describe('series rows', () => {
     const s = item('percent', [{ date: '2025-01-01', value: '2.1', base100: null }]);
     expect(drawable(s, 'base100')).toBe(false);
     expect(drawable(s, 'value')).toBe(true);
+  });
+
+  it('reads each series at the hovered date: its last point so far, only inside its own range', () => {
+    const monthly = item('index', [{ date: '2025-01-01', value: '100' }, { date: '2025-02-01', value: '101' }, { date: '2025-03-01', value: '102' }]);
+    const quarterly = item('index', [{ date: '2025-01-01', value: '140' }, { date: '2025-03-01', value: '141' }]);
+    const late = item('index', [{ date: '2025-02-01', value: '9' }]);
+    const rows = seriesRows([monthly, quarterly, late], 'value');
+    expect(pointsAt(rows, 1).map((p) => p?.value)).toEqual(['101', '140', '9']);
+    expect(pointsAt(rows, 0).map((p) => p?.value)).toEqual(['100', '140', undefined]);
+    expect(pointsAt(rows, 2).map((p) => p?.value)).toEqual(['102', '141', undefined]);
   });
 });
