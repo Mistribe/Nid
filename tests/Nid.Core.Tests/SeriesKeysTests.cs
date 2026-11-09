@@ -52,4 +52,10 @@ public sealed class SeriesKeysTests
         Assert.Empty(SeriesKeys.ParseKinds(null));
         Assert.Equal(20, SeriesKeys.ParseKinds(string.Join(',', Enumerable.Range(0, 30).Select(i => "k" + new string((char)('a' + i % 26), 1) + new string((char)('a' + i / 26), 1)))).Count);
     }
+
+    [Theory]
+    [InlineData(null, "", null)] [InlineData("  ", "", null)] [InlineData(" Maison ", "", "Maison")]
+    [InlineData("x", "loan_remaining", null)] [InlineData("REMAIN", "", null)] [InlineData("Prêt", "loan_payment", "Prêt")]
+    public void Name_filter_is_null_when_the_kind_itself_matches(string? q, string kinds, string? expected)
+        => Assert.Equal(expected, SeriesSearch.NameFilter(q, kinds.Split(',', StringSplitOptions.RemoveEmptyEntries), SeriesKinds.LoanRemaining, "loan", "remaining"));
 }
