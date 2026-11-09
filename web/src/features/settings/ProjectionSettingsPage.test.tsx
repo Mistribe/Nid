@@ -201,6 +201,20 @@ describe('the projection settings page', () => {
     expect(screen.getByText(/Dernier mois publié : septembre 2026/)).toBeInTheDocument();
   });
 
+  it('opens the projected and the observed inflation', async () => {
+    serve();
+    const { user, router } = await renderApp('/settings/projection');
+
+    const links = await screen.findAllByRole('link', { name: 'Voir la série' });
+    await user.click(links[0]!);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: 'projection:inflation' });
+
+    await router.navigate({ to: '/settings/projection' });
+    await user.click((await screen.findAllByRole('link', { name: 'Voir la série' }))[1]!);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ s: 'cpi:yoy,projection:inflation' }));
+  });
+
   it('shows unavailable when the series is empty', async () => {
     serve(assumptions(), { lastPublished: null, last12Months: null, years: [] });
     await renderApp('/settings/projection');

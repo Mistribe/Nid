@@ -34,6 +34,15 @@ describe('Administration › IRL', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('opens the IRL series', async () => {
+    serve();
+    const { user, router } = await renderApp('/admin/irl', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: 'irl' });
+  });
+
   it('turns the collection on from the switch', async () => {
     const sent: unknown[] = [];
     serve(false);

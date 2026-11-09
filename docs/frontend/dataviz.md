@@ -180,7 +180,7 @@ Slots assombris, mode clair : 3 (`#37ad7d` → `oklch(0.645 0.127 162.1)`), 4 (`
 
 ## 6. Règles de tracé
 
-- **Un seul axe vertical**, jamais deux.
+- **Un seul axe vertical**, jamais deux — sauf dans l'explorateur de séries (`/series`), pour exactement deux unités : un axe à gauche, un à droite, chacun portant son unité et la pastille de couleur de ses séries (le texte reste en jetons de texte) ; l'infobulle donne la valeur réelle de chaque série à la date survolée, le tableau une colonne par série avec son unité. Une série en pourcentage n'est jamais ramenée en base 100.
 - **Axe du temps proportionnel** quand les points tombent à des dates irrégulières (valeurs d'une enveloppe, d'une ligne) : `type="number"` et `scale="time"`, sinon les années riches en relevés s'étirent et les autres se tassent. Des points mensuels réguliers peuvent rester catégoriels.
 - **Graduations espacées** : un axe catégoriel (mois, années) espace ses graduations (`minTickGap={24}`) pour que deux libellés ne se touchent jamais ; seuls un axe à `ticks` choisis ou tous les mois voulus (`interval={0}`, les 12 mois des abonnements) en sont dispensés. `nativeControls.test.ts` le vérifie.
 - **Animation** : les marques entrent (800 ms) ; Recharts les coupe de lui-même avec `prefers-reduced-motion` (`isAnimationActive` laissé à `'auto'`).

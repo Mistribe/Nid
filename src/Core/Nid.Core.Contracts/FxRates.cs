@@ -38,6 +38,9 @@ public sealed record FxRate(LocalDate OnDate, Currency Quote, decimal Rate, FxRa
 /// <summary>A rate read from a source and not written, with why (design §4.4). <paramref name="Quote"/> is raw text: it may not be a valid code.</summary>
 public sealed record FxRejection(LocalDate OnDate, string Quote, decimal Rate, decimal? Previous, string Reason);
 
+/// <summary>A stored quote with the dates of its first and last rate.</summary>
+public sealed record FxQuoteSpan(Currency Quote, LocalDate First, LocalDate Last);
+
 public static class FxCodes
 {
     public const string RateMissing = "core.fx_rate_missing";
@@ -68,6 +71,9 @@ public interface IFxRateStore
 
     /// <summary>For each quote, the latest stored rate strictly before <paramref name="date"/> (plausibility, design §4.4).</summary>
     Task<IReadOnlyDictionary<Currency, decimal>> PreviousAsync(IReadOnlyCollection<Currency> quotes, LocalDate date, CancellationToken ct);
+
+    /// <summary>Every stored quote with its first and last rate date, by quote code.</summary>
+    Task<IReadOnlyList<FxQuoteSpan>> QuotesAsync(CancellationToken ct);
 
     /// <summary>The dates on or after <paramref name="from"/> holding at least one rate of <paramref name="source"/>.</summary>
     Task<IReadOnlySet<LocalDate>> DatesFromAsync(FxRateSource source, LocalDate from, CancellationToken ct);

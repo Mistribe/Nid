@@ -21,6 +21,23 @@ public class FxRateStoreTests(PostgresFixture postgres)
         => Assert.Single(await store.ReadAsync([quote], on ?? Day, on ?? Day, default));
 
     [Fact]
+    public async Task Quotes_span_from_the_first_to_the_last_rate_per_quote()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var store = new FxRateStore(db);
+        Assert.Empty(await store.QuotesAsync(TestContext.Current.CancellationToken));
+
+        await store.WriteAsync([
+            Rate(Currency.Eur, 0.9m, FxRateSource.Ecb, new LocalDate(2025, 9, 1)),
+            Rate(Currency.Eur, 0.91m, FxRateSource.Ecb, new LocalDate(2025, 9, 3)),
+            Rate(Gbp, 0.7m, FxRateSource.Ecb, new LocalDate(2025, 9, 2))], TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            [new FxQuoteSpan(Currency.Eur, new LocalDate(2025, 9, 1), new LocalDate(2025, 9, 3)), new FxQuoteSpan(Gbp, new LocalDate(2025, 9, 2), new LocalDate(2025, 9, 2))],
+            await store.QuotesAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task A_manual_rate_is_never_replaced_by_a_collected_one()
     {
         await using var db = await postgres.NewDatabaseAsync();

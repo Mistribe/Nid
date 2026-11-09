@@ -26,23 +26,36 @@ public static class ProjectionRates
         int Year(int k) => thisMonth.PlusMonths(k).Year;
         static decimal Monthly(decimal annual) => (decimal)Math.Pow(1 + (double)annual, 1.0 / 12);
 
-        decimal InflationIn(int year) => a.InflationByYear is { } table && table.TryGetValue(year, out var typed) ? typed
-            : year == today.Year && observedLast12 is { } observed ? observed : a.Inflation;
-
         var inflation = new decimal[months + 1];
         var income = new decimal[months + 1];
         inflation[0] = 1m;
-        for (var k = 1; k <= months; k++) inflation[k] = inflation[k - 1] * Monthly(InflationIn(Year(k)));
+        for (var k = 1; k <= months; k++) inflation[k] = inflation[k - 1] * Monthly(InflationIn(a, observedLast12, today, Year(k)));
         for (var k = 0; k <= months; k++) income[k] = inflation[k] * (decimal)Math.Pow(1 + (double)a.IncomeGrowth, k / 12.0);
 
         var classRates = classes.Distinct().ToDictionary(c => c, IReadOnlyList<decimal> (c) =>
         {
-            var table = a.ClassRatesByYear?.GetValueOrDefault(c);
             var rates = new decimal[months + 1];
             for (var k = 1; k <= months; k++)
-                rates[k] = Monthly(table is not null && table.TryGetValue(Year(k), out var typed) ? typed : a.ClassRates.GetValueOrDefault(c)) - 1m;
+                rates[k] = Monthly(ClassRateIn(a, c, Year(k))) - 1m;
             return rates;
         });
         return new ResolvedRates(inflation, income, classRates);
     }
+
+    /// <summary>The calendar years months 1..<paramref name="months"/> of the grid fall in (this month + k), ascending, distinct.</summary>
+    public static IReadOnlyList<int> GridYears(LocalDate today, int months)
+    {
+        var thisMonth = new YearMonth(today.Year, today.Month);
+        return Enumerable.Range(1, months).Select(k => thisMonth.PlusMonths(k).Year).Distinct().ToList();
+    }
+
+    /// <summary>The year's inflation: the typed year, else the observed rate for today's year, else the long term.</summary>
+    public static decimal InflationIn(ProjectionAssumptions a, decimal? observedLast12, LocalDate today, int year)
+        => a.InflationByYear is { } table && table.TryGetValue(year, out var typed) ? typed
+            : year == today.Year && observedLast12 is { } observed ? observed : a.Inflation;
+
+    /// <summary>The class's rate in the year: its typed year, else its long-term rate (0 when the class has none).</summary>
+    public static decimal ClassRateIn(ProjectionAssumptions a, string @class, int year)
+        => a.ClassRatesByYear?.GetValueOrDefault(@class) is { } table && table.TryGetValue(year, out var typed) ? typed
+            : a.ClassRates.GetValueOrDefault(@class);
 }

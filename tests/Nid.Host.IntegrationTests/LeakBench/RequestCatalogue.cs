@@ -167,6 +167,8 @@ public static class RequestCatalogue
         new(typeof(CollectIrlCommand), false, (_, _) => new CollectIrlCommand()),
         new(typeof(RequestIrlSyncCommand), false, (_, _) => new RequestIrlSyncCommand()),
         new(typeof(GetIrlQuery), false, (_, _) => new GetIrlQuery()),
+        new(typeof(Nid.Core.Application.Series.ListSeriesQuery), false, (_, _) => new Nid.Core.Application.Series.ListSeriesQuery(VisibilityScope.Me, null, 1)),
+        new(typeof(Nid.Core.Application.Series.GetSeriesPointsQuery), false, (_, _) => new Nid.Core.Application.Series.GetSeriesPointsQuery(VisibilityScope.Me, "cpi", null, null)),
         new(typeof(SetIrlValueCommand), false, (_, _) => new SetIrlValueCommand(2026, 2, 148.37m, new NodaTime.LocalDate(2026, 7, 12))),
         new(typeof(Nid.Core.Application.Inflation.CollectCpiCommand), false, (_, _) => new Nid.Core.Application.Inflation.CollectCpiCommand()),
         new(typeof(Nid.Core.Application.Inflation.RequestCpiSyncCommand), false, (_, _) => new Nid.Core.Application.Inflation.RequestCpiSyncCommand()),

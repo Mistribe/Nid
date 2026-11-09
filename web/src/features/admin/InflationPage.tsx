@@ -10,6 +10,7 @@ import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { formatLocalDate, monthText } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,7 +91,10 @@ export function InflationPage() {
       {!inflation.data && !inflation.error ? <AdminSkeleton /> : null}
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.inflation.values_title')}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{t('admin.inflation.values_title')}</h2>
+          <SeriesLink keys={['cpi']} />
+        </div>
         {inflation.data && inflation.data.values.length === 0 ? <p>{t('admin.inflation.no_values')}</p> : null}
         {inflation.data && inflation.data.values.length > 0 ? (
           <Table>

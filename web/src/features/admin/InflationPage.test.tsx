@@ -37,6 +37,15 @@ describe('Administration › Inflation', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('opens the CPI series', async () => {
+    serve();
+    const { user, router } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: 'cpi' });
+  });
+
   it('turns the collection on from the switch', async () => {
     const sent: unknown[] = [];
     serve(false);

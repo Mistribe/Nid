@@ -188,6 +188,7 @@ app.MapDocumentEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
 app.MapProjectionEndpoints();
+app.MapSeriesEndpoints();
 app.MapInflationEndpoints();
 app.MapTaxEndpoints();
 app.MapScenarioEndpoints();

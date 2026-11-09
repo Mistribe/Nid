@@ -1,0 +1,29 @@
+{
+  "series": {
+    "see": "Voir la série",
+    "title": "Explorer les séries",
+    "crumb": "Séries",
+    "legend": "Séries affichées",
+    "empty": "Aucune donnée sur cette période",
+    "none_selected": "Aucune série choisie : ouvrez-en une depuis une page avec « Voir la série ».",
+    "base_date": "Base 100 le {{date}}",
+    "no_base": "pas de base 100 possible",
+    "today": "Aujourd’hui",
+    "date": "Date",
+    "base100_column": "{{label}} (base 100)",
+    "chart_table": "Valeurs des séries",
+    "kind": {
+      "cpi": "Indice des prix (IPC)",
+      "cpi_yoy": "Inflation sur 12 mois",
+      "irl": "Indice de référence des loyers (IRL)",
+      "fx": "{{name}} pour 1 USD",
+      "projection_inflation": "Inflation projetée",
+      "projection_rate": "Rendement projeté : {{name}}"
+    },
+    "unit": {
+      "index": "indice",
+      "percent": "%",
+      "rate": "{{code}} pour 1 USD"
+    }
+  }
+}

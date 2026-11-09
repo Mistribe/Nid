@@ -7,6 +7,7 @@ using Nid.Core.Application.Fx;
 using Nid.Core.Application.Inflation;
 using Nid.Core.Application.Projection;
 using Nid.Core.Application.Scenarios;
+using Nid.Core.Application.Series;
 using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
@@ -83,6 +84,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(SalaryAllowanceView))]
 [JsonSerializable(typeof(SessionResponse))]
 [JsonSerializable(typeof(InflationView))]
+[JsonSerializable(typeof(SeriesCatalogView))]
+[JsonSerializable(typeof(SeriesPointsView))]
 [JsonSerializable(typeof(CpiAdminView))]
 [JsonSerializable(typeof(CpiValueView))]
 [JsonSerializable(typeof(CpiSyncRequested))]

@@ -15,6 +15,8 @@ export const handlers = [
   // The shell's token banner reads the list (4A).
   // Every list row names its owners from the household's persons.
   http.get('*/api/v1/core/persons', () => HttpResponse.json([])),
+  // The series explorer asks for the points of the keys of its address; none by default.
+  http.get('*/api/v1/series/points', () => HttpResponse.json({ series: [], baseDate: null })),
   // The tax page's year selector reads the past notices.
   http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [] })),
   // ... and its « Évolution » what changed since the year before (#410): nothing to compare.
