@@ -49,10 +49,9 @@ public sealed class ProjectionRateSeries(IHouseholdSettings household, IHousehol
         var (today, a, observed) = (c.Today, c.Assumptions, c.Observed);
         var years = ProjectionRates.GridYears(today, ProjectionHorizon.Default.Years!.Value * 12);
 
-        var points = years
+        var points = SeriesWindow.Within(years
             .Select(y => new SeriesPoint(new LocalDate(y, 1, 1), Math.Round(
-                (@class is null ? ProjectionRates.InflationIn(a, observed, today, y) : ProjectionRates.ClassRateIn(a, @class, y)) * 100, 2, MidpointRounding.AwayFromZero)))
-            .Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).ToList();
+                (@class is null ? ProjectionRates.InflationIn(a, observed, today, y) : ProjectionRates.ClassRateIn(a, @class, y)) * 100, 2, MidpointRounding.AwayFromZero))), from, to);
         var info = @class is null
             ? new SeriesInfo(InflationKey, SeriesKinds.ProjectionInflation, null, SeriesUnits.Percent, SeriesFrequencies.Yearly, null, null, null)
             : new SeriesInfo(key, SeriesKinds.ProjectionRate, @class, SeriesUnits.Percent, SeriesFrequencies.Yearly, null, null, null);

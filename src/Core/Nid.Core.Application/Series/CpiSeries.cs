@@ -41,7 +41,7 @@ public sealed class CpiSeries(ICpiStore store) : ISeriesContribution
         var info = key == Index
             ? new SeriesInfo(Index, SeriesKinds.Cpi, null, SeriesUnits.Index, SeriesFrequencies.Monthly, null, null, null)
             : new SeriesInfo(Yoy, SeriesKinds.CpiYoy, null, SeriesUnits.Percent, SeriesFrequencies.Monthly, null, null, null);
-        return new SeriesPoints(info, points.Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).OrderBy(p => p.Date).ToList());
+        return new SeriesPoints(info, SeriesWindow.Within(points, from, to));
     }
 
     private static LocalDate Day(YearMonth m) => new(m.Year, m.Month, 1);

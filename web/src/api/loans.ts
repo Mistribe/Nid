@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { SERIES_CATALOGUE, SERIES_POINTS } from './series';
 import type { components } from '@/api/schema';
 
 export type LoanSummary = components['schemas']['LoanSummary'];
@@ -44,5 +45,5 @@ export const BANK_PREVIEW = '/api/v1/realestate/loans/{id}/bank-schedule/preview
 
 /** Every write invalidates the list, the overview, every detail and every schedule (3B1 design §7). */
 export function invalidateLoans(queryClient: QueryClient): Promise<void> {
-  return Promise.all([LOANS, OVERVIEW, LOAN, SCHEDULE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([LOANS, OVERVIEW, LOAN, SCHEDULE, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

@@ -78,9 +78,12 @@ public sealed class PropertiesOverviewReader(
     IAccessPolicy policy, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, IIrlStore irl)
 {
     public async Task<Result<PropertiesOverview>> ReadAsync(PersonId reader, VisibilityScope scope, PropertiesSpan span, LocalDate today, CancellationToken ct)
-    {
-        var ids = await visible.ForAsync(reader, scope, ct);
+        => await ReadAsync(reader, await visible.ForAsync(reader, scope, ct), await household.ReferenceCurrencyAsync(ct), span, today, ct);
 
+    /// <summary>The overview over given items, its figures converted to <paramref name="reference"/>.</summary>
+    internal async Task<Result<PropertiesOverview>> ReadAsync(
+        PersonId reader, IReadOnlySet<ItemId> ids, Currency reference, PropertiesSpan span, LocalDate today, CancellationToken ct)
+    {
         var read = await OverviewProperties.ReadAsync(ids, reader, properties, items, loans, valuations, flows, policy, ct);
         if (read.TryGetFailure(out var failure))
             return Result.Failure<PropertiesOverview>(failure!);
@@ -88,7 +91,6 @@ public sealed class PropertiesOverviewReader(
         var set = found!;
 
         var grid = PropertiesOverviewMath.Grid(span, today);
-        var reference = await household.ReferenceCurrencyAsync(ct);
         var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], grid[0], today, ct);

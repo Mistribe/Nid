@@ -10,6 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { money } from '../../loans/format';
 import { invalidateProperties, TENANCY, type PropertyDetail, type PropertyTenancy } from '@/api/properties';
 import { RowActions } from '@/components/page/RowActions';
@@ -83,6 +84,7 @@ export function RentalSection({ property }: { property: PropertyDetail }) {
                     {x.current ? (
                       <span className="inline-flex items-center gap-1"><CircleDot aria-hidden="true" className="size-4" />{t('property_rental.current')}</span>
                     ) : null}
+                    <SeriesLink keys={[`tenancy:${property.id}:${x.id}:rent`, 'irl']} />
                   </span>
                   <RevisionNotes property={property} tenancy={x} history={historyOf(x)} onRevise={() => setRevising(x)} onUndone={s.announce} />
                 </TableCell>

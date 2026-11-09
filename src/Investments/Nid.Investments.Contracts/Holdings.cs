@@ -117,6 +117,13 @@ public interface IHoldingStore
 
     Task<IReadOnlyList<StoredHolding>> HoldingsAsync(ItemId envelope, CancellationToken ct);
 
+    /// <summary>
+    /// The holdings of these envelopes that have units (<see cref="HoldingWire.HasUnits"/>), closed ones included, whose name contains
+    /// <paramref name="nameContains"/> (typed text, case-insensitive; <c>%</c> and <c>_</c> match themselves), every one when null; by name.
+    /// A registry-free read: the caller passes the envelopes the reader can see.
+    /// </summary>
+    Task<IReadOnlyList<EnvelopeHolding>> PricedAsync(IReadOnlyCollection<ItemId> envelopes, string? nameContains, CancellationToken ct);
+
     Task AddAsync(EnvelopeHolding holding, CancellationToken ct);
 
     /// <summary>Every field of <paramref name="holding"/>, in place.</summary>

@@ -123,6 +123,13 @@ public interface IItemRegistry
     Task<IReadOnlyDictionary<ItemId, ItemAccess>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
     /// <summary>
+    /// The items among <paramref name="ids"/> of that module and kind whose display name contains <paramref name="nameContains"/>
+    /// (typed text, case-insensitive; <c>%</c> and <c>_</c> match themselves), every one when null; built as <see cref="FindManyAsync"/>
+    /// builds them. A registry read: no access check.
+    /// </summary>
+    Task<IReadOnlyList<ItemAccess>> SearchAsync(IReadOnlyCollection<ItemId> ids, string module, string kind, string? nameContains, CancellationToken ct);
+
+    /// <summary>
     /// 1F3b: an import's replacement of an item it created before. Same rules as a creation (OwnershipRules); the row is
     /// updated in place, its owners reconciled (removed, changed, added), so the audit keeps the previous values.
     /// <paramref name="shareLevel"/> null keeps the item's level; a private item always ends at <see cref="ShareLevel.View"/>.

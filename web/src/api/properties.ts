@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { components } from '@/api/schema';
 import { DASHBOARD } from './dashboard';
 import { OVERVIEW } from './income';
+import { SERIES_CATALOGUE, SERIES_POINTS } from './series';
 import { TAX_SALE } from './tax';
 
 export type PropertySummary = components['schemas']['PropertySummary'];
@@ -52,5 +53,5 @@ export const RETURN_ASSUMPTIONS = '/api/v1/realestate/properties/{id}/return-ass
  * (§7); the income page and the home income too, which count the rents (income dashboard §5).
  */
 export function invalidateProperties(queryClient: QueryClient): Promise<void> {
-  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, PROPERTY_RECEIPTS, PROPERTY_ARREARS, PROPERTY_RETURN, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, PROPERTY_RECEIPTS, PROPERTY_ARREARS, PROPERTY_RETURN, OVERVIEW, DASHBOARD, TAX_SALE, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

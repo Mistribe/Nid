@@ -16,6 +16,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { COST_REPORTS, ENVELOPE, HOLDING_BREAKDOWN, HOLDING_SERIES, HOLDINGS, MOVEMENTS, type CostReport, type Holding } from '@/api/investments';
 import { SeriesChart } from '../chart/ValueChart';
 import { AnnualReturn, pct } from '../Figures';
@@ -26,7 +27,7 @@ import { SourceLink } from '@/features/documents/SourceLink';
 import { hasBreakdown, REGIONS, regionText, SECTORS, sectorText, sharePct } from './breakdown';
 import { CostReportDialog } from './CostReportDialog';
 import { HoldingDialog } from './HoldingDialog';
-import { formatUnits, holdingKindText, movementKindText, percent } from './holdingFormat';
+import { formatUnits, hasUnits, holdingKindText, movementKindText, percent } from './holdingFormat';
 import { MovementDialog } from './MovementDialog';
 import { PriceCell } from './PriceCell';
 import '@/locales/investments';
@@ -123,7 +124,8 @@ export function HoldingPage() {
           id: 'overview', label: t('envelope.tab.overview'),
           content: (
             <>
-              <Section title={t('envelope.evolution')}>
+              <Section title={t('envelope.evolution')}
+                actions={hasUnits(holding.kind) ? <SeriesLink keys={[`holding:${detail.id}:${holding.id}:price`]} /> : undefined}>
                 {series.error ? <ProblemMessage problem={present(toProblem(series.error))} />
                   : !series.data ? <div role="status" aria-busy="true" aria-label={t('envelope.chart_loading')} className="h-64 shimmer rounded-md border bg-muted" />
                     : <SeriesChart id={holding.id} points={series.data.points} currency={detail.currency} netLabel={t('holdings.net_money_in')}

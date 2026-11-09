@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { DASHBOARD } from './dashboard';
 import { invalidateDocuments } from './documents';
+import { SERIES_CATALOGUE, SERIES_POINTS } from './series';
 import type { components } from '@/api/schema';
 
 export type IncomeSourceSummary = components['schemas']['IncomeSourceSummary'];
@@ -36,6 +37,8 @@ export function invalidateIncome(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', SOURCE] }),
     queryClient.invalidateQueries({ queryKey: ['get', SOURCE_OVERVIEW] }),
     queryClient.invalidateQueries({ queryKey: ['get', EXPECTED] }),
+    // The explorer opens the same figures (« Voir la série »): never let it disagree with the screen.
+    ...[SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
     invalidateDocuments(queryClient),
   ]).then(() => undefined);
 }

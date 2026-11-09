@@ -50,6 +50,14 @@ describe('LoanDetailPage', () => {
     await waitFor(() => expectTrailBack('Crédits', '/loans'));
   });
 
+  it('opens the remaining balance in the explorer', async () => {
+    serve();
+    const { user, router } = await renderApp(`/loans/${LOAN}`);
+    await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: `loan:${LOAN}:remaining` });
+  });
+
   it('overview answers where the loan stands', async () => {
     serve();
     const { container } = await renderApp(`/loans/${LOAN}`);

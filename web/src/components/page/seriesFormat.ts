@@ -1,8 +1,9 @@
 import type { TFunction } from 'i18next';
 import { formatCurrency } from '@/components/Money';
+import series from '@/locales/fr.series.json';
 import '@/locales/series';
 
-const KINDS = ['cpi', 'cpi_yoy', 'irl', 'fx', 'projection_inflation', 'projection_rate'];
+const KINDS = Object.keys(series.series.kind);
 
 /** The series' name for the person; an unknown kind reads its own name, else its key. */
 export function seriesLabel(t: TFunction, s: { kind: string; name?: string | null; key: string }): string {

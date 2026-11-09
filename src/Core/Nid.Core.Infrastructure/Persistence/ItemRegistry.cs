@@ -114,13 +114,36 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             return new Dictionary<ItemId, ItemAccess>();
 
         var keys = ids.Select(i => i.Value).Distinct().ToList();
-        var rows = await db.Items.AsNoTracking().Include(i => i.Owners).Where(i => keys.Contains(i.Id)).ToListAsync(ct);
+        return (await ReadAsync(db.Items.AsNoTracking().Where(i => keys.Contains(i.Id)), ct)).ToDictionary(a => a.Id);
+    }
+
+    public async Task<IReadOnlyList<ItemAccess>> SearchAsync(IReadOnlyCollection<ItemId> ids, string module, string kind, string? nameContains, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+            return [];
+
+        var keys = ids.Select(i => i.Value).Distinct().ToList();
+        var items = db.Items.AsNoTracking().Where(i => keys.Contains(i.Id) && i.Module == module && i.Kind == kind);
+        // ponytail: ILIKE ignores case, not accents (SeriesSearch.Matches ignores both); upgrade with unaccent if the household asks.
+        if (!string.IsNullOrWhiteSpace(nameContains))
+        {
+            // Typed text, not a pattern: % and _ match themselves.
+            var pattern = LikePattern.Contains(nameContains);
+            items = items.Where(i => EF.Functions.ILike(i.DisplayName, pattern, @"\"));
+        }
+
+        return await ReadAsync(items, ct);
+    }
+
+    private async Task<List<ItemAccess>> ReadAsync(IQueryable<ItemRow> items, CancellationToken ct)
+    {
+        var rows = await items.Include(i => i.Owners).ToListAsync(ct);
         var owners = rows.SelectMany(r => r.Owners.Select(o => o.PersonId)).Distinct().ToList();
         var kinds = await db.Persons.AsNoTracking()
             .Where(p => owners.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent, ct);
 
-        return rows.ToDictionary(r => new ItemId(r.Id), r => ToAccess(r, kinds));
+        return rows.Select(r => ToAccess(r, kinds)).ToList();
     }
 
     private static ItemAccess ToAccess(ItemRow row, IReadOnlyDictionary<Guid, PersonKind> kinds)

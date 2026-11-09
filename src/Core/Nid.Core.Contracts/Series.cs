@@ -60,6 +60,17 @@ public static class SeriesKinds
     public const string Fx = "fx";
     public const string ProjectionInflation = "projection_inflation";
     public const string ProjectionRate = "projection_rate";
+    public const string Income = "income";
+    public const string IncomeHousehold = "income_household";
+    public const string EnvelopeValue = "envelope_value";
+    public const string EnvelopeContributions = "envelope_contributions";
+    public const string HoldingPrice = "holding_price";
+    public const string PropertyValue = "property_value";
+    public const string PropertyCost = "property_cost";
+    public const string PropertyNet = "property_net";
+    public const string TenancyRent = "tenancy_rent";
+    public const string LoanRemaining = "loan_remaining";
+    public const string LoanPayment = "loan_payment";
 }
 
 public static partial class SeriesKeys
@@ -92,6 +103,19 @@ public static partial class SeriesKeys
     }
 }
 
+public static class SeriesWindow
+{
+    /// <summary>The points inside the optional <c>from</c>/<c>to</c> window (inclusive), ascending by date.</summary>
+    public static List<SeriesPoint> Within(IEnumerable<SeriesPoint> points, LocalDate? from, LocalDate? to)
+        => points.Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to)).OrderBy(p => p.Date).ToList();
+}
+
+/// <summary>An ILIKE pattern for typed text: <c>%</c>, <c>_</c> and the backslash match themselves (use <c>\</c> as the escape character).</summary>
+public static class LikePattern
+{
+    public static string Contains(string text) => $"%{text.Trim().Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")}%";
+}
+
 public static class SeriesSearch
 {
     /// <summary>The query matches the series' name or its key, or the series' kind is one of <paramref name="kinds"/>.</summary>
@@ -103,4 +127,11 @@ public static class SeriesSearch
         => string.IsNullOrWhiteSpace(q)
            || (name is not null && CultureInfo.InvariantCulture.CompareInfo.IndexOf(
                name, q.Trim(), CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0);
+
+    /// <summary>
+    /// The name filter to push into an item query: null when every item of <paramref name="kind"/> matches (blank query, the kind
+    /// asked for, or a query that matches one of the kind's <paramref name="keyWords"/>), else the trimmed query.
+    /// </summary>
+    public static string? NameFilter(string? q, IReadOnlyCollection<string> kinds, string kind, params string[] keyWords)
+        => string.IsNullOrWhiteSpace(q) || kinds.Contains(kind) || keyWords.Any(w => Matches(w, q)) ? null : q.Trim();
 }

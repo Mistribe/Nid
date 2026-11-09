@@ -6,6 +6,12 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
+import { SeriesLink } from '@/components/page/SeriesLink';
+import { SeriesView } from '@/components/page/SeriesView';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { Skeleton } from '@/components/ui/skeleton';
+import { present, toProblem } from '@/api/errors';
+import { SERIES_POINTS } from '@/api/series';
 import { SourceLink } from '../../documents/SourceLink';
 import { money } from '../../loans/format';
 import { invalidateProperties, VALUATION, type PropertyDetail, type PropertyValuation } from '@/api/properties';
@@ -13,6 +19,7 @@ import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';
 import '@/locales/loans';
 import '@/locales/properties';
+import '@/locales/series';
 
 /**
  * 3D1 design §6: the estimates, newest first (the server lists them oldest first). Adding is the page header's action (its
@@ -25,8 +32,17 @@ export function ValuationsSection({ property }: { property: PropertyDetail }) {
   const announce = (message: string) => { toast.success(message); headingRef.current?.focus(); };
   const newestFirst = [...property.valuations].reverse();
 
+  // The whole history, by item access (not the selector); no estimate, nothing to ask: the table's empty row says so.
+  const { $api } = useApi();
+  const chart = $api.useQuery('get', SERIES_POINTS, { params: { query: { s: `property:${property.id}:value,property:${property.id}:cost` } } },
+    { enabled: newestFirst.length > 0 });
+
   return (
-    <Section title={t('property_valuations.title')} headingRef={headingRef}>
+    <Section title={t('property_valuations.title')} headingRef={headingRef}
+      actions={<SeriesLink keys={[`property:${property.id}:value`, `property:${property.id}:cost`, `property:${property.id}:net`]} />}>
+      {newestFirst.length === 0 ? null : chart.error ? <ProblemMessage problem={present(toProblem(chart.error))} />
+        : chart.data ? <SeriesView answer={chart.data} mode="value" asTable={false} caption={t('series.chart_table')} />
+        : <Skeleton className="h-72 w-full" />}
       <Table aria-label={t('property_valuations.table')}>
         <TableHeader>
           <TableRow>

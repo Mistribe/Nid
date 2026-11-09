@@ -22,10 +22,8 @@ public sealed class IrlSeries(IIrlStore store) : ISeriesContribution
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)
     {
         if (key != Key) return null;
-        var points = (await store.ListAsync(ct))
-            .Select(v => new SeriesPoint(new LocalDate(v.Quarter.Year, (v.Quarter.Quarter - 1) * 3 + 1, 1), v.Value))
-            .Where(p => (from is null || p.Date >= from) && (to is null || p.Date <= to))
-            .OrderBy(p => p.Date).ToList();
+        var points = SeriesWindow.Within((await store.ListAsync(ct))
+            .Select(v => new SeriesPoint(new LocalDate(v.Quarter.Year, (v.Quarter.Quarter - 1) * 3 + 1, 1), v.Value)), from, to);
         return new SeriesPoints(new SeriesInfo(Key, SeriesKinds.Irl, null, SeriesUnits.Index, SeriesFrequencies.Quarterly, null, null, null), points);
     }
 }
