@@ -81,7 +81,7 @@ public sealed class PropertiesOverviewReader(
         => await ReadAsync(reader, await visible.ForAsync(reader, scope, ct), await household.ReferenceCurrencyAsync(ct), span, today, ct);
 
     /// <summary>The overview over given items, its figures converted to <paramref name="reference"/>.</summary>
-    public async Task<Result<PropertiesOverview>> ReadAsync(
+    internal async Task<Result<PropertiesOverview>> ReadAsync(
         PersonId reader, IReadOnlySet<ItemId> ids, Currency reference, PropertiesSpan span, LocalDate today, CancellationToken ct)
     {
         var read = await OverviewProperties.ReadAsync(ids, reader, properties, items, loans, valuations, flows, policy, ct);

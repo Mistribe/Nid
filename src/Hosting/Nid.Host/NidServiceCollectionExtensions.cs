@@ -216,6 +216,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
         services.AddScoped<Nid.Investments.Application.InvestmentsOverviewReader>();
+        services.AddScoped<ISeriesContribution, Nid.Investments.Application.InvestmentSeries>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Investments.Application.InvestmentsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.StatementProposal>();
@@ -232,6 +233,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IOneOffTaxableStore, OneOffTaxableStore>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
+        services.AddScoped<ISeriesContribution, Nid.Income.Application.IncomeSeries>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
@@ -320,8 +322,6 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Core.Contracts.ICpiRunLog, Nid.Core.Infrastructure.Persistence.CpiRunLog>();
         services.AddScoped<IInflation, ObservedInflation>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.CpiSeries>();
-        services.AddScoped<ISeriesContribution, Nid.Income.Application.IncomeSeries>();
-        services.AddScoped<ISeriesContribution, Nid.Investments.Application.InvestmentSeries>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.ProjectionRateSeries>();
         services.AddScoped<CpiCollector>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Core.Infrastructure.Persistence.CpiSyncHealth>();

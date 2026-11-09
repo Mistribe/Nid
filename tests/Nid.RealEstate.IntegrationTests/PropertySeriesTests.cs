@@ -124,4 +124,28 @@ public class PropertySeriesTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.NotEmpty(curve);
         Assert.Equal(curve, Points(series));
     }
+
+    [Fact]
+    public async Task A_loan_id_in_a_property_value_key_is_404()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await app.NewLoanAsync("Prêt Alice", Visibility.Shared, (app.AdultA, 10_000));
+
+        await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=property:{loan.Value}:value", HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task A_dollar_property_without_a_loan_has_net_points_in_dollars()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Home(app, "Condo Alice", "shared", app.AdultA);
+        body["currency"] = "USD";
+        var id = await NewPropertyAsync(app, body);
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{id}/valuations", new { asOf = "2024-06-30", amount = "120000" }));
+
+        var series = (await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=property:{id}:net")).GetProperty("series")[0];
+
+        Assert.Equal("currency:USD", series.GetProperty("unit").GetString());
+        Assert.NotEmpty(Points(series));
+    }
 }

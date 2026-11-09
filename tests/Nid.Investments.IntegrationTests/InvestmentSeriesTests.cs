@@ -154,4 +154,14 @@ public class InvestmentSeriesTests(PostgresFixture fixture) : IClassFixture<Post
 
         Assert.Equal("core.series_not_found", failure.GetProperty("code").GetString());
     }
+
+    [Fact]
+    public async Task A_holding_of_another_envelope_is_404_under_a_visible_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, _, fund) = await EnvelopeAsync(app, Visibility.Shared);
+        var other = await app.NewEnvelopeAsync("Assurance vie", app.AdultA, Visibility.Shared);
+
+        await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=holding:{other.Value}:{fund}:price", HttpStatusCode.NotFound);
+    }
 }

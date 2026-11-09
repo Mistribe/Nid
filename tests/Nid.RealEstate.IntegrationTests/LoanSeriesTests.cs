@@ -74,4 +74,15 @@ public class LoanSeriesTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(24, Points(series[0]).Length);
         Assert.Equal(("2025-01-15", ("2026-12-15", 0m)), (Points(series[0])[0].Item1, Points(series[0])[^1]));
     }
+
+    [Fact]
+    public async Task A_property_or_envelope_id_in_a_loan_key_is_404()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var property = await app.NewPropertyAsync("Maison Alice", Visibility.Shared, (app.AdultA, 10_000));
+        var envelope = await app.NewEnvelopeAsync("PEA Alice", app.AdultA, Visibility.Shared);
+
+        await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=loan:{property.Value}:remaining", HttpStatusCode.NotFound);
+        await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=loan:{envelope.Value}:remaining", HttpStatusCode.NotFound);
+    }
 }

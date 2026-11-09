@@ -86,4 +86,26 @@ public class IncomeSeriesTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(months, Points(series));
         Assert.Equal(("currency:EUR", JsonValueKind.Null), (series.GetProperty("unit").GetString(), series.GetProperty("item").ValueKind));
     }
+
+    [Fact]
+    public async Task A_loan_id_in_an_income_key_is_404()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await app.NewLoanAsync("Prêt Alice", Visibility.Shared, (app.AdultA, 10_000));
+
+        await GetAsync(app, app.AdultA, $"/api/v1/series/points?s=income:{loan.Value}", HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task The_household_total_follows_the_selector()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.NewIncomeSourceAsync("Salaire Alice", Visibility.Private, (app.AdultA, 10_000));
+
+        var bob = (await GetAsync(app, app.AdultB, "/api/v1/series/points?s=income:household&scope=me")).GetProperty("series")[0];
+        var aliceMe = (await GetAsync(app, app.AdultA, "/api/v1/series/points?s=income:household&scope=me")).GetProperty("series")[0];
+
+        Assert.All(Points(bob), p => Assert.Equal(0m, p.Item2)); // Alice's private salary is not in Bob's total
+        Assert.Contains(Points(aliceMe), p => p.Item2 > 0m);
+    }
 }
