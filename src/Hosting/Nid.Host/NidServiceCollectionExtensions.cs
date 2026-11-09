@@ -311,6 +311,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<Nid.RealEstate.Domain.IIrlStore, IrlStore>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.Irl.IrlSeries>();
+        services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.LoanSeries>();
         services.AddScoped<IIrlRunLog, IrlRunLog>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.RealEstate.Infrastructure.Persistence.IrlSyncHealth>();
         services.AddScoped<Nid.Core.Domain.Inflation.ICpiStore, Nid.Core.Infrastructure.Persistence.CpiStore>();
