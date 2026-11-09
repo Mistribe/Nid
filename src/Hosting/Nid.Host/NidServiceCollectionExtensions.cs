@@ -323,6 +323,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IInflation, ObservedInflation>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.CpiSeries>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.ProjectionRateSeries>();
+        services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.NetWorthSeries>();
         services.AddScoped<CpiCollector>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Core.Infrastructure.Persistence.CpiSyncHealth>();
         services.AddScoped<Nid.RealEstate.Application.Irl.IrlCollector>();

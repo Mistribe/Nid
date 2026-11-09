@@ -71,6 +71,12 @@ public static class SeriesKinds
     public const string TenancyRent = "tenancy_rent";
     public const string LoanRemaining = "loan_remaining";
     public const string LoanPayment = "loan_payment";
+    public const string SubscriptionsYearly = "subscriptions_yearly";
+    public const string NetWorth = "networth";
+    public const string NetWorthProjected = "networth_projected";
+    public const string TaxYearly = "tax_yearly";
+    public const string Goal = "goal";
+    public const string ChildcareMonthly = "childcare_monthly";
 }
 
 public static partial class SeriesKeys
