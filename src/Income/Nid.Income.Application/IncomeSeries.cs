@@ -25,7 +25,7 @@ public sealed class IncomeSeries(IVisibleItems visible, IItemRegistry items, IHo
         if (SeriesSearch.Matches(total, q, kinds))
             list.Add(total);
 
-        var found = await items.SearchAsync(await visible.ForAsync(reader, scope, ct), Module, "source", SeriesSearch.NameFilter(q, kinds, SeriesKinds.Income), ct);
+        var found = await items.SearchAsync(await visible.ForAsync(reader, scope, ct), Module, "source", SeriesSearch.NameFilter(q, kinds, SeriesKinds.Income, "income"), ct);
         list.AddRange(found.Select(i => SourceInfo(i)));
         return list;
     }

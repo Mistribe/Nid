@@ -32,6 +32,20 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
         return rows.Select(r => new StoredHolding(ToHolding(r), r.Version)).ToList();
     }
 
+    public async Task<IReadOnlyList<EnvelopeHolding>> PricedAsync(IReadOnlyCollection<ItemId> envelopes, string? nameContains, CancellationToken ct)
+    {
+        var keys = envelopes.Select(e => e.Value).ToList();
+        var holdings = db.Holdings.AsNoTracking().Where(h => keys.Contains(h.EnvelopeItemId) && h.Kind != "euro_fund" && h.Kind != "cash");
+        if (!string.IsNullOrWhiteSpace(nameContains))
+        {
+            // Typed text, not a pattern: % and _ match themselves.
+            var pattern = $"%{nameContains.Trim().Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")}%";
+            holdings = holdings.Where(h => EF.Functions.ILike(h.Name, pattern, @"\"));
+        }
+
+        return (await holdings.OrderBy(h => h.Name).ThenBy(h => h.Id).ToListAsync(ct)).Select(ToHolding).ToList();
+    }
+
     public async Task AddAsync(EnvelopeHolding holding, CancellationToken ct)
     {
         var row = new HoldingRow { Id = holding.Id, EnvelopeItemId = holding.Envelope.Value };
