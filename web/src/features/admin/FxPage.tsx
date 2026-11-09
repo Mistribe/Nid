@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -13,9 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
+import { CURRENCY } from '@/lib/amount';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 import '@/locales/forms';
+import '@/locales/series';
 
 const RUNS = '/api/v1/core/fx-rates/runs';
 
@@ -73,6 +76,8 @@ export function FxPage() {
       </section>
       {entering ? <ManualRateDialog onClose={() => setEntering(false)} onDone={(message) => { setEntering(false); setProblem(null); toast.success(message); }} /> : null}
 
+      <SeriesByCurrency />
+
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.runs_title')}</h2>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
@@ -104,6 +109,28 @@ export function FxPage() {
         ) : null}
       </section>
     </AdminFrame>
+  );
+}
+
+/** « Historique d'une devise »: the stored quotes are every currency SubTracker gives, so the code is typed, not picked. */
+function SeriesByCurrency() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [error, setError] = useState('');
+  return (
+    <section className="space-y-2">
+      <h2 className="text-lg font-semibold">{t('admin.fx.series_title')}</h2>
+      <form aria-label={t('admin.fx.series_title')} noValidate className="flex max-w-md items-start gap-2" onSubmit={(event) => {
+        event.preventDefault();
+        const code = ((new FormData(event.currentTarget).get('quote') as string | null) ?? '').trim().toUpperCase();
+        if (!CURRENCY.test(code) || code === 'USD') { setError(t('admin.fx.series_invalid')); return; }
+        setError('');
+        void navigate({ to: '/series', search: { s: `fx:${code}` } });
+      }}>
+        <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} name="quote" maxLength={3} className="uppercase" />}</Field>
+        <Button type="submit" className="mt-6">{t('series.see')}</Button>
+      </form>
+    </section>
   );
 }
 

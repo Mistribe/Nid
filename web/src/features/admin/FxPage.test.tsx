@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -61,7 +61,7 @@ describe('Administration › Taux de change', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Saisir un taux' }));
     await user.type(await screen.findByLabelText('Date'), '01/10/2025');
-    await user.type(screen.getByLabelText('Devise'), 'eur');
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('Devise'), 'eur');
     await user.type(screen.getByLabelText('Taux pour 1 USD'), '0,8612');
     await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
 
@@ -86,10 +86,35 @@ describe('Administration › Taux de change', () => {
 
     await user.clear(screen.getByLabelText('Date'));
     await user.type(screen.getByLabelText('Date'), '01/10/2025');
-    await user.type(screen.getByLabelText('Devise'), 'eur');
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('Devise'), 'eur');
     await user.clear(screen.getByLabelText('Taux pour 1 USD'));
     await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
     expect(await screen.findByText('Ce champ est obligatoire.')).toBeInTheDocument(); // the rate
     expect(calls).toBe(0);
+  });
+
+  it('opens a currency against the dollar', async () => {
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])));
+    const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    await user.type(await screen.findByLabelText('Devise'), 'eur');
+    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+    expect(router.state.location.search).toMatchObject({ s: 'fx:EUR' });
+  });
+
+  it('refuses USD and a code that is not three letters', async () => {
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])));
+    const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    const field = await screen.findByLabelText('Devise');
+    await user.type(field, 'USD');
+    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
+    expect(await screen.findByText(/Trois lettres, autre que USD/)).toBeInTheDocument();
+    await user.clear(field);
+    await user.type(field, 'EU');
+    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
+    expect(screen.getByText(/Trois lettres, autre que USD/)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/admin/fx');
   });
 });

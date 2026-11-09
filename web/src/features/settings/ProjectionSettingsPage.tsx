@@ -5,6 +5,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { formatCurrency } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { SeriesLink } from '@/components/page/SeriesLink';
 import { Section } from '@/components/page/Section';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,7 +48,7 @@ export function ProjectionSettingsPage() {
 
   return (
     <SettingsFrame title={t('settings.projection.title')}>
-      <Section title={t('settings.projection.assumptions')}>
+      <Section title={t('settings.projection.assumptions')} actions={<SeriesLink keys={['projection:inflation']} />}>
         {assumptions.data ? (
           <>
             <ul className="space-y-1 text-sm">
@@ -63,7 +64,7 @@ export function ProjectionSettingsPage() {
         ) : assumptions.error ? <ProblemMessage problem={present(toProblem(assumptions.error))} />
           : <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('settings.projection.loading')}</span></Skeleton>}
       </Section>
-      <Section title={t('settings.projection.observed')}>
+      <Section title={t('settings.projection.observed')} actions={<SeriesLink keys={['cpi:yoy', 'projection:inflation']} />}>
         {observed.data?.lastPublished ? (
           <>
             {observed.data.last12Months ? (
