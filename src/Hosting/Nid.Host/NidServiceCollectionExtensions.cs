@@ -286,6 +286,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Childcare.Application.IChildcareStore, ChildcareStore>();
         services.AddScoped<Nid.Childcare.Application.ChildcareReader>();
         services.AddScoped<Nid.Childcare.Application.StatementAssembly>();
+        services.AddScoped<ISeriesContribution, Nid.Childcare.Application.ChildcareSeries>();
         services.AddScoped<ITaxContribution, Nid.Childcare.Application.ChildcareTax>();
         services.AddScoped<ICommitmentsContribution, Nid.Childcare.Application.ChildcareCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Childcare.Application.ChildcareCharges>();
