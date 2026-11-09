@@ -30,7 +30,7 @@ public sealed record PersonShareView(Guid PersonId, MoneyView? Amortized, int Ow
 public sealed record LabelShareView(string Key, string? Name, string? Color, MoneyView? Amortized);
 
 public sealed record ChargeLineView(
-    LocalDate Date, ItemId ItemId, string DisplayName, ProviderSummaryView? Provider, MoneyView Price, MoneyView? Converted);
+    LocalDate Date, ItemId ItemId, string DisplayName, ProviderSummaryView? Provider, MoneyView Price, MoneyView? Converted, bool IsProjected);
 
 public sealed record WatchView(string Code, IReadOnlyList<Guid> ItemIds, LocalDate? Date, MoneyView? Amount);
 

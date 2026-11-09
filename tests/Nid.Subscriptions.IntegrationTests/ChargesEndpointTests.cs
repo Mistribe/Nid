@@ -10,8 +10,8 @@ public class ChargesEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
 {
     public sealed record Money(string Amount, string Currency);
     public sealed record Finding(string Code, string Message);
-    public sealed record Line(string Date, Guid ItemId, string DisplayName, Money Price, Money? Converted);
-    public sealed record MonthResult(string Month, Money? Total, List<Line> Charges, List<Finding> Findings);
+    public sealed record Line(string Date, Guid ItemId, string DisplayName, Money Price, Money? Converted, bool IsProjected);
+    public sealed record MonthResult(string Month, Money? Total, List<Line> Charges, List<Finding> Findings, string? FirstMonth);
 
     private static async Task<ItemId> MonthlyAsync(NidApp app, PersonId who, string name, string amount, Visibility visibility)
     {
@@ -49,6 +49,34 @@ public class ChargesEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Equal("2025-11", result.Month);
         Assert.Equal("2025-11-01", Assert.Single(result.Charges).Date);
+    }
+
+    [Fact]
+    public async Task The_lines_say_paid_or_projected_and_the_month_gives_the_first_charge()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await MonthlyAsync(app, app.AdultA, "Netflix", "10.00", Visibility.Shared);
+
+        var october = await app.GetAsync<MonthResult>(app.AdultA, "/api/v1/subscriptions/charges?month=2025-10");
+        var november = await app.GetAsync<MonthResult>(app.AdultA, "/api/v1/subscriptions/charges?month=2025-11");
+
+        Assert.False(Assert.Single(october.Charges).IsProjected);
+        Assert.True(Assert.Single(november.Charges).IsProjected);
+        Assert.Equal("2025-01", november.FirstMonth);
+    }
+
+    [Fact]
+    public async Task The_first_month_ignores_what_the_reader_cannot_see()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await MonthlyAsync(app, app.AdultB, "SecretTherapy", "30.00", Visibility.Private);
+
+        var household = await app.GetAsync<MonthResult>(app.AdultA, "/api/v1/subscriptions/charges");
+        var me = await app.GetAsync<MonthResult>(app.AdultA, "/api/v1/subscriptions/charges?scope=me");
+
+        Assert.Null(household.FirstMonth);
+        Assert.Null(me.FirstMonth);
+        Assert.Equal("2025-01", (await app.GetAsync<MonthResult>(app.AdultB, "/api/v1/subscriptions/charges?scope=me")).FirstMonth); // positive control
     }
 
     [Fact]
