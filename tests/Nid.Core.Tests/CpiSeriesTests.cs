@@ -61,10 +61,12 @@ public sealed class CpiSeriesTests
         => Assert.Empty((await Points(new CpiSeries(new FakeCpiStore([])), "cpi"))!.Points);
 
     [Fact]
-    public async Task List_omits_series_without_points_and_any_search()
+    public async Task List_omits_series_without_points_and_matches_the_key()
     {
         Assert.Empty(await new CpiSeries(new FakeCpiStore([])).ListAsync(Person, Scope, null, TestContext.Current.CancellationToken));
         Assert.Empty(await Full().ListAsync(Person, Scope, "x", TestContext.Current.CancellationToken));
+        Assert.Equal(["cpi", "cpi:yoy"], (await Full().ListAsync(Person, Scope, "cpi", TestContext.Current.CancellationToken)).Select(i => i.Key));
+        Assert.Equal(["cpi:yoy"], (await Full().ListAsync(Person, Scope, "YOY", TestContext.Current.CancellationToken)).Select(i => i.Key));
 
         var listed = await Full().ListAsync(Person, Scope, null, TestContext.Current.CancellationToken);
         Assert.Equal(["cpi", "cpi:yoy"], listed.Select(i => i.Key));

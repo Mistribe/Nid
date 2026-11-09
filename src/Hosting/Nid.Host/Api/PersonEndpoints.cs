@@ -257,6 +257,9 @@ public static class ResultHttp
         // Bank sync §5.3: the statement file's line at fault, when known.
         if (failure.Metadata is { } file && file.TryGetValue("line", out var line))
             extensions["line"] = line;
+        // Series explorer: the key of the selection that is absent or not visible, echoed so the page can drop it.
+        if (failure.Metadata is { } series && series.TryGetValue("key", out var key))
+            extensions["key"] = key;
         return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }

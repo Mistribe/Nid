@@ -16,13 +16,12 @@ public sealed class ProjectionRateSeries(IHouseholdSettings household, IHousehol
 
     public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(q)) return [];
         var context = await ReadAsync(ct);
         var list = new List<SeriesInfo>();
         foreach (var key in new[] { InflationKey }.Concat(AllocationClasses.All.Select(c => RatePrefix + c)))
             if (Build(context, key, null, null) is { Points.Count: > 0 } hit)
                 list.Add(hit.Info with { First = hit.Points[0].Date, Last = hit.Points[^1].Date });
-        return list;
+        return list.Where(i => SeriesSearch.Matches(i, q)).ToList();
     }
 
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)

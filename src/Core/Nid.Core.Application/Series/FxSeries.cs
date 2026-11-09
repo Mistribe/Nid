@@ -12,7 +12,7 @@ public sealed class FxSeries(IFxRateStore rates) : ISeriesContribution
     public string Module => "core";
 
     public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
-        => (await rates.QuotesAsync(ct)).Where(s => SeriesSearch.Matches(s.Quote.Code, q)).Select(s => Info(s.Quote) with { First = s.First, Last = s.Last }).ToList();
+        => (await rates.QuotesAsync(ct)).Select(s => Info(s.Quote) with { First = s.First, Last = s.Last }).Where(i => SeriesSearch.Matches(i, q)).ToList();
 
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)
     {

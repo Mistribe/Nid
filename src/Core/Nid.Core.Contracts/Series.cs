@@ -83,6 +83,9 @@ public static partial class SeriesKeys
 
 public static class SeriesSearch
 {
+    /// <summary>The query matches the series' name or its key.</summary>
+    public static bool Matches(SeriesInfo info, string? q) => Matches(info.Name, q) || Matches(info.Key, q);
+
     /// <summary>Case- and accent-insensitive substring; a blank query matches everything.</summary>
     public static bool Matches(string? name, string? q)
         => string.IsNullOrWhiteSpace(q)

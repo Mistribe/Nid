@@ -14,10 +14,9 @@ public sealed class IrlSeries(IIrlStore store) : ISeriesContribution
 
     public async Task<IReadOnlyList<SeriesInfo>> ListAsync(PersonId reader, VisibilityScope scope, string? q, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(q)) return [];
-        return await PointsAsync(reader, scope, Key, null, null, ct) is { Points.Count: > 0 } hit
-            ? [hit.Info with { First = hit.Points[0].Date, Last = hit.Points[^1].Date }]
-            : [];
+        if (await PointsAsync(reader, scope, Key, null, null, ct) is not { Points.Count: > 0 } hit) return [];
+        var info = hit.Info with { First = hit.Points[0].Date, Last = hit.Points[^1].Date };
+        return SeriesSearch.Matches(info, q) ? [info] : [];
     }
 
     public async Task<SeriesPoints?> PointsAsync(PersonId reader, VisibilityScope scope, string key, LocalDate? from, LocalDate? to, CancellationToken ct)

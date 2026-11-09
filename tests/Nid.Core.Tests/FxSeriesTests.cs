@@ -53,6 +53,10 @@ public sealed class FxSeriesTests
         => Assert.Equal(["fx:EUR"], (await Series().ListAsync(Person, VisibilityScope.Household, "eu", TestContext.Current.CancellationToken)).Select(i => i.Key));
 
     [Fact]
+    public async Task Search_matches_the_key()
+        => Assert.Equal(["fx:EUR", "fx:GBP"], (await Series().ListAsync(Person, VisibilityScope.Household, "fx", TestContext.Current.CancellationToken)).Select(i => i.Key));
+
+    [Fact]
     public async Task Points_read_the_stored_rates()
         => Assert.Equal([new SeriesPoint(D(2025, 10, 1), 0.85m), new SeriesPoint(D(2025, 10, 2), 0.86m)], (await Points("fx:EUR"))!.Points);
 

@@ -36,11 +36,12 @@ public sealed class IrlSeriesTests
     }
 
     [Fact]
-    public async Task List_names_it_only_with_values_and_no_search()
+    public async Task List_names_it_only_with_values_and_matches_the_key()
     {
         var ct = TestContext.Current.CancellationToken;
         Assert.Empty(await new IrlSeries(new FakeIrlStore([])).ListAsync(Person, VisibilityScope.Household, null, ct));
-        Assert.Empty(await Full().ListAsync(Person, VisibilityScope.Household, "irl", ct));
+        Assert.Equal("irl", Assert.Single(await Full().ListAsync(Person, VisibilityScope.Household, "irl", ct)).Key);
+        Assert.Empty(await Full().ListAsync(Person, VisibilityScope.Household, "cpi", ct));
 
         var listed = Assert.Single(await Full().ListAsync(Person, VisibilityScope.Household, null, ct));
         Assert.Equal(("irl", D(2025, 1, 1), D(2025, 4, 1)), (listed.Key, listed.First!.Value, listed.Last!.Value));

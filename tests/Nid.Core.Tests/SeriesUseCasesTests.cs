@@ -41,6 +41,10 @@ public sealed class SeriesUseCasesTests
         => Value(await new ListSeriesHandler(contributions, Actor, NullLogger<ListSeriesHandler>.Instance)
             .HandleAsync(new ListSeriesQuery(VisibilityScope.Household, null, page)));
 
+    private static async Task<SeriesCatalogView> Search(string? q, string[]? kinds, params ISeriesContribution[] contributions)
+        => Value(await new ListSeriesHandler(contributions, Actor, NullLogger<ListSeriesHandler>.Instance)
+            .HandleAsync(new ListSeriesQuery(VisibilityScope.Household, q, 1, kinds)));
+
     private static async Task<Result<SeriesPointsView>> Points(string? s, params ISeriesContribution[] contributions)
         => await new GetSeriesPointsHandler(contributions, Actor).HandleAsync(new GetSeriesPointsQuery(VisibilityScope.Household, s, null, null));
 
@@ -74,6 +78,17 @@ public sealed class SeriesUseCasesTests
         var second = await List(2, fx);
         Assert.Equal((10, 60, 2), (second.Items.Count, second.Total, second.Page));
         Assert.Equal(1, (await List(0, fx)).Page);
+    }
+
+    [Fact]
+    public async Task List_matches_the_search_or_a_listed_kind()
+    {
+        var core = new FakeContribution("core", [Owned(Info("cpi")), Owned(Info("irl", SeriesKinds.Irl)), Owned(Info("fx:EUR", SeriesKinds.Fx, "EUR"))]);
+
+        Assert.Equal(["irl", "fx:EUR"], (await Search("eur", ["irl"], core)).Items.Select(i => i.Key));
+        Assert.Equal(["irl"], (await Search("loyer", ["irl"], core)).Items.Select(i => i.Key));
+        Assert.Equal(["cpi", "irl", "fx:EUR"], (await Search(null, ["cpi"], core)).Items.Select(i => i.Key));
+        Assert.Empty((await Search("zzz", ["nope"], core)).Items);
     }
 
     [Fact]
@@ -124,7 +139,12 @@ public sealed class SeriesUseCasesTests
 
     [Fact]
     public async Task Points_answer_not_found_when_no_contribution_owns_a_key()
-        => Assert.Equal(SeriesCodes.NotFound, FailureCode(await Points("cpi,nope", new FakeContribution("core", [MonthlyCpi]))));
+    {
+        var result = await Points("cpi,nope", new FakeContribution("core", [MonthlyCpi]));
+        Assert.Equal(SeriesCodes.NotFound, FailureCode(result));
+        Assert.True(result.TryGetFailure(out var failure));
+        Assert.Equal("nope", failure!.Metadata!["key"]);
+    }
 
     private static string FailureCode(Result<SeriesPointsView> r)
     {
