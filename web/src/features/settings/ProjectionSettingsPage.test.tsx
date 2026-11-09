@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { SERIES_POINTS } from '@/api/series';
 import { server } from '@/test/server';
 
 type Body = Record<string, unknown>;
@@ -68,6 +69,7 @@ describe('the projection settings page', () => {
     const { puts } = serve();
     const { user, queryClient } = await renderApp('/settings/projection');
     queryClient.setQueryData(['get', '/api/v1/projection'], {});
+    queryClient.setQueryData(['get', SERIES_POINTS], {});
 
     await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
     const equity = await screen.findByLabelText('Actions');
@@ -79,6 +81,7 @@ describe('the projection settings page', () => {
     expect((puts[0]!.classRates as Body).equity).toBe('7');
     expect(puts[0]).not.toHaveProperty('currency');
     await waitFor(() => expect(queryClient.getQueryState(['get', '/api/v1/projection'])?.isInvalidated).toBe(true));
+    expect(queryClient.getQueryState(['get', SERIES_POINTS])?.isInvalidated).toBe(true);
     expect(puts[0]).toMatchObject({ inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true });
   });
 
@@ -121,7 +124,8 @@ describe('the projection settings page', () => {
 
   it('sets a birth date', async () => {
     const { retirements } = serve();
-    const { user } = await renderApp('/settings/projection');
+    const { user, queryClient } = await renderApp('/settings/projection');
+    queryClient.setQueryData(['get', SERIES_POINTS], {});
 
     await user.click(await screen.findByRole('button', { name: 'Modifier la retraite de Alice' }));
     const dialog = await screen.findByRole('dialog');
@@ -132,6 +136,7 @@ describe('the projection settings page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: '1984-05-20', retirementAge: 64 } }]));
+    await waitFor(() => expect(queryClient.getQueryState(['get', SERIES_POINTS])?.isInvalidated).toBe(true));
   });
 
   it('sends only the typed years and the income growth', async () => {

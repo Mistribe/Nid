@@ -693,7 +693,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       server.use(notices(soloAssessment({ year: 2024 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user, router } = await renderApp('/tax?tab=evolution');
       await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
       expect(router.state.location.search).toMatchObject({ s: 'tax:yearly' });
       cleanup();
 
