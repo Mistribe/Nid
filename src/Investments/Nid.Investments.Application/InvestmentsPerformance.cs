@@ -21,11 +21,12 @@ public sealed record MonthPerformanceView(string Month, AmountView? Performance)
 /// <summary>
 /// An envelope of the period: its performance in its currency and converted, its values and net contributions converted (the start at
 /// the rate of <c>From</c>, the rest at the rate of <c>To</c>), its money-weighted return over the period, and its annual return since its
-/// opening (D2). <c>StaleStart</c>: its value at the start is older than its staleness threshold.
+/// opening (D2). <c>StaleStart</c>: its value at the start is older than its staleness threshold. <c>NoStartValue</c>: it has no value at the
+/// start but flows before it, its start counted at the amount paid in by then.
 /// </summary>
 public sealed record EnvelopePeriodRow(
     ItemId Id, string Name, string Kind, string Currency, string? Performance, AmountView? PerformanceConverted, decimal? AnnualReturnPct,
-    AmountView? StartValue, AmountView? EndValue, AmountView? NetContributions, decimal? PeriodReturnPct, bool StaleStart);
+    AmountView? StartValue, AmountView? EndValue, AmountView? NetContributions, decimal? PeriodReturnPct, bool StaleStart, bool NoStartValue);
 
 /// <summary>D15: the household's savings accounts together, the reference the envelopes' annual returns are read against.</summary>
 public sealed record ReturnReferenceView(decimal AnnualReturnPct);
@@ -33,7 +34,8 @@ public sealed record ReturnReferenceView(decimal AnnualReturnPct);
 /// <summary>
 /// Spec §4.2. D13: <c>EndValue = StartValue + Contributions − Withdrawals + Transfers + Performance</c>, the transfers being the legs
 /// with an envelope out of the period. Every figure in <c>Currency</c>, the start value at the rate of <c>From</c> and the rest at the
-/// rate of <c>To</c>; null when a rate is missing. An envelope without a value at the start counts from 0.
+/// rate of <c>To</c>; null when a rate is missing. An envelope without a value at the start counts from 0, or from the amount paid in by
+/// then when it has older flows.
 /// </summary>
 public sealed record InvestmentsPerformance(
     string Currency, LocalDate From, LocalDate To,
@@ -73,9 +75,9 @@ internal static class InvestmentsPerformanceMath
 
         public decimal Net => Period.NetContributions!.Value.Amount;
 
-        /// <summary>D13: the flows its performance counts, after its start value; without one, every flow up to its end value.</summary>
+        /// <summary>D13: the flows its performance counts, after its start value (after <c>From</c> without one) up to its end value.</summary>
         public IEnumerable<Flow> Window
-            => Facts.Flows.Where(f => (Period.StartAsOf is not { } start || f.OccurredOn > start) && f.OccurredOn <= Period.EndAsOf);
+            => Facts.Flows.Where(f => f.OccurredOn > (Period.StartAsOf ?? Period.From) && f.OccurredOn <= Period.EndAsOf);
 
         /// <summary>
         /// Its period return's cash flows: the start value at <paramref name="from"/> (<c>AtStart</c>), the money in and out (a flow before
@@ -135,7 +137,7 @@ internal static class InvestmentsPerformanceMath
                 var (start, end, net) = (AtStart(c.Start, c.Facts.Currency), At(c.End, c.Facts.Currency), At(c.Net, c.Facts.Currency));
                 return new PeriodFigures.Row(c.Facts, c.End - c.Start - c.Net, start, end, net, end - start - net,
                     EnvelopeMath.At(c.Facts.Values, c.Facts.Flows, c.Facts.Currency, c.Facts.Envelope.Cadence, c.Facts.Envelope.StaleAfterDays, today).AnnualReturnPct,
-                    Xirr.PeriodPercent(c.Cash(from, to).Select(x => (x.On, x.Amount)), from, to), c.StaleStart);
+                    Xirr.PeriodPercent(c.Cash(from, to).Select(x => (x.On, x.Amount)), from, to), c.StaleStart, c.Period.NoStartValue);
             })
             .OrderBy(r => r.PerformanceConverted is null).ThenByDescending(r => r.PerformanceConverted)
             .ThenBy(r => r.Facts.Item.DisplayName, French).ThenBy(r => r.Facts.Item.Id.Value)
@@ -152,7 +154,8 @@ internal static class InvestmentsPerformanceMath
 
     /// <summary>
     /// D12: each calendar month of the period, from the end of the month before (or <paramref name="from"/>) to its end (or
-    /// <paramref name="to"/>); a month of no length is left out. The performance is additive, so the months add up to the period.
+    /// <paramref name="to"/>); a month of no length is left out. The performance is additive, so the months add up to the period in each
+    /// envelope's currency; converted at the rate of <paramref name="to"/>, they differ from the period's by the change of rate on the start value.
     /// </summary>
     private static List<PeriodFigures.MonthFigure> Months(
         IReadOnlyList<Counted> counted, LocalDate from, LocalDate to, Func<decimal, Currency, decimal?> at)

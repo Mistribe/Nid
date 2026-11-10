@@ -30,9 +30,9 @@ function review(over: Partial<YearReview> = {}): YearReview {
       gain: eur('4500.00'), periodReturnPct: 10.2, previousGain: eur('2000.00'), previousPeriodReturnPct: 5.1, findings: [],
       envelopes: [
         { id: '00000000-0000-0000-0000-000000000001', name: 'PEA Alice', kind: 'pea', startValue: eur('25000.00'), endValue: eur('30000.00'),
-          netContributions: eur('2000.00'), gain: eur('3000.00'), periodReturnPct: 11.5, staleStart: false },
+          netContributions: eur('2000.00'), gain: eur('3000.00'), periodReturnPct: 11.5, staleStart: false, noStartValue: false },
         { id: '00000000-0000-0000-0000-000000000002', name: 'Assurance-vie Bob', kind: 'life_insurance', startValue: eur('15000.00'),
-          endValue: eur('17000.00'), netContributions: eur('500.00'), gain: eur('1500.00'), periodReturnPct: 9.8, staleStart: true },
+          endValue: eur('17000.00'), netContributions: eur('500.00'), gain: eur('1500.00'), periodReturnPct: 9.8, staleStart: true, noStartValue: false },
       ],
     },
     ...over,
@@ -90,6 +90,20 @@ describe('YearReviewPage', () => {
       expect(within(parts).getByRole('rowheader', { name: label }).closest('tr')).toHaveTextContent(`${label}${amount}${before}`);
   });
 
+  it('lists a part of the year before alone, so its column adds up to its change', async () => {
+    const base = review().netWorth!;
+    // A sale last year, nothing moved this year.
+    serve(() => review({ netWorth: { ...base, parts: base.parts.filter((p) => p.key !== 'real_estate.moved'),
+      previousParts: [...base.previousParts, part('real_estate.moved', '-3000.00', '91000.00', '94000.00')] } }));
+    await renderApp('/reports/year?year=2025');
+
+    const parts = within(await screen.findByRole('region', { name: 'Patrimoine net' }))
+      .getByRole('table', { name: 'Composantes de la variation du patrimoine' });
+    expect(within(parts).getAllByRole('rowheader').map((r) => r.textContent)).toEqual(
+      ['Début', 'Versements', 'Gains des marchés', 'Capital remboursé', 'Réévaluation des biens', 'Achats et ventes', 'Fin']);
+    expect(within(parts).getByRole('rowheader', { name: 'Achats et ventes' }).closest('tr')).toHaveTextContent('Achats et ventes—-3 000,00 €');
+  });
+
   it('shows one row per envelope with its return, its old start value marked', async () => {
     serve(() => review());
     await renderApp('/reports/year?year=2025');
@@ -102,6 +116,16 @@ describe('YearReviewPage', () => {
     expect(rows[0]).toHaveTextContent(/^PEA Alice.*\+11,5 %$/);
     expect(rows[1]).toHaveTextContent(/^Assurance-vie Bob valeur de départ ancienne.*\+9,8 %$/);
     expect(within(rows[0]!).getByRole('link', { name: 'PEA Alice' })).toHaveAttribute('href', '/investments/00000000-0000-0000-0000-000000000001');
+  });
+
+  it('marks an envelope without a value at the start, counted at its amount paid in', async () => {
+    const base = review().investments!;
+    serve(() => review({ investments: { ...base, envelopes: base.envelopes.map((e, i) => (i === 0 ? { ...e, noStartValue: true } : e)) } }));
+    await renderApp('/reports/year?year=2025');
+
+    const rows = within(within(await screen.findByRole('region', { name: 'Placements' })).getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent(/^PEA Alice sans valeur au début : compté au montant versé.*\+11,5 %$/);
+    expect(rows[1]).not.toHaveTextContent('sans valeur au début');
   });
 
   it('leaves out a part the server does not give', async () => {

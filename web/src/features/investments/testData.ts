@@ -85,7 +85,7 @@ export const performance = (over: Partial<HouseholdPerformance> = {}): Household
 
 const row = (r: Pick<HouseholdPerformance['envelopes'][number], 'id' | 'name' | 'kind' | 'performance' | 'annualReturnPct'> & { staleStart?: boolean }) => ({
   currency: 'EUR', performanceConverted: eur(r.performance!), startValue: null, endValue: null, netContributions: null, periodReturnPct: null,
-  staleStart: false, ...r,
+  staleStart: false, noStartValue: false, ...r,
 });
 
 /** The PEA and the savings account over the year: +1 840, February the worst month; the CTO's start value is old. */

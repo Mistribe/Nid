@@ -22,10 +22,10 @@ public sealed record NetWorthReviewView(
     DashboardMoneyView Start, DashboardMoneyView End, DashboardMoneyView Change, IReadOnlyList<ReviewPartView> Parts,
     DashboardMoneyView? PreviousChange, IReadOnlyList<ReviewPartView> PreviousParts);
 
-/// <summary>Issue #12: one envelope of the year, in the household currency.</summary>
+/// <summary>Issue #12: one envelope of the year, in the household currency; <c>NoStartValue</c>: its start counted at the amount paid in.</summary>
 public sealed record InvestmentsReviewRowView(
     ItemId Id, string Name, string Kind, DashboardMoneyView? StartValue, DashboardMoneyView? EndValue, DashboardMoneyView? NetContributions,
-    DashboardMoneyView? Gain, decimal? PeriodReturnPct, bool StaleStart);
+    DashboardMoneyView? Gain, decimal? PeriodReturnPct, bool StaleStart, bool NoStartValue);
 
 /// <summary>Issue #12: the investments of the year as the Performance page counts them, and the previous period's gain and return.</summary>
 public sealed record InvestmentsReviewView(
@@ -117,30 +117,31 @@ public sealed class GetYearReviewHandler(
         var today = await calendar.TodayAsync(ct);
         var sources = netWorth.ToList();
 
-        // The years on offer: 31 December of each past year, and today.
-        var scan = Enumerable.Range(today.Year - YearReviewMath.MaxYears, YearReviewMath.MaxYears).Select(y => new LocalDate(y, 12, 31)).Append(today).ToList();
-        var scanned = await Contributions.CollectAsync(sources, c => c.NetWorthHistoryAsync(reader, query.Scope, scan, ct));
-        if (scanned.TryGetFailure(out var failure)) return Result.Failure<YearReviewView>(failure!);
-        scanned.TryGetValue(out var scanPoints);
-        var years = YearReviewMath.Years(scan, scanPoints!, today.Year);
-
         var year = query.Year ?? today.Year;
+        // The years on offer (31 December of each past year, and today) and the period's dates, read in one pass. A year outside the
+        // scan is refused below: it reads the current year's dates meanwhile.
+        var scan = Enumerable.Range(today.Year - YearReviewMath.MaxYears, YearReviewMath.MaxYears).Select(y => new LocalDate(y, 12, 31)).Append(today).ToList();
+        var inScan = year <= today.Year && year >= today.Year - YearReviewMath.MaxYears;
+        var toDate = year == today.Year;
+        var start = new LocalDate((inScan ? year : today.Year) - 1, 12, 31);
+        var end = toDate || !inScan ? today : new LocalDate(year, 12, 31);
+        var (prevStart, prevEnd) = (start.PlusYears(-1), end.PlusYears(-1));
+        LocalDate[] period = [prevStart, prevEnd, start, end];
+        var dates = scan.Concat(period).Distinct().Order().ToList();
+
+        var collected = await Contributions.CollectAsync(sources, c => c.NetWorthHistoryAsync(reader, query.Scope, dates, ct));
+        if (collected.TryGetFailure(out var failure)) return Result.Failure<YearReviewView>(failure!);
+        collected.TryGetValue(out var points);
+        var years = YearReviewMath.Years(scan,
+            points!.Select(p => (IReadOnlyList<NetWorthPoint>)scan.Select(d => p[dates.IndexOf(d)]).ToList()).ToList(), today.Year);
+
         if (year > today.Year || year < years[0])
             return Result.Failure<YearReviewView>(new Failure(ReportCodes.InvalidYear,
                 $"A year is between {years[0]} and {today.Year}.", null));
 
-        var toDate = year == today.Year;
-        var start = new LocalDate(year - 1, 12, 31);
-        var end = toDate ? today : new LocalDate(year, 12, 31);
-        var (prevStart, prevEnd) = (start.PlusYears(-1), end.PlusYears(-1));
-
-        var dates = new[] { prevStart, prevEnd, start, end }.Distinct().Order().ToList();
-        var collected = await Contributions.CollectAsync(sources, c => c.NetWorthHistoryAsync(reader, query.Scope, dates, ct));
-        if (collected.TryGetFailure(out failure)) return Result.Failure<YearReviewView>(failure!);
-        collected.TryGetValue(out var points);
-
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = points!.SelectMany(p => p).SelectMany(p => p.Values.Keys.Concat(p.NetContributions.Keys).Concat(p.Moved?.Keys ?? []))
+        var foreign = points!.SelectMany(p => period.Select(d => p[dates.IndexOf(d)]))
+            .SelectMany(p => p.Values.Keys.Concat(p.NetContributions.Keys).Concat(p.Moved?.Keys ?? []))
             .Where(c => c != reference).Distinct().ToList();
         // The reference's own quote too: rates are per USD.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync(foreign.Append(reference).ToList(), prevStart, today, ct);
@@ -180,7 +181,7 @@ public sealed class GetYearReviewHandler(
             M(now.StartValue), M(now.EndValue), M(now.Contributions), M(now.Withdrawals), M(now.Gain), now.PeriodReturnPct,
             M(before?.Gain), before?.PeriodReturnPct,
             now.Envelopes.Select(r => new InvestmentsReviewRowView(r.Id, r.Name, r.Kind, M(r.StartValue), M(r.EndValue), M(r.NetContributions),
-                M(r.Gain), r.PeriodReturnPct, r.StaleStart)).ToList(),
+                M(r.Gain), r.PeriodReturnPct, r.StaleStart, r.NoStartValue)).ToList(),
             now.Findings);
     }
 }

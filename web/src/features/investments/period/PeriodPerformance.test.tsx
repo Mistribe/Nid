@@ -8,7 +8,7 @@ import { detail, eur, PEA } from '../testData';
 
 const period = (over = {}) => ({
   from: '2025-01-01', to: '2025-09-30', startAsOf: '2024-12-31', startValue: eur('21000.0000'),
-  endAsOf: '2025-09-30', endValue: eur('25000.0000'), netContributions: eur('2000.0000'), performance: eur('2000.0000'), ...over,
+  endAsOf: '2025-09-30', endValue: eur('25000.0000'), netContributions: eur('2000.0000'), performance: eur('2000.0000'), noStartValue: false, ...over,
 });
 
 function serve(body: object, seen: string[]) {
@@ -88,6 +88,18 @@ describe('PeriodPerformance', () => {
     expect(await within(section).findByText('ouverte pendant la période')).toBeInTheDocument();
     expect(section).toHaveTextContent(/Valeur de départ0,00\s€ouverte pendant la période/);
     expect(within(section).queryByText('Pas de valeur au début de la période.')).not.toBeInTheDocument();
+  });
+
+  it('starts an envelope entered without its past values at its amount paid in, and says so', async () => {
+    const seen: string[] = [];
+    // As the server answers: no value at the start but older flows, counted at the 20 000 paid in by then.
+    serve(period({ startAsOf: null, startValue: eur('20000.0000'), noStartValue: true }), seen);
+    await renderApp(`/investments/${PEA}`);
+
+    const section = await screen.findByRole('region', { name: 'Performance d’une période' });
+    expect(await within(section).findByText('sans valeur au début : compté au montant versé')).toBeInTheDocument();
+    expect(section).toHaveTextContent(/Valeur de départ20\s000,00\s€sans valeur au début/);
+    expect(within(section).queryByText('ouverte pendant la période')).not.toBeInTheDocument();
   });
 
   it('asks for the period again after a value is recorded', async () => {

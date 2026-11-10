@@ -35251,7 +35251,8 @@
           "name",
           "kind",
           "currency",
-          "staleStart"
+          "staleStart",
+          "noStartValue"
         ],
         "type": "object",
         "properties": {
@@ -35329,6 +35330,9 @@
             "format": "double"
           },
           "staleStart": {
+            "type": "boolean"
+          },
+          "noStartValue": {
             "type": "boolean"
           }
         }
@@ -40432,7 +40436,8 @@
           "id",
           "name",
           "kind",
-          "staleStart"
+          "staleStart",
+          "noStartValue"
         ],
         "type": "object",
         "properties": {
@@ -40494,6 +40499,9 @@
             "format": "double"
           },
           "staleStart": {
+            "type": "boolean"
+          },
+          "noStartValue": {
             "type": "boolean"
           }
         }
@@ -44157,7 +44165,8 @@
       "PeriodView": {
         "required": [
           "from",
-          "to"
+          "to",
+          "noStartValue"
         ],
         "type": "object",
         "properties": {
@@ -44222,6 +44231,9 @@
                 "$ref": "#/components/schemas/AmountView"
               }
             ]
+          },
+          "noStartValue": {
+            "type": "boolean"
           }
         }
       },

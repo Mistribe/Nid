@@ -52,7 +52,7 @@ export function InvestmentsReview({ year, review }: { year: number; review: Revi
   );
 }
 
-/** A start value older than the envelope's cadence is said beside its name (as on the Performance page). */
+/** A start value older than the envelope's cadence, or one counted at the amount paid in, is said beside its name (as on the Performance page). */
 function Name({ row }: { row: InvestmentsReviewRow }) {
   const { t } = useTranslation();
   return (
@@ -61,6 +61,8 @@ function Name({ row }: { row: InvestmentsReviewRow }) {
       {/* A space, so a screen reader does not run the name into the mark. */}
       {row.staleStart ? ' ' : null}
       {row.staleStart ? <span className="text-xs text-muted-foreground">{t('reports.investments.stale_start')}</span> : null}
+      {row.noStartValue ? ' ' : null}
+      {row.noStartValue ? <span className="text-xs text-muted-foreground">{t('reports.investments.no_start_value')}</span> : null}
     </span>
   );
 }

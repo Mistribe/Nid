@@ -47,23 +47,33 @@ public class InvestmentsPerformanceTests
 
     private static decimal N(AmountView? money) => decimal.Parse(money!.Amount, CultureInfo.InvariantCulture);
 
+    private static decimal? Nullable(AmountView? money) => money is null ? null : N(money);
+
     private static void AssertTheEquality(InvestmentsPerformance p)
         => Assert.Equal(N(p.EndValue), N(p.StartValue) + N(p.Contributions) - N(p.Withdrawals) + N(p.Transfers) + N(p.Performance));
 
-    [Fact]
-    public void The_review_part_matches_the_view()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void The_review_part_matches_the_view(bool rateMissing)
     {
-        var (savings, pea) = Transfer();
-        var figures = InvestmentsPerformanceMath.Build([Life(), savings, pea], Currency.Eur, Rates, Today, From, To);
+        var (savings, pea) = Transfer(savingsStartsLate: true);
+        // Without the rate of the start, the dollars' start (and every household total) is unknown.
+        var rates = rateMissing ? new RateTable([new FxRate(To, Currency.Eur, 0.9m, FxRateSource.Ecb)], Today, 7) : Rates;
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD").Value(From, 1_000m).Value(To, 1_100m).Build();
+        var figures = InvestmentsPerformanceMath.Build([Life(), savings, pea, dollars], Currency.Eur, rates, Today, From, To);
 
         var view = figures.ToView();
         var part = figures.ToReviewPart();
 
-        Assert.Equal((N(view.StartValue), N(view.EndValue), N(view.Contributions), N(view.Withdrawals), N(view.Performance), view.PeriodReturnPct),
+        Assert.Equal((Nullable(view.StartValue), Nullable(view.EndValue), Nullable(view.Contributions), Nullable(view.Withdrawals), Nullable(view.Performance), view.PeriodReturnPct),
             (part.StartValue, part.EndValue, part.Contributions, part.Withdrawals, part.Gain, part.PeriodReturnPct));
-        Assert.Equal(view.Envelopes.Select(e => (e.Id, e.Name, e.Kind, N(e.StartValue), N(e.EndValue), N(e.NetContributions), N(e.PerformanceConverted), e.PeriodReturnPct, e.StaleStart)),
-            part.Envelopes.Select(e => (e.Id, e.Name, e.Kind, e.StartValue!.Value, e.EndValue!.Value, e.NetContributions!.Value, e.Gain!.Value, e.PeriodReturnPct, e.StaleStart)));
+        Assert.Equal(view.Envelopes.Select(e => (e.Id, e.Name, e.Kind, Nullable(e.StartValue), Nullable(e.EndValue), Nullable(e.NetContributions), Nullable(e.PerformanceConverted), e.PeriodReturnPct, e.StaleStart, e.NoStartValue)),
+            part.Envelopes.Select(e => (e.Id, e.Name, e.Kind, e.StartValue, e.EndValue, e.NetContributions, e.Gain, e.PeriodReturnPct, e.StaleStart, e.NoStartValue)));
         Assert.Equal(view.Findings.Select(f => f.Code), part.Findings);
+        Assert.Equal(rateMissing, part.StartValue is null);
+        Assert.Equal(rateMissing, part.Findings.Count > 0);
+        Assert.Contains(part.Envelopes, e => e.NoStartValue);
     }
 
     [Fact]
@@ -84,15 +94,36 @@ public class InvestmentsPerformanceTests
     }
 
     [Fact]
-    public void An_envelope_valued_late_counts_from_zero_and_its_transfer_cancels()
+    public void An_envelope_valued_late_starts_at_its_amount_paid_in_and_its_transfer_cancels()
     {
         var (savings, pea) = Transfer(savingsStartsLate: true);
 
         var p = Build(savings, pea);
 
-        // The savings account starts at 0: its opening of 10 000 is a contribution of the period.
-        Assert.Equal((5_000m, 10_000m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Transfers)));
+        // Opened before the start, the savings account starts at its 10 000 paid in: no contribution of the period, flagged.
+        Assert.Equal((15_000m, 0m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Transfers)));
         Assert.Equal(450m + 600m, N(p.Performance));
+        Assert.Equal([("PEA", false), ("Livret A", true)], p.Envelopes.Select(e => (e.Name, e.NoStartValue)));
+        AssertTheEquality(p);
+    }
+
+    [Fact]
+    public void An_envelope_entered_without_its_past_values_counts_only_the_periods_flows()
+    {
+        // Opened and paid into before the start, first valued after it: 1 000 + 500 paid in by then, 200 in the period.
+        var entered = new EnvelopeFacts("CTO", EnvelopeKind.Brokerage)
+            .Flow(D(2025, 3, 1), FlowKind.Opening, 1_000m).Flow(D(2025, 9, 1), FlowKind.Contribution, 500m)
+            .Flow(D(2026, 4, 1), FlowKind.Contribution, 200m).Value(D(2026, 9, 30), 1_800m).Build();
+
+        var p = Build(entered);
+
+        var row = Assert.Single(p.Envelopes);
+        Assert.True(row.NoStartValue);
+        Assert.Equal((1_500m, 1_800m, 200m, "100.00"), (N(row.StartValue), N(row.EndValue), N(row.NetContributions), row.Performance));
+        Assert.Equal((1_500m, 200m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Withdrawals)));
+        Assert.Equal(N(p.Performance), p.Months.Sum(m => N(m.Performance)));
+        // The return starts on the amount paid in, not on flows moved from before the start: 100 gained on about 1 640 engaged.
+        Assert.InRange(row.PeriodReturnPct!.Value, 5m, 7m);
         AssertTheEquality(p);
     }
 
@@ -189,6 +220,7 @@ public class InvestmentsPerformanceTests
         var p = Between(D(2024, 12, 31), D(2025, 12, 31), opened);
 
         var row = Assert.Single(p.Envelopes);
+        Assert.False(row.NoStartValue);
         Assert.Equal((0m, 1_100m, 1_000m, "100.00"), (N(row.StartValue), N(row.EndValue), N(row.NetContributions), row.Performance));
         Assert.Equal((0m, 1_100m, 100m), (N(p.StartValue), N(p.EndValue), N(p.Performance)));
         AssertTheEquality(p);

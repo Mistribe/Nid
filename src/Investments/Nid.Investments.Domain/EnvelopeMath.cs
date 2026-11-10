@@ -41,8 +41,9 @@ public static class EnvelopeMath
     }
 
     /// <summary>
-    /// An envelope with no value on or before <paramref name="from"/> but one on or before <paramref name="to"/> starts at 0: its
-    /// <c>StartAsOf</c> stays null and its net contributions count every flow up to the end value, the opening included.
+    /// An envelope with no value on or before <paramref name="from"/> but one on or before <paramref name="to"/> has its <c>StartAsOf</c>
+    /// null and counts the flows after <paramref name="from"/>. Opened during the period (no flow on or before <paramref name="from"/>), it
+    /// starts at 0; entered with older flows, at its net contributions up to <paramref name="from"/>, no gain invented (<c>NoStartValue</c>).
     /// </summary>
     public static PeriodPerformance Period(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         LocalDate from, LocalDate to)
@@ -52,11 +53,17 @@ public static class EnvelopeMath
         if (end is null)
             return new PeriodPerformance(from, to, start?.AsOf, start?.Value, null, null, null, null);
 
-        var startValue = start?.Value ?? M(0m, currency);
-        var net = NetContributions(flows, f => (start is null || f.OccurredOn > start.AsOf) && f.OccurredOn <= end.AsOf);
+        var startValue = start?.Value ?? NetContributionsBy(flows, currency, from);
+        var after = start?.AsOf ?? from;
+        var net = NetContributions(flows, f => f.OccurredOn > after && f.OccurredOn <= end.AsOf);
         return new PeriodPerformance(from, to, start?.AsOf, startValue, end.AsOf, end.Value,
-            M(net, currency), M(end.Value.Amount - startValue.Amount - net, currency));
+            M(net, currency), M(end.Value.Amount - startValue.Amount - net, currency),
+            NoStartValue: start is null && flows.Any(f => f.OccurredOn <= from));
     }
+
+    /// <summary>The openings and contributions minus the withdrawals dated on or before <paramref name="d"/>.</summary>
+    public static Money NetContributionsBy(IReadOnlyList<Flow> flows, Currency currency, LocalDate d)
+        => M(NetContributions(flows, f => f.OccurredOn <= d), currency);
 
     /// <summary>
     /// One point per valuation, by date: the value and the net contributions dated on or before it. Before the first valuation, one

@@ -46,6 +46,7 @@
       "performance": "Performance",
       "no_start": "Pas de valeur au début de la période.",
       "opened": "ouverte pendant la période",
+      "no_start_value": "sans valeur au début : compté au montant versé",
       "no_end": "Pas de valeur à la fin de la période."
     },
     "chart_loading": "Chargement de la courbe",
@@ -303,6 +304,7 @@
     "returns_none": "Aucune enveloppe n’a encore un an de valeurs.",
     "returns_not_meaningful": "Non significatif (moins de 12 mois) : {{names}}",
     "stale_start": "valeur de départ ancienne",
+    "no_start_value": "sans valeur au début : compté au montant versé",
     "empty": "Aucune enveloppe n’a de valeur sur cette période."
   },
   "investments_income": {

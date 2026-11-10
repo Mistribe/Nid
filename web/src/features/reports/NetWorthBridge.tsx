@@ -40,6 +40,9 @@ export function NetWorthBridge({ year, start, parts, previousParts, end }: {
       const previous = before(p.key);
       return { key: p.key, label: partLabel(t, p.key), text: signed(p.amount), previous: previous ? signed(previous.amount) : none, total: false };
     }),
+    // A part of last year alone, so the year before's column adds up to its change.
+    ...previousParts.filter((p) => !parts.some((q) => q.key === p.key))
+      .map((p) => ({ key: p.key, label: partLabel(t, p.key), text: none, previous: signed(p.amount), total: false })),
     { key: 'end', label: t('reports.net_worth.closing'), text: formatMoney(end), previous: none, total: true },
   ];
   const config = { range: { label: t('reports.net_worth.amount'), color: TONE.up } } satisfies ChartConfig;

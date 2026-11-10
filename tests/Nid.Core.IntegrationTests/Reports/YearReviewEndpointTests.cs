@@ -98,8 +98,12 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         var investments = body.GetProperty("investments");
         var parts = body.GetProperty("netWorth").GetProperty("parts").EnumerateArray()
-            .Where(p => p.GetProperty("key").GetString()!.StartsWith("investments.", StringComparison.Ordinal)).Sum(p => D(A(p, "amount")));
-        Assert.Equal(D(A(investments, "endValue")) - D(A(investments, "startValue")), parts);
+            .ToDictionary(p => p.GetProperty("key").GetString()!, p => D(A(p, "amount")));
+        Assert.Equal(D(A(investments, "endValue")) - D(A(investments, "startValue")), parts["investments.paid_in"] + parts["investments.value"]);
+        // From its closing, the closed envelope is worth 0 and keeps its net paid in: the split is the section's flows and gain.
+        Assert.Equal((2_000m - 11_000m, 2_500m), (parts["investments.paid_in"], parts["investments.value"]));
+        Assert.Equal((D(A(investments, "contributions")) - D(A(investments, "withdrawals")), D(A(investments, "gain"))),
+            (parts["investments.paid_in"], parts["investments.value"]));
         Assert.Equal(2, investments.GetProperty("envelopes").GetArrayLength());
     }
 
@@ -111,13 +115,21 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         await using var app = await NidApp.StartAsync(fixture);
         var mine = await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
         var hidden = await PeaAsync(app, "Secret de B", app.AdultB, Visibility.Private);
+        // B's private property (bought in 2020) and loan (from 2025): in neither year's net worth.
+        var house = await app.NewPropertyAsync("Maison de B", Visibility.Private, (app.AdultB, 10_000));
+        var loan = await app.NewLoanAsync("Prêt de B", Visibility.Private, (app.AdultB, 10_000));
 
-        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2024&scope={scope}"));
+        foreach (var (year, end) in new[] { ("2024", "25000.00"), ("2025", "26000.00") })
+        {
+            var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year={year}&scope={scope}"));
 
-        Assert.Equal([mine.Value], body.GetProperty("investments").GetProperty("envelopes").EnumerateArray().Select(r => r.GetProperty("id").GetGuid()));
-        Assert.Equal("25000.00", A(body.GetProperty("netWorth"), "end"));
-        Assert.DoesNotContain(hidden.Value.ToString(), body.ToString());
-        Assert.DoesNotContain("Secret de B", body.ToString());
+            Assert.Equal([mine.Value], body.GetProperty("investments").GetProperty("envelopes").EnumerateArray().Select(r => r.GetProperty("id").GetGuid()));
+            Assert.Equal(end, A(body.GetProperty("netWorth"), "end"));
+            Assert.DoesNotContain(body.GetProperty("netWorth").GetProperty("parts").EnumerateArray(),
+                p => p.GetProperty("key").GetString()!.StartsWith("real_estate.", StringComparison.Ordinal));
+            foreach (var secret in new[] { hidden.Value.ToString(), house.Value.ToString(), loan.Value.ToString(), "Secret de B", "Maison de B", "Prêt de B" })
+                Assert.DoesNotContain(secret, body.ToString());
+        }
     }
 
     [Fact]

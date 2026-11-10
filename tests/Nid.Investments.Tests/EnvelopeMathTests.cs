@@ -205,7 +205,19 @@ public class EnvelopeMathTests
         var p = EnvelopeMath.Period(PeaValues, PeaFlows, Currency.Eur, new LocalDate(2024, 6, 30), new LocalDate(2025, 12, 31));
 
         Assert.Null(p.StartAsOf);
+        Assert.False(p.NoStartValue);
         Assert.Equal((Eur(0m), Eur(25_000m), Eur(22_000m), Eur(3_000m)), (p.StartValue, p.EndValue, p.NetContributions, p.Performance));
+    }
+
+    [Fact]
+    public void A_period_without_a_start_value_but_older_flows_starts_at_the_amount_paid_in()
+    {
+        // Entered without its past valuations: the opening is before the start, the first value after it.
+        var p = EnvelopeMath.Period([Value(2025, 12, 31, 25_000m)], PeaFlows, Currency.Eur, new LocalDate(2025, 3, 31), new LocalDate(2025, 12, 31));
+
+        Assert.Null(p.StartAsOf);
+        Assert.True(p.NoStartValue);
+        Assert.Equal((Eur(20_000m), Eur(25_000m), Eur(2_000m), Eur(3_000m)), (p.StartValue, p.EndValue, p.NetContributions, p.Performance));
     }
 
     [Fact]

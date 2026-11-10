@@ -61,6 +61,16 @@ describe('Placements › performance', () => {
     expect(await region('Rendement annuel depuis l’ouverture')).toHaveTextContent('Vos livrets +2,6 %');
   });
 
+  it('marks an envelope without a value at the start, counted at its amount paid in', async () => {
+    const body = householdPerformance();
+    serve({ ...body, envelopes: body.envelopes.map((e) => (e.name === 'Livret A' ? { ...e, noStartValue: true } : e)) });
+    await renderApp('/investments?tab=performance');
+
+    const earned = await region('Ce qui a rapporté');
+    expect(within(earned).getByRole('link', { name: /Livret A/ })).toHaveTextContent('Livret Asans valeur au début : compté au montant versé');
+    expect(within(earned).getByRole('link', { name: 'PEA' })).not.toHaveTextContent('sans valeur au début');
+  });
+
   it('keeps a preset in the URL, offers « Tout » from the oldest value, and takes a free period', async () => {
     const seen: string[] = [];
     server.use(http.get('*/api/v1/investments/overview', () => HttpResponse.json(overview({ firstAsOf: '2024-12-31' }))));

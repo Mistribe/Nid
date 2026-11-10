@@ -35,7 +35,7 @@ public sealed class InvestmentsPeriodReader(
 
         var today = await calendar.TodayAsync(ct);
         var estimates = to == today
-            ? await estimator.EstimateAsync(found.Select(e => e.ItemId).ToList(), ct)
+            ? await estimator.EstimateAsync(found.Where(e => e.ClosedOn is not { } c || today < c).Select(e => e.ItemId).ToList(), ct)
             : null;
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
@@ -62,7 +62,7 @@ internal sealed record PeriodFigures(
     /// <summary>An envelope counted: <c>Performance</c> in its currency, the other amounts converted.</summary>
     internal sealed record Row(
         EnvelopePerformance.Facts Facts, decimal Performance, decimal? StartValue, decimal? EndValue, decimal? NetContributions,
-        decimal? PerformanceConverted, decimal? AnnualReturnPct, decimal? PeriodReturnPct, bool StaleStart);
+        decimal? PerformanceConverted, decimal? AnnualReturnPct, decimal? PeriodReturnPct, bool StaleStart, bool NoStartValue);
 
     /// <summary>The Performance page's view (spec §4.2).</summary>
     public InvestmentsPerformance ToView()
@@ -71,14 +71,14 @@ internal sealed record PeriodFigures(
             Months.Select(m => new MonthPerformanceView(m.Month, View(m.Performance))).ToList(), BestMonth, WorstMonth,
             Envelopes.Select(r => new EnvelopePeriodRow(r.Facts.Item.Id, r.Facts.Item.DisplayName, EnvelopeWire.Of(r.Facts.Envelope.Kind),
                 r.Facts.Currency.Code, r.Performance.ToString("0.00", CultureInfo.InvariantCulture), View(r.PerformanceConverted), r.AnnualReturnPct,
-                View(r.StartValue), View(r.EndValue), View(r.NetContributions), r.PeriodReturnPct, r.StaleStart)).ToList(),
+                View(r.StartValue), View(r.EndValue), View(r.NetContributions), r.PeriodReturnPct, r.StaleStart, r.NoStartValue)).ToList(),
             ReferenceReturnPct is { } pct ? new ReturnReferenceView(pct) : null, Findings);
 
     /// <summary>Issue #12: the same figures for the yearly review.</summary>
     public InvestmentsReviewPart ToReviewPart()
         => new(StartValue, EndValue, Contributions, Withdrawals, Performance, PeriodReturnPct,
             Envelopes.Select(r => new InvestmentsReviewRow(r.Facts.Item.Id, r.Facts.Item.DisplayName, EnvelopeWire.Of(r.Facts.Envelope.Kind),
-                r.StartValue, r.EndValue, r.NetContributions, r.PerformanceConverted, r.PeriodReturnPct, r.StaleStart)).ToList(),
+                r.StartValue, r.EndValue, r.NetContributions, r.PerformanceConverted, r.PeriodReturnPct, r.StaleStart, r.NoStartValue)).ToList(),
             Findings.Select(f => f.Code).ToList());
 
     private AmountView? View(decimal? amount)

@@ -28823,6 +28823,7 @@ export interface components {
             /** Format: double */
             periodReturnPct?: null | number;
             staleStart: boolean;
+            noStartValue: boolean;
         };
         EnvelopeSaleView: {
             remainingCapital: string;
@@ -29998,6 +29999,7 @@ export interface components {
             /** Format: double */
             periodReturnPct?: null | number;
             staleStart: boolean;
+            noStartValue: boolean;
         };
         InvestmentsReviewView: {
             startValue?: null | components["schemas"]["DashboardMoneyView"];
@@ -30858,6 +30860,7 @@ export interface components {
             endValue?: null | components["schemas"]["AmountView"];
             netContributions?: null | components["schemas"]["AmountView"];
             performance?: null | components["schemas"]["AmountView"];
+            noStartValue: boolean;
         };
         PersonDto: {
             /** Format: uuid */

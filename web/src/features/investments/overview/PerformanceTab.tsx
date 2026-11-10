@@ -285,6 +285,7 @@ function Earned({ d }: { d: HouseholdPerformance }) {
                 <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm" style={{ background: kindColor(e.kind) }} />
                 <span className="truncate">{e.name}</span>
                 {e.staleStart ? <span className="shrink-0 text-xs text-muted-foreground">{t('investments_performance.stale_start')}</span> : null}
+                {e.noStartValue ? <span className="shrink-0 text-xs text-muted-foreground">{t('investments_performance.no_start_value')}</span> : null}
               </Link>
               <span aria-hidden="true" className="h-2.5 rounded-full bg-muted">
                 <span className="block h-full rounded-full" style={{ width: `${size}%`, background: down ? 'var(--destructive)' : 'var(--primary)' }} />
