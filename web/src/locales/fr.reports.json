@@ -100,7 +100,8 @@
       "col_start": "Atteint au début",
       "col_end": "Atteint à la fin",
       "reached_in_period": "atteint cette année",
-      "archived_on": "archivé le {{date}}"
+      "archived_on": "archivé le {{date}}",
+      "unknown": "Inconnu"
     },
     "tax": {
       "title": "Impôts",

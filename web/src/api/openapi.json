@@ -36759,7 +36759,8 @@
           "id",
           "name",
           "kind",
-          "reachedInPeriod"
+          "reachedInPeriod",
+          "partial"
         ],
         "type": "object",
         "properties": {
@@ -36826,6 +36827,9 @@
               "string"
             ],
             "format": "date"
+          },
+          "partial": {
+            "type": "boolean"
           }
         }
       },

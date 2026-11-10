@@ -175,7 +175,7 @@ public static class YearReviewMath
     public static GoalsReviewView? Goals(GoalsReviewPart part, Currency reference)
         => part.Goals.Count == 0 ? null
             : new GoalsReviewView(part.Goals.Select(g => new GoalReviewRowView(g.Id, g.Name, g.Kind, M(g.Target, reference), M(g.StartReached, reference),
-                M(g.EndReached, reference), g.StartProgressPct, g.EndProgressPct, g.ReachedInPeriod, g.ArchivedOn)).ToList());
+                M(g.EndReached, reference), g.StartProgressPct, g.EndProgressPct, g.ReachedInPeriod, g.ArchivedOn, g.Partial)).ToList());
 
     /// <summary>
     /// The tax section: null when the year has no estimate (before the rules) or nothing to estimate from; the previous total null

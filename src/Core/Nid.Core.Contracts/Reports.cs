@@ -128,13 +128,16 @@ public interface IGoalsReview
     Task<Result<GoalsReviewPart>> ReviewAsync(PersonId reader, VisibilityScope scope, LocalDate start, LocalDate end, CancellationToken ct);
 }
 
-/// <summary>Issue #12: the period's goals; a reached amount is null when an envelope's value could not be converted (<c>MissingCurrencies</c>).</summary>
+/// <summary>
+/// Issue #12: the period's goals; a reached amount is null when an envelope's value could not be converted, an emergency fund's target
+/// when none of its commitments could (<c>MissingCurrencies</c>).
+/// </summary>
 public sealed record GoalsReviewPart(IReadOnlyList<GoalReviewRow> Goals, IReadOnlyList<string> MissingCurrencies);
 
 /// <summary>
 /// Issue #12: a goal of the period, amounts in the reference currency. <c>StartReached</c> is null for a goal created during the
 /// period; a progress is null without a target. <c>ReachedInPeriod</c>: not reached at the start, reached at the end.
-/// <c>ArchivedOn</c>: its archive day when it falls in the period.
+/// <c>ArchivedOn</c>: its archive day when it falls in the period. <c>Partial</c>: a linked envelope is hidden from the reader (D1).
 /// </summary>
 public sealed record GoalReviewRow(ItemId Id, string Name, string Kind, decimal? Target, decimal? StartReached, decimal? EndReached,
-    decimal? StartProgressPct, decimal? EndProgressPct, bool ReachedInPeriod, LocalDate? ArchivedOn);
+    decimal? StartProgressPct, decimal? EndProgressPct, bool ReachedInPeriod, LocalDate? ArchivedOn, bool Partial);

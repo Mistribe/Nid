@@ -79,9 +79,11 @@ function review(over: Partial<YearReview> = {}): YearReview {
     goals: {
       goals: [
         { id: '00000000-0000-0000-0000-0000000000e1', name: 'Voyage', kind: 'savings', target: eur('5000.00'), startReached: eur('1000.00'), endReached: eur('5000.00'),
-          startProgressPct: 20, endProgressPct: 100, reachedInPeriod: true },
+          startProgressPct: 20, endProgressPct: 100, reachedInPeriod: true, partial: false },
         { id: '00000000-0000-0000-0000-0000000000e2', name: 'Travaux', kind: 'savings', target: eur('8000.00'), startReached: null, endReached: eur('2000.00'),
-          startProgressPct: null, endProgressPct: 25, reachedInPeriod: false, archivedOn: '2025-11-20' },
+          startProgressPct: null, endProgressPct: 25, reachedInPeriod: false, archivedOn: '2025-11-20', partial: false },
+        { id: '00000000-0000-0000-0000-0000000000e3', name: 'Apport', kind: 'savings', target: eur('10000.00'), startReached: eur('500.00'), endReached: null,
+          startProgressPct: 5, endProgressPct: null, reachedInPeriod: false, partial: true },
       ],
     },
     tax: {
@@ -273,7 +275,7 @@ describe('YearReviewPage', () => {
       .forEach((text, i) => expect(costs[i]).toHaveTextContent(text));
   });
 
-  it('shows the goals with the reached mark, a dash for a goal with no start, and the archive day', async () => {
+  it('shows the goals with the reached mark, a dash for a goal with no start, the archive day, an unknown end and the partial mark', async () => {
     serve(() => review());
     await renderApp('/reports/year?year=2025');
 
@@ -281,6 +283,7 @@ describe('YearReviewPage', () => {
     const rows = within(within(section).getByRole('table', { name: 'Objectifs de la période' })).getAllByRole('row').slice(1);
     expect(rows[0]).toHaveTextContent(/^Voyage atteint cette année5 000,00 €1 000,00 €5 000,00 €/);
     expect(rows[1]).toHaveTextContent(/^Travaux archivé le 20 novembre 20258 000,00 €—Non disponible2 000,00 €/);
+    expect(rows[2]).toHaveTextContent(/^Apport Partiel : une enveloppe liée ne vous est pas visible10 000,00 €500,00 €Inconnu/);
     expect(within(rows[0]!).getByRole('link', { name: /Voyage/ })).toHaveAttribute('href', '/goals/00000000-0000-0000-0000-0000000000e1');
   });
 

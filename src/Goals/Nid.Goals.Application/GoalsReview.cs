@@ -64,18 +64,18 @@ public sealed class GoalsReview(
             if (!commitments.TryGetValue(out var value))
                 return Result.Failure<GoalsReviewPart>(commitments.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
             sources = value!;
-            missing.UnionWith(sources.Select(s => s.View.MissingCurrency).OfType<string>());
         }
 
         // Each date's values convert at that date's rate. The reference's own quote is needed too: rates are per USD.
         var foreign = seen.Values.SelectMany(d => d.Values).Select(f => f.Value?.Currency).OfType<Currency>().Where(c => c != reference).Distinct().ToList();
         var rates = foreign.Count == 0 ? RateTable.Empty(end, 0) : await fx.LoadAsync([.. foreign, reference], start, end, ct);
 
+        // Unrounded, as the goal page hands it to GoalMath.Evaluate; only the shown amount is rounded.
         decimal? Reached(Goal goal, LocalDate on)
         {
             var mine = links[goal.ItemId].ToList();
             if (mine.Count == 0)
-                return GoalMath.R2(GoalMath.ReachedFromEntries(entries[goal.ItemId].Where(e => e.On <= on).Select(e => new ProgressEntry(e.On, e.Amount))));
+                return GoalMath.ReachedFromEntries(entries[goal.ItemId].Where(e => e.On <= on).Select(e => new ProgressEntry(e.On, e.Amount)));
             var inputs = new List<FundingInput>();
             var unconverted = false;
             foreach (var link in mine)
@@ -90,20 +90,27 @@ public sealed class GoalsReview(
                 else
                     inputs.Add(new FundingInput(value.Amount, 0m, link.ShareBp, envelope.Closed));
             }
-            return unconverted ? null : GoalMath.R2(GoalMath.ReachedFromEnvelopes(inputs));
+            return unconverted ? null : GoalMath.ReachedFromEnvelopes(inputs);
         }
 
         var rows = new List<GoalReviewRow>();
         foreach (var (goal, item, started, archivedOn, last) in read.OrderBy(r => r.Item.DisplayName, French).ThenBy(r => r.Item.Id.Value))
         {
-            var target = GoalReader.TargetOf(goal, sources);
+            // As the goal page: no target to measure against shows none.
+            var target = GoalReader.TargetOf(goal, sources) is { } t and > 0 ? t : (decimal?)null;
+            // A commitment without a rate is named only when it leaves the emergency fund without a target (every source missed).
+            if (target is null && goal.Kind == GoalKinds.EmergencyFund)
+                missing.UnionWith(sources.Select(s => s.View.MissingCurrency).OfType<string>());
             var startReached = started ? Reached(goal, start) : null;
             var endReached = Reached(goal, last);
             GoalProgress? Progress(decimal? reached, LocalDate on) => reached is { } r ? GoalMath.Evaluate(target ?? 0m, r, null, null, on) : null;
             var a = Progress(startReached, start);
             var b = Progress(endReached, last);
-            rows.Add(new GoalReviewRow(item.Id, item.DisplayName, goal.Kind, target, startReached, endReached, a?.ProgressPct, b?.ProgressPct,
-                b?.Status == GoalStatuses.Reached && a?.Status != GoalStatuses.Reached, archivedOn));
+            // D1, as the goal page: a linked envelope the reader does not see.
+            var partial = links[goal.ItemId].Any(l => !seen[last].ContainsKey(l.Envelope));
+            decimal? R2(decimal? v) => v is { } x ? GoalMath.R2(x) : null;
+            rows.Add(new GoalReviewRow(item.Id, item.DisplayName, goal.Kind, target, R2(startReached), R2(endReached), a?.ProgressPct, b?.ProgressPct,
+                b?.Status == GoalStatuses.Reached && a?.Status != GoalStatuses.Reached, archivedOn, partial));
         }
         return Result.Success(new GoalsReviewPart(rows, missing.ToList()));
     }

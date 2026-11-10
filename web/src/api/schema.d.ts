@@ -29187,6 +29187,7 @@ export interface components {
             reachedInPeriod: boolean;
             /** Format: date */
             archivedOn?: null | string;
+            partial: boolean;
         };
         GoalsReviewView: {
             goals: components["schemas"]["GoalReviewRowView"][];

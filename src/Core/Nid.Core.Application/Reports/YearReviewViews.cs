@@ -50,11 +50,11 @@ public sealed record GoalsReviewView(IReadOnlyList<GoalReviewRowView> Goals);
 /// <summary>
 /// Issue #12: a goal of the year in the household currency, its target today's. <c>StartReached</c> is null for a goal created in the
 /// year, an amount null when a rate is missing, a progress null without a target. <c>ReachedInPeriod</c>: not reached at the start,
-/// reached at the end. <c>ArchivedOn</c>: archived in the year.
+/// reached at the end. <c>ArchivedOn</c>: archived in the year. <c>Partial</c>: a linked envelope is hidden from the reader.
 /// </summary>
 public sealed record GoalReviewRowView(
     ItemId Id, string Name, string Kind, DashboardMoneyView? Target, DashboardMoneyView? StartReached, DashboardMoneyView? EndReached,
-    decimal? StartProgressPct, decimal? EndProgressPct, bool ReachedInPeriod, LocalDate? ArchivedOn);
+    decimal? StartProgressPct, decimal? EndProgressPct, bool ReachedInPeriod, LocalDate? ArchivedOn, bool Partial);
 
 /// <summary>
 /// Issue #12: the year's tax estimate as the tax page computes it, and the year before's total (null before the rules), in the household

@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
@@ -170,33 +172,98 @@ public class GoalsReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal((null, 100m, true), (row.StartReached, row.EndProgressPct, row.ReachedInPeriod));
     }
 
-    [Fact]
-    public async Task An_emergency_fund_reads_its_target_from_todays_commitments()
-    {
-        await using var app = await NidApp.StartAsync(fixture);
-        await app.NewMonthlyAsync(app.AdultA, 50m);
-        (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/realestate/loans", new
+    private static async Task UsdLoanAsync(NidApp app)
+        => (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/realestate/loans", new
         {
             name = "Prêt US", currency = "USD", visibility = "shared",
             borrowers = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
             principal = "10000", disbursedOn = "2025-01-01", firstPaymentDate = "2025-01-15", totalPayments = 24,
             rounding = "half_up", firstPeriod = "full",
             phases = new[] { new { seq = 1, mode = "annuity", annualRate = "0.01", rateType = "fixed" } },
-        })).EnsureSuccessStatusCode(); // no USD rate: the loan is left out of the target and named
+        })).EnsureSuccessStatusCode(); // no USD rate
+
+    private static async Task<ItemId> EmergencyFundAsync(NidApp app)
+    {
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/goals", new
         {
             name = "Précaution", kind = "emergency_fund", months = 6, visibility = "shared",
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, funding = Array.Empty<object>(),
         });
         created.EnsureSuccessStatusCode();
-        var goal = new ItemId(System.Text.Json.JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid());
+        return new ItemId(JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid());
+    }
+
+    [Fact]
+    public async Task An_emergency_fund_reads_its_target_from_todays_commitments()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.NewMonthlyAsync(app.AdultA, 50m);
+        await UsdLoanAsync(app); // left out of the target, as the goal page; the target stays, so no rate is named
+        var goal = await EmergencyFundAsync(app);
         await EntryAsync(app, goal, "2025-05-01", "150");
 
         var part = await ReviewAsync(app, app.AdultA, new LocalDate(2024, 12, 31), NidApp.GoldenCaseToday);
 
         var row = Assert.Single(part.Goals);
         Assert.Equal(("emergency_fund", 300m, 50m), (row.Kind, row.Target, row.EndProgressPct));
+        Assert.Empty(part.MissingCurrencies);
+    }
+
+    [Fact]
+    public async Task An_emergency_fund_whose_commitments_all_miss_a_rate_has_no_target()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await UsdLoanAsync(app);
+        var goal = await EmergencyFundAsync(app);
+        await EntryAsync(app, goal, "2025-05-01", "150");
+
+        var part = await ReviewAsync(app, app.AdultA, new LocalDate(2024, 12, 31), NidApp.GoldenCaseToday);
+
+        var row = Assert.Single(part.Goals);
+        Assert.Equal((null, 150m, null), (row.Target, row.EndReached, row.EndProgressPct));
         Assert.Equal(["USD"], part.MissingCurrencies);
+    }
+
+    private static decimal? Amount(JsonElement goal, string field)
+        => goal.GetProperty(field) is { ValueKind: JsonValueKind.Object } money ? decimal.Parse(money.GetProperty("amount").GetString()!, CultureInfo.InvariantCulture) : null;
+
+    [Fact]
+    public async Task The_current_year_reads_as_the_goal_page()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var free = await app.NewGoalAsync("Voyage", app.AdultA); // created today
+        await EntryAsync(app, free, "2025-03-01", "4321.09");
+        var envelope = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await ValuationAsync(app, envelope, "2025-10-01", "2229.99");
+        // Half of it is 1114.995: the page measures the progress on that (11.1 %), not on the cent-rounded 1115.00 (11.2 %).
+        var funded = await app.NewGoalAsync("Apport", app.AdultA, funding: [(envelope, 5000)]);
+        // Not covered: a missing rate, where the review nulls the reached amount and the page drops the envelope (ruling P4-R2).
+
+        var rows = (await ReviewAsync(app, app.AdultA, new LocalDate(2024, 12, 31), NidApp.GoldenCaseToday)).Goals.ToDictionary(r => r.Id);
+
+        foreach (var goal in new[] { free, funded })
+        {
+            var page = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/goals/{goal.Value}?scope=me")).RootElement.GetProperty("goal");
+            var row = rows[goal];
+            Assert.Equal((Amount(page, "target"), Amount(page, "reached"), page.GetProperty("progressPct").GetDecimal()),
+                (row.Target, row.EndReached, row.EndProgressPct));
+        }
+        Assert.Equal((1115m, 11.1m), (rows[funded].EndReached, rows[funded].EndProgressPct));
+        Assert.Null(rows[funded].StartReached); // P4-R1: a funded goal exists from its creation, in the year
+    }
+
+    [Fact]
+    public async Task A_goal_with_an_envelope_hidden_from_the_reader_is_partial()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mine = await app.NewEnvelopeAsync("Livret commun", app.AdultA, Visibility.Shared);
+        await ValuationAsync(app, mine, "2025-10-01", "1000");
+        var theirs = await app.NewEnvelopeAsync("Livret privé", app.AdultB, Visibility.Private);
+        var goal = await app.NewGoalAsync("Apport", app.AdultB, funding: [(mine, 10_000), (theirs, 10_000)]);
+
+        var row = Assert.Single((await ReviewAsync(app, app.AdultA, new LocalDate(2024, 12, 31), NidApp.GoldenCaseToday)).Goals);
+
+        Assert.Equal((goal, true, 1000m), (row.Id, row.Partial, row.EndReached));
     }
 
     [Fact]
