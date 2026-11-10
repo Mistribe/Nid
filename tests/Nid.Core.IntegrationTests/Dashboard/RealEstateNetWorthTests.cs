@@ -1,7 +1,12 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
+using NodaTime.Text;
 using static Nid.TestSupport.LoanApi;
 using static Nid.TestSupport.PropertyApi;
 
@@ -29,6 +34,33 @@ public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<Po
         => figure.GetProperty("total").ValueKind == JsonValueKind.Null ? null : figure.GetProperty("total").GetProperty("amount").GetString();
 
     private static string? Amount(JsonElement money) => money.ValueKind == JsonValueKind.Null ? null : money.GetProperty("amount").GetString();
+
+    /// <summary>The module's own curve points on the given dates, read by A over the household.</summary>
+    private static async Task<IReadOnlyList<NetWorthPoint>> HistoryAsync(NidApp app, params string[] dates)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+        var source = scope.ServiceProvider.GetServices<INetWorthContribution>().Single(c => c.Module == "real_estate");
+        var history = await source.NetWorthHistoryAsync(app.AdultA, VisibilityScope.Household,
+            dates.Select(d => LocalDatePattern.Iso.Parse(d).Value).ToList(), TestContext.Current.CancellationToken);
+        Assert.True(history.TryGetValue(out var points));
+        return points!;
+    }
+
+    /// <summary>Archives an item on a day, mid-morning UTC: the same day in the household's zone.</summary>
+    private static async Task ArchiveAsync(NidApp app, Guid id, int year, int month, int day)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        Assert.True((await scope.ServiceProvider.GetRequiredService<IItemRegistry>()
+            .ArchiveAsync(new ItemId(id), Instant.FromUtc(year, month, day, 10, 0), TestContext.Current.CancellationToken)).IsSuccess);
+    }
+
+    private static decimal Eur(IReadOnlyDictionary<Currency, decimal>? sums) => sums?.GetValueOrDefault(Currency.Eur) ?? 0m;
+
+    /// <summary>Each net worth part's change between the two points, by key.</summary>
+    private static Dictionary<string, decimal> Parts(NetWorthPoint before, NetWorthPoint now)
+        => MonthChanges.NetWorthParts("real_estate", before, now).ToDictionary(p => p.Key, p => Eur(p.Now) - Eur(p.Before));
 
     [Fact]
     public async Task A_property_and_its_loan_are_two_lines_the_loan_negative_each_split_by_its_own_shares()
@@ -158,5 +190,58 @@ public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(("-11000.00", "1000.00"), (Amount(points["2025-01-31"].GetProperty("value")), Amount(points["2025-01-31"].GetProperty("contributions"))));
         Assert.Equal(("-9000.00", "3000.00"), (Amount(points["2025-03-31"].GetProperty("value")), Amount(points["2025-03-31"].GetProperty("contributions"))));
         Assert.Equal(("-2000.00", "10000.00"), (Amount(points["2025-10-15"].GetProperty("value")), Amount(points["2025-10-15"].GetProperty("contributions"))));
+    }
+
+    [Fact]
+    public async Task A_property_archived_counts_until_its_archive_day()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app)); // bought 2020-06-15 for 250 000
+        await EstimateAsync(app, home, "2025-03-31", "300000");
+        await ArchiveAsync(app, home, 2025, 6, 15);
+
+        var points = await HistoryAsync(app, "2025-06-14", "2025-06-15");
+
+        Assert.Equal((300_000m, 1, 250_000m), (Eur(points[0].Values), points[0].Envelopes, Eur(points[0].Moved)));
+        Assert.Equal((0m, 0, 250_000m - 300_000m), (Eur(points[1].Values), points[1].Envelopes, Eur(points[1].Moved)));
+        Assert.Equal(new Dictionary<string, decimal> { ["real_estate.paid_in"] = 0m, ["real_estate.moved"] = -300_000m, ["real_estate.value"] = 0m },
+            Parts(points[0], points[1]));
+    }
+
+    [Fact]
+    public async Task The_parts_add_up_with_a_purchase_in_the_period()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var studio = Home(app, "Studio");
+        studio["purchaseDate"] = "2025-04-01";
+        studio["purchasePrice"] = "90000";
+        var id = await NewPropertyAsync(app, studio);
+        await EstimateAsync(app, id, "2025-09-30", "95000"); // the test clock is on 2025-10-15: no later estimate
+        await NewAsync(app, Loan(app, "Prêt studio", "2025-04-01", "2025-04-15")); // 12 000; nine payments by 2025-12-31: 3 000 owed
+
+        var points = await HistoryAsync(app, "2024-12-31", "2025-12-31");
+
+        var change = Eur(points[1].Values) - Eur(points[0].Values);
+        var parts = Parts(points[0], points[1]);
+        Assert.Equal(95_000m - 3_000m, change);
+        Assert.Equal(change, parts.Values.Sum());
+        // 9 000 of capital repaid, 90 000 − 12 000 moved into the studio, its 5 000 estimate gain the value.
+        Assert.Equal(new Dictionary<string, decimal> { ["real_estate.paid_in"] = 9_000m, ["real_estate.moved"] = 78_000m, ["real_estate.value"] = 5_000m }, parts);
+    }
+
+    [Fact]
+    public async Task An_archived_loan_moves_its_balance_and_keeps_its_capital_repaid()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await NewAsync(app, Short(app, "Prêt travaux")); // disbursed 2025-01-01, 1 000 repaid on each 15th
+        await ArchiveAsync(app, loan, 2025, 6, 20); // six payments made: 6 000 still owed
+
+        var points = await HistoryAsync(app, "2025-06-19", "2025-06-20", "2025-09-30");
+
+        Assert.Equal((-6_000m, 6_000m, -12_000m), (Eur(points[0].Values), Eur(points[0].NetContributions), Eur(points[0].Moved)));
+        Assert.Equal((0m, 6_000m, -6_000m, 0), (Eur(points[1].Values), Eur(points[1].NetContributions), Eur(points[1].Moved), points[1].Envelopes));
+        Assert.Equal(new Dictionary<string, decimal> { ["real_estate.paid_in"] = 0m, ["real_estate.moved"] = 6_000m, ["real_estate.value"] = 0m },
+            Parts(points[0], points[1]));
+        Assert.Equal((0m, 6_000m, -6_000m), (Eur(points[2].Values), Eur(points[2].NetContributions), Eur(points[2].Moved))); // frozen after
     }
 }

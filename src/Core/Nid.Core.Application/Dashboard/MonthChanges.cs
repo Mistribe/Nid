@@ -61,11 +61,20 @@ public static class MonthChanges
                 .ToList());
     }
 
-    /// <summary>A net worth part as two causes: what was paid in (contributions, capital repaid), and the rest of its value.</summary>
+    /// <summary>
+    /// A net worth part as its causes: what was paid in (contributions, capital repaid), what was moved by a purchase or a sale
+    /// (issue #12, when either point has one), and the rest of its value. They add up to the part's change.
+    /// </summary>
     public static IEnumerable<MonthPart> NetWorthParts(string module, NetWorthPoint before, NetWorthPoint now)
     {
+        IReadOnlyDictionary<Currency, decimal> none = new Dictionary<Currency, decimal>();
+        var movedBefore = before.Moved ?? none;
+        var movedNow = now.Moved ?? none;
         yield return new MonthPart($"{module}.paid_in", before.NetContributions, now.NetContributions);
-        yield return new MonthPart($"{module}.value", Minus(before.Values, before.NetContributions), Minus(now.Values, now.NetContributions));
+        if (before.Moved is not null || now.Moved is not null)
+            yield return new MonthPart($"{module}.moved", movedBefore, movedNow);
+        yield return new MonthPart($"{module}.value",
+            Minus(Minus(before.Values, before.NetContributions), movedBefore), Minus(Minus(now.Values, now.NetContributions), movedNow));
     }
 
     internal static bool AnyAmount(IEnumerable<IReadOnlyDictionary<Currency, decimal>> sums) => sums.Any(s => s.Values.Any(v => v != 0m));

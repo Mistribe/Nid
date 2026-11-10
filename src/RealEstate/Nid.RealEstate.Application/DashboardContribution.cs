@@ -13,7 +13,8 @@ namespace Nid.RealEstate.Application;
 /// 1 January, a property's estimate change is a gain and a loan's principal repaid is paid in. Batched reads spec §3: the
 /// items and the estimates are read once for all, whatever their number.
 /// </summary>
-public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations)
+public sealed class RealEstateNetWorth(
+    IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations, IHouseholdCalendar calendar)
     : INetWorthContribution
 {
     public string Module => "real_estate";
@@ -111,24 +112,30 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
     /// paid-in line never drops when a loan is repaid. Before its first estimate, from its purchase on, a property counts at
     /// its purchase price: counting its loan alone drew a net worth deep below zero, then a jump on the day it was first
     /// estimated. A property never estimated stays out, as in today's net worth.
+    /// Issue #12: an archived (sold) property or loan counts strictly before its archive day, as a closed envelope. <c>Moved</c>
+    /// holds the purchases and sales, so that neither the paid-in nor the value part jumps: a property's price from its purchase
+    /// on, − a loan's principal from its disbursement on; from its archive day on, − what a property was last counted at, and
+    /// + a loan's balance owed, its principal repaid frozen at its last counted day.
     /// </summary>
     public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
     {
-        var ids = await visible.ForAsync(reader, scope, ct);
+        var ids = await visible.ForAsync(reader, scope, includeArchived: true, ct);
         var found = await properties.FindManyAsync(ids, ct);
         var owing = await loans.FindManyAsync(ids, ct);
         var accesses = await items.FindManyAsync([.. found.Select(p => p.ItemId), .. owing.Select(l => l.ItemId)], ct);
         var estimates = await DashboardParts.EstimatesAsync(valuations, found, accesses, ct);
-        var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series, PropertyDetails Details)>();
+        var zone = await calendar.ZoneAsync(ct);
+        LocalDate? ArchivedOn(ItemAccess item) => item.ArchivedAt?.InZone(zone).Date;
+        var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series, PropertyDetails Details, LocalDate? Archived)>();
         foreach (var property in found)
             if (accesses.TryGetValue(property.ItemId, out var item) && estimates?.GetValueOrDefault(property.ItemId) is { Count: > 0 } series)
-                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details));
-        var owed = new List<(LoanTerms Terms, LoanSchedule Schedule)>();
+                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details, ArchivedOn(item)));
+        var owed = new List<(LoanTerms Terms, LoanSchedule Schedule, LocalDate? Archived)>();
         foreach (var loan in owing)
             if (accesses.TryGetValue(loan.ItemId, out var item))
             {
                 var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-                owed.Add((terms, LoanReading.Schedule(terms, loan)));
+                owed.Add((terms, LoanReading.Schedule(terms, loan), ArchivedOn(item)));
             }
 
         var points = new List<NetWorthPoint>();
@@ -136,30 +143,50 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
         {
             var values = new Dictionary<Currency, decimal>();
             var nets = new Dictionary<Currency, decimal>();
+            var moved = new Dictionary<Currency, decimal>();
             var count = 0;
-            foreach (var (currency, series, details) in estimated)
-                if (series.LastOrDefault(v => v.AsOf <= date) is { } latest) // SeriesManyAsync keeps SeriesAsync's as_of order
+            foreach (var (currency, series, details, archived) in estimated)
+            {
+                if (details.PurchaseDate <= date && (archived is not { } a || details.PurchaseDate < a))
+                    DashboardParts.Add(moved, currency, details.PurchasePrice);
+                if (archived is { } sold && date >= sold)
+                {
+                    if (CountedAt(series, details, sold.PlusDays(-1)) is { } last)
+                        DashboardParts.Add(moved, currency, -last);
+                }
+                else if (CountedAt(series, details, date) is { } value)
                 {
                     count++;
-                    DashboardParts.Add(values, currency, latest.Value.Amount);
+                    DashboardParts.Add(values, currency, value);
                 }
-                else if (date >= details.PurchaseDate)
+            }
+            foreach (var (terms, schedule, archived) in owed)
+            {
+                if (date < terms.DisbursedOn || archived <= terms.DisbursedOn)
+                    continue; // not yet disbursed, or never counted
+                DashboardParts.Add(moved, terms.Currency, -terms.Principal);
+                if (archived is { } closed && date >= closed)
                 {
-                    count++;
-                    DashboardParts.Add(values, currency, details.PurchasePrice);
+                    var last = LoanMath.At(terms, schedule, closed.PlusDays(-1));
+                    DashboardParts.Add(nets, terms.Currency, last.PrincipalRepaid);
+                    DashboardParts.Add(moved, terms.Currency, last.Balance);
+                    continue;
                 }
-            foreach (var (terms, schedule) in owed)
-                if (date >= terms.DisbursedOn)
-                {
-                    var figures = LoanMath.At(terms, schedule, date);
-                    count++;
-                    DashboardParts.Add(values, terms.Currency, -figures.Balance);
-                    DashboardParts.Add(nets, terms.Currency, figures.PrincipalRepaid);
-                }
-            points.Add(new NetWorthPoint(date, values, nets, count));
+                var figures = LoanMath.At(terms, schedule, date);
+                count++;
+                DashboardParts.Add(values, terms.Currency, -figures.Balance);
+                DashboardParts.Add(nets, terms.Currency, figures.PrincipalRepaid);
+            }
+            points.Add(new NetWorthPoint(date, values, nets, count, moved));
         }
         return Result.Success<IReadOnlyList<NetWorthPoint>>(points);
     }
+
+    /// <summary>A property's latest estimate on or before the date, else its price from its purchase on; null while not counted.</summary>
+    private static decimal? CountedAt(IReadOnlyList<Valuation> series, PropertyDetails details, LocalDate date)
+        => series.LastOrDefault(v => v.AsOf <= date) is { } latest // SeriesManyAsync keeps SeriesAsync's as_of order
+            ? latest.Value.Amount
+            : date >= details.PurchaseDate ? details.PurchasePrice : null;
 }
 
 /// <summary>What the module's dashboard parts share.</summary>
