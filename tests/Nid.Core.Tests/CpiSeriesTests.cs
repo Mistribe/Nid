@@ -14,6 +14,7 @@ public sealed class CpiSeriesTests
     private sealed class FakeCpiStore(IReadOnlyList<CpiValue> values) : ICpiStore
     {
         public Task<IReadOnlyList<CpiValue>> ListAsync(CancellationToken ct) => Task.FromResult(values);
+        public Task<(IReadOnlyList<CpiValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct) => throw new NotSupportedException();
         public Task UpsertAsync(CpiValue value, CancellationToken ct) => throw new NotSupportedException();
         public Task UpsertManyAsync(IReadOnlyList<CpiValue> values, CancellationToken ct) => throw new NotSupportedException();
         public Task<bool> UpsertManualAsync(CpiValue value, CancellationToken ct) => throw new NotSupportedException();

@@ -148,8 +148,8 @@ public class CpiCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.Equal((InflationCodes.Disabled, InflationCodes.Disabled), (collecting?.Code, requesting?.Code));
         Assert.Equal((0, 0), (trigger.Calls, app.Cpi.Requests));
-        var (view, _) = await app.InvokeAsync(app.AdultA, new GetCpiQuery(), TestContext.Current.CancellationToken);
-        Assert.Empty(((CpiAdminView)view!).Runs);
+        var (view, _) = await app.InvokeAsync(app.AdultA, new GetCpiRunsQuery(null), TestContext.Current.CancellationToken);
+        Assert.Empty(((CpiRunPage)view!).Items);
     }
 
     [Fact]

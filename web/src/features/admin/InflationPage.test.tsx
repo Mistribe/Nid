@@ -10,16 +10,23 @@ import { toasts } from '@/test/toasts';
 import { formatInstant } from '@/lib/format';
 
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2, pricesEnabled: false, irlEnabled: false, bankingEnabled: false };
-const view = {
-  values: [
+const values = {
+  items: [
     { month: '2026-09', value: '103.07', publishedOn: '2026-10-15', fetchedOn: '2026-10-16', source: 'insee' },
     { month: '2026-08', value: '102.80', publishedOn: null, fetchedOn: '2026-09-15', source: 'manual' },
   ],
-  runs: [{ id: 'r1', startedAt: '2026-10-19T07:00:00+00:00', finishedAt: '2026-10-19T07:00:02+00:00', status: 'succeeded', added: 2, replaced: 1, rejected: 0, message: null }],
+  total: 2,
+  page: 1,
+};
+const runs = {
+  items: [{ id: 'r1', startedAt: '2026-10-19T07:00:00+00:00', finishedAt: '2026-10-19T07:00:02+00:00', status: 'succeeded', added: 2, replaced: 1, rejected: 0, message: null }],
+  total: 1,
+  page: 1,
 };
 const serve = (inflationEnabled = true) => server.use(
   http.get('*/api/v1/admin/household', () => HttpResponse.json({ ...settings, inflationEnabled })),
-  http.get('*/api/v1/core/inflation/admin', () => HttpResponse.json(view)),
+  http.get('*/api/v1/core/inflation/admin', () => HttpResponse.json(values)),
+  http.get('*/api/v1/core/inflation/runs', () => HttpResponse.json(runs)),
 );
 
 describe('Administration › Inflation', () => {
@@ -53,8 +60,43 @@ describe('Administration › Inflation', () => {
     const { user, router } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
 
     await user.click(await screen.findByRole('tab', { name: 'Journal' }));
-    expect(await screen.findByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(view.runs[0]!.startedAt));
+    expect(await screen.findByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(runs.items[0]!.startedAt));
     expect(router.state.location.search).toMatchObject({ tab: 'journal' });
+  });
+
+  it('pages the values, and the page does not follow a tab switch', async () => {
+    const seen: string[] = [];
+    serve();
+    server.use(http.get('*/api/v1/core/inflation/admin', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json({ ...values, total: 51 });
+    }));
+    const { user, router } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
+
+    await user.click(screen.getByRole('tab', { name: 'Journal' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'journal' }));
+  });
+
+  it('pages the log', async () => {
+    const seen: string[] = [];
+    serve();
+    server.use(http.get('*/api/v1/core/inflation/runs', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json({ ...runs, total: 51 });
+    }));
+    const { user, router } = await renderApp('/admin/inflation?tab=journal', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'journal', page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
   });
 
   it('opens the Journal tab from the URL', async () => {

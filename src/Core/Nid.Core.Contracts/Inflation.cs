@@ -152,7 +152,15 @@ public sealed class InflationOptions
 /// <summary>A stored CPI value as the admin page shows it: the month as <c>2026-09</c>, the value as a decimal string.</summary>
 public sealed record CpiValueView(string Month, string Value, LocalDate? PublishedOn, LocalDate FetchedOn, string Source);
 
-public sealed record CpiAdminView(IReadOnlyList<CpiValueView> Values, IReadOnlyList<CpiRunView> Runs);
+public sealed record CpiValuePage(IReadOnlyList<CpiValueView> Items, int Total, int Page)
+{
+    public const int PageSize = 50;
+}
+
+public sealed record CpiRunPage(IReadOnlyList<CpiRunView> Items, int Total, int Page)
+{
+    public const int PageSize = 50;
+}
 
 public sealed record CpiSyncRequested(bool Requested);
 
@@ -170,6 +178,9 @@ public interface ICpiRunLog
 
     /// <summary>The most recent runs first.</summary>
     Task<IReadOnlyList<CpiRunView>> RecentAsync(int count, CancellationToken ct);
+
+    /// <summary>One page of runs, newest first, and the total number of runs.</summary>
+    Task<(IReadOnlyList<CpiRunView> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
 
     /// <summary>Deletes finished runs started before <paramref name="before"/>.</summary>
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);

@@ -71,7 +71,7 @@ public class AdminMarkerTests
     public void The_cpi_collection_is_admin_only()
     {
         Type[] cpi = [typeof(Nid.Core.Application.Inflation.CollectCpiCommand), typeof(Nid.Core.Application.Inflation.RequestCpiSyncCommand),
-            typeof(Nid.Core.Application.Inflation.GetCpiQuery), typeof(Nid.Core.Application.Inflation.SetCpiValueCommand)];
+            typeof(Nid.Core.Application.Inflation.GetCpiAdminQuery), typeof(Nid.Core.Application.Inflation.GetCpiRunsQuery), typeof(Nid.Core.Application.Inflation.SetCpiValueCommand)];
         Assert.DoesNotContain(cpi, t => !typeof(IAdminOnly).IsAssignableFrom(t));
         Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Core.Application.Inflation.GetInflationQuery)));
     }

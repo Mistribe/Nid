@@ -2,7 +2,9 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Core.Infrastructure.Persistence;
 using Nid.TestSupport;
+using NodaTime;
 using UnambitiousFx.Functional;
 
 namespace Nid.Core.IntegrationTests;
@@ -41,6 +43,7 @@ public class InflationEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
         await using var app = await NidApp.StartAsync(fixture);
 
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Get, Root + "/admin")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Get, Root + "/runs")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Post, Root + "/sync")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Put, Root + "/2026/9", new { value = "103.40" })).StatusCode);
     }
@@ -66,7 +69,7 @@ public class InflationEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal("2025-10-15", value.GetProperty("fetchedOn").GetString());
 
         var listed = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Root + "/admin")).RootElement;
-        Assert.Equal("2025-09", listed.GetProperty("values")[0].GetProperty("month").GetString());
+        Assert.Equal("2025-09", listed.GetProperty("items")[0].GetProperty("month").GetString());
 
         var bad = await app.RawAsync(app.AdultA, HttpMethod.Put, Root + "/2025/9", new { value = "abc" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
@@ -125,4 +128,90 @@ public class InflationEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal((7, 0, DayOfWeek.Monday), (next.Hour, next.Minute, next.DayOfWeek));
     }
 
+    public sealed record ValuePageResponse(List<ValueResponse> Items, int Total, int Page);
+    public sealed record ValueResponse(string Month);
+    public sealed record RunPageResponse(List<RunResponse> Items, int Total, int Page);
+    public sealed record RunResponse(Guid Id);
+
+    /// <summary>51 months from 2000-01 (the oldest is index 0).</summary>
+    private static async Task SeedValuesAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+        for (var i = 0; i < 51; i++)
+            db.Cpi.Add(new CpiRow { Month = $"{2000 + i / 12}-{i % 12 + 1:00}", Value = 100m, FetchedOn = new LocalDate(2026, 1, 1), Source = "insee" });
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>51 finished runs a minute apart, the oldest (index 0) first; the last two share a start to pin the tie-break.</summary>
+    private static async Task<List<Guid>> SeedRunsAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+        var start = Instant.FromUtc(2026, 1, 1, 0, 0);
+        var ids = new List<Guid>();
+        for (var i = 0; i < 51; i++)
+        {
+            var id = Guid.CreateVersion7();
+            ids.Add(id);
+            db.CpiRuns.Add(new CpiRunRow { Id = id, StartedAt = start.Plus(NodaTime.Duration.FromMinutes(Math.Min(i, 49))), Status = "succeeded" });
+        }
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return ids;
+    }
+
+    [Fact]
+    public async Task Values_answer_one_page_newest_month_first_and_the_total()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedValuesAsync(app);
+
+        var first = await app.GetAsync<ValuePageResponse>(app.AdultA, Root + "/admin");
+        var second = await app.GetAsync<ValuePageResponse>(app.AdultA, Root + "/admin?page=2");
+
+        Assert.Equal((50, 51, 1), (first.Items.Count, first.Total, first.Page));
+        Assert.Equal(["2004-03", "2004-02"], first.Items.Take(2).Select(v => v.Month));
+        Assert.Equal((1, 51, 2), (second.Items.Count, second.Total, second.Page));
+        Assert.Equal("2000-01", Assert.Single(second.Items).Month);
+    }
+
+    [Fact]
+    public async Task Values_page_is_clamped()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedValuesAsync(app);
+
+        Assert.Equal(1, (await app.GetAsync<ValuePageResponse>(app.AdultA, Root + "/admin?page=0")).Page);
+        Assert.Equal(1, (await app.GetAsync<ValuePageResponse>(app.AdultA, Root + "/admin?page=-5")).Page);
+        var past = await app.GetAsync<ValuePageResponse>(app.AdultA, $"{Root}/admin?page={int.MaxValue}");
+        Assert.Equal((0, 51), (past.Items.Count, past.Total));
+    }
+
+    [Fact]
+    public async Task Runs_answer_one_page_and_the_total()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var ids = await SeedRunsAsync(app);
+
+        var first = await app.GetAsync<RunPageResponse>(app.AdultA, Root + "/runs");
+        var second = await app.GetAsync<RunPageResponse>(app.AdultA, Root + "/runs?page=2");
+
+        Assert.Equal((50, 51, 1), (first.Items.Count, first.Total, first.Page));
+        // The last two seeded runs share a start: the higher id comes first, the oldest run comes last.
+        Assert.Equal(ids.Skip(49).OrderDescending(), first.Items.Take(2).Select(r => r.Id));
+        Assert.Equal((1, 51, 2), (second.Items.Count, second.Total, second.Page));
+        Assert.Equal(ids[0], Assert.Single(second.Items).Id);
+    }
+
+    [Fact]
+    public async Task Runs_page_is_clamped()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedRunsAsync(app);
+
+        Assert.Equal(1, (await app.GetAsync<RunPageResponse>(app.AdultA, Root + "/runs?page=0")).Page);
+        Assert.Equal(1, (await app.GetAsync<RunPageResponse>(app.AdultA, Root + "/runs?page=-5")).Page);
+        var past = await app.GetAsync<RunPageResponse>(app.AdultA, $"{Root}/runs?page={int.MaxValue}");
+        Assert.Equal((0, 51), (past.Items.Count, past.Total));
+    }
 }
