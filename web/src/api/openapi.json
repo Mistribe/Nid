@@ -21622,6 +21622,94 @@
         }
       }
     },
+    "/api/v1/retirement": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetirementView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/series": {
       "get": {
         "tags": [
@@ -33932,6 +34020,57 @@
           }
         }
       },
+      "DepartureView": {
+        "required": [
+          "person",
+          "name",
+          "years",
+          "months",
+          "sources"
+        ],
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "birthDate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "departure": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pension": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PensionSourceView"
+            }
+          }
+        }
+      },
       "DiscordWebhookBody": {
         "type": "object",
         "properties": {
@@ -39713,6 +39852,30 @@
           }
         }
       },
+      "IndependencePointView": {
+        "required": [
+          "on",
+          "capital",
+          "covered",
+          "expenses"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "capital": {
+            "type": "string"
+          },
+          "covered": {
+            "type": "string"
+          },
+          "expenses": {
+            "type": "string"
+          }
+        }
+      },
       "InflationTwelveMonthsView": {
         "required": [
           "to",
@@ -43995,6 +44158,34 @@
               {
                 "$ref": "#/components/schemas/LoanMoneyView"
               }
+            ]
+          }
+        }
+      },
+      "PensionSourceView": {
+        "required": [
+          "source",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "monthly": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
@@ -48908,6 +49099,37 @@
           }
         }
       },
+      "RetirementFiguresView": {
+        "required": [
+          "month",
+          "incomeNow",
+          "incomeAtRetirement",
+          "gap",
+          "capitalNeeded",
+          "capitalAtRetirement"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "incomeNow": {
+            "type": "string"
+          },
+          "incomeAtRetirement": {
+            "type": "string"
+          },
+          "gap": {
+            "type": "string"
+          },
+          "capitalNeeded": {
+            "type": "string"
+          },
+          "capitalAtRetirement": {
+            "type": "string"
+          }
+        }
+      },
       "RetirementHorizonView": {
         "required": [
           "person",
@@ -48926,6 +49148,63 @@
           "on": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "RetirementView": {
+        "required": [
+          "currency",
+          "horizonOn",
+          "departures",
+          "independence",
+          "assumptions",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "horizonOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "departures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepartureView"
+            }
+          },
+          "figures": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RetirementFiguresView"
+              }
+            ]
+          },
+          "financialIndependence": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "independence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndependencePointView"
+            }
+          },
+          "assumptions": {
+            "$ref": "#/components/schemas/ProjectionAssumptionsView"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectionWarningView"
+            }
           }
         }
       },

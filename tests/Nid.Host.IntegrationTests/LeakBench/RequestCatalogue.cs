@@ -423,6 +423,7 @@ public static class RequestCatalogue
         new(typeof(GetProjectionAssumptionsQuery), false, (_, _) => new GetProjectionAssumptionsQuery()),
         new(typeof(SaveProjectionAssumptionsCommand), false, (_, _) => new SaveProjectionAssumptionsCommand(ProjectionDefaults.Assumptions)),
         new(typeof(GetProjectionQuery), false, (_, _) => new GetProjectionQuery(VisibilityScope.Me, ProjectionHorizon.Default)),
+        new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Me)),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
         new(typeof(GetTaxChangesQuery), false, (_, _) => new GetTaxChangesQuery(2026, VisibilityScope.Me)),
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),

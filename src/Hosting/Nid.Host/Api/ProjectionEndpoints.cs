@@ -35,6 +35,13 @@ public static class ProjectionEndpoints
                 => (await invoker.InvokeAsync(new GetProjectionQuery(ParseScope(scope), ParseHorizon(horizon), ranges == true), ct)).ToHttp(view => view))
             .Returns<ProjectionView>();
 
+        // Retirement spec §4: the retirement page's single read, at 40 years.
+        routes.MapGroup("/api/v1/retirement").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .MapGet("", async (string? scope, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetRetirementQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<RetirementView>();
+
         return routes;
     }
 

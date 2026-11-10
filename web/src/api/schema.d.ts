@@ -20135,6 +20135,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/retirement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RetirementView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/series": {
         parameters: {
             query?: never;
@@ -28569,6 +28660,19 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        DepartureView: {
+            /** Format: uuid */
+            person: string;
+            name: string;
+            birthDate?: null | string;
+            /** Format: int32 */
+            years: number;
+            /** Format: int32 */
+            months: number;
+            departure?: null | string;
+            pension?: null | string;
+            sources: components["schemas"]["PensionSourceView"][];
+        };
         DiscordWebhookBody: {
             url?: null | string;
         };
@@ -29900,6 +30004,13 @@ export interface components {
             realRate: number;
             monthlyGap: components["schemas"]["IncomeMoneyView"];
         };
+        IndependencePointView: {
+            /** Format: date */
+            on: string;
+            capital: string;
+            covered: string;
+            expenses: string;
+        };
         InflationTwelveMonthsView: {
             to: string;
             percent: string;
@@ -30878,6 +30989,13 @@ export interface components {
             from: string;
             to: string;
             amount?: null | components["schemas"]["LoanMoneyView"];
+        };
+        PensionSourceView: {
+            /** Format: uuid */
+            source: string;
+            name: string;
+            monthly?: null | string;
+            currency?: null | string;
         };
         PeriodView: {
             /** Format: date */
@@ -32006,12 +32124,31 @@ export interface components {
             /** Format: int32 */
             retirementMonths?: null | number;
         };
+        RetirementFiguresView: {
+            month: string;
+            incomeNow: string;
+            incomeAtRetirement: string;
+            gap: string;
+            capitalNeeded: string;
+            capitalAtRetirement: string;
+        };
         RetirementHorizonView: {
             /** Format: uuid */
             person: string;
             name: string;
             /** Format: date */
             on: string;
+        };
+        RetirementView: {
+            currency: string;
+            /** Format: date */
+            horizonOn: string;
+            departures: components["schemas"]["DepartureView"][];
+            figures?: null | components["schemas"]["RetirementFiguresView"];
+            financialIndependence?: null | string;
+            independence: components["schemas"]["IndependencePointView"][];
+            assumptions: components["schemas"]["ProjectionAssumptionsView"];
+            warnings: components["schemas"]["ProjectionWarningView"][];
         };
         ReturnAssumptionsView: {
             /** Format: int32 */
