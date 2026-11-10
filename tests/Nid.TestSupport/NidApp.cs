@@ -414,12 +414,17 @@ public sealed class NidApp : IAsyncDisposable
     /// </summary>
     public async Task<ItemId> NewIncomeSourceAsync(
         string name, Visibility visibility, params (PersonId Person, int ShareBp)[] owners)
+        => await NewIncomeSourceAsync(name, "salary", visibility, owners);
+
+    /// <summary>The same, of the given <paramref name="kind"/> (<c>pension</c> for a retirement read).</summary>
+    public async Task<ItemId> NewIncomeSourceAsync(
+        string name, string kind, Visibility visibility, params (PersonId Person, int ShareBp)[] owners)
     {
         var creator = owners.Select(o => o.Person).FirstOrDefault(p => p == AdultA || p == AdultB, AdultA);
 
         var response = await RawAsync(creator, HttpMethod.Post, "/api/v1/income/sources", new
         {
-            displayName = name, kind = "salary", currency = "EUR",
+            displayName = name, kind, currency = "EUR",
             visibility = visibility == Visibility.Private ? "private" : "shared",
             owners = owners.Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
             phases = new[]

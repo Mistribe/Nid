@@ -35,6 +35,13 @@ public static class ProjectionEndpoints
                 => (await invoker.InvokeAsync(new GetProjectionQuery(ParseScope(scope), ParseHorizon(horizon), ranges == true), ct)).ToHttp(view => view))
             .Returns<ProjectionView>();
 
+        // Retirement spec §4: the retirement page's single read, at 40 years.
+        routes.MapGroup("/api/v1/retirement").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .MapGet("", async (string? scope, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetRetirementQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<RetirementView>();
+
         return routes;
     }
 
@@ -57,7 +64,8 @@ public static class ProjectionEndpoints
     public sealed record AssumptionsBody(
         IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,
         IReadOnlyDictionary<string, string>? InflationByYear = null, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? ClassRatesByYear = null,
-        string? IncomeGrowth = null, IReadOnlyDictionary<string, string>? ClassVolatility = null)
+        string? IncomeGrowth = null, IReadOnlyDictionary<string, string>? ClassVolatility = null,
+        string? WithdrawalRate = null, string? MonthlyLivingCost = null)
     {
         internal ProjectionAssumptions? ToAssumptions(FieldReader reader)
         {
@@ -81,9 +89,13 @@ public static class ProjectionEndpoints
             // Ranges spec §2: optional; absent is every class's default.
             var volatility = ClassVolatility?.Select(v => (v.Key, Percent: reader.Decimal(v.Value, $"classVolatility.{v.Key}")))
                 .Where(v => v.Percent is not null).ToDictionary(v => v.Key, v => v.Percent!.Value / 100m);
+            // Retirement spec §3: optional; absent is 4 % and 0.
+            var withdrawal = reader.Decimal(WithdrawalRate, "withdrawalRate") / 100m;
+            var livingCost = reader.Decimal(MonthlyLivingCost, "monthlyLivingCost");
 
             return reader.Ok
-                ? new ProjectionAssumptions(rates, inflation!.Value, savings, savingsClass!, FreedPaymentsToSavings!.Value, byYear, classYears, growth ?? 0m, volatility)
+                ? new ProjectionAssumptions(rates, inflation!.Value, savings, savingsClass!, FreedPaymentsToSavings!.Value, byYear, classYears, growth ?? 0m, volatility,
+                    withdrawal ?? 0.04m, livingCost ?? 0m)
                 : null;
         }
     }

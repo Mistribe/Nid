@@ -41,7 +41,7 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
     /// reader's visible open sources (as <see cref="IncomeAsync"/>). A phase ending without a successor is extended and its source
     /// reported by name; an ended source (<c>EndedOn</c>) stops.
     /// </summary>
-    public async Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, CancellationToken ct)
+    public async Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, IReadOnlyDictionary<PersonId, int> switches, CancellationToken ct)
     {
         var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
         var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
@@ -53,21 +53,41 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
         var monthly = dates.Select(_ => new Dictionary<Currency, decimal>()).ToList();
         var parts = dates.Select(_ => new List<TimelinePart>()).ToList();
         var extended = new List<ExtendedSource>();
+        var pensions = new List<PensionSource>();
         foreach (var source in found)
         {
             if (!accesses.TryGetValue(source.ItemId, out var item) || item.ArchivedAt is not null)
                 continue;
             var currency = SourceCheck.CurrencyOf(item);
-            var list = bySource[source.ItemId].ToList();
+            IReadOnlyList<IncomePhase> list = bySource[source.ItemId].ToList();
             var wasExtended = false;
+            var adults = item.Owners.Where(o => o.Kind == PersonKind.Adult).Select(o => o.PersonId).ToList();
+            PersonId? holder = adults.Count == 1 ? adults[0] : null;
+            var owned = Departures.SwitchOf(adults, switches); // Retirement spec §2
+            int? cutAt = owned >= 1 ? owned : null;
+            var stops = cutAt is not null && RetirementSwitch.Stops(source.Kind);
+            var isPension = source.Kind == IncomeKind.Pension;
+            if (isPension && cutAt is { } at)
+                list = RetirementSwitch.MovePension(list, today, thisMonth.PlusMonths(at).OnDayOfMonth(1));
+            if (isPension)
+            {
+                var first = list.Where(p => IncomeMath.EffectiveEnd(p) is not { } end || end > today).OrderBy(p => p.StartsOn).FirstOrDefault();
+                pensions.Add(new PensionSource(source.ItemId, item.DisplayName, holder,
+                    first is not null && Money.Create(IncomeMath.Round(IncomeMath.MonthlyEquivalent(first)), currency).TryGetValue(out var perMonth) ? perMonth : null));
+            }
             for (var k = 0; k < dates.Count; k++)
             {
                 var sum = 0m;
+                if (stops && k >= cutAt)
+                {
+                    monthly[k][currency] = monthly[k].GetValueOrDefault(currency);
+                    continue;
+                }
                 foreach (var (phase, amount, isExtended) in IncomeMath.MonthlyEquivalentExtendedParts(list, today, dates[k], source.EndedOn is not null))
                 {
                     // An extension keeps the month of the phase it extends.
                     var from = phase.StartsOn <= today ? 0 : (phase.StartsOn.Year - today.Year) * 12 + phase.StartsOn.Month - today.Month;
-                    parts[k].Add(new TimelinePart(currency, amount, from));
+                    parts[k].Add(new TimelinePart(currency, amount, isPension ? 0 : from, isPension, holder));
                     sum += amount;
                     wasExtended |= isExtended;
                 }
@@ -77,7 +97,7 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
                 extended.Add(new ExtendedSource(source.ItemId, item.DisplayName));
         }
         return Result.Success(new IncomeTimeline(monthly.Select(m => (IReadOnlyDictionary<Currency, decimal>)m).ToList(), extended,
-            parts.Select(p => (IReadOnlyList<TimelinePart>)p).ToList()));
+            parts.Select(p => (IReadOnlyList<TimelinePart>)p).ToList(), pensions));
     }
 }
 

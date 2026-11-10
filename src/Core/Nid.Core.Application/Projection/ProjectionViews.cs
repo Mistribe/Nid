@@ -17,7 +17,7 @@ public sealed record HouseholdPointView(
 public sealed record RetirementHorizonView(Guid Person, string Name, LocalDate On);
 
 /// <summary>
-/// Spec §3.5: <c>loan_end</c>, <c>property_free</c>, <c>retirement</c>, <c>savings_exhausted</c> or a scenario's <c>event</c> (its label, or
+/// Spec §3.5: <c>loan_end</c>, <c>property_free</c>, <c>retirement</c>, <c>financial_independence</c>, <c>savings_exhausted</c> or a scenario's <c>event</c> (its label, or
 /// its kind); <c>Item</c> is the loan, property or purchase scenario.
 /// </summary>
 public sealed record ProjectionMilestoneView(LocalDate On, string Kind, string Label, ItemId? Item);
@@ -53,12 +53,13 @@ public sealed record ProjectionRangesView(int Runs, string Success, IReadOnlyLis
 /// last 12 months' average (<c>"auto"</c>) or a scenario's own (<c>"scenario"</c>); <c>Horizon</c> is the wire form asked,
 /// <c>HorizonOn</c> the last point's date; <c>RetirementHorizons</c> the retirements the route accepts as a horizon, whatever the horizon asked.
 /// <c>ObservedInflation</c> (inflation spec D5): the observed rate the current year uses, a percent with one decimal (<c>"3.1"</c>), or null.
-/// <c>Ranges</c> (ranges spec §4): the bands, only when asked.
+/// <c>FinancialIndependence</c> (retirement spec §3): the first month the test holds, <c>yyyy-MM</c>, or null; <c>Ranges</c> (ranges spec §4): the bands, only when asked.
 /// </summary>
 public sealed record ProjectionView(
     string Currency, string Horizon, LocalDate HorizonOn, ProjectionAssumptionsView Assumptions, string MonthlySavings, string SavingsOrigin,
     IReadOnlyList<HouseholdPointView> Points, IReadOnlyList<ProjectionMilestoneView> Milestones, IReadOnlyList<ProjectionWarningView> Warnings,
-    IReadOnlyList<RetirementHorizonView> RetirementHorizons, string? ObservedInflation, ProjectionRangesView? Ranges = null)
+    IReadOnlyList<RetirementHorizonView> RetirementHorizons, string? ObservedInflation, string? FinancialIndependence,
+    ProjectionRangesView? Ranges = null)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Milestones.Select(m => m.Item).OfType<ItemId>();
@@ -83,6 +84,7 @@ public sealed record ProjectionView(
                 Amount(p.Debt), Amount(p.SavingsReal), Amount(p.PropertyReal), Amount(p.DebtReal))).ToList(),
             result.Milestones.Select(m => new ProjectionMilestoneView(m.On, m.Kind, m.Label, m.Item)).ToList(),
             warnings, reading.Retirements, reading.ObservedInflation is { } observed ? CpiViews.Percent(observed) : null,
+            result.FinancialIndependenceIn is { } fi ? $"{fi.Year:0000}-{fi.Month:00}" : null,
             ranges is null ? null : ProjectionRangesView.From(ranges));
     }
 }

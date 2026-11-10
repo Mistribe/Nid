@@ -36,7 +36,7 @@ public sealed record GetIncomeSourceQuery(ItemId ItemId, LocalDate? From = null,
     public AccessKind Access => AccessKind.Read;
 }
 
-public sealed record ListIncomeSourcesQuery(VisibilityScope Scope, bool IncludeEnded) : IQuery<IncomeSourceList>;
+public sealed record ListIncomeSourcesQuery(VisibilityScope Scope, bool IncludeEnded, string? Kind = null) : IQuery<IncomeSourceList>;
 
 /// <summary>#23: an income source created by mistake, deleted with its phases and one-off incomes. <paramref name="Version"/>: the one the preview read.</summary>
 public sealed record DeleteIncomeSourceCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
@@ -199,9 +199,18 @@ public sealed class ListIncomeSourcesHandler(
     public async ValueTask<Result<IncomeSourceList>> HandleAsync(ListIncomeSourcesQuery query, CancellationToken ct = default)
     {
         // As the envelopes' list: the 3-argument ForAsync returns active items only, so ended sources are asked for explicitly.
+        IncomeKind? only = null;
+        if (query.Kind is not null)
+        {
+            var parsed = SourceRules.Kind(query.Kind);
+            if (parsed.TryGetFailure(out var failure))
+                return Result.Failure<IncomeSourceList>(failure!);
+            parsed.TryGetValue(out var k);
+            only = k;
+        }
         var person = actor.Current!.PersonId!.Value;
         var ids = await visible.ForAsync(person, query.Scope, includeArchived: query.IncludeEnded, ct);
-        var found = await sources.FindManyAsync(ids.ToList(), ct);
+        var found = (await sources.FindManyAsync(ids.ToList(), ct)).Where(s => only is null || s.Kind == only).ToList();
         var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
         var today = await calendar.TodayAsync(ct);
 

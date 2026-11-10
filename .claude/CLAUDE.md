@@ -48,6 +48,10 @@ Every PR is created with its labels (`gh pr create --label … --label …`), ne
 On top of the type label:
 
 - One area label per area the PR changes: `web` (`web/`), `backend` (`src/`), `mcp` (the assistant's MCP tools), `infra` (`deploy/`, `.github/`).
+- One module label per backend module the issue or PR touches: `module:banking`, `module:childcare`, `module:core`,
+  `module:documents`, `module:goals`, `module:income`, `module:investments`, `module:platform`, `module:real-estate`,
+  `module:subscriptions` (`src/<Module>`). `module:new` when it creates a module that does not exist yet in `src/`; once
+  that module lands, create its own `module:<name>` label and list it here.
 - One size label, the estimate of the work done: `Small` (one layer, up to a day), `Medium` (several layers, a few days, one PR),
   `Large` (a whole feature in one area, about a week), `Extra Large` (several areas or stages, several PRs).
 - `no-changelog` when the household would not notice the PR (see above).

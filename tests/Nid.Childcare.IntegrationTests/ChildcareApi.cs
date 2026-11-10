@@ -13,7 +13,8 @@ internal static class ChildcareApi
     public static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
         => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
 
-    public static async Task<string> CreateAsync(NidApp app, string visibility = "shared")
+    /// <summary><paramref name="weekTypes"/>: the revision's week types in place of the one « Semaine type » of 46 weeks.</summary>
+    public static async Task<string> CreateAsync(NidApp app, string visibility = "shared", object[]? weekTypes = null)
     {
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Url, new
         {
@@ -22,7 +23,7 @@ internal static class ChildcareApi
             terms = new
             {
                 from = "2025-09-01", netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", lunchPrice = "3.20",
-                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", lunch = true }).ToArray() } },
+                weekTypes = weekTypes ?? [new { name = "Semaine type", weeks = 46, schedule = Schedule }],
             },
             gaps = Array.Empty<object>(), visibility,
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
@@ -30,6 +31,9 @@ internal static class ChildcareApi
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return $"{Url}/{(await JsonAsync(response)).GetProperty("id").GetGuid()}";
     }
+
+    /// <summary>Mon/Tue/Thu/Fri 08:00–17:30 with lunch.</summary>
+    public static readonly object[] Schedule = [.. new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", lunch = true })];
 
     public static async Task<JsonElement> GetAsync(NidApp app, string url, PersonId? actor = null)
     {

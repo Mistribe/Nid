@@ -39,7 +39,7 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
         return Result.Success<IReadOnlyList<RentSource>>(sources);
     }
 
-    public string Module => "rents";
+    public string Module => IncomeModules.Rents;
 
     /// <summary>
     /// Home income: the monthly rent (without charges) of each open visible property whose lease covers today or starts later;
@@ -70,7 +70,7 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
     /// Projection spec §3.2, §5.1: rents are assumed to continue, so today's rent repeats for every month and nothing is reported
     /// extended; a tenancy starting later is not anticipated (the rent changes the savings only through a revision the user records).
     /// </summary>
-    public async Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, CancellationToken ct)
+    public async Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, IReadOnlyDictionary<PersonId, int> switches, CancellationToken ct)
     {
         var income = await IncomeAsync(reader, scope, today, ct);
         if (income.TryGetFailure(out var failure))
