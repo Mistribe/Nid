@@ -58,10 +58,10 @@ export function JobDetailPage() {
           <SortableTable<JobRunView> caption={t('admin.jobs.history')} rows={data.runs.items} rowKey={(r) => r.id}
             rowLink={(r) => ({ to: '/admin/jobs/$key/runs/$runId', params: { key, runId: r.id } })}
             columns={[
-              { id: 'started', header: t('admin.jobs.started'), sort: (r) => r.startedAt, cell: (r) => formatInstant(r.startedAt) },
+              { id: 'started', header: t('admin.jobs.started'), cell: (r) => formatInstant(r.startedAt) },
               { id: 'trigger', header: t('admin.jobs.trigger'), cell: (r) => t(`admin.jobs.triggers.${r.trigger}`, { defaultValue: r.trigger }) },
-              { id: 'duration', header: t('admin.jobs.duration'), align: 'end', sort: (r) => r.durationMs ?? Number.NaN, cell: (r) => (r.durationMs != null ? formatDuration(r.durationMs) : '') },
-              { id: 'outcome', header: t('admin.jobs.outcome'), sort: (r) => r.outcome, cell: (r) => <JobOutcome outcome={r.outcome} /> },
+              { id: 'duration', header: t('admin.jobs.duration'), align: 'end', cell: (r) => (r.durationMs != null ? formatDuration(r.durationMs) : '') },
+              { id: 'outcome', header: t('admin.jobs.outcome'), cell: (r) => <JobOutcome outcome={r.outcome} /> },
               { id: 'summary', header: t('admin.jobs.summary'), wrap: true, cell: (r) => <span className="font-mono text-xs break-all">{r.summary ?? ''}</span> },
             ]}
             mobile={(r) => (
