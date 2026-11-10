@@ -229,4 +229,64 @@ public class HouseholdProjectionTests
         Assert.Equal(9_000m, points[0].Savings);
         Assert.Equal(9_000m, points[12].Savings);
     }
+
+    private static HouseholdProjectionResult Independence(
+        IReadOnlyList<SavingsSlice> savings, decimal? expenses0 = 1_000m, decimal living = 0m, decimal inflation = 0m, int months = 12,
+        IReadOnlyList<decimal>? pensions = null, IReadOnlyList<RealEstateMonth>? realEstate = null) =>
+        HouseholdProjection.Project(new(
+            Today, months, savings, Enumerable.Repeat(0m, months + 1).ToList(), realEstate ?? [], 0m,
+            Assumptions(inflation: inflation) with { WithdrawalRate = 0.04m, MonthlyLivingCost = living }, [],
+            Pensions: pensions, Expenses0: expenses0));
+
+    private static YearMonth ThisMonth => new(Today.Year, Today.Month);
+
+    [Fact]
+    public void Independence_needs_expenses0()
+    {
+        var result = Independence([Cash(300_000m)], expenses0: null);
+        Assert.Empty(result.Independence);
+        Assert.Null(result.FinancialIndependenceIn);
+    }
+
+    [Fact]
+    public void Capital_alone_reaches_independence()
+    {
+        var result = Independence([Cash(300_000m)]);
+        Assert.Equal(ThisMonth, result.FinancialIndependenceIn);
+        Assert.Equal(1_000m, result.Independence[0].Covered);
+        Assert.Contains(result.Milestones, m => m.Kind == "financial_independence" && m.On == Today && m.Item is null);
+    }
+
+    [Fact]
+    public void Pension_closes_the_gap_from_its_month()
+    {
+        var pensions = Enumerable.Range(0, 13).Select(k => k >= 5 ? 600m : 0m).ToList();
+        var result = Independence([Cash(120_000m)], pensions: pensions);
+        Assert.Equal(ThisMonth.PlusMonths(5), result.FinancialIndependenceIn);
+    }
+
+    [Fact]
+    public void Locked_capital_counts_once_unlocked()
+    {
+        SavingsSlice Locked(int? unlocksAt) => new(Envelope, AllocationClasses.Cash, AllocationLiquidity.Locked, 240_000m, unlocksAt);
+        Assert.Equal(ThisMonth.PlusMonths(7), Independence([Cash(60_000m), Locked(7)]).FinancialIndependenceIn);
+        Assert.Null(Independence([Cash(60_000m), Locked(null)]).FinancialIndependenceIn);
+    }
+
+    [Fact]
+    public void Expenses_follow_inflation_and_loans()
+    {
+        var result = Independence([], inflation: 0.12m, realEstate: NoDebt(12, k => k < 3 ? 500m : 0m));
+        var i = ProjectionRates.Resolve(Assumptions(inflation: 0.12m), null, Today, 12, [AllocationClasses.Cash]).Inflation;
+        Assert.Equal(Math.Round(1_000m * i[1] + 500m, 2, MidpointRounding.AwayFromZero), result.Independence[1].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[4], 2, MidpointRounding.AwayFromZero), result.Independence[4].Expenses);
+    }
+
+    [Fact]
+    public void Living_cost_adds_to_expenses() =>
+        Assert.Equal(3_000m, Independence([], living: 2_000m).Independence[0].Expenses);
+
+    [Fact]
+    public void Nothing_to_cover_is_independent_today() =>
+        Assert.Equal(ThisMonth, Independence([], expenses0: 0m).FinancialIndependenceIn);
 }
