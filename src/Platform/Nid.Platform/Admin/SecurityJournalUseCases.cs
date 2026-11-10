@@ -7,22 +7,27 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Platform.Admin;
 
 /// <summary>Administration › Journal de sécurité (administration-and-audit.md §2.2, spec §5.1).</summary>
-public sealed record SecurityJournalQuery(string? Event, long? Before, int? Limit) : IQuery<SecurityEventPage>, IAdminOnly;
+public sealed record SecurityJournalQuery(string? Event, int? Page) : IQuery<AdminSecurityEventPage>, IAdminOnly;
 
-[RequestHandler<SecurityJournalQuery, SecurityEventPage>]
-public sealed class SecurityJournalHandler(IAuditLog log, IActorAccessor accessor, IVisibleItems visible, IItemRegistry items)
-    : IRequestHandler<SecurityJournalQuery, SecurityEventPage>
+public sealed record AdminSecurityEventPage(IReadOnlyList<SecurityEventView> Items, int Total, int Page)
 {
-    public async ValueTask<Result<SecurityEventPage>> HandleAsync(SecurityJournalQuery query, CancellationToken ct = default)
+    public const int PageSize = 50;
+}
+
+[RequestHandler<SecurityJournalQuery, AdminSecurityEventPage>]
+public sealed class SecurityJournalHandler(IAuditLog log, IActorAccessor accessor, IVisibleItems visible, IItemRegistry items)
+    : IRequestHandler<SecurityJournalQuery, AdminSecurityEventPage>
+{
+    public async ValueTask<Result<AdminSecurityEventPage>> HandleAsync(SecurityJournalQuery query, CancellationToken ct = default)
     {
         // An event outside the journal is filtered to nothing, not refused: the filter never widens what is shown.
         IReadOnlyCollection<string> events = query.Event is null
             ? SecurityEventNames.AdminJournal
             : SecurityEventNames.AdminJournal.Contains(query.Event) ? [query.Event] : [];
-        var limit = AuditPaging.Limit(query.Limit);
-        var records = await log.SecurityEventsAsync(null, events, withoutSelfRevocations: true, query.Before, limit, ct);
-        var page = SecurityEventViews.Page(records, limit);
-        return Result.Success(page with { Entries = await WithItemsAsync(records, page.Entries, ct) });
+        var (page, skip) = ListPage.Of(query.Page, AdminSecurityEventPage.PageSize);
+        var (records, total) = await log.SecurityEventsPageAsync(events, skip, AdminSecurityEventPage.PageSize, ct);
+        var views = await WithItemsAsync(records, records.Select(SecurityEventViews.From).ToList(), ct);
+        return Result.Success(new AdminSecurityEventPage(views, total, page));
     }
 
     /// <summary>Only an item the reading admin may see is named: the others stay an id, in one lookup for the page (#28).</summary>

@@ -29099,15 +29099,7 @@
             }
           },
           {
-            "name": "before",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "limit",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -29121,7 +29113,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SecurityEventPage"
+                  "$ref": "#/components/schemas/AdminSecurityEventPage"
                 }
               }
             }
@@ -29874,6 +29866,30 @@
                 "$ref": "#/components/schemas/WebhookView"
               }
             ]
+          }
+        }
+      },
+      "AdminSecurityEventPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityEventView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

@@ -1,13 +1,14 @@
 import { SelectField } from '@/components/form/SelectField';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { eventLabel } from '@/features/security/eventLabel';
 import { AdminFrame } from './AdminFrame';
@@ -51,8 +52,13 @@ function ViolationDetails({ entry }: { entry: JournalEntry }) {
 export function SecurityJournalPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const [event, setEvent] = useState<string>('');
-  const journal = $api.useQuery('get', '/api/v1/admin/security-journal', { params: { query: event ? { event } : {} } });
+  const navigate = useNavigate();
+  const { event = '' }: { event?: string } = useSearch({ strict: false });
+  const [page, toPage] = useListPage();
+  // A new filter starts again at the first page.
+  const setEvent = (value: string) => void navigate({ to: '.', replace: true, search: ((prev: Record<string, unknown>) => ({ ...prev, event: value || undefined, page: undefined })) as never });
+  const journal = $api.useQuery('get', '/api/v1/admin/security-journal', { params: { query: { ...(event ? { event } : {}), page } } });
+  useStepBack(page, journal.data, toPage);
   const adults = $api.useQuery('get', '/api/v1/admin/users');
 
   const title = t('admin.security.title');
@@ -76,9 +82,10 @@ export function SecurityJournalPage() {
           )}
         </FilterField>
       </FilterRow>
-      {!journal.data || !adults.data ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : journal.data.entries.length === 0 ? (
+      {!journal.data || !adults.data ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : journal.data.items.length === 0 ? (
         <EmptyState module="/admin" title={t('admin.security.empty')} body="" />
       ) : (
+        <>
         <Table>
           <TableHeader>
             <TableRow>
@@ -90,7 +97,7 @@ export function SecurityJournalPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {journal.data.entries.map((entry) => (
+            {journal.data.items.map((entry) => (
               <TableRow key={entry.seq}>
                 <TableCell>{formatInstant(entry.at)}</TableCell>
                 <TableCell>{eventLabel(t, entry.event)}</TableCell>
@@ -103,6 +110,8 @@ export function SecurityJournalPage() {
             ))}
           </TableBody>
         </Table>
+        <Pager page={page} total={journal.data.total} onPage={toPage} />
+        </>
       )}
     </AdminFrame>
   );

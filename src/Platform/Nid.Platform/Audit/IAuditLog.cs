@@ -19,6 +19,13 @@ public interface IAuditLog
     /// </summary>
     Task<IReadOnlyList<AuditRecord>> SecurityEventsAsync(
         PersonId? subject, IReadOnlyCollection<string>? events, bool withoutSelfRevocations, long? before, int limit, CancellationToken ct);
+
+    /// <summary>
+    /// One page of the admin journal: <paramref name="events"/> only, the <c>session_revoked</c> an adult made on themselves left out,
+    /// newest first (<c>Seq</c> descending), with the total of the same filter.
+    /// </summary>
+    Task<(IReadOnlyList<AuditRecord> Items, int Total)> SecurityEventsPageAsync(
+        IReadOnlyCollection<string>? events, int skip, int take, CancellationToken ct);
 }
 
 public static class AuditPaging

@@ -27420,8 +27420,7 @@ export interface paths {
             parameters: {
                 query?: {
                     event?: string;
-                    before?: number;
-                    limit?: number;
+                    page?: number;
                 };
                 header?: never;
                 path?: never;
@@ -27435,7 +27434,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SecurityEventPage"];
+                        "application/json": components["schemas"]["AdminSecurityEventPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -27906,6 +27905,13 @@ export interface components {
             smtpHost?: null | string;
             failures: components["schemas"]["FailedDeliveryView"][];
             discord?: null | components["schemas"]["WebhookView"];
+        };
+        AdminSecurityEventPage: {
+            items: components["schemas"]["SecurityEventView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         AdultView: {
             /** Format: uuid */

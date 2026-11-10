@@ -26,6 +26,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(SystemStatusView))]
 [JsonSerializable(typeof(ItemHistoryPage))]
 [JsonSerializable(typeof(SecurityEventPage))]
+[JsonSerializable(typeof(AdminSecurityEventPage))]
 [JsonSerializable(typeof(CapabilitiesView))]
 [JsonSerializable(typeof(ExportManifestView))]
 [JsonSerializable(typeof(ExportPageView))]

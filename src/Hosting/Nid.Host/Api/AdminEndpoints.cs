@@ -71,9 +71,9 @@ public static class AdminEndpoints
                 => (await invoker.InvokeAsync(new GetSystemStatusQuery(), ct)).ToHttp(status => status))
             .Returns<SystemStatusView>();
 
-        api.MapGet("/security-journal", async (string? @event, long? before, int? limit, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new SecurityJournalQuery(@event, before, limit), ct)).ToHttp(p => p))
-            .Returns<SecurityEventPage>();
+        api.MapGet("/security-journal", async (string? @event, int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SecurityJournalQuery(@event, page), ct)).ToHttp(p => p))
+            .Returns<AdminSecurityEventPage>();
 
         api.MapGet("/notifications", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetAdminNotificationsQuery(), ct)).ToHttp(view => view))

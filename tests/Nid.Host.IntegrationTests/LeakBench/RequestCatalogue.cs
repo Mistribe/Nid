@@ -217,7 +217,7 @@ public static class RequestCatalogue
         new(typeof(GetSystemStatusQuery), false, (_, _) => new GetSystemStatusQuery()),
         new(typeof(ItemHistoryQuery), true, (_, item) => new ItemHistoryQuery(item, null, null)),
         new(typeof(MySecurityEventsQuery), false, (_, _) => new MySecurityEventsQuery(null, null)),
-        new(typeof(SecurityJournalQuery), false, (_, _) => new SecurityJournalQuery(null, null, null)),
+        new(typeof(SecurityJournalQuery), false, (_, _) => new SecurityJournalQuery(null, null)),
 
         new(typeof(ListSubscriptionsQuery), false,
             (_, _) => new ListSubscriptionsQuery(VisibilityScope.Me, null, null, null)),
