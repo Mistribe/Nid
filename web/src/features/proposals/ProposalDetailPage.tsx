@@ -127,8 +127,8 @@ function Proposal({ id }: { id: string }) {
     <div className="flex flex-col gap-6">
       {p.status !== 'pending' ? <>{head(null)}{body}<Decided p={p} target={p.status === 'approved' ? link ?? null : null} /></>
         : !canDecide ? <>{head(null)}{body}<p>{t('proposal.read_only')}</p></>
-        // A kind's form starts again from a new version; a route kind keeps its delete dialog open across one (a refused approval).
-        : <Decide key={kind && !unsupported ? `${p.id}:${p.version}` : p.id} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
+        // A new version (« Recharger ») starts the decision again; a delete keeps its dialog open across one (a refused approval).
+        : <Decide key={p.kind === 'goals.delete_goal' ? p.id : `${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
       {tail}
     </div>
   );

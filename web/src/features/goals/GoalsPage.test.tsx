@@ -95,7 +95,8 @@ describe('GoalsPage', () => {
     serve(list([summary({ canWrite: false })]));
     await renderApp('/goals');
     await rows();
-    expect(screen.queryByRole('button', { name: 'Actions pour Voyage' })).not.toBeInTheDocument();    expect(screen.queryByText('Supprimer…')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actions pour Voyage' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Supprimer…')).not.toBeInTheDocument();
   });
 
   it('the row menu ends with « Supprimer… », after a separator, and it opens the delete dialog', async () => {
