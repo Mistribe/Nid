@@ -127,7 +127,7 @@ public static class HouseholdProjection
         var points = new List<HouseholdPoint>(inputs.Months + 1) { Point(inputs.Today, Held() + pot, At(0), 1m) };
         var milestones = new List<ProjectionMilestone>();
 
-        var independence = new List<IndependencePoint>();
+        var independence = inputs.Expenses0 is null ? [] : new List<IndependencePoint>(inputs.Months + 1);
         YearMonth? independentIn = null;
         Independent(0, inputs.Today, thisMonth);
 

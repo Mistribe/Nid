@@ -254,6 +254,8 @@ public class HouseholdProjectionTests
         var result = Independence([Cash(300_000m)]);
         Assert.Equal(ThisMonth, result.FinancialIndependenceIn);
         Assert.Equal(1_000m, result.Independence[0].Covered);
+        Assert.Equal(300_000m, result.Independence[0].Capital);
+        Assert.Equal(result.Independence[0].Capital, result.Independence[0].CapitalReal);
         Assert.Contains(result.Milestones, m => m.Kind == "financial_independence" && m.On == Today && m.Item is null);
     }
 
@@ -263,6 +265,8 @@ public class HouseholdProjectionTests
         var pensions = Enumerable.Range(0, 13).Select(k => k >= 5 ? 600m : 0m).ToList();
         var result = Independence([Cash(120_000m)], pensions: pensions);
         Assert.Equal(ThisMonth.PlusMonths(5), result.FinancialIndependenceIn);
+        Assert.Equal(ThisMonth.PlusMonths(5).ToDateInterval().End,
+            result.Milestones.Single(m => m.Kind == "financial_independence").On);
     }
 
     [Fact]
@@ -279,7 +283,10 @@ public class HouseholdProjectionTests
         var result = Independence([], inflation: 0.12m, realEstate: NoDebt(12, k => k < 3 ? 500m : 0m));
         var i = ProjectionRates.Resolve(Assumptions(inflation: 0.12m), null, Today, 12, [AllocationClasses.Cash]).Inflation;
         Assert.Equal(Math.Round(1_000m * i[1] + 500m, 2, MidpointRounding.AwayFromZero), result.Independence[1].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[2] + 500m, 2, MidpointRounding.AwayFromZero), result.Independence[2].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[3], 2, MidpointRounding.AwayFromZero), result.Independence[3].Expenses);
         Assert.Equal(Math.Round(1_000m * i[4], 2, MidpointRounding.AwayFromZero), result.Independence[4].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[4] / i[4], 2, MidpointRounding.AwayFromZero), result.Independence[4].ExpensesReal);
     }
 
     [Fact]
