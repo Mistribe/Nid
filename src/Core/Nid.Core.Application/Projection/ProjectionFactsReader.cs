@@ -68,14 +68,18 @@ public sealed class ProjectionFactsReader(
     private PersonId Reader => actor.Current!.PersonId!.Value;
 
     public Task<Result<ProjectionReading>> ReadAsync(VisibilityScope scope, ProjectionHorizon horizon, CancellationToken ct)
-        => ReadAsync(scope, horizon, null, RealEstateEvents.None, ct);
+        => ReadAsync(scope, horizon, null, RealEstateEvents.None, null, null, ct);
 
     /// <summary>
     /// Projection spec §4 and §6: a scenario's reading, on <paramref name="assumptions"/> (null: the household's) and with RealEstate
     /// applying <paramref name="events"/>; the base is <see cref="RealEstateEvents.None"/> on the household's assumptions.
+    /// <paramref name="departures"/> replace the persons' departure age everywhere (retirement spec §2); a <c>retire:</c> horizon
+    /// resolves with <paramref name="horizonDepartures"/>, so the base reads the scenario's grid.
     /// </summary>
     public async Task<Result<ProjectionReading>> ReadAsync(
-        VisibilityScope scope, ProjectionHorizon horizon, ProjectionAssumptions? assumptions, RealEstateEvents events, CancellationToken ct)
+        VisibilityScope scope, ProjectionHorizon horizon, ProjectionAssumptions? assumptions, RealEstateEvents events,
+        IReadOnlyDictionary<PersonId, (int Years, int Months)>? departures, IReadOnlyDictionary<PersonId, (int Years, int Months)>? horizonDepartures,
+        CancellationToken ct)
     {
         var read = await scenario.TodayAsync(scope, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionReading>(failure!);
@@ -83,7 +87,7 @@ public sealed class ProjectionFactsReader(
         var today = now!.Date;
         var reference = now.Reference;
 
-        var span = await MonthsAsync(horizon, today, ct);
+        var span = await MonthsAsync(horizon, today, ct, horizonDepartures);
         if (span.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
         span.TryGetValue(out var months);
         var thisMonth = today.ToYearMonth();
@@ -98,7 +102,7 @@ public sealed class ProjectionFactsReader(
         if (saved.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
         saved.TryGetValue(out var contributions);
 
-        var people = await persons.ListAsync(ct);
+        var people = Overridden(await persons.ListAsync(ct), departures);
         var switches = Departures.SwitchMonths(people, today);
         var timelines = await Contributions.CollectAsync(income, c => c.TimelineAsync(Reader, scope, today, months, switches, ct));
         if (timelines.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
@@ -188,6 +192,12 @@ public sealed class ProjectionFactsReader(
         });
     }
 
+    /// <summary>Retirement spec §2: the persons with a scenario's departure age in place of their own.</summary>
+    internal static IReadOnlyList<PersonInfo> Overridden(IReadOnlyList<PersonInfo> people, IReadOnlyDictionary<PersonId, (int Years, int Months)>? departures)
+        => departures is null
+            ? people
+            : [.. people.Select(p => departures.TryGetValue(p.Id, out var d) ? p with { RetirementAge = d.Years, RetirementMonths = d.Months } : p)];
+
     /// <summary>
     /// Spec §2.2 and §2.3: the months from this one to the person's departure month (<see cref="Departures.MonthOf"/>);
     /// <c>null</c> without a birth date, or when it has no month ahead or lies past 40 years.
@@ -203,10 +213,11 @@ public sealed class ProjectionFactsReader(
     /// Spec §2.2 and §2.3: the months from this one to the horizon's; a retirement is refused when <see cref="RetirementMonths"/>
     /// has none.
     /// </summary>
-    internal async Task<Result<int>> MonthsAsync(ProjectionHorizon horizon, LocalDate today, CancellationToken ct)
+    internal async Task<Result<int>> MonthsAsync(
+        ProjectionHorizon horizon, LocalDate today, CancellationToken ct, IReadOnlyDictionary<PersonId, (int Years, int Months)>? departures = null)
     {
         if (horizon.RetireOf is not { } id) return Result.Success(horizon.Years!.Value * 12);
-        var person = await persons.FindAsync(id, ct);
+        var person = Overridden(await persons.FindAsync(id, ct) is { } found ? [found] : [], departures).SingleOrDefault();
         if (person?.BirthDate is null)
             return Result.Failure<int>(new Failure(ProjectionCodes.NoBirthDate, "This person has no birth date.", null));
         return RetirementMonths(person, today) is { } months

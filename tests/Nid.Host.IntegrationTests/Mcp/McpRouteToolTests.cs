@@ -259,6 +259,34 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Contains("'everyone' is not a scope", scopeText);
     }
 
+    /// <summary>Retirement spec §2: the tool takes departures into the document; an unreadable pension or an age out of range is a tool error naming its field.</summary>
+    [Fact]
+    public async Task Simulate_projection_takes_departures()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+
+        var ok = await AnswerAsync(client, "simulate_projection", new
+        {
+            horizon = "5y", retirements = new[] { new { person = app.AdultA.Value, years = 60, months = 3, monthlyPension = "1500" } },
+        });
+        Assert.Equal(7, ok.GetProperty("base").GetProperty("points").GetArrayLength());
+
+        var (unreadable, unreadableText) = await CallAsync(client, "simulate_projection", new
+        {
+            retirements = new[] { new { person = app.AdultA.Value, years = 60, months = 0, monthlyPension = "abc" } },
+        });
+        Assert.True(unreadable);
+        Assert.Contains("retirements[0].monthlyPension", unreadableText);
+
+        var (young, youngText) = await CallAsync(client, "simulate_projection", new
+        {
+            retirements = new[] { new { person = app.AdultA.Value, years = 40, months = 0 } },
+        });
+        Assert.True(young);
+        Assert.Contains("retirements[0].years", youngText);
+    }
+
     /// <summary>Issue #416: the sale simulation answers as its route does; a missing price or an unreadable date is a tool error.</summary>
     [Fact]
     public async Task Simulate_property_sale_returns_the_simulate_route_answer()

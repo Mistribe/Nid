@@ -100,6 +100,7 @@ public sealed partial class WriteTools
     [JsonSerializable(typeof(AmortizationRow[]))]
     [JsonSerializable(typeof(Nid.Core.Application.Projection.ProjectionOverridesView))]
     [JsonSerializable(typeof(IReadOnlyList<Nid.Core.Application.Projection.ProjectionEventView>))]
+    [JsonSerializable(typeof(IReadOnlyList<Nid.Core.Application.Projection.ScenarioRetirementView>))]
     [JsonSerializable(typeof(IReadOnlyList<Api.RealEstateEndpoints.InsuranceQuoteBody>))]
     [JsonSerializable(typeof(IReadOnlyList<Api.RealEstateEndpoints.LoanPenaltyBody>))]
     private sealed partial class ArgumentsJson : JsonSerializerContext;
