@@ -1,6 +1,5 @@
 import { SelectField } from '@/components/form/SelectField';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -8,6 +7,7 @@ import { present, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
+import { SortableTable } from '@/components/page/SortableTable';
 import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { eventLabel } from '@/features/security/eventLabel';
@@ -48,6 +48,14 @@ function ViolationDetails({ entry }: { entry: JournalEntry }) {
   );
 }
 
+function Details({ entry }: { entry: JournalEntry }) {
+  return (
+    <div className="font-mono text-xs break-all">
+      {entry.event === 'access_violation' && entry.details.reason ? <ViolationDetails entry={entry} /> : rawDetails(entry.details)}
+    </div>
+  );
+}
+
 /** screens.md §12, Journal de sécurité: identifiers only, adults by name; a withheld response says why (#28). */
 export function SecurityJournalPage() {
   const { t } = useTranslation();
@@ -68,6 +76,8 @@ export function SecurityJournalPage() {
   const name = (id: string | null | undefined) =>
     id ? (adults.data?.find((adult) => adult.id === id)?.displayName ?? id) : null;
 
+  const actor = (entry: JournalEntry) => (entry.actor.personId ? name(entry.actor.personId) : t('admin.security.system'));
+
   return (
     <AdminFrame title={title}>
       <FilterRow label={t('common.filters')}>
@@ -82,34 +92,29 @@ export function SecurityJournalPage() {
           )}
         </FilterField>
       </FilterRow>
-      {!journal.data || !adults.data ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : journal.data.items.length === 0 ? (
+      {!journal.data || !adults.data ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : journal.data.total === 0 ? (
         <EmptyState module="/admin" title={t('admin.security.empty')} body="" />
-      ) : (
+      ) : journal.data.items.length === 0 ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('admin.security.when')}</TableHead>
-                <TableHead>{t('admin.security.event')}</TableHead>
-                <TableHead>{t('admin.security.subject')}</TableHead>
-                <TableHead>{t('admin.security.actor')}</TableHead>
-                <TableHead>{t('admin.security.details')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {journal.data.items.map((entry) => (
-                <TableRow key={entry.seq}>
-                  <TableCell>{formatInstant(entry.at)}</TableCell>
-                  <TableCell>{eventLabel(t, entry.event)}</TableCell>
-                  <TableCell>{name(entry.subjectPersonId)}</TableCell>
-                  <TableCell>{entry.actor.personId ? name(entry.actor.personId) : t('admin.security.system')}</TableCell>
-                  <TableCell className="font-mono">
-                    {entry.event === 'access_violation' && entry.details.reason ? <ViolationDetails entry={entry} /> : rawDetails(entry.details)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SortableTable<JournalEntry>
+            caption={title}
+            rows={journal.data.items}
+            rowKey={(entry) => String(entry.seq)}
+            columns={[
+              { id: 'when', header: t('admin.security.when'), cell: (entry) => formatInstant(entry.at) },
+              { id: 'event', header: t('admin.security.event'), cell: (entry) => eventLabel(t, entry.event) },
+              { id: 'subject', header: t('admin.security.subject'), cell: (entry) => name(entry.subjectPersonId) },
+              { id: 'actor', header: t('admin.security.actor'), cell: (entry) => actor(entry) },
+              { id: 'details', header: t('admin.security.details'), wrap: true, cell: (entry) => <Details entry={entry} /> },
+            ]}
+            mobile={(entry) => (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2"><span>{eventLabel(t, entry.event)}</span><span className="text-sm text-muted-foreground">{formatInstant(entry.at)}</span></div>
+                <p className="text-sm text-muted-foreground">{[name(entry.subjectPersonId), actor(entry)].filter(Boolean).join(' · ')}</p>
+                <Details entry={entry} />
+              </div>
+            )}
+          />
           <Pager page={page} total={journal.data.total} onPage={toPage} />
         </>
       )}

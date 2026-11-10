@@ -78,7 +78,7 @@ describe('Administration › Journal de sécurité', () => {
     await user.click(within(outside).getByRole('button', { name: 'Détails bruts' }));
     expect(outside).toHaveTextContent('request: GetDashboardQuery');
     expect(screen.getByRole('row', { name: /calcul des droits a échoué/ })).toBeInTheDocument();
-    expect(screen.getByText('request: OldQuery')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('request: OldQuery')).toBeInTheDocument();
   });
 
   it('puts its event filter in the filter row, the label before it', async () => {
