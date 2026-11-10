@@ -1,4 +1,4 @@
 {
-  "en": "The projection gives the date of financial independence once a monthly living cost is set.",
-  "fr": "La projection donne la date d'indépendance financière dès qu'un coût de la vie mensuel est renseigné."
+  "en": "Projection settings gain a withdrawal rate and a monthly living cost; once the living cost is set, the projection gives the date of financial independence.",
+  "fr": "Les réglages de la projection gagnent un taux de retrait et un coût de la vie mensuel ; dès que ce coût est renseigné, la projection donne la date d'indépendance financière."
 }

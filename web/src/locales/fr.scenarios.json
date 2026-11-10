@@ -213,6 +213,8 @@
         "income_growth": "Évolution des revenus : inflation + x %",
         "monthly_savings": "Épargne mensuelle",
         "savings_class": "Classe de l’épargne",
+        "withdrawal_rate": "Taux de retrait (%)",
+        "living_cost": "Coût de la vie mensuel",
         "household_value": "Foyer : {{value}}",
         "household_choice": "Celle du foyer",
         "freed": "Mensualités libérées",
