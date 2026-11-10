@@ -1,7 +1,7 @@
 {
   "admin": {
     "loading": "Chargement",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "prices": "Cours", "irl": "IRL", "inflation": "Inflation", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "notifications": "Notifications", "security": "Journal de sécurité", "banking": "Banque" },
+    "nav": { "household": "Foyer" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",

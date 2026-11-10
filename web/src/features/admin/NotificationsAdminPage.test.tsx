@@ -20,11 +20,12 @@ describe('Administration › Notifications', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Accès réservé' })).toBeInTheDocument();
   });
 
-  it('is a section of the admin navigation, marked current', async () => {
+  it('has the Administration breadcrumb', async () => {
     serve(configured);
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
-    const sections = screen.getByRole('navigation', { name: "Sections de l'administration" });
-    expect(within(sections).getByRole('link', { name: 'Notifications' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('navigation', { name: "Sections de l'administration" })).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
+    expect(screen.getByRole('heading', { level: 1, name: 'Notifications' })).toBeInTheDocument();
   });
 
   it('shows the configured host and the empty failures', async () => {

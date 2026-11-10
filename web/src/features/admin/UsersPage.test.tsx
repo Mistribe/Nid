@@ -27,6 +27,14 @@ function serve(adults: Adult[], maxAdults = 3) {
 }
 
 describe('Administration › Utilisateurs', () => {
+  it('has the Administration breadcrumb', async () => {
+    serve([alice]);
+    await renderApp('/admin/users', { capabilities: adminCapabilities });
+    expect(screen.queryByRole('navigation', { name: "Sections de l'administration" })).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Utilisateurs' })).toBeInTheDocument();
+  });
+
   it('lists the adults with their status and their role', async () => {
     serve([alice, carol]);
     const { container } = await renderApp('/admin/users', { capabilities: adminCapabilities });
