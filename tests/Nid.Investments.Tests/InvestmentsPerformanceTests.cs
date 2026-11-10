@@ -223,6 +223,49 @@ public class InvestmentsPerformanceTests
     }
 
     [Fact]
+    public void A_closed_envelope_ends_on_its_closing_value_not_an_estimate()
+    {
+        // Closed on 1 October with its last holdings still priced: an estimate of today is no value of a closed envelope.
+        var closed = new EnvelopeFacts("Ancien PEA", EnvelopeKind.Pea) { ClosedOn = D(2026, 10, 1) }
+            .Flow(D(2024, 12, 31), FlowKind.Opening, 1_000m).Value(From, 1_000m).Value(D(2026, 10, 1), 0m).Build();
+        var estimate = new Application.Prices.EnvelopeEstimate(closed.Item.Id,
+            Money.Create(1_200m, Currency.Eur).TryGetValue(out var m) ? m : throw new InvalidOperationException(), Today, To, false, [], null, []);
+
+        var p = InvestmentsPerformanceMath.Build([closed], Currency.Eur, Rates, Today, From, Today,
+            new Dictionary<ItemId, Application.Prices.EnvelopeEstimate> { [closed.Item.Id] = estimate }).ToView();
+
+        Assert.Equal(0m, N(Assert.Single(p.Envelopes).EndValue));
+    }
+
+    [Fact]
+    public void The_households_period_return_is_on_its_converted_flows()
+    {
+        var euros = new EnvelopeFacts("PEA", EnvelopeKind.Pea).Value(From, 1_000m).Value(To, 1_050m).Build();
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD").Value(From, 1_000m).Value(To, 1_000m).Build();
+
+        var p = Build(euros, dollars);
+
+        // 1 000 € and 900 € in, 1 050 € and 900 € out: +2,6 %; adding the dollars unconverted would give +2,5 %.
+        Assert.Equal(2.6m, p.PeriodReturnPct);
+        Assert.Equal([5.0m, 0.0m], p.Envelopes.Select(e => e.PeriodReturnPct));
+    }
+
+    [Fact]
+    public void A_missing_rate_leaves_the_households_period_return_unknown()
+    {
+        var rates = new RateTable([new FxRate(To, Currency.Eur, 0.9m, FxRateSource.Ecb)], Today, 7);
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD").Value(From, 1_000m).Value(To, 1_100m).Build();
+
+        var p = InvestmentsPerformanceMath.Build([Life(), dollars], Currency.Eur, rates, Today, From, To).ToView();
+
+        Assert.Null(p.PeriodReturnPct);
+        Assert.Null(p.StartValue);
+        Assert.NotEmpty(p.Findings);
+        // In its own currency, the envelope's return is still known.
+        Assert.Equal(10.0m, p.Envelopes.Single(e => e.Name == "Brokerage").PeriodReturnPct);
+    }
+
+    [Fact]
     public void The_period_return_is_money_weighted()
     {
         var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea).Flow(D(2024, 12, 31), FlowKind.Opening, 1_000m).Value(D(2024, 12, 31), 1_000m)

@@ -35,7 +35,7 @@ public sealed class InvestmentsPeriodReader(
 
         var today = await calendar.TodayAsync(ct);
         var estimates = to == today
-            ? await estimator.EstimateAsync(found.Where(e => e.ClosedOn is not { } closed || today < closed).Select(e => e.ItemId).ToList(), ct)
+            ? await estimator.EstimateAsync(found.Select(e => e.ItemId).ToList(), ct)
             : null;
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();

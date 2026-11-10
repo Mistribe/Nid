@@ -45,6 +45,7 @@
       "net": "Versements nets de la période",
       "performance": "Performance",
       "no_start": "Pas de valeur au début de la période.",
+      "opened": "ouverte pendant la période",
       "no_end": "Pas de valeur à la fin de la période."
     },
     "chart_loading": "Chargement de la courbe",

@@ -88,7 +88,7 @@ internal static class InvestmentsPerformanceMath
                 .Append((to, End, false));
     }
 
-    /// <param name="estimates">The open envelopes' estimates (holding prices spec §5.4), read when <paramref name="to"/> is today.</param>
+    /// <param name="estimates">The envelopes' estimates (holding prices spec §5.4), read when <paramref name="to"/> is today for an envelope still open today.</param>
     public static PeriodFigures Build(
         IReadOnlyList<EnvelopePerformance.Facts> facts, Currency reference, RateTable rates, LocalDate today, LocalDate from, LocalDate to,
         IReadOnlyDictionary<ItemId, Prices.EnvelopeEstimate>? estimates = null)
@@ -105,7 +105,7 @@ internal static class InvestmentsPerformanceMath
             if (period.EndValue is not { } end) continue;
             var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
             var stale = period.StartAsOf is { } start && limit is { } days && Period.DaysBetween(start, from) > days;
-            var value = to == today && estimates?.GetValueOrDefault(f.Item.Id) is { } estimate
+            var value = to == today && (f.Envelope.ClosedOn is not { } closedOn || today < closedOn) && estimates?.GetValueOrDefault(f.Item.Id) is { } estimate
                 ? TodayValue.Pick(EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today), estimate).Value.Amount
                 : end.Amount;
             counted.Add(new Counted(f, period, value, stale));

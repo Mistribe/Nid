@@ -67,13 +67,27 @@ describe('PeriodPerformance', () => {
 
   it('says a missing start or end value, never zero', async () => {
     const seen: string[] = [];
-    serve(period({ startAsOf: null, startValue: null, netContributions: null, performance: null }), seen);
+    // No value by the end: the server knows neither value.
+    serve(period({ startAsOf: null, startValue: null, endAsOf: null, endValue: null, netContributions: null, performance: null }), seen);
     await renderApp(`/investments/${PEA}`);
 
     const section = await screen.findByRole('region', { name: 'Performance d’une période' });
     expect(await within(section).findByText('Pas de valeur au début de la période.')).toBeInTheDocument();
-    // A bare zero amount, not the tail of « 25 000,00 € ».
+    expect(within(section).getByText('Pas de valeur à la fin de la période.')).toBeInTheDocument();
+    // A bare zero amount, never shown for a missing value.
     expect(section.textContent).not.toMatch(/(?<![\d\s\u00a0\u202f])0,00\s€/);
+  });
+
+  it('starts an envelope opened during the period at zero, and says so', async () => {
+    const seen: string[] = [];
+    // As the server answers: no value at the start, counted from 0 with its opening in the net contributions.
+    serve(period({ startAsOf: null, startValue: eur('0.0000'), netContributions: eur('22000.0000'), performance: eur('3000.0000') }), seen);
+    await renderApp(`/investments/${PEA}`);
+
+    const section = await screen.findByRole('region', { name: 'Performance d’une période' });
+    expect(await within(section).findByText('ouverte pendant la période')).toBeInTheDocument();
+    expect(section).toHaveTextContent(/Valeur de départ0,00\s€ouverte pendant la période/);
+    expect(within(section).queryByText('Pas de valeur au début de la période.')).not.toBeInTheDocument();
   });
 
   it('asks for the period again after a value is recorded', async () => {

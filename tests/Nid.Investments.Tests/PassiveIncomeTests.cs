@@ -150,6 +150,20 @@ public class PassiveIncomeTests
     }
 
     [Fact]
+    public void A_savings_account_first_valued_in_a_window_earns_nothing_in_it()
+    {
+        // Opened with 10 000 in January, first valued at 10 400 in March: the 400 are not March's interest; +50 by the end of April.
+        var savings = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+            .Flow(D(2026, 1, 15), FlowKind.Opening, 10_000m).Value(D(2026, 3, 31), 10_400m).Value(D(2026, 4, 30), 10_450m).Build();
+
+        var p = Build([savings]);
+
+        Assert.Equal(0m, N(Month(p, "2026-03").Total));
+        Assert.Equal([0m, 50m, 0m, 0m, 0m], Kinds(Month(p, "2026-04").ByKind));
+        Assert.Equal(50m, N(p.Total));
+    }
+
+    [Fact]
     public void A_classified_withdrawal_on_a_savings_account_is_counted_once()
     {
         // Written before the rule refusing it: the 300 withdrawn are in the performance already.
