@@ -22,6 +22,7 @@ test('alice reviews her year and prints it on A4, light even on a dark screen', 
   await expect(alice.getByRole('region', { name: 'Patrimoine net' })).toContainText('€');
   const printButton = alice.getByRole('button', { name: 'Imprimer' });
   await expect(printButton).toBeVisible();
+  await expect(alice.getByRole('combobox', { name: 'Année du bilan' })).toBeVisible();
 
   // The app's dark mode is the class on <html> (app/theme.ts); set here, not in alice's preferences, which other journeys share.
   await alice.emulateMedia({ colorScheme: 'dark' });
@@ -38,9 +39,12 @@ test('alice reviews her year and prints it on A4, light even on a dark screen', 
   expect(await alice.evaluate<boolean>(`document.documentElement.classList.contains('dark')`)).toBe(true);
   await expect.poll(() => alice.evaluate<string>(BACKGROUND)).toBe(light);
   await expect.poll(() => alice.evaluate<boolean>(`document.documentElement.scrollWidth <= window.innerWidth`)).toBe(true);
-  await expect(alice.locator('[data-pane="sidebar"]')).toBeHidden();
+  // A table wider than the page would be cut on paper: each one fits its container, which no longer scrolls.
+  await expect.poll(() => alice.evaluate<boolean>(`[...document.querySelectorAll('[data-slot=table-container]')].every((c) => c.scrollWidth <= c.clientWidth)`)).toBe(true);
+  // The sidebar is hidden at this width anyway; the top bar and the phone tabs are not, on screen.
   await expect(alice.locator('[data-pane="toolbar"]')).toBeHidden();
   await expect(alice.locator('[data-pane="tabs"]')).toBeHidden();
+  await expect(alice.getByRole('combobox', { name: 'Année du bilan' })).toBeHidden();
   await expect(printButton).toBeHidden();
   await expect(alice.getByRole('region', { name: 'Patrimoine net' })).toBeVisible();
   // At the page's width a list replaces a table on screen; paper keeps the table and its columns.

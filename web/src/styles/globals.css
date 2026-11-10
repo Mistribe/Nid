@@ -254,10 +254,15 @@ body:has([data-guide-active]) main { padding-bottom: 100dvh; }
     --backdrop-material: none; --backdrop-glass: none; --backdrop-edge: none; --halo: none;
   }
 }
-/* On paper (the Bilan above all): A4, a section or a row never split across two pages, a chart no wider than the page. */
+/* On paper (the Bilan above all): A4; a row, a line of figures or a chart never split across two pages (a whole section
+   would leave large blanks), a section's title kept with what follows; tables and charts within the page's width. */
 @page { size: A4; margin: 15mm; }
 @media print {
-  section, tr { break-inside: avoid; }
+  tr, [data-stat-line], [data-slot=chart] { break-inside: avoid; }
+  section > h2, section > :has(> h2) { break-after: avoid; }
+  [data-slot=table-container] { overflow: visible; }
+  [data-slot=table] { font-size: 0.8125rem; }
+  [data-slot=table-head], [data-slot=table-cell] { white-space: normal; }
   .recharts-responsive-container, .recharts-wrapper { max-width: 100%; }
   .recharts-surface { max-width: 100%; height: auto; }
 }

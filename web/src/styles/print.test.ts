@@ -14,9 +14,19 @@ describe('print', () => {
     expect(css).toMatch(/@page\s*\{\s*size:\s*A4;\s*margin:\s*15mm;\s*\}/);
   });
 
-  it('keeps a section and a table row on one page, and a chart within the page', () => {
-    expect(css).toMatch(/@media print\s*\{[^@]*section,\s*tr\s*\{\s*break-inside:\s*avoid;\s*\}/);
-    expect(css).toMatch(/\.recharts-surface\s*\{\s*max-width:\s*100%;/);
+  // The page's last print block: the layout rules.
+  const print = noComments(css.slice(css.lastIndexOf('@media print')));
+
+  it('keeps a row, a line of figures and a chart on one page, a section title with what follows, not a whole section', () => {
+    expect(print).toMatch(/tr,\s*\[data-stat-line\],\s*\[data-slot=chart\]\s*\{\s*break-inside:\s*avoid;\s*\}/);
+    expect(print).toMatch(/section > h2,\s*section > :has\(> h2\)\s*\{\s*break-after:\s*avoid;\s*\}/);
+    expect(print).not.toMatch(/(^|[\s,{])section\s*[,{]/);
+  });
+
+  it('fits tables and charts in the page: cells wrap, nothing scrolls out of sight', () => {
+    expect(print).toMatch(/\[data-slot=table-container\]\s*\{\s*overflow:\s*visible;\s*\}/);
+    expect(print).toMatch(/\[data-slot=table-head\],\s*\[data-slot=table-cell\]\s*\{\s*white-space:\s*normal;\s*\}/);
+    expect(print).toMatch(/\.recharts-surface\s*\{\s*max-width:\s*100%;/);
   });
 
   // A dark screen still prints dark text on white: the dark colours, color-scheme and the dark: variant are screen-only.

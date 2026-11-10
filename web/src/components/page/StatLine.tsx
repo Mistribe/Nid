@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
  */
 export function StatLine({ items, className }: { items: { label: string; value: ReactNode; hint?: ReactNode }[]; className?: string }) {
   return (
-    <dl className={cn('grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]', className)}>
+    <dl data-stat-line className={cn('grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]', className)}>
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
           <dt className="text-label text-muted-foreground">{item.label}</dt>
