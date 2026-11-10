@@ -39,3 +39,10 @@ export const atEnd = (range: Range, current: string) => range.to >= shiftMonth(c
 export function dayOffset(date: string): number {
   return (Number(date.slice(8, 10)) - 1) / (daysIn(Number(date.slice(0, 4)), Number(date.slice(5, 7))) - 1);
 }
+
+/** One lane per subscription met in the loaded months, by name: the first charge seen names it. */
+export function lanes<L extends { itemId: string; displayName: string }>(answers: { charges: L[] }[]): L[] {
+  const byItem = new Map<string, L>();
+  for (const a of answers) for (const c of a.charges) if (!byItem.has(c.itemId)) byItem.set(c.itemId, c);
+  return [...byItem.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+}
