@@ -239,6 +239,19 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
     }
 
     [Fact]
+    public async Task Scenario_withdrawal_rate_of_zero_is_refused_at_write() // retirement spec §3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await CreateAsync(app, Body(app, new
+        {
+            version = 1, horizon = "10y", events = Array.Empty<object>(), assumptions = new { withdrawalRate = "0" },
+        }));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "assumptions.withdrawalRate"), await RefusalAsync(response));
+    }
+
+    [Fact]
     public async Task Repayment_above_balance_is_refused_at_write()
     {
         await using var app = await NidApp.StartAsync(fixture);
