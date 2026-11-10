@@ -59,4 +59,38 @@ public class ReviewMathTests
             ReviewMath.Started(set, Start, End).Select(i => (i.Name, i.On, i.Provider)));
         Assert.Equal([("Trial", new LocalDate(2024, 9, 1))], ReviewMath.Ended(set, Start, End, Today).Select(i => (i.Name, i.On)));
     }
+
+    [Fact]
+    public void An_expiry_later_in_the_year_than_today_is_not_ended_yet()
+    {
+        var past = Built("Past", [Phase(new LocalDate(2025, 1, 1), new LocalDate(2025, 10, 1), 4m)]);
+        var coming = Built("Coming", [Phase(new LocalDate(2025, 1, 1), new LocalDate(2025, 11, 1), 4m)]);
+
+        Assert.Equal(["Past"], ReviewMath.Ended([past, coming], new LocalDate(2024, 12, 31), new LocalDate(2025, 12, 31), Today).Select(i => i.Name));
+    }
+
+    [Fact]
+    public void An_archived_subscription_ends_on_the_earlier_of_its_expiry_and_its_archive_day()
+    {
+        var running = Built("Running", [Phase(new LocalDate(2024, 1, 1), null, 4m)]).ArchivedAt(new LocalDate(2024, 8, 1));
+        var before = Built("Before", [Phase(new LocalDate(2024, 1, 1), new LocalDate(2024, 10, 1), 4m)]).ArchivedAt(new LocalDate(2024, 9, 15));
+        var onIt = Built("On it", [Phase(new LocalDate(2024, 1, 1), new LocalDate(2024, 10, 1), 4m)]).ArchivedAt(new LocalDate(2024, 10, 1));
+        var after = Built("After", [Phase(new LocalDate(2024, 1, 1), new LocalDate(2024, 5, 1), 4m)]).ArchivedAt(new LocalDate(2024, 9, 1));
+        var nextYear = Built("Next year", [Phase(new LocalDate(2024, 1, 1), null, 4m)]).ArchivedAt(new LocalDate(2025, 3, 1));
+
+        Assert.Equal(
+            [("After", new LocalDate(2024, 5, 1)), ("Running", new LocalDate(2024, 8, 1)), ("Before", new LocalDate(2024, 9, 15)), ("On it", new LocalDate(2024, 10, 1))],
+            ReviewMath.Ended([running, before, onIt, after, nextYear], Start, End, Today).Select(i => (i.Name, i.On)));
+    }
+
+    [Fact]
+    public void An_archived_open_ended_subscription_is_no_successor_after_its_archive_day()
+    {
+        var old = Built("Old", [Phase(new LocalDate(2023, 1, 1), new LocalDate(2024, 5, 1), 6m)], "box");
+        var archived = Built("Archived", [Phase(new LocalDate(2024, 3, 1), null, 7m)], "box").ArchivedAt(new LocalDate(2024, 4, 15));
+
+        // Cut at 15 April, the archived one no longer covers past the old one's end; the old one, still covered then, is its successor.
+        Assert.Equal([("Old", new LocalDate(2024, 5, 1))],
+            ReviewMath.Ended([old, archived], Start, End, Today).Select(i => (i.Name, i.On)));
+    }
 }

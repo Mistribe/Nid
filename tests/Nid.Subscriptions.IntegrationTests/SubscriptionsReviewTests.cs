@@ -109,6 +109,8 @@ public class SubscriptionsReviewTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(6 * 9.99m + 12 * 5m, part.Cost); // the video's July charge falls on its archive day
         Assert.Empty(part.PriceChanges);
         Assert.Equal(["Music", "Video"], part.Started.Select(s => s.Name).Order(StringComparer.Ordinal));
+        // Archived while running: ended on its archive day; the music, archived after the year, had not ended in it.
+        Assert.Equal([("Video", new LocalDate(2024, 7, 1))], part.Ended.Select(e => (e.Name, e.On)));
     }
 
     [Fact]

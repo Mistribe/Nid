@@ -7,7 +7,8 @@ namespace Nid.Subscriptions.Application;
 
 /// <summary>
 /// Issue #12: the yearly review's subscriptions over <c>(start, end]</c>, from the built set. An archived one's timeline already
-/// holds only its charges before its archive day; its other events count before that day too.
+/// ends at its archive day (<see cref="BuiltSubscription.ArchivedAt"/>): charges before it, coverage cut at it, so it expires on it
+/// at the latest; its phase changes count before that day too.
 /// </summary>
 public static class ReviewMath
 {
@@ -21,10 +22,13 @@ public static class ReviewMath
             .Select(b => Item(b, b.Timeline.Charges.Min(c => c.Date)))
             .Where(i => i.On > start && i.On <= end));
 
-    /// <summary>The subscriptions whose coverage ended in the period, by today, without successor (the savings' rule).</summary>
+    /// <summary>
+    /// The subscriptions whose coverage ended in the period, by today, without successor (the savings' rule). An archived one ends
+    /// on the earlier of its expiry and its archive day.
+    /// </summary>
     public static IReadOnlyList<SubscriptionReviewItem> Ended(IReadOnlyList<BuiltSubscription> set, LocalDate start, LocalDate end, LocalDate today)
         => Sorted(set.Select(b => (Sub: b, On: b.Timeline.ExpiresOn()))
-            .Where(x => x.On is { } on && on > start && on <= end && on <= today && BeforeArchive(x.Sub, on) && !SpendingHistory.Replaced(x.Sub, set, on))
+            .Where(x => x.On is { } on && on > start && on <= end && on <= today && !SpendingHistory.Replaced(x.Sub, set, on))
             .Select(x => Item(x.Sub, x.On!.Value)));
 
     /// <summary>Each phase following another at a different price or cycle, the later one starting in the period.</summary>

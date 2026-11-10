@@ -15,13 +15,18 @@ public sealed class SubscriptionsReview(SubscriptionSet set, IHouseholdCalendar 
         var pieces = ReviewMath.Cost(built, start, end);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var rates = await Conversion.LoadAsync(fx, pieces, reference, today, ct);
-        var missing = pieces
-            .Where(p => !rates.TryConvert(p.Amount, p.Currency, reference, p.ChargeDate, p.IsProjected, out _, out _))
-            .Select(p => p.Currency.Code).Distinct().Order(StringComparer.Ordinal).ToList();
+        // One pass, as FxConversion.Convert: no cost as soon as a charge has no rate, its currency named.
+        var total = 0m;
+        var missing = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var p in pieces)
+            if (rates.TryConvert(p.Amount, p.Currency, reference, p.ChargeDate, p.IsProjected, out var converted, out _))
+                total += converted;
+            else
+                missing.Add(p.Currency.Code);
         return Result.Success(new SubscriptionsReviewPart(
-            FxConversion.Convert(pieces, rates, reference).Total?.Amount,
+            missing.Count > 0 ? null : decimal.Round(total, Money.MaxDecimals),
             ReviewMath.Started(built, start, end), ReviewMath.Ended(built, start, end, today), ReviewMath.PriceChanges(built, start, end),
-            missing));
+            missing.ToList()));
     }
 
     public async Task<LocalDate?> FirstChargeAsync(PersonId reader, VisibilityScope scope, CancellationToken ct)
