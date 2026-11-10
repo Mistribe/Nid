@@ -44063,7 +44063,8 @@
           "id",
           "kind",
           "displayName",
-          "retirementAge"
+          "retirementAge",
+          "retirementMonths"
         ],
         "type": "object",
         "properties": {
@@ -44090,6 +44091,10 @@
             ]
           },
           "retirementAge": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "retirementMonths": {
             "type": "integer",
             "format": "int32"
           }
@@ -48854,6 +48859,13 @@
           },
           "retirementAge": {
             "type": "integer",
+            "format": "int32"
+          },
+          "retirementMonths": {
+            "type": [
+              "null",
+              "integer"
+            ],
             "format": "int32"
           }
         }

@@ -20,10 +20,10 @@ namespace Nid.Host.Api;
 
 public static class PersonEndpoints
 {
-    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email, string? BirthDate, int RetirementAge);
+    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email, string? BirthDate, int RetirementAge, int RetirementMonths);
 
     /// <summary>A null <c>birthDate</c> clears it.</summary>
-    public sealed record RetirementBody(string? BirthDate, int RetirementAge);
+    public sealed record RetirementBody(string? BirthDate, int RetirementAge, int? RetirementMonths);
 
     public sealed record CreateDependentBody(string DisplayName);
 
@@ -52,7 +52,7 @@ public static class PersonEndpoints
                 var birthDate = body.BirthDate is null ? null : reader.Date(body.BirthDate, "birthDate");
                 if (!reader.Ok)
                     return reader.Problem();
-                return (await invoker.InvokeAsync(new SetRetirementCommand(new PersonId(id), birthDate, body.RetirementAge), ct)).ToHttp(ToDto);
+                return (await invoker.InvokeAsync(new SetRetirementCommand(new PersonId(id), birthDate, body.RetirementAge, body.RetirementMonths ?? 0), ct)).ToHttp(ToDto);
             })
             .Returns<PersonDto>();
 
@@ -110,7 +110,7 @@ public static class PersonEndpoints
     }
 
     internal static PersonDto ToDto(PersonInfo p) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email,
-        p.BirthDate is { } birth ? LocalDatePattern.Iso.Format(birth) : null, p.RetirementAge);
+        p.BirthDate is { } birth ? LocalDatePattern.Iso.Format(birth) : null, p.RetirementAge, p.RetirementMonths);
 }
 
 /// <summary>

@@ -13,7 +13,7 @@ public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayNam
 public sealed record CreateDependentCommand(string DisplayName) : ICommand<PersonInfo>;
 
 /// <summary>A null birth date clears it. Any adult sets any person's, a dependent's included: the household plans together.</summary>
-public sealed record SetRetirementCommand(PersonId Person, LocalDate? BirthDate, int RetirementAge) : ICommand<PersonInfo>;
+public sealed record SetRetirementCommand(PersonId Person, LocalDate? BirthDate, int RetirementAge, int RetirementMonths = 0) : ICommand<PersonInfo>;
 
 public sealed record ListPersonsQuery : IQuery<IReadOnlyList<PersonInfo>>;
 
@@ -43,11 +43,14 @@ public sealed class SetRetirementHandler(IPersonRegistry persons, IHouseholdCale
         if (command.RetirementAge is < MinAge or > MaxAge)
             return Result.Failure<PersonInfo>(FieldErrors.At(
                 new Failure(PersonCodes.InvalidRetirementAge, $"The retirement age is between {MinAge} and {MaxAge}.", null), "retirementAge"));
+        if (command.RetirementMonths is < 0 or > 11)
+            return Result.Failure<PersonInfo>(FieldErrors.At(
+                new Failure(PersonCodes.InvalidRetirementAge, "The months are between 0 and 11.", null), "retirementMonths"));
         if (command.BirthDate is { } birth && (birth < Earliest || birth > await calendar.TodayAsync(ct)))
             return Result.Failure<PersonInfo>(FieldErrors.At(
                 new Failure(PersonCodes.InvalidBirthDate, "The birth date is between 1900-01-01 and today.", null), "birthDate"));
 
-        return await persons.SetRetirementAsync(command.Person, command.BirthDate, command.RetirementAge, ct);
+        return await persons.SetRetirementAsync(command.Person, command.BirthDate, command.RetirementAge, command.RetirementMonths, ct);
     }
 }
 
