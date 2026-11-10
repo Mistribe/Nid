@@ -161,7 +161,7 @@ public static class RequestCatalogue
             (_, _) => new SetManualFxRateCommand(new NodaTime.LocalDate(2025, 1, 2), "EUR", "0.95")),
         new(typeof(GetFxRatesQuery), false,
             (_, _) => new GetFxRatesQuery("EUR", new NodaTime.LocalDate(2025, 1, 1), new NodaTime.LocalDate(2025, 1, 31))),
-        new(typeof(GetFxSyncRunsQuery), false, (_, _) => new GetFxSyncRunsQuery()),
+        new(typeof(GetFxSyncRunsQuery), false, (_, _) => new GetFxSyncRunsQuery(null)),
         new(typeof(CollectPricesCommand), false, (_, _) => new CollectPricesCommand()),
         new(typeof(RequestPriceSyncCommand), false, (_, _) => new RequestPriceSyncCommand()),
         new(typeof(GetPriceRunsQuery), false, (_, _) => new GetPriceRunsQuery()),

@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Core.Infrastructure.Persistence;
+using NodaTime;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using UnambitiousFx.Functional;
@@ -16,6 +18,7 @@ public class FxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
     public sealed record RateResponse(string OnDate, string Quote, string Rate, string Source);
     public sealed record RunResponse(Guid Id, string Kind, string Status, string? FailureCode);
+    public sealed record RunPageResponse(List<RunResponse> Items, int Total, int Page);
 
     private sealed class OkTrigger : IFxJobTrigger
     {
@@ -70,13 +73,58 @@ public class FxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal((HttpStatusCode.Conflict, FxCodes.SyncRunning), (busy.StatusCode, await CodeOf(busy)));
     }
 
+    /// <summary>51 finished runs a minute apart, the oldest (index 0) first in the table; the last two share a start to pin the tie-break.</summary>
+    private static async Task<List<Guid>> SeedRunsAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+        var start = Instant.FromUtc(2026, 1, 1, 0, 0);
+        var ids = new List<Guid>();
+        for (var i = 0; i < 51; i++)
+        {
+            var id = Guid.CreateVersion7();
+            ids.Add(id);
+            db.FxSyncRuns.Add(new FxSyncRunRow { Id = id, Kind = "daily", StartedAt = start.Plus(NodaTime.Duration.FromMinutes(Math.Min(i, 49))), Status = "succeeded" });
+        }
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return ids;
+    }
+
+    [Fact]
+    public async Task Runs_answer_one_page_and_the_total()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var ids = await SeedRunsAsync(app);
+
+        var first = await app.GetAsync<RunPageResponse>(app.AdultA, $"{Root}/runs");
+        var second = await app.GetAsync<RunPageResponse>(app.AdultA, $"{Root}/runs?page=2");
+
+        Assert.Equal((50, 51, 1), (first.Items.Count, first.Total, first.Page));
+        // The last two seeded runs share a start: the higher id comes first, the oldest run comes last.
+        Assert.Equal(ids.Skip(49).OrderDescending(), first.Items.Take(2).Select(r => r.Id));
+        Assert.Equal((1, 51, 2), (second.Items.Count, second.Total, second.Page));
+        Assert.Equal(ids[0], Assert.Single(second.Items).Id);
+    }
+
+    [Fact]
+    public async Task Runs_page_is_clamped()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedRunsAsync(app);
+
+        Assert.Equal(1, (await app.GetAsync<RunPageResponse>(app.AdultA, $"{Root}/runs?page=0")).Page);
+        Assert.Equal(1, (await app.GetAsync<RunPageResponse>(app.AdultA, $"{Root}/runs?page=-5")).Page);
+        var past = await app.GetAsync<RunPageResponse>(app.AdultA, $"{Root}/runs?page={int.MaxValue}");
+        Assert.Equal((0, 51), (past.Items.Count, past.Total));
+    }
+
     [Fact]
     public async Task Runs_are_listed_newest_first()
     {
         await using var app = await NidApp.StartAsync(fixture);
         await app.InvokeAsync(app.AdultA, new Nid.Core.Application.Fx.BackfillFxRatesCommand(), TestContext.Current.CancellationToken);
 
-        var runs = await app.GetAsync<List<RunResponse>>(app.AdultA, $"{Root}/runs");
+        var runs = (await app.GetAsync<RunPageResponse>(app.AdultA, $"{Root}/runs")).Items;
 
         Assert.Equal(("backfill", "failed", FxCodes.SourceUnavailable), (runs[0].Kind, runs[0].Status, runs[0].FailureCode));
     }

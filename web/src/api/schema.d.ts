@@ -25761,7 +25761,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -25774,7 +25776,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["FxSyncRunView"][];
+                        "application/json": components["schemas"]["FxSyncRunPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -29366,6 +29368,13 @@ export interface components {
         };
         FxSyncRequested: {
             requested: boolean;
+        };
+        FxSyncRunPage: {
+            items: components["schemas"]["FxSyncRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         FxSyncRunView: {
             /** Format: uuid */

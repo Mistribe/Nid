@@ -80,6 +80,13 @@ public sealed partial class FxRunLog(CoreDbContext db, IClock clock) : IFxRunLog
         => (await db.FxSyncRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).Take(count).ToListAsync(ct))
             .Select(ToRun).ToList();
 
+    public async Task<(IReadOnlyList<FxSyncRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)
+    {
+        var rows = await db.FxSyncRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).ThenByDescending(r => r.Id)
+            .Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(ToRun).ToList(), await db.FxSyncRuns.CountAsync(ct));
+    }
+
     public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
     {
         // The latest succeeded backfill stays: the startup check (HasSucceededAsync) would otherwise re-run it.

@@ -22,7 +22,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(List<PersonEndpoints.PersonDto>))]
 [JsonSerializable(typeof(IReadOnlyList<AdultView>))]
 [JsonSerializable(typeof(IReadOnlyList<FxRateView>))]
-[JsonSerializable(typeof(IReadOnlyList<FxSyncRunView>))]
+[JsonSerializable(typeof(FxSyncRunPage))]
 [JsonSerializable(typeof(IReadOnlyList<TokenView>))]
 [JsonSerializable(typeof(AdultView))]
 [JsonSerializable(typeof(ItemDeletionPreview))] // #23: every module's delete preview

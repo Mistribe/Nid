@@ -14,9 +14,11 @@ const run = {
   finishedAt: '2026-09-24T07:02:00+00:00', status: 'succeeded', filesRead: 2, rowsWritten: 1200, failureCode: null, rejected: [],
 };
 
+const empty = { items: [], total: 0, page: 1 };
+
 describe('Administration › Taux de change', () => {
   it('lists the collection runs', async () => {
-    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([run])));
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json({ items: [run], total: 1, page: 1 })));
     const { container, user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
     await user.click(await screen.findByRole('tab', { name: 'Journal' }));
@@ -27,10 +29,25 @@ describe('Administration › Taux de change', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('pages the log', async () => {
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/core/fx-rates/runs', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json({ items: [run], total: 51, page: 1 });
+    }));
+    const { user, router } = await renderApp('/admin/fx?tab=journal', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'journal', page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
+  });
+
   it('asks for a collection, and says when one is already running', async () => {
     let calls = 0;
     server.use(
-      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])),
+      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)),
       http.post('*/api/v1/core/fx-rates/sync', () => {
         calls += 1;
         return calls === 1
@@ -53,7 +70,7 @@ describe('Administration › Taux de change', () => {
   it('enters a manual rate', async () => {
     const sent: Array<{ path: string; body: unknown }> = [];
     server.use(
-      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])),
+      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)),
       http.put('*/api/v1/core/fx-rates/:date/:quote', async ({ request, params }) => {
         sent.push({ path: `${String(params.date)}/${String(params.quote)}`, body: await request.json() });
         return HttpResponse.json({ onDate: params.date, quote: params.quote, rate: '0.8612', source: 'manual' });
@@ -74,7 +91,7 @@ describe('Administration › Taux de change', () => {
   it('sends nothing, and says why, when the date, the currency or the rate is missing', async () => {
     let calls = 0;
     server.use(
-      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])),
+      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)),
       http.put('*/api/v1/core/fx-rates/:date/:quote', () => { calls += 1; return HttpResponse.json({}); }),
     );
     const { user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
@@ -102,7 +119,7 @@ describe('Administration › Taux de change', () => {
 
   it('draws EUR by default over the last year', async () => {
     const asked: URLSearchParams[] = [];
-    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)), points(asked));
     await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
     await waitFor(() => expect(asked.length).toBeGreaterThan(0));
@@ -112,7 +129,7 @@ describe('Administration › Taux de change', () => {
 
   it('draws the currency asked', async () => {
     const asked: URLSearchParams[] = [];
-    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)), points(asked));
     const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
     const quote = await screen.findByLabelText('Devise');
@@ -125,7 +142,7 @@ describe('Administration › Taux de change', () => {
 
   it('drops the default currency from the URL', async () => {
     const asked: URLSearchParams[] = [];
-    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)), points(asked));
     const { user, router } = await renderApp('/admin/fx?quote=CHF', { capabilities: adminCapabilities });
 
     const field = await screen.findByLabelText('Devise');
@@ -137,7 +154,7 @@ describe('Administration › Taux de change', () => {
   });
 
   it('refuses an invalid code', async () => {
-    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)));
     const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
     const field = await screen.findByLabelText('Devise');
@@ -155,7 +172,7 @@ describe('Administration › Taux de change', () => {
 
   it('keeps the currency across tabs', async () => {
     const asked: URLSearchParams[] = [];
-    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json(empty)), points(asked));
     const { user } = await renderApp('/admin/fx?quote=CHF', { capabilities: adminCapabilities });
 
     await user.click(await screen.findByRole('tab', { name: 'Journal' }));

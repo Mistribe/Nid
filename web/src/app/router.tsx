@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { RootSearch } from '@/lib/search';
+import { pageOf, type RootSearch } from '@/lib/search';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import type { LoanContractView } from '@/api/loans';
@@ -85,12 +85,18 @@ const isIsoDate = (value: unknown): value is string => typeof value === 'string'
 export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
   ((typeof search.tab === 'string' && search.tab !== '') || typeof search.tab === 'number' ? { tab: String(search.tab) } : {});
 
-export { pageOf } from '@/lib/search';
+export { pageOf };
+
+/** A list's `page`, kept in the URL from page 2. */
+const pageSearch = (search: Record<string, unknown>): { page?: number } => {
+  const page = pageOf(search);
+  return page ? { page } : {};
+};
 
 /** Administration › Taux de change: the tab, and the currency drawn (EUR is the default, USD the base: neither is a choice). */
-const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: string } => {
+const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: string; page?: number } => {
   const quote = typeof search.quote === 'string' ? search.quote.toUpperCase() : '';
-  return { ...detailSearch(search), ...(CURRENCY.test(quote) && quote !== 'USD' && quote !== 'EUR' ? { quote } : {}) };
+  return { ...detailSearch(search), ...pageSearch(search), ...(CURRENCY.test(quote) && quote !== 'USD' && quote !== 'EUR' ? { quote } : {}) };
 };
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */

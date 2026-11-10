@@ -32,9 +32,9 @@ public static class FxEndpoints
                 => (await invoker.InvokeAsync(new RequestFxSyncCommand(), ct)).ToHttp(r => r, StatusCodes.Status202Accepted))
             .Returns<FxSyncRequested>(StatusCodes.Status202Accepted);
 
-        api.MapGet("/runs", async (IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetFxSyncRunsQuery(), ct)).ToHttp(r => r))
-            .Returns<IReadOnlyList<FxSyncRunView>>();
+        api.MapGet("/runs", async (int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetFxSyncRunsQuery(page), ct)).ToHttp(r => r))
+            .Returns<FxSyncRunPage>();
 
         return routes;
     }

@@ -104,7 +104,7 @@ public class FxRequestTests(PostgresFixture fixture, SharedNidApp shared) : ICla
 
         Assert.Null(failure);
         Assert.Equal(("failed", FxCodes.SourceUnavailable), (((FxSyncRunView)run!).Status, ((FxSyncRunView)run).FailureCode));
-        var (runs, _) = await app.InvokeAsync(app.AdultA, new GetFxSyncRunsQuery(), TestContext.Current.CancellationToken);
-        Assert.Single((IReadOnlyList<FxSyncRunView>)runs!);
+        var (runs, _) = await app.InvokeAsync(app.AdultA, new GetFxSyncRunsQuery(null), TestContext.Current.CancellationToken);
+        Assert.Single(((FxSyncRunPage)runs!).Items);
     }
 }
