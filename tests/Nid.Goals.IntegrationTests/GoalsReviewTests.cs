@@ -198,7 +198,7 @@ public class GoalsReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         await app.NewMonthlyAsync(app.AdultA, 50m);
-        await UsdLoanAsync(app); // left out of the target, as the goal page; the target stays, so no rate is named
+        await UsdLoanAsync(app); // left out of the target, as the goal page, and named
         var goal = await EmergencyFundAsync(app);
         await EntryAsync(app, goal, "2025-05-01", "150");
 
@@ -206,7 +206,7 @@ public class GoalsReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var row = Assert.Single(part.Goals);
         Assert.Equal(("emergency_fund", 300m, 50m), (row.Kind, row.Target, row.EndProgressPct));
-        Assert.Empty(part.MissingCurrencies);
+        Assert.Equal(["USD"], part.MissingCurrencies);
     }
 
     [Fact]

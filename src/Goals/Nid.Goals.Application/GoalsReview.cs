@@ -98,8 +98,8 @@ public sealed class GoalsReview(
         {
             // As the goal page: no target to measure against shows none.
             var target = GoalReader.TargetOf(goal, sources) is { } t and > 0 ? t : (decimal?)null;
-            // A commitment without a rate is named only when it leaves the emergency fund without a target (every source missed).
-            if (target is null && goal.Kind == GoalKinds.EmergencyFund)
+            // P4-R8: a commitment without a rate leaves the emergency fund's target understated (null when every source missed), as the page flags it.
+            if (goal.Kind == GoalKinds.EmergencyFund)
                 missing.UnionWith(sources.Select(s => s.View.MissingCurrency).OfType<string>());
             var startReached = started ? Reached(goal, start) : null;
             var endReached = Reached(goal, last);

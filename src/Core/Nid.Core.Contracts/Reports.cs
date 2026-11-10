@@ -130,7 +130,7 @@ public interface IGoalsReview
 
 /// <summary>
 /// Issue #12: the period's goals; a reached amount is null when an envelope's value could not be converted, an emergency fund's target
-/// when none of its commitments could (<c>MissingCurrencies</c>).
+/// understated when one of its commitments could not, null when none could (<c>MissingCurrencies</c>).
 /// </summary>
 public sealed record GoalsReviewPart(IReadOnlyList<GoalReviewRow> Goals, IReadOnlyList<string> MissingCurrencies);
 
