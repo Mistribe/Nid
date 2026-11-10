@@ -79,8 +79,7 @@ public sealed class ProjectionFactsReader(
 
         var span = await MonthsAsync(horizon, today, ct);
         if (span.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
-        span.TryGetValue(out var horizonSpan);
-        var months = horizonSpan.Months;
+        span.TryGetValue(out var months);
         var thisMonth = today.ToYearMonth();
         var horizonOn = thisMonth.PlusMonths(months).ToDateInterval().End;
 
@@ -146,8 +145,10 @@ public sealed class ProjectionFactsReader(
             .Concat(property.PropertiesFree.Select(p => new ProjectionMilestone(p.On, "property_free", p.Name, p.Property)))
             .ToList();
         // Retirement spec §1: every adult's departure is a milestone (the engine keeps those inside the grid).
-        milestones.AddRange(people.Where(p => p.Kind == PersonKind.Adult && Departures.MonthOf(p) is not null)
-            .Select(p => new ProjectionMilestone(Departures.MonthOf(p)!.Value.ToDateInterval().End, "retirement", p.DisplayName, null)));
+        milestones.AddRange(people.Where(p => p.Kind == PersonKind.Adult)
+            .Select(p => (Person: p, Month: Departures.MonthOf(p)))
+            .Where(d => d.Month is not null)
+            .Select(d => new ProjectionMilestone(d.Month!.Value.ToDateInterval().End, "retirement", d.Person.DisplayName, null)));
 
         // Spec §2.3: the retirements offered as a horizon are the adults' the route accepts.
         var retirements = people
@@ -170,7 +171,7 @@ public sealed class ProjectionFactsReader(
     }
 
     /// <summary>
-    /// Spec §2.2 and §2.3: the months from this one to the person's retirement, the month of their <c>RetirementAge</c>th birthday;
+    /// Spec §2.2 and §2.3: the months from this one to the person's departure month (<see cref="Departures.MonthOf"/>);
     /// <c>null</c> without a birth date, or when it has no month ahead or lies past 40 years.
     /// </summary>
     private static int? RetirementMonths(PersonInfo person, LocalDate today)
@@ -184,15 +185,15 @@ public sealed class ProjectionFactsReader(
     /// Spec §2.2 and §2.3: the months from this one to the horizon's; a retirement is refused when <see cref="RetirementMonths"/>
     /// has none.
     /// </summary>
-    internal async Task<Result<(int Months, PersonInfo? Retiring)>> MonthsAsync(ProjectionHorizon horizon, LocalDate today, CancellationToken ct)
+    internal async Task<Result<int>> MonthsAsync(ProjectionHorizon horizon, LocalDate today, CancellationToken ct)
     {
-        if (horizon.RetireOf is not { } id) return Result.Success<(int, PersonInfo?)>((horizon.Years!.Value * 12, null));
+        if (horizon.RetireOf is not { } id) return Result.Success(horizon.Years!.Value * 12);
         var person = await persons.FindAsync(id, ct);
         if (person?.BirthDate is null)
-            return Result.Failure<(int, PersonInfo?)>(new Failure(ProjectionCodes.NoBirthDate, "This person has no birth date.", null));
+            return Result.Failure<int>(new Failure(ProjectionCodes.NoBirthDate, "This person has no birth date.", null));
         return RetirementMonths(person, today) is { } months
-            ? Result.Success<(int, PersonInfo?)>((months, person))
-            : Result.Failure<(int, PersonInfo?)>(new Failure(ProjectionCodes.InvalidHorizon,
+            ? Result.Success(months)
+            : Result.Failure<int>(new Failure(ProjectionCodes.InvalidHorizon,
                 "This retirement is past or more than 40 years away.", null));
     }
 }
