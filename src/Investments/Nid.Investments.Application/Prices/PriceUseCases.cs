@@ -62,9 +62,8 @@ public sealed class GetPriceRunsHandler(IPriceRunLog runs) : IRequestHandler<Get
 {
     public async ValueTask<Result<PriceRunPage>> HandleAsync(GetPriceRunsQuery query, CancellationToken ct = default)
     {
-        // The upper bound keeps skip inside an int for any page the caller sends.
-        var page = Math.Clamp(query.Page ?? 1, 1, int.MaxValue / PriceRunPage.PageSize);
-        var (items, total) = await runs.PageAsync((page - 1) * PriceRunPage.PageSize, PriceRunPage.PageSize, ct);
+        var (page, skip) = ListPage.Of(query.Page, PriceRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, PriceRunPage.PageSize, ct);
         return Result.Success(new PriceRunPage(items.Select(PriceRunView.From).ToList(), total, page));
     }
 }

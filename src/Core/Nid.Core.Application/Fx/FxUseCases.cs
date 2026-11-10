@@ -100,9 +100,8 @@ public sealed class GetFxSyncRunsHandler(IFxRunLog runs) : IRequestHandler<GetFx
 {
     public async ValueTask<Result<FxSyncRunPage>> HandleAsync(GetFxSyncRunsQuery query, CancellationToken ct = default)
     {
-        // The upper bound keeps skip inside an int for any page the caller sends.
-        var page = Math.Clamp(query.Page ?? 1, 1, int.MaxValue / FxSyncRunPage.PageSize);
-        var (items, total) = await runs.PageAsync((page - 1) * FxSyncRunPage.PageSize, FxSyncRunPage.PageSize, ct);
+        var (page, skip) = ListPage.Of(query.Page, FxSyncRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, FxSyncRunPage.PageSize, ct);
         return Result.Success(new FxSyncRunPage(items.Select(FxSyncRunView.From).ToList(), total, page));
     }
 }

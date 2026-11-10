@@ -88,9 +88,8 @@ public sealed class GetBankSyncRunsHandler(IBankSyncRunLog runs) : IRequestHandl
 {
     public async ValueTask<Result<BankSyncRunPage>> HandleAsync(GetBankSyncRunsQuery query, CancellationToken ct = default)
     {
-        // The upper bound keeps skip inside an int for any page the caller sends.
-        var page = Math.Clamp(query.Page ?? 1, 1, int.MaxValue / BankSyncRunPage.PageSize);
-        var (items, total) = await runs.PageAsync((page - 1) * BankSyncRunPage.PageSize, BankSyncRunPage.PageSize, ct);
+        var (page, skip) = ListPage.Of(query.Page, BankSyncRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, BankSyncRunPage.PageSize, ct);
         return Result.Success(new BankSyncRunPage(items, total, page));
     }
 }
