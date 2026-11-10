@@ -129,12 +129,12 @@ describe('Administration › Utilisateurs', () => {
     expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
   });
 
-  it('an admin finds the admin entry in the navigation', async () => {
+  it('an admin finds the users page in the sidebar', async () => {
     serve([alice]);
-    const { user } = await renderApp('/subscriptions', { capabilities: adminCapabilities });
+    await renderApp('/subscriptions', { capabilities: adminCapabilities });
 
-    await user.click(await openerReady());
-    expect(await screen.findByRole('menuitem', { name: 'Administration' })).toBeInTheDocument();
+    const sidebar = screen.getByRole('navigation', { name: 'Navigation principale' });
+    expect(within(sidebar).getByRole('link', { name: 'Utilisateurs' })).toHaveAttribute('href', '/admin/users');
   });
 
   it('warns the admin distinctly before it signs itself out everywhere', async () => {
