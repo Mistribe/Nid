@@ -19,7 +19,10 @@ export function AdminSeries({ seriesKey, from }: { seriesKey: string; from?: str
   const [asTable, setAsTable] = useState(false);
   const points = $api.useQuery('get', SERIES_POINTS, { params: { query: { s: seriesKey, from } } }, { placeholderData: keepPreviousData });
 
-  if (points.error) return <ProblemMessage problem={present(toProblem(points.error))} />;
+  const problem = points.error ? toProblem(points.error) : null;
+  // A quote with no stored rate is unknown to the server: nothing to draw, not a failure.
+  if (problem?.code === 'core.series_not_found') return <p className="text-sm text-muted-foreground">{t('series.empty')}</p>;
+  if (problem) return <ProblemMessage problem={present(problem)} />;
   if (!points.data) return <Loading label={t('admin.loading')}><Skeleton className="h-72 w-full" /></Loading>;
   return (
     <SeriesView answer={points.data} mode={defaultMode(points.data.series.map((s) => s.unit))} asTable={asTable}

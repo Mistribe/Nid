@@ -88,7 +88,7 @@ export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
 /** Administration › Taux de change: the tab, and the currency drawn (EUR is the default, USD the base: neither is a choice). */
 const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: string } => {
   const quote = typeof search.quote === 'string' ? search.quote.toUpperCase() : '';
-  return { ...detailSearch(search), ...(CURRENCY.test(quote) && quote !== 'USD' ? { quote } : {}) };
+  return { ...detailSearch(search), ...(CURRENCY.test(quote) && quote !== 'USD' && quote !== 'EUR' ? { quote } : {}) };
 };
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */

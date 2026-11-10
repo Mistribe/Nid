@@ -52,6 +52,13 @@ describe('AdminSeries', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue. Réessayez dans un instant.');
   });
 
+  it('says there is no data for a quote with no stored rate', async () => {
+    serve({ status: 404, code: 'core.series_not_found', key: 'fx:EUR', title: 'Not found' }, 404);
+    renderSeries({ seriesKey: 'fx:EUR' });
+    expect(await screen.findByText('Aucune donnée sur cette période')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('asks the window it is given', async () => {
     const asked: URLSearchParams[] = [];
     serve(irl([]), 200, asked);
