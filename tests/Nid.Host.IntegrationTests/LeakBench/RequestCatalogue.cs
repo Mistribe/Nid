@@ -7,6 +7,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application;
 using Nid.Core.Application.Admin;
+using Nid.Core.Application.Calendar;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Projection;
@@ -199,6 +200,11 @@ public static class RequestCatalogue
         new(typeof(SetItemSharingCommand), true, (d, item) => new SetItemSharingCommand(item, d.ShareLevelOf(item))),
         new(typeof(CreateTokenCommand), false, (_, _) => new CreateTokenCommand("bench-token", TokenPresets.Read, 30)),
         new(typeof(RevokeMyTokenCommand), false, (_, _) => new RevokeMyTokenCommand(Guid.NewGuid())),
+        // #80: the calendar feed; its read is the dashboard's « À venir », in the feed's scope.
+        new(typeof(GetMyCalendarQuery), false, (_, _) => new GetMyCalendarQuery()),
+        new(typeof(CreateCalendarFeedCommand), false, (_, _) => new CreateCalendarFeedCommand("me", false)),
+        new(typeof(UpdateCalendarFeedCommand), false, (_, _) => new UpdateCalendarFeedCommand("me", true)),
+        new(typeof(GetCalendarFeedQuery), false, (_, _) => new GetCalendarFeedQuery(new CalendarFeedOptions(VisibilityScope.Me, true))),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
         new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),

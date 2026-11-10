@@ -841,7 +841,7 @@
       "never_used": "Jamais",
       "status_label": "État",
       "status": { "active": "Actif", "expired": "Expiré", "revoked": "Révoqué" },
-      "preset": { "read": "Lecture seule", "propose": "Lecture + propositions", "direct": "Écriture directe" },
+      "preset": { "read": "Lecture seule", "propose": "Lecture + propositions", "direct": "Écriture directe", "calendar": "Abonnement de calendrier" },
       "preset_hint": {
         "read": "L’assistant consulte vos données, sans rien modifier.",
         "propose": "L’assistant consulte et propose des saisies, que vous validez.",

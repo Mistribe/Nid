@@ -13,21 +13,32 @@ public static partial class TokenFormat
     private const string Lead = "nid_pat_";
     private const string PrefixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-    public static (string Token, string Prefix, string Hash) Generate()
+    /// <summary>Issue #80: a calendar feed's secret, <c>nid_cal_&lt;prefix&gt;_&lt;secret&gt;</c>, sits in a URL; bearer authentication never reads it.</summary>
+    private const string CalendarLead = "nid_cal_";
+
+    public static (string Token, string Prefix, string Hash) Generate() => Generate(Lead);
+
+    public static (string Token, string Prefix, string Hash) GenerateCalendar() => Generate(CalendarLead);
+
+    private static (string Token, string Prefix, string Hash) Generate(string lead)
     {
         var prefix = RandomNumberGenerator.GetString(PrefixAlphabet, 8);
         var secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-        var token = $"{Lead}{prefix}_{secret}";
+        var token = $"{lead}{prefix}_{secret}";
         return (token, prefix, Hash(token));
     }
 
     /// <summary>Exact shape only: no trimming, so a token never matches loosely.</summary>
-    public static bool TryReadPrefix(string? token, out string prefix)
+    public static bool TryReadPrefix(string? token, out string prefix) => TryRead(token, Lead, Shape(), out prefix);
+
+    public static bool TryReadCalendarPrefix(string? token, out string prefix) => TryRead(token, CalendarLead, CalendarShape(), out prefix);
+
+    private static bool TryRead(string? token, string lead, Regex shape, out string prefix)
     {
         prefix = "";
-        if (token is null || !Shape().IsMatch(token))
+        if (token is null || !shape.IsMatch(token))
             return false;
-        prefix = token.Substring(Lead.Length, 8);
+        prefix = token.Substring(lead.Length, 8);
         return true;
     }
 
@@ -38,4 +49,7 @@ public static partial class TokenFormat
 
     [GeneratedRegex("^nid_pat_[a-z0-9]{8}_[A-Za-z0-9_-]{43}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex Shape();
+
+    [GeneratedRegex("^nid_cal_[a-z0-9]{8}_[A-Za-z0-9_-]{43}\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex CalendarShape();
 }
