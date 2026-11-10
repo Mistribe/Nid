@@ -100,7 +100,7 @@ export function InflationPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'series', label: t('admin.tab_series'), content: (
           <>
-            <AdminSeries seriesKey="cpi" />
+          <AdminSeries seriesKey="cpi" />
           <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
             {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
             {inflation.data && inflation.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}

@@ -97,7 +97,7 @@ export function IrlPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'series', label: t('admin.tab_series'), content: (
           <>
-            <AdminSeries seriesKey="irl" />
+          <AdminSeries seriesKey="irl" />
           <Section title={t('admin.irl.values_title')} actions={<SeriesLink keys={['irl']} />}>
             {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
             {irl.data && irl.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_values')} body="" level={3} /> : null}

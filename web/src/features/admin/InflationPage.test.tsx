@@ -44,7 +44,7 @@ describe('Administration › Inflation', () => {
 
     expect(await screen.findByRole('tab', { name: 'Série', selected: true })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Afficher en tableau' })).toBeInTheDocument();
-    expect(await screen.findByRole('row', { name: /^(2026-T2|septembre 2026)/ })).toBeInTheDocument();
+    expect(await screen.findByRole('row', { name: /^septembre 2026/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voir la série' })).toBeInTheDocument();
   });
 

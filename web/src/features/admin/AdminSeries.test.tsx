@@ -49,7 +49,7 @@ describe('AdminSeries', () => {
   it('shows the problem when the points fail', async () => {
     serve({ status: 500, code: 'server.error', title: 'Boom' }, 500);
     renderSeries({ seriesKey: 'irl' });
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue. Réessayez dans un instant.');
   });
 
   it('asks the window it is given', async () => {
