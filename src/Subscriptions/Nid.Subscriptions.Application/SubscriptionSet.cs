@@ -8,16 +8,22 @@ using NodaTime;
 namespace Nid.Subscriptions.Application;
 
 public sealed record BuiltSubscription(
-    SubscriptionInput Input, Timeline Timeline, string DisplayName, IReadOnlyList<ItemOwnerView> Owners, ProviderSummaryView? Provider);
+    SubscriptionInput Input, Timeline Timeline, string DisplayName, IReadOnlyList<ItemOwnerView> Owners, ProviderSummaryView? Provider)
+{
+    /// <summary>Issue #12: the household day it was archived on; its timeline then holds only the charges before that day.</summary>
+    public LocalDate? ArchivedOn { get; init; }
+}
 
 /// <summary>The reader's visible subscriptions with their timeline, name, owners and provider, loaded in a fixed number of queries.</summary>
-public sealed class SubscriptionSet(IVisibleItems visible, ISubscriptionStore store, IItemRegistry items, IProviderStore providers)
+public sealed class SubscriptionSet(IVisibleItems visible, ISubscriptionStore store, IItemRegistry items, IProviderStore providers, IHouseholdCalendar calendar)
 {
+    /// <param name="includeArchived">Issue #12: archived ones too, each for its charges strictly before its archive day.</param>
     public async Task<IReadOnlyList<BuiltSubscription>> LoadAsync(
-        PersonId reader, VisibilityScope scope, LocalDate today, LocalDate horizon, CancellationToken ct)
+        PersonId reader, VisibilityScope scope, LocalDate today, LocalDate horizon, CancellationToken ct, bool includeArchived = false)
     {
-        var inputs = await store.LoadManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
+        var inputs = await store.LoadManyAsync((await visible.ForAsync(reader, scope, includeArchived, ct)).ToList(), ct);
         var names = await items.FindManyAsync(inputs.Select(i => i.Subscription.Id).ToList(), ct); // batched reads spec §3
+        var zone = includeArchived ? await calendar.ZoneAsync(ct) : null;
 
         var built = new List<(SubscriptionInput Input, Timeline Timeline)>(inputs.Count);
         foreach (var input in inputs)
@@ -31,7 +37,10 @@ public sealed class SubscriptionSet(IVisibleItems visible, ISubscriptionStore st
         {
             var id = b.Input.Subscription.Id;
             var item = names.GetValueOrDefault(id);
-            return new BuiltSubscription(b.Input, b.Timeline, item?.DisplayName ?? "", item?.OwnerViews() ?? [], providerViews.GetValueOrDefault(id));
+            LocalDate? archivedOn = item?.ArchivedAt is { } at && zone is not null ? at.InZone(zone).Date : null;
+            var timeline = archivedOn is { } day ? b.Timeline with { Charges = b.Timeline.Charges.Where(c => c.Date < day).ToList() } : b.Timeline;
+            return new BuiltSubscription(b.Input, timeline, item?.DisplayName ?? "", item?.OwnerViews() ?? [], providerViews.GetValueOrDefault(id))
+                { ArchivedOn = archivedOn };
         }).ToList();
     }
 }

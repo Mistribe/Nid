@@ -192,6 +192,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
+        services.AddScoped<ISubscriptionsReview, Nid.Subscriptions.Application.SubscriptionsReview>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsOverviewReader>();

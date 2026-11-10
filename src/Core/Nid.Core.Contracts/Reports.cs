@@ -48,3 +48,27 @@ public sealed record IncomeReviewPart(decimal? Total, IReadOnlyList<IncomeReview
 /// (no id, name nor kind); <c>Kind</c> is the source kind's wire value, <c>rent</c> for a rent.
 /// </summary>
 public sealed record IncomeReviewSource(ItemId? Id, string Key, string? Name, string? Kind, decimal? Amount);
+
+public interface ISubscriptionsReview
+{
+    /// <summary>
+    /// Issue #12: the subscriptions of (start, end], every visible one archived included for its charges before its archive day.
+    /// The cost converts each charge at the rate of its date, as <c>GET /subscriptions?from=&amp;to=</c> does.
+    /// </summary>
+    Task<Result<SubscriptionsReviewPart>> ReviewAsync(PersonId reader, VisibilityScope scope, LocalDate start, LocalDate end, CancellationToken ct);
+
+    /// <summary>Issue #12: the earliest charge made by today of the visible subscriptions, archived ones included; null without any.</summary>
+    Task<LocalDate?> FirstChargeAsync(PersonId reader, VisibilityScope scope, CancellationToken ct);
+}
+
+/// <summary>Issue #12: the period's subscriptions; <c>Cost</c> is null when a charge could not be converted (<c>MissingCurrencies</c>).</summary>
+public sealed record SubscriptionsReviewPart(
+    decimal? Cost, IReadOnlyList<SubscriptionReviewItem> Started, IReadOnlyList<SubscriptionReviewItem> Ended,
+    IReadOnlyList<SubscriptionPriceChange> PriceChanges, IReadOnlyList<string> MissingCurrencies);
+
+/// <summary>Issue #12: a subscription that started (its first charge) or ended (its last day covered, without successor) on <c>On</c>.</summary>
+public sealed record SubscriptionReviewItem(ItemId Id, string Name, string? Provider, LocalDate On);
+
+/// <summary>Issue #12: a phase following another at a different price or cycle; <c>PromoEnded</c>: the earlier one had a cycle limit.</summary>
+public sealed record SubscriptionPriceChange(ItemId Id, string Name, LocalDate On, decimal BeforeAmount, string BeforeCurrency, Duration BeforeEvery,
+    decimal AfterAmount, string AfterCurrency, Duration AfterEvery, bool PromoEnded);
