@@ -8,6 +8,7 @@ using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
 
@@ -147,15 +148,4 @@ internal static class PropertiesValuationMath
     private static decimal? Pct(decimal? part, decimal? total)
         => part is { } p && total is { } t && t > 0m ? Math.Round(p / t * 100m, 1, MidpointRounding.AwayFromZero) : null;
 
-    /// <summary>Null with nothing to sum, or when one amount is unknown.</summary>
-    private static decimal? SumOrNull(IEnumerable<decimal?> amounts)
-    {
-        decimal? total = null;
-        foreach (var a in amounts)
-        {
-            if (a is not { } value) return null;
-            total = (total ?? 0m) + value;
-        }
-        return total;
-    }
 }

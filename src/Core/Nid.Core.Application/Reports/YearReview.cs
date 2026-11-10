@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
@@ -12,57 +13,6 @@ namespace Nid.Core.Application.Reports;
 
 /// <summary>Issue #12: the review of a year, the current one when <c>Year</c> is null.</summary>
 public sealed record GetYearReviewQuery(int? Year, VisibilityScope Scope) : IQuery<YearReviewView>;
-
-/// <summary>
-/// Issue #12: a part of the net worth's change, under the key <see cref="MonthChanges.NetWorthParts"/> gives it. <c>Low</c> and
-/// <c>High</c> are its bar: the running total from the start before and after it, in the order of the list.
-/// </summary>
-public sealed record ReviewPartView(string Key, DashboardMoneyView Amount, DashboardMoneyView Low, DashboardMoneyView High);
-
-/// <summary>Issue #12: the net worth on <c>Start</c> and <c>End</c>, its change in parts, and the previous period's (null without one).</summary>
-public sealed record NetWorthReviewView(
-    DashboardMoneyView Start, DashboardMoneyView End, DashboardMoneyView Change, IReadOnlyList<ReviewPartView> Parts,
-    DashboardMoneyView? PreviousChange, IReadOnlyList<ReviewPartView> PreviousParts);
-
-/// <summary>Issue #12: one envelope of the year, in the household currency; <c>NoStartValue</c>: its start counted at the amount paid in.</summary>
-public sealed record InvestmentsReviewRowView(
-    ItemId Id, string Name, string Kind, DashboardMoneyView? StartValue, DashboardMoneyView? EndValue, DashboardMoneyView? NetContributions,
-    DashboardMoneyView? Gain, decimal? PeriodReturnPct, bool StaleStart, bool NoStartValue);
-
-/// <summary>Issue #12: the investments of the year as the Performance page counts them, and the previous period's gain and return.</summary>
-public sealed record InvestmentsReviewView(
-    DashboardMoneyView? StartValue, DashboardMoneyView? EndValue, DashboardMoneyView? Contributions, DashboardMoneyView? Withdrawals,
-    DashboardMoneyView? Gain, decimal? PeriodReturnPct, DashboardMoneyView? PreviousGain, decimal? PreviousPeriodReturnPct,
-    IReadOnlyList<InvestmentsReviewRowView> Envelopes, IReadOnlyList<string> Findings);
-
-/// <summary>
-/// Issue #12: the year from <c>Start</c> (31 December before it) to <c>End</c> (its 31 December, or today when <c>ToDate</c>);
-/// <c>Years</c> are those the household can review. A section is null when it has nothing to show. <c>Findings</c> are the codes of
-/// what the net worth could not convert (a missing rate, in this period or the previous one): the reason its section, or its previous
-/// change, is absent.
-/// </summary>
-public sealed record YearReviewView(
-    int Year, LocalDate Start, LocalDate End, bool ToDate, IReadOnlyList<int> Years,
-    NetWorthReviewView? NetWorth, InvestmentsReviewView? Investments, IncomeReviewView? Income, IReadOnlyList<string> Findings) : IExposesItems
-{
-    public IEnumerable<ItemId> ExposedItems()
-        => (Investments?.Envelopes.Select(e => e.Id) ?? []).Concat(Income?.Sources.Where(s => s.Id is not null).Select(s => s.Id!.Value) ?? []);
-}
-
-/// <summary>
-/// Issue #12: the year's income as the income page counts it, its engagements (each month's cash due, and the tax estimate's months) and
-/// the margin between them, beside the previous period's (null without one). An amount is null when a rate is missing.
-/// </summary>
-public sealed record IncomeReviewView(
-    DashboardMoneyView? Income, IReadOnlyList<IncomeSourceView> Sources,
-    DashboardMoneyView? Engagements, IReadOnlyList<EngagementSourceView> EngagementSources,
-    DashboardMoneyView? Margin, DashboardMoneyView? PreviousIncome, DashboardMoneyView? PreviousEngagements, DashboardMoneyView? PreviousMargin);
-
-/// <summary>Issue #12: one source of the year's income; <c>Key</c> is its item id, or <c>one_off</c> for the one-offs together.</summary>
-public sealed record IncomeSourceView(ItemId? Id, string Key, string? Name, string? Kind, DashboardMoneyView? Amount);
-
-/// <summary>Issue #12: one source of the year's engagements, one of <see cref="CommitmentSources"/>; <c>Estimated</c>: not yet known.</summary>
-public sealed record EngagementSourceView(string Source, DashboardMoneyView? Amount, bool Estimated);
 
 /// <summary>Issue #12: the engagements of a period in the household currency; <c>Missing</c> names a currency without a rate.</summary>
 public sealed record EngagementsSum(decimal? Total, IReadOnlyList<(string Source, decimal? Amount, bool Estimated)> Sources, string? Missing);
@@ -135,6 +85,7 @@ public static class YearReviewMath
             return sum.Missing is null ? sum.Total ?? 0m : null;
         }
 
+        // The current month counts its whole cash due; the subscriptions section stops at today.
         var sources = months.SelectMany(m => m.Parts.Select(p => (m.On, Part: p))).GroupBy(x => x.Part.Source)
             .Where(g => g.Any(x => x.Part.Estimated || x.Part.Cash.Values.Any(v => v != 0m)))
             .Select(g => (Source: g.Key, Amount: g.Aggregate((decimal?)0m, (total, x) => Convert(x.Part.Cash, x.On) is { } a ? total + a : null),
@@ -169,23 +120,65 @@ public static class YearReviewMath
     }
 
     /// <summary>
-    /// From the first year whose 31 December (today for the current year) has a holding, or the year of the first income due when earlier,
-    /// up to today's, at most <see cref="MaxYears"/> back; today's year alone without either.
+    /// From the first year whose 31 December (today for the current year) has a holding, or the year of the first income due or charge
+    /// (<paramref name="firstFlow"/>) when earlier, up to today's, at most <see cref="MaxYears"/> back; today's year alone without either.
     /// </summary>
     public static IReadOnlyList<int> Years(
-        IReadOnlyList<LocalDate> dates, IReadOnlyList<IReadOnlyList<NetWorthPoint>> points, int currentYear, LocalDate? firstDue = null)
+        IReadOnlyList<LocalDate> dates, IReadOnlyList<IReadOnlyList<NetWorthPoint>> points, int currentYear, LocalDate? firstFlow = null)
     {
         var first = dates.Where((_, i) => points.Any(p => p[i].Envelopes > 0)).Select(d => d.Year).DefaultIfEmpty(currentYear).First();
-        if (firstDue is { } due) first = Math.Max(currentYear - MaxYears, Math.Min(first, due.Year));
+        if (firstFlow is { } flow) first = Math.Max(currentYear - MaxYears, Math.Min(first, flow.Year));
         return Enumerable.Range(first, currentYear - first + 1).ToList();
     }
+
+    /// <summary>The subscriptions section: null when the year had no charge, start, end nor price change; the previous cost likewise.</summary>
+    public static SubscriptionsReviewView? Subscriptions(SubscriptionsReviewPart now, SubscriptionsReviewPart before, Currency reference)
+    {
+        // A cost of null is a charge without a rate: there was one.
+        static bool Any(SubscriptionsReviewPart p) => p.Cost != 0m || p.Started.Count + p.Ended.Count + p.PriceChanges.Count > 0;
+        if (!Any(now)) return null;
+        static SubscriptionReviewItemView Item(SubscriptionReviewItem i) => new(i.Id, i.Name, i.Provider, i.On);
+        // A price in its own currency and scale, as the subscription's page shows it.
+        static DashboardMoneyView Price(decimal amount, string currency) => new(amount.ToString(CultureInfo.InvariantCulture), currency);
+        return new SubscriptionsReviewView(M(now.Cost, reference), Any(before) ? M(before.Cost, reference) : null,
+            now.Started.Select(Item).ToList(), now.Ended.Select(Item).ToList(),
+            now.PriceChanges.Select(c => new SubscriptionPriceChangeView(c.Id, c.Name, c.On, Price(c.BeforeAmount, c.BeforeCurrency),
+                ReviewDurationView.From(c.BeforeEvery), Price(c.AfterAmount, c.AfterCurrency), ReviewDurationView.From(c.AfterEvery), c.PromoEnded)).ToList());
+    }
+
+    /// <summary>The loans section: null without a loan in the year; the previous figures null without one in the previous period.</summary>
+    public static LoansReviewView? Loans(LoansReviewPart now, LoansReviewPart before, Currency reference)
+    {
+        if (now.Loans.Count == 0) return null;
+        var was = before.Loans.Count > 0;
+        // Both to the cent, so the cost of credit is the sum of the figures the previous year showed.
+        decimal? credit = was && before.Interest is { } i && before.Insurance is { } n ? Cents(i) + Cents(n) : null;
+        return new LoansReviewView(M(now.Interest, reference), M(now.Insurance, reference), M(now.Fees, reference), M(now.CapitalRepaid, reference),
+            M(now.StartBalance, reference), M(now.EndBalance, reference), M(credit, reference), was ? M(before.CapitalRepaid, reference) : null,
+            now.Loans.Select(l => new LoanReviewRowView(l.Id, l.Name, M(l.Interest, reference), M(l.Insurance, reference), M(l.Fees, reference),
+                M(l.CapitalRepaid, reference), M(l.StartBalance, reference), M(l.EndBalance, reference), l.ArchivedOn)).ToList());
+    }
+
+    /// <summary>The properties section: null without a property in the year; the previous figures null without one in the previous period.</summary>
+    public static PropertiesReviewView? Properties(PropertiesReviewPart now, PropertiesReviewPart before, Currency reference)
+    {
+        if (now.Properties.Count == 0) return null;
+        var was = before.Properties.Count > 0;
+        return new PropertiesReviewView(M(now.Costs, reference), M(now.Rents, reference),
+            was ? M(before.Costs, reference) : null, was ? M(before.Rents, reference) : null,
+            now.Properties.Select(p => new PropertyReviewRowView(p.Id, p.Name, M(p.Costs, reference),
+                p.ByCategory.Select(c => new PropertyCostCategoryView(c.Category, M(c.Amount, reference))).ToList(), M(p.Rents, reference),
+                p.GrossYieldPct, p.NetYieldPct)).ToList());
+    }
+
+    private static DashboardMoneyView? M(decimal? amount, Currency reference) => amount is { } a ? DashboardMath.Money(a, reference) : null;
 }
 
 [RequestHandler<GetYearReviewQuery, YearReviewView>]
 public sealed class GetYearReviewHandler(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<IInvestmentsReview> investments, IActorAccessor actor, IHouseholdCalendar calendar,
     IHouseholdSettings household, IFxRates fx, IEnumerable<IIncomeReview> incomes, IEnumerable<ICommitmentsContribution> commitments,
-    TaxEstimates taxes)
+    TaxEstimates taxes, IEnumerable<ISubscriptionsReview> subscriptions, IEnumerable<ILoansReview> loans, IEnumerable<IPropertiesReview> properties)
     : IRequestHandler<GetYearReviewQuery, YearReviewView>
 {
     public async ValueTask<Result<YearReviewView>> HandleAsync(GetYearReviewQuery query, CancellationToken ct = default)
@@ -210,8 +203,10 @@ public sealed class GetYearReviewHandler(
         if (collected.TryGetFailure(out var failure)) return Result.Failure<YearReviewView>(failure!);
         collected.TryGetValue(out var points);
         var firstDue = incomes.FirstOrDefault() is { } earning ? await earning.FirstDueAsync(reader, query.Scope, ct) : null;
+        var firstCharge = subscriptions.FirstOrDefault() is { } paying ? await paying.FirstChargeAsync(reader, query.Scope, ct) : null;
         var years = YearReviewMath.Years(scan,
-            points!.Select(p => (IReadOnlyList<NetWorthPoint>)scan.Select(d => p[dates.IndexOf(d)]).ToList()).ToList(), today.Year, firstDue);
+            points!.Select(p => (IReadOnlyList<NetWorthPoint>)scan.Select(d => p[dates.IndexOf(d)]).ToList()).ToList(), today.Year,
+            new[] { firstDue, firstCharge }.Min());
 
         if (year > today.Year || year < years[0])
             return Result.Failure<YearReviewView>(new Failure(ReportCodes.InvalidYear,
@@ -267,12 +262,45 @@ public sealed class GetYearReviewHandler(
         if (committedBefore.TryGetFailure(out failure)) return Result.Failure<YearReviewView>(failure!);
         committed.TryGetValue(out var spent);
         committedBefore.TryGetValue(out var spentBefore);
-        if ((earned!.MissingCurrencies.Count > 0 || earnedBefore!.MissingCurrencies.Count > 0 || spent!.Missing is not null || spentBefore!.Missing is not null)
-            && !findings.Contains(FxCodes.RateMissing))
-            findings.Add(FxCodes.RateMissing);
-        var income = YearReviewMath.Income(earned, spent!, earnedBefore, spentBefore, reference);
+        var income = YearReviewMath.Income(earned!, spent!, earnedBefore, spentBefore, reference);
+        // A rate missing in a section not shown would point at nothing.
+        var missing = income is not null
+                      && (earned!.MissingCurrencies.Count > 0 || earnedBefore!.MissingCurrencies.Count > 0 || spent!.Missing is not null || spentBefore!.Missing is not null);
 
-        return Result.Success(new YearReviewView(year, start, end, toDate, years, worth, invested, income, findings));
+        var subscribed = await SectionAsync(subscriptions.FirstOrDefault(), (r, from, to) => r.ReviewAsync(reader, query.Scope, from, to, ct),
+            p => p.MissingCurrencies, (n, b) => YearReviewMath.Subscriptions(n, b, reference), start, end);
+        var borrowed = await SectionAsync(loans.FirstOrDefault(), (r, from, to) => r.ReviewAsync(reader, query.Scope, from, to, ct),
+            p => p.MissingCurrencies, (n, b) => YearReviewMath.Loans(n, b, reference), start, end);
+        var held = await SectionAsync(properties.FirstOrDefault(), (r, from, to) => r.ReviewAsync(reader, query.Scope, from, to, ct),
+            p => p.MissingCurrencies, (n, b) => YearReviewMath.Properties(n, b, reference), start, end);
+        if (subscribed.TryGetFailure(out failure) || borrowed.TryGetFailure(out failure) || held.TryGetFailure(out failure))
+            return Result.Failure<YearReviewView>(failure!);
+        subscribed.TryGetValue(out var s);
+        borrowed.TryGetValue(out var l);
+        held.TryGetValue(out var h);
+        if ((missing || s.Missing || l.Missing || h.Missing) && !findings.Contains(FxCodes.RateMissing)) findings.Add(FxCodes.RateMissing);
+
+        return Result.Success(new YearReviewView(year, start, end, toDate, years, worth, invested, income, s.View, l.View, h.View, findings));
+    }
+
+    /// <summary>
+    /// A section built from its part over the period and over the same dates a year earlier (none without a <paramref name="review"/>);
+    /// <c>Missing</c>: the section is shown and either period missed a rate.
+    /// </summary>
+    private static async Task<Result<(TView? View, bool Missing)>> SectionAsync<TReview, TPart, TView>(
+        TReview? review, Func<TReview, LocalDate, LocalDate, Task<Result<TPart>>> read, Func<TPart, IReadOnlyList<string>> missingOf,
+        Func<TPart, TPart, TView?> map, LocalDate start, LocalDate end)
+        where TReview : class where TPart : notnull where TView : class
+    {
+        if (review is null) return Result.Success<(TView?, bool)>((null, false));
+        var now = await read(review, start, end);
+        if (now.TryGetFailure(out var failure)) return Result.Failure<(TView?, bool)>(failure!);
+        var before = await read(review, start.PlusYears(-1), end.PlusYears(-1));
+        if (before.TryGetFailure(out failure)) return Result.Failure<(TView?, bool)>(failure!);
+        now.TryGetValue(out var n);
+        before.TryGetValue(out var b);
+        var view = map(n!, b!);
+        return Result.Success<(TView?, bool)>((view, view is not null && (missingOf(n!).Count > 0 || missingOf(b!).Count > 0)));
     }
 
     /// <summary>
