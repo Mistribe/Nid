@@ -148,7 +148,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.Fingerprint).IsUnique().HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.Kind, x.TargetItemId, x.SubjectKey }).HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.TargetItemId, x.Status });
-            e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.TargetItemId).OnDelete(DeleteBehavior.Restrict);
+            // #23: no foreign key to the target item: a proposal is history and outlives the item it targeted.
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.ForPersonId).OnDelete(DeleteBehavior.Restrict);
             MapXmin(e.Property(x => x.Version));
         });

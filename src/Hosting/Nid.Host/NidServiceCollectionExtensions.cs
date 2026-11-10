@@ -84,6 +84,11 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, BankingAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
+        // #23: an item delete asks every module's part.
+        services.AddScoped<IItemDeletions, Nid.Core.Application.ItemDeletions>();
+        services.AddScoped<IApprovingProposal, Nid.Core.Application.ApprovingProposal>();
+        services.AddScoped<IItemDeletionPart, CoreDeletionPart>();
+
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
             npgsql.UseNodaTime();
