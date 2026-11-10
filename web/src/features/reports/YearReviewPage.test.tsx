@@ -76,6 +76,19 @@ function review(over: Partial<YearReview> = {}): YearReview {
           byCategory: [{ category: 'works', amount: eur('1000.00') }] },
       ],
     },
+    goals: {
+      goals: [
+        { id: '00000000-0000-0000-0000-0000000000e1', name: 'Voyage', kind: 'savings', target: eur('5000.00'), startReached: eur('1000.00'), endReached: eur('5000.00'),
+          startProgressPct: 20, endProgressPct: 100, reachedInPeriod: true, partial: false },
+        { id: '00000000-0000-0000-0000-0000000000e2', name: 'Travaux', kind: 'savings', target: eur('8000.00'), startReached: null, endReached: eur('2000.00'),
+          startProgressPct: null, endProgressPct: 25, reachedInPeriod: false, archivedOn: '2025-11-20', partial: false },
+        { id: '00000000-0000-0000-0000-0000000000e3', name: 'Apport', kind: 'savings', target: eur('10000.00'), startReached: eur('500.00'), endReached: null,
+          startProgressPct: 5, endProgressPct: null, reachedInPeriod: false, partial: true },
+      ],
+    },
+    tax: {
+      totalTax: eur('4200.00'), incomeTax: eur('3000.00'), socialLevies: eur('900.00'), capitalFlatTax: eur('300.00'), previousTotalTax: eur('3900.00'),
+    },
     ...over,
   };
 }
@@ -262,6 +275,36 @@ describe('YearReviewPage', () => {
       .forEach((text, i) => expect(costs[i]).toHaveTextContent(text));
   });
 
+  it('shows the goals with the reached mark, a dash for a goal with no start, the archive day, an unknown end and the partial mark', async () => {
+    serve(() => review());
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Objectifs' });
+    const rows = within(within(section).getByRole('table', { name: 'Objectifs de la période' })).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent(/^Voyage atteint cette année5 000,00 €1 000,00 €5 000,00 €/);
+    expect(rows[1]).toHaveTextContent(/^Travaux archivé le 20 novembre 20258 000,00 €—Non disponible2 000,00 €/);
+    expect(rows[2]).toHaveTextContent(/^Apport Partiel : une enveloppe liée ne vous est pas visible10 000,00 €500,00 €Inconnu/);
+    expect(within(rows[0]!).getByRole('link', { name: /Voyage/ })).toHaveAttribute('href', '/goals/00000000-0000-0000-0000-0000000000e1');
+  });
+
+  it('shows the tax estimate with the year before and its parts', async () => {
+    serve(() => review());
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Impôts' });
+    expect(within(section).getByText('2024 : 3 900,00 €')).toBeInTheDocument();
+    for (const amount of ['4 200,00 €', '3 000,00 €', '900,00 €', '300,00 €']) expect(within(section).getByText(amount)).toBeInTheDocument();
+    expect(within(section).getByText('Estimation à partir des données saisies')).toBeInTheDocument();
+  });
+
+  it('leaves out the goals and tax the server does not give', async () => {
+    serve(() => review({ goals: null, tax: null }));
+    await renderApp('/reports/year?year=2025');
+
+    await screen.findByRole('region', { name: 'Biens' });
+    for (const name of ['Objectifs', 'Impôts']) expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
+  });
+
   it('leaves out the subscriptions, loans and properties the server does not give', async () => {
     serve(() => review({ subscriptions: null, loans: null, properties: null }));
     await renderApp('/reports/year?year=2025');
@@ -270,16 +313,16 @@ describe('YearReviewPage', () => {
     for (const name of ['Abonnements', 'Crédits', 'Biens']) expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
   });
 
-  it('puts the sections in order: net worth, investments, income, subscriptions, loans, properties', async () => {
+  it('puts the sections in order: net worth, investments, income, subscriptions, loans, properties, goals, tax', async () => {
     serve(() => review());
     await renderApp('/reports/year?year=2025');
 
-    await screen.findByRole('region', { name: 'Biens' });
-    expect(within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Patrimoine net', 'Placements', 'Revenus et marge', 'Abonnements', 'Crédits', 'Biens']);
+    await screen.findByRole('region', { name: 'Impôts' });
+    expect(within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Patrimoine net', 'Placements', 'Revenus et marge', 'Abonnements', 'Crédits', 'Biens', 'Objectifs', 'Impôts']);
   });
 
   it('says when there is nothing to review', async () => {
-    serve(() => review({ netWorth: null, investments: null, income: null, subscriptions: null, loans: null, properties: null }));
+    serve(() => review({ netWorth: null, investments: null, income: null, subscriptions: null, loans: null, properties: null, goals: null, tax: null }));
     await renderApp('/reports/year?year=2025');
 
     expect(await screen.findByText('Rien à montrer pour cette année dans ce périmètre.')).toBeInTheDocument();

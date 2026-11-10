@@ -264,6 +264,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
         services.AddScoped<GoalReader>();
+        services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 
         services.AddDbContext<BankingDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>

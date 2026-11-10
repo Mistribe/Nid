@@ -37091,6 +37091,99 @@
           }
         }
       },
+      "GoalReviewRowView": {
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "reachedInPeriod",
+          "partial"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startReached": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endReached": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startProgressPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "endProgressPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "reachedInPeriod": {
+            "type": "boolean"
+          },
+          "archivedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "partial": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GoalsReviewView": {
+        "required": [
+          "goals"
+        ],
+        "type": "object",
+        "properties": {
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalReviewRowView"
+            }
+          }
+        }
+      },
       "GoalSummary": {
         "required": [
           "id",
@@ -55502,6 +55595,61 @@
           }
         }
       },
+      "TaxReviewView": {
+        "type": "object",
+        "properties": {
+          "totalTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "incomeTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "socialLevies": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "capitalFlatTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousTotalTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "TaxSalaryDetailView": {
         "required": [
           "person",
@@ -56566,6 +56714,26 @@
               },
               {
                 "$ref": "#/components/schemas/PropertiesReviewView"
+              }
+            ]
+          },
+          "goals": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GoalsReviewView"
+              }
+            ]
+          },
+          "tax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxReviewView"
               }
             ]
           },

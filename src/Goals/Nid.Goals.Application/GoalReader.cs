@@ -78,19 +78,31 @@ public sealed class GoalReader(
     /// </summary>
     public async Task<Result<EmergencyTargetView>> EmergencyTargetAsync(PersonId reader, VisibilityScope scope, int months, CancellationToken ct)
     {
-        var today = await calendar.TodayAsync(ct);
-        var read = await PartsAsync(reader, scope, today, ct);
-        if (!read.TryGetValue(out var parts))
-            return Result.Failure<EmergencyTargetView>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var rates = await RatesAsync(parts!.SelectMany(p => p.Amortized.Keys).Where(c => c != reference).Distinct().ToList(), reference, today, ct);
-        var sources = Sources(parts!, reference, rates, today);
+        var read = await SourcesAsync(reader, scope, reference, await calendar.TodayAsync(ct), ct);
+        if (!read.TryGetValue(out var sources))
+            return Result.Failure<EmergencyTargetView>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         List<string> flags = sources.Count == 0 ? [GoalFlags.NoCommitments] : [];
         if (sources.Any(s => s.View.MissingCurrency is not null))
             flags.Add(GoalFlags.MissingCurrency);
         var target = EmergencyTarget(months, sources);
         return Result.Success(new EmergencyTargetView(months, target is { } t ? GoalMoneyView.Of(t, reference) : null, sources.Select(s => s.View).ToList(), flags));
     }
+
+    /// <summary>D5, D6: the commitments' sources the reader sees in the scope, each amortized month converted at today's rate.</summary>
+    internal async Task<Result<IReadOnlyList<(GoalCommitmentView View, decimal Monthly)>>> SourcesAsync(
+        PersonId reader, VisibilityScope scope, Currency reference, LocalDate today, CancellationToken ct)
+    {
+        var read = await PartsAsync(reader, scope, today, ct);
+        if (!read.TryGetValue(out var parts))
+            return Result.Failure<IReadOnlyList<(GoalCommitmentView View, decimal Monthly)>>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var rates = await RatesAsync(parts!.SelectMany(p => p.Amortized.Keys).Where(c => c != reference).Distinct().ToList(), reference, today, ct);
+        return Result.Success(Sources(parts!, reference, rates, today));
+    }
+
+    /// <summary>D5: the goal's target today, its amount or an emergency fund's months of the commitments (null without any).</summary>
+    internal static decimal? TargetOf(Goal goal, IReadOnlyList<(GoalCommitmentView View, decimal Monthly)> sources)
+        => goal.Kind == GoalKinds.EmergencyFund ? EmergencyTarget(goal.Months ?? GoalCheck.DefaultMonths, sources) : goal.TargetAmount;
 
     private async Task<Result<IReadOnlyList<CommitmentsPart>>> PartsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
@@ -160,14 +172,13 @@ public sealed class GoalReader(
         if (lines.Any(l => l.Flags.Contains(GoalFlags.ClosedEnvelope))) flags.Add(GoalFlags.ClosedEnvelope);
 
         var emergency = goal.Kind == GoalKinds.EmergencyFund;
-        decimal? target = goal.TargetAmount;
+        var target = TargetOf(goal, sources);
         if (emergency)
         {
             if (sources.Count == 0)
                 flags.Add(GoalFlags.NoCommitments);
             else if (sources.Any(s => s.View.MissingCurrency is not null) && !flags.Contains(GoalFlags.MissingCurrency))
                 flags.Add(GoalFlags.MissingCurrency);
-            target = EmergencyTarget(goal.Months ?? GoalCheck.DefaultMonths, sources);
         }
 
         var progress = entries.Select(e => new ProgressEntry(e.On, e.Amount)).ToList();
@@ -212,7 +223,7 @@ public sealed class GoalReader(
             .ToList();
 
     /// <summary>As <c>DashboardMath.Convert</c>: null without a value, the currency's code when its rate is missing.</summary>
-    private static (decimal? Amount, string? Missing) Convert(Money? value, Currency reference, RateTable rates, LocalDate today)
+    internal static (decimal? Amount, string? Missing) Convert(Money? value, Currency reference, RateTable rates, LocalDate today)
         => value is { } v ? Convert(v.Amount, v.Currency, reference, rates, today) : (null, null);
 
     private static (decimal? Amount, string? Missing) Convert(decimal amount, Currency currency, Currency reference, RateTable rates, LocalDate today)

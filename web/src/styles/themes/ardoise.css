@@ -25,28 +25,31 @@
   --halo-3: oklch(0.88 0.07 200 / 0.55);
   --halo-4: oklch(0.86 0.09 160 / 0.45);
 }
-[data-theme="ardoise"].dark {
-  --background: oklch(0.135 0.022 262);
-  --foreground: oklch(0.97 0.003 260);
-  --card: oklch(0.22 0.018 262);
-  --card-foreground: oklch(0.97 0.003 260);
-  --popover: oklch(0.26 0.02 262);
-  --popover-foreground: oklch(0.97 0.003 260);
-  --primary: oklch(0.66 0.19 254);
-  --primary-foreground: oklch(0.18 0.03 250);
-  --secondary: oklch(0.3 0.02 262);
-  --secondary-foreground: oklch(0.97 0.003 260);
-  --muted: oklch(0.3 0.02 262);
-  --muted-foreground: oklch(0.68 0.008 265);
-  --accent: oklch(0.32 0.03 258);
-  --accent-foreground: oklch(0.97 0.003 260);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.3 0.018 262);
-  --input: oklch(0.5 0.02 262);
-  --ring: oklch(0.66 0.19 254);
-  --glass: oklch(0.28 0.02 262);
-  --halo-1: oklch(0.5 0.16 258 / 0.55);
-  --halo-2: oklch(0.52 0.14 290 / 0.35);
-  --halo-3: oklch(0.55 0.1 200 / 0.3);
-  --halo-4: oklch(0.5 0.12 170 / 0.35);
+/* Dark on screen only: paper takes the light colours whatever the screen mode. */
+@media screen {
+  [data-theme="ardoise"].dark {
+    --background: oklch(0.135 0.022 262);
+    --foreground: oklch(0.97 0.003 260);
+    --card: oklch(0.22 0.018 262);
+    --card-foreground: oklch(0.97 0.003 260);
+    --popover: oklch(0.26 0.02 262);
+    --popover-foreground: oklch(0.97 0.003 260);
+    --primary: oklch(0.66 0.19 254);
+    --primary-foreground: oklch(0.18 0.03 250);
+    --secondary: oklch(0.3 0.02 262);
+    --secondary-foreground: oklch(0.97 0.003 260);
+    --muted: oklch(0.3 0.02 262);
+    --muted-foreground: oklch(0.68 0.008 265);
+    --accent: oklch(0.32 0.03 258);
+    --accent-foreground: oklch(0.97 0.003 260);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(0.3 0.018 262);
+    --input: oklch(0.5 0.02 262);
+    --ring: oklch(0.66 0.19 254);
+    --glass: oklch(0.28 0.02 262);
+    --halo-1: oklch(0.5 0.16 258 / 0.55);
+    --halo-2: oklch(0.52 0.14 290 / 0.35);
+    --halo-3: oklch(0.55 0.1 200 / 0.3);
+    --halo-4: oklch(0.5 0.12 170 / 0.35);
+  }
 }

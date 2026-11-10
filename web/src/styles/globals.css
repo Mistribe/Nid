@@ -7,7 +7,10 @@
 @import "./themes/sauge.css";
 @import "./themes/terre.css";
 
-@custom-variant dark (&:where(.dark, .dark *));
+/* On screen only, as the .dark tokens below. */
+@custom-variant dark {
+  @media screen { &:where(.dark, .dark *) { @slot; } }
+}
 
 /* Fixed: no theme redefines chart or status colours (design-system.md §2 and §7.3, dataviz.md §3 and §4). */
 :root {
@@ -39,19 +42,22 @@
   --elevation-glass: inset 0 1px 0 oklch(1 0 0 / 95%), inset 0 -1px 0 oklch(1 0 0 / 35%), 0 10px 30px -10px oklch(0.3 0.05 260 / 18%);
   --halo: radial-gradient(60vw 50vh at 30% -10%, var(--halo-1), transparent 62%), radial-gradient(50vw 45vh at 100% 15%, var(--halo-2), transparent 60%), radial-gradient(45vw 40vh at 55% 115%, var(--halo-3), transparent 60%), radial-gradient(32vw 36vh at 0% 85%, var(--halo-4), transparent 70%);
 }
-.dark {
-  --chart-1: #4488dc; --chart-2: #d26035; --chart-3: #329c72; --chart-4: #c48729;
-  --chart-5: #ce5982; --chart-6: #1f811c; --chart-7: #9087e1; --chart-8: #df6d6c;
-  --tile-3: var(--chart-3); --tile-4: var(--chart-4); --tile-5: var(--chart-5);
-  --tile-neutral: oklch(0.5 0.01 260);
-  --status-warning-text: #fab219; --status-good-text: #0ca30c;
-  /* A shadow barely shows on a dark page: a light top edge gives the card its lift. */
-  --elevation-card: inset 0 1px 0 oklch(1 0 0 / 5%), 0 1px 2px oklch(0 0 0 / 40%), 0 8px 24px -12px oklch(0 0 0 / 60%);
-  --elevation-raised: inset 0 1px 0 oklch(1 0 0 / 8%), 0 2px 4px oklch(0 0 0 / 45%), 0 16px 32px -12px oklch(0 0 0 / 70%);
-  --separator: oklch(0.45 0.01 265 / .6); --fill: oklch(0.6 0.01 265 / .24);
-  --glass-opacity: 45%;
-  --glass-edge: oklch(1 0 0 / 12%);
-  --elevation-glass: inset 0 1px 0 oklch(1 0 0 / 18%), inset 0 -1px 0 oklch(1 0 0 / 5%), 0 12px 34px -10px oklch(0 0 0 / 60%);
+/* Dark on screen only (the themes' .dark blocks too): paper takes the light colours whatever the screen mode. */
+@media screen {
+  .dark {
+    --chart-1: #4488dc; --chart-2: #d26035; --chart-3: #329c72; --chart-4: #c48729;
+    --chart-5: #ce5982; --chart-6: #1f811c; --chart-7: #9087e1; --chart-8: #df6d6c;
+    --tile-3: var(--chart-3); --tile-4: var(--chart-4); --tile-5: var(--chart-5);
+    --tile-neutral: oklch(0.5 0.01 260);
+    --status-warning-text: #fab219; --status-good-text: #0ca30c;
+    /* A shadow barely shows on a dark page: a light top edge gives the card its lift. */
+    --elevation-card: inset 0 1px 0 oklch(1 0 0 / 5%), 0 1px 2px oklch(0 0 0 / 40%), 0 8px 24px -12px oklch(0 0 0 / 60%);
+    --elevation-raised: inset 0 1px 0 oklch(1 0 0 / 8%), 0 2px 4px oklch(0 0 0 / 45%), 0 16px 32px -12px oklch(0 0 0 / 70%);
+    --separator: oklch(0.45 0.01 265 / .6); --fill: oklch(0.6 0.01 265 / .24);
+    --glass-opacity: 45%;
+    --glass-edge: oklch(1 0 0 / 12%);
+    --elevation-glass: inset 0 1px 0 oklch(1 0 0 / 18%), inset 0 -1px 0 oklch(1 0 0 / 5%), 0 12px 34px -10px oklch(0 0 0 / 60%);
+  }
 }
 
 @theme inline {
@@ -180,7 +186,7 @@ main :has(> [data-page-header]) { @apply stagger; }
 /* Native controls (the <select> popup above all) draw their own surface from `color-scheme`: without it the dark themes
    put light text on the browser's white popup. */
 :root { color-scheme: light; }
-.dark { color-scheme: dark; }
+@media screen { .dark { color-scheme: dark; } }
 
 @layer base {
   * { @apply border-border outline-ring/50; }
@@ -247,6 +253,18 @@ body:has([data-guide-active]) main { padding-bottom: 100dvh; }
     --material-opacity: 100%; --glass-opacity: 100%; --glass-regular-opacity: 100%;
     --backdrop-material: none; --backdrop-glass: none; --backdrop-edge: none; --halo: none;
   }
+}
+/* On paper (the Bilan above all): A4; a row, a line of figures or a chart never split across two pages (a whole section
+   would leave large blanks), a section's title kept with what follows; tables and charts within the page's width. */
+@page { size: A4; margin: 15mm; }
+@media print {
+  tr, [data-stat-line], [data-slot=chart] { break-inside: avoid; }
+  section > h2, section > :has(> h2) { break-after: avoid; }
+  [data-slot=table-container] { overflow: visible; }
+  [data-slot=table] { font-size: 0.75rem; }
+  [data-slot=table-head], [data-slot=table-cell] { white-space: normal; }
+  .recharts-responsive-container, .recharts-wrapper { max-width: 100%; }
+  .recharts-surface { max-width: 100%; height: auto; }
 }
 /* Increase Contrast: the theme files set these with [data-theme], so the override repeats that specificity and comes later. */
 @media (prefers-contrast: more) {

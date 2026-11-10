@@ -612,4 +612,102 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal((JsonValueKind.Null, JsonValueKind.Null), (after.GetProperty("subscriptions").ValueKind, after.GetProperty("income").ValueKind));
         Assert.Empty(after.GetProperty("findings").EnumerateArray());
     }
+
+    private static async Task EntryAsync(NidApp app, PersonId owner, ItemId goal, string on, string amount)
+        => (await app.RawAsync(owner, HttpMethod.Put, $"/api/v1/goals/{goal.Value}/progress/{on}", new { amount })).EnsureSuccessStatusCode();
+
+    [Fact]
+    public async Task The_goals_section_matches_its_part()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // A free goal from its first entry in 2024, reached in 2025; a goal funded by half a PEA, created today.
+        var free = await app.NewGoalAsync("Voyage", app.AdultA);
+        await EntryAsync(app, app.AdultA, free, "2024-06-01", "3000");
+        await EntryAsync(app, app.AdultA, free, "2025-03-01", "10000");
+        var pea = await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        await app.NewGoalAsync("Apport", app.AdultA, funding: [(pea, 5000)]);
+        // A free goal archived in the year.
+        var archived = await app.NewGoalAsync("Ancien", app.AdultA);
+        await EntryAsync(app, app.AdultA, archived, "2024-06-01", "2000");
+        await ArchiveAsync(app, archived, 2025, 6, 1);
+
+        var goals = (await YearAsync(app, "2025")).GetProperty("goals").GetProperty("goals").EnumerateArray().ToList();
+        GoalsReviewPart part;
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+            var read = await scope.ServiceProvider.GetRequiredService<IGoalsReview>()
+                .ReviewAsync(app.AdultA, VisibilityScope.Household, new LocalDate(2024, 12, 31), new LocalDate(2025, 10, 15), TestContext.Current.CancellationToken);
+            Assert.True(read.TryGetValue(out part!));
+        }
+
+        static decimal? Pct(JsonElement row, string name) => row.GetProperty(name).ValueKind == JsonValueKind.Null ? null : row.GetProperty(name).GetDecimal();
+        static decimal? N(string? amount) => amount is null ? null : D(amount);
+        Assert.Equal(3, goals.Count);
+        Assert.Equal(
+            part.Goals.Select(g => (g.Id.Value, g.Name, g.Kind, g.Target, g.StartReached, g.EndReached, g.StartProgressPct, g.EndProgressPct, g.ReachedInPeriod,
+                g.ArchivedOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))),
+            goals.Select(r => (r.GetProperty("id").GetGuid(), r.GetProperty("name").GetString()!, r.GetProperty("kind").GetString()!, N(A(r, "target")),
+                N(A(r, "startReached")), N(A(r, "endReached")), Pct(r, "startProgressPct"), Pct(r, "endProgressPct"), r.GetProperty("reachedInPeriod").GetBoolean(),
+                r.GetProperty("archivedOn").GetString())));
+        var voyage = goals.Single(r => r.GetProperty("id").GetGuid() == free.Value);
+        Assert.Equal(("3000.00", "10000.00", true), (A(voyage, "startReached"), A(voyage, "endReached"), voyage.GetProperty("reachedInPeriod").GetBoolean()));
+        Assert.Equal("2025-06-01", goals.Single(r => r.GetProperty("id").GetGuid() == archived.Value).GetProperty("archivedOn").GetString());
+    }
+
+    [Theory]
+    [InlineData("household")]
+    [InlineData("me")]
+    public async Task Another_adults_private_goal_is_left_out(string scope)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mine = await app.NewGoalAsync("Voyage", app.AdultA);
+        await EntryAsync(app, app.AdultA, mine, "2025-03-01", "2000");
+        var secret = await app.NewGoalAsync("Objectif secret de B", app.AdultB, Visibility.Private);
+        await EntryAsync(app, app.AdultB, secret, "2025-03-01", "5000");
+
+        var body = await YearAsync(app, "2025", scope);
+
+        Assert.Equal([mine.Value], Ids(body.GetProperty("goals"), "goals"));
+        Assert.DoesNotContain(secret.Value.ToString(), body.ToString());
+        Assert.DoesNotContain("Objectif secret de B", body.ToString());
+    }
+
+    [Fact]
+    public async Task The_tax_section_matches_the_tax_page()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA, amount: "5000");
+
+        var tax = (await YearAsync(app, "2025")).GetProperty("tax");
+        var page = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?year=2025&scope=household"))).GetProperty("result");
+
+        static decimal S(JsonElement e, string name) => D(e.GetProperty(name).GetString());
+        Assert.True(S(page, "totalTax") > 0m);
+        Assert.Equal((S(page, "totalTax"), S(page, "incomeTax"), S(page, "socialLevies"), S(page, "capitalFlatTax")),
+            (D(A(tax, "totalTax")), D(A(tax, "incomeTax")), D(A(tax, "socialLevies")), D(A(tax, "capitalFlatTax"))));
+        // 2024 is before the rules: no year before.
+        Assert.Null(A(tax, "previousTotalTax"));
+    }
+
+    [Fact]
+    public async Task No_tax_section_before_the_rules()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA, amount: "5000"); // income since 2024: the year is on offer
+
+        Assert.Equal(JsonValueKind.Null, (await YearAsync(app, "2024")).GetProperty("tax").ValueKind);
+    }
+
+    [Fact]
+    public async Task No_tax_section_without_tax_data()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.NewGoalAsync("Voyage", app.AdultA);
+
+        var body = await YearAsync(app, "2025");
+
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("tax").ValueKind);
+        Assert.Empty(body.GetProperty("findings").EnumerateArray());
+    }
 }

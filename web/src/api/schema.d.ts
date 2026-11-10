@@ -29445,6 +29445,26 @@ export interface components {
         GoalProgressBody: {
             amount?: null | string;
         };
+        GoalReviewRowView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            target?: null | components["schemas"]["DashboardMoneyView"];
+            startReached?: null | components["schemas"]["DashboardMoneyView"];
+            endReached?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            startProgressPct?: null | number;
+            /** Format: double */
+            endProgressPct?: null | number;
+            reachedInPeriod: boolean;
+            /** Format: date */
+            archivedOn?: null | string;
+            partial: boolean;
+        };
+        GoalsReviewView: {
+            goals: components["schemas"]["GoalReviewRowView"][];
+        };
         GoalSummary: {
             /** Format: uuid */
             id: string;
@@ -33584,6 +33604,13 @@ export interface components {
             /** @default 0.00 */
             referenceIncome: string;
         };
+        TaxReviewView: {
+            totalTax?: null | components["schemas"]["DashboardMoneyView"];
+            incomeTax?: null | components["schemas"]["DashboardMoneyView"];
+            socialLevies?: null | components["schemas"]["DashboardMoneyView"];
+            capitalFlatTax?: null | components["schemas"]["DashboardMoneyView"];
+            previousTotalTax?: null | components["schemas"]["DashboardMoneyView"];
+        };
         TaxSalaryDetailView: {
             /** Format: uuid */
             person: string;
@@ -33831,6 +33858,8 @@ export interface components {
             subscriptions?: null | components["schemas"]["SubscriptionsReviewView"];
             loans?: null | components["schemas"]["LoansReviewView"];
             properties?: null | components["schemas"]["PropertiesReviewView"];
+            goals?: null | components["schemas"]["GoalsReviewView"];
+            tax?: null | components["schemas"]["TaxReviewView"];
             findings: string[];
         };
         YearView: {

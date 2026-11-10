@@ -18,3 +18,6 @@ export type LoansReview = components['schemas']['LoansReviewView'];
 export type LoanReviewRow = components['schemas']['LoanReviewRowView'];
 export type PropertiesReview = components['schemas']['PropertiesReviewView'];
 export type PropertyReviewRow = components['schemas']['PropertyReviewRowView'];
+export type GoalsReview = components['schemas']['GoalsReviewView'];
+export type GoalReviewRow = components['schemas']['GoalReviewRowView'];
+export type TaxReview = components['schemas']['TaxReviewView'];
