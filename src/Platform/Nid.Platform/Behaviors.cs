@@ -80,7 +80,7 @@ public sealed class AdminBehavior<TRequest, TResponse>(IActorAccessor accessor)
             : next(request, cancellationToken);
 }
 
-/// <summary>Reads need <c>read</c>; commands need <c>write:direct</c> unless they declare less (<see cref="IRequiresScope"/> — the proposal submission asks <c>write</c>); a token never runs an <see cref="IBrowserOnly"/> request.</summary>
+/// <summary>Reads need <c>read</c>; commands need <c>write:direct</c> unless they declare less (<see cref="IRequiresScope"/> — the proposal submission asks <c>write</c>); a token never runs an <see cref="IBrowserOnly"/> request, nor an <see cref="IConfirmedInBrowser"/> one outside a dry run.</summary>
 public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
@@ -92,7 +92,7 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
     {
         var actor = accessor.Current!;
-        if (request is IBrowserOnly && actor.TokenId is not null)
+        if ((request is IBrowserOnly || (request is IConfirmedInBrowser && !actor.Has(ScopeNames.DryRun))) && actor.TokenId is not null)
             return ValueTask.FromResult(Result.Failure<TResponse>(
                 new Failure(BrowserOnlyCodes.Required, "This action is only available from a browser session.", null)));
 

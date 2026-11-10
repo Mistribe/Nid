@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useForm, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -21,13 +21,19 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { PERSONS } from '@/api/persons';
+import { useGoalDeletion } from '@/api/goals';
+import { useItemDeleted } from '@/components/useItemDeleted';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from '@/api/proposals';
 import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
 import { RoutePayload, isRouteKind, routeElement, routeLabel, routeLink, useNames } from './routeKind';
 import { focusHeading, focusNextHeading } from './focus';
 import '@/locales/proposals';
+import '@/locales/deletion';
+import '@/locales/goals';
 import '@/locales/forms';
+
+const DeleteItemDialog = lazy(() => import('@/components/DeleteItemDialog').then((m) => ({ default: m.DeleteItemDialog })));
 
 /** A decision that lost a race: reload (any other 409, such as a reference already recorded, is the payload's own refusal). */
 const RACES = ['core.proposal_conflict', 'core.proposal_decided', 'core.fact_conflict', 'income.phase_conflict'];
@@ -121,7 +127,8 @@ function Proposal({ id }: { id: string }) {
     <div className="flex flex-col gap-6">
       {p.status !== 'pending' ? <>{head(null)}{body}<Decided p={p} target={p.status === 'approved' ? link ?? null : null} /></>
         : !canDecide ? <>{head(null)}{body}<p>{t('proposal.read_only')}</p></>
-        : <Decide key={`${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
+        // A new version (« Recharger ») starts the decision again; a delete keeps its dialog open across one (a refused approval).
+        : <Decide key={p.kind === 'goals.delete_goal' ? p.id : `${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
       {tail}
     </div>
   );
@@ -174,6 +181,20 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
     void (next ? navigate({ to: '/proposals/$id', params: { id: next.id } }) : navigate({ to: '/proposals' }));
   };
   const approve = $api.useMutation('post', APPROVE);
+  // Approving a deletion asks for the goal's name first; its id comes from the payload.
+  const goal = p.kind === 'goals.delete_goal' ? (original as { id?: string }).id ?? p.targetItemId : null;
+  const [deleting, setDeleting] = useState(false);
+  const deletion = useGoalDeletion(goal ?? '', deleting && !!goal);
+  const deleted = useItemDeleted('/goals');
+  // The goal is gone once approved and the proposal with it (404): leave first, refresh after.
+  const approveDeletion = (version: number) => approve.mutate({ params: { path: { id: p.id } }, body: { version: p.version, editedPayload: { id: goal, version } } }, {
+    onSuccess: () => deleted(deletion.data?.name ?? ''),
+    onError: (e) => {
+      if (toProblem(e).status === 409) void deletion.refetch();
+      // A refused approval writes its warning on the proposal (a new version): the next confirm must send that one.
+      void invalidateProposals(queryClient);
+    },
+  });
   const reject = $api.useMutation('post', REJECT);
   const conflict = [approve.error, reject.error].find((e) => e && isRace(e));
 
@@ -199,7 +220,7 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
   const actions = (
     <>
       {kind ? <Button type="submit" form={formId} disabled={approve.isPending || nothing} aria-describedby={nothing ? 'nothing-to-record' : undefined}>{t('proposal.approve')}</Button>
-        : asProposed ? <Button type="button" disabled={approve.isPending} onClick={() => send(null)}>{t('proposal.approve')}</Button> : null}
+        : asProposed ? <Button type="button" disabled={approve.isPending} onClick={() => goal ? setDeleting(true) : send(null)}>{t('proposal.approve')}</Button> : null}
       {rejecting ? null : <Button type="button" variant="outline" onClick={() => setRejecting(true)}>{t('proposal.reject')}</Button>}
     </>
   );
@@ -208,6 +229,12 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
     <>
       {head(actions)}
       {body}
+      {deleting ? (
+        <Suspense fallback={null}>
+          <DeleteItemDialog preview={deletion.data} previewError={deletion.error} closeHint={t('goals_list.close')} pending={approve.isPending}
+            error={approve.error} onConfirm={approveDeletion} onClose={() => setDeleting(false)} />
+        </Suspense>
+      ) : null}
       {conflict ? (
         <>
           <ProblemMessage problem={{ ...presentConflict(t, conflict), detail: t('proposal.conflict') }} />

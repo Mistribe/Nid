@@ -230,6 +230,7 @@ public static class ResultHttp
                 or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == TaxAssessmentCodes.Conflict => StatusCodes.Status409Conflict,
             _ when failure.Code is ProposalCodes.Conflict or ProposalCodes.Decided => StatusCodes.Status409Conflict,
+            _ when failure.Code is ItemCodes.InUse or ItemCodes.Changed => StatusCodes.Status409Conflict,
             _ when failure.Code == DocumentsCodes.TooLarge => StatusCodes.Status413PayloadTooLarge,
             _ when failure.Code == DocumentsCodes.UnsupportedType => StatusCodes.Status415UnsupportedMediaType,
             _ when failure.Code is DocumentsCodes.InvalidField or DocumentsCodes.InvalidRole or DocumentsCodes.UnknownTargetKind => StatusCodes.Status400BadRequest,

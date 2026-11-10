@@ -99,7 +99,7 @@ Vérifiés à l'écriture par Core, doublés de tests d'intégration :
 - Un `item` a **au moins un** propriétaire ; la somme de ses `share_bp` vaut exactement 10 000 ; chaque `share_bp` est compris entre 1 et 10 000.
 - `visibility = private` ⇒ **exactement un** propriétaire, et `share_level = view` (contrainte `ck_item_share_level`).
 - Ajouter un propriétaire à un élément privé le passe en `shared`.
-- Pas de suppression physique d'un `item` : on l'archive.
+- Un `item` terminé est clos (archivé). Il n'est supprimé physiquement que par la suppression d'élément (#23), pour un élément qui n'aurait jamais dû exister : avec ses lignes propres, ses faits, ses propriétaires, ses liens de documents et ses références bancaires (liens et règles bancaires, lien d'un compte vers une enveloppe), en une transaction, après un aperçu du serveur. Elle est refusée (`core.item_in_use`) quand quelque chose hors de l'élément en dépend (liste par module dans la doc de chaque module). La `version` est celle de l'élément. Les chiffres passés sont recalculés. Un ré-import le recrée. Ses lignes d'audit restent, mais ne sont plus lisibles par l'élément. Les propositions en attente sur l'élément passent à `superseded` (pas de blocage).
 - `module` + `kind` appartiennent au module : Core n'interprète pas ces valeurs.
 - Un `adult` actif a un `oidc_subject`, un `adult` en attente et un `dependent` n'en ont pas. Le nombre d'`adult` ne dépasse pas `max_adults`.
 - Dès qu'un `adult` existe, au moins un `adult` est admin ; un `dependent` ne l'est jamais. Le rôle n'entre pas dans la matrice de droits (§4.3).
@@ -319,7 +319,7 @@ Les documents ne sont plus dans Core : le module `Nid.Documents` possède le fic
 |---|---|---|
 | `id` | uuid | |
 | `module`, `kind` | text | ex. `investments.record_valuation`, `realestate.import_amortization`, `subscriptions.observed_charge` |
-| `target_item_id?` | uuid | Élément visé |
+| `target_item_id?` | uuid | Élément visé (sans FK : une proposition survit à sa cible) |
 | `for_person_id` | uuid | Personne concernée ; pour un nouvel élément : celui qui a déposé |
 | `subject_key?` | text | Clé métier définie par le module : date de valorisation, période d'un relevé… |
 | `payload`, `payload_version` | jsonb, int | Type défini dans les `Contracts` du module, sérialisé en JSON source-généré |

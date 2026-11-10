@@ -30,6 +30,12 @@ public sealed record CloseGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemSc
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>#23: a goal created by mistake, deleted with its funding links and progress. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeleteGoalCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 public sealed record ReopenGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -158,6 +164,13 @@ public sealed class CloseGoalHandler(IItemRegistry items, IGoalStore goals, IUni
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
+}
+
+[RequestHandler<DeleteGoalCommand, ItemId>]
+public sealed class DeleteGoalHandler(IItemDeletions deletions) : IRequestHandler<DeleteGoalCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeleteGoalCommand command, CancellationToken ct = default)
+        => (await deletions.DeleteAsync(command.ItemId, "goals", null, command.Version, ct)).Map(() => command.ItemId);
 }
 
 /// <summary>D10, D12: a goal reopens only if its shares still fit on the envelopes the actor sees.</summary>

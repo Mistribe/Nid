@@ -84,6 +84,11 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, BankingAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
+        // #23: an item delete asks every module's part.
+        services.AddScoped<IItemDeletions, Nid.Core.Application.ItemDeletions>();
+        services.AddScoped<IApprovingProposal, Nid.Core.Application.ApprovingProposal>();
+        services.AddScoped<IItemDeletionPart, CoreDeletionPart>();
+
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
             npgsql.UseNodaTime();
@@ -248,6 +253,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<GoalsDbContext>>();
         services.AddScoped<IGoalStore, GoalStore>();
+        services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
         services.AddScoped<GoalReader>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 
@@ -257,6 +263,7 @@ public static class NidServiceCollectionExtensions
             npgsql.MigrationsHistoryTable("__ef_migrations_history", BankingDbContext.Schema);
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<BankingDbContext>>();
+        services.AddScoped<IItemDeletionPart, Nid.Banking.Infrastructure.Persistence.BankingDeletionPart>();
         services.AddScoped<IConnectionStore, ConnectionStore>();
         services.AddScoped<IAccountStore, AccountStore>();
         services.AddScoped<IBalanceStore, BalanceStore>();
@@ -299,6 +306,7 @@ public static class NidServiceCollectionExtensions
             npgsql.MigrationsHistoryTable("__ef_migrations_history", DocumentsDbContext.Schema);
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<DocumentsDbContext>>();
+        services.AddScoped<IItemDeletionPart, Nid.Documents.Infrastructure.Persistence.DocumentsDeletionPart>();
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();

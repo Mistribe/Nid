@@ -1,7 +1,7 @@
 import { EllipsisIcon } from 'lucide-react';
 import type { Ref } from 'react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /** `phone`: a header's secondary folded into `⋯` below `sm`, where the button itself is `max-sm:hidden`. */
 type Item = { label: string; onSelect: () => void; destructive?: boolean; disabled?: boolean; phone?: boolean };
@@ -9,13 +9,15 @@ type Item = { label: string; onSelect: () => void; destructive?: boolean; disabl
 type Download = { label: string; href: string };
 /** An entry that opens a submenu instead of acting by itself. */
 type Group = { label: string; items: Item[] };
+/** A line between two sets of entries. */
+type Separator = { separator: true };
 
 /** The header button the focus goes back to, or the `⋯` trigger while that button is folded away (`max-sm:hidden`). */
 export const shownOr = (button: HTMLElement | null, menu: HTMLElement | null) => (button?.checkVisibility?.() === false ? menu : button);
 
 /** A row's secondary actions behind `⋯`; nothing at all when the row has none. */
 export function RowMenu({ label, items, triggerRef, id }: {
-  label: string; id?: string; items: (Item | Download | Group)[]; triggerRef?: Ref<HTMLButtonElement>;
+  label: string; id?: string; items: (Item | Download | Group | Separator)[]; triggerRef?: Ref<HTMLButtonElement>;
 }) {
   if (items.length === 0) return null;
   return (
@@ -24,7 +26,9 @@ export function RowMenu({ label, items, triggerRef, id }: {
         <Button ref={triggerRef} id={id} variant="ghost" size="icon" aria-label={label}><EllipsisIcon aria-hidden="true" /></Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {items.map((item) => 'items' in item ? (
+        {items.map((item, index) => 'separator' in item ? (
+          <DropdownMenuSeparator key={`separator-${index}`} />
+        ) : 'items' in item ? (
           <DropdownMenuSub key={item.label}>
             <DropdownMenuSubTrigger>{item.label}</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>

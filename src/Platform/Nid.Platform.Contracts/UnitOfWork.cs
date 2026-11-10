@@ -11,6 +11,13 @@ public interface IUnitOfWork
     /// commit releases the savepoint, its disposal without a commit rolls back to it, and only the outermost commit lasts.
     /// </summary>
     Task<ITransactionScope> BeginAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Runs <paramref name="action"/> once the outermost scope has committed, for a side effect outside the transaction (a notice).
+    /// Dropped when the transaction, or the savepoint it was registered under, rolls back: a dry run never runs it. The action must not
+    /// throw (the commit already happened). Throws when no scope is open.
+    /// </summary>
+    void AfterCommit(Func<Task> action);
 }
 
 /// <summary>Disposing a scope that was not committed rolls everything back.</summary>

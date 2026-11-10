@@ -523,6 +523,9 @@ public static class RequestCatalogue
             SecondItemAccess = AccessKind.Read,
         },
         new(typeof(CloseGoalCommand), true, (_, item) => new CloseGoalCommand(item)),
+        new(typeof(GoalDeletionQuery), true, (_, item) => new GoalDeletionQuery(item)),
+        // Version 1 is never a row's xmin: an allowed writer meets a conflict, never an access refusal.
+        new(typeof(DeleteGoalCommand), true, (_, item) => new DeleteGoalCommand(item, 1)),
         new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
         new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
         new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),

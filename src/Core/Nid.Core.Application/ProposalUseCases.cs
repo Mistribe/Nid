@@ -98,7 +98,7 @@ internal static class ProposalAccess
         return id => id is { } target && found.TryGetValue(target, out var item) ? item.DisplayName : null;
     }
 
-    public static string NoticeKey(Guid proposal) => $"proposal_pending:{proposal}";
+    public static string NoticeKey(Guid proposal) => ProposalNotices.Key(proposal);
 
     /// <summary>Who can decide it: the person it is for without a target, else every active adult with Write on the target (as <see cref="LoadAsync"/> and <c>canDecide</c>).</summary>
     public static async Task<IReadOnlyList<PersonId>> DecidersAsync(IPersonRegistry persons, IAccessPolicy policy, ItemId? target, PersonId forPerson, CancellationToken ct)
@@ -254,7 +254,7 @@ public sealed class GetProposalHandler(
 [RequestHandler<ApproveProposalCommand, ProposalView>]
 public sealed class ApproveProposalHandler(
     IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IUnitOfWork unitOfWork,
-    IItemRegistry items, INotifier notifier, ILogger<ApproveProposalHandler> logger)
+    IItemRegistry items, INotifier notifier, IApprovingProposal approving, ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
@@ -286,6 +286,8 @@ public sealed class ApproveProposalHandler(
             {
                 // Applied and kept normalized, as a submission is.
                 // A payload that now matches what Nid expects (« conforme ») has nothing to apply: approved, nothing written.
+                // #23: an item delete applied here supersedes the item's other pending proposals, not this one.
+                approving.Id = proposal.Id;
                 var applied = valid!.Conforme is not null
                     ? Result.Success<IReadOnlyList<Guid>>([])
                     : await handler.ApplyAsync(proposal.Target ?? default, valid.Payload, ct);

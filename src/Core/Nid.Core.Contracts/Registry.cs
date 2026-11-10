@@ -37,6 +37,9 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
     public string? Module { get; init; }
 
     public string? Kind { get; init; }
+
+    /// <summary>The <c>core.item</c> xmin, what an item delete compares (<see cref="IItemRegistry.DeleteAsync"/>).</summary>
+    public uint Version { get; init; }
 }
 
 /// <summary>
@@ -149,6 +152,12 @@ public interface IItemRegistry
 
     /// <summary>2B1a: clears the archive (an envelope reopened).</summary>
     Task<Result> UnarchiveAsync(ItemId id, CancellationToken ct);
+
+    /// <summary>
+    /// #23: removes the item and its owners (tracked removes) if its xmin is still <paramref name="version"/>,
+    /// <see cref="ItemCodes.Changed"/> otherwise. Checks no access; the item's other rows are the deletion parts' (<see cref="IItemDeletions"/>).
+    /// </summary>
+    Task<Result> DeleteAsync(ItemId id, uint version, CancellationToken ct);
 }
 
 public static class ItemCodes
@@ -161,6 +170,12 @@ public static class ItemCodes
 
     /// <summary>#25: an edit hides the item from an adult other than the actor who reads it today (<see cref="IItemRules.TakesReadAway"/>). HTTP 422.</summary>
     public const string TakesReadAway = "core.takes_read_away";
+
+    /// <summary>#23: something still refers to the item being deleted (<see cref="IItemDeletionPart.BlockersAsync"/>). HTTP 409.</summary>
+    public const string InUse = "core.item_in_use";
+
+    /// <summary>#23: the item changed since its deletion preview was read. HTTP 409.</summary>
+    public const string Changed = "core.item_changed";
 }
 
 public interface IAccessPolicy

@@ -255,6 +255,10 @@ public static class RouteActions
             "Record the amount a goal without envelopes has reached on a date (on, not in the future); it replaces that date's entry. " + Ids + Amounts),
         new("delete_goal_progress", "DELETE", "/api/v1/goals/{id:guid}/progress/{on}", null,
             "Remove a goal's progress entry of a date. " + Ids, Destructive: true),
+        new("delete_goal", "DELETE", "/api/v1/goals/{id:guid}", null,
+            "Propose deleting a goal created by mistake (to close a goal that ended, use close_goal). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/goals/{id:guid}/deletion"),
 
         // Subscriptions.
         new("create_subscription", "POST", "/api/v1/subscriptions/", typeof(CreateSubscriptionBody),

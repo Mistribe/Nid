@@ -158,6 +158,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             Currency = row.Currency?.Trim(),
             Module = row.Module,
             Kind = row.Kind,
+            Version = row.Version,
         };
 
     public Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct) => SetArchivedAsync(id, at, ct);
@@ -173,5 +174,25 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         row.ArchivedAt = at;
         await db.SaveChangesAsync(ct); // a tracked update: the write audit records archived_at
         return Result.Success();
+    }
+
+    public async Task<Result> DeleteAsync(ItemId id, uint version, CancellationToken ct)
+    {
+        // Owners loaded: their removes are tracked, so audited, rather than left to the database cascade.
+        var row = await db.Items.Include(i => i.Owners).SingleOrDefaultAsync(i => i.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("item", id.ToString()));
+
+        db.Entry(row).Property(r => r.Version).OriginalValue = version;
+        db.Items.Remove(row);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(new Failure(ItemCodes.Changed, "The item changed since it was read.", null));
+        }
     }
 }
