@@ -139,7 +139,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         ChildcareCodes.DaysIncomplete => "Each day of the month once.",
         ChildcareCodes.DepartureBeforeArrival => "A present day needs an arrival before its departure.",
         ChildcareCodes.AbsenceRequired => "An absent planned day needs a reason.",
-        ChildcareCodes.AbsenceNotAllowed => "A reason goes on an absent planned day only.",
+        ChildcareCodes.AbsenceNotAllowed => "A reason goes on a planned day only.",
         ChildcareCodes.DayReplanned => "The template or the weeks without care changed this day since it was saved.",
         ChildcareCodes.SummaryInvalid => "Care days and hours go together, and each day must fit within the day.",
         ChildcareCodes.SummaryTooManyDays => "The month has fewer working days than that.",

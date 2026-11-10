@@ -39,6 +39,14 @@ public class StatementCheckTests
     }
 
     [Fact]
+    public void Reason_on_a_worked_planned_day_is_allowed()
+    {
+        var days = Prepared();
+        days[0] = days[0] with { Absence = AbsenceReason.Family };
+        Assert.Empty(StatementCheck.Days(Month, days));
+    }
+
+    [Fact]
     public void Reason_on_unplanned_day_refused()
     {
         var days = Prepared();

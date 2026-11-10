@@ -23,7 +23,7 @@ public static class StatementCheck
                 problems.Add(($"days[{i}].departure", ContractCheck.Codes.DepartureBeforeArrival));
             if (day.Planned && !day.Present && day.Absence is null)
                 problems.Add(($"days[{i}].absence", ContractCheck.Codes.AbsenceRequired));
-            if (day.Absence is not null && (day.Present || !day.Planned))
+            if (day.Absence is not null && !day.Planned)
                 problems.Add(($"days[{i}].absence", ContractCheck.Codes.AbsenceNotAllowed));
         }
         return problems;

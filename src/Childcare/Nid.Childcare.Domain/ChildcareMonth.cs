@@ -67,7 +67,7 @@ public static class ChildcareMonth
 
     /// <summary>
     /// No declaration from an incomplete or inconsistent month (spec §0): every day once, the plan as the template, gaps
-    /// and contract dates say, hours on present days, a reason exactly on absent planned ones; the same for the neighbours.
+    /// and contract dates say, hours on present days, a reason on absent planned ones, on planned ones only; the same for the neighbours.
     /// </summary>
     private static void Validate(MonthInput input)
     {
@@ -83,8 +83,8 @@ public static class ChildcareMonth
                 throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a present day needs an arrival before its departure.", nameof(input));
             if (day.Planned != StatementPreparation.IsPlanned(day.Date, input.Plan, input.Gaps, input.Terms))
                 throw new ArgumentException($"{day.Date:uuuu-MM-dd}: planned does not match the template, the gaps and the contract dates.", nameof(input));
-            if ((day.Absence is not null) != (day.Planned && !day.Present))
-                throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a reason goes on an absent planned day, and only there.", nameof(input));
+            if (day.Absence is null ? day.Planned && !day.Present : !day.Planned)
+                throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a reason goes on a planned day, and an absent one needs it.", nameof(input));
         }
     }
 

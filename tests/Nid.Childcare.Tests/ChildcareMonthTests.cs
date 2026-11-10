@@ -125,9 +125,14 @@ public class ChildcareMonthValidationTests
             d => d.Date.Day == 22 ? d with { Absence = AbsenceReason.CarerAbsent } : d)));
 
     [Fact]
-    public void Absence_on_a_present_day_is_refused()
-        => Assert.Throws<ArgumentException>(() => ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps,
-            d => d.Date.Day == 5 ? d with { Absence = AbsenceReason.ChildSick } : d)));
+    public void An_unpaid_reason_on_a_shortened_day_lowers_the_pay_and_keeps_the_activity_days()
+    {
+        var whole = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps, d => d));
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps,
+            d => d.Date.Day == 5 ? d with { Departure = new LocalTime(12, 45), Absence = AbsenceReason.CarerAbsent } : d));
+        Assert.Equal(18.42m, figures.Deduction);
+        Assert.Equal(whole.Declaration.ActivityDays, figures.Declaration.ActivityDays);
+    }
 
     [Fact]
     public void Planned_flag_must_match_the_template()

@@ -17,8 +17,10 @@ public static class ExtraHours
         foreach (var week in days.GroupBy(d => d.Date.PlusDays(1 - (int)d.Date.DayOfWeek)))
         {
             if (Owner(week.Key.PlusDays(3), terms) != month) continue;
-            // The week's own plan, not a template's fixed hours: a paid absence stays planned, an unpaid one and a gap week do not.
-            var planned = week.Where(d => d.Planned && !(d.Absence is { } r && reasons.Contains(r))).Sum(d => plan.HoursOn(d.Date));
+            // The week's own plan, not a template's fixed hours: a paid absence stays planned, an unpaid one (or its missing hours) and a gap week do not.
+            var planned = week.Where(d => d.Planned).Sum(d => d.Absence is { } r && reasons.Contains(r)
+                ? d.Present ? Math.Min(plan.HoursOn(d.Date), Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value)) : 0m
+                : plan.HoursOn(d.Date));
             var actual = week.Where(d => d.Present).Sum(d => Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value));
             var extra = Math.Max(0m, actual - planned);
             var under = Math.Min(extra, Math.Max(0m, ChildcareRules.OvertimeThresholdHours - planned));

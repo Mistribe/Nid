@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { pick } from '@/test/controls';
@@ -73,6 +73,19 @@ describe('StatementPage', () => {
     serve(statement({ days }));
     await renderApp(url);
     expect(await screen.findByText('Semaine courte')).toBeInTheDocument();
+  });
+
+  it('a day cut short can carry a reason', async () => {
+    const writes: Write[] = [];
+    serve(statement(), writes);
+    const { user } = await renderApp(url);
+    await user.click(await screen.findByRole('button', { name: 'Modifier le lundi 8 septembre' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Départ'), { target: { value: '12:00' } });
+    await pick(user, 'Motif de la journée écourtée', 'Enfant malade');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer le jour' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect((writes[0]!.body as { days: unknown[] }).days[7]).toMatchObject({ present: true, departure: '12:00', absence: 'child_sick' });
   });
 
   it('marking a day absent sends the month with the reason', async () => {
