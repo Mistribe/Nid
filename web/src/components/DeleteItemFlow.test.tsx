@@ -34,6 +34,15 @@ describe('DeleteItemFlow', () => {
     expect(version).toBe('6');
   });
 
+  it('names the way to end the item instead, through the translated hint', async () => {
+    server.use(
+      http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail())),
+      http.get('*/api/v1/income/sources/:id/deletion', () => HttpResponse.json(preview(1))),
+    );
+    const { dialog } = await open();
+    await waitFor(() => expect(dialog).toHaveTextContent('Terminer cette source'));
+  });
+
   it('a 409 reads the preview again and asks for the name again', async () => {
     let reads = 0;
     server.use(

@@ -41,7 +41,6 @@ import { Section } from '@/components/page/Section';
 import { SettingsForm } from './settings/SettingsForm';
 import '@/locales/income';
 import '@/locales/deletion';
-
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { PageSkeleton } from '@/components/page/skeletons';

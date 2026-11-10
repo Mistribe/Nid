@@ -79,6 +79,11 @@ public class IncomeSourceDeleteTests(PostgresFixture fixture) : IClassFixture<Po
                 TargetKind = "income.one_off", TargetId = oneOff, Role = "payslip", Period = 0,
                 DismissedByPersonId = app.AdultA.Value, DismissedAt = Instant.FromUtc(2025, 10, 15, 0, 0),
             });
+            documents.UploadTickets.Add(new UploadTicketRow
+            {
+                TokenHash = "ticket", PersonId = app.AdultA.Value, TokenId = Guid.NewGuid(), FileName = "b.pdf", Title = "Fiche", DocumentDate = new LocalDate(2025, 10, 1),
+                TargetKind = "income.phase", TargetId = phase, Role = "payslip", ExpiresAt = Instant.FromUtc(2099, 1, 1, 0, 0),
+            });
             await documents.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
         var version = await VersionAsync(app, source);
@@ -95,6 +100,7 @@ public class IncomeSourceDeleteTests(PostgresFixture fixture) : IClassFixture<Po
         await using var after = PostgresFixture.NewDocumentsContext(app.ConnectionString);
         Assert.Empty(after.Links.Where(l => l.DocumentId == document));
         Assert.Empty(after.ExpectedDismissals.Where(d => d.TargetId == oneOff));
+        Assert.Empty(after.UploadTickets.Where(t => t.TargetId == phase));
         Assert.Equal(HttpStatusCode.OK, (await GetAsync(app, app.AdultA, document)).StatusCode);
     }
 

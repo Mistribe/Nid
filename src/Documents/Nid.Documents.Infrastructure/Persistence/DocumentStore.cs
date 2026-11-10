@@ -212,6 +212,7 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
         db.Links.RemoveRange(rows);
         // Issue #414: a deleted target's « pas disponible » go with it.
         db.ExpectedDismissals.RemoveRange(await db.ExpectedDismissals.Where(d => d.TargetKind == target.Kind && d.TargetId == target.Id).ToListAsync(ct));
+        db.UploadTickets.RemoveRange(await db.UploadTickets.Where(t => t.TargetKind == target.Kind && t.TargetId == target.Id).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
         return rows.Count;
     }

@@ -1,11 +1,14 @@
 import { useApi } from './ApiProvider';
 import type { paths } from './schema';
 
+/** The routes that define an operation: openapi-typescript types an absent one as `?: never`. */
+type WithOperation<M extends 'get' | 'delete'> = { [P in keyof paths]: paths[P][M] extends undefined ? never : P }[keyof paths];
+
 /** One entry per item that can be deleted when created by mistake (#23): its preview and delete routes, and the list to land on. The « end it instead » hint is `deletion.close_hint.<kind>`. */
 export const DELETABLE = {
   'goals.delete_goal': { preview: '/api/v1/goals/{id}/deletion', remove: '/api/v1/goals/{id}', list: '/goals' },
   'income.delete_income_source': { preview: '/api/v1/income/sources/{id}/deletion', remove: '/api/v1/income/sources/{id}', list: '/income' },
-} as const satisfies Record<string, { preview: keyof paths; remove: keyof paths; list: string }>;
+} as const satisfies Record<string, { preview: WithOperation<'get'>; remove: WithOperation<'delete'>; list: string }>;
 export type DeletableKind = keyof typeof DELETABLE;
 
 // Every kind shares the same shape (`{id}` path, `version` query, ItemDeletionPreview), so the hooks type the routes once, as the goal's:

@@ -232,12 +232,12 @@ public sealed class ListIncomeSourcesHandler(
 public sealed class DeleteIncomeSourceHandler(IItemDeletions deletions) : IRequestHandler<DeleteIncomeSourceCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(DeleteIncomeSourceCommand command, CancellationToken ct = default)
-        => (await deletions.DeleteAsync(command.ItemId, "income", null, command.Version, ct)).Map(() => command.ItemId);
+        => (await deletions.DeleteAsync(command.ItemId, "income", "source", command.Version, ct)).Map(() => command.ItemId);
 }
 
 [RequestHandler<IncomeSourceDeletionQuery, ItemDeletionPreview>]
 public sealed class IncomeSourceDeletionHandler(IItemDeletions deletions) : IRequestHandler<IncomeSourceDeletionQuery, ItemDeletionPreview>
 {
     public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(IncomeSourceDeletionQuery query, CancellationToken ct = default)
-        => await deletions.PreviewAsync(query.ItemId, "income", null, ct);
+        => await deletions.PreviewAsync(query.ItemId, "income", "source", ct);
 }

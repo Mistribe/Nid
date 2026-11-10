@@ -238,6 +238,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISourceStore, SourceStore>();
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IOneOffTaxableStore, OneOffTaxableStore>();
+        services.AddScoped<IItemDeletionPart, IncomeDeletionPart>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<ISeriesContribution, Nid.Income.Application.IncomeSeries>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
@@ -254,7 +255,6 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<GoalsDbContext>>();
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
-        services.AddScoped<IItemDeletionPart, Nid.Income.Infrastructure.Persistence.IncomeDeletionPart>();
         services.AddScoped<GoalReader>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 

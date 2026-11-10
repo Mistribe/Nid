@@ -29,7 +29,6 @@ import { RoutePayload, isRouteKind, routeElement, routeLabel, routeLink, useName
 import { focusHeading, focusNextHeading } from './focus';
 import '@/locales/proposals';
 import '@/locales/deletion';
-import '@/locales/goals';
 import '@/locales/forms';
 
 const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
