@@ -65,4 +65,20 @@ describe('A proposal to delete a goal', () => {
     ]));
     await waitFor(() => expect(router.state.location.pathname).toBe('/goals'));
   });
+
+  it('an income source deletion opens the same dialog and approves with the preview version', async () => {
+    const SOURCE = '0192f0aa-0000-7000-8000-00000000c001';
+    const p = proposal({ kind: 'income.delete_income_source', targetItemId: SOURCE, targetName: 'Salaire Alice', subjectKey: null, payload: { id: SOURCE, version: 1 } });
+    const sent = serve([p], { preview: {} });
+    server.use(http.get('*/api/v1/income/sources/:id/deletion', () => HttpResponse.json({ name: 'Salaire Alice', version: 2, imported: false, removes: [], blockers: [] })));
+    const { user, router } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer Salaire Alice' });
+    await user.type(await within(dialog).findByLabelText(/Tapez/), 'Salaire Alice');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: SOURCE, version: 2 } }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/income'));
+  });
 });

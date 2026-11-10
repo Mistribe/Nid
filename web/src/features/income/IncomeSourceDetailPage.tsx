@@ -1,7 +1,7 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { useParams, useSearch } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -40,9 +40,12 @@ import { OneOffsSection } from './oneoffs/OneOffsSection';
 import { Section } from '@/components/page/Section';
 import { SettingsForm } from './settings/SettingsForm';
 import '@/locales/income';
+import '@/locales/deletion';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { PageSkeleton } from '@/components/page/skeletons';
+
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 
 const TABS = ['overview', 'history', 'oneoffs', 'documents', 'settings'] as const;
 
@@ -88,6 +91,7 @@ export function IncomeSourceDetailPage() {
   // Ending and reopening: the page owns the toast (the banner comes and goes with the state) and where the focus
   // lands once the refetch has swapped it — the banner after ending, « Changements » after reopening; never <body>.
   const [endOpen, setEndOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [landOn, setLandOn] = useState<'banner' | 'phases' | null>(null);
   const bannerRef = useRef<HTMLParagraphElement>(null);
   const endWasOpen = useRef(false);
@@ -131,18 +135,20 @@ export function IncomeSourceDetailPage() {
   const editingPhase = writable && editing ? source.phases.find((p) => p.id === editing.id) : undefined;
   const shown = writable || tab !== 'settings' ? tab : 'overview';
 
-  const actions = writable ? (
+  const deleteItem = [{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }];
+  const actions = source.canWrite ? (
     <>
-      <ChangeAmountAction phases={changeable} onChange={(phaseId) => startEdit(phaseId, 'change', CHANGE_AMOUNT_ID)} />
-      <Button type="button" variant="outline" className="max-sm:hidden" aria-label={t('income_detail.one_offs.add')} onClick={startOneOff}><Plus aria-hidden="true" />{t('income_detail.add_one_off')}</Button>
+      {writable ? <ChangeAmountAction phases={changeable} onChange={(phaseId) => startEdit(phaseId, 'change', CHANGE_AMOUNT_ID)} /> : null}
+      {writable ? <Button type="button" variant="outline" className="max-sm:hidden" aria-label={t('income_detail.one_offs.add')} onClick={startOneOff}><Plus aria-hidden="true" />{t('income_detail.add_one_off')}</Button> : null}
       <SharingMenu item={id} onAnnounce={toast.success} shared={source.visibility === 'shared'} label={t('page.more_actions')} triggerRef={menuRef}
-        items={[
+        items={writable ? [
           { label: t('income_detail.one_offs.add'), phone: true, onSelect: startOneOff },
           { label: t('income_detail.add_component'), onSelect: () => startAdd(newPhase()) },
           { label: t('income_detail.ending.open'), onSelect: () => setEndOpen(true) },
-        ]} />
+        ] : []}
+        trailing={deleteItem} />
     </>
-  ) : source.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={source.visibility === 'shared'} label={t('page.more_actions')} /> : null;
+  ) : null;
 
   return (
     <article className="space-y-6">
@@ -233,6 +239,7 @@ export function IncomeSourceDetailPage() {
           ),
         }] : []),
       ]} />
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="income.delete_income_source" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
     </article>
   );
 }

@@ -77,15 +77,3 @@ export function usePutProgress() {
   const { $api } = useApi();
   return $api.useMutation('put', PROGRESS, useWrite());
 }
-
-/** What deleting the goal removes and what blocks it, read only while the dialog is open. */
-export function useGoalDeletion(id: string, enabled: boolean) {
-  const { $api } = useApi();
-  return $api.useQuery('get', GOAL_DELETION, { params: { path: { id } } }, { enabled });
-}
-
-/** No invalidation here: the goal is gone, so the page leaves first and refreshes the lists after (a refetch of it would 404). */
-export function useDeleteGoal() {
-  const { $api } = useApi();
-  return $api.useMutation('delete', GOAL);
-}

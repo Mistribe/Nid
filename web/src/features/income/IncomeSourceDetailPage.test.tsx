@@ -415,7 +415,8 @@ describe('IncomeSourceDetailPage', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Terminer cette source' }));
     await user.click(within(await screen.findByRole('dialog', { name: 'Terminer la source' })).getByRole('button', { name: 'Terminer' }));
     expect(await screen.findByText('Source terminée', { exact: true })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+    // An ended source keeps its menu: Supprimer… is still there.
+    expect(screen.getByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Rouvrir' }));
     expect(await screen.findByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
@@ -445,5 +446,32 @@ describe('IncomeSourceDetailPage', () => {
     expect(names.indexOf('Documents')).toBe(names.indexOf('Réglages') - 1);
     await user.click(screen.getByRole('tab', { name: 'Documents' }));
     expect((await screen.findAllByText('Pièce du dossier')).length).toBeGreaterThan(0);
+  });
+
+  describe('deletion', () => {
+    const lastItem = async (body: IncomeSourceDetail) => {
+      serve(body);
+      const { user } = await renderApp(`/income/${SALARY}`);
+      await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+      await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+      return screen.getAllByRole('menuitem').at(-1)!;
+    };
+
+    it('Supprimer… is the last item for an open source', async () => {
+      expect(await lastItem(detail())).toHaveTextContent('Supprimer…');
+    });
+
+    it('Supprimer… is the only item for an ended source', async () => {
+      const item = await lastItem(detail({ ended: true, endedOn: '2025-06-30' }));
+      expect(item).toHaveTextContent('Supprimer…');
+      expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+    });
+
+    it('a reader sees no menu', async () => {
+      serve(detail({ canWrite: false }));
+      await renderApp(`/income/${SALARY}`);
+      await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+      expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+    });
   });
 });

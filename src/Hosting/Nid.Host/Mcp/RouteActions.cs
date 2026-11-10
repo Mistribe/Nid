@@ -212,6 +212,10 @@ public static class RouteActions
             "End an income source on a date. " + Ids + Amounts, Destructive: true),
         new("reopen_income_source", "POST", "/api/v1/income/sources/{id:guid}/reopen", null,
             "Reopen an ended income source. " + Ids),
+        new("delete_income_source", "DELETE", "/api/v1/income/sources/{id:guid}", null,
+            "Propose deleting an income source created by mistake (to end one that stopped, use close_income_source). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/income/sources/{id:guid}/deletion"),
 
         // Childcare (childminder, Pajemploi).
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),

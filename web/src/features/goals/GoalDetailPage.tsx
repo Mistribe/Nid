@@ -30,7 +30,7 @@ import '@/locales/goals';
 import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
 
-const DeleteGoalDialog = lazy(() => import('./DeleteGoalDialog'));
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 
 // A pace of zero or less never reaches the target; read from the decimal text, nothing is computed.
 const NOT_POSITIVE = /^(-|0+(\.0+)?$)/;
@@ -96,7 +96,7 @@ export function GoalDetailPage() {
         </section>
       </PageHeader>
       {goal.canWrite ? null : <p>{t('goals_list.read_only')}</p>}
-      {deleting ? <Suspense fallback={null}><DeleteGoalDialog id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="goals.delete_goal" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
       {editing ? <EditGoalDialog goalId={id} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); toast.success(message); }} /> : null}
       {error ? <ProblemMessage problem={presentGoalConflict(t, error)} /> : null}
       <ul className="space-y-1 text-sm">

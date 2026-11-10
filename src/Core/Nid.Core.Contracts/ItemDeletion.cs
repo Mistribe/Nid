@@ -29,6 +29,9 @@ public interface IItemDeletionPart
     /// never write outside the unit of work (no own scope, no file or blob deletes); a notice waits for <c>IUnitOfWork.AfterCommit</c>.
     /// </summary>
     Task RemoveAsync(ItemAccess item, CancellationToken ct);
+
+    /// <summary>Core's own part removes the item's facts; it runs after every module's part, so a part may still read them.</summary>
+    bool RunsLast => false;
 }
 
 /// <summary>A module's delete endpoints call these with their own <c>module</c> (and <c>kind</c> when one endpoint serves one kind only).</summary>

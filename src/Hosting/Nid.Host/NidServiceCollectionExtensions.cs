@@ -238,6 +238,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISourceStore, SourceStore>();
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IOneOffTaxableStore, OneOffTaxableStore>();
+        services.AddScoped<Nid.Income.Application.IncomeDocumentUnlinks>();
+        services.AddScoped<IItemDeletionPart, IncomeDeletionPart>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<ISeriesContribution, Nid.Income.Application.IncomeSeries>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();

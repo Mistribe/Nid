@@ -31,12 +31,28 @@ public class ItemDeletionTests(PostgresFixture postgres)
         public Task RemoveAsync(ItemAccess item, CancellationToken ct) => throw new InvalidOperationException("A blocked delete removes nothing.");
     }
 
-    private async Task<ServiceProvider> ProviderAsync(bool blocked = false)
+    /// <summary>Registered after Core's part: counts the item's flows when its own remove runs.</summary>
+    private sealed class ReadingPart(CoreDbContext db) : IItemDeletionPart
+    {
+        public static int? FlowsSeen;
+
+        public Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct) => Task.FromResult<IReadOnlyList<DeletionCount>>([]);
+
+        public Task<IReadOnlyList<DeletionBlocker>> BlockersAsync(ItemAccess item, CancellationToken ct) => Task.FromResult<IReadOnlyList<DeletionBlocker>>([]);
+
+        public Task<bool> ImportedAsync(ItemAccess item, CancellationToken ct) => Task.FromResult(false);
+
+        public async Task RemoveAsync(ItemAccess item, CancellationToken ct) => FlowsSeen = await db.Flows.CountAsync(f => f.ItemId == item.Id.Value, ct);
+    }
+
+    private async Task<ServiceProvider> ProviderAsync(bool blocked = false, bool reading = false)
     {
         var services = new ServiceCollection();
         services.AddNid(await postgres.NewConnectionStringAsync());
         if (blocked)
             services.AddScoped<IItemDeletionPart, BlockingPart>();
+        if (reading)
+            services.AddScoped<IItemDeletionPart, ReadingPart>();
         return services.BuildServiceProvider(validateScopes: true);
     }
 
@@ -97,6 +113,22 @@ public class ItemDeletionTests(PostgresFixture postgres)
         Assert.True((await deletions.DeleteAsync(item, "investments", null, preview.Version, Ct)).IsSuccess);
 
         Assert.Equal((0, 0, 0, 0), await RowsAsync(db, item));
+    }
+
+    [Fact]
+    public async Task Core_part_runs_last_whatever_the_registration_order()
+    {
+        await using var provider = await ProviderAsync(reading: true);
+        await using var scope = provider.CreateAsyncScope();
+        var (alice, item) = await SeedAsync(scope.ServiceProvider);
+        await AddFactsAsync(scope.ServiceProvider.GetRequiredService<CoreDbContext>(), item, alice);
+        var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
+        var preview = await Preview(deletions, item);
+        ReadingPart.FlowsSeen = null;
+
+        Assert.True((await deletions.DeleteAsync(item, "investments", null, preview.Version, Ct)).IsSuccess);
+
+        Assert.Equal(1, ReadingPart.FlowsSeen);
     }
 
     [Fact]
