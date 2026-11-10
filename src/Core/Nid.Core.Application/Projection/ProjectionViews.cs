@@ -17,7 +17,7 @@ public sealed record HouseholdPointView(
 public sealed record RetirementHorizonView(Guid Person, string Name, LocalDate On);
 
 /// <summary>
-/// Spec §3.5: <c>loan_end</c>, <c>property_free</c>, <c>retirement</c>, <c>savings_exhausted</c> or a scenario's <c>event</c> (its label, or
+/// Spec §3.5: <c>loan_end</c>, <c>property_free</c>, <c>retirement</c>, <c>financial_independence</c>, <c>savings_exhausted</c> or a scenario's <c>event</c> (its label, or
 /// its kind); <c>Item</c> is the loan, property or purchase scenario.
 /// </summary>
 public sealed record ProjectionMilestoneView(LocalDate On, string Kind, string Label, ItemId? Item);

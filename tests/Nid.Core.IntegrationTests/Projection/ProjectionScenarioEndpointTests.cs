@@ -560,4 +560,27 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.Equal(("2045-10", "2035-10"), (Str(result.GetProperty("base"), "financialIndependence"), Str(result.GetProperty("scenario"), "financialIndependence")));
         Assert.Equal("2035-10", Str(compared.GetProperty("result"), "financialIndependence"));
     }
+
+    [Fact]
+    public async Task Selling_a_let_property_takes_its_rent_out_of_the_independence() // retirement spec §3: the sale's rent no longer covers the living cost
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/valuations", new { asOf = "2025-06-01", amount = "100000" }));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/tenancies",
+            new { label = "Bail", startsOn = "2025-01-01", endsOn = (string?)null, rentMonthly = "800", chargesMonthly = "0" }));
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = "1000", savingsClass = "cash",
+            freedPaymentsToSavings = true, withdrawalRate = "4", monthlyLivingCost = "1200",
+        })).EnsureSuccessStatusCode(); // rent 800 + 4 % of 120 000 cover 1 200: 120 months of savings at 1 000 (2035-10)
+        var sale = new { id = Guid.NewGuid(), kind = "property_sale", start = new { on = "2026-03-01" }, property = home, price = "100000", costs = "0" };
+        var id = await SavedAsync(await CreateAsync(app, Body(app, Document("20y", sale))));
+
+        var result = (await GetAsync(app, id)).GetProperty("result");
+
+        Assert.Equal("2035-10", Str(result.GetProperty("base"), "financialIndependence"));
+        // Without its rent the sold home leaves 360 000 of capital to build from 100 000 and 200 a month: beyond the horizon.
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("scenario").GetProperty("financialIndependence").ValueKind);
+    }
 }

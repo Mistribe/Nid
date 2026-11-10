@@ -232,11 +232,12 @@ public class HouseholdProjectionTests
 
     private static HouseholdProjectionResult Independence(
         IReadOnlyList<SavingsSlice> savings, decimal? expenses0 = 500m, decimal living = 500m, decimal inflation = 0m, int months = 12,
-        IReadOnlyList<decimal>? pensions = null, IReadOnlyList<RealEstateMonth>? realEstate = null) =>
+        IReadOnlyList<decimal>? pensions = null, IReadOnlyList<RealEstateMonth>? realEstate = null,
+        IReadOnlyList<decimal>? expenseAdjustments = null) =>
         HouseholdProjection.Project(new(
             Today, months, savings, Enumerable.Repeat(0m, months + 1).ToList(), realEstate ?? [], 0m,
             Assumptions(inflation: inflation) with { WithdrawalRate = 0.04m, MonthlyLivingCost = living }, [],
-            Pensions: pensions, Expenses0: expenses0));
+            Pensions: pensions, Expenses0: expenses0, ExpenseAdjustments: expenseAdjustments));
 
     private static YearMonth ThisMonth => new(Today.Year, Today.Month);
 
@@ -287,6 +288,17 @@ public class HouseholdProjectionTests
         Assert.Equal(Math.Round(1_000m * i[3], 2, MidpointRounding.AwayFromZero), result.Independence[3].Expenses);
         Assert.Equal(Math.Round(1_000m * i[4], 2, MidpointRounding.AwayFromZero), result.Independence[4].Expenses);
         Assert.Equal(Math.Round(1_000m * i[4] / i[4], 2, MidpointRounding.AwayFromZero), result.Independence[4].ExpensesReal);
+    }
+
+    [Fact]
+    public void Expense_adjustments_are_added_to_the_expenses()
+    {
+        var adjustments = Enumerable.Range(0, 13).Select(k => k >= 4 ? -300m : 0m).ToList();
+        var result = Independence([Cash(240_000m)], living: 1_000m, expenseAdjustments: adjustments); // 800 covered, 1 500 spent, then 1 200
+        Assert.Equal(1_500m, result.Independence[3].Expenses);
+        Assert.Equal(1_200m, result.Independence[4].Expenses);
+        Assert.Null(Independence([Cash(240_000m)], living: 1_000m).FinancialIndependenceIn);
+        Assert.Equal(ThisMonth.PlusMonths(4), Independence([Cash(240_000m)], living: 1_000m, expenseAdjustments: Enumerable.Range(0, 13).Select(k => k >= 4 ? -700m : 0m).ToList()).FinancialIndependenceIn);
     }
 
     [Fact]

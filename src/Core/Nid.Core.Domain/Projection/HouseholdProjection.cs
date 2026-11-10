@@ -29,7 +29,8 @@ public sealed record ScheduledChange(int From, int To, decimal Amount, bool Inco
 /// rates; null resolves them from <c>Assumptions</c> with no observed inflation. <c>Changes</c> are added to S(k), indexed.
 /// Retirement spec §3: <c>Pensions</c> and <c>PassiveIncome</c> (<c>Months + 1</c> entries, nominal, indexed; null reads zeros) and
 /// <c>Expenses0</c> (this month's commitments but the loans, today's money) give the financial independence series; null
-/// <c>Expenses0</c> computes none.
+/// <c>Expenses0</c> computes none. <c>ExpenseAdjustments</c> (<c>Months + 1</c> entries, nominal; null reads zeros) is added to the
+/// month's expenses (a sold property's costs, removed).
 /// </summary>
 public sealed record ProjectionInputs(
     LocalDate Today, int Months, IReadOnlyList<SavingsSlice> Savings,
@@ -37,7 +38,8 @@ public sealed record ProjectionInputs(
     decimal MonthlySavings, ProjectionAssumptions Assumptions, IReadOnlyList<ProjectionMilestone> Milestones,
     IReadOnlyList<decimal>? MonthlyAdjustments = null, IReadOnlyList<decimal>? CashFlows = null,
     IReadOnlyList<SliceWithdrawal>? Withdrawals = null, ResolvedRates? Rates = null, IReadOnlyList<ScheduledChange>? Changes = null,
-    IReadOnlyList<decimal>? Pensions = null, IReadOnlyList<decimal>? PassiveIncome = null, decimal? Expenses0 = null);
+    IReadOnlyList<decimal>? Pensions = null, IReadOnlyList<decimal>? PassiveIncome = null, decimal? Expenses0 = null,
+    IReadOnlyList<decimal>? ExpenseAdjustments = null);
 
 /// <summary>
 /// A month's last day (the first point is today), nominal and real net worth with its parts, nominal then real (each part divided
@@ -169,7 +171,7 @@ public static class HouseholdProjection
             for (var j = 0; j < amounts.Length; j++)
                 if (slices[j].Liquidity != AllocationLiquidity.Locked || unlocksAt[j] <= k) capital += amounts[j];
             var covered = capital * a.WithdrawalRate / 12m + (inputs.Pensions?[k] ?? 0m) + (inputs.PassiveIncome?[k] ?? 0m);
-            var expenses = (expenses0 + a.MonthlyLivingCost) * i[k] + At(k).LoanPayments;
+            var expenses = (expenses0 + a.MonthlyLivingCost) * i[k] + At(k).LoanPayments + (inputs.ExpenseAdjustments?[k] ?? 0m);
             independence.Add(new(on, Cent(capital), Cent(covered), Cent(expenses),
                 Cent(capital / i[k]), Cent(covered / i[k]), Cent(expenses / i[k])));
             // Without a living cost the date would only say « nothing to pay »: the series stays, the month does not. Today is no milestone.
