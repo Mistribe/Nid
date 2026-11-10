@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
+import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
@@ -12,9 +13,9 @@ import { FormDialog } from '@/components/FormDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AdminFrame } from './AdminFrame';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { Section } from '@/components/page/Section';
+import { AdminFrame } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { CURRENCY } from '@/lib/amount';
 import { formatInstant } from '@/lib/format';
@@ -81,7 +82,7 @@ export function FxPage() {
       <Section title={t('admin.fx.runs_title')}>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
         {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
-        {runs.data && runs.data.length === 0 ? <p>{t('admin.fx.no_runs')}</p> : null}
+        {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
         {runs.data && runs.data.length > 0 ? (
           <Table>
             <TableHeader>

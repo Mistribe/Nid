@@ -9,6 +9,7 @@ import { ConfirmAction } from '@/components/ConfirmAction';
 import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { formatLocalDate, monthText } from '@/components/LocalDate';
+import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SeriesLink } from '@/components/page/SeriesLink';
 import { SwitchField } from '@/components/page/SwitchField';
@@ -16,9 +17,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fieldErrorsOf, knownConflictMessage, messageFor } from '@/components/form/fieldErrors';
-import { AdminFrame } from './AdminFrame';
 import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { Section } from '@/components/page/Section';
+import { AdminFrame } from './AdminFrame';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 import '@/locales/forms';
@@ -90,10 +91,10 @@ export function InflationPage() {
       </section>
 
       {inflation.error ? <ProblemMessage problem={present(toProblem(inflation.error))} /> : null}
-      {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
 
       <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
-        {inflation.data && inflation.data.values.length === 0 ? <p>{t('admin.inflation.no_values')}</p> : null}
+        {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
+        {inflation.data && inflation.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}
         {inflation.data && inflation.data.values.length > 0 ? (
           <Table>
             <TableHeader>
@@ -121,7 +122,7 @@ export function InflationPage() {
       <ManualMonth />
 
       <Section title={t('admin.inflation.runs_title')}>
-        {inflation.data && inflation.data.runs.length === 0 ? <p>{t('admin.inflation.no_runs')}</p> : null}
+        {inflation.data && inflation.data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_runs')} body="" level={3} /> : null}
         {inflation.data && inflation.data.runs.length > 0 ? (
           <Table>
             <TableHeader>

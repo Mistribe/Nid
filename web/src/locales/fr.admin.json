@@ -1,7 +1,6 @@
 {
   "admin": {
     "loading": "Chargement",
-    "nav": { "household": "Foyer" },
     "overview": {
       "group_reference": "Données de référence",
       "group_operations": "Opérations",

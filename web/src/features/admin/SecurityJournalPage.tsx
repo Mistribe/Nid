@@ -76,7 +76,7 @@ export function SecurityJournalPage() {
           )}
         </FilterField>
       </FilterRow>
-      {!journal.data || !adults.data ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : journal.data.entries.length === 0 ? (
+      {!journal.data || !adults.data ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : journal.data.entries.length === 0 ? (
         <EmptyState module="/admin" title={t('admin.security.empty')} body="" />
       ) : (
         <Table>

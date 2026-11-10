@@ -87,7 +87,7 @@ export function UsersPage() {
       {capNotice && capReached ? (
         <p role="status" className="text-sm">
           {t('admin.users.cap_reached', { max: household.data.maxAdults })}{' '}
-          <Link to="/admin/household" className="font-medium underline underline-offset-4">{t('admin.nav.household')}</Link>
+          <Link to="/admin/household" className="font-medium underline underline-offset-4">{t('nav.admin_household')}</Link>
         </p>
       ) : null}
       {adding ? <AddAdultDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); toast.success(message); }} /> : null}

@@ -6,14 +6,15 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
+import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AdminFrame } from './AdminFrame';
 import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { Section } from '@/components/page/Section';
+import { AdminFrame } from './AdminFrame';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 
@@ -93,7 +94,7 @@ export function BankingPage() {
       <Section title={t('admin.banking.runs_title')}>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
         {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={10} /></Loading> : null}
-        {runs.data && runs.data.length === 0 ? <p>{t('admin.banking.no_runs')}</p> : null}
+        {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.banking.no_runs')} body="" level={3} /> : null}
         {runs.data && runs.data.length > 0 ? (
           <Table>
             <TableHeader>

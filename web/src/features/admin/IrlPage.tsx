@@ -9,6 +9,7 @@ import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { formatLocalDate } from '@/components/LocalDate';
+import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SeriesLink } from '@/components/page/SeriesLink';
 import { SwitchField } from '@/components/page/SwitchField';
@@ -17,9 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { todayIso } from '@/lib/today';
-import { AdminFrame } from './AdminFrame';
 import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { Section } from '@/components/page/Section';
+import { AdminFrame } from './AdminFrame';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 import '@/locales/forms';
@@ -87,10 +88,10 @@ export function IrlPage() {
       </section>
 
       {irl.error ? <ProblemMessage problem={present(toProblem(irl.error))} /> : null}
-      {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
 
       <Section title={t('admin.irl.values_title')} actions={<SeriesLink keys={['irl']} />}>
-        {irl.data && irl.data.values.length === 0 ? <p>{t('admin.irl.no_values')}</p> : null}
+        {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
+        {irl.data && irl.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_values')} body="" level={3} /> : null}
         {irl.data && irl.data.values.length > 0 ? (
           <Table>
             <TableHeader>
@@ -120,7 +121,7 @@ export function IrlPage() {
       <ManualQuarter />
 
       <Section title={t('admin.irl.runs_title')}>
-        {irl.data && irl.data.runs.length === 0 ? <p>{t('admin.irl.no_runs')}</p> : null}
+        {irl.data && irl.data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_runs')} body="" level={3} /> : null}
         {irl.data && irl.data.runs.length > 0 ? (
           <Table>
             <TableHeader>

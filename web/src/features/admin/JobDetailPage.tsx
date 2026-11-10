@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
@@ -50,7 +51,7 @@ export function JobDetailPage() {
         </Section>
       ) : null}
       <Section title={t('admin.jobs.history')}>
-        {data.runs.length === 0 ? <p className="text-muted-foreground">{t('admin.jobs.no_runs')}</p> : (
+        {data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.jobs.no_runs')} body="" level={3} /> : (
           <SortableTable<JobRunView> caption={t('admin.jobs.history')} rows={data.runs} rowKey={(r) => r.id}
             rowLink={(r) => ({ to: '/admin/jobs/$key/runs/$runId', params: { key, runId: r.id } })}
             columns={[
