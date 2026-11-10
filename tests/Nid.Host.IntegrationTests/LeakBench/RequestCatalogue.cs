@@ -313,7 +313,7 @@ public static class RequestCatalogue
         new(typeof(DispatchNotificationsCommand), false, (_, _) => new DispatchNotificationsCommand()),
         new(typeof(SendDigestsCommand), false, (_, _) => new SendDigestsCommand()),
         new(typeof(TestChannelCommand), false, (_, _) => new TestChannelCommand("email")),
-        new(typeof(GetAdminNotificationsQuery), false, (_, _) => new GetAdminNotificationsQuery()),
+        new(typeof(GetAdminNotificationsQuery), false, (_, _) => new GetAdminNotificationsQuery(null)),
         new(typeof(AdminTestChannelCommand), false, (_, _) => new AdminTestChannelCommand("email")),
         new(typeof(SetDiscordWebhookCommand), false, (_, _) => new SetDiscordWebhookCommand("https://discord.com/api/webhooks/1/x")),
         new(typeof(RemoveDiscordWebhookCommand), false, (_, _) => new RemoveDiscordWebhookCommand()),

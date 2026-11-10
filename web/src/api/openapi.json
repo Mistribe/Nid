@@ -29186,6 +29186,16 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -29852,10 +29862,7 @@
             ]
           },
           "failures": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FailedDeliveryView"
-            }
+            "$ref": "#/components/schemas/FailedDeliveryPage"
           },
           "discord": {
             "oneOf": [
@@ -36479,6 +36486,30 @@
               "number"
             ],
             "format": "double"
+          }
+        }
+      },
+      "FailedDeliveryPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FailedDeliveryView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

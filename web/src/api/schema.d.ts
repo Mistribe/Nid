@@ -27510,7 +27510,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -27903,7 +27905,7 @@ export interface components {
         AdminNotificationsView: {
             smtpConfigured: boolean;
             smtpHost?: null | string;
-            failures: components["schemas"]["FailedDeliveryView"][];
+            failures: components["schemas"]["FailedDeliveryPage"];
             discord?: null | components["schemas"]["WebhookView"];
         };
         AdminSecurityEventPage: {
@@ -29448,6 +29450,13 @@ export interface components {
             value?: null | components["schemas"]["AmountView"];
             /** Format: double */
             sharePct?: null | number;
+        };
+        FailedDeliveryPage: {
+            items: components["schemas"]["FailedDeliveryView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         FailedDeliveryView: {
             /** Format: uuid */

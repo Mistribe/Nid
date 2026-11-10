@@ -75,8 +75,8 @@ public static class AdminEndpoints
                 => (await invoker.InvokeAsync(new SecurityJournalQuery(@event, page), ct)).ToHttp(p => p))
             .Returns<AdminSecurityEventPage>();
 
-        api.MapGet("/notifications", async (IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetAdminNotificationsQuery(), ct)).ToHttp(view => view))
+        api.MapGet("/notifications", async (int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetAdminNotificationsQuery(page), ct)).ToHttp(view => view))
             .Returns<AdminNotificationsView>();
 
         api.MapPost("/notifications/test", async (NotificationEndpoints.TestChannelBody body, IInvoker invoker, CancellationToken ct)

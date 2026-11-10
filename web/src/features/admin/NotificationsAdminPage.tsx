@@ -5,6 +5,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { channelErrorText, discordFieldText, throttledText } from '@/features/notifications/channelErrors';
@@ -25,7 +26,9 @@ export function NotificationsAdminPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const view = $api.useQuery('get', '/api/v1/admin/notifications');
+  const [page, toPage] = useListPage();
+  const view = $api.useQuery('get', '/api/v1/admin/notifications', { params: { query: { page } } });
+  useStepBack(page, view.data?.failures, toPage);
   const [outcome, setOutcome] = useState<TestOutcome | null>(null);
   const test = $api.useMutation('post', '/api/v1/admin/notifications/test', {
     onSuccess: (result) => setOutcome(result.sent ? { kind: 'sent' } : { kind: 'refused', error: result.error ?? '' }),
@@ -91,18 +94,18 @@ export function NotificationsAdminPage() {
       </Section>
 
       <Section title={t('admin.notifications.failures_title')}>
-        {failures.length === 0 ? (
+        {failures.items.length === 0 ? (
           <EmptyState module="/admin" title={t('admin.notifications.no_failures')} body="" level={3} />
         ) : (
+          <>
           <SortableTable
             caption={t('admin.notifications.failures_title')}
-            rows={failures}
+            rows={failures.items}
             rowKey={(f) => f.id}
-            initialSort={{ id: 'at', desc: true }}
             columns={[
-              { id: 'channel', header: t('admin.notifications.channel'), cell: (f) => f.channel, sort: (f) => f.channel },
-              { id: 'kind', header: t('admin.notifications.kind'), cell: (f) => <Kind kind={f.kind} />, sort: (f) => f.kind },
-              { id: 'at', header: t('admin.notifications.queued'), cell: (f) => formatInstant(f.at), sort: (f) => Date.parse(f.at) },
+              { id: 'channel', header: t('admin.notifications.channel'), cell: (f) => f.channel },
+              { id: 'kind', header: t('admin.notifications.kind'), cell: (f) => <Kind kind={f.kind} /> },
+              { id: 'at', header: t('admin.notifications.queued'), cell: (f) => formatInstant(f.at) },
               { id: 'error', header: t('admin.notifications.error'), cell: (f) => <ErrorText error={f.error} /> },
             ]}
             mobile={(f) => (
@@ -113,6 +116,8 @@ export function NotificationsAdminPage() {
               </div>
             )}
           />
+          <Pager page={page} total={failures.total} onPage={toPage} />
+          </>
         )}
       </Section>
     </AdminFrame>

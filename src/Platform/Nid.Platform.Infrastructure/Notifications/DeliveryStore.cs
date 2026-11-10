@@ -53,16 +53,17 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
             .Select(d => new DeliveryRecord(d.Id, d.NotificationId, new PersonId(d.PersonId), d.Channel, d.Round, d.Attempts, d.DigestId, d.HouseholdKey))
             .FirstOrDefaultAsync(ct);
 
-    public async Task<IReadOnlyList<FailedDelivery>> FailedSinceAsync(Instant since, int limit, CancellationToken ct)
+    public async Task<(IReadOnlyList<FailedDelivery> Items, int Total)> FailedSincePageAsync(Instant since, int skip, int take, CancellationToken ct)
+    {
         // A left join: the notification may have been purged, the failure stays listed.
-        => await (from d in db.Deliveries.AsNoTracking()
-                  where d.State == DeliveryStates.Failed && d.CreatedAt >= since
-                  join n in db.Notifications.AsNoTracking() on d.NotificationId equals (Guid?)n.Id into rows
-                  from n in rows.DefaultIfEmpty()
-                  orderby d.CreatedAt descending, d.Id
-                  select new FailedDelivery(d.Id, d.Channel, n == null ? (d.DigestId != null ? "digest" : "") : n.Kind, d.CreatedAt, d.LastError ?? ""))
-            .Take(limit)
-            .ToListAsync(ct);
+        var failed = from d in db.Deliveries.AsNoTracking()
+                     where d.State == DeliveryStates.Failed && d.CreatedAt >= since
+                     join n in db.Notifications.AsNoTracking() on d.NotificationId equals (Guid?)n.Id into rows
+                     from n in rows.DefaultIfEmpty()
+                     orderby d.CreatedAt descending, d.Id
+                     select new FailedDelivery(d.Id, d.Channel, n == null ? (d.DigestId != null ? "digest" : "") : n.Kind, d.CreatedAt, d.LastError ?? "");
+        return (await failed.Skip(skip).Take(take).ToListAsync(ct), await failed.CountAsync(ct));
+    }
 
     public async Task SettleAsync(Guid id, string state, int attempts, Instant? nextAttemptAt, string? lastError, Instant? sentAt, CancellationToken ct)
     {

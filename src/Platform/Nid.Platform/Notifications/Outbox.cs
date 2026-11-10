@@ -98,8 +98,8 @@ public interface IDeliveryStore
     /// <summary>Moves a pending message's next try, nothing else: a deferral is not an attempt.</summary>
     Task DeferAsync(Guid id, Instant nextAttemptAt, CancellationToken ct);
 
-    /// <summary>The messages that ended failed since <paramref name="since"/>, the latest first, at most <paramref name="limit"/>. For the admin status.</summary>
-    Task<IReadOnlyList<FailedDelivery>> FailedSinceAsync(Instant since, int limit, CancellationToken ct);
+    /// <summary>One page of the messages that ended failed since <paramref name="since"/>, the latest first, and how many there are in all. For the admin status.</summary>
+    Task<(IReadOnlyList<FailedDelivery> Items, int Total)> FailedSincePageAsync(Instant since, int skip, int take, CancellationToken ct);
 }
 
 /// <summary>Which channels reach a person, and where.</summary>
