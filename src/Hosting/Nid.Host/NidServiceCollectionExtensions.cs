@@ -253,6 +253,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<GoalsDbContext>>();
         services.AddScoped<IGoalStore, GoalStore>();
+        services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
         services.AddScoped<GoalReader>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Nid.Core.Contracts;
 using Nid.Goals.Application;
 
 namespace Nid.Host.Api.Json;
@@ -10,6 +11,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(GoalDetail))]
 [JsonSerializable(typeof(EmergencyTargetView))]
 [JsonSerializable(typeof(GoalList))]
+[JsonSerializable(typeof(ItemDeletionPreview))]
 [JsonSerializable(typeof(GoalEndpoints.CreateGoalBody))]
 [JsonSerializable(typeof(GoalEndpoints.EditGoalBody))]
 [JsonSerializable(typeof(GoalEndpoints.GoalProgressBody))]

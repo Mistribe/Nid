@@ -30,6 +30,12 @@ public sealed record CloseGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemSc
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>#23: a goal created by mistake, deleted with its funding links and progress. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeleteGoalCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 public sealed record ReopenGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -154,6 +160,24 @@ public sealed class CloseGoalHandler(IItemRegistry items, IGoalStore goals, IUni
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var archived = await items.ArchiveAsync(command.ItemId, clock.GetCurrentInstant(), ct);
         if (archived.TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+        await transaction.CommitAsync(ct);
+        return Result.Success(command.ItemId);
+    }
+}
+
+[RequestHandler<DeleteGoalCommand, ItemId>]
+public sealed class DeleteGoalHandler(IItemRegistry items, IItemDeletions deletions, IUnitOfWork unitOfWork)
+    : IRequestHandler<DeleteGoalCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeleteGoalCommand command, CancellationToken ct = default)
+    {
+        var item = await items.FindAsync(command.ItemId, ct);
+        if (item is not { Module: "goals" })
+            return Result.Failure<ItemId>(new NotFoundFailure("goal", command.ItemId.ToString()));
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        var deleted = await deletions.DeleteAsync(command.ItemId, command.Version, ct);
+        if (deleted.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
