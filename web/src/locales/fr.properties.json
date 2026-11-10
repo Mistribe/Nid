@@ -92,6 +92,7 @@
   },
   "properties_overview": {
     "tab_overview": "Vue d’ensemble",
+    "tab_analysis": "Analyse",
     "tab_list": "Liste",
     "loading": "Chargement de la vue d’ensemble",
     "value": "Valeur des biens",
