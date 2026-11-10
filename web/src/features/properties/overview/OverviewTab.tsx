@@ -37,8 +37,43 @@ import { OverviewSkeleton } from '@/components/page/skeletons';
 type Scope = 'household' | 'me';
 type Span = '12m' | '3y' | 'all';
 
-/** Properties dashboard §3.3: the server's figures, then the curve, the split, what to watch and the properties; nothing computed here. */
+/** Issue #20: the simple view — the net value, the figures, then the curve with what to watch beside it; nothing computed here. */
 export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <NetHero d={d} />
+          <Figures d={d} />
+          <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+            <div className={d.watch.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}><NetValueChart d={d} span={span} /></div>
+            <WatchCard d={d} />
+          </div>
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Issue #20: « Analyse », what the simple view leaves out — the split, each person's part and the properties. */
+export function AnalysisTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <Types d={d} />
+            <Persons d={d} />
+          </div>
+          <Properties d={d} />
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Properties dashboard §3.3: the server's answer both tabs read (one request), or what to show instead. */
+function Overview({ scope, span, children }: { scope: Scope; span: Span; children: (d: PropertiesOverview) => ReactNode }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', PROPERTIES_OVERVIEW, { params: { query: { scope, span } } });
@@ -52,20 +87,9 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
         action={<Link to="/properties/new" className={buttonVariants({ variant: 'outline' })}>{t('properties.add')}</Link>} />
     );
 
-  // DOM order is the phone's (figures, curve, watch, split, persons, properties).
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-6">
-        <NetHero d={d} />
-        <Figures d={d} />
-        <NetValueChart d={d} span={span} />
-        <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
-          <div className="md:order-last"><WatchCard d={d} /></div>
-          <Types d={d} />
-          <Persons d={d} />
-        </div>
-        <Properties d={d} />
-      </div>
+      <div className="flex flex-col gap-6">{children(d)}</div>
     </TooltipProvider>
   );
 }
@@ -194,7 +218,7 @@ function Persons({ d }: { d: PropertiesOverview }) {
   );
 }
 
-const WATCH_SHOWN = 4;
+const WATCH_SHOWN = 3;
 const WATCH_CODES = [
   'no_valuation', 'valuation_stale', 'rental_without_tenancy', 'visibility_mismatch', 'fx_missing', 'rent_arrears', 'property_cost_due', 'tenancy_end',
   'revision_due', 'revision_lost', 'irl_missing', 'revision_forbidden_dpe',

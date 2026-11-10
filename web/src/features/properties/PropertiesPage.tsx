@@ -25,18 +25,20 @@ import { Loading, OverviewSkeleton, TableSkeleton } from '@/components/page/skel
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 
+const AnalysisTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.AnalysisTab })));
+
 const RentalTab = lazy(() => import('./overview/RentalTab').then((m) => ({ default: m.RentalTab })));
 
 const CostsTab = lazy(() => import('./overview/CostsTab').then((m) => ({ default: m.CostsTab })));
 
 const ValuationTab = lazy(() => import('./overview/ValuationTab').then((m) => ({ default: m.ValuationTab })));
 
-const WITH_RENTAL = ['overview', 'rental', 'costs', 'valuation', 'list'] as const;
-const WITHOUT_RENTAL = ['overview', 'costs', 'valuation', 'list'] as const;
+const WITH_RENTAL = ['overview', 'analysis', 'rental', 'costs', 'valuation', 'list'] as const;
+const WITHOUT_RENTAL = ['overview', 'analysis', 'costs', 'valuation', 'list'] as const;
 
 /**
- * Properties dashboard §3.1, §4.3, §5.3 and §6.3: the overview opens first, « Location » while a property is let, « Charges et
- * coûts », « Valorisation »; the list under `?tab=list`.
+ * Properties dashboard §3.1, §4.3, §5.3 and §6.3: the overview opens first (the simple view, issue #20), then « Analyse » (the rest
+ * of the overview), « Location » while a property is let, « Charges et coûts », « Valorisation »; the list under `?tab=list`.
  */
 export function PropertiesPage() {
   const { t } = useTranslation();
@@ -54,6 +56,8 @@ export function PropertiesPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('properties_overview.tab_overview'),
           content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><OverviewTab scope={scope} span={search.history ?? '3y'} /></Suspense> },
+        { id: 'analysis', label: t('properties_overview.tab_analysis'),
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><AnalysisTab scope={scope} span={search.history ?? '3y'} /></Suspense> },
         ...(rented ? [{ id: 'rental' as const, label: t('properties_rental.tab'),
           content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><RentalTab scope={scope} property={search.property} /></Suspense> }] : []),
         { id: 'costs', label: t('properties_costs.tab'),

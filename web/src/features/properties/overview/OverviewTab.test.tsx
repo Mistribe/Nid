@@ -58,10 +58,29 @@ describe('Biens › vue d’ensemble', () => {
     expect(within(gain).getByText('en hausse')).toBeInTheDocument();
   });
 
+  it('keeps the simple view to the figures, the curve and what to watch; « Analyse » has the rest (issue #20)', async () => {
+    const seen: string[] = [];
+    serve(householdOverview(), seen);
+    const { user, container } = await renderApp('/properties');
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent).slice(0, 2)).toEqual(['Vue d’ensemble', 'Analyse']);
+    await region('À surveiller');
+    expect(screen.getByRole('region', { name: 'Valeur nette et crédits' })).toBeInTheDocument();
+    for (const name of ['Répartition par type', 'Part de chacun', 'Biens'])
+      expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
+    for (const name of ['Répartition par type', 'Part de chacun', 'Biens']) expect(await region(name)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'À surveiller' })).not.toBeInTheDocument();
+    // Both tabs read the one answer.
+    expect(seen).toEqual(['?scope=household&span=3y']);
+    await expectNoAxeViolations(container);
+  });
+
   it('splits by type and by person, and lists the properties with a total', async () => {
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: OWNER, kind: 'adult', displayName: 'Alice', email: null }])));
     serve(householdOverview());
-    await renderApp('/properties');
+    await renderApp('/properties?tab=analysis');
 
     const types = await region('Répartition par type');
     const [home, rental] = within(types).getAllByRole('row');
@@ -102,9 +121,13 @@ describe('Biens › vue d’ensemble', () => {
     serve({ ...householdOverview(),
       watch: [line('revision_due', '2026-09-01', '919.84'), line('revision_lost', '2025-09-01', null), line('irl_missing', null, null), line('revision_forbidden_dpe', null, null)],
     });
-    await renderApp('/properties');
+    const { user } = await renderApp('/properties');
 
-    const items = within(await region('À surveiller')).getAllByRole('listitem');
+    // Three lines on the simple view, the fourth on demand (issue #20).
+    const watch = await region('À surveiller');
+    expect(within(watch).getAllByRole('listitem')).toHaveLength(3);
+    await user.click(within(watch).getByRole('button', { name: 'Tout voir (4)' }));
+    const items = within(watch).getAllByRole('listitem');
     expect(items[0]).toHaveTextContent('Révision possible depuis le 1 sept. 2026 : nouveau loyer 919,84 €');
     expect(items[1]).toHaveTextContent('Révision du 1 sept. 2025 non faite');
     expect(items[2]).toHaveTextContent('IRL manquant');
