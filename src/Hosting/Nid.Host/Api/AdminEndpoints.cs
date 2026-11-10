@@ -59,8 +59,8 @@ public static class AdminEndpoints
                 => (await invoker.InvokeAsync(new ListJobsQuery(), ct)).ToHttp(jobs => jobs))
             .Returns<IReadOnlyList<JobView>>();
 
-        api.MapGet("/jobs/{key}", async (string key, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetJobQuery(key), ct)).ToHttp(job => job))
+        api.MapGet("/jobs/{key}", async (string key, int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetJobQuery(key, page), ct)).ToHttp(job => job))
             .Returns<JobDetailView>();
 
         api.MapGet("/jobs/{key}/runs/{id:guid}", async (string key, Guid id, IInvoker invoker, CancellationToken ct)

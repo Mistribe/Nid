@@ -15,6 +15,7 @@ namespace Nid.Host.Api.Json;
     Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
 [JsonSerializable(typeof(IReadOnlyList<JobView>))]
 [JsonSerializable(typeof(JobDetailView))]
+[JsonSerializable(typeof(JobRunPage))]
 [JsonSerializable(typeof(JobRunDetailView))]
 [JsonSerializable(typeof(IReadOnlyList<ImportSessionView>))]
 [JsonSerializable(typeof(ProblemDetails))]

@@ -27144,7 +27144,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     key: string;
@@ -30614,7 +30616,7 @@ export interface components {
             cron?: null | string;
             /** Format: date-time */
             nextRunAt?: null | string;
-            runs: components["schemas"]["JobRunView"][];
+            runs: components["schemas"]["JobRunPage"];
         };
         JobRunDetailView: {
             /** Format: uuid */
@@ -30630,6 +30632,13 @@ export interface components {
             summary?: null | string;
             logs?: null | string[];
             logsAvailable: boolean;
+        };
+        JobRunPage: {
+            items: components["schemas"]["JobRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         JobRunView: {
             /** Format: uuid */

@@ -28824,6 +28824,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -41651,10 +41659,7 @@
             "format": "date-time"
           },
           "runs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobRunView"
-            }
+            "$ref": "#/components/schemas/JobRunPage"
           }
         }
       },
@@ -41713,6 +41718,30 @@
           },
           "logsAvailable": {
             "type": "boolean"
+          }
+        }
+      },
+      "JobRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

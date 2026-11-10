@@ -10,7 +10,8 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
 {
     public sealed record Run(Guid Id, string Trigger, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, long? DurationMs, string Outcome, string? Summary);
     public sealed record Job(string Key, string? Cron, DateTimeOffset? NextRunAt, Run? LastRun);
-    public sealed record JobDetail(string Key, string? Cron, DateTimeOffset? NextRunAt, List<Run> Runs);
+    public sealed record JobDetail(string Key, string? Cron, DateTimeOffset? NextRunAt, RunPage Runs);
+    public sealed record RunPage(List<Run> Items, int Total, int Page);
     public sealed record RunDetail(Guid Id, string Trigger, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, long? DurationMs, string Outcome, string? Summary, List<string>? Logs, bool LogsAvailable);
 
     private static readonly DateTimeOffset T0 = new(2020, 1, 1, 4, 30, 0, TimeSpan.Zero);
@@ -57,7 +58,43 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.Equal("irl-weekly", detail.Key);
         Assert.NotNull(detail.Cron);
-        Assert.Equal([second, first], detail.Runs.Where(r => r.StartedAt.Year == 2020).Select(r => r.Id));
+        Assert.Equal([second, first], detail.Runs.Items.Where(r => r.StartedAt.Year == 2020).Select(r => r.Id));
+    }
+
+    /// <summary>51 runs a minute apart, the oldest (index 0) first; the last two share a start to pin the tie-break.</summary>
+    private static async Task<List<Guid>> SeedManyAsync(NidApp app)
+    {
+        var ids = new List<Guid>();
+        for (var i = 0; i < 51; i++)
+            ids.Add(await SeedAsync(app, "irl-weekly", T0.AddMinutes(Math.Min(i, 49)), JobOutcomes.Succeeded));
+        return ids;
+    }
+
+    [Fact]
+    public async Task The_detail_answers_one_page_of_runs_and_the_total()
+    {
+        await using var app = await StartAsync();
+        var ids = await SeedManyAsync(app);
+
+        var first = (await app.GetAsync<JobDetail>(app.AdultA, "/api/v1/admin/jobs/irl-weekly")).Runs;
+        var second = (await app.GetAsync<JobDetail>(app.AdultA, "/api/v1/admin/jobs/irl-weekly?page=2")).Runs;
+
+        Assert.Equal((50, 51, 1), (first.Items.Count, first.Total, first.Page));
+        Assert.Equal(ids.Skip(49).OrderDescending(), first.Items.Take(2).Select(r => r.Id));
+        Assert.Equal((1, 51, 2), (second.Items.Count, second.Total, second.Page));
+        Assert.Equal(ids[0], Assert.Single(second.Items).Id);
+    }
+
+    [Fact]
+    public async Task The_detail_page_is_clamped()
+    {
+        await using var app = await StartAsync();
+        await SeedManyAsync(app);
+
+        Assert.Equal(1, (await app.GetAsync<JobDetail>(app.AdultA, "/api/v1/admin/jobs/irl-weekly?page=0")).Runs.Page);
+        Assert.Equal(1, (await app.GetAsync<JobDetail>(app.AdultA, "/api/v1/admin/jobs/irl-weekly?page=-5")).Runs.Page);
+        var past = (await app.GetAsync<JobDetail>(app.AdultA, $"/api/v1/admin/jobs/irl-weekly?page={int.MaxValue}")).Runs;
+        Assert.Equal((0, 51), (past.Items.Count, past.Total));
     }
 
     [Fact]

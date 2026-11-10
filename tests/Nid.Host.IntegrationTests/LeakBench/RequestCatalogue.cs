@@ -212,7 +212,7 @@ public static class RequestCatalogue
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
         new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null, null)),
         new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),
-        new(typeof(GetJobQuery), false, (_, _) => new GetJobQuery("fx-daily")),
+        new(typeof(GetJobQuery), false, (_, _) => new GetJobQuery("fx-daily", null)),
         new(typeof(GetJobRunQuery), false, (_, _) => new GetJobRunQuery("fx-daily", Guid.NewGuid())),
         new(typeof(GetSystemStatusQuery), false, (_, _) => new GetSystemStatusQuery()),
         new(typeof(ItemHistoryQuery), true, (_, item) => new ItemHistoryQuery(item, null, null)),

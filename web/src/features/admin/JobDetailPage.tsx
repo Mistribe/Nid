@@ -6,6 +6,7 @@ import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Section } from '@/components/page/Section';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -24,7 +25,9 @@ export function JobDetailPage() {
   const { t } = useTranslation();
   const { key } = useParams({ from: '/admin/jobs/$key' });
   const { $api } = useApi();
-  const job = $api.useQuery('get', '/api/v1/admin/jobs/{key}', { params: { path: { key } } });
+  const [page, toPage] = useListPage();
+  const job = $api.useQuery('get', '/api/v1/admin/jobs/{key}', { params: { path: { key }, query: { page } } });
+  useStepBack(page, job.data?.runs, toPage);
   const { name, known } = jobName(t, key);
   const crumbs = [{ label: t('nav.admin'), to: '/admin' as const }, { label: t('admin.jobs.title'), to: '/admin/jobs' as const }];
 
@@ -41,7 +44,7 @@ export function JobDetailPage() {
         <StatLine items={[
           { label: t('admin.jobs.schedule_col'), value: scheduleInWords(t, data.cron) },
           { label: t('admin.jobs.next'), value: data.nextRunAt ? formatInstant(data.nextRunAt) : t('admin.jobs.on_demand') },
-          { label: t('admin.jobs.last'), value: <LastRun run={data.runs[0]} /> },
+          { label: t('admin.jobs.last'), value: <LastRun run={page === 1 ? data.runs.items[0] : undefined} /> },
         ]} />
       </PageHeader>
       {description || dependsOn ? (
@@ -51,8 +54,8 @@ export function JobDetailPage() {
         </Section>
       ) : null}
       <Section title={t('admin.jobs.history')}>
-        {data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.jobs.no_runs')} body="" level={3} /> : (
-          <SortableTable<JobRunView> caption={t('admin.jobs.history')} rows={data.runs} rowKey={(r) => r.id}
+        {data.runs.total === 0 ? <EmptyState module="/admin" title={t('admin.jobs.no_runs')} body="" level={3} /> : (
+          <SortableTable<JobRunView> caption={t('admin.jobs.history')} rows={data.runs.items} rowKey={(r) => r.id}
             rowLink={(r) => ({ to: '/admin/jobs/$key/runs/$runId', params: { key, runId: r.id } })}
             columns={[
               { id: 'started', header: t('admin.jobs.started'), sort: (r) => r.startedAt, cell: (r) => formatInstant(r.startedAt) },
@@ -68,6 +71,7 @@ export function JobDetailPage() {
               </div>
             )} />
         )}
+        <Pager page={page} total={data.runs.total} onPage={toPage} />
       </Section>
     </div>
   );
