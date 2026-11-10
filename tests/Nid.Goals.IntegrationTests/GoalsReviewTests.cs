@@ -120,7 +120,6 @@ public class GoalsReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         var goal = await app.NewGoalAsync("Nouveau", app.AdultA); // created today
-        await EntryAsync(app, goal, "2024-06-01", "1000");
         await EntryAsync(app, goal, "2025-05-01", "3000");
 
         var row = Assert.Single((await ReviewAsync(app, app.AdultA, new LocalDate(2024, 12, 31), NidApp.GoldenCaseToday)).Goals);
@@ -144,5 +143,74 @@ public class GoalsReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal((archived, new LocalDate(2024, 6, 15)), (row.Id, row.ArchivedOn));
         Assert.Equal(4000m, row.EndReached); // read on its last counted day
+    }
+
+    [Fact]
+    public async Task A_free_goal_exists_from_its_first_entry()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var goal = await app.NewGoalAsync("Importé", app.AdultA); // created today, its entries older
+        await EntryAsync(app, goal, "2023-06-01", "2000");
+        await EntryAsync(app, goal, "2024-06-01", "5000");
+
+        var row = Assert.Single((await ReviewAsync(app)).Goals);
+
+        Assert.Equal((goal, 2000m, 5000m), (row.Id, row.StartReached, row.EndReached));
+    }
+
+    [Fact]
+    public async Task A_goal_created_in_the_year_and_reached_is_flagged()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var goal = await app.NewGoalAsync("Nouveau", app.AdultA); // created today
+        await EntryAsync(app, goal, "2025-05-01", "10000");
+
+        var row = Assert.Single((await ReviewAsync(app, app.AdultA, new LocalDate(2024, 12, 31), NidApp.GoldenCaseToday)).Goals);
+
+        Assert.Equal((null, 100m, true), (row.StartReached, row.EndProgressPct, row.ReachedInPeriod));
+    }
+
+    [Fact]
+    public async Task An_emergency_fund_reads_its_target_from_todays_commitments()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.NewMonthlyAsync(app.AdultA, 50m);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/realestate/loans", new
+        {
+            name = "Prêt US", currency = "USD", visibility = "shared",
+            borrowers = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            principal = "10000", disbursedOn = "2025-01-01", firstPaymentDate = "2025-01-15", totalPayments = 24,
+            rounding = "half_up", firstPeriod = "full",
+            phases = new[] { new { seq = 1, mode = "annuity", annualRate = "0.01", rateType = "fixed" } },
+        })).EnsureSuccessStatusCode(); // no USD rate: the loan is left out of the target and named
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/goals", new
+        {
+            name = "Précaution", kind = "emergency_fund", months = 6, visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, funding = Array.Empty<object>(),
+        });
+        created.EnsureSuccessStatusCode();
+        var goal = new ItemId(System.Text.Json.JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid());
+        await EntryAsync(app, goal, "2025-05-01", "150");
+
+        var part = await ReviewAsync(app, app.AdultA, new LocalDate(2024, 12, 31), NidApp.GoldenCaseToday);
+
+        var row = Assert.Single(part.Goals);
+        Assert.Equal(("emergency_fund", 300m, 50m), (row.Kind, row.Target, row.EndProgressPct));
+        Assert.Equal(["USD"], part.MissingCurrencies);
+    }
+
+    [Fact]
+    public async Task An_envelope_without_a_rate_nulls_the_reached_amount()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var dollars = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD");
+        await ValuationAsync(app, dollars, "2024-12-01", "1000", "USD");
+        await OldGoalAsync(app, "Apport", [(dollars, 10_000)]);
+
+        var part = await ReviewAsync(app);
+
+        var row = Assert.Single(part.Goals);
+        Assert.Equal((null, null), (row.EndReached, row.EndProgressPct));
+        Assert.Equal(["USD"], part.MissingCurrencies);
     }
 }

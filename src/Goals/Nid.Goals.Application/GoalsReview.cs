@@ -24,22 +24,24 @@ public sealed class GoalsReview(
         var zone = await calendar.ZoneAsync(ct);
         var found = await goals.FindManyAsync((await visible.ForAsync(reader, scope, includeArchived: true, ct)).ToList(), ct);
         var accesses = await items.FindManyAsync(found.Select(g => g.ItemId).ToList(), ct);
-        var read = new List<(Goal Goal, ItemAccess Item, bool Started, LocalDate? ArchivedOn, LocalDate Last)>();
-        foreach (var goal in found)
-        {
-            if (!accesses.TryGetValue(goal.ItemId, out var item)) continue;
-            var created = item.CreatedAt.InZone(zone).Date;
-            // An archived goal counts strictly before its archive day; archived on or before Start, it is left out.
-            var archivedOn = item.ArchivedAt?.InZone(zone).Date is { } day && day <= end ? day : (LocalDate?)null;
-            var last = archivedOn?.PlusDays(-1) ?? end;
-            if (created > end || last < start) continue;
-            read.Add((goal, item, created <= start, archivedOn, last));
-        }
-
-        var ids = read.Select(r => r.Goal.ItemId).ToList();
+        var ids = found.Select(g => g.ItemId).Where(accesses.ContainsKey).ToList();
         var links = (ids.Count == 0 ? [] : await goals.FundingOfAsync(ids, ct)).ToLookup(f => f.Goal);
         var free = ids.Where(id => !links[id].Any()).ToList();
         var entries = (free.Count == 0 ? [] : await goals.EntriesOfAsync(free, ct)).ToLookup(e => e.Goal);
+
+        var read = new List<(Goal Goal, ItemAccess Item, bool Started, LocalDate? ArchivedOn, LocalDate Last)>();
+        foreach (var goal in found.Where(g => accesses.ContainsKey(g.ItemId)))
+        {
+            var item = accesses[goal.ItemId];
+            var created = item.CreatedAt.InZone(zone).Date;
+            // P4-R1: a free goal exists from the earlier of its creation and its first entry (an imported goal brings older entries).
+            bool ExistsOn(LocalDate on) => created <= on || entries[goal.ItemId].Any(e => e.On <= on);
+            // An archived goal counts strictly before its archive day; archived on or before Start, it is left out.
+            var archivedOn = item.ArchivedAt?.InZone(zone).Date is { } day && day <= end ? day : (LocalDate?)null;
+            var last = archivedOn?.PlusDays(-1) ?? end;
+            if (!ExistsOn(end) || last < start) continue;
+            read.Add((goal, item, ExistsOn(start), archivedOn, last));
+        }
 
         // The funded goals' envelopes, read once per date they are needed on.
         var linked = links.SelectMany(l => l).Select(f => f.Envelope).Distinct().ToList();
@@ -73,7 +75,7 @@ public sealed class GoalsReview(
         {
             var mine = links[goal.ItemId].ToList();
             if (mine.Count == 0)
-                return GoalMath.ReachedFromEntries(entries[goal.ItemId].Where(e => e.On <= on).Select(e => new ProgressEntry(e.On, e.Amount)));
+                return GoalMath.R2(GoalMath.ReachedFromEntries(entries[goal.ItemId].Where(e => e.On <= on).Select(e => new ProgressEntry(e.On, e.Amount))));
             var inputs = new List<FundingInput>();
             var unconverted = false;
             foreach (var link in mine)
@@ -88,7 +90,7 @@ public sealed class GoalsReview(
                 else
                     inputs.Add(new FundingInput(value.Amount, 0m, link.ShareBp, envelope.Closed));
             }
-            return unconverted ? null : GoalMath.ReachedFromEnvelopes(inputs);
+            return unconverted ? null : GoalMath.R2(GoalMath.ReachedFromEnvelopes(inputs));
         }
 
         var rows = new List<GoalReviewRow>();
@@ -100,8 +102,7 @@ public sealed class GoalsReview(
             GoalProgress? Progress(decimal? reached, LocalDate on) => reached is { } r ? GoalMath.Evaluate(target ?? 0m, r, null, null, on) : null;
             var a = Progress(startReached, start);
             var b = Progress(endReached, last);
-            static decimal? R2(decimal? v) => v is { } x ? Math.Round(x, 2, MidpointRounding.AwayFromZero) : null;
-            rows.Add(new GoalReviewRow(item.Id, item.DisplayName, goal.Kind, target, R2(startReached), R2(endReached), a?.ProgressPct, b?.ProgressPct,
+            rows.Add(new GoalReviewRow(item.Id, item.DisplayName, goal.Kind, target, startReached, endReached, a?.ProgressPct, b?.ProgressPct,
                 b?.Status == GoalStatuses.Reached && a?.Status != GoalStatuses.Reached, archivedOn));
         }
         return Result.Success(new GoalsReviewPart(rows, missing.ToList()));
