@@ -63,7 +63,7 @@ describe('Abonnements › détail', () => {
 
     await openMore(user);
     await screen.findByRole('menuitem', { name: 'Conditions du contrat' });
-    await waitFor(() => expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Ajouter un achat', 'Conditions du contrat', 'Ajouter l’assurance', 'Partage…']));
+    await waitFor(() => expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Ajouter un achat', 'Conditions du contrat', 'Ajouter l’assurance', 'Partage…', 'Supprimer…']));
     await user.click(screen.getByRole('menuitem', { name: 'Conditions du contrat' }));
     const terms = await screen.findByRole('dialog', { name: 'Conditions du contrat' });
     await user.click(within(terms).getByRole('button', { name: 'Annuler' }));
@@ -416,5 +416,43 @@ describe('Abonnements › détail', () => {
     await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
     expect(screen.queryByText(/Dépensé depuis/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Économisé depuis/)).not.toBeInTheDocument();
+  });
+
+  describe('deletion', () => {
+    const preview = (over: object = {}) => ({ name: 'Spotify Premium Duo', version: 4, imported: false, removes: [], blockers: [], ...over });
+
+    it('Supprimer… is the last menu item', async () => {
+      serveDetail(detail());
+      const { user } = await renderApp(`/subscriptions/${SUB}`);
+      await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+      await openMore(user);
+      await waitFor(() => expect(screen.getAllByRole('menuitem').at(-1)).toHaveTextContent('Supprimer…'));
+    });
+
+    it('a reader has no Supprimer…', async () => {
+      serveDetail(detail({ canWrite: false }));
+      await renderApp(`/subscriptions/${SUB}`);
+      await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+      expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Supprimer…')).not.toBeInTheDocument();
+    });
+
+    it('deletes after the name is typed, then leaves for the list, with the close hint', async () => {
+      serveDetail(detail());
+      server.use(
+        http.get('*/api/v1/subscriptions/:id/deletion', () => HttpResponse.json(preview({ removes: [{ key: 'billing_phases', count: 2 }] }))),
+        http.delete('*/api/v1/subscriptions/:id', () => new HttpResponse(null, { status: 204 })),
+      );
+      const { user, router } = await renderApp(`/subscriptions/${SUB}`);
+      await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+      await openMore(user);
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer Spotify Premium Duo' });
+      expect(await within(dialog).findByText(/2 phases de facturation/)).toBeInTheDocument();
+      expect(dialog).toHaveTextContent('Indiquer une date de résiliation (onglet Réglages)');
+      await user.type(await within(dialog).findByLabelText(/Tapez/), 'Spotify Premium Duo');
+      await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/subscriptions'));
+    });
   });
 });

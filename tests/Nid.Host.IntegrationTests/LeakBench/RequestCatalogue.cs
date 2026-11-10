@@ -248,6 +248,8 @@ public static class RequestCatalogue
             },
             SecondItemAccess = AccessKind.Read,
         },
+        new(typeof(SubscriptionDeletionQuery), true, (_, item) => new SubscriptionDeletionQuery(item)),
+        new(typeof(DeleteSubscriptionCommand), true, (_, item) => new DeleteSubscriptionCommand(item, 1)),
         new(typeof(DeleteInsuranceCommand), true,
             (_, item) => new DeleteInsuranceCommand(item)),
         new(typeof(ChangePriceCommand), true,

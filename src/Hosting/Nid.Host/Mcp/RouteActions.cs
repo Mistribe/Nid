@@ -301,6 +301,9 @@ public static class RouteActions
             "Record a one-off purchase linked to a subscription. " + Ids + Amounts),
         new("delete_purchase", "DELETE", "/api/v1/subscriptions/{id:guid}/purchases/{purchaseId:guid}", null,
             "Remove a purchase. " + Ids, Destructive: true),
+        new("delete_subscription", "DELETE", "/api/v1/subscriptions/{id:guid}", null,
+            "Propose deleting a subscription created by mistake, with its phases, insurance and grants. The household confirms it by typing its name. "
+            + "version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"], Current: "/api/v1/subscriptions/{id:guid}/deletion"),
         new("create_provider", "POST", "/api/v1/subscriptions/providers", typeof(CreateProviderBody),
             "Add a provider to the subscriptions catalog when the household's is not listed."),
 

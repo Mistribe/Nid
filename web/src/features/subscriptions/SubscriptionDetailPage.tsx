@@ -1,6 +1,6 @@
 import { useParams } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -39,7 +39,10 @@ import '@/locales/forms';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import '@/locales/subscriptions';
+import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
+
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 
 type IncludedProvider = components['schemas']['IncludedProviderView'];
 
@@ -76,6 +79,7 @@ export function SubscriptionDetailPage() {
   const people = $api.useQuery('get', PERSONS);
   const [tab, setTab] = useDetailTab(TABS);
   const [dialog, setDialog] = useState<'price' | 'purchase' | 'terms' | 'insurance' | null>(null);
+  const [deleting, setDeleting] = useState(false);
   // Which subscription shows all its payments: another one opened on the same page starts folded.
   const [expandedFor, setExpandedFor] = useState<string | null>(null);
   const priceRef = useRef<HTMLButtonElement>(null);
@@ -114,7 +118,7 @@ export function SubscriptionDetailPage() {
         { label: t('edit.purchase_title'), phone: true, onSelect: () => setDialog('purchase') },
         { label: t('contract_terms.edit'), onSelect: () => setDialog('terms') },
         { label: detail.insurance ? t('insurance.change') : t('insurance.add'), onSelect: () => setDialog('insurance') },
-      ]} />
+      ]} trailing={[{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }]} />
     </>
   ) : null;
   const shown = tab === 'settings' && !detail.canWrite ? 'overview' : tab;
@@ -172,6 +176,7 @@ export function SubscriptionDetailPage() {
           ))}
         </ul>
       ) : null}
+      {detail.canWrite && deleting ? <Suspense fallback={null}><DeleteItemFlow kind="subscriptions.delete_subscription" id={id} closed={!!detail.cancelledAt} onClose={() => setDeleting(false)} /></Suspense> : null}
       {dialog === 'price' ? (
         <FormDialog title={t('edit.price_title')} onClose={() => close()} onDone={close}>
           {({ titleId, done }) => <PriceChangeForm detail={detail} titleId={titleId} onDone={done} />}

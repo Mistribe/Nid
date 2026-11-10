@@ -222,4 +222,21 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/realestate/loans/{loan.Value}")).StatusCode);
     }
+
+    [Fact]
+    public async Task Approving_deletes_the_subscription()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        async Task<uint> SubscriptionVersionAsync()
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{subscription.Value}/deletion")).RootElement.GetProperty("version").GetUInt32();
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+        var proposal = await ProposeAsync(client, "propose_delete_subscription", new { id = subscription.Value, version = await SubscriptionVersionAsync() });
+
+        var response = await ApproveAsync(app, proposal, new { id = subscription.Value, version = await SubscriptionVersionAsync() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{subscription.Value}")).StatusCode);
+    }
 }

@@ -11,6 +11,7 @@ export const DELETABLE = {
   'income.delete_income_source': { preview: '/api/v1/income/sources/{id}/deletion', remove: '/api/v1/income/sources/{id}', list: '/income', closable: true },
   'realestate.delete_property': { preview: '/api/v1/realestate/properties/{id}/deletion', remove: '/api/v1/realestate/properties/{id}', list: '/properties' },
   'realestate.delete_loan': { preview: '/api/v1/realestate/loans/{id}/deletion', remove: '/api/v1/realestate/loans/{id}', list: '/loans' },
+  'subscriptions.delete_subscription': { preview: '/api/v1/subscriptions/{id}/deletion', remove: '/api/v1/subscriptions/{id}', list: '/subscriptions', closable: true },
 } as const satisfies Record<string, { preview: WithOperation<'get'>; remove: WithOperation<'delete'>; list: string; closable?: true }>;
 export type DeletableKind = keyof typeof DELETABLE;
 /** The kinds that have an « end it instead » action, hence a close_hint string in fr.deletion.json. */
