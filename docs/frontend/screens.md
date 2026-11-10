@@ -236,7 +236,7 @@ Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2)
 
 ## 13. Captures
 
-Une capture par type de page, en clair et en sombre, à 1372×870, thème `ardoise` (`screens/`). Ce sont les vraies pages, rendues avec les données des tests (`renderApp` et les gestionnaires MSW) : le DOM des tests et le CSS construit, axes des graphiques rendus sans mesure du texte, dans la coquille : barre latérale, barre du haut et fenêtre de contenu. Les dates et montants sont ceux des tests. Les règles derrière chaque page : `design-system.md` §6.1.
+Une capture par type de page, en clair et en sombre, à 1372×870, thème `ardoise` (`screens/`). Ce sont les vraies pages, rendues avec les données des tests (`renderApp` et les gestionnaires MSW) : le DOM des tests et le CSS construit, axes des graphiques rendus sans mesure du texte, dans la coquille : barre latérale, barre du haut et fenêtre de contenu. Les dates et montants sont ceux des tests, sauf la vue d’ensemble : elle est prise dans l’app qui tourne (`aspire run`) sur une base neuve où seul le foyer de démo est chargé (`deploy/local/demo/load.mjs`), connecté en Alice (recapturée pour l’issue #20). Les règles derrière chaque page : `design-system.md` §6.1.
 
 | Type | Clair | Sombre | Ce qu'elle montre |
 |---|---|---|---|
