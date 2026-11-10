@@ -124,8 +124,9 @@ public sealed class ProjectionFactsReader(
             if (holding.Converted is null && holding.Holding.Value is { Amount: not 0m } value)
                 missing.Add(value.Currency.Code);
         // Retirement spec §2: a PER's locked slices open at its holder's departure (the latest of its owners).
+        var adultIds = people.Where(p => p.Kind == PersonKind.Adult).Select(p => p.Id).ToHashSet();
         var slices = now.Savings.Where(s => s.Converted is not null).SelectMany(s =>
-            s.Holding.UnlocksAtRetirement && Departures.SwitchOf(s.Holding.Owners.Select(o => o.PersonId), switches) is { } unlock
+            s.Holding.UnlocksAtRetirement && Departures.SwitchOf(s.Holding.Owners.Select(o => o.PersonId).Where(adultIds.Contains), switches) is { } unlock
                 ? s.Slices.Select(x => x.Liquidity == AllocationLiquidity.Locked ? x with { UnlocksAt = Math.Max(0, unlock) } : x)
                 : s.Slices).ToList();
 

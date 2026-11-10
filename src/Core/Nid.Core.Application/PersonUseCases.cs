@@ -40,12 +40,13 @@ public sealed class SetRetirementHandler(IPersonRegistry persons, IHouseholdCale
 
     public async ValueTask<Result<PersonInfo>> HandleAsync(SetRetirementCommand command, CancellationToken ct = default)
     {
+        var errors = new List<FieldError>();
         if (command.RetirementAge is < MinAge or > MaxAge)
-            return Result.Failure<PersonInfo>(FieldErrors.At(
-                new Failure(PersonCodes.InvalidRetirementAge, $"The retirement age is between {MinAge} and {MaxAge}.", null), "retirementAge"));
+            errors.Add(new("retirementAge", PersonCodes.InvalidRetirementAge, $"The retirement age is between {MinAge} and {MaxAge}."));
         if (command.RetirementMonths is < 0 or > 11)
-            return Result.Failure<PersonInfo>(FieldErrors.At(
-                new Failure(PersonCodes.InvalidRetirementAge, "The months are between 0 and 11.", null), "retirementMonths"));
+            errors.Add(new("retirementMonths", PersonCodes.InvalidRetirementAge, "The months are between 0 and 11."));
+        if (errors.Count > 0)
+            return Result.Failure<PersonInfo>(FieldErrors.Many(PersonCodes.InvalidRetirementAge, errors[0].Message, errors));
         if (command.BirthDate is { } birth && (birth < Earliest || birth > await calendar.TodayAsync(ct)))
             return Result.Failure<PersonInfo>(FieldErrors.At(
                 new Failure(PersonCodes.InvalidBirthDate, "The birth date is between 1900-01-01 and today.", null), "birthDate"));

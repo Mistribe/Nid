@@ -357,8 +357,8 @@ public static class RouteActions
         new("create_dependent", "POST", "/api/v1/core/persons/dependents", typeof(CreateDependentBody),
             "Add a dependent (a child) to the household, so items can be owned in their name."),
         new("set_retirement", "PUT", "/api/v1/core/persons/{id:guid}/retirement", typeof(RetirementBody),
-            "Set a person's birth date and retirement age (50 to 75), which get_projection's 'retire:<personId>' needs. id is the person's id, from "
-            + "list_persons. The route replaces both: resend the one that does not change, as list_persons gives it; without a birthDate, the date is cleared. "
+            "Set a person's birth date, retirement age (50 to 75) and retirementMonths (0 to 11, months on top of the age), which get_projection's 'retire:<personId>' needs. id is the person's id, from "
+            + "list_persons. The route replaces all three: resend what does not change, as list_persons gives it; without a birthDate, the date is cleared. "
             + Amounts, Destructive: true, OnItem: false),
     ];
 }

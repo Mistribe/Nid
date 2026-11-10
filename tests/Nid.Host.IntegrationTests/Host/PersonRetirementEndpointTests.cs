@@ -82,6 +82,18 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp
     }
 
     [Fact]
+    public async Task Age_and_months_out_of_range_are_both_reported()
+    {
+        var app = shared.App;
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url(app.AdultB.Value), new { birthDate = (string?)null, retirementAge = 80, retirementMonths = 12 });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        Assert.Equal(["retirementAge", "retirementMonths"], problem.GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("path").GetString()).ToArray());
+    }
+
+    [Fact]
     public async Task Unknown_person_is_404()
     {
         await using var app = await NidApp.StartAsync(fixture);

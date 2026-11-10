@@ -332,6 +332,13 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
     }
 
     [Fact]
+    public async Task A_per_is_open_from_the_start_after_a_past_departure() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        Assert.DoesNotContain(await PerWarningsAsync(app, "1950-01-01"), w => Str(w, "code") == "savings_exhausted");
+    }
+
+    [Fact]
     public async Task A_per_stays_locked_without_a_departure() // retirement spec §2
     {
         await using var app = await NidApp.StartAsync(fixture);
