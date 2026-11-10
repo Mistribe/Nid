@@ -138,9 +138,11 @@
       "milestone_property_free": "« {{label}} » libre de prêt",
       "milestone_retirement": "Retraite de {{label}}",
       "milestone_savings_exhausted": "Épargne épuisée",
+      "milestone_financial_independence": "Indépendance financière",
       "milestone_line": "{{date}} : {{what}}",
       "warning_income_end_extended": "Le revenu « {{name}} » est supposé continuer après sa fin.",
       "warning_savings_exhausted": "L’épargne disponible serait épuisée en {{month}}.",
+      "warning_living_cost_missing": "Renseignez le coût de la vie mensuel dans Réglages › Projection pour calculer la date d’indépendance financière.",
       "warning_fx_missing": "Taux de change manquant ({{code}}) : ces montants ne sont pas comptés."
     },
     "curve": {

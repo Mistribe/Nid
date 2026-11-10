@@ -113,7 +113,7 @@ public sealed class ProjectionFactsReader(
             .Where(c => c != reference).Distinct().ToList();
         // Rates are per USD: the reference's own quote is needed too.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
-        var missing = new SortedSet<string>(StringComparer.Ordinal);
+        var missing = new SortedSet<string>(now.Missing, StringComparer.Ordinal); // the commitments' and the holdings' own
 
         decimal Converted(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts)
         {
@@ -151,7 +151,7 @@ public sealed class ProjectionFactsReader(
         var incomes = Series(earned!, _ => true);
         // Retirement spec §3: pensions are the pension parts, passive income the rents' timeline.
         var pensions = Series(earned!, p => p.Pension);
-        var passive = Series(income.Zip(earned!).Where(x => x.First.Module == "rents").Select(x => x.Second), _ => true);
+        var passive = Series(income.Zip(earned!).Where(x => x.First.Module == IncomeModules.Rents).Select(x => x.Second), _ => true);
         var pensionsByHolder = earned!.SelectMany(t => t.Parts?.SelectMany(p => p) ?? []).Where(p => p.Pension && p.Holder is not null)
             .Select(p => p.Holder!.Value).Distinct()
             .ToDictionary(h => h, h => (IReadOnlyList<decimal>)Series(earned!, p => p.Pension && p.Holder == h));

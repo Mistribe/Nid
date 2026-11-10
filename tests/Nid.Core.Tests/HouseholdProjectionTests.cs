@@ -231,7 +231,7 @@ public class HouseholdProjectionTests
     }
 
     private static HouseholdProjectionResult Independence(
-        IReadOnlyList<SavingsSlice> savings, decimal? expenses0 = 1_000m, decimal living = 0m, decimal inflation = 0m, int months = 12,
+        IReadOnlyList<SavingsSlice> savings, decimal? expenses0 = 500m, decimal living = 500m, decimal inflation = 0m, int months = 12,
         IReadOnlyList<decimal>? pensions = null, IReadOnlyList<RealEstateMonth>? realEstate = null) =>
         HouseholdProjection.Project(new(
             Today, months, savings, Enumerable.Repeat(0m, months + 1).ToList(), realEstate ?? [], 0m,
@@ -256,7 +256,7 @@ public class HouseholdProjectionTests
         Assert.Equal(1_000m, result.Independence[0].Covered);
         Assert.Equal(300_000m, result.Independence[0].Capital);
         Assert.Equal(result.Independence[0].Capital, result.Independence[0].CapitalReal);
-        Assert.Contains(result.Milestones, m => m.Kind == "financial_independence" && m.On == Today && m.Item is null);
+        Assert.DoesNotContain(result.Milestones, m => m.Kind == "financial_independence"); // this month is no milestone
     }
 
     [Fact]
@@ -291,9 +291,14 @@ public class HouseholdProjectionTests
 
     [Fact]
     public void Living_cost_adds_to_expenses() =>
-        Assert.Equal(3_000m, Independence([], living: 2_000m).Independence[0].Expenses);
+        Assert.Equal(2_500m, Independence([], living: 2_000m).Independence[0].Expenses);
 
     [Fact]
-    public void Nothing_to_cover_is_independent_today() =>
-        Assert.Equal(ThisMonth, Independence([], expenses0: 0m).FinancialIndependenceIn);
+    public void No_living_cost_no_independence_month()
+    {
+        var result = Independence([Cash(300_000m)], expenses0: 0m, living: 0m);
+        Assert.Equal(13, result.Independence.Count);
+        Assert.Null(result.FinancialIndependenceIn);
+        Assert.DoesNotContain(result.Milestones, m => m.Kind == "financial_independence");
+    }
 }

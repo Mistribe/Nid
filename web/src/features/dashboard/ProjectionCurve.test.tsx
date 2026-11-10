@@ -150,10 +150,14 @@ describe('net worth projection card', () => {
   });
 
   it('lists the milestones with their server label and date', async () => {
-    serve(projection({ milestones: [{ on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null }] }));
+    serve(projection({ milestones: [
+      { on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null },
+      { on: '2035-06-30', kind: 'financial_independence', label: 'financial_independence', item: null },
+    ] }));
     await renderApp('/dashboard');
     const item = await within(await card()).findByText(/Prêt résidence/);
     expect(item).toHaveTextContent('31/12/2027');
+    expect(within(await card()).getByText(/Indépendance financière/)).toHaveTextContent('30/06/2035');
   });
 
   it('is hidden for an empty household', async () => {
@@ -168,12 +172,14 @@ describe('net worth projection card', () => {
       { code: 'income_end_extended', detail: 'Mon CDD' },
       { code: 'savings_exhausted', detail: '2027-06' },
       { code: 'fx_missing', detail: 'GBP' },
+      { code: 'living_cost_missing', detail: null },
     ] }));
     await renderApp('/dashboard');
     const region = await card();
     expect(await within(region).findByText('Le revenu « Mon CDD » est supposé continuer après sa fin.')).toBeInTheDocument();
     expect(within(region).getByText('L’épargne disponible serait épuisée en juin 2027.')).toBeInTheDocument();
     expect(within(region).getByText(/GBP/)).toBeInTheDocument();
+    expect(within(region).getByText(/Renseignez le coût de la vie mensuel/)).toBeInTheDocument();
   });
 
   it('says why when the server refuses', async () => {

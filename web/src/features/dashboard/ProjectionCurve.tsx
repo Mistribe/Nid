@@ -192,6 +192,7 @@ function Warnings({ data }: { data: Projection }) {
         <li key={`${w.code}-${w.detail}`}>
           {w.code === 'income_end_extended' ? t('dashboard.projection.warning_income_end_extended', { name: w.detail })
             : w.code === 'savings_exhausted' ? t('dashboard.projection.warning_savings_exhausted', { month: w.detail ? month(w.detail) : '' })
+            : w.code === 'living_cost_missing' ? t('dashboard.projection.warning_living_cost_missing')
             : w.code === 'fx_missing' ? t('dashboard.projection.warning_fx_missing', { code: w.detail })
             : w.code}
         </li>

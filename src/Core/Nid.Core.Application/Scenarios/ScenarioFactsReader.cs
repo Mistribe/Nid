@@ -23,7 +23,7 @@ public sealed record SavingsHolding(Holding Holding, decimal? Converted, IReadOn
 /// <summary>The reader's figures of today in a scope, converted to the reference; <c>Missing</c> names the currencies left out.</summary>
 public sealed record ScenarioToday(
     LocalDate Date, Currency Reference, IReadOnlyList<SavingsHolding> Savings, decimal? MonthlyIncome,
-    decimal Subscriptions, decimal PropertyCosts, decimal Commitments, IReadOnlyList<string> Missing, decimal AmortizedCommitments = 0m);
+    decimal Subscriptions, decimal PropertyCosts, decimal Commitments, IReadOnlyList<string> Missing, decimal AmortizedCommitments);
 
 /// <summary>
 /// What the calculator reads, for the reader: <c>Document</c> is the scenario without the funding lines the reader cannot see

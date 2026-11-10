@@ -39,7 +39,7 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
         return Result.Success<IReadOnlyList<RentSource>>(sources);
     }
 
-    public string Module => "rents";
+    public string Module => IncomeModules.Rents;
 
     /// <summary>
     /// Home income: the monthly rent (without charges) of each open visible property whose lease covers today or starts later;

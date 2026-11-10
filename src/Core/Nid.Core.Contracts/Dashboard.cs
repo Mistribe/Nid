@@ -108,6 +108,12 @@ public interface ICommitmentsContribution
     Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
 }
 
+/// <summary>The module name of the rents' income contribution: the projection reads it as passive income (retirement spec §3).</summary>
+public static class IncomeModules
+{
+    public const string Rents = "rents";
+}
+
 public interface IIncomeContribution
 {
     /// <summary>Issue #415: the module this part is, as the causes of a month's change name it.</summary>

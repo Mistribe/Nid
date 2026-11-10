@@ -75,6 +75,8 @@ public sealed record ProjectionView(
         static string Amount(decimal v) => PropertyPurchaseView.Amount(v);
         var warnings = reading.Extended.Select(e => new ProjectionWarningView("income_end_extended", e.Name)).ToList();
         if (result.SavingsExhaustedIn is { } month) warnings.Add(new("savings_exhausted", $"{month.Year:0000}-{month.Month:00}"));
+        // Retirement spec §3: the independence series is computed, but its date needs a living cost.
+        if (result.Independence.Count > 0 && reading.Inputs.Assumptions.MonthlyLivingCost == 0m) warnings.Add(new("living_cost_missing", null));
         warnings.AddRange(reading.Missing.Select(c => new ProjectionWarningView("fx_missing", c)));
         warnings.AddRange(extra ?? []);
         return new ProjectionView(

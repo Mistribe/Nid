@@ -22,7 +22,7 @@ function view(over: Partial<ProjectionScenario> = {}): ProjectionScenario {
     { on: '2035-09-30', kind: 'loan_end', label: 'Prêt immo', item: LOAN_A },
     { on: '2031-06-30', kind: 'loan_end', label: 'Prêt travaux', item: LOAN_B },
   ];
-  result.scenario.warnings = [{ code: 'hidden_targets', detail: '1' }];
+  result.scenario.warnings = [{ code: 'hidden_targets', detail: '1' }, { code: 'living_cost_missing', detail: null }];
   return { id: ID, name: 'Remboursement 2027', visibility: 'shared', scope: 'household', canWrite: true, result, ...over };
 }
 
@@ -105,6 +105,7 @@ describe('ProjectionScenarioPage', () => {
     serve();
     await renderApp(`/scenarios/projection/${ID}`);
     expect(await screen.findByText('1 événement vise un élément que vous ne voyez pas : il est écarté.')).toBeInTheDocument();
+    expect(screen.getByText(/Renseignez le coût de la vie mensuel/)).toBeInTheDocument();
   });
 
   it('reads the year-end table and the figures in the chosen reading', async () => {

@@ -172,10 +172,11 @@ public static class HouseholdProjection
             var expenses = (expenses0 + a.MonthlyLivingCost) * i[k] + At(k).LoanPayments;
             independence.Add(new(on, Cent(capital), Cent(covered), Cent(expenses),
                 Cent(capital / i[k]), Cent(covered / i[k]), Cent(expenses / i[k])));
-            if (independentIn is null && covered >= expenses)
+            // Without a living cost the date would only say « nothing to pay »: the series stays, the month does not. Today is no milestone.
+            if (independentIn is null && a.MonthlyLivingCost > 0m && covered >= expenses)
             {
                 independentIn = month;
-                milestones.Add(new(on, "financial_independence", "financial_independence", null));
+                if (k > 0) milestones.Add(new(on, "financial_independence", "financial_independence", null));
             }
         }
 

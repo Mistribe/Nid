@@ -209,6 +209,17 @@ public class IncomeTimelineEndpointTests(PostgresFixture fixture) : IClassFixtur
     }
 
     [Fact]
+    public async Task A_pension_starting_later_lists_its_first_phase_ahead() // retirement spec §3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewKindSourceAsync(app, "Retraite", "pension", [new { personId = app.AdultA.Value, shareBp = 10_000 }], Phase("Retraite", "2035-11-01", "1000"));
+
+        var (_, timeline) = await ReadAsync(app, 12);
+
+        Assert.Equal(1000m, Assert.Single(timeline.Pensions!).Monthly!.Value.Amount);
+    }
+
+    [Fact]
     public async Task A_pension_co_owned_by_both_adults_has_no_holder() // retirement spec §3
     {
         await using var app = await NidApp.StartAsync(fixture);

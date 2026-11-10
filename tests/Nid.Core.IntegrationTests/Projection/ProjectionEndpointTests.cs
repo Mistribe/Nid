@@ -52,9 +52,6 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
 
     private static List<JsonElement> List(JsonElement view, string name) => view.GetProperty(name).EnumerateArray().ToList();
 
-    /// <summary>The milestones but the financial independence one, which any household with no expense reaches today.</summary>
-    private static List<JsonElement> Milestones(JsonElement view) => List(view, "milestones").Where(m => Str(m, "kind") != "financial_independence").ToList();
-
     private static string? Str(JsonElement element, string name) => element.GetProperty(name).GetString();
 
     private static decimal Dec(JsonElement element, string name) => decimal.Parse(Str(element, name)!, CultureInfo.InvariantCulture);
@@ -223,7 +220,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
 
         var view = await ProjectionAsync(app, app.AdultA);
 
-        var milestone = Assert.Single(Milestones(view));
+        var milestone = Assert.Single(List(view, "milestones"));
         Assert.Equal(("2025-12-15", "loan_end", "Prêt travaux"), (Str(milestone, "on"), Str(milestone, "kind"), Str(milestone, "label")));
         Assert.Equal(loan, milestone.GetProperty("item").GetGuid());
         var points = List(view, "points");
@@ -243,7 +240,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         Assert.Equal("2054-05-31", Str(List(view, "points")[^1], "on"));
         var name = (await app.GetAsync<JsonElement>(app.AdultA, "/api/v1/core/persons")).EnumerateArray()
             .Single(p => p.GetProperty("id").GetGuid() == app.AdultA.Value).GetProperty("displayName").GetString();
-        var retirement = Assert.Single(Milestones(view));
+        var retirement = Assert.Single(List(view, "milestones"));
         Assert.Equal(("2054-05-31", "retirement", name), (Str(retirement, "on"), Str(retirement, "kind"), Str(retirement, "label")));
         Assert.Equal(JsonValueKind.Null, retirement.GetProperty("item").ValueKind);
     }
@@ -393,9 +390,10 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         Assert.All(List(view, "points"), p => Assert.Equal(("0.00", "0.00", "0.00", "0.00", "0.00"),
             (Str(p, "nominal"), Str(p, "real"), Str(p, "savings"), Str(p, "property"), Str(p, "debt"))));
         Assert.Equal(("0.00", "auto"), (Str(view, "monthlySavings"), Str(view, "savingsOrigin")));
-        Assert.Empty(Milestones(view)); // nothing to pay and nothing to live on: independent from this month (retirement spec §3)
-        Assert.Equal("2025-10", Str(view, "financialIndependence"));
-        Assert.Empty(List(view, "warnings"));
+        Assert.Empty(List(view, "milestones"));
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("financialIndependence").ValueKind); // no living cost: no date (retirement spec §3)
+        var warning = Assert.Single(List(view, "warnings"));
+        Assert.Equal(("living_cost_missing", JsonValueKind.Null), (Str(warning, "code"), warning.GetProperty("detail").ValueKind));
     }
 
     [Fact]
@@ -409,8 +407,8 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         var view = await ProjectionAsync(app, app.AdultA);
 
         Assert.All(List(view, "points"), p => Assert.Equal("0.00", Str(p, "debt")));
-        var warning = Assert.Single(List(view, "warnings"));
-        Assert.Equal(("fx_missing", "GBP"), (Str(warning, "code"), Str(warning, "detail")));
+        var warning = Assert.Single(List(view, "warnings"), w => Str(w, "code") == "fx_missing");
+        Assert.Equal("GBP", Str(warning, "detail"));
     }
 
     [Fact]
@@ -433,7 +431,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
 
         var view = await ProjectionAsync(app, app.AdultA);
 
-        var warning = Assert.Single(List(view, "warnings"));
+        var warning = Assert.Single(List(view, "warnings"), w => Str(w, "code") == "income_end_extended");
         Assert.Equal(("income_end_extended", "Mon CDD"), (Str(warning, "code"), Str(warning, "detail")));
     }
 
@@ -555,7 +553,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         => (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
         {
             classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = "0", savingsClass = "cash",
-            freedPaymentsToSavings = true, withdrawalRate = "4", monthlyLivingCost = livingCost,
+            freedPaymentsToSavings = false, withdrawalRate = "4", monthlyLivingCost = livingCost,
         })).EnsureSuccessStatusCode();
 
     [Fact]
@@ -586,9 +584,58 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         await ValuedEnvelopeAsync(app, app.AdultA, "100000"); // 333 a month: not enough alone
         await RetirementAsync(app, app.AdultA, "1963-10-10"); // the departure month is 2027-10 (month 24), the switch month 25
         await IncomeSourceAsync(app, "Retraite", "pension", "2045-01-01", "2000");
+        await IncomeSourceAsync(app, "Salaire", "salary", "2020-01-01", "3000"); // work income never counts as a pension
 
         var view = await ProjectionAsync(app, app.AdultA, "?horizon=5y");
 
         Assert.Equal("2027-11", Str(view, "financialIndependence"));
+        Assert.Contains(List(view, "milestones"), m => (Str(m, "kind"), Str(m, "on")) == ("financial_independence", "2027-11-30"));
+    }
+
+    private static async Task<string?> IndependenceAsync(NidApp app, string livingCost)
+    {
+        await FlatAsync(app, livingCost);
+        var view = await ProjectionAsync(app, app.AdultA, "?horizon=5y");
+        return view.GetProperty("financialIndependence").GetString();
+    }
+
+    [Fact]
+    public async Task Expenses_are_the_commitments_but_the_loans_and_the_loan_payments() // retirement spec §3: the loan counts once
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.NewMonthlyAsync(app.AdultA, 100m); // Expenses0 = 100
+        await NewAsync(app, Short(app)); // 1 000 a month until 2025-12-15
+        await ValuedEnvelopeAsync(app, app.AdultA, "330000"); // 330 000 × 4 % ÷ 12 = 1 100 a month
+
+        // 1 100 are covered from the first month without a loan payment: 100 + 1 000 of living cost still fit, 1 001 do not.
+        Assert.Equal("2026-01", await IndependenceAsync(app, "1000"));
+        Assert.Null(await IndependenceAsync(app, "1001"));
+    }
+
+    [Fact]
+    public async Task A_rent_is_passive_income() // retirement spec §3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var property = await NewPropertyAsync(app, Home(app));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{property}/tenancies",
+            new { label = "Bail", startsOn = "2025-01-01", endsOn = (string?)null, rentMonthly = "800", chargesMonthly = "60" })); // charges are not income
+
+        Assert.Equal("2025-10", await IndependenceAsync(app, "800"));
+        Assert.Null(await IndependenceAsync(app, "801"));
+    }
+
+    [Fact]
+    public async Task A_commitment_in_a_currency_without_a_rate_is_named()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = await app.NewSubscriptionAsync("Abonnement", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{subscription.Value}/phases", new
+        {
+            startsOn = "2025-01-01", price = new { amount = "10", currency = "GBP" }, every = new { count = 1, unit = "month" }, payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+
+        var warning = Assert.Single(List(await ProjectionAsync(app, app.AdultA), "warnings"), w => Str(w, "code") == "fx_missing");
+
+        Assert.Equal("GBP", Str(warning, "detail"));
     }
 }
