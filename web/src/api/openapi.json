@@ -45323,6 +45323,15 @@
             "items": {
               "$ref": "#/components/schemas/ProjectionEventView"
             }
+          },
+          "retirements": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScenarioRetirementView"
+            }
           }
         }
       },
@@ -50590,6 +50599,36 @@
             "items": {
               "$ref": "#/components/schemas/ScenarioWarningView"
             }
+          }
+        }
+      },
+      "ScenarioRetirementView": {
+        "required": [
+          "years",
+          "months"
+        ],
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "monthlyPension": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

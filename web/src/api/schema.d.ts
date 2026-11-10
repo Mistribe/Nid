@@ -31265,6 +31265,7 @@ export interface components {
             horizon?: null | string;
             assumptions?: null | components["schemas"]["ProjectionOverridesView"];
             events?: null | components["schemas"]["ProjectionEventView"][];
+            retirements?: null | components["schemas"]["ScenarioRetirementView"][];
         };
         ProjectionEventView: {
             /** Format: uuid */
@@ -32468,6 +32469,15 @@ export interface components {
             gap: components["schemas"]["DashboardMoneyView"];
             loans: components["schemas"]["ScenarioLoanView"][];
             warnings: components["schemas"]["ScenarioWarningView"][];
+        };
+        ScenarioRetirementView: {
+            /** Format: uuid */
+            person?: null | string;
+            /** Format: int32 */
+            years: number;
+            /** Format: int32 */
+            months: number;
+            monthlyPension?: null | string;
         };
         ScenarioScheduleRowView: {
             /** Format: int32 */

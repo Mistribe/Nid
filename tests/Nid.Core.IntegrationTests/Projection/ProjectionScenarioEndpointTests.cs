@@ -251,6 +251,62 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "assumptions.withdrawalRate"), await RefusalAsync(response));
     }
 
+    private static object WithRetirements(params object[] retirements)
+        => new { version = 1, horizon = "10y", events = Array.Empty<object>(), assumptions = new { }, retirements };
+
+    [Fact]
+    public async Task Departures_round_trip_and_an_absent_list_reads_empty() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var departure = new { person = app.AdultA.Value, years = 60, months = 6, monthlyPension = "1500" };
+
+        var id = await SavedAsync(await CreateAsync(app, Body(app, WithRetirements(departure))));
+        var plain = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+
+        var read = Assert.Single(List((await GetAsync(app, id)).GetProperty("result").GetProperty("document"), "retirements"));
+        Assert.Equal((app.AdultA.Value, 60, 6, "1500.00"),
+            (read.GetProperty("person").GetGuid(), read.GetProperty("years").GetInt32(), read.GetProperty("months").GetInt32(), Str(read, "monthlyPension")));
+        Assert.Empty(List((await GetAsync(app, plain)).GetProperty("result").GetProperty("document"), "retirements"));
+    }
+
+    [Theory]
+    [InlineData(49, 0, "-1", "retirements[0].years")]
+    [InlineData(76, 0, "-1", "retirements[0].years")]
+    [InlineData(60, 12, "-1", "retirements[0].months")]
+    [InlineData(60, 0, "-5", "retirements[0].monthlyPension")]
+    public async Task Departure_out_of_bounds_is_refused_at_write(int years, int months, string pension, string field)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await CreateAsync(app, Body(app, WithRetirements(new { person = app.AdultA.Value, years, months, monthlyPension = pension == "-1" ? null : pension })));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", field), await RefusalAsync(response));
+    }
+
+    [Fact]
+    public async Task Two_departures_of_one_person_are_refused_at_write()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var departure = new { person = app.AdultA.Value, years = 60, months = 0 };
+
+        var response = await CreateAsync(app, Body(app, WithRetirements(departure, departure)));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "retirements[1].person"), await RefusalAsync(response));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Departure_of_an_unknown_person_or_a_dependent_is_refused_at_write(bool dependent)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var person = dependent ? app.Dependent.Value : Guid.NewGuid();
+
+        var response = await CreateAsync(app, Body(app, WithRetirements(new { person, years = 60, months = 0 })));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.target_not_found", "retirements[0].person"), await RefusalAsync(response));
+    }
+
     [Fact]
     public async Task Repayment_above_balance_is_refused_at_write()
     {

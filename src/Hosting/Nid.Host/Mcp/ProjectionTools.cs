@@ -35,6 +35,7 @@ public sealed class ProjectionTools
         [Description("'10y' (default), '5y', '20y', '30y', 'Ny' (1 to 40) or 'retire:<personId>'.")] string? horizon = null,
         [Description("Assumption overrides, each optional: { classRates: { cash: '2' }, inflation: '1.8', monthlySavings: '500', savingsClass: 'cash', freedPaymentsToSavings: true, inflationByYear: { '2026': '2.5' }, classRatesByYear: { cash: { '2026': '3' } }, incomeGrowth: '0.5', classVolatility: { equity: '16' }, withdrawalRate: '4', monthlyLivingCost: '2000' }. Rates are percents, amounts decimal strings; omitted fields keep the household's. The yearly rates are for calendar years from this one to 4 years later (cash and money_market only for classes); inflationByYear replaces the household's table whole, classRatesByYear merges class by class; incomeGrowth is the income growth over inflation, a percent; classVolatility sets a class's annual volatility (0 to 50), merged class by class; withdrawalRate is the share of the capital drawn each year in financial independence, a percent above 0 and at most 10; monthlyLivingCost is the monthly living cost in today's money, an amount.")] ProjectionOverridesView? assumptions = null,
         [Description("The events, each { kind, start: { on: 'yyyy-mm-dd' } or { person, age }, until?, label?, monthlyAmount? (income_change, savings_change), amount?, split?, loan?, effect?, penalty? (early_repayment), property?, price?, costs? (property_sale), scenario? (property_purchase of a saved purchase scenario; a purchase still needs a start, ignored: the purchase scenario's own date counts) }. Amounts are decimal strings.")] IReadOnlyList<ProjectionEventView>? events = null,
+        [Description("The departures, each { person, years (50 to 75), months (0 to 11), monthlyPension? }: an adult's age at departure in this scenario, replacing the household's, and optionally their monthly pension in today's money (a decimal string, not negative). One per adult; the person must be an adult of the household.")] IReadOnlyList<ScenarioRetirementView>? retirements = null,
         CancellationToken ct = default)
     {
         VisibilityScope visibility;
@@ -47,7 +48,7 @@ public sealed class ProjectionTools
             return McpCalls.Error(unreadable.Message);
         }
 
-        var read = ProjectionDocumentView.Read(new ProjectionDocumentView(1, horizon ?? ProjectionHorizon.Default.ToWire(), assumptions, events ?? []));
+        var read = ProjectionDocumentView.Read(new ProjectionDocumentView(1, horizon ?? ProjectionHorizon.Default.ToWire(), assumptions, events ?? [], retirements ?? []));
         if (read.TryGetFailure(out var invalid))
             return McpCalls.Error(Fields(invalid!));
         read.TryGetValue(out var document);

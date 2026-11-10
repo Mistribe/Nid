@@ -149,4 +149,11 @@ public sealed record ProjectionOverrides(
 public sealed record ScenarioHorizon(int? Years, PersonId? RetireOf);
 
 /// <summary>Spec §6: the document of a projection scenario.</summary>
-public sealed record ProjectionScenario(int Version, ScenarioHorizon Horizon, ProjectionOverrides Assumptions, IReadOnlyList<ProjectionEvent> Events);
+public sealed record ProjectionScenario(int Version, ScenarioHorizon Horizon, ProjectionOverrides Assumptions, IReadOnlyList<ProjectionEvent> Events)
+{
+    /// <summary>Retirement spec §2: the scenario's departures, one per adult at most; absent reads empty.</summary>
+    public IReadOnlyList<ScenarioRetirement>? Retirements { get; init; }
+}
+
+/// <summary>Retirement spec §2: a person's departure in a scenario, at <c>Years</c> and <c>Months</c> of age, and optionally their monthly pension (today's money).</summary>
+public sealed record ScenarioRetirement(PersonId Person, int Years, int Months, decimal? MonthlyPension);

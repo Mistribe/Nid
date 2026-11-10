@@ -29,12 +29,16 @@ public sealed record ProjectionEventView(
     string? Amount, string? Split, Guid? Loan, string? Effect, string? Penalty,
     Guid? Property, string? Price, string? Costs, Guid? Scenario);
 
+/// <summary>Retirement spec §2: a departure on the wire; <c>MonthlyPension</c> a decimal string.</summary>
+public sealed record ScenarioRetirementView(Guid? Person, int Years, int Months, string? MonthlyPension);
+
 /// <summary>
 /// Spec §6 and §7: a projection scenario's document on the wire, read and answered in the same shape. <c>Horizon</c> is the projection
 /// route's form, <c>"10y"</c> or <c>"retire:{personId}"</c>. <see cref="Read"/> is the one wire → document mapping (routes and
 /// assistant); <see cref="From"/> the one document → wire mapping.
 /// </summary>
-public sealed record ProjectionDocumentView(int Version, string? Horizon, ProjectionOverridesView? Assumptions, IReadOnlyList<ProjectionEventView>? Events)
+public sealed record ProjectionDocumentView(int Version, string? Horizon, ProjectionOverridesView? Assumptions, IReadOnlyList<ProjectionEventView>? Events,
+    IReadOnlyList<ScenarioRetirementView>? Retirements = null)
 {
     public static ProjectionDocumentView From(ProjectionScenario doc)
     {
@@ -55,7 +59,8 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
             doc.Events.Select(e => new ProjectionEventView(
                 e.Id, e.Kind, Date(e.Start), e.Until is { } until ? Date(until) : null, e.Label, Optional(e.MonthlyAmount),
                 Optional(e.Amount), e.Split, e.Loan?.Value, e.Effect, Optional(e.Penalty),
-                e.Property?.Value, Optional(e.Price), Optional(e.Costs), e.Scenario?.Value)).ToList());
+                e.Property?.Value, Optional(e.Price), Optional(e.Costs), e.Scenario?.Value)).ToList(),
+            (doc.Retirements ?? []).Select(r => new ScenarioRetirementView(r.Person.Value, r.Years, r.Months, Optional(r.MonthlyPension))).ToList());
     }
 
     /// <summary>
@@ -132,9 +137,27 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
                 e.Scenario is { } scenario ? new ItemId(scenario) : null));
         }
 
+        var retirements = new List<ScenarioRetirement>();
+        for (var i = 0; i < (view.Retirements?.Count ?? 0); i++)
+        {
+            var r = view.Retirements![i];
+            var at = $"retirements[{i}]";
+            if (r is null)
+            {
+                Refuse(at, "A departure is required.");
+                continue;
+            }
+            if (r.Person is not { } person)
+            {
+                Refuse($"{at}.person", "A person is required.");
+                continue;
+            }
+            retirements.Add(new ScenarioRetirement(new PersonId(person), r.Years, r.Months, Decimal(r.MonthlyPension, $"{at}.monthlyPension")));
+        }
+
         return errors.Count > 0
             ? Failed()
-            : Result.Success(new ProjectionScenario(view.Version, horizon!, overrides, events));
+            : Result.Success(new ProjectionScenario(view.Version, horizon!, overrides, events) { Retirements = retirements });
 
         Result<ProjectionScenario> Failed() => Result.Failure<ProjectionScenario>(
             FieldErrors.Many(ProjectionCodes.InvalidField, errors.Count == 1 ? errors[0].Message : "Some fields are not valid.", errors));

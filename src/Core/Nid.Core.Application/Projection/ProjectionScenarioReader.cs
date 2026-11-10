@@ -145,6 +145,9 @@ public sealed class ProjectionScenarioReader(
             if (e.Kind != ProjectionEventKinds.PropertyPurchase && !targets.Person(e.Start.Person)) Missing($"{at}.start.person");
             if (!targets.Person(e.Until?.Person)) Missing($"{at}.until.person");
         }
+        for (var i = 0; i < (doc.Retirements?.Count ?? 0); i++)
+            if (!targets.People.TryGetValue(doc.Retirements![i].Person, out var retiree) || retiree.Kind != PersonKind.Adult)
+                Missing($"retirements[{i}].person");
         if (missing.Count > 0)
             return FieldErrors.Many(ProjectionCodes.TargetNotFound, missing.Count == 1 ? missing[0].Message : "Some items are not found.", missing);
 

@@ -38,6 +38,30 @@ public class ProjectionScenarioRulesTests
     public void Valid_document_has_no_refusal()
         => Assert.Empty(ProjectionScenarioRules.Check(Doc(Income(), Savings(), Repayment(), Sale(), Purchase())));
 
+    private static ProjectionScenario WithDepartures(params ScenarioRetirement[] retirements) => Doc() with { Retirements = retirements };
+
+    [Fact]
+    public void Valid_departures_and_an_absent_list_have_no_refusal()
+    {
+        Assert.Empty(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, 50, 0, 0m), new ScenarioRetirement(PersonId.New(), 75, 11, null))));
+        Assert.Empty(ProjectionScenarioRules.Check(Doc()));
+    }
+
+    [Theory]
+    [InlineData(49, 0, null, "retirements[0].years", "The age is between 50 and 75.")]
+    [InlineData(76, 0, null, "retirements[0].years", "The age is between 50 and 75.")]
+    [InlineData(60, -1, null, "retirements[0].months", "The months are between 0 and 11.")]
+    [InlineData(60, 12, null, "retirements[0].months", "The months are between 0 and 11.")]
+    [InlineData(60, 0, -1, "retirements[0].monthlyPension", "The pension is not negative.")]
+    public void Departure_out_of_bounds_is_refused(int years, int months, int? pension, string field, string message)
+        => Assert.Equal((field, message),
+            Assert.Single(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, years, months, pension)))));
+
+    [Fact]
+    public void Two_departures_of_one_person_are_refused()
+        => Assert.Equal(("retirements[1].person", "A person has one departure per scenario."),
+            Assert.Single(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, 60, 0, null), new ScenarioRetirement(Alice, 62, 0, null)))));
+
     [Fact]
     public void Thirty_one_events_are_refused()
         => Assert.Equal("events", Only(Doc(Enumerable.Range(0, 31).Select(_ => Income()).ToArray())));
