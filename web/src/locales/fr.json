@@ -104,6 +104,7 @@
     "list": "Autres sections"
   },
   "dashboard": {
+    "year_review": "Bilan annuel",
     "projection": {
       "title": "Projection du patrimoine",
       "horizon": "Horizon de la projection",
@@ -359,7 +360,7 @@
       "cause_line": "{{amount}} {{cause}}",
       "cause": {
         "investments": { "paid_in": "de versements sur les placements", "value": "sur la valeur des placements" },
-        "real_estate": { "paid_in": "de capital remboursé", "value": "sur l’immobilier" },
+        "real_estate": { "paid_in": "de capital remboursé", "moved": "d’achats et ventes immobiliers", "value": "sur l’immobilier" },
         "subscriptions": "d’abonnements",
         "loans": "de crédits",
         "property_costs": "de charges des biens",

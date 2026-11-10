@@ -99,9 +99,15 @@ public interface INetWorthContribution
     Task<Result<IReadOnlyDictionary<Currency, decimal>>> NetContributionsAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct);
 }
 
-/// <summary>2D2b spec §4: a module's part of the curve at one date; <c>Envelopes</c> counts the holdings with a reading on or before it.</summary>
+/// <summary>
+/// 2D2b spec §4: a module's part of the curve at one date; <c>Envelopes</c> counts the holdings with a reading on or before it.
+/// Issue #12: <c>Moved</c>, cumulative up to the date, is what entered or left the module by a purchase or a sale: a property's
+/// price, − a loan's principal, and from an item's archive day on, − what a sold property was worth and + an archived loan's
+/// balance, both read on its last counted day (the day before its archive day). Null for a module without any.
+/// </summary>
 public sealed record NetWorthPoint(
-    LocalDate On, IReadOnlyDictionary<Currency, decimal> Values, IReadOnlyDictionary<Currency, decimal> NetContributions, int Envelopes);
+    LocalDate On, IReadOnlyDictionary<Currency, decimal> Values, IReadOnlyDictionary<Currency, decimal> NetContributions, int Envelopes,
+    IReadOnlyDictionary<Currency, decimal>? Moved = null);
 
 public interface ICommitmentsContribution
 {

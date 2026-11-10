@@ -58,11 +58,11 @@ public sealed record EnvelopeDetail(
 
 public sealed record PeriodView(
     LocalDate From, LocalDate To, LocalDate? StartAsOf, AmountView? StartValue, LocalDate? EndAsOf, AmountView? EndValue,
-    AmountView? NetContributions, AmountView? Performance)
+    AmountView? NetContributions, AmountView? Performance, bool NoStartValue)
 {
     // Named Of, not From: a positional property already named From collides with a same-named static method (CS0102).
     public static PeriodView Of(PeriodPerformance p) => new(p.From, p.To, p.StartAsOf, AmountView.From(p.StartValue),
-        p.EndAsOf, AmountView.From(p.EndValue), AmountView.From(p.NetContributions), AmountView.From(p.Performance));
+        p.EndAsOf, AmountView.From(p.EndValue), AmountView.From(p.NetContributions), AmountView.From(p.Performance), p.NoStartValue);
 }
 
 /// <summary><c>PaidIn</c>: the value is the amount paid in before the first valuation, not a valuation.</summary>

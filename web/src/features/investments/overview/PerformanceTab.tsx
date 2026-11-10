@@ -148,7 +148,6 @@ function Body({ d }: { d: HouseholdPerformance }) {
         ...(best?.performance ? [{ label: t('investments_performance.best'), value: <>{signed(best.performance)}{sub(month(best.month))}</> }] : []),
         ...(worst?.performance ? [{ label: t('investments_performance.worst'), value: <>{signed(worst.performance)}{sub(month(worst.month))}</> }] : []),
       ]} />
-      <Excluded d={d} />
       {d.envelopes.length === 0 ? <p className="text-muted-foreground">{t('investments_performance.empty')}</p> : (
         <>
           <Bridge d={d} />
@@ -161,13 +160,6 @@ function Body({ d }: { d: HouseholdPerformance }) {
       )}
     </>
   );
-}
-
-function Excluded({ d }: { d: HouseholdPerformance }) {
-  const { t } = useTranslation();
-  if (d.excluded.length === 0) return null;
-  const names = d.excluded.map((e) => `${e.name} (${t(`investments_performance.excluded_reason.${e.code === 'stale_start_value' ? 'stale_start_value' : 'no_start_value'}`)})`).join(', ');
-  return <p className="text-sm text-muted-foreground">{t('investments_performance.excluded', { count: d.excluded.length, names })}</p>;
 }
 
 /** Spec §4.3: each change as a bar either side of a central axis, sized by `toPlot`; the sign is in the text, not only the colour. */
@@ -277,7 +269,7 @@ function MonthTooltip({ active, payload }: { active?: boolean; payload?: Readonl
   );
 }
 
-/** Spec §4.3: one line per envelope, in the server's order, each to its envelope. */
+/** Spec §4.3: one line per envelope, in the server's order, each to its envelope; a start value older than its cadence is marked. */
 function Earned({ d }: { d: HouseholdPerformance }) {
   const { t } = useTranslation();
   const max = Math.max(1, ...d.envelopes.map((e) => (e.performanceConverted ? Math.abs(toPlot(e.performanceConverted.amount)) : 0)));
@@ -292,6 +284,8 @@ function Earned({ d }: { d: HouseholdPerformance }) {
               <Link to="/investments/$id" params={{ id: e.id }} className="inline-flex min-w-0 items-center gap-2 hover:underline">
                 <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm" style={{ background: kindColor(e.kind) }} />
                 <span className="truncate">{e.name}</span>
+                {e.staleStart ? <span className="shrink-0 text-xs text-muted-foreground">{t('investments_performance.stale_start')}</span> : null}
+                {e.noStartValue ? <span className="shrink-0 text-xs text-muted-foreground">{t('investments_performance.no_start_value')}</span> : null}
               </Link>
               <span aria-hidden="true" className="h-2.5 rounded-full bg-muted">
                 <span className="block h-full rounded-full" style={{ width: `${size}%`, background: down ? 'var(--destructive)' : 'var(--primary)' }} />

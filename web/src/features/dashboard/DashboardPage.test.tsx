@@ -21,6 +21,13 @@ const tile = (name: string) => screen.findByRole('button', { name: new RegExp(na
 beforeAll(async () => { await import('./NetWorthCurve'); }, 30_000);
 
 describe('DashboardPage', () => {
+  it('leads to the annual review', async () => {
+    serve(dashboard());
+    await renderApp('/dashboard?scope=me');
+
+    expect(await screen.findByRole('link', { name: 'Bilan annuel' })).toHaveAttribute('href', '/reports/year?scope=me');
+  });
+
   it('labels the net worth total « estimé » only when an estimate is in it', async () => {
     serve(dashboard({ estimatedEnvelopes: 1 }));
     const { unmount } = await renderApp('/dashboard');

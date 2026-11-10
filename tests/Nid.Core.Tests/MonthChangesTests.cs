@@ -75,6 +75,19 @@ public class MonthChangesTests
     }
 
     [Fact]
+    public void A_purchase_is_its_own_part()
+    {
+        // A home bought for 250 000 with a loan of 200 000: the net worth gains 50 000, moved, not a change of value.
+        var before = new NetWorthPoint(Since, Eur(0m), Eur(0m), 0);
+        var now = new NetWorthPoint(Today, Eur(250_000m - 200_000m), Eur(0m), 2, Eur(50_000m));
+
+        var figure = Figure([.. MonthChanges.NetWorthParts("real_estate", before, now)])!;
+
+        Assert.Equal("50000.00", figure.Change.Amount);
+        Assert.Equal([("real_estate.moved", "50000.00")], figure.Causes.Select(c => (c.Key, c.Change.Amount)));
+    }
+
+    [Fact]
     public void The_digest_words_carry_directions_and_cause_codes_never_an_amount()
     {
         static DashboardMoneyView M(string amount) => new(amount, "EUR");
