@@ -6,6 +6,7 @@ import { expectLabelBefore } from '@/test/filters';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { RoutineView } from './api';
+import { list, summary } from '../childcare/testData';
 import { LIVRET, MANUEL, PEA, line, recap, recapLine, routine } from './testData';
 
 const lines = () => [
@@ -202,7 +203,7 @@ describe('the routine', () => {
     const posted: unknown[] = [];
     serve(routine([line({ due: false, lastAsOf: '2025-09-30' })]), posted);
     const { user } = await renderApp('/routine');
-    expect(await screen.findByText('Tout est à jour pour septembre 2025.')).toBeInTheDocument();
+    expect(await screen.findByText('Toutes les enveloppes sont à jour pour septembre 2025.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Autres enveloppes' })).toHaveAttribute('aria-expanded', 'true');
 
     // Never a disabled save (design-system.md §6): the click with nothing filled says so and sends nothing.
@@ -365,5 +366,34 @@ describe('the routine', () => {
     act(() => { vi.advanceTimersByTime(10_000); });
     expect(screen.queryByRole('button', { name: 'Annuler' })).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Routine enregistrée.');
+  });
+});
+
+describe('the routine’s childcare', () => {
+  it('links the month’s statement to prepare and counts the older ones', async () => {
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/childcare', ({ request }) => {
+      seen.push(new URL(request.url).search);
+      return HttpResponse.json(list([summary({ toPrepare: ['2025-09', '2025-07', '2025-06'] }), summary({ id: 'ro', name: 'Lue', canWrite: false, toPrepare: ['2025-09'] })]));
+    }));
+    await renderApp('/routine');
+
+    const section = await screen.findByRole('region', { name: 'Garde' });
+    expect(await within(section).findByRole('link', { name: 'Relevé de septembre 2025 à préparer · Garde de Léa' }))
+      .toHaveAttribute('href', `/childcare/${summary().id}/statements/2025-09`);
+    expect(within(section).getByRole('link', { name: '2 relevés en retard · Garde de Léa' })).toHaveAttribute('href', `/childcare/${summary().id}`);
+    expect(within(section).queryByText(/Lue/)).toBeNull();
+    expect(seen).toEqual(['?scope=me&closed=true']);
+  });
+
+  it('says when every statement is prepared', async () => {
+    await renderApp('/routine');
+    expect(await screen.findByText('Tous les relevés de garde sont prêts.')).toBeInTheDocument();
+  });
+
+  it('is absent without the childcare module', async () => {
+    await renderApp('/routine', { capabilities: { modules: ['core', 'investments', 'realestate'], admin: false } });
+    await screen.findByRole('region', { name: 'Biens' });
+    expect(screen.queryByRole('region', { name: 'Garde' })).toBeNull();
   });
 });

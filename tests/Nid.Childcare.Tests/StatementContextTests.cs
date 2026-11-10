@@ -28,6 +28,16 @@ public class StatementContextTests
     }
 
     [Fact]
+    public void Months_to_prepare_are_the_ones_gone_by_not_validated()
+    {
+        HashSet<YearMonth> validated = [M(2025, 10)];
+        Assert.Equal([M(2025, 11), M(2025, 9)], StatementContext.ToPrepare(D(2025, 9, 10), null, D(2025, 12, 3), validated));
+        // The current month counts from its last day, as decision 18's notice.
+        Assert.Equal([M(2025, 12), M(2025, 11), M(2025, 9)], StatementContext.ToPrepare(D(2025, 9, 10), null, D(2025, 12, 31), validated));
+        Assert.Empty(StatementContext.ToPrepare(D(2025, 12, 1), null, D(2025, 12, 3), validated));
+    }
+
+    [Fact]
     public void Mid_month_revision_applies_next_month()
     {
         IReadOnlyList<(LocalDate, LocalDate?)> terms = [(D(2025, 9, 1), D(2026, 1, 14)), (D(2026, 1, 15), null)];

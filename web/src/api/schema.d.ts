@@ -28462,6 +28462,7 @@ export interface components {
             inForceFrom: string;
             monthlyBasePay: components["schemas"]["ChildcareMoneyView"];
             weeklyHours: string;
+            toPrepare: string[];
         };
         ChildcareTermsView: {
             /** Format: date */

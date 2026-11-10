@@ -5,17 +5,16 @@
     "add": "Nouvelle garde",
     "loading": "Chargement des gardes",
     "list": "Liste des gardes",
-    "tab_open": "En cours",
-    "tab_closed": "Terminées",
     "empty_title": "Aucune garde",
     "empty_body": "Suivez le contrat de votre assistante maternelle : planning, salaire mensualisé, semaines sans accueil.",
-    "empty_closed_title": "Aucune garde terminée",
-    "empty_closed_body": "Les gardes que vous terminez apparaissent ici.",
     "col_child": "Enfant",
     "col_carer": "Assistante maternelle",
     "col_pay": "Salaire mensualisé",
     "col_start": "Depuis",
-    "col_owners": "Détenteurs"
+    "col_owners": "Détenteurs",
+    "col_to_prepare": "À préparer",
+    "to_prepare": "{{count}} mois",
+    "to_prepare_mobile": "{{count}} mois à préparer"
   },
   "childcare_form": {
     "title": "Nouvelle garde",
@@ -162,14 +161,14 @@
     "leave_days_one": "{{count}} jour",
     "leave_days_other": "{{count}} jours",
     "revision_month_hint": "Une révision datée en cours de mois s'applique au relevé du mois suivant.",
-    "col_month": "Mois",
-    "col_state": "État",
-    "col_cost": "Coût du mois",
     "cmg_estimate": "CMG estimé",
     "cmg_estimate_none": "après un mois validé avec un CMG",
     "tab_documents": "Documents",
     "no_payslip": "Pas de bulletin",
-    "tab_summary": "Récapitulatif"
+    "tab_summary": "Récapitulatif",
+    "contracts": "Contrats",
+    "other_contracts": "Changer de contrat",
+    "statements_year": "Relevés {{year}}"
   },
   "childcare_statement": {
     "loading": "Chargement du relevé",
@@ -219,7 +218,11 @@
     "contributions_hint": "Celles que le récapitulatif Pajemploi laisse au foyer, au-delà du plafond horaire de la CMG ; vide quand tout est pris en charge. Comptées dans le coût.",
     "entry_of": "Saisie : {{field}}",
     "entry_hint": "Saisie manuelle : le chiffre retenu par Pajemploi, à la place de celui de Nid. Vide : le chiffre de Nid.",
-    "column": { "computed": "Calculé par Nid", "used": "Valeur retenue", "entry": "Saisie manuelle" },
+    "column": {
+      "computed": "Calculé par Nid",
+      "used": "Valeur retenue",
+      "entry": "Saisie manuelle"
+    },
     "differs": "≠ Nid",
     "entry_save": "Enregistrer la saisie",
     "entered_by_hand": "saisi à la main",

@@ -1,4 +1,4 @@
-import { Link, useSearch } from '@tanstack/react-router';
+import { Link, Navigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
 import type { RootSearch } from '@/lib/search';
@@ -6,7 +6,6 @@ import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
-import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
@@ -17,42 +16,28 @@ import '@/locales/childcare';
 import '@/locales/forms';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
-const TABS = ['open', 'closed'] as const;
-
-/** Spec §5: the arrangements, open ones first, closed ones under their own tab (server order kept until a column is sorted). */
+/** Spec §5: the current arrangement opens at once; without one, the closed arrangements (server order kept until a column is sorted). */
 export function ChildcarePage() {
   const { t } = useTranslation();
   const { scope }: RootSearch = useSearch({ strict: false });
-  const [tab, setTab] = useDetailTab(TABS);
+  const answer = useChildcareList(scope === 'me' ? 'me' : 'household', true);
   // The empty state's action repeats the header's primary: `outline`, one primary per view (design-system.md §6.1).
   const add = (variant?: 'outline') => <Link to="/childcare/new" className={buttonVariants({ variant })}>{t('childcare_list.add')}</Link>;
-  const scoped = scope === 'me' ? 'me' : 'household';
+  const current = answer.data?.items.find((c) => !c.closed);
+  if (current) return <Navigate to="/childcare/$id" params={{ id: current.id }} replace />;
   return (
     <div className="space-y-4">
       <PageHeader title={t('childcare_list.title')} actions={add()} />
-      <DetailTabs value={tab} onChange={setTab} tabs={[
-        { id: 'open', label: t('childcare_list.tab_open'), content: <List scope={scoped} closed={false} add={add('outline')} /> },
-        { id: 'closed', label: t('childcare_list.tab_closed'), content: <List scope={scoped} closed add={add('outline')} /> },
-      ]} />
+      {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
+        : !answer.data ? <Loading label={t('childcare_list.loading')}><TableSkeleton columns={7} /></Loading>
+        : answer.data.items.length === 0 ? <EmptyState module="/childcare" title={t('childcare_list.empty_title')} body={t('childcare_list.empty_body')} action={add('outline')} />
+        : <List rows={answer.data.items} />}
     </div>
   );
 }
 
-function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boolean; add: React.ReactNode }) {
+function List({ rows }: { rows: ChildcareSummary[] }) {
   const { t } = useTranslation();
-  const answer = useChildcareList(scope, closed);
-  if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data)
-    return (
-      <Loading label={t('childcare_list.loading')}><TableSkeleton columns={6} /></Loading>
-    );
-  // `closed=true` lists the open arrangements too: this tab keeps the closed ones.
-  const rows = closed ? answer.data.items.filter((c) => c.closed) : answer.data.items;
-  if (rows.length === 0)
-    return closed
-      ? <EmptyState module="/childcare" title={t('childcare_list.empty_closed_title')} body={t('childcare_list.empty_closed_body')} />
-      : <EmptyState module="/childcare" title={t('childcare_list.empty_title')} body={t('childcare_list.empty_body')} action={add} />;
-
   const name = (c: ChildcareSummary) => <Link to="/childcare/$id" params={{ id: c.id }} className="font-medium hover:underline">{c.name}</Link>;
   const pay = (c: ChildcareSummary) => <Money value={c.monthlyBasePay} tabular />;
   return (
@@ -63,6 +48,8 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
         { id: 'carer', header: t('childcare_list.col_carer'), sort: (c) => c.carerName, cell: (c) => c.carerName },
         { id: 'pay', header: t('childcare_list.col_pay'), align: 'end', sort: (c) => amountKey(c.monthlyBasePay.amount), cell: pay },
         { id: 'start', header: t('childcare_list.col_start'), sort: (c) => c.start, cell: (c) => <LocalDate value={c.start} style="short" /> },
+        { id: 'to_prepare', header: t('childcare_list.col_to_prepare'), align: 'end', sort: (c) => c.toPrepare.length,
+          cell: (c) => (c.toPrepare.length > 0 ? t('childcare_list.to_prepare', { count: c.toPrepare.length }) : '—') },
         { id: 'owner', header: t('childcare_list.col_owners'), cell: (c) => <OwnerChips owners={c.owners} /> },
       ]}
       mobile={(c) => (
@@ -71,6 +58,7 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
             <span>{c.childName} · {c.carerName}</span>{pay(c)}
           </div>
+          {c.toPrepare.length > 0 ? <p className="text-sm">{t('childcare_list.to_prepare_mobile', { count: c.toPrepare.length })}</p> : null}
         </div>
       )} />
   );

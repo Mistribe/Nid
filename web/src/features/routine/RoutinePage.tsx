@@ -20,6 +20,7 @@ import { ISO_DATE } from '@/lib/amount';
 import { ROUTINE, type RoutineRecap } from './api';
 import { defaultRoutineDate } from './dates';
 import { clearDraft, loadDraft } from './draft';
+import { ChildcareSection } from './ChildcareSection';
 import { EstateSection } from './EstateSection';
 import { RoutineRecapPanel } from './RoutineRecap';
 import { RoutineForm, startValues, type Banked, type RoutineValues } from './RoutineForm';
@@ -96,6 +97,7 @@ export function RoutinePage() {
         </>
       ) : null}
       {modules.includes('realestate') ? <EstateSection key={on} on={on} /> : null}
+      {modules.includes('childcare') ? <ChildcareSection on={on} /> : null}
     </div>
   );
 }

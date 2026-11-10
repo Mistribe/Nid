@@ -2,9 +2,9 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import { SERIES_CATALOGUE, SERIES_POINTS } from '@/api/series';
 import type { components } from '@/api/schema';
+import { CHILDCARE } from '@/api/childcare';
 
-export type ChildcareSummary = components['schemas']['ChildcareSummary'];
-export type ChildcareList = components['schemas']['ChildcareList'];
+export { CHILDCARE, useChildcareList, type ChildcareList, type ChildcareSummary, type Scope } from '@/api/childcare';
 export type ChildcareDetail = components['schemas']['ChildcareDetail'];
 export type ChildcareTerms = components['schemas']['ChildcareTermsView'];
 export type WeekdaySlot = components['schemas']['WeekdaySlotView'];
@@ -21,7 +21,6 @@ export type StatementDayBody = components['schemas']['StatementDayBody'];
 export type Declaration = components['schemas']['DeclarationView'];
 export type ChildcareYear = components['schemas']['ChildcareYearView'];
 
-export const CHILDCARE = '/api/v1/childcare' as const;
 export const ARRANGEMENT = '/api/v1/childcare/{id}' as const;
 export const REVISIONS = '/api/v1/childcare/{id}/revisions' as const;
 export const GAPS = '/api/v1/childcare/{id}/gaps' as const;
@@ -34,17 +33,9 @@ export const VALIDATE = '/api/v1/childcare/{id}/statements/{month}/validate' as 
 export const REOPEN_STATEMENT = '/api/v1/childcare/{id}/statements/{month}/reopen' as const;
 export const SUMMARY = '/api/v1/childcare/{id}/summary' as const;
 
-export type Scope = 'me' | 'household';
-
 /** Every write invalidates the list and every arrangement. */
 export function invalidateChildcare(queryClient: QueryClient): Promise<void> {
   return Promise.all([CHILDCARE, ARRANGEMENT, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
-}
-
-/** `closed` lists the open arrangements and the closed ones; the page keeps the rows it needs. */
-export function useChildcareList(scope: Scope, closed: boolean) {
-  const { $api } = useApi();
-  return $api.useQuery('get', CHILDCARE, { params: { query: { scope, closed } } });
 }
 
 export function useChildcare(id: string) {

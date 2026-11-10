@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -23,26 +23,25 @@ async function rows(): Promise<HTMLElement[]> {
 describe('ChildcarePage', () => {
   beforeAll(async () => { await import('./ChildcarePage'); }, 30_000);
 
-  it('lists the arrangements with the server monthly pay', async () => {
-    serve(list([summary()]));
+  it('opens the current arrangement at once', async () => {
+    const seen: string[] = [];
+    serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary()]), seen);
+    const { router } = await renderApp('/childcare');
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/childcare/${summary().id}`));
+    expect(seen[0]).toContain('closed=true');
+  });
+
+  it('without a current one, lists the closed arrangements', async () => {
+    serve(list([summary({ closed: true, end: '2025-06-30', toPrepare: ['2025-06'] })]));
     const { container } = await renderApp('/childcare');
     const [row] = await rows();
     expect(row).toHaveTextContent('Léa');
     expect(row).toHaveTextContent('Martine');
     expect(row).toHaveTextContent('626,37');
+    expect(row).toHaveTextContent('1 mois');
     expect(within(row!).getByRole('link', { name: 'Garde de Léa' })).toHaveAttribute('href', `/childcare/${summary().id}`);
     expect(screen.getByRole('link', { name: 'Nouvelle garde' })).toHaveAttribute('href', '/childcare/new');
     await expectNoAxeViolations(container);
-  });
-
-  it('keeps closed ones under their tab', async () => {
-    const seen: string[] = [];
-    serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary({ id: 'b', name: 'Garde actuelle' })]), seen);
-    await renderApp('/childcare?tab=closed');
-    const items = await rows();
-    expect(items).toHaveLength(1);
-    expect(items[0]).toHaveTextContent('Ancienne garde');
-    expect(seen.at(-1)).toContain('closed=true');
   });
 
   it('empty state links to creation', async () => {

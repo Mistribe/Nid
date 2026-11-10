@@ -9,7 +9,7 @@ export const slot = (day: number, over: Partial<WeekdaySlot> = {}): WeekdaySlot 
 
 export const summary = (over: Partial<ChildcareSummary> = {}): ChildcareSummary => ({
   id: ARRANGEMENT_ID, name: 'Garde de Léa', childId: CHILD, childName: 'Léa', carerName: 'Martine', owners: [], visibility: 'shared',
-  closed: false, canWrite: true, start: '2025-09-01', end: null, inForceFrom: '2025-09-01', monthlyBasePay: eur('626.37'), weeklyHours: '38.00', ...over,
+  closed: false, canWrite: true, start: '2025-09-01', end: null, inForceFrom: '2025-09-01', monthlyBasePay: eur('626.37'), weeklyHours: '38.00', toPrepare: [], ...over,
 });
 
 export const list = (items: ChildcareSummary[]): ChildcareList => ({ items });
