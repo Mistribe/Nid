@@ -68,7 +68,7 @@ public sealed class ProjectionFactsReader(
     private PersonId Reader => actor.Current!.PersonId!.Value;
 
     public Task<Result<ProjectionReading>> ReadAsync(VisibilityScope scope, ProjectionHorizon horizon, CancellationToken ct)
-        => ReadAsync(scope, horizon, null, RealEstateEvents.None, ct);
+        => ReadAsync(scope, horizon, null, RealEstateEvents.None, null, null, ct);
 
     /// <summary>
     /// Projection spec §4 and §6: a scenario's reading, on <paramref name="assumptions"/> (null: the household's) and with RealEstate
@@ -77,9 +77,9 @@ public sealed class ProjectionFactsReader(
     /// resolves with <paramref name="horizonDepartures"/>, so the base reads the scenario's grid.
     /// </summary>
     public async Task<Result<ProjectionReading>> ReadAsync(
-        VisibilityScope scope, ProjectionHorizon horizon, ProjectionAssumptions? assumptions, RealEstateEvents events, CancellationToken ct,
-        IReadOnlyDictionary<PersonId, (int Years, int Months)>? departures = null,
-        IReadOnlyDictionary<PersonId, (int Years, int Months)>? horizonDepartures = null)
+        VisibilityScope scope, ProjectionHorizon horizon, ProjectionAssumptions? assumptions, RealEstateEvents events,
+        IReadOnlyDictionary<PersonId, (int Years, int Months)>? departures, IReadOnlyDictionary<PersonId, (int Years, int Months)>? horizonDepartures,
+        CancellationToken ct)
     {
         var read = await scenario.TodayAsync(scope, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionReading>(failure!);
@@ -193,7 +193,7 @@ public sealed class ProjectionFactsReader(
     }
 
     /// <summary>Retirement spec §2: the persons with a scenario's departure age in place of their own.</summary>
-    private static IReadOnlyList<PersonInfo> Overridden(IReadOnlyList<PersonInfo> people, IReadOnlyDictionary<PersonId, (int Years, int Months)>? departures)
+    internal static IReadOnlyList<PersonInfo> Overridden(IReadOnlyList<PersonInfo> people, IReadOnlyDictionary<PersonId, (int Years, int Months)>? departures)
         => departures is null
             ? people
             : [.. people.Select(p => departures.TryGetValue(p.Id, out var d) ? p with { RetirementAge = d.Years, RetirementMonths = d.Months } : p)];

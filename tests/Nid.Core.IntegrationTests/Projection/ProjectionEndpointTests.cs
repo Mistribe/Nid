@@ -516,7 +516,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
         var read = await scope.ServiceProvider.GetRequiredService<ProjectionFactsReader>()
-            .ReadAsync(VisibilityScope.Household, new ProjectionHorizon(20, null), assumptions, RealEstateEvents.None, TestContext.Current.CancellationToken);
+            .ReadAsync(VisibilityScope.Household, new ProjectionHorizon(20, null), assumptions, RealEstateEvents.None, null, null, TestContext.Current.CancellationToken);
 
         Assert.True(read.TryGetValue(out var reading), read.ToString());
         var g = ProjectionRates.Resolve(assumptions, null, Today, 240, []).Income;
@@ -537,7 +537,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
         var read = await scope.ServiceProvider.GetRequiredService<ProjectionFactsReader>()
-            .ReadAsync(VisibilityScope.Household, new ProjectionHorizon(20, null), assumptions, RealEstateEvents.None, TestContext.Current.CancellationToken);
+            .ReadAsync(VisibilityScope.Household, new ProjectionHorizon(20, null), assumptions, RealEstateEvents.None, null, null, TestContext.Current.CancellationToken);
 
         Assert.True(read.TryGetValue(out var reading), read.ToString());
         var g = ProjectionRates.Resolve(assumptions, null, Today, 240, []).Income;

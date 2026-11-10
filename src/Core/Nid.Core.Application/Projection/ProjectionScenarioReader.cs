@@ -195,16 +195,24 @@ public sealed class ProjectionScenarioReader(
         var kept = (doc.Retirements ?? []).Where(r => all.TryGetValue(r.Person, out var p) && p.Kind == PersonKind.Adult).ToList();
         var dated = kept.Where(r => all[r.Person].BirthDate is not null).ToList();
         var ages = dated.ToDictionary(r => r.Person, r => (r.Years, r.Months));
-        var people = all.Values.Select(p => ages.TryGetValue(p.Id, out var a) ? p with { RetirementAge = a.Years, RetirementMonths = a.Months } : p).ToList();
+        var people = ProjectionFactsReader.Overridden([.. all.Values], ages);
         return (ages, people, kept.Count - dated.Count, kept);
     }
 
-    public async Task<Result<ProjectionScenarioReading>> ReadAsync(ProjectionScenario doc, VisibilityScope scope, CancellationToken ct)
+    public Task<Result<ProjectionScenarioReading>> ReadAsync(ProjectionScenario doc, VisibilityScope scope, CancellationToken ct)
+        => ReadAsync(doc, scope, false, ct);
+
+    /// <summary>
+    /// <paramref name="householdHorizon"/>: a <c>retire:</c> horizon resolves with the household's departures, not the scenario's
+    /// (Compare: every scenario shares the base's grid).
+    /// </summary>
+    public async Task<Result<ProjectionScenarioReading>> ReadAsync(ProjectionScenario doc, VisibilityScope scope, bool householdHorizon, CancellationToken ct)
     {
         var horizon = ProjectionHorizon.From(doc.Horizon);
         var departed = await DeparturesAsync(doc, ct);
         // One grid: the base reads the household's departures, on the scenario's horizon.
-        var read = await facts.ReadAsync(scope, horizon, null, RealEstateEvents.None, ct, null, departed.Ages);
+        var gridDepartures = householdHorizon ? null : departed.Ages;
+        var read = await facts.ReadAsync(scope, horizon, null, RealEstateEvents.None, null, gridDepartures, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionScenarioReading>(failure!);
         read.TryGetValue(out var based);
         var today = based!.Inputs.Today;
@@ -296,7 +304,7 @@ public sealed class ProjectionScenarioReader(
             milestones.Add(Milestone(start, e.Loan ?? e.Property));
         }
 
-        var scenarioRead = await facts.ReadAsync(scope, horizon, assumptions, new RealEstateEvents(repayments, sales), ct, departed.Ages, departed.Ages);
+        var scenarioRead = await facts.ReadAsync(scope, horizon, assumptions, new RealEstateEvents(repayments, sales), departed.Ages, gridDepartures, ct);
         if (scenarioRead.TryGetFailure(out failure)) return Result.Failure<ProjectionScenarioReading>(failure!);
         scenarioRead.TryGetValue(out var scenario);
         var realEstate = scenario!.RealEstate;
@@ -356,7 +364,8 @@ public sealed class ProjectionScenarioReader(
         Count("retirement_undated", departed.Undated);
         if (taxUnavailable) warnings.Add(new ProjectionWarningView("tax_estimate_unavailable", null));
 
-        // Retirement spec §2: from the person's switch month the scenario's pension replaces the person's own (added when none).
+        // Retirement spec §2: from the person's switch month the scenario's pension replaces the person's own (added when none). A pension
+        // co-owned by several adults has no holder: it is not in PensionsByHolder, so the scenario's is added on top of it.
         var income = scenario.Inputs.Income.ToArray();
         var pensions = scenario.Inputs.Pensions?.ToArray();
         if (scenario.Inputs.Rates is { } rates)

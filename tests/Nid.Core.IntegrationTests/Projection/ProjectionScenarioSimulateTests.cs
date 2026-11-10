@@ -549,6 +549,8 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
 
         Assert.Equal("2027-11", Str(view.GetProperty("base"), "financialIndependence")); // 2 133.33 from the switch month
         // Replaced, not added: 1 500 + 333.33 no longer covers 2 000 at the switch month, so the date moves later (it stays 2027-11 if the 1 800 were kept).
+        // Flat money: 300 less a month from the switch month 25 to 240 is 216 months of savings.
+        Assert.Equal(-64_800m, Dec(Points(view, "scenario")[^1], "nominal") - Dec(Points(view, "base")[^1], "nominal"));
         Assert.True(string.CompareOrdinal(Str(view.GetProperty("scenario"), "financialIndependence"), "2027-11") > 0);
     }
 
@@ -564,5 +566,28 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
 
         Assert.Equal(JsonValueKind.Null, view.GetProperty("base").GetProperty("financialIndependence").ValueKind);
         Assert.Equal("2027-11", Str(view.GetProperty("scenario"), "financialIndependence"));
+        Assert.Equal(163_200m, Dec(Points(view, "scenario")[^1], "nominal") - Dec(Points(view, "base")[^1], "nominal")); // 1 700 a month from 25 to 120: 96 months
+    }
+
+    [Fact]
+    public async Task An_earlier_departure_cuts_the_salary_earlier() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await DepartureAsync(app, "1963-10-10", 66); // the household leaves in 2029-10: the switch month is 49
+        await AssumptionsAsync(app, "100");
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
+        {
+            ["displayName"] = "Salaire", ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = "shared",
+            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["phases"] = new[] { new { label = "Salaire", startsOn = "2020-01-01", netAmount = new { amount = "3000", currency = "EUR" }, every = new { count = 1, unit = "month" } } },
+        })).EnsureSuccessStatusCode();
+
+        var view = await SimulateAsync(app, Departing(app, "10y", 64)); // 2027-10: the switch month is 25
+
+        decimal Step(string series, int k) => Dec(Points(view, series)[k], "nominal") - Dec(Points(view, series)[k - 1], "nominal");
+        Assert.Equal(100m, Step("scenario", 24));
+        Assert.Equal(-2900m, Step("scenario", 25)); // the salary stops
+        Assert.Equal(100m, Step("base", 25)); // still earned
+        Assert.Equal(-2900m, Step("base", 49));
     }
 }

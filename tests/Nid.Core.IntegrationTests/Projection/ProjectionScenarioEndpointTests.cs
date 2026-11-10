@@ -639,4 +639,21 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         // Without its rent the sold home leaves 360 000 of capital to build from 100 000 and 200 a month: beyond the horizon.
         Assert.Equal(JsonValueKind.Null, result.GetProperty("scenario").GetProperty("financialIndependence").ValueKind);
     }
+
+    [Fact]
+    public async Task Compare_on_a_retire_horizon_uses_the_households_departure_for_every_scenario() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{app.AdultA.Value}/retirement",
+            new { birthDate = "1990-05-10", retirementAge = 64, retirementMonths = 0 })).EnsureSuccessStatusCode(); // the household: 2054-05
+        var ids = new List<Guid>();
+        foreach (var years in new[] { 58, 60 })
+            ids.Add(await SavedAsync(await CreateAsync(app, Body(app, WithRetirements(new { person = app.AdultA.Value, years, months = 0 }), $"A {years}"))));
+
+        var view = await CompareAsync(app, string.Join(',', ids), $"retire:{app.AdultA.Value}");
+
+        Assert.Equal("2054-05-31", Str(List(view.GetProperty("base"), "points")[^1], "on"));
+        foreach (var scenario in List(view, "scenarios"))
+            Assert.Equal("2054-05-31", Str(List(scenario.GetProperty("result"), "points")[^1], "on"));
+    }
 }
