@@ -29792,6 +29792,18 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "withdrawalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyLivingCost": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -44955,7 +44967,9 @@
           "inflationByYear",
           "classRatesByYear",
           "incomeGrowth",
-          "classVolatility"
+          "classVolatility",
+          "withdrawalRate",
+          "monthlyLivingCost"
         ],
         "type": "object",
         "properties": {
@@ -45006,6 +45020,12 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "withdrawalRate": {
+            "type": "string"
+          },
+          "monthlyLivingCost": {
+            "type": "string"
           },
           "observedInflation": {
             "oneOf": [
@@ -45333,6 +45353,18 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "withdrawalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyLivingCost": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

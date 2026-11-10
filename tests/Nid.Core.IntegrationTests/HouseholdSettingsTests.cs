@@ -169,6 +169,7 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         Assert.True(read.InflationByYear is null or { Count: 0 });
         Assert.True(read.ClassRatesByYear is null or { Count: 0 });
         Assert.Equal(0m, read.IncomeGrowth);
+        Assert.Equal((0.04m, 0m), (read.WithdrawalRate, read.MonthlyLivingCost)); // retirement spec §3: never 0 (CapitalNeeded divides by it)
         Assert.Equal((0.021m, 500m, 0.07m), (read.Inflation, read.MonthlySavings, read.ClassRates[AllocationClasses.Equity]));
     }
 

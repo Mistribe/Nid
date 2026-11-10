@@ -154,7 +154,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
             assumptions = new
             {
                 inflationByYear = new Dictionary<string, string> { ["2026"] = "2.5" },
-                classRatesByYear = new { cash = new Dictionary<string, string> { ["2027"] = "3" } }, incomeGrowth = "0.5",
+                classRatesByYear = new { cash = new Dictionary<string, string> { ["2027"] = "3" } }, incomeGrowth = "0.5", withdrawalRate = "3.5", monthlyLivingCost = "1800.00",
             },
         };
 
@@ -164,6 +164,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.Equal("""{"2026":"2.5"}""", echoed.GetProperty("inflationByYear").GetRawText());
         Assert.Equal("""{"cash":{"2027":"3"}}""", echoed.GetProperty("classRatesByYear").GetRawText());
         Assert.Equal("0.5", echoed.GetProperty("incomeGrowth").GetString());
+        Assert.Equal(("3.5", "1800.00"), (echoed.GetProperty("withdrawalRate").GetString(), echoed.GetProperty("monthlyLivingCost").GetString()));
     }
 
     [Fact]

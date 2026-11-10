@@ -26,6 +26,8 @@ export type Assumptions = {
   inflationByYear: Record<string, string>; classRatesByYear: Record<string, Record<string, string>>; incomeGrowth: string;
   /** Ranges spec §2: every class's annual volatility, in percent. */
   classVolatility: Record<string, string>;
+  /** Retirement spec §3: carried through unchanged until the settings form edits them. */
+  withdrawalRate: string; monthlyLivingCost: string;
   observedInflation?: { percent: string; to: string } | null;
 };
 
@@ -79,6 +81,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
               classRatesByYear: Object.fromEntries(YEARLY_CLASSES.flatMap((c): [string, Record<string, string>][] => { const v = typed(classYears[c] ?? {}); return Object.keys(v).length > 0 ? [[c, v]] : []; })),
               incomeGrowth: wire(growth) || '0',
               classVolatility: Object.fromEntries(ASSET_CLASSES.map((c) => [c, wire(volatility[c] ?? '')])),
+              withdrawalRate: current.withdrawalRate, monthlyLivingCost: current.monthlyLivingCost,
               monthlySavings: mode === 'amount' ? wire(amount) : null,
               savingsClass,
               freedPaymentsToSavings: freed,

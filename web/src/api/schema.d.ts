@@ -27613,6 +27613,8 @@ export interface components {
             classVolatility?: null | {
                 [key: string]: string;
             };
+            withdrawalRate?: null | string;
+            monthlyLivingCost?: null | string;
         };
         AuditActorView: {
             kind: string;
@@ -31122,6 +31124,8 @@ export interface components {
             classVolatility: {
                 [key: string]: string;
             };
+            withdrawalRate: string;
+            monthlyLivingCost: string;
             observedInflation?: null | components["schemas"]["InflationTwelveMonthsView"];
         };
         ProjectionCompareView: {
@@ -31198,6 +31202,8 @@ export interface components {
             classVolatility?: null | {
                 [key: string]: string;
             };
+            withdrawalRate?: null | string;
+            monthlyLivingCost?: null | string;
         };
         ProjectionPointView: {
             /** Format: date */
