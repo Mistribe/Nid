@@ -60,6 +60,12 @@ public static class AdminCodes
 /// </summary>
 public interface IBrowserOnly;
 
+/// <summary>
+/// Spec #23: never run by a token for real — only as a proposal's dry run (<see cref="ScopeNames.DryRun"/>); a browser runs it,
+/// and so does the replay of an approved proposal (the approving adult's browser session).
+/// </summary>
+public interface IConfirmedInBrowser;
+
 public static class BrowserOnlyCodes
 {
     /// <summary>HTTP 403.</summary>
