@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { RETIREMENT } from '@/api/retirement';
 import { SERIES_POINTS } from '@/api/series';
 import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
@@ -91,6 +92,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
           }, {
             onSuccess: () => {
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
+              void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
               void queryClient.invalidateQueries({ queryKey: ['get', SERIES_POINTS] });
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION_ASSUMPTIONS] });
               done(t('settings.projection.assumptions_saved'));

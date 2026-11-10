@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { yyyyMmLabel as month } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
 import type { RetirementView } from './api';
+import '@/locales/retirement';
 
 type Row = { on: string; covered: number; expenses: number; coveredText: string; expensesText: string };
 
@@ -33,26 +34,26 @@ export default function IndependenceChart({ data, livingCostMissing }: { data: R
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-      <ul aria-label={t('retirement.legend')} className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded bg-chart-1" />{t('retirement.covered')}</li>
-        <li className="flex items-center gap-1.5"><span aria-hidden="true" className="w-4 border-t-2 border-dashed border-chart-2" />{t('retirement.expenses')}</li>
-      </ul>
-      <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
+        <ul aria-label={t('retirement.legend')} className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded bg-chart-1" />{t('retirement.covered')}</li>
+          <li className="flex items-center gap-1.5"><span aria-hidden="true" className="w-4 border-t-2 border-dashed border-chart-2" />{t('retirement.expenses')}</li>
+        </ul>
+        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </div>
       {asTable ? <IndependenceTable data={data} /> : (
-      <div role="img" aria-label={t('retirement.chart_summary', { date })}>
-        <ChartContainer config={config} className="h-64 w-full">
-          <ComposedChart data={rows} accessibilityLayer={false}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="on" ticks={ticks} tickFormatter={(on: string) => on.slice(0, 4)} tickLine={false} axisLine={false} tickMargin={8} />
-            <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
-            <ChartTooltip content={<IndependenceTooltip />} />
-            <Line dataKey="covered" type="monotone" stroke="var(--color-covered)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-            <Line dataKey="expenses" type="monotone" stroke="var(--color-expenses)" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-            {dot ? <ReferenceDot x={dot.on} y={dot.covered} r={4} fill="var(--color-covered)" stroke="var(--background)" /> : null}
-          </ComposedChart>
-        </ChartContainer>
-      </div>
+        <div role="img" aria-label={t('retirement.chart_summary', { date })}>
+          <ChartContainer config={config} className="h-64 w-full">
+            <ComposedChart data={rows} accessibilityLayer={false}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="on" ticks={ticks} tickFormatter={(on: string) => on.slice(0, 4)} tickLine={false} axisLine={false} tickMargin={8} />
+              <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
+              <ChartTooltip content={<IndependenceTooltip />} />
+              <Line dataKey="covered" type="monotone" stroke="var(--color-covered)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+              <Line dataKey="expenses" type="monotone" stroke="var(--color-expenses)" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+              {dot ? <ReferenceDot x={dot.on} y={dot.covered} r={4} fill="var(--color-covered)" stroke="var(--background)" /> : null}
+            </ComposedChart>
+          </ChartContainer>
+        </div>
       )}
     </div>
   );

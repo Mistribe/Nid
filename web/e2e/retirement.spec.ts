@@ -46,7 +46,7 @@ test('alice sets her departure and a living cost, then enters her pension on the
   await expect(alice.getByRole('row', { name: /Alice/ }).getByRole('link', { name: 'Pension de retraite' })).toBeVisible();
 
   // With a living cost set, independence is either a month or "not reached": never the missing-cost warning.
-  await expect(alice.getByText('Indépendance financière').first()).toBeVisible();
-  await expect(alice.getByText(/^(\p{L}+\.? \d{4}|Non atteinte avant l'horizon)$/u).first()).toBeVisible();
+  const independence = alice.locator('dt', { hasText: /^Indépendance financière$/ }).locator('xpath=following-sibling::dd[1]');
+  await expect(independence).toHaveText(/^(\p{L}+\.? \d{4}|Non atteinte avant l'horizon)$/u);
   await expect(alice.getByText(/Renseignez le coût de la vie mensuel/)).toHaveCount(0);
 });

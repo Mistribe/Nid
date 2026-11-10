@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { PERSONS } from '@/api/persons';
+import { SOURCES } from '@/api/income';
+import { RETIREMENT } from '@/api/retirement';
 import { useSession } from '@/app/Providers';
 import { present, toProblem } from '@/api/errors';
 import { formatCurrency } from '@/components/Money';
@@ -21,7 +22,8 @@ import { yyyyMmLabel as month } from '@/lib/format';
 import type { RootSearch } from '@/lib/search';
 import { RetirementDialog } from '@/features/settings/RetirementDialog';
 import { PensionDialog } from './PensionDialog';
-import { RETIREMENT, type Departure, type RetirementView } from './api';
+import type { Departure, RetirementView } from './api';
+import '@/locales/retirement';
 
 const IndependenceChart = lazy(() => import('./IndependenceChart'));
 
@@ -49,6 +51,7 @@ export function RetirementPage() {
 
 function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me' }) {
   const { t } = useTranslation();
+  const { $api } = useApi();
   const money = (amount: string) => formatCurrency(amount, data.currency);
   const f = data.figures;
   const livingCostMissing = data.warnings.some((w) => w.code === 'living_cost_missing');
@@ -62,12 +65,16 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
     close();
     toast.success(message);
     void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
-    void queryClient.invalidateQueries({ queryKey: ['get', PERSONS] });
   };
+  // A private pension is invisible in « Foyer »: ask for the reader's own sources (scope=me) before offering to enter another.
+  // The list has no kind filter, so the pension is picked out of the reader's own sources.
+  const mine = $api.useQuery('get', SOURCES, { params: { query: { scope: 'me' } } }, { enabled: scope === 'household' });
+  const ownsPension = (mine.data?.items ?? []).some((s) => s.kind === 'pension' && s.owners.some((o) => o.personId === session.person.id));
+  const canEnter = scope === 'me' || mine.data !== undefined;
   const actions = (d: Departure) => (
     <RowMenu label={t('retirement.row_actions', { name: d.name })} items={[
       { label: t('retirement.edit_departure'), onSelect: () => setDialog({ kind: 'departure', d }) },
-      ...(d.person === session.person.id && d.departure && d.sources.length === 0 ? [{ label: t('retirement.enter_pension'), onSelect: () => setDialog({ kind: 'pension' as const, d }) }] : []),
+      ...(d.person === session.person.id && d.departure && d.sources.length === 0 && canEnter && !ownsPension ? [{ label: t('retirement.enter_pension'), onSelect: () => setDialog({ kind: 'pension' as const, d }) }] : []),
     ]} />
   );
 
@@ -110,14 +117,14 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
             { id: 'name', header: t('retirement.adult'), cell: (d) => d.name },
             { id: 'departure', header: t('retirement.departure'), cell: (d) => (d.departure ? month(d.departure) : '—') },
             { id: 'age', header: t('retirement.age'), cell: (d) => age(d, t) },
-            { id: 'pension', header: t('retirement.pension'), align: 'end', cell: (d) => <Pension d={d} money={money} /> },
+            { id: 'pension', header: t('retirement.pension'), align: 'end', cell: (d) => <Pension d={d} money={money} hidden={scope === 'household' && ownsPension && d.person === session.person.id} /> },
             { id: 'actions', header: t('retirement.actions'), align: 'end', cell: actions },
           ]}
           mobile={(d) => (
             <div className="space-y-0.5">
               <div className="font-medium">{d.name}</div>
               <div className="text-sm text-muted-foreground">{d.departure ? month(d.departure) : '—'} · {age(d, t)}</div>
-              <div className="text-sm"><Pension d={d} money={money} /></div>
+              <div className="text-sm"><Pension d={d} money={money} hidden={scope === 'household' && ownsPension && d.person === session.person.id} /></div>
               <div>{actions(d)}</div>
             </div>
           )}
@@ -143,7 +150,8 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
   );
 }
 
-function Pension({ d, money }: { d: Departure; money: (amount: string) => string }) {
+function Pension({ d, money, hidden }: { d: Departure; money: (amount: string) => string; hidden: boolean }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-0.5">
       <div className="tabular-nums">{d.pension ? money(d.pension) : '—'}</div>
@@ -152,6 +160,7 @@ function Pension({ d, money }: { d: Departure; money: (amount: string) => string
           <Link to="/income/$id" params={{ id: s.source }} className="underline underline-offset-2">{s.name}</Link>
         </div>
       ))}
+      {hidden && d.sources.length === 0 ? <div className="text-sm text-muted-foreground">{t('retirement.private_pension')}</div> : null}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { PROJECTION } from '@/api/dashboard';
 import { invalidateIncome, SOURCES } from '@/api/income';
 import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
@@ -13,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toWireAmount } from '@/lib/amount';
+import '@/locales/retirement';
 
 /** The first day of the month after a server month: « 2030-06 » is « 2030-07-01 » (a date, not an amount). */
 function startsOnAfter(yyyyMm: string) {
@@ -49,6 +51,7 @@ export function PensionDialog({ personId, departure, currency, onClose, onDone }
           }, {
             onSuccess: () => {
               void invalidateIncome(queryClient);
+              void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
               done(t('retirement.pension_saved'));
             },
           });

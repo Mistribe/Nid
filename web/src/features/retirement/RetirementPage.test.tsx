@@ -187,6 +187,22 @@ describe('the retirement page', () => {
       expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
     });
 
+    it('in « Foyer », does not offer a second pension when the reader has a private one, and says so', async () => {
+      const seen: string[] = [];
+      server.use(
+        http.get('*/api/v1/retirement', () => HttpResponse.json(alone())),
+        http.get('*/api/v1/income/sources', ({ request }) => {
+          seen.push(new URL(request.url).search);
+          return HttpResponse.json({ items: [{ id: SOURCE, displayName: 'Pension de retraite', kind: 'pension', currency: 'EUR', visibility: 'private', owners: [{ personId: ALICE, shareBp: 10000 }] }] });
+        }),
+      );
+      await renderApp('/retirement');
+      expect((await screen.findAllByText('Votre pension est privée : elle ne compte que dans « Moi ».')).length).toBeGreaterThan(0);
+      await menuOf('Alice');
+      expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
+      expect(seen[0]).toContain('scope=me');
+    });
+
     it('does not offer the pension when the reader has no departure month', async () => {
       serve(alone({ departure: null, birthDate: null }));
       await renderApp('/retirement');
