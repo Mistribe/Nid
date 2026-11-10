@@ -122,6 +122,29 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
     }
 
     [Fact]
+    public async Task Scenario_ranges_on_demand_with_its_own_volatility() // ranges spec §2, §4
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var document = new
+        {
+            version = 1, horizon = "5y", events = Array.Empty<object>(),
+            assumptions = new { classVolatility = new { equity = "25" } },
+        };
+        var id = await SavedAsync(await CreateAsync(app, Body(app, document)));
+
+        var plain = (await GetAsync(app, id)).GetProperty("result");
+        Assert.Equal(JsonValueKind.Null, plain.GetProperty("scenario").GetProperty("ranges").ValueKind);
+        Assert.Equal("25", plain.GetProperty("document").GetProperty("assumptions").GetProperty("classVolatility").GetProperty("equity").GetString());
+        Assert.Equal("25", plain.GetProperty("scenario").GetProperty("assumptions").GetProperty("classVolatility").GetProperty("equity").GetString());
+
+        var result = (await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{id}?ranges=true"))).GetProperty("result");
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("base").GetProperty("ranges").ValueKind);
+        var ranges = result.GetProperty("scenario").GetProperty("ranges");
+        Assert.Equal(Points(result, "scenario").Count, List(ranges, "points").Count);
+        Assert.Equal(1000, ranges.GetProperty("runs").GetInt32());
+    }
+
+    [Fact]
     public async Task Scenario_overrides_round_trip_the_yearly_tables()
     {
         await using var app = await NidApp.StartAsync(fixture);

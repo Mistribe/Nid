@@ -18892,6 +18892,7 @@ export interface paths {
                 query?: {
                     scope?: string;
                     horizon?: string;
+                    ranges?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -21826,7 +21827,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    ranges?: boolean;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -26445,6 +26448,9 @@ export interface components {
                 };
             };
             incomeGrowth?: null | string;
+            classVolatility?: null | {
+                [key: string]: string;
+            };
         };
         AuditActorView: {
             kind: string;
@@ -29925,6 +29931,9 @@ export interface components {
                 };
             };
             incomeGrowth: string;
+            classVolatility: {
+                [key: string]: string;
+            };
             observedInflation?: null | components["schemas"]["InflationTwelveMonthsView"];
         };
         ProjectionCompareView: {
@@ -29998,12 +30007,21 @@ export interface components {
                 };
             };
             incomeGrowth?: null | string;
+            classVolatility?: null | {
+                [key: string]: string;
+            };
         };
         ProjectionPointView: {
             /** Format: date */
             on: string;
             without: components["schemas"]["DashboardMoneyView"];
             with: components["schemas"]["DashboardMoneyView"];
+        };
+        ProjectionRangesView: {
+            /** Format: int32 */
+            runs: number;
+            success: string;
+            points: components["schemas"]["RangePointView"][];
         };
         ProjectionScenarioBody: {
             name?: null | string;
@@ -30034,6 +30052,7 @@ export interface components {
             warnings: components["schemas"]["ProjectionWarningView"][];
             retirementHorizons: components["schemas"]["RetirementHorizonView"][];
             observedInflation?: null | string;
+            ranges?: null | components["schemas"]["ProjectionRangesView"];
         };
         ProjectionWarningView: {
             code: string;
@@ -30645,6 +30664,16 @@ export interface components {
             allocatedAmount?: null | string;
             grants: components["schemas"]["GrantView"][];
             note?: null | string;
+        };
+        RangePointView: {
+            /** Format: date */
+            on: string;
+            low: string;
+            median: string;
+            high: string;
+            lowReal: string;
+            medianReal: string;
+            highReal: string;
         };
         ReaderView: {
             /** Format: uuid */
