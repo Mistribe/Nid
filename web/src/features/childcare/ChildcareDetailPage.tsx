@@ -1,4 +1,5 @@
-import { useParams } from '@tanstack/react-router';
+import { Link, useParams, useSearch } from '@tanstack/react-router';
+import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -20,13 +21,15 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Segmented } from '@/components/form/Segmented';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAnchoredDocuments } from '@/features/documents/api';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
-import { useChildcare, useOverrideWeek, useReopenChildcare, useStatements, type ChildcareDetail, type ChildcareTerms, type StatementRow } from './api';
+import type { RootSearch } from '@/lib/search';
+import { useChildcare, useChildcareList, useOverrideWeek, useReopenChildcare, useStatements, type ChildcareDetail, type ChildcareTerms, type StatementRow } from './api';
 import { EditChildcareDialog, EndDialog, GapsDialog, ReviseDialog } from './ChildcareDialogs';
 import { dayName } from './childcareSchema';
-import { monthTitle, stateLabel } from './statementText';
+import { stateLabel } from './statementText';
 import { YearSummary } from './YearSummary';
 import { reasonLabel } from './statementText';
 import '@/locales/childcare';
@@ -66,7 +69,7 @@ export function ChildcareDetailPage() {
 
   return (
     <article className="space-y-6">
-      <PageHeader crumbs={crumbs} title={summary.name} actions={actions}
+      <PageHeader crumbs={crumbs} crumbLabel={summary.name} title={<Contracts id={id} name={summary.name} />} actions={actions}
         meta={(
           <>
             <span className="text-sm text-muted-foreground">{t('childcare_detail.meta', { child: summary.childName, carer: summary.carerName })}</span>
@@ -100,6 +103,39 @@ export function ChildcareDetailPage() {
       {open === 'end' ? <EndDialog {...dialog} /> : null}
       <Tabs detail={detail} terms={terms} onGaps={summary.canWrite && !summary.closed ? show('gaps') : null} />
     </article>
+  );
+}
+
+/** The title opens the other arrangements, the closed ones included, and the creation of a new one. */
+function Contracts({ id, name }: { id: string; name: string }) {
+  const { t } = useTranslation();
+  const { scope }: RootSearch = useSearch({ strict: false });
+  const list = useChildcareList(scope === 'me' ? 'me' : 'household', true);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger aria-label={t('childcare_detail.other_contracts')}
+        className="inline-flex items-center gap-1 rounded-md text-left outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
+        {name}<ChevronDownIcon aria-hidden="true" className="size-5 shrink-0" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-64">
+        <DropdownMenuLabel>{t('childcare_detail.contracts')}</DropdownMenuLabel>
+        {(list.data?.items ?? []).map((c) => (
+          <DropdownMenuItem key={c.id} asChild>
+            <Link to="/childcare/$id" params={{ id: c.id }} aria-current={c.id === id ? 'page' : undefined}>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate">{c.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  <LocalDate value={c.start} style="short" /> → {c.end ? <LocalDate value={c.end} style="short" /> : t('childcare_detail.current')}
+                </span>
+              </span>
+              {c.id === id ? <CheckIcon aria-hidden="true" /> : null}
+            </Link>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild><Link to="/childcare/new">{t('childcare_list.add')}</Link></DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -236,25 +272,47 @@ function Statements({ id }: { id: string }) {
   const missing = (r: StatementRow) => r.state === 'validated' && documents.data !== undefined && !withPayslip.has(r.month);
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data) return <div aria-busy="true" className="h-24 shimmer rounded-md border bg-muted" />;
-  const state = (r: StatementRow) => stateLabel(t, r.state);
+  // Server order (latest first), one grid per calendar year.
+  const years = new Map<string, StatementRow[]>();
+  for (const r of answer.data.months) years.set(r.month.slice(0, 4), [...(years.get(r.month.slice(0, 4)) ?? []), r]);
   return (
     <Section title={t('childcare_detail.tab_statements')} srTitle
       actions={answer.data.months.some((r) => r.cost) ? <SeriesLink keys={[`childcare:${id}:monthly`]} /> : undefined}>
-    <SortableTable<StatementRow> caption={t('childcare_detail.tab_statements')} rows={answer.data.months} rowKey={(r) => r.month}
-      rowLink={(r) => ({ to: '/childcare/$id/statements/$month', params: { id, month: r.month } })}
-      columns={[
-        { id: 'month', header: t('childcare_detail.col_month'), sort: (r) => r.month, cell: (r) => monthTitle(r.month) },
-        { id: 'state', header: t('childcare_detail.col_state'), sort: state, cell: (r) => (
-          <>{state(r)}{missing(r) ? <Badge variant="outline" className="ml-2">{t('childcare_detail.no_payslip')}</Badge> : null}</>
-        ) },
-        { id: 'cost', header: t('childcare_detail.col_cost'), align: 'end', cell: (r) => (r.cost ? <Money value={r.cost} tabular /> : t('childcare_detail.dash')) },
-      ]}
-      mobile={(r) => (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span>{monthTitle(r.month)} · {state(r)}{missing(r) ? ` · ${t('childcare_detail.no_payslip')}` : ''}</span>
-          {r.cost ? <Money value={r.cost} tabular /> : null}
-        </div>
-      )} />
+      <div className="space-y-5">
+        {[...years].map(([year, months]) => (
+          <section key={year} aria-labelledby={`statements-${year}`} className="space-y-2">
+            <h3 id={`statements-${year}`} className="text-sm font-medium text-muted-foreground">{year}</h3>
+            <ul aria-label={t('childcare_detail.statements_year', { year })} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {months.map((r) => <li key={r.month}><MonthTile id={id} row={r} missing={missing(r)} /></li>)}
+            </ul>
+          </section>
+        ))}
+      </div>
     </Section>
+  );
+}
+
+const STATE_TONE: Record<string, string> = {
+  validated: 'bg-status-good/10 text-status-good-text',
+  draft: 'bg-status-warning/10 text-status-warning-text',
+};
+
+/** A month's statement: its state, its cost (the server's, « — » before one is drafted), a missing payslip. */
+function MonthTile({ id, row, missing }: { id: string; row: StatementRow; missing: boolean }) {
+  const { t } = useTranslation();
+  const month = new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: 'UTC' }).format(new Date(`${row.month}-01T00:00:00Z`));
+  return (
+    <Link to="/childcare/$id/statements/$month" params={{ id, month: row.month }}
+      className={`flex h-full flex-col gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${row.state === 'none' ? 'border-dashed' : ''}`}>
+      <span className="flex items-center justify-between gap-2">
+        <span className="font-medium capitalize">{month} <span className="sr-only">{row.month.slice(0, 4)}</span></span>{' '}
+        <span className={`rounded-full px-2 py-0.5 text-xs ${STATE_TONE[row.state] ?? 'bg-muted text-muted-foreground'}`}>{stateLabel(t, row.state)}</span>
+      </span>
+      {/* Spaces between the blocks: the link's accessible name reads « septembre 2025 Validé 660,47 € », not one word. */}
+      {' '}
+      <span className="text-lg font-semibold">{row.cost ? <Money value={row.cost} tabular /> : <span className="text-muted-foreground">{t('childcare_detail.dash')}</span>}</span>
+      {' '}
+      {missing ? <span className="text-xs text-status-warning-text">{t('childcare_detail.no_payslip')}</span> : null}
+    </Link>
   );
 }
