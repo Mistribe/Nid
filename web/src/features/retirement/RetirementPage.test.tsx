@@ -195,3 +195,20 @@ describe('the retirement page', () => {
     });
   });
 });
+
+describe('the independence curve', () => {
+  const points = [{ on: '2040-01-01', capital: '100000.00', covered: '300.00', expenses: '2500.00' }, { on: '2040-06-01', capital: '750000.00', covered: '2500.00', expenses: '2500.00' }];
+
+  it('summarises the independence month', async () => {
+    serve(view({ independence: points }));
+    await renderApp('/retirement');
+    expect(await screen.findByRole('img', { name: /Indépendance financière : juin 2040/ })).toBeInTheDocument();
+    expect(screen.getByText('Revenus couverts')).toBeInTheDocument();
+  });
+
+  it('says when it is not reached', async () => {
+    serve(view({ independence: points, financialIndependence: null }));
+    await renderApp('/retirement');
+    expect(await screen.findByRole('img', { name: /Non atteinte avant l'horizon/ })).toBeInTheDocument();
+  });
+});

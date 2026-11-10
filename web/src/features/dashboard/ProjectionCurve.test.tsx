@@ -44,6 +44,12 @@ describe('net worth projection card', () => {
     expect(seen[0]).not.toContain('horizon=');
   });
 
+  it('links to the retirement page', async () => {
+    serve(projection());
+    await renderApp('/dashboard');
+    expect(await within(await card()).findByRole('link', { name: 'Retraite' })).toHaveAttribute('href', '/retirement');
+  });
+
   it('keeps the horizon in the URL', async () => {
     const seen: string[] = [];
     serve(projection(), seen);

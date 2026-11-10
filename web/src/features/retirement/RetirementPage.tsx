@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { toast } from 'sonner';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -15,12 +15,15 @@ import { Section } from '@/components/page/Section';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { monthLabel } from '@/lib/format';
 import type { RootSearch } from '@/lib/search';
 import { RetirementDialog } from '@/features/settings/RetirementDialog';
 import { PensionDialog } from './PensionDialog';
 import { RETIREMENT, type Departure, type RetirementView } from './api';
+
+const IndependenceChart = lazy(() => import('./IndependenceChart'));
 
 /** A server month (yyyy-MM) as « novembre 2040 ». */
 const month = (yyyyMm: string) => {
@@ -96,6 +99,12 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
         </>
       )}
       <Warnings data={data} />
+
+      {data.independence.length > 0 ? (
+        <Section title={t('retirement.independence_curve')}>
+          <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}><IndependenceChart data={data} /></Suspense>
+        </Section>
+      ) : null}
 
       <Section title={t('retirement.departures')}>
         <SortableTable

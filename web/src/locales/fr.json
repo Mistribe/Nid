@@ -400,7 +400,12 @@
     "pension_hint": "Montant d'aujourd'hui, en {{currency}}.",
     "pension_shared": "Visible de l'autre adulte",
     "pension_save": "Enregistrer",
-    "pension_saved": "Pension enregistrée."
+    "pension_saved": "Pension enregistrée.",
+    "independence_curve": "Courbe d'indépendance financière",
+    "covered": "Revenus couverts",
+    "expenses": "Dépenses",
+    "legend": "Légende",
+    "chart_summary": "Revenus couverts par le capital et dépenses, mois par mois. Indépendance financière : {{date}}."
   },
   "shell": { "sign_out": "Se déconnecter", "guide_help": "Guide de cette page" },
   "signed_out": {

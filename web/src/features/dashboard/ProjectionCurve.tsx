@@ -83,6 +83,7 @@ export function ProjectionCurve() {
         <Segmented value={real ? 'real' : 'nominal'} onValueChange={chooseReading} aria-labelledby={readingId}
           options={[{ value: 'real', label: t('dashboard.projection.real') }, { value: 'nominal', label: t('dashboard.projection.nominal') }]} />
         <RangesToggle pressed={ranged} onPressedChange={chooseRanges} />
+        <Link to="/retirement" className="text-sm underline underline-offset-2">{t('nav.retirement')}</Link>
         {data ? <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} /> : null}
       </>
     }>
