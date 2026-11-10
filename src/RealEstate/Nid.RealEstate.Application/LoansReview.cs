@@ -26,7 +26,8 @@ public sealed class LoansReview(
         var reference = await household.ReferenceCurrencyAsync(ct);
         var read = found.Where(l => accesses.ContainsKey(l.ItemId)).Select(l => (Loan: l, Item: accesses[l.ItemId])).ToList();
         var foreign = read.Select(x => LoanViews.CurrencyOf(x.Item)).Where(c => c != reference).Distinct().ToList();
-        // The reference's own quote is needed too: rates are per USD.
+        // The reference's own quote is needed too: rates are per USD. Without a foreign loan the table is never looked up
+        // (Convert returns a reference amount as is), so an empty one is safe.
         var rates = foreign.Count == 0 ? RateTable.Empty(end, 0) : await fx.LoadAsync([.. foreign, reference], start, end, ct);
 
         var missing = new SortedSet<string>(StringComparer.Ordinal);
@@ -42,9 +43,10 @@ public sealed class LoansReview(
         var rows = new List<LoanReviewRow>();
         foreach (var (loan, item) in read.OrderBy(x => x.Item.DisplayName, French).ThenBy(x => x.Item.Id.Value))
         {
-            // An archived loan counts strictly before its archive day.
-            var last = DashboardParts.ArchiveDay(item, zone) is { } archived && archived.PlusDays(-1) < end ? archived.PlusDays(-1) : end;
-            if (last < start) continue;
+            // An archived loan counts strictly before its archive day, then leaves the books (balance 0, as in the net worth).
+            var archivedOn = DashboardParts.ArchiveDay(item, zone) is { } day && day <= end ? day : (LocalDate?)null;
+            var last = archivedOn?.PlusDays(-1) ?? end;
+            if (last <= start) continue; // archived on or before the period's first day: none of it is counted
             var currency = LoanViews.CurrencyOf(item);
             var terms = LoanReading.Terms(currency, loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms, loan);
@@ -54,13 +56,24 @@ public sealed class LoansReview(
             var insurance = b.InsurancePaid - a.InsurancePaid;
             var fees = b.FeesPaid - a.FeesPaid;
             var capital = b.PrincipalRepaid - a.PrincipalRepaid;
-            if (interest == 0m && insurance == 0m && fees == 0m && capital == 0m && a.Balance == 0m && b.Balance == 0m)
+            var endBalance = archivedOn is null ? b.Balance : 0m;
+            if (interest == 0m && insurance == 0m && fees == 0m && capital == 0m && a.Balance == 0m && endBalance == 0m)
                 continue; // ended before the period, or not yet disbursed
             rows.Add(new LoanReviewRow(item.Id, item.DisplayName, Convert(interest, currency, end), Convert(insurance, currency, end),
-                Convert(fees, currency, end), Convert(capital, currency, end), Convert(a.Balance, currency, start), Convert(b.Balance, currency, end)));
+                Convert(fees, currency, end), Convert(capital, currency, end), Convert(a.Balance, currency, start),
+                Convert(endBalance, currency, end), archivedOn));
         }
 
-        static decimal? Sum(IEnumerable<decimal?> amounts) => amounts.Any(x => x is null) ? null : amounts.Sum(x => x!.Value);
+        static decimal? Sum(IEnumerable<decimal?> amounts)
+        {
+            var total = 0m;
+            foreach (var amount in amounts)
+            {
+                if (amount is not { } value) return null;
+                total += value;
+            }
+            return total;
+        }
         return Result.Success(new LoansReviewPart(Sum(rows.Select(r => r.Interest)), Sum(rows.Select(r => r.Insurance)),
             Sum(rows.Select(r => r.Fees)), Sum(rows.Select(r => r.CapitalRepaid)), Sum(rows.Select(r => r.StartBalance)),
             Sum(rows.Select(r => r.EndBalance)), rows, missing.ToList()));

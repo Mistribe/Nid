@@ -28,6 +28,9 @@ public class LoansReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
         return part!;
     });
 
+    private static Task<bool> ArchiveAsync(NidApp app, Guid id, LocalDate on) => InScopeAsync(app, async sp =>
+        (await sp.GetRequiredService<IItemRegistry>().ArchiveAsync(new ItemId(id), Instant.FromUtc(on.Year, on.Month, on.Day, 10, 0), TestContext.Current.CancellationToken)).IsSuccess);
+
     private static decimal D(string? amount) => decimal.Parse(amount!, CultureInfo.InvariantCulture);
 
     /// <summary>12 000 at no interest over 12 payments of 1 000, from <paramref name="year"/>-01-15.</summary>
@@ -71,26 +74,41 @@ public class LoansReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
         // After the June payment 6 000 are left: repaid in full, then the loan is archived.
         await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Loans}/{id}/repayments",
             new { onDate = "2024-06-20", amount = "6000", effect = "reduce_term" }));
-        Assert.True(await InScopeAsync(app, async sp => (await sp.GetRequiredService<IItemRegistry>()
-            .ArchiveAsync(new ItemId(id), Instant.FromUtc(2024, 7, 1, 10, 0), TestContext.Current.CancellationToken)).IsSuccess));
+        Assert.True(await ArchiveAsync(app, id, new LocalDate(2024, 7, 1)));
 
         var row = Assert.Single((await ReviewAsync(app)).Loans);
 
-        Assert.Equal((12_000m, 0m, 0m), (row.CapitalRepaid!.Value, row.StartBalance!.Value, row.EndBalance!.Value));
+        Assert.Equal((12_000m, 0m, 0m, new LocalDate(2024, 7, 1)),
+            (row.CapitalRepaid!.Value, row.StartBalance!.Value, row.EndBalance!.Value, row.ArchivedOn));
     }
 
     [Fact]
-    public async Task An_archived_loan_ends_on_its_last_counted_day()
+    public async Task An_archived_loan_counts_to_its_last_day_then_leaves_the_books()
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await NewAsync(app, Yearly(app, "Prêt travaux", 2024));
-        Assert.True(await InScopeAsync(app, async sp => (await sp.GetRequiredService<IItemRegistry>()
-            .ArchiveAsync(new ItemId(id), Instant.FromUtc(2024, 7, 15, 10, 0), TestContext.Current.CancellationToken)).IsSuccess));
+        Assert.True(await ArchiveAsync(app, id, new LocalDate(2024, 7, 15)));
 
         var row = Assert.Single((await ReviewAsync(app)).Loans);
 
-        // The July payment falls on its archive day: six payments counted, 6 000 still owed.
-        Assert.Equal((6_000m, 6_000m), (row.CapitalRepaid!.Value, row.EndBalance!.Value));
+        // The July payment falls on its archive day: six payments counted; it leaves the books with what it still owed.
+        Assert.Equal((6_000m, 0m, new LocalDate(2024, 7, 15)), (row.CapitalRepaid!.Value, row.EndBalance!.Value, row.ArchivedOn));
+    }
+
+    [Fact]
+    public async Task A_loan_archived_on_the_first_day_is_left_out()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAsync(app, Golden(app, "Prêt vendu"));
+        Assert.True(await ArchiveAsync(app, id, new LocalDate(2024, 1, 1)));
+        var after = await NewAsync(app, Golden(app));
+        Assert.True(await ArchiveAsync(app, after, new LocalDate(2025, 3, 1)));
+
+        var row = Assert.Single((await ReviewAsync(app)).Loans);
+
+        // Archived after the year: counted in full, still on the books.
+        Assert.Equal(("Prêt maison", (LocalDate?)null), (row.Name, row.ArchivedOn));
+        Assert.NotEqual(0m, row.EndBalance);
     }
 
     [Fact]

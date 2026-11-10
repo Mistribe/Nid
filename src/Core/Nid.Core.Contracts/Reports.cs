@@ -84,9 +84,12 @@ public sealed record LoansReviewPart(
     decimal? Interest, decimal? Insurance, decimal? Fees, decimal? CapitalRepaid, decimal? StartBalance, decimal? EndBalance,
     IReadOnlyList<LoanReviewRow> Loans, IReadOnlyList<string> MissingCurrencies);
 
-/// <summary>Issue #12: a loan with activity or a balance in the period; <c>CapitalRepaid</c>: its scheduled principal and early repayments.</summary>
+/// <summary>
+/// Issue #12: a loan with activity or a balance in the period; <c>CapitalRepaid</c>: its scheduled principal and early repayments.
+/// <c>ArchivedOn</c>: its archive day when it falls in the period; it then leaves the books, its <c>EndBalance</c> 0.
+/// </summary>
 public sealed record LoanReviewRow(ItemId Id, string Name, decimal? Interest, decimal? Insurance, decimal? Fees, decimal? CapitalRepaid,
-    decimal? StartBalance, decimal? EndBalance);
+    decimal? StartBalance, decimal? EndBalance, LocalDate? ArchivedOn);
 
 /// <summary>Issue #12: a phase following another at a different price or cycle; <c>PromoEnded</c>: the earlier one had a cycle limit.</summary>
 public sealed record SubscriptionPriceChange(ItemId Id, string Name, LocalDate On, decimal BeforeAmount, string BeforeCurrency, Duration BeforeEvery,
