@@ -14,7 +14,9 @@ const BOB = '22222222-2222-4222-8222-222222222222';
 
 const assumptions = (over: Body = {}) => ({
   classRates: { cash: '1.5', money_market: '2', bond: '3', equity: '6', mixed: '4', capital_guaranteed: '2.5', real_estate: '2', other: '0' },
-  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0', observedInflation: null, ...over,
+  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0',
+  classVolatility: { cash: '0', money_market: '0', bond: '6', equity: '16', mixed: '10', capital_guaranteed: '0', real_estate: '10', other: '0' },
+  observedInflation: null, ...over,
 });
 
 const observed = {
@@ -83,6 +85,22 @@ describe('the projection settings page', () => {
     await waitFor(() => expect(queryClient.getQueryState(['get', '/api/v1/projection'])?.isInvalidated).toBe(true));
     expect(queryClient.getQueryState(['get', SERIES_POINTS])?.isInvalidated).toBe(true);
     expect(puts[0]).toMatchObject({ inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true });
+  });
+
+  it('lists and sends the volatility of each class', async () => { // ranges spec §2
+    const { puts } = serve();
+    const { user } = await renderApp('/settings/projection');
+
+    expect(await screen.findByText(/Volatilité annuelle : Liquidités 0 %, .*Actions 16 %/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
+    const equity = await screen.findByLabelText('Volatilité Actions');
+    expect(equity).toHaveValue('16');
+    await user.clear(equity);
+    await user.type(equity, '18,5');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]!.classVolatility).toMatchObject({ equity: '18.5', bond: '6', cash: '0' });
   });
 
   it('shows the fixed savings in the household currency', async () => {

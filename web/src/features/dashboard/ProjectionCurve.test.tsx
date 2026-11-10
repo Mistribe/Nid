@@ -105,6 +105,41 @@ describe('net worth projection card', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('asks for the ranges on « Fourchette » and shows the bands, the probability and the assumptions', async () => { // ranges spec §6
+    const seen: string[] = [];
+    const plain = projection();
+    const band = (low: string, median: string, high: string) => ({ low, median, high, lowReal: low, medianReal: median, highReal: high });
+    const ranges = {
+      runs: 1000, success: '87',
+      points: plain.points.map((p, i) => ({ on: p.on, ...(i === 1 ? band('9500.00', '10600.00', '11900.00') : band(p.real, p.real, p.real)) })),
+    };
+    server.use(
+      http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard())),
+      http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
+      http.get('*/api/v1/projection', ({ request }) => {
+        const search = new URL(request.url).search;
+        seen.push(search);
+        return HttpResponse.json(search.includes('ranges=true') ? { ...plain, ranges } : plain);
+      }),
+    );
+    const { router, user, container } = await renderApp('/dashboard');
+
+    const region = await card();
+    await user.click(await within(region).findByRole('button', { name: 'Fourchette' }));
+    expect(router.state.location.search).toEqual({ ranges: 1 });
+    expect(await within(region).findByText('L’épargne disponible tient jusqu’à l’horizon dans 87 % des 1 000 tirages.')).toBeInTheDocument();
+    expect(seen.at(-1)).toContain('ranges=true');
+    expect(within(region).getByText(/volatilité annuelle : Actions 16 %\./)).toBeInTheDocument();
+    expect(within(region).getByRole('list', { name: 'Légende' })).toHaveTextContent('10ᵉ à 90ᵉ centile');
+
+    await user.click(within(region).getByRole('button', { name: 'Afficher en tableau' }));
+    const rows = within(within(region).getByRole('table', { name: 'Projection du patrimoine en tableau' })).getAllByRole('row');
+    expect(rows[0]).toHaveTextContent('10ᵉ centile');
+    expect(rows[1]).toHaveTextContent('9 500,00 €');
+    expect(rows[1]).toHaveTextContent('11 900,00 €');
+    await expectNoAxeViolations(container);
+  });
+
   it('names the assumptions with a link to the settings', async () => {
     serve(projection());
     await renderApp('/dashboard');
