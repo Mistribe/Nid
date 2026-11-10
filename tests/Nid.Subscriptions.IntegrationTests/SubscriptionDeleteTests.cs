@@ -8,7 +8,7 @@ using static Nid.TestSupport.PropertyApi;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-/// <summary>#23: a subscription created by mistake is deleted after a preview, with its phases, users, insurance and grants; the purchase and the property stay.</summary>
+/// <summary>#23: a subscription created by mistake is deleted after a preview, with its phases, users, insurance and grants; a purchase shared with another subscription stays; the property stays.</summary>
 public class SubscriptionDeleteTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static string Url(ItemId id) => $"/api/v1/subscriptions/{id.Value}";
@@ -64,7 +64,8 @@ public class SubscriptionDeleteTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.False(preview.GetProperty("imported").GetBoolean());
         Assert.Equal(2, Removed(preview, "billing_phases"));
         Assert.Equal(1, Removed(preview, "coverage_grants"));
-        Assert.Equal(1, Removed(preview, "insurance"));
+        Assert.Equal(1, Removed(preview, "purchases"));
+        Assert.Equal(1, Removed(preview, "subscription_insurance"));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
         Assert.Equal(await subs.Set<Nid.Subscriptions.Infrastructure.Persistence.SubscriptionUserRow>().CountAsync(u => u.ItemId == id.Value, TestContext.Current.CancellationToken),
             Removed(preview, "subscription_users"));
@@ -72,7 +73,7 @@ public class SubscriptionDeleteTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     [Fact]
-    public async Task Delete_removes_the_subscription_with_its_rows_and_keeps_the_purchase_and_the_property()
+    public async Task Delete_removes_the_subscription_with_its_rows_and_removes_the_purchase_it_alone_covers_and_keeps_the_property()
     {
         await using var app = await NidApp.StartAsync(fixture);
         var (id, property) = await FilledAsync(app);
@@ -88,10 +89,39 @@ public class SubscriptionDeleteTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Empty(subs.InsuranceGuarantees.Where(g => g.ItemId == id.Value));
         Assert.Empty(subs.Grants.Where(g => g.SubscriptionItemId == id.Value));
         Assert.Empty(subs.Set<Nid.Subscriptions.Infrastructure.Persistence.SubscriptionUserRow>().Where(u => u.ItemId == id.Value));
-        Assert.Single(subs.Purchases);
+        Assert.Empty(subs.Purchases);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         Assert.Empty(core.Flows.Where(f => f.ItemId == id.Value));
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Properties}/{property}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_bundle_purchase_shared_with_another_subscription_stays_with_its_other_grant()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mine = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        var other = await app.NewSubscriptionAsync("Disney", app.AdultA, Visibility.Shared);
+        var bought = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(mine)}/purchases", new
+        {
+            date = "2025-10-10", label = "Pack", kind = "bundle", price = new { amount = "10", currency = "EUR" }, allocatedAmount = "0", payer = new { type = "household" },
+            grants = new object[]
+            {
+                new { duration = new { count = 1, unit = "month" }, source = "included" },
+                new { subscriptionId = other.Value, duration = new { count = 1, unit = "month" }, source = "included" },
+            },
+        });
+        Assert.True(bought.IsSuccessStatusCode, await bought.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        var preview = await PreviewAsync(app, app.AdultA, mine);
+        Assert.Equal(0, Removed(preview, "purchases"));
+        Assert.Equal(1, Removed(preview, "coverage_grants"));
+        var deleted = await DeleteAsync(app, mine, preview.GetProperty("version").GetUInt32());
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Single(subs.Purchases);
+        var grant = Assert.Single(subs.Grants);
+        Assert.Equal(other.Value, grant.SubscriptionItemId);
     }
 
     [Fact]
