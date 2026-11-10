@@ -221,6 +221,26 @@ public class EnvelopeMathTests
     }
 
     [Fact]
+    public void Income_before_the_start_is_not_money_in_and_an_opening_after_it_counts_from_zero()
+    {
+        var flows = new[] { Flow(2025, 2, 1, FlowKind.Income, 50m), Flow(2025, 6, 15, FlowKind.Opening, 20_000m) };
+        var p = EnvelopeMath.Period([Value(2025, 12, 31, 21_000m)], flows, Currency.Eur, new LocalDate(2025, 3, 31), new LocalDate(2025, 12, 31));
+
+        Assert.False(p.NoStartValue);
+        Assert.Equal((Eur(0m), Eur(20_000m), Eur(1_000m)), (p.StartValue, p.NetContributions, p.Performance));
+    }
+
+    [Fact]
+    public void An_opening_on_the_start_date_without_a_value_that_day_opens_the_period()
+    {
+        var from = new LocalDate(2025, 3, 31);
+        var p = EnvelopeMath.Period([Value(2025, 12, 31, 21_000m)], [Flow(2025, 3, 31, FlowKind.Opening, 20_000m)], Currency.Eur, from, new LocalDate(2025, 12, 31));
+
+        Assert.False(p.NoStartValue);
+        Assert.Equal((Eur(0m), Eur(20_000m), Eur(1_000m)), (p.StartValue, p.NetContributions, p.Performance));
+    }
+
+    [Fact]
     public void A_period_without_an_end_value_is_unknown()
     {
         var p = EnvelopeMath.Period(PeaValues, PeaFlows, Currency.Eur, new LocalDate(2024, 6, 30), new LocalDate(2024, 12, 30));

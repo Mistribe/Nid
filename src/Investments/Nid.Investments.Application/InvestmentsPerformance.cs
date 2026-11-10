@@ -77,7 +77,7 @@ internal static class InvestmentsPerformanceMath
 
         /// <summary>D13: the flows its performance counts, after its start value (after <c>From</c> without one) up to its end value.</summary>
         public IEnumerable<Flow> Window
-            => Facts.Flows.Where(f => f.OccurredOn > (Period.StartAsOf ?? Period.From) && f.OccurredOn <= Period.EndAsOf);
+            => Facts.Flows.Where(f => f.OccurredOn > (Period.StartAsOf ?? Period.From.PlusDays(-1)) && f.OccurredOn <= Period.EndAsOf);
 
         /// <summary>
         /// Its period return's cash flows: the start value at <paramref name="from"/> (<c>AtStart</c>), the money in and out (a flow before

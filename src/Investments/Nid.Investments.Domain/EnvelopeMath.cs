@@ -42,8 +42,8 @@ public static class EnvelopeMath
 
     /// <summary>
     /// An envelope with no value on or before <paramref name="from"/> but one on or before <paramref name="to"/> has its <c>StartAsOf</c>
-    /// null and counts the flows after <paramref name="from"/>. Opened during the period (no flow on or before <paramref name="from"/>), it
-    /// starts at 0; entered with older flows, at its net contributions up to <paramref name="from"/>, no gain invented (<c>NoStartValue</c>).
+    /// null and counts the flows after <paramref name="from"/>. Opened during the period (no money in or out before <paramref name="from"/>), it
+    /// starts at 0; entered with older flows, at its net contributions before <paramref name="from"/>, no gain invented (<c>NoStartValue</c>).
     /// </summary>
     public static PeriodPerformance Period(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         LocalDate from, LocalDate to)
@@ -53,12 +53,14 @@ public static class EnvelopeMath
         if (end is null)
             return new PeriodPerformance(from, to, start?.AsOf, start?.Value, null, null, null, null);
 
-        var startValue = start?.Value ?? NetContributionsBy(flows, currency, from);
-        var after = start?.AsOf ?? from;
+        // Without a start reading the period begins on `from` itself: an opening that day is the period's, not a start stand-in.
+        var before = from.PlusDays(-1);
+        var startValue = start?.Value ?? NetContributionsBy(flows, currency, before);
+        var after = start?.AsOf ?? before;
         var net = NetContributions(flows, f => f.OccurredOn > after && f.OccurredOn <= end.AsOf);
         return new PeriodPerformance(from, to, start?.AsOf, startValue, end.AsOf, end.Value,
             M(net, currency), M(end.Value.Amount - startValue.Amount - net, currency),
-            NoStartValue: start is null && flows.Any(f => f.OccurredOn <= from));
+            NoStartValue: start is null && flows.Any(f => f.OccurredOn < from && f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal));
     }
 
     /// <summary>The openings and contributions minus the withdrawals dated on or before <paramref name="d"/>.</summary>

@@ -123,8 +123,11 @@ public sealed class EnvelopesNetWorth(
                 Money? estimate = estimates.GetValueOrDefault(envelope.ItemId) is { Value: not null } e
                     && EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today) is { Value: not null } figures
                     && TodayValue.Pick(figures, e) is { Estimated: true } picked ? picked.Value : null;
-                var paidIn = f.Envelope.ClosedOn is { } closedOn ? EnvelopeMath.NetContributionsBy(f.Flows, f.Currency, closedOn) : (Money?)null;
-                series.Add((f.Envelope.ClosedOn, paidIn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency).Where(p => !p.PaidIn).ToList(), estimate));
+                var readings = EnvelopeMath.Series(f.Values, f.Flows, f.Currency).Where(p => !p.PaidIn).ToList();
+                // Frozen only when it was valued before its closing: one never valued stayed out of the count and stays out.
+                var paidIn = f.Envelope.ClosedOn is { } closedOn && readings.Any(r => r.AsOf < closedOn)
+                    ? EnvelopeMath.NetContributionsBy(f.Flows, f.Currency, closedOn) : (Money?)null;
+                series.Add((f.Envelope.ClosedOn, paidIn, readings, estimate));
             }
 
         var points = new List<NetWorthPoint>();
@@ -137,8 +140,7 @@ public sealed class EnvelopesNetWorth(
             {
                 if (closedOn is { } closed && date >= closed)
                 {
-                    Add(values, paidIn!.Value.Currency, 0m);
-                    Add(nets, paidIn.Value.Currency, paidIn.Value.Amount);
+                    if (paidIn is { Amount: not 0m } frozen) Add(nets, frozen.Currency, frozen.Amount);
                     continue;
                 }
                 var reading = readings.LastOrDefault(r => r.AsOf <= date); // Series is ordered by date

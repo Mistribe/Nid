@@ -202,6 +202,38 @@ public class NetWorthHistoryTests(PostgresFixture fixture, SharedNidApp shared) 
     }
 
     [Fact]
+    public async Task A_closed_envelope_never_valued_adds_nothing_before_or_after_its_closing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var open = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, open, "2025-03-31", "1000.00");
+        var old = await app.NewEnvelopeAsync("Jamais valorise", app.AdultA, Visibility.Shared);
+        await ContributionAsync(app, old, "2025-03-01", "400.00");
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{old.Value}/close",
+            new { closedOn = "2025-06-01", finalWithdrawal = new { amount = "600.00", currency = "EUR" } })).EnsureSuccessStatusCode();
+
+        var points = await PointsAsync(app, app.AdultA, "?period=12m");
+
+        Assert.Equal(Amount(At(points, "2025-05-31"), "contributions"), Amount(At(points, "2025-06-30"), "contributions"));
+        Assert.Equal(("1000.00", "1000.00"), (Amount(At(points, "2025-05-31"), "value"), Amount(At(points, "2025-06-30"), "value")));
+    }
+
+    [Fact]
+    public async Task A_long_closed_foreign_envelope_with_nothing_paid_in_adds_no_currency_to_later_points()
+    {
+        var rates = new RateTable([new FxRate(Today, Currency.Eur, 0.9m, FxRateSource.Ecb)], Today, maxGapDays: 7);
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddScoped<IFxRates>(_ => new FixedRates(rates)));
+        var dollars = await app.NewEnvelopeAsync("Dollars", app.AdultA, Visibility.Shared, "USD");
+        await ValueAsync(app, app.AdultA, dollars, "2025-01-31", "100.00", "USD");
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{dollars.Value}/close", new { closedOn = "2025-02-15" }))
+            .EnsureSuccessStatusCode();
+
+        var points = await PointsAsync(app, app.AdultA, "?period=12m");
+
+        Assert.Equal(JsonValueKind.Null, At(points, "2025-08-31").GetProperty("missingCurrency").ValueKind);
+    }
+
+    [Fact]
     public async Task A_month_without_a_rate_is_a_gap_naming_the_currency()
     {
         var rates = new RateTable(
