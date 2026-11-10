@@ -53,7 +53,6 @@ public sealed class GetRetirementHandler(ProjectionFactsReader facts, IPersonReg
         var inputs = reading!.Inputs;
         var result = HouseholdProjection.Project(inputs);
         var view = ProjectionView.From(Horizon, reading, result);
-        static string Amount(decimal v) => PropertyPurchaseView.Amount(v);
 
         var adults = (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult).ToList();
         var switches = Departures.SwitchMonths(adults, inputs.Today);
@@ -64,9 +63,9 @@ public sealed class GetRetirementHandler(ProjectionFactsReader facts, IPersonReg
         {
             string? pension = null;
             if (switches.TryGetValue(p.Id, out var k) && OnGrid(k) && reading.PensionsByHolder.TryGetValue(p.Id, out var series))
-                pension = Amount(series[k] / inflation[k]);
+                pension = PropertyPurchaseView.Amount(series[k] / inflation[k]);
             var sources = reading.PensionSources.Where(s => s.Holder == p.Id)
-                .Select(s => new PensionSourceView(s.Source, s.Name, s.Monthly is { } m ? Amount(m.Amount) : null, s.Monthly?.Currency.Code)).ToList();
+                .Select(s => new PensionSourceView(s.Source, s.Name, s.Monthly is { } m ? PropertyPurchaseView.Amount(m.Amount) : null, s.Monthly?.Currency.Code)).ToList();
             return new DepartureView(p.Id.Value, p.DisplayName, p.BirthDate?.ToString("yyyy-MM-dd", null), p.RetirementAge, p.RetirementMonths,
                 Departures.MonthOf(p) is { } month ? $"{month.Year:0000}-{month.Month:00}" : null, pension, sources);
         }).ToList();
@@ -83,9 +82,9 @@ public sealed class GetRetirementHandler(ProjectionFactsReader facts, IPersonReg
             view.Currency, view.HorizonOn, departures,
             figures is null ? null : new RetirementFiguresView(
                 inputs.Today.ToYearMonth().PlusMonths(figures.Month).ToString("yyyy-MM", null),
-                Amount(figures.IncomeNow), Amount(figures.IncomeAtRetirement), Amount(figures.Gap), Amount(figures.CapitalNeeded), Amount(figures.CapitalAtRetirement)),
+                PropertyPurchaseView.Amount(figures.IncomeNow), PropertyPurchaseView.Amount(figures.IncomeAtRetirement), PropertyPurchaseView.Amount(figures.Gap), PropertyPurchaseView.Amount(figures.CapitalNeeded), PropertyPurchaseView.Amount(figures.CapitalAtRetirement)),
             view.FinancialIndependence,
-            result.Independence.Select(p => new IndependencePointView(p.On, Amount(p.CapitalReal), Amount(p.CoveredReal), Amount(p.ExpensesReal))).ToList(),
+            result.Independence.Select(p => new IndependencePointView(p.On, PropertyPurchaseView.Amount(p.CapitalReal), PropertyPurchaseView.Amount(p.CoveredReal), PropertyPurchaseView.Amount(p.ExpensesReal))).ToList(),
             view.Assumptions, warnings));
     }
 }

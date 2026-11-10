@@ -76,6 +76,13 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal("2030-07", figures.GetProperty("month").GetString()); // B leaves last: the switch month is 57
         Assert.Equal((5000m, 1500m, 3500m, 1_050_000m), (Dec(figures, "incomeNow"), Dec(figures, "incomeAtRetirement"), Dec(figures, "gap"), Dec(figures, "capitalNeeded")));
         Assert.Equal(481, view.GetProperty("independence").GetArrayLength());
+
+        // The private pension is hidden in the reader's own scope too.
+        var mine = await RetirementAsync(app, app.AdultA, "?scope=me");
+        var mineB = mine.GetProperty("departures").EnumerateArray().Single(d => d.GetProperty("person").GetGuid() == app.AdultB.Value);
+        Assert.Empty(mineB.GetProperty("sources").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, mineB.GetProperty("pension").ValueKind);
+        Assert.Equal(3500m, Dec(mine.GetProperty("figures"), "incomeAtRetirement")); // A's pension and B's salary, no 800
     }
 
     [Fact]
@@ -98,10 +105,13 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task Without_a_living_cost_the_page_is_warned_and_independence_is_unanswered()
     {
         await using var app = await NidApp.StartAsync(fixture);
+        await DepartureAsync(app, app.AdultA, "1963-10-10");
+        await SourceAsync(app, app.AdultA, "Salaire A", "salary", "2020-01-01", "3000", "shared");
 
         var view = await RetirementAsync(app, app.AdultA);
 
         Assert.Equal(JsonValueKind.Null, view.GetProperty("financialIndependence").ValueKind);
+        Assert.Equal(3000m, Dec(view.GetProperty("figures"), "gap"));
         Assert.Contains(view.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "living_cost_missing");
         Assert.Equal(481, view.GetProperty("independence").GetArrayLength());
     }
@@ -119,6 +129,8 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         var view = await RetirementAsync(app, app.AdultB, "?scope=me");
 
         Assert.Equal(JsonValueKind.Null, view.GetProperty("figures").ValueKind);
+        var listed = view.GetProperty("departures").EnumerateArray().Single(d => d.GetProperty("person").GetGuid() == app.AdultB.Value);
+        Assert.Equal(JsonValueKind.Null, listed.GetProperty("departure").ValueKind);
         Assert.Equal("2025-10", view.GetProperty("financialIndependence").GetString()); // the capital covers the living cost today
     }
 }
