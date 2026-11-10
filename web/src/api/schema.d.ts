@@ -30511,6 +30511,19 @@ export interface components {
             /** Format: uint32 */
             version: number;
         };
+        LoanReviewRowView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            interest?: null | components["schemas"]["DashboardMoneyView"];
+            insurance?: null | components["schemas"]["DashboardMoneyView"];
+            fees?: null | components["schemas"]["DashboardMoneyView"];
+            capitalRepaid?: null | components["schemas"]["DashboardMoneyView"];
+            startBalance?: null | components["schemas"]["DashboardMoneyView"];
+            endBalance?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: date */
+            archivedOn?: null | string;
+        };
         LoanScheduleRowView: {
             /** Format: int32 */
             number: number;
@@ -30593,6 +30606,17 @@ export interface components {
             /** Format: date */
             end: string;
             phases: components["schemas"]["LoanPhaseSpanView"][];
+        };
+        LoansReviewView: {
+            interest?: null | components["schemas"]["DashboardMoneyView"];
+            insurance?: null | components["schemas"]["DashboardMoneyView"];
+            fees?: null | components["schemas"]["DashboardMoneyView"];
+            capitalRepaid?: null | components["schemas"]["DashboardMoneyView"];
+            startBalance?: null | components["schemas"]["DashboardMoneyView"];
+            endBalance?: null | components["schemas"]["DashboardMoneyView"];
+            previousInterestAndInsurance?: null | components["schemas"]["DashboardMoneyView"];
+            previousCapitalRepaid?: null | components["schemas"]["DashboardMoneyView"];
+            loans: components["schemas"]["LoanReviewRowView"][];
         };
         LoansSimulation: {
             currency: string;
@@ -31314,6 +31338,13 @@ export interface components {
             tenancies: components["schemas"]["RentalTenancyView"][];
             findings: components["schemas"]["LoanFindingView"][];
         };
+        PropertiesReviewView: {
+            costs?: null | components["schemas"]["DashboardMoneyView"];
+            rents?: null | components["schemas"]["DashboardMoneyView"];
+            previousCosts?: null | components["schemas"]["DashboardMoneyView"];
+            previousRents?: null | components["schemas"]["DashboardMoneyView"];
+            properties: components["schemas"]["PropertyReviewRowView"][];
+        };
         PropertiesValuation: {
             currency: string;
             /** Format: int32 */
@@ -31345,6 +31376,10 @@ export interface components {
             overdueTotal: string;
             months: components["schemas"]["ArrearsMonthView"][];
             letter?: null | components["schemas"]["ArrearsLetterView"];
+        };
+        PropertyCostCategoryView: {
+            category: string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
         };
         PropertyCostLineView: {
             code: string;
@@ -31546,6 +31581,18 @@ export interface components {
             /** Format: date */
             pinelEnd?: null | string;
             warnings: components["schemas"]["PropertyWarning"][];
+        };
+        PropertyReviewRowView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            costs?: null | components["schemas"]["DashboardMoneyView"];
+            byCategory: components["schemas"]["PropertyCostCategoryView"][];
+            rents?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            grossYieldPct?: null | number;
+            /** Format: double */
+            netYieldPct?: null | number;
         };
         PropertyRoutineBody: {
             on?: null | string;
@@ -32033,6 +32080,11 @@ export interface components {
             priceSource: string;
             savingsEffort: string;
             breakdown: components["schemas"]["ReturnBreakdownLineView"][];
+        };
+        ReviewDurationView: {
+            /** Format: int32 */
+            count: number;
+            unit: string;
         };
         ReviewPartView: {
             key: string;
@@ -32719,6 +32771,26 @@ export interface components {
             findings: components["schemas"]["FindingView"][];
             householdAnnualCostConverted?: null | components["schemas"]["MoneyView"];
         };
+        SubscriptionPriceChangeView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: date */
+            on: string;
+            before: components["schemas"]["DashboardMoneyView"];
+            beforeEvery: components["schemas"]["ReviewDurationView"];
+            after: components["schemas"]["DashboardMoneyView"];
+            afterEvery: components["schemas"]["ReviewDurationView"];
+            promoEnded: boolean;
+        };
+        SubscriptionReviewItemView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            provider?: null | string;
+            /** Format: date */
+            on: string;
+        };
         SubscriptionsOverview: {
             currency: string;
             convertedIsEstimate: boolean;
@@ -32740,6 +32812,13 @@ export interface components {
             topProviders: components["schemas"]["TopProviderView"][];
             savings: components["schemas"]["SavingsView"];
             priceRises: components["schemas"]["PriceRisesView"];
+        };
+        SubscriptionsReviewView: {
+            cost?: null | components["schemas"]["DashboardMoneyView"];
+            previousCost?: null | components["schemas"]["DashboardMoneyView"];
+            started: components["schemas"]["SubscriptionReviewItemView"][];
+            ended: components["schemas"]["SubscriptionReviewItemView"][];
+            priceChanges: components["schemas"]["SubscriptionPriceChangeView"][];
         };
         SubscriptionSummary: {
             /** Format: uuid */
@@ -33424,6 +33503,9 @@ export interface components {
             netWorth?: null | components["schemas"]["NetWorthReviewView"];
             investments?: null | components["schemas"]["InvestmentsReviewView"];
             income?: null | components["schemas"]["IncomeReviewView"];
+            subscriptions?: null | components["schemas"]["SubscriptionsReviewView"];
+            loans?: null | components["schemas"]["LoansReviewView"];
+            properties?: null | components["schemas"]["PropertiesReviewView"];
             findings: string[];
         };
         YearView: {

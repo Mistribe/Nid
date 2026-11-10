@@ -431,4 +431,150 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal((null, null, null), (Engagements(income)[CommitmentSources.Subscriptions], A(income, "engagements"), A(income, "margin")));
         Assert.Equal("20000.00", A(income, "income"));
     }
+
+    private static async Task PhaseAsync(NidApp app, ItemId id, string startsOn, string? endsOn, string price)
+        => (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
+        {
+            startsOn, endsOn, price = new { amount = price, currency = "EUR" }, every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+
+    private static async Task<JsonElement> YearAsync(NidApp app, string year, string scope = "household")
+        => await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year={year}&scope={scope}"));
+
+    private static IEnumerable<Guid> Ids(JsonElement section, string list) => section.GetProperty(list).EnumerateArray().Select(r => r.GetProperty("id").GetGuid());
+
+    [Fact]
+    public async Task The_three_sections_match_their_parts()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // Presse from 2023 at 30, 35 from July 2024; Musique from March 2024; Vidéo from 2023 to the end of June 2024.
+        var presse = await app.NewSubscriptionAsync("Presse", app.AdultA, Visibility.Shared);
+        await PhaseAsync(app, presse, "2023-01-01", "2024-07-01", "30");
+        await PhaseAsync(app, presse, "2024-07-01", null, "35");
+        var musique = await app.NewSubscriptionAsync("Musique", app.AdultA, Visibility.Shared);
+        await PhaseAsync(app, musique, "2024-03-01", null, "10");
+        var video = await app.NewSubscriptionAsync("Vidéo", app.AdultA, Visibility.Shared);
+        await PhaseAsync(app, video, "2023-01-01", "2024-07-01", "8");
+        var body = Golden(app);
+        body["insurances"] = new[] { new { mode = "fixed_monthly", monthlyAmount = "30", startsOn = "2020-11-15" } };
+        var loan = await NewAsync(app, body);
+        var home = PropertyApi.Home(app);
+        home["type"] = "rental";
+        home["rentalStartsOn"] = "2021-01-01";
+        var house = await PropertyApi.NewPropertyAsync(app, home);
+        foreach (var (on, kind, amount, category) in new[]
+                 {
+                     ("2023-09-20", "expense", "1400", "property_tax"), ("2023-05-05", "income", "900", "rent"),
+                     ("2024-03-01", "expense", "5000", "works"), ("2024-09-20", "expense", "1500", "property_tax"),
+                     ("2024-04-10", "expense", "300", "condo_fees"), ("2024-05-05", "income", "1000", "rent"),
+                 })
+            await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{PropertyApi.Properties}/{house}/flows", new { occurredOn = on, kind, amount, category }));
+
+        var review = await YearAsync(app, "2024");
+
+        Assert.Empty(review.GetProperty("findings").EnumerateArray());
+        // Subscriptions: the list's cost over the same dates ([from, to)), this year and the previous one.
+        async Task<string?> ListCostAsync(int year) => A(await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get,
+            $"/api/v1/subscriptions?scope=household&from={year}-01-01&to={year + 1}-01-01")), "householdCashCostConverted");
+        var subscriptions = review.GetProperty("subscriptions");
+        Assert.Equal(("538.00", "456.00"), (A(subscriptions, "cost"), A(subscriptions, "previousCost")));
+        Assert.Equal((D(await ListCostAsync(2024)), D(await ListCostAsync(2023))), (D(A(subscriptions, "cost")), D(A(subscriptions, "previousCost"))));
+        Assert.Equal([musique.Value], Ids(subscriptions, "started"));
+        Assert.Equal([video.Value], Ids(subscriptions, "ended"));
+        var change = Assert.Single(subscriptions.GetProperty("priceChanges").EnumerateArray());
+        Assert.Equal((presse.Value, "2024-07-01", 30m, 35m, "month", false),
+            (change.GetProperty("id").GetGuid(), change.GetProperty("on").GetString(), D(A(change, "before")), D(A(change, "after")),
+                change.GetProperty("afterEvery").GetProperty("unit").GetString(), change.GetProperty("promoEnded").GetBoolean()));
+
+        // Loans: the schedule's yearly lines.
+        var years = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Loans}/{loan}/schedule"))).GetProperty("years").EnumerateArray()
+            .ToDictionary(y => y.GetProperty("year").GetInt32());
+        var loans = review.GetProperty("loans");
+        var row = Assert.Single(loans.GetProperty("loans").EnumerateArray());
+        Assert.Equal(loan, row.GetProperty("id").GetGuid());
+        Assert.Equal((S(years[2024], "interest"), S(years[2024], "insurance"), D(S(years[2024], "principal")) + D(S(years[2024], "earlyRepayment")),
+                S(years[2023], "balance"), S(years[2024], "balance")),
+            (A(loans, "interest"), A(loans, "insurance"), D(A(loans, "capitalRepaid")), A(loans, "startBalance"), A(loans, "endBalance")));
+        Assert.Equal((D(S(years[2023], "interest")) + D(S(years[2023], "insurance")), D(S(years[2023], "principal"))),
+            (D(A(loans, "previousInterestAndInsurance")), D(A(loans, "previousCapitalRepaid"))));
+
+        // Properties: the costs page's year, by category.
+        var costs = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{PropertyApi.Properties}/overview/costs?scope=household"))).GetProperty("byYear");
+        var columns = costs.GetProperty("years").EnumerateArray().Select(y => y.GetProperty("year").GetInt32()).ToList();
+        List<(string, decimal)> Paid(int year) => costs.GetProperty("categories").EnumerateArray()
+            .Select(c => (Category: S(c, "category")!, Paid: c.GetProperty("cells")[columns.IndexOf(year)].GetProperty("paid")))
+            .Where(c => c.Paid.ValueKind != JsonValueKind.Null).Select(c => (c.Category, D(S(c.Paid, "amount"))))
+            .OrderBy(c => c.Category, StringComparer.Ordinal).ToList();
+        var properties = review.GetProperty("properties");
+        var property = Assert.Single(properties.GetProperty("properties").EnumerateArray());
+        Assert.Equal(house, property.GetProperty("id").GetGuid());
+        Assert.Equal(Paid(2024), property.GetProperty("byCategory").EnumerateArray().Select(c => (S(c, "category")!, D(A(c, "amount"))))
+            .OrderBy(c => c.Item1, StringComparer.Ordinal).ToList());
+        Assert.Equal((Paid(2024).Sum(c => c.Item2), Paid(2023).Sum(c => c.Item2)), (D(A(properties, "costs")), D(A(properties, "previousCosts"))));
+        Assert.Equal(("1000.00", "900.00"), (A(properties, "rents"), A(properties, "previousRents")));
+    }
+
+    [Theory]
+    [InlineData("household")]
+    [InlineData("me")]
+    public async Task Another_adults_private_subscription_loan_and_property_are_left_out(string scope)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var presse = await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
+        var loan = await NewAsync(app, Golden(app));
+        var house = await app.NewPropertyAsync("Maison", Visibility.Shared, (app.AdultA, 10_000));
+        var secret = await SubscriptionAsync(app, app.AdultB, "Abonnement secret de B", Visibility.Private, "99");
+        var hiddenLoan = await NewAsync(app, Golden(app, "Prêt secret de B", "private", app.AdultB), app.AdultB);
+        var hiddenHouse = await app.NewPropertyAsync("Maison secrète de B", Visibility.Private, (app.AdultB, 10_000));
+
+        foreach (var (year, cost) in new[] { ("2024", "360.00"), ("2025", "300.00") })
+        {
+            var body = await YearAsync(app, year, scope);
+
+            Assert.Equal(cost, A(body.GetProperty("subscriptions"), "cost"));
+            Assert.Equal(year == "2024" ? [presse.Value] : [], Ids(body.GetProperty("subscriptions"), "started"));
+            Assert.Equal([loan], Ids(body.GetProperty("loans"), "loans"));
+            Assert.Equal([house.Value], Ids(body.GetProperty("properties"), "properties"));
+            foreach (var leak in new[] { secret.Value.ToString(), hiddenLoan.ToString(), hiddenHouse.Value.ToString(),
+                         "Abonnement secret de B", "Prêt secret de B", "Maison secrète de B" })
+                Assert.DoesNotContain(leak, body.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task Subscriptions_only_open_their_years()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var presse = await app.NewSubscriptionAsync("Presse", app.AdultA, Visibility.Shared);
+        await PhaseAsync(app, presse, "2023-03-01", null, "30");
+
+        var body = await YearAsync(app, "2023");
+
+        Assert.Equal([2023, 2024, 2025], body.GetProperty("years").EnumerateArray().Select(y => y.GetInt32()));
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("netWorth").ValueKind);
+        Assert.Equal("300.00", A(body.GetProperty("subscriptions"), "cost"));
+        Assert.Equal([presse.Value], Ids(body.GetProperty("subscriptions"), "started"));
+    }
+
+    [Fact]
+    public async Task A_section_with_nothing_is_absent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        await NewAsync(app, Short(app)); // from 2025-01-15
+        var music = await app.NewSubscriptionAsync("Musique", app.AdultA, Visibility.Shared);
+        await PhaseAsync(app, music, "2025-01-01", null, "10");
+
+        var past = await YearAsync(app, "2024");
+        var current = await YearAsync(app, "2025");
+
+        Assert.Equal((JsonValueKind.Null, JsonValueKind.Null, JsonValueKind.Null),
+            (past.GetProperty("subscriptions").ValueKind, past.GetProperty("loans").ValueKind, past.GetProperty("properties").ValueKind));
+        Assert.Equal(JsonValueKind.Null, current.GetProperty("properties").ValueKind);
+        // Present this year, nothing the year before.
+        Assert.Equal(("100.00", null), (A(current.GetProperty("subscriptions"), "cost"), A(current.GetProperty("subscriptions"), "previousCost")));
+        Assert.Equal(("10000.00", null, null), (A(current.GetProperty("loans"), "capitalRepaid"),
+            A(current.GetProperty("loans"), "previousInterestAndInsurance"), A(current.GetProperty("loans"), "previousCapitalRepaid")));
+    }
 }

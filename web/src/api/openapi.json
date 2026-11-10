@@ -42719,6 +42719,89 @@
           }
         }
       },
+      "LoanReviewRowView": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "interest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "insurance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "fees": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "capitalRepaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "archivedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
       "LoanScheduleRowView": {
         "required": [
           "number",
@@ -43102,6 +43185,100 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanPhaseSpanView"
+            }
+          }
+        }
+      },
+      "LoansReviewView": {
+        "required": [
+          "loans"
+        ],
+        "type": "object",
+        "properties": {
+          "interest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "insurance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "fees": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "capitalRepaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousInterestAndInsurance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousCapitalRepaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanReviewRowView"
             }
           }
         }
@@ -46301,6 +46478,60 @@
           }
         }
       },
+      "PropertiesReviewView": {
+        "required": [
+          "properties"
+        ],
+        "type": "object",
+        "properties": {
+          "costs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "rents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousCosts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousRents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyReviewRowView"
+            }
+          }
+        }
+      },
       "PropertiesValuation": {
         "required": [
           "currency",
@@ -46444,6 +46675,27 @@
               },
               {
                 "$ref": "#/components/schemas/ArrearsLetterView"
+              }
+            ]
+          }
+        }
+      },
+      "PropertyCostCategoryView": {
+        "required": [
+          "category"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
               }
             ]
           }
@@ -47333,6 +47585,63 @@
             "items": {
               "$ref": "#/components/schemas/PropertyWarning"
             }
+          }
+        }
+      },
+      "PropertyReviewRowView": {
+        "required": [
+          "id",
+          "name",
+          "byCategory"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "costs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyCostCategoryView"
+            }
+          },
+          "rents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "grossYieldPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "netYieldPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
@@ -49352,6 +49661,22 @@
             "items": {
               "$ref": "#/components/schemas/ReturnBreakdownLineView"
             }
+          }
+        }
+      },
+      "ReviewDurationView": {
+        "required": [
+          "count",
+          "unit"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unit": {
+            "type": "string"
           }
         }
       },
@@ -52344,6 +52669,74 @@
           }
         }
       },
+      "SubscriptionPriceChangeView": {
+        "required": [
+          "id",
+          "name",
+          "on",
+          "before",
+          "beforeEvery",
+          "after",
+          "afterEvery",
+          "promoEnded"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "before": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "beforeEvery": {
+            "$ref": "#/components/schemas/ReviewDurationView"
+          },
+          "after": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "afterEvery": {
+            "$ref": "#/components/schemas/ReviewDurationView"
+          },
+          "promoEnded": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SubscriptionReviewItemView": {
+        "required": [
+          "id",
+          "name",
+          "on"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "on": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "SubscriptionsOverview": {
         "required": [
           "currency",
@@ -52470,6 +52863,54 @@
           },
           "priceRises": {
             "$ref": "#/components/schemas/PriceRisesView"
+          }
+        }
+      },
+      "SubscriptionsReviewView": {
+        "required": [
+          "started",
+          "ended",
+          "priceChanges"
+        ],
+        "type": "object",
+        "properties": {
+          "cost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "started": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionReviewItemView"
+            }
+          },
+          "ended": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionReviewItemView"
+            }
+          },
+          "priceChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPriceChangeView"
+            }
           }
         }
       },
@@ -55539,6 +55980,36 @@
               },
               {
                 "$ref": "#/components/schemas/IncomeReviewView"
+              }
+            ]
+          },
+          "subscriptions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SubscriptionsReviewView"
+              }
+            ]
+          },
+          "loans": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoansReviewView"
+              }
+            ]
+          },
+          "properties": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertiesReviewView"
               }
             ]
           },

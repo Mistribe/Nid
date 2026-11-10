@@ -190,4 +190,25 @@ public class YearReviewMathTests
         // No further back than the review reaches.
         Assert.Equal(2025 - YearReviewMath.MaxYears, YearReviewMath.Years(dates, [Held(3)], 2025, new LocalDate(1900, 1, 1))[0]);
     }
+
+    [Fact]
+    public void A_section_without_anything_is_null_and_so_is_its_previous_figure()
+    {
+        var id = new ItemId(Guid.NewGuid());
+        SubscriptionsReviewPart noCharge = new(0m, [], [], [], []);
+        SubscriptionsReviewPart unrated = new(null, [], [], [], ["USD"]); // a charge without a rate is still a charge
+        LoansReviewPart noLoan = new(0m, 0m, 0m, 0m, 0m, 0m, [], []);
+        LoansReviewPart loan = new(100.004m, 30m, 0m, 1_000m, 5_000m, 4_000m,
+            [new LoanReviewRow(id, "Prêt", 100.004m, 30m, 0m, 1_000m, 5_000m, 4_000m, null)], []);
+        PropertiesReviewPart noProperty = new(0m, 0m, [], []);
+
+        Assert.Null(YearReviewMath.Subscriptions(noCharge, unrated, Currency.Eur));
+        var subscriptions = YearReviewMath.Subscriptions(unrated, noCharge, Currency.Eur)!;
+        Assert.Equal((null, null), (subscriptions.Cost, subscriptions.PreviousCost));
+        Assert.Null(YearReviewMath.Loans(noLoan, loan, Currency.Eur));
+        Assert.Null(YearReviewMath.Loans(loan, noLoan, Currency.Eur)!.PreviousInterestAndInsurance);
+        // The previous cost of credit is the sum of the figures shown, each to the cent.
+        Assert.Equal("130.00", YearReviewMath.Loans(loan, loan, Currency.Eur)!.PreviousInterestAndInsurance!.Amount);
+        Assert.Null(YearReviewMath.Properties(noProperty, noProperty, Currency.Eur));
+    }
 }
