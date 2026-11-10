@@ -503,6 +503,8 @@ public static class RequestCatalogue
         new(typeof(DeleteIncomeOneOffCommand), true, (_, item) => new DeleteIncomeOneOffCommand(item, Guid.NewGuid())),
         new(typeof(CloseIncomeSourceCommand), true, (_, item) => new CloseIncomeSourceCommand(item, new LocalDate(2020, 1, 1))),
         new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
+        new(typeof(IncomeSourceDeletionQuery), true, (_, item) => new IncomeSourceDeletionQuery(item)),
+        new(typeof(DeleteIncomeSourceCommand), true, (_, item) => new DeleteIncomeSourceCommand(item, 1)),
 
         new(typeof(ListGoalsQuery), false, (_, _) => new ListGoalsQuery(VisibilityScope.Me, true)),
         new(typeof(GetGoalQuery), true, (_, item) => new GetGoalQuery(item, VisibilityScope.Me)),
