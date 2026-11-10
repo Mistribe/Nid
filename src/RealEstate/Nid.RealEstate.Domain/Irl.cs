@@ -64,6 +64,9 @@ public interface IIrlStore
     /// <summary>Every stored value, by quarter.</summary>
     Task<IReadOnlyList<IrlValue>> ListAsync(CancellationToken ct);
 
+    /// <summary>One page of values, newest quarter first, and the total number of values.</summary>
+    Task<(IReadOnlyList<IrlValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
+
     /// <summary>Stores the quarter's value, replacing the one stored (the collector decides what may replace what).</summary>
     Task UpsertAsync(IrlValue value, CancellationToken ct);
 

@@ -9,6 +9,12 @@ public sealed class IrlStore(RealEstateDbContext db) : IIrlStore
         => (await db.Irl.AsNoTracking().OrderBy(r => r.Quarter).ToListAsync(ct))
             .Select(r => new IrlValue(IrlQuarter.Parse(r.Quarter), r.Value, r.PublishedOn, r.FetchedOn, r.Source)).ToList();
 
+    public async Task<(IReadOnlyList<IrlValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)
+    {
+        var rows = await db.Irl.AsNoTracking().OrderByDescending(r => r.Quarter).Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(r => new IrlValue(IrlQuarter.Parse(r.Quarter), r.Value, r.PublishedOn, r.FetchedOn, r.Source)).ToList(), await db.Irl.CountAsync(ct));
+    }
+
     public async Task<bool> UpsertManualAsync(IrlValue value, CancellationToken ct)
         => await db.Database.ExecuteSqlInterpolatedAsync($"""
             insert into realestate.irl (quarter, value, published_on, fetched_on, source)

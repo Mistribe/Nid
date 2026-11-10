@@ -93,6 +93,9 @@ const pageSearch = (search: Record<string, unknown>): { page?: number } => {
   return page ? { page } : {};
 };
 
+/** A tabbed list: the tab and the page. */
+const listSearch = (search: Record<string, unknown>): DetailSearch & { page?: number } => ({ ...detailSearch(search), ...pageSearch(search) });
+
 /** Administration › Taux de change: the tab, and the currency drawn (EUR is the default, USD the base: neither is a choice). */
 const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: string; page?: number } => {
   const quote = typeof search.quote === 'string' ? search.quote.toUpperCase() : '';
@@ -654,8 +657,8 @@ const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/a
 const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/household', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/HouseholdPage'), 'HouseholdPage') });
 const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: fxSearch, path: '/admin/fx', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/FxPage'), 'FxPage') });
 const adminPricesRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: pageSearch, path: '/admin/prices', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/PricesPage'), 'PricesPage') });
-const adminIrlRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: detailSearch, path: '/admin/irl', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/IrlPage'), 'IrlPage') });
-const adminInflationRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: detailSearch, path: '/admin/inflation', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/InflationPage'), 'InflationPage') });
+const adminIrlRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: listSearch, path: '/admin/irl', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/IrlPage'), 'IrlPage') });
+const adminInflationRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: listSearch, path: '/admin/inflation', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/InflationPage'), 'InflationPage') });
 const adminBankingRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: pageSearch, path: '/admin/banking', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/BankingPage'), 'BankingPage') });
 const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/catalog', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/CatalogPage'), 'CatalogPage') });
 const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage') });

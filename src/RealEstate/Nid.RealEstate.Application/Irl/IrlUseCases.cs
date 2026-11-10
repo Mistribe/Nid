@@ -15,7 +15,9 @@ public sealed record CollectIrlCommand : ICommand<IrlRunView>, IAdminOnly;
 
 public sealed record RequestIrlSyncCommand : ICommand<IrlSyncRequested>, IAdminOnly;
 
-public sealed record GetIrlQuery : IQuery<IrlAdminView>, IAdminOnly;
+public sealed record GetIrlAdminQuery(int? Page) : IQuery<IrlValuePage>, IAdminOnly;
+
+public sealed record GetIrlRunsQuery(int? Page) : IQuery<IrlRunPage>, IAdminOnly;
 
 /// <summary>
 /// A value INSEE has published but Nid has not read yet, typed in by the admin; <c>PublishedOn</c> is the date printed in the
@@ -54,15 +56,25 @@ public sealed class RequestIrlSyncHandler(IIrlRunLog runs, IHouseholdSettings se
     }
 }
 
-[RequestHandler<GetIrlQuery, IrlAdminView>]
-public sealed class GetIrlHandler(IIrlStore store, IIrlRunLog runs) : IRequestHandler<GetIrlQuery, IrlAdminView>
+[RequestHandler<GetIrlAdminQuery, IrlValuePage>]
+public sealed class GetIrlAdminHandler(IIrlStore store) : IRequestHandler<GetIrlAdminQuery, IrlValuePage>
 {
-    public const int RecentRuns = 50;
-
-    public async ValueTask<Result<IrlAdminView>> HandleAsync(GetIrlQuery query, CancellationToken ct = default)
+    public async ValueTask<Result<IrlValuePage>> HandleAsync(GetIrlAdminQuery query, CancellationToken ct = default)
     {
-        var values = (await store.ListAsync(ct)).OrderByDescending(v => v.Quarter.Year).ThenByDescending(v => v.Quarter.Quarter).Select(IrlViews.From).ToList();
-        return Result.Success(new IrlAdminView(values, await runs.RecentAsync(RecentRuns, ct)));
+        var (page, skip) = ListPage.Of(query.Page, IrlValuePage.PageSize);
+        var (items, total) = await store.PageAsync(skip, IrlValuePage.PageSize, ct);
+        return Result.Success(new IrlValuePage(items.Select(IrlViews.From).ToList(), total, page));
+    }
+}
+
+[RequestHandler<GetIrlRunsQuery, IrlRunPage>]
+public sealed class GetIrlRunsHandler(IIrlRunLog runs) : IRequestHandler<GetIrlRunsQuery, IrlRunPage>
+{
+    public async ValueTask<Result<IrlRunPage>> HandleAsync(GetIrlRunsQuery query, CancellationToken ct = default)
+    {
+        var (page, skip) = ListPage.Of(query.Page, IrlRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, IrlRunPage.PageSize, ct);
+        return Result.Success(new IrlRunPage(items, total, page));
     }
 }
 

@@ -181,8 +181,8 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal((IrlCodes.Disabled, IrlCodes.Disabled), (collecting?.Code, requesting?.Code));
         Assert.Equal(0, trigger.Calls);
         Assert.Equal(0, app.Irl.Requests);
-        var (view, _) = await app.InvokeAsync(app.AdultA, new GetIrlQuery(), TestContext.Current.CancellationToken);
-        Assert.Empty(((IrlAdminView)view!).Runs);
+        var (view, _) = await app.InvokeAsync(app.AdultA, new GetIrlRunsQuery(null), TestContext.Current.CancellationToken);
+        Assert.Empty(((IrlRunPage)view!).Items);
     }
 
     [Fact]
@@ -278,12 +278,14 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EnableAsync(app);
         await CollectAsync(app);
 
-        var (view, failure) = await app.InvokeAsync(app.AdultA, new GetIrlQuery(), TestContext.Current.CancellationToken);
+        var (view, failure) = await app.InvokeAsync(app.AdultA, new GetIrlAdminQuery(null), TestContext.Current.CancellationToken);
+        var (runsView, runsFailure) = await app.InvokeAsync(app.AdultA, new GetIrlRunsQuery(null), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
-        var admin = (IrlAdminView)view!;
-        Assert.Equal(["2026-Q3", "2026-Q2"], admin.Values.Take(2).Select(v => v.Quarter));
-        Assert.Equal("2023-Q4", admin.Values[^1].Quarter);
-        Assert.Equal("succeeded", Assert.Single(admin.Runs).Status);
+        Assert.Null(runsFailure);
+        var values = ((IrlValuePage)view!).Items;
+        Assert.Equal(["2026-Q3", "2026-Q2"], values.Take(2).Select(v => v.Quarter));
+        Assert.Equal("2023-Q4", values[^1].Quarter);
+        Assert.Equal("succeeded", Assert.Single(((IrlRunPage)runsView!).Items).Status);
     }
 }

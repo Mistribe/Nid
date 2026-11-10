@@ -62,7 +62,7 @@ public class AdminMarkerTests
     [Fact]
     public void The_irl_collection_is_admin_only()
     {
-        Type[] irl = [typeof(CollectIrlCommand), typeof(RequestIrlSyncCommand), typeof(GetIrlQuery), typeof(SetIrlValueCommand)];
+        Type[] irl = [typeof(CollectIrlCommand), typeof(RequestIrlSyncCommand), typeof(GetIrlAdminQuery), typeof(GetIrlRunsQuery), typeof(SetIrlValueCommand)];
         Assert.DoesNotContain(irl, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 

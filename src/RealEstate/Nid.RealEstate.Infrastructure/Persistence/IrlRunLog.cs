@@ -56,6 +56,12 @@ public sealed class IrlRunLog(RealEstateDbContext db, IClock clock) : IIrlRunLog
     public async Task<IReadOnlyList<IrlRunView>> RecentAsync(int count, CancellationToken ct)
         => (await db.IrlRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).Take(count).ToListAsync(ct)).Select(ToView).ToList();
 
+    public async Task<(IReadOnlyList<IrlRunView> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)
+    {
+        var rows = await db.IrlRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).ThenByDescending(r => r.Id).Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(ToView).ToList(), await db.IrlRuns.CountAsync(ct));
+    }
+
     public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
         => await db.IrlRuns.Where(r => r.StartedAt < before && r.Status != "running").ExecuteDeleteAsync(ct);
 

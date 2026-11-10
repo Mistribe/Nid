@@ -54,7 +54,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(RentReceiptView))]
 [JsonSerializable(typeof(RentRevisionList))]
 [JsonSerializable(typeof(TenancyRevisionView))]
-[JsonSerializable(typeof(IrlAdminView))]
+[JsonSerializable(typeof(IrlValuePage))]
+[JsonSerializable(typeof(IrlRunPage))]
 [JsonSerializable(typeof(IrlSyncRequested))]
 [JsonSerializable(typeof(IrlValueView))]
 internal sealed partial class RealEstateJsonContext : JsonSerializerContext;
