@@ -483,6 +483,9 @@ public sealed class TaxCommitments(TaxEstimates estimates) : ICommitmentsContrib
 {
     public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct, bool includeArchived = false)
     {
+        // A year before the rules (the annual review's past months) has no estimate: nothing to commit, never a throw.
+        if (today.Year < TaxRules.FirstYear)
+            return Result.Success(new CommitmentsPart(CommitmentSources.Tax, 0, new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>()));
         var result = await estimates.ComputeAsync(today.Year, scope, today, ct);
         if (result.TryGetFailure(out var failure)) return Result.Failure<CommitmentsPart>(failure!);
         result.TryGetValue(out var r);

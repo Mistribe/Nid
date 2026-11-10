@@ -233,7 +233,7 @@ public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, 
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms, loan);
             var archived = zone is null ? null : item.ArchivedAt?.InZone(zone).Date;
-            if (LoanReading.EndOf(terms, schedule) < first || archived <= first)
+            if (LoanReading.EndOf(terms, schedule) < first || archived is { } gone && gone <= first)
                 continue;
             count++;
             var due = schedule.Rows.Where(r => r.DueDate >= first && r.DueDate <= last && (archived is not { } a || r.DueDate < a)).ToList();
@@ -268,12 +268,14 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
             if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
             var archived = zone is null ? null : item.ArchivedAt?.InZone(zone).Date;
-            if (archived <= first)
+            if (archived is { } gone && gone <= first)
                 continue; // archived before this month: counts nowhere
+            // Amortized: the costs running on its last counted day, the day before its archive day when that falls this month.
+            var held = archived is { } sold && sold <= today ? sold.PlusDays(-1) : today;
             var currency = LoanViews.CurrencyOf(item);
             foreach (var cost in property.Costs.Select(c => c.Cost))
             {
-                if (Running(cost, today))
+                if (Running(cost, held))
                 {
                     count++;
                     DashboardParts.Add(amortized, currency, PropertyMath.MonthlyEquivalent(cost));

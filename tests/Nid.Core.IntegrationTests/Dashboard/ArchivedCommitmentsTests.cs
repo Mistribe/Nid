@@ -24,22 +24,36 @@ public class ArchivedCommitmentsTests(PostgresFixture fixture) : IClassFixture<P
             .ArchiveAsync(new ItemId(id), Instant.FromUtc(year, month, day, 10, 0), TestContext.Current.CancellationToken)).IsSuccess);
     }
 
-    /// <summary>
-    /// The cash in EUR of the contribution named <paramref name="type"/> in the month of <paramref name="on"/>, read by A over the
-    /// household. That one alone: the tax estimate has no rules before 2025.
-    /// </summary>
-    private static async Task<decimal> CashAsync(NidApp app, string type, string on, bool includeArchived)
+    /// <summary>The part of <paramref name="source"/> in the month of <paramref name="on"/>, read by A over the household.</summary>
+    private static async Task<CommitmentsPart> PartAsync(NidApp app, string source, string on, bool includeArchived)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
-        var contribution = scope.ServiceProvider.GetServices<ICommitmentsContribution>().Single(c => c.GetType().Name == type);
-        var result = await contribution.CommitmentsAsync(app.AdultA, VisibilityScope.Household, LocalDatePattern.Iso.Parse(on).Value,
-            TestContext.Current.CancellationToken, includeArchived);
-        Assert.True(result.TryGetValue(out var part));
-        return part!.Cash.GetValueOrDefault(Currency.Eur);
+        var parts = new List<CommitmentsPart>();
+        foreach (var contribution in scope.ServiceProvider.GetServices<ICommitmentsContribution>())
+        {
+            var result = await contribution.CommitmentsAsync(app.AdultA, VisibilityScope.Household, LocalDatePattern.Iso.Parse(on).Value,
+                TestContext.Current.CancellationToken, includeArchived);
+            Assert.True(result.TryGetValue(out var part));
+            parts.Add(part!);
+        }
+        return parts.Single(p => p.Source == source);
     }
 
-    private const string Subscriptions = "SubscriptionsCommitments", Loans = "LoanCommitments", PropertyCosts = "PropertyCostCommitments";
+    private static async Task<decimal> CashAsync(NidApp app, string source, string on, bool includeArchived)
+        => (await PartAsync(app, source, on, includeArchived)).Cash.GetValueOrDefault(Currency.Eur);
+
+    private const string Subscriptions = CommitmentSources.Subscriptions, Loans = CommitmentSources.Loans, PropertyCosts = CommitmentSources.PropertyCosts;
+
+    [Fact]
+    public async Task The_tax_commits_nothing_in_a_year_before_its_rules()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var part = await PartAsync(app, CommitmentSources.Tax, "2024-03-31", includeArchived: true);
+
+        Assert.Equal((0, 0, 0), (part.Count, part.Amortized.Count, part.Cash.Count));
+    }
 
     [Theory]
     [InlineData("2024-06-15")]
@@ -82,10 +96,15 @@ public class ArchivedCommitmentsTests(PostgresFixture fixture) : IClassFixture<P
         var home = await NewPropertyAsync(app, Home(app));
         Assert.True((await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/recurring-costs",
             new { category = "condo_fees", amount = "150", every = new { count = 1, unit = "month" }, startsOn = "2025-01-05" })).IsSuccessStatusCode);
+        Assert.True((await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/recurring-costs",
+            new { category = "insurance", amount = "50", every = new { count = 1, unit = "month" }, startsOn = "2025-06-10" })).IsSuccessStatusCode);
         await ArchiveAsync(app, home, 2025, 6, 5);
 
         Assert.Equal(150m, await CashAsync(app, PropertyCosts, "2025-05-31", includeArchived: true));
-        Assert.Equal(0m, await CashAsync(app, PropertyCosts, "2025-06-30", includeArchived: true)); // due on its archive day
+        var june = await PartAsync(app, PropertyCosts, "2025-06-30", includeArchived: true);
+        Assert.Equal(0m, june.Cash.GetValueOrDefault(Currency.Eur)); // due on its archive day
+        // Amortized: what ran on its last counted day (2025-06-04), not the cost starting after its sale.
+        Assert.Equal((1, 150m), (june.Count, june.Amortized.GetValueOrDefault(Currency.Eur)));
         Assert.Equal(0m, await CashAsync(app, PropertyCosts, "2025-05-31", includeArchived: false));
     }
 
