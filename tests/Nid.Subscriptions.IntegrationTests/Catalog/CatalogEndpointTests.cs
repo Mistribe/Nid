@@ -23,7 +23,8 @@ public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
     public sealed record ProviderResponse(string Key, string Name, string Origin, List<LabelResponse> Labels, string? Website, bool Archived);
     public sealed record ReportResponse(List<string> ProvidersAdded, List<string> LabelsCreated, List<string> AdoptedRemaining);
     public sealed record RunResponse(Guid Id, string Status, string Commit, string? FailureCode, ReportResponse? Report);
-    public sealed record RunsResponse(string PinnedCommit, List<RunResponse> Runs);
+    public sealed record RunPageResponse(List<RunResponse> Items, int Total, int Page);
+    public sealed record RunsResponse(string PinnedCommit, RunResponse? Latest, RunPageResponse Runs);
 
     private sealed class OkTrigger : ICatalogJobTrigger
     {
@@ -133,10 +134,65 @@ public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
         var runs = await app.GetAsync<RunsResponse>(app.AdultA, $"{Root}/catalog/runs");
 
         Assert.Equal(CatalogFixtures.PinnedCommit, runs.PinnedCommit);
-        var run = Assert.Single(runs.Runs);
+        var run = Assert.Single(runs.Runs.Items);
+        Assert.Equal(run.Id, runs.Latest!.Id);
         Assert.Equal(("succeeded", CatalogFixtures.PinnedCommit, (string?)null), (run.Status, run.Commit, run.FailureCode));
         Assert.Equal(17, run.Report!.ProvidersAdded.Count);
         Assert.Equal(["home"], run.Report.LabelsCreated);
+    }
+
+    private static async Task SeedRunsAsync(NidApp app)
+    {
+        await using var seed = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var start = Instant.FromUtc(2025, 10, 1, 7, 0);
+        for (var i = 1; i <= 51; i++)
+            seed.CatalogSyncRuns.Add(new CatalogSyncRunRow
+            {
+                Id = Guid.CreateVersion7(), StartedAt = start + Duration.FromMinutes(Math.Min(i, 50)), FinishedAt = start + Duration.FromMinutes(i),
+                Status = "succeeded", Commit = $"c{i}",
+            });
+        await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Runs_answer_one_page_and_the_total_and_every_page_keeps_the_newest_run()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedRunsAsync(app);
+
+        var first = await app.GetAsync<RunsResponse>(app.AdultA, $"{Root}/catalog/runs");
+        var second = await app.GetAsync<RunsResponse>(app.AdultA, $"{Root}/catalog/runs?page=2");
+
+        Assert.Equal((50, 51, 1), (first.Runs.Items.Count, first.Runs.Total, first.Runs.Page));
+        Assert.Equal((1, 51, 2), (second.Runs.Items.Count, second.Runs.Total, second.Runs.Page));
+        Assert.Equal("c1", second.Runs.Items[0].Commit);
+        // Page 1 still lists the newest run, and page 2 carries it in the card.
+        // The last two seeded runs share a start: Latest breaks the tie as the page does.
+        Assert.Equal(first.Runs.Items[0].Id, first.Latest!.Id);
+        Assert.Equal(first.Latest.Id, second.Latest!.Id);
+    }
+
+    [Fact]
+    public async Task Runs_page_is_clamped()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedRunsAsync(app);
+
+        Assert.Equal(1, (await app.GetAsync<RunsResponse>(app.AdultA, $"{Root}/catalog/runs?page=0")).Runs.Page);
+        var past = await app.GetAsync<RunsResponse>(app.AdultA, $"{Root}/catalog/runs?page={int.MaxValue}");
+        Assert.Equal((0, 51), (past.Runs.Items.Count, past.Runs.Total));
+        Assert.NotNull(past.Latest);
+    }
+
+    [Fact]
+    public async Task Runs_without_any_run_have_no_latest()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var runs = await app.GetAsync<RunsResponse>(app.AdultA, $"{Root}/catalog/runs");
+
+        Assert.Null(runs.Latest);
+        Assert.Equal((0, 0), (runs.Runs.Items.Count, runs.Runs.Total));
     }
 
     [Fact]

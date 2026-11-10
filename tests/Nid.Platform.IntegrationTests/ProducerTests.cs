@@ -269,6 +269,8 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         public Task<IReadOnlyList<IrlRunView>> RecentAsync(int count, CancellationToken ct) => inner.RecentAsync(count, ct);
 
+        public Task<(IReadOnlyList<IrlRunView> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct) => inner.PageAsync(skip, take, ct);
+
         public Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct) => inner.PurgeBeforeAsync(before, ct);
     }
 

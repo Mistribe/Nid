@@ -15,11 +15,14 @@ const run = {
   trigger: 'schedule', outcome: 'succeeded', connections: 2, accounts: 5, balances: 9, proposals: 3, written: 4, skipped: 1, failureCode: null,
 };
 
-function serve(household: object, runs: unknown[] = []) {
+function serve(household: object, runs: unknown[] = [], total = runs.length, seen: string[] = []) {
   const sent: unknown[] = [];
   server.use(
     http.get('*/api/v1/admin/household', () => HttpResponse.json({ ...settings, ...household })),
-    http.get('*/api/v1/admin/banking/runs', () => HttpResponse.json(runs)),
+    http.get('*/api/v1/admin/banking/runs', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json({ items: runs, total, page: 1 });
+    }),
     http.patch('*/api/v1/admin/household', async ({ request }) => {
       const body = await request.json() as object;
       sent.push(body);
@@ -43,6 +46,18 @@ describe('Administration › Banque', () => {
     expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
     expect(screen.getByRole('heading', { level: 1, name: 'Banque' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('pages the log', async () => {
+    const seen: string[] = [];
+    serve({ bankingEnabled: true, enableBankingAppId: 'app-1' }, [run], 51, seen);
+    const { user, router } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
   });
 
   it('turns bank sync on from the switch', async () => {

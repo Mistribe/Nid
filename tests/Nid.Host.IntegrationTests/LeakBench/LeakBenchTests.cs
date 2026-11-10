@@ -685,10 +685,10 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             Assert.Null(syncFailure);
         }
 
-        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
+        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(null), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
-        var runs = ((CatalogRunsView)answer!).Runs;
+        var runs = ((CatalogRunsView)answer!).Runs.Items;
         var (replacing, leaving) = (runs[0].Report!, runs[1].Report!);
         var leavingSerialised = JsonSerializer.Serialize(runs[1], ResponseJson);
         foreach (var (name, key) in keys)

@@ -653,7 +653,7 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
                 ? throw new InvalidOperationException("The database dropped the result.")
                 : inner.SettleAsync(id, state, attempts, nextAttemptAt, lastError, sentAt, ct);
 
-        public Task<IReadOnlyList<FailedDelivery>> FailedSinceAsync(Instant since, int limit, CancellationToken ct) => inner.FailedSinceAsync(since, limit, ct);
+        public Task<(IReadOnlyList<FailedDelivery> Items, int Total)> FailedSincePageAsync(Instant since, int skip, int take, CancellationToken ct) => inner.FailedSincePageAsync(since, skip, take, ct);
 
         public Task DeferAsync(Guid id, Instant nextAttemptAt, CancellationToken ct) => inner.DeferAsync(id, nextAttemptAt, ct);
     }

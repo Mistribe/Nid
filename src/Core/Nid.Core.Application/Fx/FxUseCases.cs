@@ -12,7 +12,6 @@ namespace Nid.Core.Application.Fx;
 public static class FxLimits
 {
     public const int MaxRangeDays = 400;
-    public const int RecentRuns = 50;
 }
 
 public sealed record CollectDailyFxRatesCommand : ICommand<FxSyncRunView>, IAdminOnly;
@@ -25,7 +24,7 @@ public sealed record SetManualFxRateCommand(LocalDate OnDate, string Quote, stri
 
 public sealed record GetFxRatesQuery(string Quote, LocalDate From, LocalDate To) : IQuery<IReadOnlyList<FxRateView>>;
 
-public sealed record GetFxSyncRunsQuery : IQuery<IReadOnlyList<FxSyncRunView>>, IAdminOnly;
+public sealed record GetFxSyncRunsQuery(int? Page) : IQuery<FxSyncRunPage>, IAdminOnly;
 
 [RequestHandler<CollectDailyFxRatesCommand, FxSyncRunView>]
 public sealed class CollectDailyFxRatesHandler(FxCollector collector) : IRequestHandler<CollectDailyFxRatesCommand, FxSyncRunView>
@@ -96,9 +95,13 @@ public sealed class GetFxRatesHandler(IFxRateStore rates) : IRequestHandler<GetF
         => Result.Failure<IReadOnlyList<FxRateView>>(new Failure(FxCodes.InvalidRange, message, null));
 }
 
-[RequestHandler<GetFxSyncRunsQuery, IReadOnlyList<FxSyncRunView>>]
-public sealed class GetFxSyncRunsHandler(IFxRunLog runs) : IRequestHandler<GetFxSyncRunsQuery, IReadOnlyList<FxSyncRunView>>
+[RequestHandler<GetFxSyncRunsQuery, FxSyncRunPage>]
+public sealed class GetFxSyncRunsHandler(IFxRunLog runs) : IRequestHandler<GetFxSyncRunsQuery, FxSyncRunPage>
 {
-    public async ValueTask<Result<IReadOnlyList<FxSyncRunView>>> HandleAsync(GetFxSyncRunsQuery query, CancellationToken ct = default)
-        => Result.Success<IReadOnlyList<FxSyncRunView>>((await runs.RecentAsync(FxLimits.RecentRuns, ct)).Select(FxSyncRunView.From).ToList());
+    public async ValueTask<Result<FxSyncRunPage>> HandleAsync(GetFxSyncRunsQuery query, CancellationToken ct = default)
+    {
+        var (page, skip) = ListPage.Of(query.Page, FxSyncRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, FxSyncRunPage.PageSize, ct);
+        return Result.Success(new FxSyncRunPage(items.Select(FxSyncRunView.From).ToList(), total, page));
+    }
 }

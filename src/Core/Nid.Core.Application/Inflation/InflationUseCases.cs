@@ -15,7 +15,9 @@ public sealed record CollectCpiCommand : ICommand<CpiRunView>, IAdminOnly;
 
 public sealed record RequestCpiSyncCommand : ICommand<CpiSyncRequested>, IAdminOnly;
 
-public sealed record GetCpiQuery : IQuery<CpiAdminView>, IAdminOnly;
+public sealed record GetCpiAdminQuery(int? Page) : IQuery<CpiValuePage>, IAdminOnly;
+
+public sealed record GetCpiRunsQuery(int? Page) : IQuery<CpiRunPage>, IAdminOnly;
 
 /// <summary>A month INSEE has published but Nid has not read yet, typed in by the admin; INSEE's value replaces it on the next collection.</summary>
 public sealed record SetCpiValueCommand(int Year, int Month, decimal Value) : ICommand<CpiValueView>, IAdminOnly;
@@ -75,15 +77,25 @@ public sealed class RequestCpiSyncHandler(ICpiRunLog runs, IHouseholdSettings se
     }
 }
 
-[RequestHandler<GetCpiQuery, CpiAdminView>]
-public sealed class GetCpiHandler(ICpiStore store, ICpiRunLog runs) : IRequestHandler<GetCpiQuery, CpiAdminView>
+[RequestHandler<GetCpiAdminQuery, CpiValuePage>]
+public sealed class GetCpiAdminHandler(ICpiStore store) : IRequestHandler<GetCpiAdminQuery, CpiValuePage>
 {
-    public const int RecentRuns = 50;
-
-    public async ValueTask<Result<CpiAdminView>> HandleAsync(GetCpiQuery query, CancellationToken ct = default)
+    public async ValueTask<Result<CpiValuePage>> HandleAsync(GetCpiAdminQuery query, CancellationToken ct = default)
     {
-        var values = (await store.ListAsync(ct)).OrderByDescending(v => v.Month).Select(CpiViews.From).ToList();
-        return Result.Success(new CpiAdminView(values, await runs.RecentAsync(RecentRuns, ct)));
+        var (page, skip) = ListPage.Of(query.Page, CpiValuePage.PageSize);
+        var (items, total) = await store.PageAsync(skip, CpiValuePage.PageSize, ct);
+        return Result.Success(new CpiValuePage(items.Select(CpiViews.From).ToList(), total, page));
+    }
+}
+
+[RequestHandler<GetCpiRunsQuery, CpiRunPage>]
+public sealed class GetCpiRunsHandler(ICpiRunLog runs) : IRequestHandler<GetCpiRunsQuery, CpiRunPage>
+{
+    public async ValueTask<Result<CpiRunPage>> HandleAsync(GetCpiRunsQuery query, CancellationToken ct = default)
+    {
+        var (page, skip) = ListPage.Of(query.Page, CpiRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, CpiRunPage.PageSize, ct);
+        return Result.Success(new CpiRunPage(items, total, page));
     }
 }
 

@@ -24,9 +24,13 @@ public static class RealEstateEndpoints
             => (await invoker.InvokeAsync(new RequestIrlSyncCommand(), ct)).ToHttp(r => r, StatusCodes.Status202Accepted))
             .Returns<IrlSyncRequested>(StatusCodes.Status202Accepted);
 
-        api.MapGet("/irl", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetIrlQuery(), ct)).ToHttp(r => r))
-            .Returns<IrlAdminView>();
+        api.MapGet("/irl", async (int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetIrlAdminQuery(page), ct)).ToHttp(r => r))
+            .Returns<IrlValuePage>();
+
+        api.MapGet("/irl/runs", async (int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetIrlRunsQuery(page), ct)).ToHttp(r => r))
+            .Returns<IrlRunPage>();
 
         api.MapPut("/irl/{year:int}/{quarter:int}", async (int year, int quarter, IrlValueBody body, IInvoker invoker, CancellationToken ct) =>
             {

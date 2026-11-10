@@ -13,6 +13,7 @@ public sealed class IrlSeriesTests
     private sealed class FakeIrlStore(IReadOnlyList<IrlValue> values) : IIrlStore
     {
         public Task<IReadOnlyList<IrlValue>> ListAsync(CancellationToken ct) => Task.FromResult(values);
+        public Task<(IReadOnlyList<IrlValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct) => throw new NotSupportedException();
         public Task UpsertAsync(IrlValue value, CancellationToken ct) => throw new NotSupportedException();
         public Task<bool> UpsertManualAsync(IrlValue value, CancellationToken ct) => throw new NotSupportedException();
     }

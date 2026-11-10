@@ -32,6 +32,10 @@ public interface IJobRunStore
     Task FinishAsync(Guid id, string outcome, string? summary, bool hasLogs, DateTimeOffset finishedAt, CancellationToken ct);
     Task<IReadOnlyDictionary<string, JobRunView>> LastRunsAsync(CancellationToken ct);
     Task<IReadOnlyList<JobRunView>> ListAsync(string jobKey, int limit, CancellationToken ct);
+
+    /// <summary>One page of the job's runs, newest first, and the total number of its runs.</summary>
+    Task<(IReadOnlyList<JobRunView> Items, int Total)> PageAsync(string jobKey, int skip, int take, CancellationToken ct);
+
     Task<(JobRunView Run, bool HasLogs)?> FindAsync(string jobKey, Guid id, CancellationToken ct);
 
     /// <summary>Deletes the job's runs beyond its <paramref name="keep"/> most recent; returns their ids.</summary>
@@ -47,7 +51,12 @@ public sealed record JobSchedule(string Key, string? Cron, DateTimeOffset? NextR
 /// <summary>A row of Administration › Tâches.</summary>
 public sealed record JobView(string Key, string? Cron, DateTimeOffset? NextRunAt, JobRunView? LastRun);
 
-public sealed record JobDetailView(string Key, string? Cron, DateTimeOffset? NextRunAt, IReadOnlyList<JobRunView> Runs);
+public sealed record JobDetailView(string Key, string? Cron, DateTimeOffset? NextRunAt, JobRunView? LastRun, JobRunPage Runs);
+
+public sealed record JobRunPage(IReadOnlyList<JobRunView> Items, int Total, int Page)
+{
+    public const int PageSize = 50;
+}
 
 /// <summary>
 /// A run with its log lines: <see cref="Logs"/> is null when the run wrote none; <see cref="LogsAvailable"/> is false when file
@@ -72,7 +81,7 @@ public interface IJobRunLogs
 
 public sealed record ListJobsQuery : IQuery<IReadOnlyList<JobView>>, IAdminOnly;
 
-public sealed record GetJobQuery(string Key) : IQuery<JobDetailView>, IAdminOnly;
+public sealed record GetJobQuery(string Key, int? Page) : IQuery<JobDetailView>, IAdminOnly;
 
 public sealed record GetJobRunQuery(string Key, Guid RunId) : IQuery<JobRunDetailView>, IAdminOnly;
 
@@ -98,7 +107,11 @@ public sealed class GetJobHandler(IJobStatusReader jobs, IJobRunStore runs) : IR
     {
         if ((await jobs.ListAsync(ct)).FirstOrDefault(j => j.Key == query.Key) is not { } job)
             return Result.Failure<JobDetailView>(new NotFoundFailure("job", query.Key));
-        return Result.Success(new JobDetailView(job.Key, job.Cron, job.NextRunAt, await runs.ListAsync(job.Key, JobRunsKept.Count, ct)));
+        var (page, skip) = ListPage.Of(query.Page, JobRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(job.Key, skip, JobRunPage.PageSize, ct);
+        // The newest run, whatever page of the history is shown.
+        var last = (await runs.ListAsync(job.Key, 1, ct)).FirstOrDefault();
+        return Result.Success(new JobDetailView(job.Key, job.Cron, job.NextRunAt, last, new JobRunPage(items, total, page)));
     }
 }
 

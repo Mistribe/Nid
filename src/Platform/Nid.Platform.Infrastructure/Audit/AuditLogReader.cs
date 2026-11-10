@@ -26,6 +26,24 @@ public sealed class AuditLogReader(PlatformDbContext db) : IAuditLog
     public async Task<IReadOnlyList<AuditRecord>> SecurityEventsAsync(
         PersonId? subject, IReadOnlyCollection<string>? events, bool withoutSelfRevocations, long? before, int limit, CancellationToken ct)
     {
+        var query = SecurityQuery(subject, events, withoutSelfRevocations);
+        if (before is { } cursor)
+            query = query.Where(r => r.Seq < cursor);
+
+        return (await query.OrderByDescending(r => r.Seq).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();
+    }
+
+    public async Task<(IReadOnlyList<AuditRecord> Items, int Total)> SecurityEventsPageAsync(
+        IReadOnlyCollection<string>? events, int skip, int take, CancellationToken ct)
+    {
+        var query = SecurityQuery(null, events, withoutSelfRevocations: true);
+        var total = await query.CountAsync(ct);
+        var rows = await query.OrderByDescending(r => r.Seq).Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(ToRecord).ToList(), total);
+    }
+
+    private IQueryable<AuditEntryRow> SecurityQuery(PersonId? subject, IReadOnlyCollection<string>? events, bool withoutSelfRevocations)
+    {
         var query = db.AuditLog.AsNoTracking().Where(r => r.Category == "security");
         if (subject is { } person)
             query = query.Where(r => r.SubjectPersonId == person.Value);
@@ -36,10 +54,7 @@ public sealed class AuditLogReader(PlatformDbContext db) : IAuditLog
         }
         if (withoutSelfRevocations)
             query = query.Where(r => !(r.Action == SecurityEventNames.SessionRevoked && r.PersonId == r.SubjectPersonId));
-        if (before is { } cursor)
-            query = query.Where(r => r.Seq < cursor);
-
-        return (await query.OrderByDescending(r => r.Seq).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();
+        return query;
     }
 
     private static AuditRecord ToRecord(AuditEntryRow r) => new(

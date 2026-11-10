@@ -15,11 +15,12 @@ import { SeriesLink } from '@/components/page/SeriesLink';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fieldErrorsOf, knownConflictMessage, messageFor } from '@/components/form/fieldErrors';
 import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
+import { SortableTable } from '@/components/page/SortableTable';
 import { AdminFrame } from './AdminFrame';
 import { AdminSeries } from './AdminSeries';
 import { formatInstant } from '@/lib/format';
@@ -28,6 +29,7 @@ import '@/locales/forms';
 
 const HOUSEHOLD = '/api/v1/admin/household';
 const INFLATION = '/api/v1/core/inflation/admin';
+const RUNS = '/api/v1/core/inflation/runs';
 
 const STATUS = { running: 'admin.fx.status_running', succeeded: 'admin.fx.status_succeeded', failed: 'admin.fx.status_failed' } as const;
 const monthName = new Intl.DateTimeFormat('fr-FR', { month: 'long' });
@@ -49,7 +51,6 @@ export function InflationPage() {
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [tab, setTab] = useDetailTab(['series', 'journal'] as const);
   const household = $api.useQuery('get', HOUSEHOLD);
-  const inflation = $api.useQuery('get', INFLATION);
 
   const fail = (error: unknown) => setProblem(refusal(t, error));
   const save = $api.useMutation('patch', HOUSEHOLD, {
@@ -65,6 +66,7 @@ export function InflationPage() {
       setProblem(null);
       toast.success(t('admin.inflation.sync_requested'));
       void queryClient.invalidateQueries({ queryKey: ['get', INFLATION] });
+      void queryClient.invalidateQueries({ queryKey: ['get', RUNS] });
     },
     onError: (error) => {
       // Not a failure to explain: the update the admin asked for is already under way.
@@ -74,9 +76,6 @@ export function InflationPage() {
       } else fail(error);
     },
   });
-  // The wire carries plain strings; an unknown value is shown as it came rather than hidden.
-  const statusLabel = (status: string) => (status in STATUS ? t(STATUS[status as keyof typeof STATUS]) : status);
-
   const title = t('admin.inflation.title');
   if (household.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(household.error))} /></AdminFrame>;
   if (!household.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></AdminFrame>;
@@ -93,76 +92,92 @@ export function InflationPage() {
           onConfirm={() => sync.mutate({})} />
       </section>
 
-      {inflation.error ? <ProblemMessage problem={present(toProblem(inflation.error))} /> : null}
-
       <ManualMonth />
 
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'series', label: t('admin.tab_series'), content: (
           <>
             <AdminSeries seriesKey="cpi" />
-            <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
-              {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
-              {inflation.data && inflation.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}
-              {inflation.data && inflation.data.values.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('admin.inflation.month')}</TableHead>
-                      <TableHead>{t('admin.inflation.value')}</TableHead>
-                      <TableHead>{t('admin.inflation.source')}</TableHead>
-                      <TableHead>{t('admin.inflation.fetched')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inflation.data.values.map((v) => (
-                      <TableRow key={v.month}>
-                        <TableCell>{monthText(v.month)}</TableCell>
-                        <TableCell className="tabular-nums">{v.value}</TableCell>
-                        <TableCell>{v.source === 'insee' ? t('admin.inflation.source_insee') : t('admin.inflation.source_manual')}</TableCell>
-                        <TableCell>{formatLocalDate(v.fetchedOn)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : null}
-            </Section>
+            <InflationValues />
           </>
         ) },
         { id: 'journal', label: t('admin.tab_journal'), content: (
-          <Section title={t('admin.inflation.runs_title')}>
-            {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
-            {inflation.data && inflation.data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_runs')} body="" level={3} /> : null}
-            {inflation.data && inflation.data.runs.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('admin.inflation.started')}</TableHead>
-                    <TableHead>{t('admin.inflation.status')}</TableHead>
-                    <TableHead>{t('admin.inflation.added')}</TableHead>
-                    <TableHead>{t('admin.inflation.replaced')}</TableHead>
-                    <TableHead>{t('admin.inflation.rejected')}</TableHead>
-                    <TableHead>{t('admin.inflation.message')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {inflation.data.runs.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell>{formatInstant(r.startedAt)}</TableCell>
-                      <TableCell>{statusLabel(r.status)}</TableCell>
-                      <TableCell>{r.added}</TableCell>
-                      <TableCell>{r.replaced}</TableCell>
-                      <TableCell>{r.rejected}</TableCell>
-                      <TableCell>{r.message}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : null}
-          </Section>
+          <InflationRuns />
         ) },
       ]} />
     </AdminFrame>
+  );
+}
+
+/** The stored months, newest first, a page at a time. */
+function InflationValues() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const [page, toPage] = useListPage();
+  const inflation = $api.useQuery('get', INFLATION, { params: { query: { page } } });
+  useStepBack(page, inflation.data, toPage);
+  return (
+    <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
+      {inflation.error ? <ProblemMessage problem={present(toProblem(inflation.error))} /> : null}
+      {!inflation.error && (!inflation.data || (inflation.data.items.length === 0 && inflation.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
+      {inflation.data && inflation.data.total === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}
+      {inflation.data && inflation.data.items.length > 0 ? (
+        <>
+          <SortableTable caption={t('admin.inflation.values_title')} rows={inflation.data.items} rowKey={(v) => v.month}
+            columns={[
+              { id: 'month', header: t('admin.inflation.month'), cell: (v) => monthText(v.month) },
+              { id: 'value', header: t('admin.inflation.value'), cell: (v) => <span className="tabular-nums">{v.value}</span> },
+              { id: 'source', header: t('admin.inflation.source'), cell: (v) => (v.source === 'insee' ? t('admin.inflation.source_insee') : t('admin.inflation.source_manual')) },
+              { id: 'fetched', header: t('admin.inflation.fetched'), cell: (v) => formatLocalDate(v.fetchedOn) },
+            ]}
+            mobile={(v) => (
+              <>
+                <p className="font-medium">{monthText(v.month)} · <span className="tabular-nums">{v.value}</span></p>
+                <p className="text-sm text-muted-foreground">{v.source === 'insee' ? t('admin.inflation.source_insee') : t('admin.inflation.source_manual')} · {formatLocalDate(v.fetchedOn)}</p>
+              </>
+            )} />
+          <Pager page={page} total={inflation.data.total} onPage={toPage} />
+        </>
+      ) : null}
+    </Section>
+  );
+}
+
+/** The collection journal, newest first, a page at a time. */
+function InflationRuns() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const [page, toPage] = useListPage();
+  const runs = $api.useQuery('get', RUNS, { params: { query: { page } } });
+  useStepBack(page, runs.data, toPage);
+  // The wire carries plain strings; an unknown value is shown as it came rather than hidden.
+  const statusLabel = (status: string) => (status in STATUS ? t(STATUS[status as keyof typeof STATUS]) : status);
+  return (
+    <Section title={t('admin.inflation.runs_title')}>
+      {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
+      {!runs.error && (!runs.data || (runs.data.items.length === 0 && runs.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
+      {runs.data && runs.data.total === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_runs')} body="" level={3} /> : null}
+      {runs.data && runs.data.items.length > 0 ? (
+        <>
+          <SortableTable caption={t('admin.inflation.runs_title')} rows={runs.data.items} rowKey={(r) => r.id}
+            columns={[
+              { id: 'started', header: t('admin.inflation.started'), cell: (r) => formatInstant(r.startedAt) },
+              { id: 'status', header: t('admin.inflation.status'), cell: (r) => statusLabel(r.status) },
+              { id: 'added', header: t('admin.inflation.added'), cell: (r) => r.added },
+              { id: 'replaced', header: t('admin.inflation.replaced'), cell: (r) => r.replaced },
+              { id: 'rejected', header: t('admin.inflation.rejected'), cell: (r) => r.rejected },
+              { id: 'message', header: t('admin.inflation.message'), cell: (r) => r.message },
+            ]}
+            mobile={(r) => (
+              <>
+                <p className="font-medium">{formatInstant(r.startedAt)}</p>
+                <p className="text-sm text-muted-foreground">{statusLabel(r.status)} · {r.added} · {r.replaced} · {r.rejected}{r.message ? ` · ${r.message}` : ''}</p>
+              </>
+            )} />
+          <Pager page={page} total={runs.data.total} onPage={toPage} />
+        </>
+      ) : null}
+    </Section>
   );
 }
 

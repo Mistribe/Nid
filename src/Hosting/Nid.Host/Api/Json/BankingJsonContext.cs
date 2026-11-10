@@ -21,6 +21,6 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(BankingEndpoints.BankAccountBody))]
 [JsonSerializable(typeof(BankingEndpoints.SyncBody))]
 [JsonSerializable(typeof(Nid.Banking.Application.Sync.BankSyncRequested))]
-[JsonSerializable(typeof(IReadOnlyList<BankSyncRunView>))]
+[JsonSerializable(typeof(BankSyncRunPage))]
 [JsonSerializable(typeof(Nid.Banking.Application.Files.StatementImportView))]
 internal sealed partial class BankingJsonContext : JsonSerializerContext;

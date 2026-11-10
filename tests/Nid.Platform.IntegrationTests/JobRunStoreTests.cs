@@ -80,6 +80,20 @@ public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
+    public async Task A_page_is_the_jobs_newest_runs_and_its_total()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var a = new List<Guid>();
+        for (var i = 0; i < 5; i++) a.Add(await RunAsync(app, "a", T0.AddMinutes(i)));
+        await RunAsync(app, "b", T0);
+
+        var (items, total) = await WithStoreAsync(app, s => s.PageAsync("a", 1, 2, default));
+
+        Assert.Equal(5, total);
+        Assert.Equal([a[3], a[2]], items.Select(r => r.Id));
+    }
+
+    [Fact]
     public async Task Stale_running_rows_are_closed_as_interrupted()
     {
         await using var app = await NidApp.StartAsync(fixture);

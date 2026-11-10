@@ -16,7 +16,7 @@ public sealed record SyncAllCommand : ICommand<BankSyncRunView>, IAdminOnly;
 /// </summary>
 public sealed record SyncMineCommand(Guid? ConnectionId, PsuHeaders Psu) : ICommand<BankSyncRequested>, IBrowserOnly;
 
-public sealed record GetBankSyncRunsQuery : IQuery<IReadOnlyList<BankSyncRunView>>, IAdminOnly;
+public sealed record GetBankSyncRunsQuery(int? Page) : IQuery<BankSyncRunPage>, IAdminOnly;
 
 /// <summary>The run the button started, finished by the time it answers.</summary>
 public sealed record BankSyncRequested(Guid RunId);
@@ -83,11 +83,13 @@ public sealed class SyncMineHandler(
     }
 }
 
-[RequestHandler<GetBankSyncRunsQuery, IReadOnlyList<BankSyncRunView>>]
-public sealed class GetBankSyncRunsHandler(IBankSyncRunLog runs) : IRequestHandler<GetBankSyncRunsQuery, IReadOnlyList<BankSyncRunView>>
+[RequestHandler<GetBankSyncRunsQuery, BankSyncRunPage>]
+public sealed class GetBankSyncRunsHandler(IBankSyncRunLog runs) : IRequestHandler<GetBankSyncRunsQuery, BankSyncRunPage>
 {
-    public const int RecentRuns = 50;
-
-    public async ValueTask<Result<IReadOnlyList<BankSyncRunView>>> HandleAsync(GetBankSyncRunsQuery query, CancellationToken ct = default)
-        => Result.Success(await runs.RecentAsync(RecentRuns, ct));
+    public async ValueTask<Result<BankSyncRunPage>> HandleAsync(GetBankSyncRunsQuery query, CancellationToken ct = default)
+    {
+        var (page, skip) = ListPage.Of(query.Page, BankSyncRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, BankSyncRunPage.PageSize, ct);
+        return Result.Success(new BankSyncRunPage(items, total, page));
+    }
 }

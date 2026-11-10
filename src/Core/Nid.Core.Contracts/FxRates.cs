@@ -137,6 +137,9 @@ public interface IFxRunLog
     /// <summary>The most recent runs first.</summary>
     Task<IReadOnlyList<FxSyncRun>> RecentAsync(int count, CancellationToken ct);
 
+    /// <summary>One page of runs, newest first, and the total number of runs.</summary>
+    Task<(IReadOnlyList<FxSyncRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
+
     /// <summary>Deletes finished runs started before <paramref name="before"/>, except the latest succeeded backfill (<see cref="HasSucceededAsync"/>).</summary>
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
 }

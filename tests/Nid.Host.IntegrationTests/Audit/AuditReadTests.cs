@@ -4,7 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform;
 using Nid.Platform.Contracts;
+using Nid.Platform.Infrastructure.Audit;
+using Nid.Platform.Infrastructure.Persistence;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Host.IntegrationTests.Audit;
 
@@ -120,9 +123,64 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var journal = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal"));
 
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
-        var entry = Assert.Single(journal.GetProperty("entries").EnumerateArray());
+        var entry = Assert.Single(journal.GetProperty("items").EnumerateArray());
         Assert.Equal("session_revoked", entry.GetProperty("event").GetString());
         Assert.Equal(app.AdultA.Value, entry.GetProperty("actor").GetProperty("personId").GetGuid());
+    }
+
+    /// <summary>Oldest first in the table: 51 refused logins, 2 grants, an adult's own revocation (never shown) and a logout (not in the journal).</summary>
+    private static async Task<List<long>> SeedJournalAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var actions = Enumerable.Repeat("login_refused", 51).Concat(["admin_granted", "admin_granted"]).ToList();
+        var rows = actions.Select(a => (a, person: (Guid?)null)).Append(("session_revoked", app.AdultB.Value)).Append(("logout", null)).Select(r => new AuditEntryRow
+        {
+            Id = Guid.CreateVersion7(), At = SystemClock.Instance.GetCurrentInstant(), Category = "security", Action = r.Item1,
+            ActorKind = "person", PersonId = r.Item2, SubjectPersonId = r.Item2, Via = "ui",
+        }).ToList();
+        db.AuditLog.AddRange(rows);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return rows.Select(r => r.Seq).ToList();
+    }
+
+    [Fact]
+    public async Task The_journal_answers_one_page_and_the_total()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var seqs = await SeedJournalAsync(app);
+
+        var first = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal"));
+        var second = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?page=2"));
+
+        Assert.Equal((50, 53, 1), (first.GetProperty("items").GetArrayLength(), first.GetProperty("total").GetInt32(), first.GetProperty("page").GetInt32()));
+        Assert.Equal(seqs[52], first.GetProperty("items")[0].GetProperty("seq").GetInt64());
+        Assert.Equal((3, 53, 2), (second.GetProperty("items").GetArrayLength(), second.GetProperty("total").GetInt32(), second.GetProperty("page").GetInt32()));
+        Assert.Equal(seqs[2], second.GetProperty("items")[0].GetProperty("seq").GetInt64());
+    }
+
+    [Fact]
+    public async Task The_journal_filters_on_the_event_before_it_pages()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var seqs = await SeedJournalAsync(app);
+
+        var page = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?event=login_refused&page=2"));
+
+        Assert.Equal((1, 51, 2), (page.GetProperty("items").GetArrayLength(), page.GetProperty("total").GetInt32(), page.GetProperty("page").GetInt32()));
+        Assert.Equal(seqs[0], page.GetProperty("items")[0].GetProperty("seq").GetInt64());
+    }
+
+    [Fact]
+    public async Task The_journal_page_is_clamped()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedJournalAsync(app);
+
+        Assert.Equal(1, Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?page=0")).GetProperty("page").GetInt32());
+        Assert.Equal(1, Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?page=-5")).GetProperty("page").GetInt32());
+        var past = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/admin/security-journal?page={int.MaxValue}"));
+        Assert.Equal((0, 53), (past.GetProperty("items").GetArrayLength(), past.GetProperty("total").GetInt32()));
     }
 
     /// <summary>T5b: the filter never widens what the journal shows, even for an event that really happened.</summary>
@@ -140,8 +198,8 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         var page = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/admin/security-journal?event={filtered}"));
 
-        Assert.Empty(page.GetProperty("entries").EnumerateArray());
-        Assert.Equal(JsonValueKind.Null, page.GetProperty("next").ValueKind);
+        Assert.Empty(page.GetProperty("items").EnumerateArray());
+        Assert.Equal((0, 1), (page.GetProperty("total").GetInt32(), page.GetProperty("page").GetInt32()));
     }
 
     [Fact]
@@ -159,7 +217,7 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.DoesNotContain("\"hidden\"", body);
-        var entry = Assert.Single(Json(body).GetProperty("entries").EnumerateArray());
+        var entry = Assert.Single(Json(body).GetProperty("items").EnumerateArray());
         var details = entry.GetProperty("details");
         Assert.Equal("ProbeQuery", details.GetProperty("request").GetString());
         Assert.Equal("outside_visible_set", details.GetProperty("reason").GetString());
@@ -185,7 +243,7 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             .Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain("secret detail", body);
-        var entry = Assert.Single(Json(body).GetProperty("entries").EnumerateArray());
+        var entry = Assert.Single(Json(body).GetProperty("items").EnumerateArray());
         Assert.Equal("TimeoutException", entry.GetProperty("details").GetProperty("error").GetString());
         Assert.Empty(entry.GetProperty("items").EnumerateArray());
     }
@@ -201,7 +259,7 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         var journal = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?event=access_violation"));
 
-        var entry = Assert.Single(journal.GetProperty("entries").EnumerateArray());
+        var entry = Assert.Single(journal.GetProperty("items").EnumerateArray());
         Assert.Equal("OldQuery", entry.GetProperty("details").GetProperty("request").GetString());
         Assert.False(entry.GetProperty("details").TryGetProperty("reason", out _));
     }

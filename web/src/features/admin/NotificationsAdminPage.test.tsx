@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it, vi } from 'vitest';
@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { formatInstant } from '@/lib/format';
 
-const configured = { smtpConfigured: true, smtpHost: 'smtp.example.org', failures: [] };
+const configured = { smtpConfigured: true, smtpHost: 'smtp.example.org', failures: { items: [], total: 0, page: 1 } };
 const failure = { id: '11111111-1111-1111-1111-111111111111', channel: 'email', kind: 'rent.due', at: '2026-10-20T08:00:00+00:00', error: 'notifications.channel_unreachable 421' };
 const digest = { id: '22222222-2222-2222-2222-222222222222', channel: 'email', kind: 'digest', at: '2026-10-21T08:00:00+00:00', error: 'notifications.channel_rejected 550' };
 
@@ -39,7 +39,7 @@ describe('Administration › Notifications', () => {
   });
 
   it('names the variables to set when SMTP is not configured, and disables the test', async () => {
-    serve({ smtpConfigured: false, smtpHost: null, failures: [] });
+    serve({ smtpConfigured: false, smtpHost: null, failures: { items: [], total: 0, page: 1 } });
     const { container } = await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
     expect(await screen.findByText('Non configuré')).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe('Administration › Notifications', () => {
   });
 
   it('lists the failed deliveries: channel, kind, queued time and error', async () => {
-    serve({ ...configured, failures: [failure, digest] });
+    serve({ ...configured, failures: { items: [failure, digest], total: 2, page: 1 } });
     const { container } = await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
     await screen.findByText('Configuré : smtp.example.org');
@@ -108,13 +108,29 @@ describe('Administration › Notifications', () => {
 
   it('lists two failures of the same kind and instant as two rows', async () => {
     const twin = { ...failure, id: '33333333-3333-3333-3333-333333333333' };
-    serve({ ...configured, failures: [failure, twin] });
+    serve({ ...configured, failures: { items: [failure, twin], total: 2, page: 1 } });
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
     await screen.findByText('Configuré : smtp.example.org');
     const table = screen.getByRole('table', { name: 'Envois en échec' });
     expect(within(table).getAllByText('rent.due')).toHaveLength(2);
   });
+
+  it('pages the failed deliveries', async () => {
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/admin/notifications', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json({ ...configured, failures: { items: [failure], total: 51, page: 1 } });
+    }));
+    const { user, router } = await renderApp('/admin/notifications', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
+  });
+
   it('sets, tests and removes the household Discord webhook', async () => {
     serve({ ...configured, discord: { hint: 'wxyz', status: 'ok' } });
     const calls: string[] = [];

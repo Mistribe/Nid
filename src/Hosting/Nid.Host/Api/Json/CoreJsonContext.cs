@@ -23,7 +23,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(List<PersonEndpoints.PersonDto>))]
 [JsonSerializable(typeof(IReadOnlyList<AdultView>))]
 [JsonSerializable(typeof(IReadOnlyList<FxRateView>))]
-[JsonSerializable(typeof(IReadOnlyList<FxSyncRunView>))]
+[JsonSerializable(typeof(FxSyncRunPage))]
 [JsonSerializable(typeof(IReadOnlyList<TokenView>))]
 [JsonSerializable(typeof(AdultView))]
 [JsonSerializable(typeof(ItemDeletionPreview))] // #23: every module's delete preview
@@ -95,7 +95,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(InflationView))]
 [JsonSerializable(typeof(SeriesCatalogView))]
 [JsonSerializable(typeof(SeriesPointsView))]
-[JsonSerializable(typeof(CpiAdminView))]
+[JsonSerializable(typeof(CpiValuePage))]
+[JsonSerializable(typeof(CpiRunPage))]
 [JsonSerializable(typeof(CpiValueView))]
 [JsonSerializable(typeof(CpiSyncRequested))]
 [JsonSerializable(typeof(InflationEndpoints.CpiValueBody))]

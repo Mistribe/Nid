@@ -57,6 +57,13 @@ public sealed class PriceRunLog(InvestmentsDbContext db, IClock clock) : IPriceR
     public async Task<IReadOnlyList<PriceRun>> RecentAsync(int count, CancellationToken ct)
         => (await db.PriceRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).Take(count).ToListAsync(ct)).Select(ToRun).ToList();
 
+    public async Task<(IReadOnlyList<PriceRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)
+    {
+        var rows = await db.PriceRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).ThenByDescending(r => r.Id)
+            .Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(ToRun).ToList(), await db.PriceRuns.CountAsync(ct));
+    }
+
     public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
         => await db.PriceRuns.Where(r => r.StartedAt < before && r.Status != "running").ExecuteDeleteAsync(ct);
 

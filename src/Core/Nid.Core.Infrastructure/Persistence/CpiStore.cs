@@ -10,6 +10,12 @@ public sealed class CpiStore(CoreDbContext db) : ICpiStore
         => (await db.Cpi.AsNoTracking().OrderBy(r => r.Month).ToListAsync(ct))
             .Select(r => new CpiValue(YearMonthPattern.Iso.Parse(r.Month).GetValueOrThrow(), r.Value, r.PublishedOn, r.FetchedOn, r.Source)).ToList();
 
+    public async Task<(IReadOnlyList<CpiValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)
+    {
+        var rows = await db.Cpi.AsNoTracking().OrderByDescending(r => r.Month).Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(r => new CpiValue(YearMonthPattern.Iso.Parse(r.Month).GetValueOrThrow(), r.Value, r.PublishedOn, r.FetchedOn, r.Source)).ToList(), await db.Cpi.CountAsync(ct));
+    }
+
     public async Task<bool> UpsertManualAsync(CpiValue value, CancellationToken ct)
         => await db.Database.ExecuteSqlInterpolatedAsync($"""
             insert into core.cpi (month, value, published_on, fetched_on, source)

@@ -3214,16 +3214,23 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PriceRunView"
-                  }
+                  "$ref": "#/components/schemas/PriceRunPage"
                 }
               }
             }
@@ -12191,16 +12198,23 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BankSyncRunView"
-                  }
+                  "$ref": "#/components/schemas/BankSyncRunPage"
                 }
               }
             }
@@ -15678,13 +15692,112 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IrlAdminView"
+                  "$ref": "#/components/schemas/IrlValuePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/realestate/irl/runs": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrlRunPage"
                 }
               }
             }
@@ -22156,13 +22269,112 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CpiAdminView"
+                  "$ref": "#/components/schemas/CpiValuePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/core/inflation/runs": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CpiRunPage"
                 }
               }
             }
@@ -27731,16 +27943,23 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/FxSyncRunView"
-                  }
+                  "$ref": "#/components/schemas/FxSyncRunPage"
                 }
               }
             }
@@ -28072,6 +28291,16 @@
       "get": {
         "tags": [
           "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -28888,6 +29117,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -29155,15 +29392,7 @@
             }
           },
           {
-            "name": "before",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "limit",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -29177,7 +29406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SecurityEventPage"
+                  "$ref": "#/components/schemas/AdminSecurityEventPage"
                 }
               }
             }
@@ -29249,6 +29478,16 @@
       "get": {
         "tags": [
           "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -29916,10 +30155,7 @@
             ]
           },
           "failures": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FailedDeliveryView"
-            }
+            "$ref": "#/components/schemas/FailedDeliveryPage"
           },
           "discord": {
             "oneOf": [
@@ -29930,6 +30166,30 @@
                 "$ref": "#/components/schemas/WebhookView"
               }
             ]
+          }
+        }
+      },
+      "AdminSecurityEventPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityEventView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -30653,6 +30913,30 @@
           }
         }
       },
+      "BankSyncRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankSyncRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "BankSyncRunView": {
         "required": [
           "id",
@@ -31263,6 +31547,30 @@
           }
         }
       },
+      "CatalogRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogSyncRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "CatalogRunsView": {
         "required": [
           "pinnedCommit",
@@ -31273,11 +31581,18 @@
           "pinnedCommit": {
             "type": "string"
           },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CatalogSyncRunView"
+              }
+            ]
+          },
           "runs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CatalogSyncRunView"
-            }
+            "$ref": "#/components/schemas/CatalogRunPage"
           }
         }
       },
@@ -32985,24 +33300,27 @@
           }
         }
       },
-      "CpiAdminView": {
+      "CpiRunPage": {
         "required": [
-          "values",
-          "runs"
+          "items",
+          "total",
+          "page"
         ],
         "type": "object",
         "properties": {
-          "values": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CpiValueView"
-            }
-          },
-          "runs": {
+          "items": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CpiRunView"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -33074,6 +33392,30 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "CpiValuePage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CpiValueView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -36523,6 +36865,30 @@
           }
         }
       },
+      "FailedDeliveryPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FailedDeliveryView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "FailedDeliveryView": {
         "required": [
           "id",
@@ -37142,6 +37508,30 @@
         "properties": {
           "requested": {
             "type": "boolean"
+          }
+        }
+      },
+      "FxSyncRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FxSyncRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -41558,24 +41948,27 @@
           "$ref": "#/components/schemas/SwitchLegBody"
         }
       },
-      "IrlAdminView": {
+      "IrlRunPage": {
         "required": [
-          "values",
-          "runs"
+          "items",
+          "total",
+          "page"
         ],
         "type": "object",
         "properties": {
-          "values": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IrlValueView"
-            }
-          },
-          "runs": {
+          "items": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/IrlRunView"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -41653,6 +42046,30 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "IrlValuePage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IrlValueView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -41878,11 +42295,18 @@
             ],
             "format": "date-time"
           },
+          "lastRun": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRunView"
+              }
+            ]
+          },
           "runs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobRunView"
-            }
+            "$ref": "#/components/schemas/JobRunPage"
           }
         }
       },
@@ -41941,6 +42365,30 @@
           },
           "logsAvailable": {
             "type": "boolean"
+          }
+        }
+      },
+      "JobRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -46141,6 +46589,30 @@
                 "$ref": "#/components/schemas/RealPercentView"
               }
             ]
+          }
+        }
+      },
+      "PriceRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

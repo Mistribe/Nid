@@ -415,6 +415,7 @@
   },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "page": { "more_actions": "Autres actions", "loading": "Chargement de la page" },
+  "pager": { "pages": "Pages", "previous": "Précédent", "next": "Suivant", "page_of": "Page {{page}} sur {{pages}}" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "common": { "confirm": "Confirmer",
     "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "filters": "Filtres", "breadcrumb": "Fil d’Ariane", "back_to": "Retour à {{label}}",

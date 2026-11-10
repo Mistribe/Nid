@@ -20,9 +20,13 @@ public static class InflationEndpoints
             => (await invoker.InvokeAsync(new GetInflationQuery(), ct)).ToHttp(r => r))
             .Returns<InflationView>();
 
-        api.MapGet("/admin", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetCpiQuery(), ct)).ToHttp(r => r))
-            .Returns<CpiAdminView>();
+        api.MapGet("/admin", async (int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetCpiAdminQuery(page), ct)).ToHttp(r => r))
+            .Returns<CpiValuePage>();
+
+        api.MapGet("/runs", async (int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetCpiRunsQuery(page), ct)).ToHttp(r => r))
+            .Returns<CpiRunPage>();
 
         api.MapPost("/sync", async (IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new RequestCpiSyncCommand(), ct)).ToHttp(r => r, StatusCodes.Status202Accepted))

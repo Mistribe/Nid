@@ -31,8 +31,8 @@ public static class CatalogEndpoints
                 => (await invoker.InvokeAsync(new ListLabelsQuery(), ct)).ToHttp(r => r))
             .Returns<IReadOnlyList<LabelView>>();
 
-        api.MapGet("/catalog/runs", async (IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetCatalogRunsQuery(), ct)).ToHttp(r => r))
+        api.MapGet("/catalog/runs", async (int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCatalogRunsQuery(page), ct)).ToHttp(r => r))
             .Returns<CatalogRunsView>();
 
         api.MapPost("/catalog/sync", async (IInvoker invoker, CancellationToken ct)

@@ -304,11 +304,11 @@ public class PriceCollectorTests(PostgresFixture fixture) : IClassFixture<Postgr
         await EnableAsync(app);
         await CollectAsync(app);
 
-        var (runs, failure) = await app.InvokeAsync(app.AdultA, new GetPriceRunsQuery(), TestContext.Current.CancellationToken);
+        var (runs, failure) = await app.InvokeAsync(app.AdultA, new GetPriceRunsQuery(null), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         var json = JsonSerializer.Serialize(runs);
-        Assert.Equal((2, 1, 0, 1, 0), Counts(Assert.Single((IReadOnlyList<PriceRunView>)runs!)));
+        Assert.Equal((2, 1, 0, 1, 0), Counts(Assert.Single(((PriceRunPage)runs!).Items)));
         Assert.DoesNotContain(Fund, json);
         Assert.DoesNotContain(Etf, json);
     }

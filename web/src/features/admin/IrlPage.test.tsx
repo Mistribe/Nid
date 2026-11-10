@@ -9,16 +9,23 @@ import { toasts } from '@/test/toasts';
 import { formatInstant } from '@/lib/format';
 
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2, pricesEnabled: false };
-const view = {
-  values: [
+const values = {
+  items: [
     { quarter: '2026-Q2', value: '148.37', publishedOn: '2026-07-12', fetchedOn: '2026-07-13', source: 'insee' },
     { quarter: '2026-Q1', value: '146.80', publishedOn: null, fetchedOn: '2026-04-20', source: 'manual' },
   ],
-  runs: [{ id: 'r1', startedAt: '2026-10-19T07:00:00+00:00', finishedAt: '2026-10-19T07:00:02+00:00', status: 'succeeded', added: 2, replaced: 1, rejected: 0, message: null }],
+  total: 2,
+  page: 1,
+};
+const runs = {
+  items: [{ id: 'r1', startedAt: '2026-10-19T07:00:00+00:00', finishedAt: '2026-10-19T07:00:02+00:00', status: 'succeeded', added: 2, replaced: 1, rejected: 0, message: null }],
+  total: 1,
+  page: 1,
 };
 const serve = (irlEnabled = true) => server.use(
   http.get('*/api/v1/admin/household', () => HttpResponse.json({ ...settings, irlEnabled })),
-  http.get('*/api/v1/realestate/irl', () => HttpResponse.json(view)),
+  http.get('*/api/v1/realestate/irl', () => HttpResponse.json(values)),
+  http.get('*/api/v1/realestate/irl/runs', () => HttpResponse.json(runs)),
 );
 
 describe('Administration › IRL', () => {
@@ -50,8 +57,43 @@ describe('Administration › IRL', () => {
     const { user, router } = await renderApp('/admin/irl', { capabilities: adminCapabilities });
 
     await user.click(await screen.findByRole('tab', { name: 'Journal' }));
-    expect(await screen.findByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(view.runs[0]!.startedAt));
+    expect(await screen.findByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(runs.items[0]!.startedAt));
     expect(router.state.location.search).toMatchObject({ tab: 'journal' });
+  });
+
+  it('pages the values, and the page does not follow a tab switch', async () => {
+    const seen: string[] = [];
+    serve();
+    server.use(http.get('*/api/v1/realestate/irl', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json({ ...values, total: 51 });
+    }));
+    const { user, router } = await renderApp('/admin/irl', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
+
+    await user.click(screen.getByRole('tab', { name: 'Journal' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'journal' }));
+  });
+
+  it('pages the log', async () => {
+    const seen: string[] = [];
+    serve();
+    server.use(http.get('*/api/v1/realestate/irl/runs', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json({ ...runs, total: 51 });
+    }));
+    const { user, router } = await renderApp('/admin/irl?tab=journal', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'journal', page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
   });
 
   it('opens the Journal tab from the URL', async () => {

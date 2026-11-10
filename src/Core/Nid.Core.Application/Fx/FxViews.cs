@@ -34,4 +34,9 @@ public sealed record FxSyncRunView(
                 r.Rate.ToString(CultureInfo.InvariantCulture), r.Previous?.ToString(CultureInfo.InvariantCulture), r.Reason)).ToList());
 }
 
+public sealed record FxSyncRunPage(IReadOnlyList<FxSyncRunView> Items, int Total, int Page)
+{
+    public const int PageSize = 50;
+}
+
 public sealed record FxSyncRequested(bool Requested);

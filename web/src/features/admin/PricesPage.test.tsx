@@ -14,13 +14,13 @@ const run = {
   status: 'succeeded', queried: 12, accepted: 9, rejected: 1, notFound: 2, sourceErrors: 0, failureCode: null,
 };
 
-const noRuns = () => http.get('*/api/v1/investments/prices/runs', () => HttpResponse.json([]));
+const noRuns = () => http.get('*/api/v1/investments/prices/runs', () => HttpResponse.json({ items: [], total: 0, page: 1 }));
 
 describe('Administration › Cours', () => {
   it('lists the runs with their counts', async () => {
     server.use(
       http.get('*/api/v1/admin/household', () => HttpResponse.json({ ...settings, pricesEnabled: true })),
-      http.get('*/api/v1/investments/prices/runs', () => HttpResponse.json([run])),
+      http.get('*/api/v1/investments/prices/runs', () => HttpResponse.json({ items: [run], total: 1, page: 1 })),
     );
     const { container } = await renderApp('/admin/prices', { capabilities: adminCapabilities });
 
@@ -28,6 +28,24 @@ describe('Administration › Cours', () => {
     expect(row).toHaveTextContent(formatInstant(run.startedAt));
     expect(within(row).getAllByRole('cell').map((c) => c.textContent).slice(2)).toEqual(['12', '9', '1', '2', '0', '']);
     await expectNoAxeViolations(container);
+  });
+
+  it('pages the log', async () => {
+    const seen: string[] = [];
+    server.use(
+      http.get('*/api/v1/admin/household', () => HttpResponse.json({ ...settings, pricesEnabled: true })),
+      http.get('*/api/v1/investments/prices/runs', ({ request }) => {
+        seen.push(request.url);
+        return HttpResponse.json({ items: [run], total: 51, page: 1 });
+      }),
+    );
+    const { user, router } = await renderApp('/admin/prices', { capabilities: adminCapabilities });
+
+    const pages = await screen.findByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 1 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
+    await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
   });
 
   it('turns the collection on and off from the switch', async () => {

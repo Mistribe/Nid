@@ -88,7 +88,7 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        foreach (var request in new object[] { new SyncCatalogCommand(), new RequestCatalogSyncCommand(), new GetCatalogRunsQuery() })
+        foreach (var request in new object[] { new SyncCatalogCommand(), new RequestCatalogSyncCommand(), new GetCatalogRunsQuery(null) })
         {
             var (_, failure) = await app.InvokeAsync(app.AdultB, request, TestContext.Current.CancellationToken);
             Assert.Equal(AdminCodes.Required, failure?.Code);
@@ -110,9 +110,9 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
 
     private static async Task<CatalogReport> ReportForAsync(NidApp app, PersonId reader, int run = 0)
     {
-        var (answer, failure) = await app.InvokeAsync(reader, new GetCatalogRunsQuery());
+        var (answer, failure) = await app.InvokeAsync(reader, new GetCatalogRunsQuery(null));
         Assert.Null(failure);
-        return ((CatalogRunsView)answer!).Runs[run].Report!;
+        return ((CatalogRunsView)answer!).Runs.Items[run].Report!;
     }
 
     private static async Task<CatalogSyncRunView> SyncAsync(NidApp app)
@@ -181,10 +181,10 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
             """));
         var synced = await SyncAsync(app);
 
-        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
+        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(null), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
-        foreach (var report in new[] { Assert.Single(((CatalogRunsView)answer!).Runs).Report!, synced.Report! })
+        foreach (var report in new[] { Assert.Single(((CatalogRunsView)answer!).Runs.Items).Report!, synced.Report! })
         {
             Assert.Equal(["a-private", "a-visible"], report.AdoptedRemaining);
             Assert.Equal(["a-replaced"], report.AdoptedReplaced);
@@ -291,17 +291,17 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-        var runs = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync<CatalogRunsView>(new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
+        var runs = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync<CatalogRunsView>(new GetCatalogRunsQuery(null), TestContext.Current.CancellationToken);
         runs.TryGetValue(out var view);
 
-        var whole = Assert.Single(view!.Runs).Report!;
+        var whole = Assert.Single(view!.Runs.Items).Report!;
         Assert.Equal(["a-replaced", "b-replaced"], whole.AdoptedReplaced);
         Assert.Equal(["b-remaining"], whole.AdoptedRemaining);
         Assert.Equal(["netflix"], whole.ProvidersAdded);
     }
 
     [Fact]
-    public async Task The_runs_come_with_the_pinned_commit_newest_first_and_at_most_fifty()
+    public async Task The_runs_come_with_the_pinned_commit_newest_first_one_page_at_a_time()
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using (var seed = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
@@ -316,12 +316,13 @@ public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
             await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(), TestContext.Current.CancellationToken);
+        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery(null), TestContext.Current.CancellationToken);
 
         Assert.Null(failure);
         var runs = (CatalogRunsView)answer!;
         Assert.Equal(CatalogFixtures.PinnedCommit, runs.PinnedCommit);
-        Assert.Equal(CatalogLimits.RecentRuns, runs.Runs.Count);
-        Assert.Equal(("c51", "c2"), (runs.Runs[0].Commit, runs.Runs[^1].Commit));
+        Assert.Equal((50, 51, 1), (runs.Runs.Items.Count, runs.Runs.Total, runs.Runs.Page));
+        Assert.Equal(("c51", "c2"), (runs.Runs.Items[0].Commit, runs.Runs.Items[^1].Commit));
+        Assert.Equal("c51", runs.Latest!.Commit);
     }
 }

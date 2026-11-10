@@ -16,7 +16,7 @@ public sealed record SyncCatalogCommand : ICommand<CatalogSyncRunView>, IAdminOn
 /// <summary>Administration › Catalogue's "Synchroniser maintenant": triggers the job, or 409 while a sync runs.</summary>
 public sealed record RequestCatalogSyncCommand : ICommand<CatalogSyncRequested>, IAdminOnly;
 
-public sealed record GetCatalogRunsQuery : IQuery<CatalogRunsView>, IAdminOnly;
+public sealed record GetCatalogRunsQuery(int? Page) : IQuery<CatalogRunsView>, IAdminOnly;
 
 [RequestHandler<SyncCatalogCommand, CatalogSyncRunView>]
 public sealed class SyncCatalogHandler(CatalogSync sync, IVisibleItems visible, IActorAccessor actor)
@@ -30,7 +30,7 @@ public sealed class SyncCatalogHandler(CatalogSync sync, IVisibleItems visible, 
         ran.TryGetValue(out var run);
 
         // The caller sees the report as the journal would show it to them (spec §3.6); the job, a system actor, all of it.
-        var filter = await CatalogReportFilter.ForAsync(actor.Current, [run!], visible, ct);
+        var filter = await CatalogReportFilter.ForAsync(actor.Current, visible, ct);
         return Result.Success(CatalogSyncRunView.From(run!, filter));
     }
 }
@@ -58,8 +58,11 @@ public sealed class GetCatalogRunsHandler(
 {
     public async ValueTask<Result<CatalogRunsView>> HandleAsync(GetCatalogRunsQuery query, CancellationToken ct = default)
     {
-        var recent = await runs.RecentAsync(CatalogLimits.RecentRuns, ct);
-        var filter = await CatalogReportFilter.ForAsync(actor.Current, recent, visible, ct);
-        return Result.Success(new CatalogRunsView(options.Commit, recent.Select(r => CatalogSyncRunView.From(r, filter)).ToList()));
+        var (page, skip) = ListPage.Of(query.Page, CatalogRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, CatalogRunPage.PageSize, ct);
+        var latest = await runs.RecentAsync(1, ct);
+        var filter = await CatalogReportFilter.ForAsync(actor.Current, visible, ct);
+        return Result.Success(new CatalogRunsView(options.Commit, latest.Select(r => CatalogSyncRunView.From(r, filter)).SingleOrDefault(),
+            new CatalogRunPage(items.Select(r => CatalogSyncRunView.From(r, filter)).ToList(), total, page)));
     }
 }

@@ -57,9 +57,6 @@ public static class CatalogLimits
     /// <summary>Per file of the catalog (design §4 "Source").</summary>
     public const int MaxFileBytes = 1024 * 1024;
 
-    /// <summary>What <c>GET /catalog/runs</c> answers (design §5).</summary>
-    public const int RecentRuns = 50;
-
     public const int RunRetentionDays = 400;
 
     /// <summary>The one local label, created by the migration for adopted providers (design §3.1).</summary>
@@ -236,6 +233,9 @@ public interface ICatalogRunLog
 
     /// <summary>The most recent runs first.</summary>
     Task<IReadOnlyList<CatalogSyncRun>> RecentAsync(int count, CancellationToken ct);
+
+    /// <summary>One page of runs, newest first, and the total number of runs.</summary>
+    Task<(IReadOnlyList<CatalogSyncRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
 
     /// <summary>Deletes finished runs started before <paramref name="before"/>, except the latest succeeded one.</summary>
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);

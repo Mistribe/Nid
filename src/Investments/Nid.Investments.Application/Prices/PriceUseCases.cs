@@ -13,7 +13,7 @@ public sealed record CollectPricesCommand : ICommand<PriceRunView>, IAdminOnly;
 
 public sealed record RequestPriceSyncCommand : ICommand<PriceSyncRequested>, IAdminOnly;
 
-public sealed record GetPriceRunsQuery : IQuery<IReadOnlyList<PriceRunView>>, IAdminOnly;
+public sealed record GetPriceRunsQuery(int? Page) : IQuery<PriceRunPage>, IAdminOnly;
 
 /// <summary>A run as the admin page shows it: counts only, never an ISIN (spec D12).</summary>
 public sealed record PriceRunView(
@@ -23,6 +23,11 @@ public sealed record PriceRunView(
     public static PriceRunView From(PriceRun run)
         => new(run.Id, run.StartedAt.ToDateTimeOffset(), run.FinishedAt?.ToDateTimeOffset(), run.Status.ToString().ToLowerInvariant(),
             run.Queried, run.Accepted, run.Rejected, run.NotFound, run.SourceErrors, run.FailureCode);
+}
+
+public sealed record PriceRunPage(IReadOnlyList<PriceRunView> Items, int Total, int Page)
+{
+    public const int PageSize = 50;
 }
 
 public sealed record PriceSyncRequested(bool Requested);
@@ -52,11 +57,13 @@ public sealed class RequestPriceSyncHandler(IPriceRunLog runs, IHouseholdSetting
     }
 }
 
-[RequestHandler<GetPriceRunsQuery, IReadOnlyList<PriceRunView>>]
-public sealed class GetPriceRunsHandler(IPriceRunLog runs) : IRequestHandler<GetPriceRunsQuery, IReadOnlyList<PriceRunView>>
+[RequestHandler<GetPriceRunsQuery, PriceRunPage>]
+public sealed class GetPriceRunsHandler(IPriceRunLog runs) : IRequestHandler<GetPriceRunsQuery, PriceRunPage>
 {
-    public const int RecentRuns = 50;
-
-    public async ValueTask<Result<IReadOnlyList<PriceRunView>>> HandleAsync(GetPriceRunsQuery query, CancellationToken ct = default)
-        => Result.Success<IReadOnlyList<PriceRunView>>((await runs.RecentAsync(RecentRuns, ct)).Select(PriceRunView.From).ToList());
+    public async ValueTask<Result<PriceRunPage>> HandleAsync(GetPriceRunsQuery query, CancellationToken ct = default)
+    {
+        var (page, skip) = ListPage.Of(query.Page, PriceRunPage.PageSize);
+        var (items, total) = await runs.PageAsync(skip, PriceRunPage.PageSize, ct);
+        return Result.Success(new PriceRunPage(items.Select(PriceRunView.From).ToList(), total, page));
+    }
 }

@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { Pager } from '@/components/page/Pager';
 import { PageHeader } from '@/components/page/PageHeader';
 import { RowMenu } from '@/components/page/RowMenu';
 import { SortableTable, type Selection } from '@/components/page/SortableTable';
@@ -70,7 +71,6 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
   const fileRef = useRef<HTMLButtonElement>(null);
   const shown = answer.data?.items ?? [];
   const total = answer.data?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const go = (change: Partial<DocumentsSearch>) =>
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: DocumentsSearch) => ({ ...prev, ...change })) as never });
   const filter = (next: Filters) => go({ type: next.type || undefined, year: next.year ? Number(next.year) : undefined,
@@ -131,13 +131,7 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
             <p className="text-sm text-muted-foreground">{t('documents_page.count', { count: total })}</p>
             <Table rows={shown} selection={inbox ? { selected, onChange: setSelected, allLabel: t('documents_page.file.select_all'),
               label: (d) => t('documents_page.file.select', { title: d.title }), disabled: (d) => !d.canEdit } : undefined} />
-            {pages > 1 ? (
-              <nav aria-label={t('documents_page.pages')} className="flex items-center justify-between gap-3">
-                <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => toPage(page - 1)}>{t('documents_page.previous')}</Button>
-                <span className="text-sm text-muted-foreground">{t('documents_page.page_of', { page, pages })}</span>
-                <Button type="button" variant="outline" size="sm" disabled={page >= pages} onClick={() => toPage(page + 1)}>{t('documents_page.next')}</Button>
-              </nav>
-            ) : null}
+            <Pager page={page} total={total} label={t('documents_page.pages')} onPage={toPage} />
           </>
         )}
     </>

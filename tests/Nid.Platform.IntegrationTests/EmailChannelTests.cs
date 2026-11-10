@@ -324,7 +324,9 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
         var view = JsonDocument.Parse(raw).RootElement;
         Assert.True(view.GetProperty("smtpConfigured").GetBoolean());
         Assert.Equal("smtp.test.localhost", view.GetProperty("smtpHost").GetString());
-        var failure = Assert.Single(view.GetProperty("failures").EnumerateArray());
+        var failures = view.GetProperty("failures");
+        Assert.Equal(1, failures.GetProperty("total").GetInt32());
+        var failure = Assert.Single(failures.GetProperty("items").EnumerateArray());
         Assert.Equal(
             ["at", "channel", "error", "id", "kind"],
             failure.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal).ToArray());
@@ -347,6 +349,6 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.False(view.GetProperty("smtpConfigured").GetBoolean());
         Assert.Equal(JsonValueKind.Null, view.GetProperty("smtpHost").ValueKind);
-        Assert.Empty(view.GetProperty("failures").EnumerateArray());
+        Assert.Empty(view.GetProperty("failures").GetProperty("items").EnumerateArray());
     }
 }

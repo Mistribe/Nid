@@ -11,7 +11,7 @@ export function useDetailTab<T extends string>(ids: readonly T[]): [T, (next: T)
   const navigate = useNavigate();
   const current = ids.find((id) => id === tab) ?? ids[0]!;
   const set = (next: T) => {
-    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, tab: next === ids[0] ? undefined : next })) as never });
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, tab: next === ids[0] ? undefined : next, page: undefined })) as never });
   };
   return [current, set];
 }

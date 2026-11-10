@@ -73,9 +73,9 @@ public class PipelineTests(PostgresFixture postgres)
         await using var provider = await ProviderAsync();
 
         await using (var scope = provider.CreateAsyncScope())
-            Assert.Null(await RunAsync(scope, Actor.Browser(PersonId.New(), isAdmin: true), new GetFxSyncRunsQuery()));
+            Assert.Null(await RunAsync(scope, Actor.Browser(PersonId.New(), isAdmin: true), new GetFxSyncRunsQuery(null)));
         await using (var scope = provider.CreateAsyncScope())
-            Assert.Null(await RunAsync(scope, Actor.System, new GetFxSyncRunsQuery()));
+            Assert.Null(await RunAsync(scope, Actor.System, new GetFxSyncRunsQuery(null)));
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class PipelineTests(PostgresFixture postgres)
         var token = new Actor(ActorKind.Person, PersonId.New(), ActorOrigin.Mcp,
             new HashSet<string> { ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect });
 
-        Assert.Equal(AdminCodes.Required, (await RunAsync(scope, token, new GetFxSyncRunsQuery()))?.Code);
+        Assert.Equal(AdminCodes.Required, (await RunAsync(scope, token, new GetFxSyncRunsQuery(null)))?.Code);
     }
 
     private static Type[] ChainOf<TRequest, TResponse>(IServiceScope scope)

@@ -36,9 +36,6 @@
     "count_one": "{{count}} document",
     "count_other": "{{count}} documents",
     "pages": "Pages des documents",
-    "page_of": "Page {{page}} sur {{pages}}",
-    "previous": "Précédent",
-    "next": "Suivant",
     "size_ko": "{{n}} Ko",
     "size_mo": "{{n}} Mo",
     "role": {

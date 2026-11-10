@@ -58,6 +58,9 @@ public interface ICpiStore
     /// <summary>Every stored value, by month.</summary>
     Task<IReadOnlyList<CpiValue>> ListAsync(CancellationToken ct);
 
+    /// <summary>One page of values, newest month first, and the total number of values.</summary>
+    Task<(IReadOnlyList<CpiValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
+
     /// <summary>Stores the month's value, replacing the one stored (the collector decides what may replace what).</summary>
     Task UpsertAsync(CpiValue value, CancellationToken ct);
 

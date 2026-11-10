@@ -3109,7 +3109,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3122,7 +3124,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PriceRunView"][];
+                        "application/json": components["schemas"]["PriceRunPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -11404,7 +11406,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -11417,7 +11421,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["BankSyncRunView"][];
+                        "application/json": components["schemas"]["BankSyncRunPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -14609,7 +14613,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -14622,7 +14628,98 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["IrlAdminView"];
+                        "application/json": components["schemas"]["IrlValuePage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/realestate/irl/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IrlRunPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -20650,7 +20747,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -20663,7 +20762,98 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["CpiAdminView"];
+                        "application/json": components["schemas"]["CpiValuePage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/core/inflation/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CpiRunPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -26049,7 +26239,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -26062,7 +26254,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["FxSyncRunView"][];
+                        "application/json": components["schemas"]["FxSyncRunPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -26395,7 +26587,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -27238,7 +27432,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     key: string;
@@ -27512,8 +27708,7 @@ export interface paths {
             parameters: {
                 query?: {
                     event?: string;
-                    before?: number;
-                    limit?: number;
+                    page?: number;
                 };
                 header?: never;
                 path?: never;
@@ -27527,7 +27722,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SecurityEventPage"];
+                        "application/json": components["schemas"]["AdminSecurityEventPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -27603,7 +27798,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -27996,8 +28193,15 @@ export interface components {
         AdminNotificationsView: {
             smtpConfigured: boolean;
             smtpHost?: null | string;
-            failures: components["schemas"]["FailedDeliveryView"][];
+            failures: components["schemas"]["FailedDeliveryPage"];
             discord?: null | components["schemas"]["WebhookView"];
+        };
+        AdminSecurityEventPage: {
+            items: components["schemas"]["SecurityEventView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         AdultView: {
             /** Format: uuid */
@@ -28182,6 +28386,13 @@ export interface components {
             /** Format: uuid */
             runId: string;
         };
+        BankSyncRunPage: {
+            items: components["schemas"]["BankSyncRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+        };
         BankSyncRunView: {
             /** Format: uuid */
             id: string;
@@ -28340,9 +28551,17 @@ export interface components {
             icons: components["schemas"]["IconReport"];
             includesRefused: components["schemas"]["IncludeRefusal"][];
         };
+        CatalogRunPage: {
+            items: components["schemas"]["CatalogSyncRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+        };
         CatalogRunsView: {
             pinnedCommit: string;
-            runs: components["schemas"]["CatalogSyncRunView"][];
+            latest?: null | components["schemas"]["CatalogSyncRunView"];
+            runs: components["schemas"]["CatalogRunPage"];
         };
         CatalogSyncRequested: {
             requested: boolean;
@@ -28725,9 +28944,12 @@ export interface components {
             source: string;
             isProjected: boolean;
         };
-        CpiAdminView: {
-            values: components["schemas"]["CpiValueView"][];
-            runs: components["schemas"]["CpiRunView"][];
+        CpiRunPage: {
+            items: components["schemas"]["CpiRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         CpiRunView: {
             /** Format: uuid */
@@ -28750,6 +28972,13 @@ export interface components {
         };
         CpiValueBody: {
             value?: null | string;
+        };
+        CpiValuePage: {
+            items: components["schemas"]["CpiValueView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         CpiValueView: {
             month: string;
@@ -29529,6 +29758,13 @@ export interface components {
             /** Format: double */
             sharePct?: null | number;
         };
+        FailedDeliveryPage: {
+            items: components["schemas"]["FailedDeliveryView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+        };
         FailedDeliveryView: {
             /** Format: uuid */
             id: string;
@@ -29673,6 +29909,13 @@ export interface components {
         };
         FxSyncRequested: {
             requested: boolean;
+        };
+        FxSyncRunPage: {
+            items: components["schemas"]["FxSyncRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         FxSyncRunView: {
             /** Format: uuid */
@@ -30641,9 +30884,12 @@ export interface components {
             findings: string[];
         };
         IReadOnlyListOfSwitchLegBody: components["schemas"]["SwitchLegBody"][];
-        IrlAdminView: {
-            values: components["schemas"]["IrlValueView"][];
-            runs: components["schemas"]["IrlRunView"][];
+        IrlRunPage: {
+            items: components["schemas"]["IrlRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         IrlRunView: {
             /** Format: uuid */
@@ -30667,6 +30913,13 @@ export interface components {
         IrlValueBody: {
             value?: null | string;
             publishedOn?: null | string;
+        };
+        IrlValuePage: {
+            items: components["schemas"]["IrlValueView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         IrlValueView: {
             quarter: string;
@@ -30723,7 +30976,8 @@ export interface components {
             cron?: null | string;
             /** Format: date-time */
             nextRunAt?: null | string;
-            runs: components["schemas"]["JobRunView"][];
+            lastRun?: null | components["schemas"]["JobRunView"];
+            runs: components["schemas"]["JobRunPage"];
         };
         JobRunDetailView: {
             /** Format: uuid */
@@ -30739,6 +30993,13 @@ export interface components {
             summary?: null | string;
             logs?: null | string[];
             logsAvailable: boolean;
+        };
+        JobRunPage: {
+            items: components["schemas"]["JobRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         JobRunView: {
             /** Format: uuid */
@@ -31687,6 +31948,13 @@ export interface components {
             /** Format: double */
             changePct?: null | number;
             real?: null | components["schemas"]["RealPercentView"];
+        };
+        PriceRunPage: {
+            items: components["schemas"]["PriceRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         PriceRunView: {
             /** Format: uuid */

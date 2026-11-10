@@ -12,9 +12,10 @@ import { Field } from '@/components/form/Field';
 import { FormDialog } from '@/components/FormDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
+import { SortableTable } from '@/components/page/SortableTable';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { SeriesLink } from '@/components/page/SeriesLink';
 import { fromOf } from '@/features/series/selection';
@@ -40,7 +41,9 @@ export function FxPage() {
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [entering, setEntering] = useState(false);
   const [tab, setTab] = useDetailTab(['series', 'journal'] as const);
-  const runs = $api.useQuery('get', RUNS);
+  const [page, toPage] = useListPage();
+  const runs = $api.useQuery('get', RUNS, { params: { query: { page } } });
+  useStepBack(page, runs.data, toPage);
 
   const fail = (error: unknown) => {
     setProblem(present(toProblem(error)));
@@ -87,31 +90,26 @@ export function FxPage() {
         { id: 'journal', label: t('admin.tab_journal'), content: (
           <Section title={t('admin.fx.runs_title')}>
             {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-            {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
-            {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
-            {runs.data && runs.data.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('admin.fx.started')}</TableHead>
-                    <TableHead>{t('admin.fx.kind')}</TableHead>
-                    <TableHead>{t('admin.fx.status')}</TableHead>
-                    <TableHead>{t('admin.fx.rows')}</TableHead>
-                    <TableHead>{t('admin.fx.failure')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {runs.data.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell>{formatInstant(r.startedAt)}</TableCell>
-                      <TableCell>{kindLabel(r.kind)}</TableCell>
-                      <TableCell>{statusLabel(r.status)}</TableCell>
-                      <TableCell>{r.rowsWritten}</TableCell>
-                      <TableCell>{r.failureCode}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            {!runs.error && (!runs.data || (runs.data.items.length === 0 && runs.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
+            {runs.data && runs.data.total === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
+            {runs.data && runs.data.items.length > 0 ? (
+              <>
+                <SortableTable caption={t('admin.fx.runs_title')} rows={runs.data.items} rowKey={(r) => r.id}
+                  columns={[
+                    { id: 'started', header: t('admin.fx.started'), cell: (r) => formatInstant(r.startedAt) },
+                    { id: 'kind', header: t('admin.fx.kind'), cell: (r) => kindLabel(r.kind) },
+                    { id: 'status', header: t('admin.fx.status'), cell: (r) => statusLabel(r.status) },
+                    { id: 'rows', header: t('admin.fx.rows'), cell: (r) => r.rowsWritten },
+                    { id: 'failure', header: t('admin.fx.failure'), cell: (r) => r.failureCode },
+                  ]}
+                  mobile={(r) => (
+                    <>
+                      <p className="font-medium">{formatInstant(r.startedAt)}</p>
+                      <p className="text-sm text-muted-foreground">{kindLabel(r.kind)} · {statusLabel(r.status)} · {r.rowsWritten}{r.failureCode ? ` · ${r.failureCode}` : ''}</p>
+                    </>
+                  )} />
+                <Pager page={page} total={runs.data.total} onPage={toPage} />
+              </>
             ) : null}
           </Section>
         ) },

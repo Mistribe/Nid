@@ -31,7 +31,7 @@ public sealed class CatalogReportFilter
     /// the journal takes says nothing about whether one exists (final review H1).
     /// </summary>
     public static async Task<CatalogReportFilter> ForAsync(
-        Actor? reader, IReadOnlyList<CatalogSyncRun> runs, IVisibleItems visible, CancellationToken ct)
+        Actor? reader, IVisibleItems visible, CancellationToken ct)
     {
         if (reader?.Kind == ActorKind.System)
             return None;

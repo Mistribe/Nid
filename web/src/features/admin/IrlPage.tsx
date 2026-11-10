@@ -15,12 +15,13 @@ import { SeriesLink } from '@/components/page/SeriesLink';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { todayIso } from '@/lib/today';
 import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
+import { SortableTable } from '@/components/page/SortableTable';
 import { AdminFrame } from './AdminFrame';
 import { AdminSeries } from './AdminSeries';
 import { formatInstant } from '@/lib/format';
@@ -29,6 +30,7 @@ import '@/locales/forms';
 
 const HOUSEHOLD = '/api/v1/admin/household';
 const IRL = '/api/v1/realestate/irl';
+const RUNS = '/api/v1/realestate/irl/runs';
 
 const STATUS = { running: 'admin.fx.status_running', succeeded: 'admin.fx.status_succeeded', failed: 'admin.fx.status_failed' } as const;
 const QUARTERS = [1, 2, 3, 4].map((q) => ({ value: String(q), label: `T${q}` }));
@@ -44,7 +46,6 @@ export function IrlPage() {
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [tab, setTab] = useDetailTab(['series', 'journal'] as const);
   const household = $api.useQuery('get', HOUSEHOLD);
-  const irl = $api.useQuery('get', IRL);
 
   const fail = (error: unknown) => {
     setProblem(present(toProblem(error)));
@@ -62,6 +63,7 @@ export function IrlPage() {
       setProblem(null);
       toast.success(t('admin.irl.sync_requested'));
       void queryClient.invalidateQueries({ queryKey: ['get', IRL] });
+      void queryClient.invalidateQueries({ queryKey: ['get', RUNS] });
     },
     onError: (error) => {
       // Not a failure to explain: the update the admin asked for is already under way.
@@ -71,9 +73,6 @@ export function IrlPage() {
       } else fail(error);
     },
   });
-  // The wire carries plain strings; an unknown value is shown as it came rather than hidden.
-  const statusLabel = (status: string) => (status in STATUS ? t(STATUS[status as keyof typeof STATUS]) : status);
-
   const title = t('admin.irl.title');
   if (household.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(household.error))} /></AdminFrame>;
   if (!household.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></AdminFrame>;
@@ -90,78 +89,93 @@ export function IrlPage() {
           onConfirm={() => sync.mutate({})} />
       </section>
 
-      {irl.error ? <ProblemMessage problem={present(toProblem(irl.error))} /> : null}
-
       <ManualQuarter />
 
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'series', label: t('admin.tab_series'), content: (
           <>
             <AdminSeries seriesKey="irl" />
-            <Section title={t('admin.irl.values_title')} actions={<SeriesLink keys={['irl']} />}>
-              {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
-              {irl.data && irl.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_values')} body="" level={3} /> : null}
-              {irl.data && irl.data.values.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('admin.irl.quarter')}</TableHead>
-                      <TableHead>{t('admin.irl.value')}</TableHead>
-                      <TableHead>{t('admin.irl.published')}</TableHead>
-                      <TableHead>{t('admin.irl.fetched')}</TableHead>
-                      <TableHead>{t('admin.irl.source')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {irl.data.values.map((v) => (
-                      <TableRow key={v.quarter}>
-                        <TableCell>{quarterText(v.quarter)}</TableCell>
-                        <TableCell className="tabular-nums">{v.value}</TableCell>
-                        <TableCell>{v.publishedOn ? formatLocalDate(v.publishedOn) : null}</TableCell>
-                        <TableCell>{formatLocalDate(v.fetchedOn)}</TableCell>
-                        <TableCell>{v.source === 'insee' ? t('admin.irl.source_insee') : t('admin.irl.source_manual')}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : null}
-            </Section>
+            <IrlValues />
           </>
         ) },
         { id: 'journal', label: t('admin.tab_journal'), content: (
-          <Section title={t('admin.irl.runs_title')}>
-            {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
-            {irl.data && irl.data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_runs')} body="" level={3} /> : null}
-            {irl.data && irl.data.runs.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('admin.irl.started')}</TableHead>
-                    <TableHead>{t('admin.irl.status')}</TableHead>
-                    <TableHead>{t('admin.irl.added')}</TableHead>
-                    <TableHead>{t('admin.irl.replaced')}</TableHead>
-                    <TableHead>{t('admin.irl.rejected')}</TableHead>
-                    <TableHead>{t('admin.irl.message')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {irl.data.runs.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell>{formatInstant(r.startedAt)}</TableCell>
-                      <TableCell>{statusLabel(r.status)}</TableCell>
-                      <TableCell>{r.added}</TableCell>
-                      <TableCell>{r.replaced}</TableCell>
-                      <TableCell>{r.rejected}</TableCell>
-                      <TableCell>{r.message}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : null}
-          </Section>
+          <IrlRuns />
         ) },
       ]} />
     </AdminFrame>
+  );
+}
+
+/** The stored quarters, newest first, a page at a time. */
+function IrlValues() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const [page, toPage] = useListPage();
+  const irl = $api.useQuery('get', IRL, { params: { query: { page } } });
+  useStepBack(page, irl.data, toPage);
+  return (
+    <Section title={t('admin.irl.values_title')} actions={<SeriesLink keys={['irl']} />}>
+      {irl.error ? <ProblemMessage problem={present(toProblem(irl.error))} /> : null}
+      {!irl.error && (!irl.data || (irl.data.items.length === 0 && irl.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
+      {irl.data && irl.data.total === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_values')} body="" level={3} /> : null}
+      {irl.data && irl.data.items.length > 0 ? (
+        <>
+          <SortableTable caption={t('admin.irl.values_title')} rows={irl.data.items} rowKey={(v) => v.quarter}
+            columns={[
+              { id: 'quarter', header: t('admin.irl.quarter'), cell: (v) => quarterText(v.quarter) },
+              { id: 'value', header: t('admin.irl.value'), cell: (v) => <span className="tabular-nums">{v.value}</span> },
+              { id: 'published', header: t('admin.irl.published'), cell: (v) => (v.publishedOn ? formatLocalDate(v.publishedOn) : null) },
+              { id: 'fetched', header: t('admin.irl.fetched'), cell: (v) => formatLocalDate(v.fetchedOn) },
+              { id: 'source', header: t('admin.irl.source'), cell: (v) => (v.source === 'insee' ? t('admin.irl.source_insee') : t('admin.irl.source_manual')) },
+            ]}
+            mobile={(v) => (
+              <>
+                <p className="font-medium">{quarterText(v.quarter)} · <span className="tabular-nums">{v.value}</span></p>
+                <p className="text-sm text-muted-foreground">{v.source === 'insee' ? t('admin.irl.source_insee') : t('admin.irl.source_manual')} · {formatLocalDate(v.fetchedOn)}</p>
+              </>
+            )} />
+          <Pager page={page} total={irl.data.total} onPage={toPage} />
+        </>
+      ) : null}
+    </Section>
+  );
+}
+
+/** The collection journal, newest first, a page at a time. */
+function IrlRuns() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const [page, toPage] = useListPage();
+  const runs = $api.useQuery('get', RUNS, { params: { query: { page } } });
+  useStepBack(page, runs.data, toPage);
+  // The wire carries plain strings; an unknown value is shown as it came rather than hidden.
+  const statusLabel = (status: string) => (status in STATUS ? t(STATUS[status as keyof typeof STATUS]) : status);
+  return (
+    <Section title={t('admin.irl.runs_title')}>
+      {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
+      {!runs.error && (!runs.data || (runs.data.items.length === 0 && runs.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
+      {runs.data && runs.data.total === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_runs')} body="" level={3} /> : null}
+      {runs.data && runs.data.items.length > 0 ? (
+        <>
+          <SortableTable caption={t('admin.irl.runs_title')} rows={runs.data.items} rowKey={(r) => r.id}
+            columns={[
+              { id: 'started', header: t('admin.irl.started'), cell: (r) => formatInstant(r.startedAt) },
+              { id: 'status', header: t('admin.irl.status'), cell: (r) => statusLabel(r.status) },
+              { id: 'added', header: t('admin.irl.added'), cell: (r) => r.added },
+              { id: 'replaced', header: t('admin.irl.replaced'), cell: (r) => r.replaced },
+              { id: 'rejected', header: t('admin.irl.rejected'), cell: (r) => r.rejected },
+              { id: 'message', header: t('admin.irl.message'), cell: (r) => r.message },
+            ]}
+            mobile={(r) => (
+              <>
+                <p className="font-medium">{formatInstant(r.startedAt)}</p>
+                <p className="text-sm text-muted-foreground">{statusLabel(r.status)} · {r.added} · {r.replaced} · {r.rejected}{r.message ? ` · ${r.message}` : ''}</p>
+              </>
+            )} />
+          <Pager page={page} total={runs.data.total} onPage={toPage} />
+        </>
+      ) : null}
+    </Section>
   );
 }
 

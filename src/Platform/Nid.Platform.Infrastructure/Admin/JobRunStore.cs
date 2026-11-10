@@ -33,6 +33,12 @@ public sealed class JobRunStore(PlatformDbContext db) : IJobRunStore
     public async Task<IReadOnlyList<JobRunView>> ListAsync(string jobKey, int limit, CancellationToken ct)
         => (await Newest(jobKey).Take(limit).ToListAsync(ct)).Select(View).ToList();
 
+    public async Task<(IReadOnlyList<JobRunView> Items, int Total)> PageAsync(string jobKey, int skip, int take, CancellationToken ct)
+    {
+        var rows = await Newest(jobKey).Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(View).ToList(), await db.JobRuns.CountAsync(r => r.JobKey == jobKey, ct));
+    }
+
     public async Task<(JobRunView Run, bool HasLogs)?> FindAsync(string jobKey, Guid id, CancellationToken ct)
     {
         var row = await db.JobRuns.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id && r.JobKey == jobKey, ct);

@@ -56,6 +56,12 @@ public sealed class CpiRunLog(CoreDbContext db, IClock clock) : ICpiRunLog
     public async Task<IReadOnlyList<CpiRunView>> RecentAsync(int count, CancellationToken ct)
         => (await db.CpiRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).Take(count).ToListAsync(ct)).Select(ToView).ToList();
 
+    public async Task<(IReadOnlyList<CpiRunView> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)
+    {
+        var rows = await db.CpiRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).ThenByDescending(r => r.Id).Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(ToView).ToList(), await db.CpiRuns.CountAsync(ct));
+    }
+
     public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
         => await db.CpiRuns.Where(r => r.StartedAt < before && r.Status != "running").ExecuteDeleteAsync(ct);
 
