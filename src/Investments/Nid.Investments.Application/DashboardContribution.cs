@@ -51,14 +51,14 @@ public sealed class EnvelopesNetWorth(
             if (!facts.TryGetValue(envelope.ItemId, out var f))
             {
                 withoutValue++;
-                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners));
+                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners, UnlocksAtRetirement: envelope.Kind == EnvelopeKind.Per));
                 continue;
             }
             var figures = EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             if (figures.Value is null)
             {
                 withoutValue++;
-                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners));
+                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners, UnlocksAtRetirement: f.Envelope.Kind == EnvelopeKind.Per));
                 continue;
             }
             var (value, asOf, estimated, lines) = TodayValue.Pick(figures, estimates.GetValueOrDefault(envelope.ItemId));
@@ -68,7 +68,7 @@ public sealed class EnvelopesNetWorth(
             if (figures.StaleDays is not null) stale++;
             holdings.Add(new Holding(envelope.ItemId, "investments", name, value, asOf, figures.StaleDays is not null, owners,
                 EnvelopeAllocation.Of(f.Envelope.Kind, value.Amount, EnvelopeAllocation.Latest(export.Snapshots, envelope.ItemId, today), holdingsOf, lines),
-                estimated, figures.AsOf));
+                estimated, figures.AsOf, f.Envelope.Kind == EnvelopeKind.Per));
 
             if (SinceJanuary(f, today) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
             {

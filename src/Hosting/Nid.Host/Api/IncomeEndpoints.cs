@@ -17,8 +17,8 @@ public static class IncomeEndpoints
         var api = routes.MapGroup("/api/v1/income").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
-        api.MapGet("/sources", async (string? scope, bool? archived, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListIncomeSourcesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))
+        api.MapGet("/sources", async (string? scope, bool? archived, string? kind, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListIncomeSourcesQuery(ParseScope(scope), archived ?? false, kind), ct)).ToHttp(list => list))
             .Returns<IncomeSourceList>();
 
         api.MapGet("/sources/{id:guid}", async (Guid id, string? from, string? to, IInvoker invoker, CancellationToken ct)

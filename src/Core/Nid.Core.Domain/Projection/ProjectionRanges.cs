@@ -49,7 +49,7 @@ public static class ProjectionRanges
                 for (var k = 1; k < shocked.Length; k++) shocked[k] = (1m + c.Value[k]) * monthly[yearOf[k]] - 1m;
                 return (IReadOnlyList<decimal>)shocked;
             });
-            results[run] = HouseholdProjection.Project(inputs with { Rates = rates with { MonthlyClassRate = classRates } });
+            results[run] = HouseholdProjection.Project(inputs with { Expenses0 = null, Rates = rates with { MonthlyClassRate = classRates } });
         });
 
         var points = results[0].Points.Select((p, i) => (p.On, i)).AsParallel().AsOrdered().Select(x =>

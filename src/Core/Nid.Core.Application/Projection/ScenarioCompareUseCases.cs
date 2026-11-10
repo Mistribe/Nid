@@ -67,7 +67,7 @@ public sealed class CompareScenariosHandler(
                     new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.PropertyPurchase, new EventDate(today, null, null), null, null, null,
                         null, null, null, null, null, null, null, null, item.Id),
                 ]);
-            var read = await reader.ReadAsync(document, query.Scope, ct);
+            var read = await reader.ReadAsync(document, query.Scope, true, ct);
             if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionCompareView>(failure!);
             read.TryGetValue(out var reading);
             var comparison = ProjectionComparisonView.From(reading!);

@@ -72,6 +72,7 @@ public sealed class PersonRow
     public string Preferences { get; set; } = "{}";
     public LocalDate? BirthDate { get; set; }
     public int RetirementAge { get; set; } = 64;
+    public int RetirementMonths { get; set; }
     public Instant CreatedAt { get; set; }
     public uint Version { get; set; }
 }

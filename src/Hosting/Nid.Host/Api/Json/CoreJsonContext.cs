@@ -42,6 +42,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(PersonEndpoints.SharingBody))]
 [JsonSerializable(typeof(ProjectionAssumptionsView))]
 [JsonSerializable(typeof(ProjectionView))]
+[JsonSerializable(typeof(RetirementView))]
 [JsonSerializable(typeof(ProjectionComparisonView))]
 [JsonSerializable(typeof(ProjectionCompareView))]
 [JsonSerializable(typeof(ProjectionScenarioView))]
