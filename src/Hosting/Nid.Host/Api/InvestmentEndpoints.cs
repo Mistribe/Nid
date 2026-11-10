@@ -18,9 +18,9 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new RequestPriceSyncCommand(), ct)).ToHttp(r => r, StatusCodes.Status202Accepted))
             .Returns<PriceSyncRequested>(StatusCodes.Status202Accepted);
 
-        api.MapGet("/prices/runs", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPriceRunsQuery(), ct)).ToHttp(r => r))
-            .Returns<IReadOnlyList<PriceRunView>>();
+        api.MapGet("/prices/runs", async (int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPriceRunsQuery(page), ct)).ToHttp(r => r))
+            .Returns<PriceRunPage>();
 
         api.MapGet("/envelopes", async (string? scope, bool? archived, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))

@@ -8,9 +8,10 @@ import { ConfirmAction } from '@/components/ConfirmAction';
 import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
+import { SortableTable } from '@/components/page/SortableTable';
 import { AdminFrame } from './AdminFrame';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
@@ -27,7 +28,9 @@ export function PricesPage() {
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const household = $api.useQuery('get', HOUSEHOLD);
-  const runs = $api.useQuery('get', RUNS);
+  const [page, toPage] = useListPage();
+  const runs = $api.useQuery('get', RUNS, { params: { query: { page } } });
+  useStepBack(page, runs.data, toPage);
 
   const fail = (error: unknown) => {
     setProblem(present(toProblem(error)));
@@ -81,36 +84,30 @@ export function PricesPage() {
       <Section title={t('admin.prices.runs_title')}>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
         {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={8} /></Loading> : null}
-        {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.prices.no_runs')} body="" level={3} /> : null}
-        {runs.data && runs.data.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('admin.prices.started')}</TableHead>
-                <TableHead>{t('admin.prices.status')}</TableHead>
-                <TableHead>{t('admin.prices.queried')}</TableHead>
-                <TableHead>{t('admin.prices.accepted')}</TableHead>
-                <TableHead>{t('admin.prices.rejected')}</TableHead>
-                <TableHead>{t('admin.prices.not_found')}</TableHead>
-                <TableHead>{t('admin.prices.source_errors')}</TableHead>
-                <TableHead>{t('admin.prices.failure')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {runs.data.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{formatInstant(r.startedAt)}</TableCell>
-                  <TableCell>{statusLabel(r.status)}</TableCell>
-                  <TableCell>{r.queried}</TableCell>
-                  <TableCell>{r.accepted}</TableCell>
-                  <TableCell>{r.rejected}</TableCell>
-                  <TableCell>{r.notFound}</TableCell>
-                  <TableCell>{r.sourceErrors}</TableCell>
-                  <TableCell>{r.failureCode}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        {runs.data && runs.data.items.length === 0 ? <EmptyState module="/admin" title={t('admin.prices.no_runs')} body="" level={3} /> : null}
+        {runs.data && runs.data.items.length > 0 ? (
+          <>
+            <SortableTable caption={t('admin.prices.runs_title')} rows={runs.data.items} rowKey={(r) => r.id}
+              columns={[
+                { id: 'started', header: t('admin.prices.started'), cell: (r) => formatInstant(r.startedAt) },
+                { id: 'status', header: t('admin.prices.status'), cell: (r) => statusLabel(r.status) },
+                { id: 'queried', header: t('admin.prices.queried'), cell: (r) => r.queried },
+                { id: 'accepted', header: t('admin.prices.accepted'), cell: (r) => r.accepted },
+                { id: 'rejected', header: t('admin.prices.rejected'), cell: (r) => r.rejected },
+                { id: 'not_found', header: t('admin.prices.not_found'), cell: (r) => r.notFound },
+                { id: 'source_errors', header: t('admin.prices.source_errors'), cell: (r) => r.sourceErrors },
+                { id: 'failure', header: t('admin.prices.failure'), cell: (r) => r.failureCode },
+              ]}
+              mobile={(r) => (
+                <>
+                  <p className="font-medium">{formatInstant(r.startedAt)} · {statusLabel(r.status)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('admin.prices.queried')} {r.queried} · {t('admin.prices.accepted')} {r.accepted} · {t('admin.prices.rejected')} {r.rejected} · {t('admin.prices.not_found')} {r.notFound} · {t('admin.prices.source_errors')} {r.sourceErrors}{r.failureCode ? ` · ${r.failureCode}` : ''}
+                  </p>
+                </>
+              )} />
+            <Pager page={page} total={runs.data.total} onPage={toPage} />
+          </>
         ) : null}
       </Section>
     </AdminFrame>

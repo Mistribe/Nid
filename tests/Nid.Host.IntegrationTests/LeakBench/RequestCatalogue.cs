@@ -164,7 +164,7 @@ public static class RequestCatalogue
         new(typeof(GetFxSyncRunsQuery), false, (_, _) => new GetFxSyncRunsQuery(null)),
         new(typeof(CollectPricesCommand), false, (_, _) => new CollectPricesCommand()),
         new(typeof(RequestPriceSyncCommand), false, (_, _) => new RequestPriceSyncCommand()),
-        new(typeof(GetPriceRunsQuery), false, (_, _) => new GetPriceRunsQuery()),
+        new(typeof(GetPriceRunsQuery), false, (_, _) => new GetPriceRunsQuery(null)),
         new(typeof(CollectIrlCommand), false, (_, _) => new CollectIrlCommand()),
         new(typeof(RequestIrlSyncCommand), false, (_, _) => new RequestIrlSyncCommand()),
         new(typeof(GetIrlQuery), false, (_, _) => new GetIrlQuery()),

@@ -3065,7 +3065,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3078,7 +3080,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PriceRunView"][];
+                        "application/json": components["schemas"]["PriceRunPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -31324,6 +31326,13 @@ export interface components {
             /** Format: double */
             changePct?: null | number;
             real?: null | components["schemas"]["RealPercentView"];
+        };
+        PriceRunPage: {
+            items: components["schemas"]["PriceRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
         };
         PriceRunView: {
             /** Format: uuid */

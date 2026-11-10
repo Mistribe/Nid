@@ -88,6 +88,9 @@ public interface IPriceRunLog
     /// <summary>The most recent runs first.</summary>
     Task<IReadOnlyList<PriceRun>> RecentAsync(int count, CancellationToken ct);
 
+    /// <summary>One page of runs, newest first, and the total number of runs.</summary>
+    Task<(IReadOnlyList<PriceRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
+
     /// <summary>Deletes finished runs started before <paramref name="before"/>.</summary>
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
 }

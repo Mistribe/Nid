@@ -3182,16 +3182,23 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PriceRunView"
-                  }
+                  "$ref": "#/components/schemas/PriceRunPage"
                 }
               }
             }
@@ -45390,6 +45397,30 @@
                 "$ref": "#/components/schemas/RealPercentView"
               }
             ]
+          }
+        }
+      },
+      "PriceRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
