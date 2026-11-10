@@ -58,7 +58,7 @@ public static class StatementSummary
                 days.Add(day with { Present = true, Arrival = from, Departure = from.PlusMinutes(length) });
             }
             else
-                days.Add(day.Present ? day with { Present = false, Arrival = null, Departure = null, Meal = false, Absence = absence } : day);
+                days.Add(day.Present ? day with { Present = false, Arrival = null, Departure = null, Lunch = false, Snack = false, Absence = absence } : day);
         }
         return (days, []);
     }

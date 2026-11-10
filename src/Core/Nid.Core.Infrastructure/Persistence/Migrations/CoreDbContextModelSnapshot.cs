@@ -1195,12 +1195,6 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_proposal_person_for_person_id");
-
-                    b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
-                        .WithMany()
-                        .HasForeignKey("TargetItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_proposal_item_target_item_id");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ScenarioRow", b =>

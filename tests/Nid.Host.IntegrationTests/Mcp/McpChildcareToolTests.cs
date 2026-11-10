@@ -9,15 +9,15 @@ namespace Nid.Host.IntegrationTests.Mcp;
 /// <summary>Childcare decision 27: the assistant reads arrangements and statements as their routes answer them.</summary>
 public class McpChildcareToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    private static async Task<string> CreateAsync(NidApp app)
+    internal static async Task<string> CreateAsync(NidApp app)
     {
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/childcare", new
         {
             name = "Garde de Léa", childId = app.Dependent.Value, carer = new { name = "Martine", pajemploi = (string?)null, approval = (string?)null },
             terms = new
             {
-                from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", mealPrice = (string?)null,
-                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", meal = false } } } },
+                from = "2025-09-01", netHourlyRate = "4", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4", lunchPrice = (string?)null,
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", lunch = false } } } },
             },
             gaps = Array.Empty<object>(), visibility = "shared", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
         });

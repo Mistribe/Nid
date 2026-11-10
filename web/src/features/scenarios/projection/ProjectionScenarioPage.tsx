@@ -17,6 +17,7 @@ import { PageTrail, type Crumb } from '@/components/page/trail';
 import { RowMenu, shownOr } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
+import { RangesToggle } from '@/features/dashboard/ProjectionRanges';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,6 +81,7 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
   const readingId = useId();
   const [tab, setTab] = useDetailTab(TABS);
   const [real, setReal] = useState(true);
+  const [ranges, setRanges] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<ScenarioDialog | null>(null);
   const [refused, setRefused] = useState<Refused | null>(null);
@@ -187,9 +189,10 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
               <span id={readingId} className="sr-only">{t('dashboard.projection.reading')}</span>
               <Segmented aria-labelledby={readingId} value={real ? 'real' : 'nominal'} onValueChange={(v) => setReal(v === 'real')}
                 options={[{ value: 'real', label: t('dashboard.projection.real') }, { value: 'nominal', label: t('dashboard.projection.nominal') }]} />
+              <RangesToggle pressed={ranges} onPressedChange={setRanges} />
             </>
           ),
-          content: <Suspense fallback={tabFallback}><ProjectionScenarioTab comparison={result} real={real} /></Suspense>,
+          content: <Suspense fallback={tabFallback}><ProjectionScenarioTab id={scenario.id} comparison={result} real={real} ranges={ranges} /></Suspense>,
         },
         {
           id: 'events', label: t('scenarios.projection.detail.tab.events'),

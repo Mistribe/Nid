@@ -61,11 +61,13 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
     {
         var annual = Mensualisation.AnnualHours(t.WeekTypes);
         return new ChildcareTermsView(t.From, t.To, Text(t.NetHourlyRate), t.GrossHourlyRate is { } g ? Text(g) : null, Text(t.OvertimeRate * 100m),
-            Text(t.UpkeepPer9h), t.MealPrice is { } m ? Text(m) : null,
+            Text(t.UpkeepPer9h), t.LunchPrice is { } m ? Text(m) : null, t.SnackPrice is { } sp ? Text(sp) : null,
+            MealProviderCodes.Of(t.LunchProvider), MealProviderCodes.Of(t.SnackProvider),
             t.WeekTypes.Select(w => new WeekTypeView(w.Name, w.Weeks,
-                w.Schedule.Select(s => new WeekdaySlotView((int)s.Day, Time.Format(s.Arrival), Time.Format(s.Departure), s.Meal)).ToList(),
+                w.Schedule.Select(s => new WeekdaySlotView((int)s.Day, Time.Format(s.Arrival), Time.Format(s.Departure), s.Lunch, s.Snack)).ToList(),
                 Hours(Mensualisation.WeeklyHours(w.Schedule)))).ToList(),
-            t.ProgrammedWeeks, ChildcareMoneyView.Of(Mensualisation.BasePay(t.NetHourlyRate, annual), currency), Hours(annual / 12m), Mensualisation.NormalHours(annual));
+            t.ProgrammedWeeks, ChildcareMoneyView.Of(Mensualisation.BasePay(t.NetHourlyRate, annual), currency), Hours(annual / 12m), Mensualisation.NormalHours(annual),
+            (t.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid).Select(AbsenceCodes.Of).ToList());
     }
 
     private static string Hours(decimal hours) => hours.ToString("0.00", CultureInfo.InvariantCulture);

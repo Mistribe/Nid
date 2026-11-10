@@ -33,7 +33,7 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
-export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0 };
+export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
 /** The kind of scenario to create: a purchase without it (the page it always was), a projection or a sale (issue #416) with it. */
 export type NewScenarioSearch = { kind?: 'projection' | 'sale' };
@@ -58,9 +58,9 @@ export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'
 
 /**
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
- * default and stays out of the URL), person, kind and isolated source; anything invalid is dropped.
+ * default and stays out of the URL), person, kind and isolated source; the tab (issue #20); anything invalid is dropped.
  */
-export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string };
+export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string; tab?: string };
 
 /**
  * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue
@@ -136,6 +136,7 @@ const dashboardRoute = createRoute({
       ...(search.projection === '5y' || search.projection === '20y' || search.projection === '30y' ? { projection: search.projection } : {}),
       ...(typeof search.projection === 'string' && RETIRE.test(search.projection) ? { projection: search.projection as ProjectionHorizon } : {}),
       ...(search.real === 0 || search.real === '0' ? { real: 0 as const } : {}),
+      ...(search.ranges === 1 || search.ranges === '1' ? { ranges: 1 as const } : {}),
     }),
   component: DashboardPage,
 });
@@ -311,6 +312,7 @@ const incomeRoute = createRoute({
     ...(typeof search.person === 'string' && search.person ? { person: search.person } : {}),
     ...(typeof search.kind === 'string' && search.kind ? { kind: search.kind } : {}),
     ...(typeof search.source === 'string' && search.source ? { source: search.source } : {}),
+    ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourcesPage'), 'IncomeSourcesPage'),
 });

@@ -161,7 +161,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             MapXmin(e.Property(x => x.Version));
         });
 
-        // Spec 3C2 §2. No foreign key to the property, as the loan's link: a property is never deleted.
+        // Spec 3C2 §2. No foreign key to the property, as the loan's link: a property delete (#23) removes its costs itself.
         modelBuilder.Entity<PropertyRecurringCostRow>(e =>
         {
             e.ToTable("property_recurring_cost", t =>

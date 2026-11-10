@@ -186,7 +186,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
         </Section>
       ) : null}
 
-      <Declaration declaration={view.figures?.declaration ?? null} computed={view.computed} missing={view.missingReferenceMonths} entry={entry} />
+      <Declaration declaration={view.figures?.declaration ?? null} computed={view.computed} mealCharges={view.mealCharges} missing={view.missingReferenceMonths} entry={entry} />
 
       {summarising ? (
         <MonthSummaryDialog error={error} pending={save.isPending} onClose={() => { setSummarising(false); setError(''); }}
@@ -204,7 +204,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
 function DayRow({ day, problems, onEdit }: { day: StatementDay; problems: string[]; onEdit: (() => void) | null }) {
   const { t } = useTranslation();
   const title = dayTitle(day.date);
-  const presence = day.present ? t('childcare_statement.present') : day.absence ? reasonLabel(t, day.absence) : day.planned ? t('childcare_statement.absent') : t('childcare_statement.unplanned');
+  const presence = day.present ? (day.absence ? `${t('childcare_statement.present')} · ${reasonLabel(t, day.absence)}` : t('childcare_statement.present')) : day.absence ? reasonLabel(t, day.absence) : day.planned ? t('childcare_statement.absent') : t('childcare_statement.unplanned');
   return (
     <TableRow data-changed={day.changed || undefined} className={day.planned || day.present ? undefined : 'text-muted-foreground'}>
       <TableCell>
@@ -215,7 +215,7 @@ function DayRow({ day, problems, onEdit }: { day: StatementDay; problems: string
       </TableCell>
       <TableCell>{presence}</TableCell>
       <TableCell className="tabular-nums">{day.present ? `${day.arrival} – ${day.departure}` : ''}</TableCell>
-      <TableCell>{day.present && day.meal ? t('childcare_statement.meal_yes') : ''}</TableCell>
+      <TableCell>{day.present ? [day.lunch ? t('childcare_statement.lunch') : '', day.snack ? t('childcare_statement.snack') : ''].filter(Boolean).join(' · ') : ''}</TableCell>
     </TableRow>
   );
 }

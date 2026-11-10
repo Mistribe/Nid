@@ -10,7 +10,7 @@ name: ci
 #    GitHub release): the pull request already ran its checks on the tree being merged;
 #  - every Monday, every check runs on `main` whatever changed: base images, the identity provider and the browsers move without
 #    a push;
-#  - a push or a pull request that only touches docs runs nothing.
+#  - a push that only touches docs releases nothing; a pull request that only touches docs runs only `changes` and `ci-ok`.
 #
 # Why the area filter is a job here and not `paths:` in each workflow: a workflow skipped by `paths:` reports no status, so a
 # required check would wait for it forever and block the merge. GitHub's advice is not to require a workflow that can be
@@ -23,9 +23,9 @@ on:
   push:
     branches: [main]
     paths-ignore: ['docs/**', '**/*.md']
+  # No paths-ignore here: a docs-only pull request must still get `ci-ok` (see above); `changes` skips every area instead.
   pull_request:
     branches: [main]
-    paths-ignore: ['docs/**', '**/*.md']
   schedule:
     - cron: '0 4 * * 1'
   workflow_dispatch:
@@ -65,7 +65,13 @@ jobs:
             { echo "backend=true"; echo "web=true"; echo "e2e=true"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # Docs (docs/, any .md) never start an area: a docs-only pull request runs nothing but `ci-ok`.
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | .filename, .previous_filename // empty')
+          files=$(grep -vE '^docs/|\.md$' <<< "$files" || true) # grep exits 1 when nothing is left, which is not an error
+          if [ -z "$files" ]; then
+            { echo "backend=false"; echo "web=false"; echo "e2e=false"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # The solution: anything outside web/, and openapi.json, which its build compares with the server's.
           if grep -qv '^web/' <<< "$files" || grep -qx 'web/src/api/openapi\.json' <<< "$files"; then backend=true; else backend=false; fi
           if grep -qE '^(web/|\.github/workflows/(ci|web)\.yml$)' <<< "$files"; then web=true; else web=false; fi

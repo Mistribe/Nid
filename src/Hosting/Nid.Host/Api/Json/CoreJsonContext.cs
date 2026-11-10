@@ -24,6 +24,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(IReadOnlyList<FxSyncRunView>))]
 [JsonSerializable(typeof(IReadOnlyList<TokenView>))]
 [JsonSerializable(typeof(AdultView))]
+[JsonSerializable(typeof(ItemDeletionPreview))] // #23: every module's delete preview
 [JsonSerializable(typeof(HouseholdSettingsView))]
 [JsonSerializable(typeof(CreatedTokenView))]
 [JsonSerializable(typeof(DashboardView))]

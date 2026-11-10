@@ -56,7 +56,7 @@ describe('ChildcareDetailPage', () => {
     expect(figures).toHaveTextContent('Semaines sans accueil6 semainesà placer');
     await user.click(screen.getByRole('tab', { name: 'Planning' }));
     const planning = screen.getByRole('list', { name: 'Planning type' });
-    expect(within(planning).getAllByRole('listitem')[0]).toHaveTextContent('Lundi 08:00 – 17:30 · repas');
+    expect(within(planning).getAllByRole('listitem')[0]).toHaveTextContent('Lundi 08:00 – 17:30 · déjeuner');
   });
 
   it('one week type shows no weeks list', async () => {
@@ -195,9 +195,9 @@ describe('ChildcareDetailPage', () => {
     await user.type(within(dialog).getByLabelText('Taux horaire net (€)'), '4,20');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la révision' }));
     await waitFor(() => expect(writes).toHaveLength(1));
-    const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', meal: true });
+    const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', lunch: true, snack: false });
     expect(writes[0]).toEqual({ path: `/api/v1/childcare/${ARRANGEMENT_ID}/revisions`, body: { terms: {
-      from: '2026-01-01', netHourlyRate: '4.20', overtimePct: '10', upkeepPer9h: '3.80', mealPrice: '3.2',
+      from: '2026-01-01', netHourlyRate: '4.20', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.2', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'],
       weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map(slot) }],
     } } });
   });
@@ -275,7 +275,7 @@ describe('ChildcareDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Terminer la garde' })).not.toBeInTheDocument();
     await openMore(user);
     await screen.findByRole('menuitem', { name: 'Terminer la garde' });
-    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Terminer la garde', 'Partage…']);
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Terminer la garde', 'Partage…', 'Supprimer…']);
   });
 
   it('a reader without write sees no actions', async () => {
@@ -284,5 +284,69 @@ describe('ChildcareDetailPage', () => {
     expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Réviser' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Modifier' })).not.toBeInTheDocument();
+  });
+
+  describe('deletion', () => {
+    const preview = (over: object = {}) => ({ name: 'Garde de Léa', version: 4, imported: false, removes: [], blockers: [], ...over });
+
+    it('Supprimer… is the last menu item of an open contract', async () => {
+      serve(detail());
+      const { user } = await renderApp(url);
+      await screen.findByRole('button', { name: 'Modifier' });
+      await openMore(user);
+      await waitFor(() => expect(screen.getAllByRole('menuitem').at(-1)).toHaveTextContent('Supprimer…'));
+    });
+
+    it('a closed contract keeps Supprimer… last, and its dialog has no close hint', async () => {
+      serve(detail({}, { closed: true, end: '2025-10-31' }));
+      server.use(http.get('*/api/v1/childcare/:id/deletion', () => HttpResponse.json(preview())));
+      const { user } = await renderApp(url);
+      await screen.findByRole('button', { name: 'Rouvrir' });
+      await openMore(user);
+      await waitFor(() => expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Partage…', 'Supprimer…']));
+      await user.click(screen.getByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer Garde de Léa' });
+      expect(await within(dialog).findByLabelText(/Tapez/)).toBeInTheDocument();
+      expect(dialog).not.toHaveTextContent('utilisez plutôt');
+    });
+
+    it('a reader has no Supprimer…', async () => {
+      serve(detail({}, { canWrite: false }));
+      await renderApp(url);
+      expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Supprimer…')).not.toBeInTheDocument();
+    });
+
+    it('validated months block: the count and the way out, no delete button', async () => {
+      serve(detail());
+      server.use(http.get('*/api/v1/childcare/:id/deletion', () => HttpResponse.json(preview({ blockers: [{ key: 'validated_statements', count: 2, items: [] }] }))));
+      const { user } = await renderApp(url);
+      await screen.findByRole('button', { name: 'Modifier' });
+      await openMore(user);
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer Garde de Léa' });
+      expect(await within(dialog).findByText(/2 mois validés/)).toBeInTheDocument();
+      expect(dialog).toHaveTextContent('Rouvrez d’abord les mois validés, du plus récent au plus ancien.');
+      expect(within(dialog).queryByRole('button', { name: 'Supprimer définitivement' })).not.toBeInTheDocument();
+    });
+
+    it('deletes after the name is typed, then leaves for the list, with the close hint', async () => {
+      serve(detail());
+      server.use(
+        http.get('*/api/v1/childcare/:id/deletion', () => HttpResponse.json(preview({ removes: [{ key: 'statements', count: 3 }] }))),
+        http.delete('*/api/v1/childcare/:id', () => new HttpResponse(null, { status: 204 })),
+      );
+      const { user, router } = await renderApp(url);
+      await screen.findByRole('button', { name: 'Modifier' });
+      await openMore(user);
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer Garde de Léa' });
+      expect(await within(dialog).findByText(/3 relevés mensuels/)).toBeInTheDocument();
+      expect(dialog).toHaveTextContent('Terminer la garde');
+      await user.type(await within(dialog).findByLabelText(/Tapez/), 'Garde de Léa');
+      await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/childcare'));
+    });
   });
 });

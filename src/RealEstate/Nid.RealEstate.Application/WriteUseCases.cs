@@ -155,3 +155,29 @@ public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore l
         return taken;
     }
 }
+
+/// <summary>#23: a loan created by mistake, deleted with its contract, fees, repayments and bank table. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeleteLoanCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>#23: what deleting a loan removes, read before the delete.</summary>
+public sealed record LoanDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPreview>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+[RequestHandler<DeleteLoanCommand, ItemId>]
+public sealed class DeleteLoanHandler(IItemDeletions deletions) : IRequestHandler<DeleteLoanCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeleteLoanCommand command, CancellationToken ct = default)
+        => (await deletions.DeleteAsync(command.ItemId, "realestate", "loan", command.Version, ct)).Map(() => command.ItemId);
+}
+
+[RequestHandler<LoanDeletionQuery, ItemDeletionPreview>]
+public sealed class LoanDeletionHandler(IItemDeletions deletions) : IRequestHandler<LoanDeletionQuery, ItemDeletionPreview>
+{
+    public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(LoanDeletionQuery query, CancellationToken ct = default)
+        => await deletions.PreviewAsync(query.ItemId, "realestate", "loan", ct);
+}

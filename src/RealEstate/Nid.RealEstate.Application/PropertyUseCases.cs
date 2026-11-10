@@ -169,3 +169,29 @@ public sealed class EditPropertyHandler(
         return Result.Success(command.ItemId);
     }
 }
+
+/// <summary>#23: a property created by mistake, deleted with its tenancies, costs and facts. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeletePropertyCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>#23: what deleting a property removes, and what refuses it (a loan, an insurance), read before the delete.</summary>
+public sealed record PropertyDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPreview>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+[RequestHandler<DeletePropertyCommand, ItemId>]
+public sealed class DeletePropertyHandler(IItemDeletions deletions) : IRequestHandler<DeletePropertyCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeletePropertyCommand command, CancellationToken ct = default)
+        => (await deletions.DeleteAsync(command.ItemId, "realestate", "property", command.Version, ct)).Map(() => command.ItemId);
+}
+
+[RequestHandler<PropertyDeletionQuery, ItemDeletionPreview>]
+public sealed class PropertyDeletionHandler(IItemDeletions deletions) : IRequestHandler<PropertyDeletionQuery, ItemDeletionPreview>
+{
+    public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(PropertyDeletionQuery query, CancellationToken ct = default)
+        => await deletions.PreviewAsync(query.ItemId, "realestate", "property", ct);
+}

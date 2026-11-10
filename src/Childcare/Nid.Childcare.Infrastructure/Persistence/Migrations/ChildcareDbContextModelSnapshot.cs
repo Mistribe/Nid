@@ -127,9 +127,9 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("time")
                         .HasColumnName("departure");
 
-                    b.Property<bool>("Meal")
+                    b.Property<bool>("Lunch")
                         .HasColumnType("boolean")
-                        .HasColumnName("meal");
+                        .HasColumnName("lunch");
 
                     b.Property<LocalDate>("Month")
                         .HasColumnType("date")
@@ -143,6 +143,10 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("present");
 
+                    b.Property<bool>("Snack")
+                        .HasColumnType("boolean")
+                        .HasColumnName("snack");
+
                     b.HasKey("ItemId", "Date")
                         .HasName("pk_statement_day");
 
@@ -151,7 +155,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
 
                     b.ToTable("statement_day", "childcare", t =>
                         {
-                            t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday')");
+                            t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave')");
 
                             t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
                         });
@@ -312,9 +316,17 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("gross_hourly_rate");
 
-                    b.Property<decimal?>("MealPrice")
+                    b.Property<decimal?>("LunchPrice")
                         .HasColumnType("numeric(19,4)")
-                        .HasColumnName("meal_price");
+                        .HasColumnName("lunch_price");
+
+                    b.Property<string>("LunchProvider")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("nanny")
+                        .HasColumnName("lunch_provider");
 
                     b.Property<decimal>("NetHourlyRate")
                         .HasColumnType("numeric(19,4)")
@@ -324,9 +336,28 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(9,4)")
                         .HasColumnName("overtime_rate");
 
+                    b.Property<decimal?>("SnackPrice")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("snack_price");
+
+                    b.Property<string>("SnackProvider")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("nanny")
+                        .HasColumnName("snack_provider");
+
                     b.Property<LocalDate?>("To")
                         .HasColumnType("date")
                         .HasColumnName("to");
+
+                    b.PrimitiveCollection<string[]>("UnpaidAbsences")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasColumnName("unpaid_absences")
+                        .HasDefaultValueSql("'{child_sick,carer_absent}'");
 
                     b.Property<decimal>("UpkeepPer9h")
                         .HasColumnType("numeric(19,4)")
@@ -337,9 +368,11 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
 
                     b.ToTable("terms", "childcare", t =>
                         {
-                            t.HasCheckConstraint("ck_terms_amounts", "net_hourly_rate > 0 and overtime_rate >= 0 and upkeep_per9h >= 0 and (meal_price is null or meal_price >= 0) and (gross_hourly_rate is null or gross_hourly_rate > 0)");
+                            t.HasCheckConstraint("ck_terms_amounts", "net_hourly_rate > 0 and overtime_rate >= 0 and upkeep_per9h >= 0 and (lunch_price is null or lunch_price >= 0) and (snack_price is null or snack_price >= 0) and (gross_hourly_rate is null or gross_hourly_rate > 0)");
 
                             t.HasCheckConstraint("ck_terms_dates", "\"to\" is null or \"to\" >= \"from\"");
+
+                            t.HasCheckConstraint("ck_terms_meal_providers", "lunch_provider in ('nanny', 'employer') and snack_provider in ('nanny', 'employer')");
                         });
                 });
 
@@ -422,9 +455,13 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("time")
                         .HasColumnName("departure");
 
-                    b.Property<bool>("Meal")
+                    b.Property<bool>("Lunch")
                         .HasColumnType("boolean")
-                        .HasColumnName("meal");
+                        .HasColumnName("lunch");
+
+                    b.Property<bool>("Snack")
+                        .HasColumnType("boolean")
+                        .HasColumnName("snack");
 
                     b.HasKey("ItemId", "TermsFrom", "WeekType", "Day")
                         .HasName("pk_weekday");

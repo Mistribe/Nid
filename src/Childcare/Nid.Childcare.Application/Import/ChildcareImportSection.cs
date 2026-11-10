@@ -391,11 +391,13 @@ public sealed class ChildcareImportSection(
                 {
                     From = LocalDatePattern.Iso.Format(t.From), To = t.To is { } to ? LocalDatePattern.Iso.Format(to) : null,
                     NetHourlyRate = Exact(t.NetHourlyRate), GrossHourlyRate = t.GrossHourlyRate is { } g ? Exact(g) : null, OvertimePct = Exact(t.OvertimeRate * 100m),
-                    UpkeepPer9h = Exact(t.UpkeepPer9h), MealPrice = t.MealPrice is { } m ? Exact(m) : null,
+                    UpkeepPer9h = Exact(t.UpkeepPer9h), LunchPrice = t.LunchPrice is { } m ? Exact(m) : null, SnackPrice = t.SnackPrice is { } sn ? Exact(sn) : null,
+                    LunchProvider = MealProviderCodes.Of(t.LunchProvider), SnackProvider = MealProviderCodes.Of(t.SnackProvider),
+                    UnpaidAbsences = t.UnpaidAbsences is { } u && !u.Order().SequenceEqual(AbsenceCodes.DefaultUnpaid.Order()) ? u.Select(AbsenceCodes.Of).ToList() : null,
                     WeekTypes = t.WeekTypes.Select(w => new WeekTypeRecord
                     {
                         Name = w.Name, Weeks = w.Weeks,
-                        Schedule = w.Schedule.Select(s => new SlotRecord { Day = (int)s.Day, Arrival = Time.Format(s.Arrival), Departure = Time.Format(s.Departure), Meal = s.Meal }).ToList(),
+                        Schedule = w.Schedule.Select(s => new SlotRecord { Day = (int)s.Day, Arrival = Time.Format(s.Arrival), Departure = Time.Format(s.Departure), Lunch = s.Lunch, Snack = s.Snack }).ToList(),
                     }).ToList(),
                 }).ToList(),
                 Gaps = gaps[a.ItemId].Select(g => new GapRecord { Monday = LocalDatePattern.Iso.Format(g.Monday), Weeks = g.Weeks }).ToList(),
@@ -431,7 +433,7 @@ public sealed class ChildcareImportSection(
             Days = s.Days.Select(x => new DayRecord
             {
                 Date = LocalDatePattern.Iso.Format(x.Date), Planned = x.Planned, Present = x.Present, Arrival = x.Arrival is { } ar ? Time.Format(ar) : null,
-                Departure = x.Departure is { } de ? Time.Format(de) : null, Meal = x.Meal, Absence = x.Absence is { } ab ? AbsenceCodes.Of(ab) : null,
+                Departure = x.Departure is { } de ? Time.Format(de) : null, Lunch = x.Lunch, Snack = x.Snack, Absence = x.Absence is { } ab ? AbsenceCodes.Of(ab) : null,
             }).ToList(),
             Figures = FiguresOf(f),
         };
@@ -548,15 +550,25 @@ public sealed class ChildcareImportSection(
             if (types.Count > 0 || t.WeekTypes is { Count: 0 })
                 foreach (var (field, code) in ContractCheck.WeekTypes(types))
                     Error(code, StatementAssembly.Message(code), $"{at}.{Snake(field)}");
-            if (t.NetHourlyRate <= 0 || t.OvertimePct < 0 || t.UpkeepPer9h < 0 || t.MealPrice < 0 || t.GrossHourlyRate <= 0)
-                Error(ImportCodes.InvalidValue, "Rates are positive, the upkeep and the meal zero or more.", at);
+            if (t.NetHourlyRate <= 0 || t.OvertimePct < 0 || t.UpkeepPer9h < 0 || (t.LunchPrice ?? t.MealPrice) < 0 || t.SnackPrice < 0 || t.GrossHourlyRate <= 0)
+                Error(ImportCodes.InvalidValue, "Rates are positive, the upkeep and the meals zero or more.", at);
+            MealProvider Provider(string? value, string field)
+            {
+                var parsed = value is null ? MealProvider.Nanny : MealProviderCodes.TryParse(value);
+                if (parsed is null) Error(ImportCodes.InvalidValue, "A meal is provided by the nanny or the employer.", $"{at}.{field}");
+                return parsed ?? MealProvider.Nanny;
+            }
+            var unpaid = t.UnpaidAbsences?.Select(AbsenceCodes.TryParse).ToList();
+            if (unpaid?.Any(u => u is null) == true)
+                Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.", at + ".unpaid_absences");
+            var (lunchProvider, snackProvider) = (Provider(t.LunchProvider, "lunch_provider"), Provider(t.SnackProvider, "snack_provider"));
             if (from is { } f)
             {
                 if (j > 0 && revisions.Count == j && revisions[j - 1].To != f.PlusDays(-1))
                     Error(ImportCodes.InvalidValue, "Each revision ends the day before the next one starts.", $"{path}.terms[{j - 1}].to");
                 if (to is { } end && end < f) Error(ImportCodes.InvalidValue, "A revision ends on or after its start.", at + ".to");
-                revisions.Add(new Terms(new ItemId(Guid.Empty), f, to, t.NetHourlyRate, t.GrossHourlyRate, t.OvertimePct / 100m, t.UpkeepPer9h, t.MealPrice,
-                    types));
+                revisions.Add(new Terms(new ItemId(Guid.Empty), f, to, t.NetHourlyRate, t.GrossHourlyRate, t.OvertimePct / 100m, t.UpkeepPer9h, t.LunchPrice ?? t.MealPrice,
+                    types, t.SnackPrice, lunchProvider, snackProvider, UnpaidAbsences: unpaid?.OfType<AbsenceReason>().Distinct().ToList() ?? AbsenceCodes.DefaultUnpaid));
             }
         }
         if (revisions.Count > 0 && revisions.Take(revisions.Count - 1).Any(t => t.To is null))
@@ -603,11 +615,11 @@ public sealed class ChildcareImportSection(
             AbsenceReason? absence = null;
             if (d.Absence is not null && (absence = AbsenceCodes.TryParse(d.Absence)) is null)
             {
-                issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent or holiday.", at + ".absence"));
+                issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.", at + ".absence"));
                 ok = false;
             }
             if (date is { } on)
-                list.Add(new StatementDay(on, d.Planned, d.Present, arrival, departure, d.Meal, absence));
+                list.Add(new StatementDay(on, d.Planned, d.Present, arrival, departure, d.Lunch ?? d.Meal ?? false, absence, d.Snack));
         }
         days = list;
         return ok;
@@ -637,7 +649,7 @@ public sealed class ChildcareImportSection(
             var departure = Time.Parse(slot.Departure);
             if (slot.Day is < 1 or > 7) error(ImportCodes.InvalidValue, "A day is 1 (Monday) to 7 (Sunday).", $"{at}[{k}].day");
             else if (!arrival.Success || !departure.Success) error(ImportCodes.InvalidValue, "A time is written HH:mm.", $"{at}[{k}]");
-            else slots.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day, arrival.Value, departure.Value, slot.Meal));
+            else slots.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day, arrival.Value, departure.Value, slot.Lunch ?? slot.Meal ?? false, slot.Snack));
         }
         return slots;
     }

@@ -47,6 +47,24 @@ public static class GoalEndpoints
             })
             .Returns<IdResponse>();
 
+        api.MapGet("/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GoalDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        api.MapDelete("/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // A missing version answers 422 at `version`: it would otherwise bind to 0 and pass for a conflict.
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with the preview is required.");
+                    return reader.Problem();
+                }
+                var result = await invoker.InvokeAsync(new DeleteGoalCommand(new ItemId(id), version.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         api.MapPost("/{id:guid}/close", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new CloseGoalCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();

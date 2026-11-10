@@ -338,3 +338,29 @@ public sealed class ChangePriceHandler(ISubscriptionStore store, IUnitOfWork uni
             => Result.Failure<BillingPhaseId>(FieldErrors.At(new Failure(code, message, null), "startsOn"));
     }
 }
+
+/// <summary>#23: a subscription created by mistake, deleted with its phases, insurance and grants. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeleteSubscriptionCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>#23: what deleting a subscription removes, read before the delete.</summary>
+public sealed record SubscriptionDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPreview>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+[RequestHandler<DeleteSubscriptionCommand, ItemId>]
+public sealed class DeleteSubscriptionHandler(IItemDeletions deletions) : IRequestHandler<DeleteSubscriptionCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeleteSubscriptionCommand command, CancellationToken ct = default)
+        => (await deletions.DeleteAsync(command.ItemId, "subscriptions", "subscription", command.Version, ct)).Map(() => command.ItemId);
+}
+
+[RequestHandler<SubscriptionDeletionQuery, ItemDeletionPreview>]
+public sealed class SubscriptionDeletionHandler(IItemDeletions deletions) : IRequestHandler<SubscriptionDeletionQuery, ItemDeletionPreview>
+{
+    public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(SubscriptionDeletionQuery query, CancellationToken ct = default)
+        => await deletions.PreviewAsync(query.ItemId, "subscriptions", "subscription", ct);
+}

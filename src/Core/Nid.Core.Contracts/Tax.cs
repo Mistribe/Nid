@@ -54,6 +54,8 @@ public static class TaxLineCodes
     public const string CapitalIncome = "capital_income";
     /// <summary>Childcare spec decision 21: a validated childminder statement's tax base (net pay + upkeep + contributions left to the household − CMG), without a person.</summary>
     public const string ChildcareOutsideHome = "childcare_outside_home";
+    /// <summary>#14: a month of the current year left to validate, at the mean tax base of the validated months, without a person.</summary>
+    public const string ChildcareProjected = "childcare_projected";
     public const string PerContribution = "per_contribution";
     /// <summary>Tax-per spec §4.5: a PER open in the year with a value and neither a payment nor an opening in it (amount 0, one line per owner).</summary>
     public const string PerNoContribution = "per_no_contribution";

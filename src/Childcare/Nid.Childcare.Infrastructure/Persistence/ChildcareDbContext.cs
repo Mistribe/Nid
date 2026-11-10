@@ -48,14 +48,19 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             {
                 t.HasCheckConstraint("ck_terms_dates", "\"to\" is null or \"to\" >= \"from\"");
                 t.HasCheckConstraint("ck_terms_amounts",
-                    "net_hourly_rate > 0 and overtime_rate >= 0 and upkeep_per9h >= 0 and (meal_price is null or meal_price >= 0) and (gross_hourly_rate is null or gross_hourly_rate > 0)");
+                    "net_hourly_rate > 0 and overtime_rate >= 0 and upkeep_per9h >= 0 and (lunch_price is null or lunch_price >= 0) and (snack_price is null or snack_price >= 0) and (gross_hourly_rate is null or gross_hourly_rate > 0)");
+                t.HasCheckConstraint("ck_terms_meal_providers", "lunch_provider in ('nanny', 'employer') and snack_provider in ('nanny', 'employer')");
             });
             e.HasKey(x => new { x.ItemId, x.From });
             e.Property(x => x.NetHourlyRate).HasColumnType("numeric(19,4)");
             e.Property(x => x.GrossHourlyRate).HasColumnType("numeric(19,4)");
             e.Property(x => x.OvertimeRate).HasColumnType("numeric(9,4)");
             e.Property(x => x.UpkeepPer9h).HasColumnType("numeric(19,4)");
-            e.Property(x => x.MealPrice).HasColumnType("numeric(19,4)");
+            e.Property(x => x.LunchPrice).HasColumnType("numeric(19,4)");
+            e.Property(x => x.SnackPrice).HasColumnType("numeric(19,4)");
+            e.Property(x => x.LunchProvider).HasMaxLength(8).HasDefaultValue("nanny");
+            e.Property(x => x.SnackProvider).HasMaxLength(8).HasDefaultValue("nanny");
+            e.Property(x => x.UnpaidAbsences).HasColumnType("text[]").HasDefaultValueSql("'{child_sick,carer_absent}'");
             e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -119,7 +124,7 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
         {
             e.ToTable("statement_day", t =>
             {
-                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday')");
+                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave')");
                 t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
             });
             e.HasKey(x => new { x.ItemId, x.Date });

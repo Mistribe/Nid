@@ -57,8 +57,11 @@ describe('ending and reopening a source', () => {
     await waitFor(() => expect(banner()).toHaveFocus());
     expect(bodies).toEqual([{ endedOn: todayIso() }]);
     expect(screen.getByText('Source terminée.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
     expect(within(banner()).getByRole('button', { name: 'Rouvrir' })).toBeInTheDocument();
+    // The ended source keeps its menu, which holds only « Supprimer… ».
+    await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Supprimer…']);
+    await user.keyboard('{Escape}');
     await expectNoAxeViolations(container);
   });
 

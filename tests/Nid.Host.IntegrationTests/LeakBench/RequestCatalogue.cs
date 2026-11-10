@@ -248,6 +248,8 @@ public static class RequestCatalogue
             },
             SecondItemAccess = AccessKind.Read,
         },
+        new(typeof(SubscriptionDeletionQuery), true, (_, item) => new SubscriptionDeletionQuery(item)),
+        new(typeof(DeleteSubscriptionCommand), true, (_, item) => new DeleteSubscriptionCommand(item, 1)),
         new(typeof(DeleteInsuranceCommand), true,
             (_, item) => new DeleteInsuranceCommand(item)),
         new(typeof(ChangePriceCommand), true,
@@ -362,6 +364,7 @@ public static class RequestCatalogue
         new(typeof(RecordValuationCommand), true, (_, item) => new RecordValuationCommand(item, new LocalDate(2025, 1, 1), Money.Create(1m, Currency.Eur).Ok(), null)),
         new(typeof(VoidValuationCommand), true, (_, item) => new VoidValuationCommand(item, Guid.NewGuid())),
         new(typeof(RecordFlowCommand), true, (_, item) => new RecordFlowCommand(item, new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
+        new(typeof(RecordFlowsCommand), true, (_, item) => new RecordFlowsCommand(item, [new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null)])),
         new(typeof(CorrectFlowCommand), true, (_, item) => new CorrectFlowCommand(item, Guid.NewGuid(), new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
         new(typeof(VoidFlowCommand), true, (_, item) => new VoidFlowCommand(item, Guid.NewGuid())),
 
@@ -375,9 +378,12 @@ public static class RequestCatalogue
         },
         new(typeof(CloseEnvelopeCommand), true, (_, item) => new CloseEnvelopeCommand(item, new LocalDate(2025, 1, 1), null)),
         new(typeof(ReopenEnvelopeCommand), true, (_, item) => new ReopenEnvelopeCommand(item)),
+        new(typeof(EnvelopeDeletionQuery), true, (_, item) => new EnvelopeDeletionQuery(item)),
+        new(typeof(DeleteEnvelopeCommand), true, (_, item) => new DeleteEnvelopeCommand(item, 1)),
         new(typeof(GetEnvelopeSeriesQuery), true, (_, item) => new GetEnvelopeSeriesQuery(item)),
         new(typeof(GetPeriodPerformanceQuery), true, (_, item) => new GetPeriodPerformanceQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
         new(typeof(AddHoldingCommand), true, (_, item) => new AddHoldingCommand(item, new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null))),
+        new(typeof(AddHoldingsCommand), true, (_, item) => new AddHoldingsCommand(item, [new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null)])),
         new(typeof(EditHoldingCommand), true, (_, item) => new EditHoldingCommand(item, Guid.NewGuid(), new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null), 1)),
         new(typeof(DeleteHoldingCommand), true, (_, item) => new DeleteHoldingCommand(item, Guid.NewGuid(), 1)),
         new(typeof(AcceptHoldingPriceCommand), true, (_, item) => new AcceptHoldingPriceCommand(item, Guid.NewGuid(), new LocalDate(2025, 1, 1))),
@@ -388,6 +394,8 @@ public static class RequestCatalogue
         new(typeof(ListHoldingsSnapshotsQuery), true, (_, item) => new ListHoldingsSnapshotsQuery(item)),
         new(typeof(AddHoldingMovementCommand), true, (_, item) => new AddHoldingMovementCommand(item, Guid.NewGuid(),
             new MovementDraft(new LocalDate(2025, 1, 1), "fee", null, null, Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
+        new(typeof(AddHoldingMovementsCommand), true, (_, item) => new AddHoldingMovementsCommand(item, [new HoldingMovementLine(Guid.NewGuid(),
+            new MovementDraft(new LocalDate(2025, 1, 1), "fee", null, null, Money.Create(1m, Currency.Eur).Ok(), null, null, null))])),
         new(typeof(RecordSwitchCommand), true, (_, item) => new RecordSwitchCommand(item, new SwitchDraft(new LocalDate(2025, 1, 1), false,
             [new SwitchLegDraft(Guid.NewGuid(), Money.Create(1m, Currency.Eur).Ok(), null, null)], [new SwitchLegDraft(Guid.NewGuid(), Money.Create(1m, Currency.Eur).Ok(), null, null)], null))),
         new(typeof(ListHoldingMovementsQuery), true, (_, item) => new ListHoldingMovementsQuery(item, Guid.NewGuid())),
@@ -503,6 +511,8 @@ public static class RequestCatalogue
         new(typeof(DeleteIncomeOneOffCommand), true, (_, item) => new DeleteIncomeOneOffCommand(item, Guid.NewGuid())),
         new(typeof(CloseIncomeSourceCommand), true, (_, item) => new CloseIncomeSourceCommand(item, new LocalDate(2020, 1, 1))),
         new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
+        new(typeof(IncomeSourceDeletionQuery), true, (_, item) => new IncomeSourceDeletionQuery(item)),
+        new(typeof(DeleteIncomeSourceCommand), true, (_, item) => new DeleteIncomeSourceCommand(item, 1)),
 
         new(typeof(ListGoalsQuery), false, (_, _) => new ListGoalsQuery(VisibilityScope.Me, true)),
         new(typeof(GetGoalQuery), true, (_, item) => new GetGoalQuery(item, VisibilityScope.Me)),
@@ -523,6 +533,9 @@ public static class RequestCatalogue
             SecondItemAccess = AccessKind.Read,
         },
         new(typeof(CloseGoalCommand), true, (_, item) => new CloseGoalCommand(item)),
+        new(typeof(GoalDeletionQuery), true, (_, item) => new GoalDeletionQuery(item)),
+        // Version 1 is never a row's xmin: an allowed writer meets a conflict, never an access refusal.
+        new(typeof(DeleteGoalCommand), true, (_, item) => new DeleteGoalCommand(item, 1)),
         new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
         new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
         new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),
@@ -539,6 +552,8 @@ public static class RequestCatalogue
         new(typeof(SetWeekOverrideCommand), true, (_, item) => new SetWeekOverrideCommand(item, new LocalDate(2025, 9, 1), 0)),
         new(typeof(CloseChildcareCommand), true, (_, item) => new CloseChildcareCommand(item, new LocalDate(2030, 1, 1))),
         new(typeof(ReopenChildcareCommand), true, (_, item) => new ReopenChildcareCommand(item)),
+        new(typeof(ChildcareDeletionQuery), true, (_, item) => new ChildcareDeletionQuery(item)),
+        new(typeof(DeleteChildcareCommand), true, (_, item) => new DeleteChildcareCommand(item, 1)),
         new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),
         new(typeof(GetStatementQuery), true, (_, item) => new GetStatementQuery(item, new YearMonth(2025, 9))),
         new(typeof(GetChildcareYearQuery), true, (_, item) => new GetChildcareYearQuery(item, 2025)),
@@ -639,6 +654,8 @@ public static class RequestCatalogue
         },
         // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
         new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
+        new(typeof(LoanDeletionQuery), true, (_, item) => new LoanDeletionQuery(item)),
+        new(typeof(DeleteLoanCommand), true, (_, item) => new DeleteLoanCommand(item, 1)),
 
         // A fee or repayment id is looked up in the route's loan only (StoredLoan's own lists), so an id alone can never
         // reach another item: no BuildNamingAnother, as the income phases.
@@ -673,6 +690,8 @@ public static class RequestCatalogue
             [new OwnerShare(d.App.AdultA, 10_000)], BenchProperty)),
         // Version 1 is never a row's xmin: an allowed writer meets realestate.property_conflict, never an access refusal.
         new(typeof(EditPropertyCommand), true, (_, item) => new EditPropertyCommand(item, null, new PropertyChange(Note: "bench"), 1)),
+        new(typeof(PropertyDeletionQuery), true, (_, item) => new PropertyDeletionQuery(item)),
+        new(typeof(DeletePropertyCommand), true, (_, item) => new DeletePropertyCommand(item, 1)),
 
         // A fact id is looked up by (id, item_id) in the Core (2A), as the envelopes': no BuildNamingAnother.
         new(typeof(RecordPropertyValuationCommand), true, (_, item) => new RecordPropertyValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),

@@ -75,6 +75,35 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal([2], await ProbedAsync(app));
     }
 
+    /// <summary>#23: an after-commit action runs on the outermost commit only, and goes with a savepoint or a transaction rolled back.</summary>
+    [Fact]
+    public async Task After_commit_actions_run_on_the_outer_commit_unless_rolled_back()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var ran = new List<string>();
+        foreach (var outerCommits in new[] { false, true })
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
+            await using (var outer = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
+            {
+                unitOfWork.AfterCommit(() => { ran.Add($"outer {outerCommits}"); return Task.CompletedTask; });
+                await using (var kept = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
+                {
+                    unitOfWork.AfterCommit(() => { ran.Add($"kept {outerCommits}"); return Task.CompletedTask; });
+                    await kept.CommitAsync(TestContext.Current.CancellationToken);
+                }
+                await using (await unitOfWork.BeginAsync(TestContext.Current.CancellationToken))
+                    unitOfWork.AfterCommit(() => { ran.Add($"rolled back {outerCommits}"); return Task.CompletedTask; });
+                Assert.Empty(ran);
+                if (outerCommits)
+                    await outer.CommitAsync(TestContext.Current.CancellationToken);
+            }
+        }
+
+        Assert.Equal(["outer True", "kept True"], ran);
+    }
+
     // Review Focus 5.
     [Fact]
     public async Task An_inner_scope_disposed_without_a_commit_undoes_only_its_own_writes()

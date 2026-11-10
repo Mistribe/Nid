@@ -1,5 +1,5 @@
 import { useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
@@ -28,11 +28,15 @@ import { EditChildcareDialog, EndDialog, GapsDialog, ReviseDialog } from './Chil
 import { dayName } from './childcareSchema';
 import { monthTitle, stateLabel } from './statementText';
 import { YearSummary } from './YearSummary';
+import { reasonLabel } from './statementText';
 import '@/locales/childcare';
 import '@/locales/forms';
+import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
 
-type Open = 'edit' | 'revise' | 'gaps' | 'end' | null;
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
+
+type Open = 'edit' | 'revise' | 'gaps' | 'end' | 'delete' | null;
 
 /** Hours as the server writes them (`38.00`), shown the French way (`38`, `37,5`): text only, nothing computed. */
 export const hoursText = (hours: string) => hours.replace(/\.?0+$/, '').replace('.', ',');
@@ -53,7 +57,8 @@ export function ChildcareDetailPage() {
   const terms = detail.terms.find((r) => r.from === summary.inForceFrom)!;
   const show = (o: Open) => () => setOpen(o);
   const more = <SharingMenu item={id} onAnnounce={toast.success} shared={summary.visibility === 'shared'} label={t('page.more_actions')}
-    items={summary.closed ? [] : [{ label: t('childcare_detail.end'), onSelect: show('end') }]} />;
+    items={summary.closed ? [] : [{ label: t('childcare_detail.end'), onSelect: show('end') }]}
+    trailing={[{ label: t('deletion.menu'), destructive: true, onSelect: show('delete') }]} />;
   const actions = !summary.canWrite ? null : summary.closed
     ? <><Button type="button" variant="outline" disabled={reopen.isPending} onClick={() => reopen.mutate({ params: { path: { id } } })}>{t('childcare_detail.reopen')}</Button>{more}</>
     : <>
@@ -97,6 +102,8 @@ export function ChildcareDetailPage() {
       {open === 'revise' ? <ReviseDialog {...dialog} /> : null}
       {open === 'gaps' ? <GapsDialog {...dialog} /> : null}
       {open === 'end' ? <EndDialog {...dialog} /> : null}
+      {summary.canWrite && open === 'delete'
+        ? <Suspense fallback={null}><DeleteItemFlow kind="childcare.delete_childcare" id={id} closed={summary.closed} onClose={() => setOpen(null)} /></Suspense> : null}
       <Tabs detail={detail} terms={terms} onGaps={summary.canWrite && !summary.closed ? show('gaps') : null} />
     </article>
   );
@@ -119,13 +126,16 @@ function Tabs({ detail, terms, onGaps }: { detail: ChildcareDetail; terms: Child
 function Planning({ detail, terms }: { detail: ChildcareDetail; terms: ChildcareTerms }) {
   const { t } = useTranslation();
   const several = terms.weekTypes.length > 1;
+  const mealText = (price: string | null | undefined, provider: string) => (provider === 'employer' ? t('childcare_form.provider_employer') : price ? price.replace('.', ',') : t('childcare_detail.dash'));
   return (
     <div className="space-y-4">
       <StatLine items={[
         { label: t('childcare_form.net'), value: terms.netHourlyRate.replace('.', ',') },
         { label: t('childcare_form.upkeep'), value: terms.upkeepPer9h.replace('.', ',') },
-        { label: t('childcare_form.meal_price'), value: terms.mealPrice ? terms.mealPrice.replace('.', ',') : t('childcare_detail.dash') },
+        { label: t('childcare_form.lunch_price'), value: mealText(terms.lunchPrice, terms.lunchProvider) },
+        { label: t('childcare_form.snack_price'), value: mealText(terms.snackPrice, terms.snackProvider) },
         { label: t('childcare_form.overtime'), value: terms.overtimePct.replace('.', ',') },
+        { label: t('childcare_form.unpaid_absences'), value: terms.unpaidAbsences.map((r) => reasonLabel(t, r)).join(', ') || t('childcare_detail.dash') },
         { label: t('childcare_detail.since'), value: <LocalDate value={terms.from} style="short" /> },
       ]} />
       {terms.weekTypes.map((w) => (
@@ -133,7 +143,7 @@ function Planning({ detail, terms }: { detail: ChildcareDetail; terms: Childcare
           {several ? <h3 className="text-sm font-medium">{t('childcare_detail.week_type', { name: w.name, hours: hoursText(w.weeklyHours), count: w.weeks })}</h3> : null}
           <ul aria-label={several ? w.name : t('childcare_detail.template')} className="space-y-1">
             {w.schedule.map((s) => (
-              <li key={s.day}>{t('childcare_detail.slot', { day: dayName(t, s.day), arrival: s.arrival, departure: s.departure })}{s.meal ? t('childcare_detail.with_meal') : ''}</li>
+              <li key={s.day}>{t('childcare_detail.slot', { day: dayName(t, s.day), arrival: s.arrival, departure: s.departure })}{s.lunch ? t('childcare_detail.with_lunch') : ''}{s.snack ? t('childcare_detail.with_snack') : ''}</li>
             ))}
           </ul>
         </div>

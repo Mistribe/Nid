@@ -56,4 +56,18 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      - run: dotnet test --project "tests/${{ matrix.project }}" --configuration Release
+      # A run takes under 10 minutes; a test still running after 10 is stuck. The hang dump then stops the run, so the job fails
+      # with the test's name instead of being cancelled by the timeout above with no log at all.
+      - run: dotnet test --project "tests/${{ matrix.project }}" --configuration Release --hangdump --hangdump-timeout 10m --hangdump-type Mini
+      - name: Hung tests
+        if: failure()
+        run: cat TestResults/*_hang.log 2>/dev/null || true
+      # The dump of the stuck process (`dotnet-dump analyze`, then `clrstack -all`): test fixtures only, no household data.
+      - name: Hang dump
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hang-dump-${{ matrix.project }}
+          path: TestResults/*_hang.*
+          retention-days: 7
+          if-no-files-found: ignore

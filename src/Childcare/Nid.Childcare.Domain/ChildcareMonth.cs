@@ -3,8 +3,8 @@ using NodaTime;
 
 namespace Nid.Childcare.Domain;
 
-/// <summary>June only: months of the reference period with care, and its net pay (base − deductions + extra pay).</summary>
-public sealed record PaidLeaveInput(int MonthsWithCare, decimal ReferenceNetPay);
+/// <summary>June only: months of the reference period with care (a month the contract enters or leaves counts for its share), and its net pay (base − deductions + extra pay).</summary>
+public sealed record PaidLeaveInput(decimal MonthsWithCare, decimal ReferenceNetPay);
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
@@ -27,11 +27,14 @@ public static class ChildcareMonth
 
         // A month the contract enters or leaves pays its share of the template days (the deduction's own ratio, art. 111).
         var inContract = input.Days.Where(d => StatementPreparation.InContract(d.Date, input.Terms)).ToList();
-        var partial = inContract.Count < input.Days.Count;
-        var basePay = partial ? Mensualisation.Round(fullPay * inContract.Count(d => input.Plan.HoursOn(d.Date) > 0m) / input.Days.Count(d => input.Plan.HoursOn(d.Date) > 0m)) : fullPay;
+        var templateDaysInContract = inContract.Count(d => input.Plan.HoursOn(d.Date) > 0m);
+        var templateDays = input.Days.Count(d => input.Plan.HoursOn(d.Date) > 0m);
+        // Only template days make a month partial: a contract starting on Monday the 2nd loses nothing to the Sunday before.
+        var partial = templateDaysInContract < templateDays;
+        var basePay = partial ? Mensualisation.Round(fullPay * templateDaysInContract / templateDays) : fullPay;
 
-        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Plan, input.ChildSickUsedBefore);
-        var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan);
+        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(basePay, inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences);
+        var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan, input.Terms);
         var complementary = input.Declared?.ComplementaryHours ?? computedComplementary;
         var overtime = input.Declared?.OvertimeHours ?? computedOvertime;
         var extraPay = ExtraHours.Pay(complementary, overtime, input.Terms.NetHourlyRate, input.Terms.OvertimeRate);
@@ -48,10 +51,10 @@ public static class ChildcareMonth
         var netPay = input.Declared?.NetPay ?? computedPay;
         // Decision 30: the difference goes to the extra pay, so that the parts still add up and June's reference pay follows.
         extraPay += netPay - computedPay;
-        // The mensualised days, absences or not, as the household declares them (spec §9). A partial month declares its
-        // planned days less the deducted ones instead.
+        // The mensualised days, absences or not, as the household declares them (spec §9). A partial month declares the
+        // template days its pay stands for, gap weeks included as in the pay, less the deducted ones.
         var activityDays = input.Declared?.ActivityDays
-            ?? (partial ? Math.Max(0, input.Days.Count(d => d.Planned) - deductedDays) : Mensualisation.ActivityDays(input.Plan.Types));
+            ?? (partial ? Math.Max(0, templateDaysInContract - deductedDays) : Mensualisation.ActivityDays(input.Plan.Types));
         // #26: a month with reduced pay declares the hours that pay stands for; any other keeps the mensualised hours.
         var normalHours = input.Declared?.NormalHours
             ?? (partial || deduction > 0m ? Mensualisation.NormalHours(basePay - deduction, input.Terms.NetHourlyRate) : Mensualisation.NormalHours(annualHours));
@@ -64,7 +67,7 @@ public static class ChildcareMonth
 
     /// <summary>
     /// No declaration from an incomplete or inconsistent month (spec §0): every day once, the plan as the template, gaps
-    /// and contract dates say, hours on present days, a reason exactly on absent planned ones; the same for the neighbours.
+    /// and contract dates say, hours on present days, a reason on absent planned ones, on planned ones only; the same for the neighbours.
     /// </summary>
     private static void Validate(MonthInput input)
     {
@@ -80,8 +83,8 @@ public static class ChildcareMonth
                 throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a present day needs an arrival before its departure.", nameof(input));
             if (day.Planned != StatementPreparation.IsPlanned(day.Date, input.Plan, input.Gaps, input.Terms))
                 throw new ArgumentException($"{day.Date:uuuu-MM-dd}: planned does not match the template, the gaps and the contract dates.", nameof(input));
-            if ((day.Absence is not null) != (day.Planned && !day.Present))
-                throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a reason goes on an absent planned day, and only there.", nameof(input));
+            if (day.Absence is null ? day.Planned && !day.Present : !day.Planned)
+                throw new ArgumentException($"{day.Date:uuuu-MM-dd}: a reason goes on a planned day, and an absent one needs it.", nameof(input));
         }
     }
 

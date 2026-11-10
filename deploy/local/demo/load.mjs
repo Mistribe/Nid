@@ -98,7 +98,7 @@ async function validateChildcare({ call }) {
       const path = `/api/v1/childcare/${arrangement.id}/statements/${at.toISOString().slice(0, 7)}`;
       const draft = await call('GET', path);
       if (draft.state === 'validated') continue;
-      const days = draft.days.map(({ date, present, arrival, departure, meal, absence }) => ({ date, present, arrival, departure, meal, absence }));
+      const days = draft.days.map(({ date, present, arrival, departure, lunch, snack, absence }) => ({ date, present, arrival, departure, lunch, snack, absence }));
       const saved = await call('PUT', path, { days, mileage: '0', cmg: draft.cmgEstimate ?? '0', version: draft.version });
       await call('POST', `${path}/validate`, { version: saved.version });
       validated++;

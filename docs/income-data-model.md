@@ -274,6 +274,7 @@ Engagements mensuels de 1 250 € :
 - **Une augmentation garde la fin de la phase remplacée** : une augmentation pendant un CDD ne le prolonge pas ; à l'intérieur d'une phase plafonnée, la nouvelle phase se termine à la fin du plafond.
 - **Une phase avec `max_cycles` et sans `ends_on` se termine après sa dernière occurrence** (sa fin effective) pour l'activité, l'équivalent mensuel, les trous, le chevauchement et la clôture ; `max_cycles` va de 1 à 1200.
 - **L'équivalent mensuel est un décimal en pleine précision**, arrondi à 0,01 sur le fil seulement.
+- **Suppression d'une source** (#23) : réservée à une source créée par erreur (pour une source qui a pris fin, `close`). Partent la source, ses phases, leurs parts imposables, les revenus exceptionnels (flux du Core), les liens de documents des phases et des revenus exceptionnels et les rappels de documents écartés, avec les propriétaires et références bancaires de l'élément. Rien ne bloque : aucun autre élément ne dépend d'une source. `DELETE /api/v1/income/sources/{id}?version=` (le `version` lu par `GET …/deletion` : 422 sans lui, 409 s'il est périmé).
 - **Une correction ou une suppression de phase exige son `version`** : 422 sans lui, 409 `income.phase_conflict` s'il est périmé.
 - **L'import écrit les phases d'une source qui reste terminée** (vérifiées contre `ended_on` et coupées à cette date), à la différence de l'API, pour que l'historique d'une source terminée fasse l'aller-retour ; le revenu exceptionnel s'importe par la section `flows` du Core.
 

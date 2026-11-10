@@ -76,7 +76,12 @@ public static class HouseholdProjection
 
         RealEstateMonth At(int k) => inputs.RealEstate.Count == 0 ? new(thisMonth.PlusMonths(k), 0m, 0m, 0m) : inputs.RealEstate[k];
 
-        var slices = inputs.Savings.ToList();
+        // The slices as arrays: the ranges (ProjectionRanges) run this a thousand times, so no allocation per month.
+        var slices = inputs.Savings;
+        var amounts = slices.Select(s => s.Amount).ToArray();
+        var sliceRates = slices.Select(s => monthlyRate[s.Class]).ToArray();
+        var savingsRate = monthlyRate[a.SavingsClass];
+        var available = slices.Select(s => s.Liquidity == AllocationLiquidity.Available).ToArray();
 
         // The month's withdrawals leave their items' slices; what the slices cannot give is returned, to leave the pot.
         decimal Withdraw(int k)
@@ -84,18 +89,28 @@ public static class HouseholdProjection
             var leftOver = 0m;
             foreach (var withdrawal in inputs.Withdrawals?.Where(w => w.Month == k) ?? [])
             {
-                var held = slices.Where(s => s.Item == withdrawal.Item).Sum(s => s.Amount);
+                var held = 0m;
+                for (var j = 0; j < amounts.Length; j++)
+                    if (slices[j].Item == withdrawal.Item) held += amounts[j];
                 var taken = Math.Min(withdrawal.Amount, Math.Max(held, 0m));
                 if (held > 0m)
-                    slices = slices.Select(s => s.Item == withdrawal.Item ? s with { Amount = s.Amount * (1m - taken / held) } : s).ToList();
+                    for (var j = 0; j < amounts.Length; j++)
+                        if (slices[j].Item == withdrawal.Item) amounts[j] *= 1m - taken / held;
                 leftOver += withdrawal.Amount - taken;
             }
             return leftOver;
         }
 
+        decimal Held()
+        {
+            var sum = 0m;
+            foreach (var amount in amounts) sum += amount;
+            return sum;
+        }
+
         var pot = -Withdraw(0) + (inputs.CashFlows?[0] ?? 0m);
         YearMonth? exhausted = null;
-        var points = new List<HouseholdPoint> { Point(inputs.Today, slices.Sum(s => s.Amount) + pot, At(0), 1m) };
+        var points = new List<HouseholdPoint>(inputs.Months + 1) { Point(inputs.Today, Held() + pot, At(0), 1m) };
         var milestones = new List<ProjectionMilestone>();
 
         for (var k = 1; k <= inputs.Months; k++)
@@ -106,25 +121,40 @@ public static class HouseholdProjection
 
             var leftOver = Withdraw(k);
 
-            slices = slices.Select(s => s with { Amount = s.Amount * (1m + monthlyRate[s.Class][k]) }).ToList();
+            for (var j = 0; j < amounts.Length; j++) amounts[j] *= 1m + sliceRates[j][k];
             var monthlySavings = inputs.MonthlySavings * i[k] + inputs.Income[k] - inputs.Income[0] * i[k]
                 + (a.FreedPaymentsToSavings ? At(0).LoanPayments - re.LoanPayments : 0m)
                 + (inputs.MonthlyAdjustments?[k] ?? 0m)
-                + (inputs.Changes ?? []).Where(c => c.From <= k && k < c.To)
-                    .Sum(c => c.Income ? c.Amount * g[k] / g[c.From] : c.Amount * i[k] / i[c.From]);
-            pot = (pot - leftOver) * (1m + monthlyRate[a.SavingsClass][k]) + monthlySavings + (inputs.CashFlows?[k] ?? 0m);
+                + Changes(k);
+            pot = (pot - leftOver) * (1m + savingsRate[k]) + monthlySavings + (inputs.CashFlows?[k] ?? 0m);
 
-            if (exhausted is null && slices.Where(s => s.Liquidity == AllocationLiquidity.Available).Sum(s => s.Amount) + pot < 0m)
+            if (exhausted is null && Available() + pot < 0m)
             {
                 exhausted = month;
                 milestones.Add(new(end, "savings_exhausted", "savings_exhausted", null));
             }
 
-            points.Add(Point(end, slices.Sum(s => s.Amount) + pot, re, i[k]));
+            points.Add(Point(end, Held() + pot, re, i[k]));
         }
 
         var last = points[^1].On;
         milestones.AddRange(inputs.Milestones.Where(m => m.On > inputs.Today && m.On <= last));
         return new(points, milestones.OrderBy(m => m.On).ThenBy(m => m.Kind, StringComparer.Ordinal).ToList(), exhausted);
+
+        decimal Available()
+        {
+            var sum = 0m;
+            for (var j = 0; j < amounts.Length; j++)
+                if (available[j]) sum += amounts[j];
+            return sum;
+        }
+
+        decimal Changes(int k)
+        {
+            var sum = 0m;
+            foreach (var c in inputs.Changes ?? [])
+                if (c.From <= k && k < c.To) sum += c.Income ? c.Amount * g[k] / g[c.From] : c.Amount * i[k] / i[c.From];
+            return sum;
+        }
     }
 }

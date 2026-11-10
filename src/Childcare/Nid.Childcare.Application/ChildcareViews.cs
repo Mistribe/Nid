@@ -25,7 +25,7 @@ public sealed record ChildcareList(IReadOnlyList<ChildcareSummary> Items) : IExp
 }
 
 /// <summary>One day of the template: ISO day (1 = Monday), times as <c>HH:mm</c>.</summary>
-public sealed record WeekdaySlotView(int Day, string Arrival, string Departure, bool Meal);
+public sealed record WeekdaySlotView(int Day, string Arrival, string Departure, bool Lunch, bool Snack);
 
 /// <summary>One template week: its name, weeks in the contract, slots and hours per week (<c>"39.00"</c>).</summary>
 public sealed record WeekTypeView(string Name, int Weeks, IReadOnlyList<WeekdaySlotView> Schedule, string WeeklyHours);
@@ -35,8 +35,8 @@ public sealed record WeekTypeView(string Name, int Weeks, IReadOnlyList<WeekdayS
 /// <c>MonthlyHours</c> (annual hours over 12, <c>"143.96"</c>) computed.
 /// </summary>
 public sealed record ChildcareTermsView(
-    LocalDate From, LocalDate? To, string NetHourlyRate, string? GrossHourlyRate, string OvertimePct, string UpkeepPer9h, string? MealPrice,
-    IReadOnlyList<WeekTypeView> WeekTypes, int ProgrammedWeeks, ChildcareMoneyView MonthlyBasePay, string MonthlyHours, int NormalHours);
+    LocalDate From, LocalDate? To, string NetHourlyRate, string? GrossHourlyRate, string OvertimePct, string UpkeepPer9h, string? LunchPrice, string? SnackPrice, string LunchProvider, string SnackProvider,
+    IReadOnlyList<WeekTypeView> WeekTypes, int ProgrammedWeeks, ChildcareMoneyView MonthlyBasePay, string MonthlyHours, int NormalHours, IReadOnlyList<string> UnpaidAbsences);
 
 public sealed record CareGapView(LocalDate Monday, int Weeks, LocalDate Sunday);
 
@@ -69,8 +69,11 @@ public sealed record ChildcareStatementList(Guid Id, IReadOnlyList<ChildcareStat
 
 /// <summary>A day of the statement; times <c>HH:mm</c>, the template's beside them; <c>Changed</c>: differs from the template's day.</summary>
 public sealed record StatementDayView(
-    LocalDate Date, bool Planned, bool Present, string? Arrival, string? Departure, bool Meal, string? Absence, string? TemplateArrival,
+    LocalDate Date, bool Planned, bool Present, string? Arrival, string? Departure, bool Lunch, bool Snack, string? Absence, string? TemplateArrival,
     string? TemplateDeparture, bool Changed, string? WeekType = null);
+
+/// <summary>#18: the declaration's meal line by meal, when it is the sum of the two.</summary>
+public sealed record MealChargesView(string Lunch, string Snack);
 
 /// <summary>Spec §3: the Pajemploi fields, hours as <c>"1.50"</c>, amounts as <c>"612.50"</c>.</summary>
 public sealed record DeclarationView(
@@ -97,7 +100,7 @@ public sealed record DeclaredView(
 public sealed record ChildcareStatementView(
     Guid Id, string Name, string Month, string State, IReadOnlyList<StatementDayView> Days, string Mileage, string? Cmg, StatementFiguresView? Figures,
     IReadOnlyList<FieldProblemView> Problems, IReadOnlyList<string> MissingReferenceMonths, bool CanWrite, bool CanReopen, uint Version,
-    string? CmgEstimate = null, DeclaredView? Declared = null, DeclarationView? Computed = null, string? Contributions = null) : IExposesItems
+    string? CmgEstimate = null, DeclaredView? Declared = null, DeclarationView? Computed = null, string? Contributions = null, MealChargesView? MealCharges = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }

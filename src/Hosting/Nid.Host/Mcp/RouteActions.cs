@@ -105,6 +105,10 @@ public static class RouteActions
             "The monthly property routine (get_property_routine): estimates and flows of several properties on one date. " + Ids + Amounts),
         new("undo_property_routine", "POST", "/api/v1/realestate/routine/undo", typeof(PropertyRoutineUndoBody),
             "Undo the facts a property routine recorded. " + Ids, Destructive: true),
+        new("delete_property", "DELETE", "/api/v1/realestate/properties/{id:guid}", null,
+            "Propose deleting a property created by mistake. The household confirms it by typing its name; a loan or a subscription insurance "
+            + "linked to it refuses it. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/realestate/properties/{id:guid}/deletion"),
 
         // Real estate: loans.
         new("create_loan", "POST", "/api/v1/realestate/loans", typeof(CreateLoanBody),
@@ -128,6 +132,9 @@ public static class RouteActions
             "Remove an early repayment. " + Ids + Versioned, Destructive: true, Query: ["version"]),
         new("delete_bank_schedule", "DELETE", "/api/v1/realestate/loans/{id:guid}/bank-schedule", null,
             "Remove the bank's amortisation table stored for a loan. " + Ids + Versioned, Destructive: true, Query: ["version"]),
+        new("delete_loan", "DELETE", "/api/v1/realestate/loans/{id:guid}", null,
+            "Propose deleting a loan created by mistake. The household confirms it by typing its name. version is the one the deletion "
+            + "preview returned. " + Ids, Destructive: true, Query: ["version"], Current: "/api/v1/realestate/loans/{id:guid}/deletion"),
 
         // Investments.
         new("create_envelope", "POST", "/api/v1/investments/envelopes", typeof(CreateEnvelopeBody),
@@ -156,6 +163,10 @@ public static class RouteActions
             "Close an envelope on a date, with its final withdrawal when known. " + Ids + Amounts, Destructive: true),
         new("reopen_envelope", "POST", "/api/v1/investments/envelopes/{id:guid}/reopen", null,
             "Reopen a closed envelope. " + Ids),
+        new("delete_envelope", "DELETE", "/api/v1/investments/envelopes/{id:guid}", null,
+            "Propose deleting an envelope created by mistake (to close an account that ended, use close_envelope). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/investments/envelopes/{id:guid}/deletion"),
         new("add_holding", "POST", "/api/v1/investments/envelopes/{id:guid}/holdings", typeof(HoldingBody),
             "Add a holding (support) to an envelope: a fund, ETF, share, the euro fund, a structured product or cash; kind 'euro_fund', 'fund', "
             + "'etf', 'equity', 'bond', 'structured', 'cash' or 'other'. Copy the name and ISIN as printed. " + Ids + Amounts),
@@ -212,12 +223,16 @@ public static class RouteActions
             "End an income source on a date. " + Ids + Amounts, Destructive: true),
         new("reopen_income_source", "POST", "/api/v1/income/sources/{id:guid}/reopen", null,
             "Reopen an ended income source. " + Ids),
+        new("delete_income_source", "DELETE", "/api/v1/income/sources/{id:guid}", null,
+            "Propose deleting an income source created by mistake (to end one that stopped, use close_income_source). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/income/sources/{id:guid}/deletion"),
 
         // Childcare (childminder, Pajemploi).
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
             "Record a childminder's contract (assistante maternelle, année incomplète): childId is a dependent (list_persons); carer name, "
-            + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, "
-            + "the meal price, weekTypes (each a name, its weeks and its weekly schedule: day 1 = Monday, arrival and departure HH:mm, meal; together 1 to 46 weeks); "
+            + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, unpaidAbsences (the absence reasons deducted from the salary, among family, parent_rtt, child_sick, carer_absent, holiday and paid_leave; absent to keep the current ones), "
+            + "lunchPrice, snackPrice, lunchProvider and snackProvider (nanny or employer, only the nanny's meals are paid), weekTypes (each a name, its weeks and its weekly schedule: day 1 = Monday, arrival and departure HH:mm, lunch, snack; together 1 to 46 weeks); "
             + "gaps are weeks without care, each from a Monday. " + Owners + Amounts),
         new("edit_childcare", "PUT", "/api/v1/childcare/{id:guid}", typeof(EditChildcareBody),
             "Correct an arrangement's name, carer and current terms in place (terms.from stays the current one's; a change from a date is propose_revise_childcare). "
@@ -233,10 +248,14 @@ public static class RouteActions
             "End an arrangement on its last day (on). " + Ids + Amounts),
         new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,
             "Reopen an ended arrangement. " + Ids),
+        new("delete_childcare", "DELETE", "/api/v1/childcare/{id:guid}", null,
+            "Propose deleting an arrangement created by mistake, with its statements (to end one that ended, use close_childcare). A validated month "
+            + "refuses it until reopened. The household confirms it by typing its name. version is the one the deletion preview returned. " + Ids,
+            Destructive: true, Query: ["version"], Current: "/api/v1/childcare/{id:guid}/deletion"),
         new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
             "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
-            + "changed (present with arrival and departure HH:mm and meal, or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
-            + "holiday), the mileage, the CMG and the contributions left to the household (contributions, absent when all are covered) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
+            + "changed (present with arrival and departure HH:mm, lunch, snack and, for a planned day cut short, an optional reason; or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
+            + "holiday, paid_leave), the mileage, the CMG and the contributions left to the household (contributions, absent when all are covered) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
             + "left over) replaces the days, and declared gives the declaration fields entered by hand (normalHours, activityDays, paidLeaveDays, complementaryHours, overtimeHours, netPay, upkeep, meals). Validating it stays the person's gesture in the web app. "
             + Ids + Versioned + Amounts),
 
@@ -255,6 +274,10 @@ public static class RouteActions
             "Record the amount a goal without envelopes has reached on a date (on, not in the future); it replaces that date's entry. " + Ids + Amounts),
         new("delete_goal_progress", "DELETE", "/api/v1/goals/{id:guid}/progress/{on}", null,
             "Remove a goal's progress entry of a date. " + Ids, Destructive: true),
+        new("delete_goal", "DELETE", "/api/v1/goals/{id:guid}", null,
+            "Propose deleting a goal created by mistake (to close a goal that ended, use close_goal). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/goals/{id:guid}/deletion"),
 
         // Subscriptions.
         new("create_subscription", "POST", "/api/v1/subscriptions/", typeof(CreateSubscriptionBody),
@@ -282,6 +305,9 @@ public static class RouteActions
             "Record a one-off purchase linked to a subscription. " + Ids + Amounts),
         new("delete_purchase", "DELETE", "/api/v1/subscriptions/{id:guid}/purchases/{purchaseId:guid}", null,
             "Remove a purchase. " + Ids, Destructive: true),
+        new("delete_subscription", "DELETE", "/api/v1/subscriptions/{id:guid}", null,
+            "Propose deleting a subscription created by mistake, with its phases, insurance and grants. The household confirms it by typing its name. "
+            + "version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"], Current: "/api/v1/subscriptions/{id:guid}/deletion"),
         new("create_provider", "POST", "/api/v1/subscriptions/providers", typeof(CreateProviderBody),
             "Add a provider to the subscriptions catalog when the household's is not listed."),
 

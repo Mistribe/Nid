@@ -9,6 +9,45 @@ public class ExtraHoursTests
 {
     private static readonly StatementDay ExtraWednesday = new(D(2026, 11, 11), false, true, new LocalTime(8, 0), new LocalTime(17, 0), false, null);
 
+    /// <summary>Friday 2027-10-01 starts the contract: its week's Thursday has no statement, so the week is October's.</summary>
+    [Fact]
+    public void The_first_week_of_a_contract_counts_when_its_thursday_comes_before()
+    {
+        var month = new YearMonth(2027, 10);
+        var terms = Terms with { Start = D(2027, 10, 1) };
+        var days = StatementPreparation.Prepare(month, Plan, [], terms)
+            .Select(d => d.Date.Day == 1 ? d with { Departure = d.Departure!.Value.PlusHours(1) } : d).ToList();
+        IReadOnlyList<StatementDay> all = [.. StatementPreparation.Prepare(month.PlusMonths(-1), Plan, [], terms), .. days];
+
+        Assert.Equal((1m, 0m), ExtraHours.Compute(month, all, Plan, terms));
+    }
+
+    /// <summary>An hour missing for an unpaid reason, made up on Tuesday: that hour is no longer planned, so it is extra.</summary>
+    [Fact]
+    public void The_missing_hours_of_an_unpaid_reason_are_no_longer_planned()
+    {
+        var month = new YearMonth(2026, 11);
+        var days = Around(month).Where(d => d.Date.Month == 11).Select(d => d.Date.Day switch
+        {
+            2 => d with { Departure = d.Departure!.Value.PlusHours(-1), Absence = AbsenceReason.CarerAbsent },
+            3 => d with { Departure = d.Departure!.Value.PlusHours(1) },
+            _ => d,
+        }).ToList();
+
+        Assert.Equal((1m, 0m), ExtraHours.Compute(month, days, Plan));
+    }
+
+    /// <summary>A sick-child day the contract pays stays planned: hours made up that week are no extra hours.</summary>
+    [Fact]
+    public void A_paid_reason_stays_planned()
+    {
+        var month = new YearMonth(2026, 11);
+        var days = AbsenceDeductionTests.Absent(Around(month).Where(d => d.Date.Month == 11).ToList(), (2, AbsenceReason.ChildSick))
+            .Select(d => d.Date.Day == 3 ? d with { Departure = d.Departure!.Value.PlusHours(1) } : d).ToList();
+
+        Assert.Equal((0m, 0m), ExtraHours.Compute(month, days, Plan, Terms with { UnpaidAbsences = [] }));
+    }
+
     private static IReadOnlyList<StatementDay> Around(YearMonth month)
         => [.. StatementPreparation.Prepare(month.PlusMonths(-1), Plan, Gaps), .. StatementPreparation.Prepare(month, Plan, Gaps),
             .. StatementPreparation.Prepare(month.PlusMonths(1), Plan, Gaps)];
@@ -64,7 +103,7 @@ public class ExtraHoursAbsenceTests
         var month = new YearMonth(2026, 11);
         var days = StatementPreparation.Prepare(month, Plan, Gaps).Select(d => d.Date.Day switch
         {
-            2 => d with { Present = false, Arrival = null, Departure = null, Meal = false, Absence = AbsenceReason.CarerAbsent },
+            2 => d with { Present = false, Arrival = null, Departure = null, Lunch = false, Absence = AbsenceReason.CarerAbsent },
             3 => d with { Departure = new LocalTime(19, 30) },
             _ => d,
         }).ToList();

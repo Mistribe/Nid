@@ -32,6 +32,25 @@ public static class SubscriptionEndpoints
             => (await invoker.InvokeAsync(new GetSubscriptionChargesQuery(ParseScope(scope), OptionalMonth(month)), ct)).ToHttp(c => c))
             .Returns<SubscriptionCharges>();
 
+        api.MapGet("/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SubscriptionDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        api.MapDelete("/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // A missing version answers 422 at `version`: it would otherwise bind to 0 and pass for a conflict.
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with it is required.");
+                    return reader.Problem();
+                }
+
+                var result = await invoker.InvokeAsync(new DeleteSubscriptionCommand(new ItemId(id), version!.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
         api.MapGet("/{id:guid}", async (Guid id, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new GetSubscriptionQuery(

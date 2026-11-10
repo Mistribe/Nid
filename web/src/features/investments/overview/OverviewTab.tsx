@@ -25,7 +25,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PERSONS } from '@/api/persons';
 import { OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '@/api/investments';
-import { toPlot } from '@/lib/plot';
 import { AnnualReturn, Gain, pct } from '../Figures';
 import { Direction } from '@/components/Direction';
 import { kindText } from '../format';
@@ -38,8 +37,42 @@ import { OverviewSkeleton } from '@/components/page/skeletons';
 type Scope = 'household' | 'me';
 type Span = '12m' | '3y' | 'all';
 
-/** Investments dashboard §3.3: the server's figures, then the curve, the split, what to watch and the envelopes; nothing computed here. */
+/** Issue #20: the simple view — the value, the figures, then the curve with what to watch beside it; nothing computed here. */
 export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <ValueHero d={d} aside={<Figures d={d} />} />
+          <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+            <div className={d.watch.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}><ValueChart d={d} span={span} /></div>
+            <WatchCard d={d} />
+          </div>
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Issue #20: « Analyse », what the simple view leaves out — the split, each person's part and the envelopes. */
+export function AnalysisTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <Kinds d={d} />
+            <Persons d={d} />
+          </div>
+          <Envelopes d={d} />
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Investments dashboard §3.3: the server's answer both tabs read (one request), or what to show instead. */
+function Overview({ scope, span, children }: { scope: Scope; span: Span; children: (d: InvestmentsOverview) => ReactNode }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', OVERVIEW, { params: { query: { scope, span } } });
@@ -61,20 +94,9 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
         )} />
     );
 
-  // DOM order is the phone's (figures, curve, watch, split, persons, envelopes).
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-6">
-        <ValueHero d={d} />
-        <Figures d={d} />
-        <ValueChart d={d} span={span} />
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:order-last"><WatchCard d={d} /></div>
-          <Kinds d={d} />
-          <Persons d={d} />
-        </div>
-        <Envelopes d={d} />
-      </div>
+      <div className="flex flex-col gap-4">{children(d)}</div>
     </TooltipProvider>
   );
 }
@@ -103,13 +125,13 @@ function Estimated({ on }: { on: string }) {
   return <span className="block text-xs text-muted-foreground">{t('investments_overview.estimated_on', { date: formatLocalDate(on, 'short') })}</span>;
 }
 
-/** The value leads, with the change since 1 January and the server's points as its curve. */
-function ValueHero({ d }: { d: InvestmentsOverview }) {
+/** The value leads, with the change since 1 January and the other figures beside it. */
+function ValueHero({ d, aside }: { d: InvestmentsOverview; aside?: ReactNode }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
   const notes = d.oldestAsOf || d.staleCount > 0 || d.estimatedCount > 0 || d.withoutValueCount > 0;
   return (
-    <Hero label={t('investments_overview.value')} figure={d.value ? figure(d.value) : <HeroUnknown>{figure(d.value)}</HeroUnknown>}
+    <Hero aside={aside} label={t('investments_overview.value')} figure={d.value ? figure(d.value) : <HeroUnknown>{figure(d.value)}</HeroUnknown>}
       change={d.sinceJanuary ? (
         <HeroChange amount={d.sinceJanuary}
           pct={d.sinceJanuaryPct === null || d.sinceJanuaryPct === undefined ? null : t('investments.pct', { value: pct(d.sinceJanuaryPct) })}>
@@ -124,7 +146,7 @@ function ValueHero({ d }: { d: InvestmentsOverview }) {
           {d.withoutValueCount > 0 ? <Sub>{t('investments_overview.without_value', { count: d.withoutValueCount })}</Sub> : null}
         </>
       ) : null}
-      values={d.points.flatMap((p) => (p.value ? [toPlot(p.value.amount)] : []))} />
+    />
   );
 }
 
@@ -212,7 +234,7 @@ function Persons({ d }: { d: InvestmentsOverview }) {
   );
 }
 
-const WATCH_SHOWN = 4;
+const WATCH_SHOWN = 3;
 const WATCH_CODES = ['stale_value', 'no_value', 'missing_opening', 'holding_maturity', 'uc_share_below_floor'] as const;
 
 function WatchCard({ d }: { d: InvestmentsOverview }) {

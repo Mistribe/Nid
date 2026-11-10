@@ -126,6 +126,9 @@ public interface IHoldingStore
 
     Task AddAsync(EnvelopeHolding holding, CancellationToken ct);
 
+    /// <summary>Several holdings in one save.</summary>
+    Task AddManyAsync(IReadOnlyList<EnvelopeHolding> holdings, CancellationToken ct);
+
     /// <summary>Every field of <paramref name="holding"/>, in place.</summary>
     Task ReplaceAsync(EnvelopeHolding holding, CancellationToken ct);
 

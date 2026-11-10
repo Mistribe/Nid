@@ -5,7 +5,7 @@ export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 export const ARRANGEMENT_ID = '0192f0aa-0000-7000-8000-00000000c001';
 export const CHILD = '0192f0aa-0000-7000-8000-00000000d001';
 
-export const slot = (day: number, over: Partial<WeekdaySlot> = {}): WeekdaySlot => ({ day, arrival: '08:00', departure: '17:30', meal: true, ...over });
+export const slot = (day: number, over: Partial<WeekdaySlot> = {}): WeekdaySlot => ({ day, arrival: '08:00', departure: '17:30', lunch: true, snack: false, ...over });
 
 export const summary = (over: Partial<ChildcareSummary> = {}): ChildcareSummary => ({
   id: ARRANGEMENT_ID, name: 'Garde de Léa', childId: CHILD, childName: 'Léa', carerName: 'Martine', owners: [], visibility: 'shared',
@@ -15,7 +15,7 @@ export const summary = (over: Partial<ChildcareSummary> = {}): ChildcareSummary 
 export const list = (items: ChildcareSummary[]): ChildcareList => ({ items });
 
 export const terms = (over: Partial<ChildcareTerms> = {}): ChildcareTerms => ({
-  from: '2025-09-01', to: null, netHourlyRate: '4.30', grossHourlyRate: null, overtimePct: '10', upkeepPer9h: '3.80', mealPrice: '3.2',
+  from: '2025-09-01', to: null, netHourlyRate: '4.30', grossHourlyRate: null, overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.2', snackPrice: null, lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'],
   weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map((d) => slot(d)), weeklyHours: '38.00' }], programmedWeeks: 46,
   monthlyBasePay: eur('626.37'), monthlyHours: '151.67', normalHours: 146, ...over,
 });
@@ -45,8 +45,8 @@ export const september = (): StatementDay[] => Array.from({ length: 30 }, (_, i)
   const date = `2025-09-${String(i + 1).padStart(2, '0')}`;
   const planned = [0, 1, 3, 4].includes(i % 7); // 1 September 2025 is a Monday
   return planned
-    ? { date, planned, present: true, arrival: '08:00', departure: '17:30', meal: true, absence: null, templateArrival: '08:00', templateDeparture: '17:30', changed: false, weekType: null }
-    : { date, planned, present: false, arrival: null, departure: null, meal: false, absence: null, templateArrival: null, templateDeparture: null, changed: false, weekType: null };
+    ? { date, planned, present: true, arrival: '08:00', departure: '17:30', lunch: true, snack: false, absence: null, templateArrival: '08:00', templateDeparture: '17:30', changed: false, weekType: null }
+    : { date, planned, present: false, arrival: null, departure: null, lunch: false, snack: false, absence: null, templateArrival: null, templateDeparture: null, changed: false, weekType: null };
 });
 
 export const statement = (over: Partial<Statement> = {}): Statement => ({

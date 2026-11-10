@@ -24,7 +24,11 @@ public sealed class TermsRow
     public decimal? GrossHourlyRate { get; set; }
     public decimal OvertimeRate { get; set; }
     public decimal UpkeepPer9h { get; set; }
-    public decimal? MealPrice { get; set; }
+    public decimal? LunchPrice { get; set; }
+    public decimal? SnackPrice { get; set; }
+    public string LunchProvider { get; set; } = "nanny";
+    public string SnackProvider { get; set; } = "nanny";
+    public string[] UnpaidAbsences { get; set; } = [];
 }
 
 public sealed class WeekTypeRow
@@ -44,7 +48,8 @@ public sealed class WeekdayRow
     public short Day { get; set; }
     public LocalTime Arrival { get; set; }
     public LocalTime Departure { get; set; }
-    public bool Meal { get; set; }
+    public bool Lunch { get; set; }
+    public bool Snack { get; set; }
 }
 
 public sealed class WeekOverrideRow
@@ -107,6 +112,7 @@ public sealed class StatementDayRow
     public bool Present { get; set; }
     public LocalTime? Arrival { get; set; }
     public LocalTime? Departure { get; set; }
-    public bool Meal { get; set; }
+    public bool Lunch { get; set; }
+    public bool Snack { get; set; }
     public string? Absence { get; set; }
 }

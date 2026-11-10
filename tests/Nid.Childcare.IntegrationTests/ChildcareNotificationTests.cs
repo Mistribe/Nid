@@ -19,8 +19,8 @@ public class ChildcareNotificationTests(PostgresFixture fixture) : IClassFixture
             carer = new { name = "Martine", pajemploi = (string?)null, approval = (string?)null },
             terms = new
             {
-                from = "2025-09-01", netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", mealPrice = (string?)null,
-                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", meal = false } } } },
+                from = "2025-09-01", netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", lunchPrice = (string?)null,
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", lunch = false } } } },
             },
             gaps = Array.Empty<object>(), visibility = "shared",
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
@@ -60,7 +60,7 @@ public class ChildcareNotificationTests(PostgresFixture fixture) : IClassFixture
         var days = month.GetProperty("days").EnumerateArray().Select(d => new
         {
             date = d.GetProperty("date").GetString(), present = d.GetProperty("present").GetBoolean(), arrival = d.GetProperty("arrival").GetString(),
-            departure = d.GetProperty("departure").GetString(), meal = d.GetProperty("meal").GetBoolean(), absence = d.GetProperty("absence").GetString(),
+            departure = d.GetProperty("departure").GetString(), lunch = d.GetProperty("lunch").GetBoolean(), absence = d.GetProperty("absence").GetString(),
         }).ToList();
         var saved = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", cmg = "0", version = 0 }))
             .Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;

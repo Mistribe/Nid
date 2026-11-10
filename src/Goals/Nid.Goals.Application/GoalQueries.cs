@@ -16,6 +16,19 @@ public sealed record GetGoalQuery(ItemId ItemId, VisibilityScope Scope) : IQuery
     public AccessKind Access => AccessKind.Read;
 }
 
+/// <summary>#23: what deleting a goal removes, read before the delete.</summary>
+public sealed record GoalDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPreview>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+[RequestHandler<GoalDeletionQuery, ItemDeletionPreview>]
+public sealed class GoalDeletionHandler(IItemDeletions deletions) : IRequestHandler<GoalDeletionQuery, ItemDeletionPreview>
+{
+    public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(GoalDeletionQuery query, CancellationToken ct = default)
+        => await deletions.PreviewAsync(query.ItemId, "goals", null, ct);
+}
+
 /// <summary>Issue #412: the target an emergency fund of <paramref name="Months"/> would have, before it is created.</summary>
 public sealed record EmergencyTargetQuery(int Months, VisibilityScope Scope) : IQuery<EmergencyTargetView>;
 

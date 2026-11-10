@@ -11,7 +11,8 @@ public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName
 /// <summary>Spec §1.8, §2: the figures of one revision, in force from <c>From</c> to <c>To</c> (open while current).</summary>
 public sealed record Terms(
     ItemId ItemId, LocalDate From, LocalDate? To, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h,
-    decimal? MealPrice, IReadOnlyList<WeekType> WeekTypes)
+    decimal? LunchPrice, IReadOnlyList<WeekType> WeekTypes,
+    decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny, IReadOnlyList<AbsenceReason>? UnpaidAbsences = null)
 {
     public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
 }

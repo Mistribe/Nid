@@ -32,7 +32,7 @@ async function fillUpToSchedule(user: User) {
   await user.type(screen.getByLabelText('Début du contrat'), '01/09/2025');
   await user.type(screen.getByLabelText('Taux horaire net (€)'), '4,30');
   await user.type(screen.getByLabelText('Entretien pour 9 h (€)'), '3,80');
-  await user.type(screen.getByLabelText('Prix du repas (€)'), '3,20');
+  await user.type(screen.getByLabelText('Prix du déjeuner (€)'), '3,20');
   await next(user);
   expect(step()).toHaveTextContent('Planning');
 }
@@ -53,10 +53,10 @@ describe('NewChildcare', () => {
     await submit(user);
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/childcare/${ARRANGEMENT_ID}`));
-    const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', meal: true });
+    const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', lunch: true, snack: false });
     expect(bodies).toEqual([{
       name: 'Garde de Léa', childId: CHILD, carer: { name: 'Martine' },
-      terms: { from: '2025-09-01', netHourlyRate: '4.30', overtimePct: '10', upkeepPer9h: '3.80', mealPrice: '3.20',
+      terms: { from: '2025-09-01', netHourlyRate: '4.30', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.20', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'],
         weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map(slot) }] },
       gaps: [], visibility: 'shared', owners: [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 10000 }],
     }]);
@@ -117,7 +117,7 @@ describe('NewChildcare', () => {
     await submit(user);
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/childcare/${ARRANGEMENT_ID}`));
-    const slot = (day: number, departure = '17:30') => ({ day, arrival: '08:00', departure, meal: true });
+    const slot = (day: number, departure = '17:30') => ({ day, arrival: '08:00', departure, lunch: true, snack: false });
     expect((bodies[0] as { terms: { weekTypes: unknown } }).terms.weekTypes).toEqual([
       { name: 'Semaine longue', weeks: 23, schedule: [slot(1), slot(2), slot(4), slot(5)] },
       { name: 'Semaine courte', weeks: 22, schedule: [slot(1), slot(2, '16:45'), slot(4), slot(5)] },

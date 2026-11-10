@@ -54,7 +54,7 @@ fx_rate (indépendante)
 | `max_adults` | int | Plafond d'adultes, en attente compris (défaut 2, au moins 1 et au moins le nombre d'adultes). Modifié par un admin (`identity-and-access/administration-and-audit.md` §2) |
 | `timezone` | text | Fuseau IANA (défaut `Europe/Paris`) : jour courant, tâches planifiées |
 | `locale` | text | Langue et formats d'affichage |
-| `projection_assumptions` | jsonb? | Hypothèses de la projection du patrimoine (`superpowers/specs/2026-10-27-networth-projection-design.md` §2.1) : `ClassRates` (taux annuel nominal par classe d'actifs, −50 à 50 %), `Inflation` (−5 à 20 %, 2 % par défaut), `InflationByYear`, `ClassRatesByYear` (tables année civile → taux, de l'année en cours à +4 ; `cash` et `money_market` seulement), `IncomeGrowth` (évolution des revenus au-delà de l'inflation, −5 à 10 %, 0 par défaut ; #419, PR 3), `MonthlySavings` (`null` = automatique, sinon un montant signé), `SavingsClass`, `FreedPaymentsToSavings` (clés du JSON stocké en PascalCase ; sur l'API, les mêmes en camelCase). Absente : les valeurs par défaut. Lue et modifiée par tout adulte (`GET` et `PUT /api/v1/core/projection-assumptions`), à la différence des autres réglages du foyer |
+| `projection_assumptions` | jsonb? | Hypothèses de la projection du patrimoine (`superpowers/specs/2026-10-27-networth-projection-design.md` §2.1) : `ClassRates` (taux annuel nominal par classe d'actifs, −50 à 50 %), `Inflation` (−5 à 20 %, 2 % par défaut), `InflationByYear`, `ClassRatesByYear` (tables année civile → taux, de l'année en cours à +4 ; `cash` et `money_market` seulement), `IncomeGrowth` (évolution des revenus au-delà de l'inflation, −5 à 10 %, 0 par défaut ; #419, PR 3), `ClassVolatility` (volatilité annuelle par classe, 0 à 50 %, pour les fourchettes de la #9 ; absente ou classe manquante : liquidités, monétaire, fonds garantis et autres 0, obligations 6 %, mixte 10 %, immobilier 10 %, actions 16 %), `MonthlySavings` (`null` = automatique, sinon un montant signé), `SavingsClass`, `FreedPaymentsToSavings` (clés du JSON stocké en PascalCase ; sur l'API, les mêmes en camelCase). Absente : les valeurs par défaut. Lue et modifiée par tout adulte (`GET` et `PUT /api/v1/core/projection-assumptions`), à la différence des autres réglages du foyer |
 
 **`person`**
 
@@ -99,7 +99,7 @@ Vérifiés à l'écriture par Core, doublés de tests d'intégration :
 - Un `item` a **au moins un** propriétaire ; la somme de ses `share_bp` vaut exactement 10 000 ; chaque `share_bp` est compris entre 1 et 10 000.
 - `visibility = private` ⇒ **exactement un** propriétaire, et `share_level = view` (contrainte `ck_item_share_level`).
 - Ajouter un propriétaire à un élément privé le passe en `shared`.
-- Pas de suppression physique d'un `item` : on l'archive.
+- Un `item` terminé est clos (archivé). Il n'est supprimé physiquement que par la suppression d'élément (#23), pour un élément qui n'aurait jamais dû exister : avec ses lignes propres, ses faits, ses propriétaires, ses liens de documents et ses références bancaires (liens et règles bancaires, lien d'un compte vers une enveloppe), en une transaction, après un aperçu du serveur. Elle est refusée (`core.item_in_use`) quand quelque chose hors de l'élément en dépend (liste par module dans la doc de chaque module). Un contrat de garde dont des mois sont validés est refusé (`validated_statements`) : les rouvrir du plus récent au plus ancien. La `version` est celle de l'élément. Les chiffres passés sont recalculés. Un ré-import le recrée. Ses lignes d'audit restent, mais ne sont plus lisibles par l'élément. Les propositions en attente sur l'élément passent à `superseded` (pas de blocage).
 - `module` + `kind` appartiennent au module : Core n'interprète pas ces valeurs.
 - Un `adult` actif a un `oidc_subject`, un `adult` en attente et un `dependent` n'en ont pas. Le nombre d'`adult` ne dépasse pas `max_adults`.
 - Dès qu'un `adult` existe, au moins un `adult` est admin ; un `dependent` ne l'est jamais. Le rôle n'entre pas dans la matrice de droits (§4.3).
@@ -205,8 +205,10 @@ Document `projection` (`ProjectionScenario`) :
 |---|---|
 | `version` | 1 |
 | `horizon` | `years` (1 à 40) ou `retireOf` (une personne : sa retraite), jamais les deux |
-| `assumptions` | Surcharges des hypothèses du foyer : `classRates` (par classe, fusionné clé par clé), `inflation`, `monthlySavings`, `savingsClass`, `freedPaymentsToSavings` ; un champ absent garde celui du foyer |
+| `assumptions` | Surcharges des hypothèses du foyer : `classRates` et `classVolatility` (par classe, fusionnés clé par clé), `inflation`, `monthlySavings`, `savingsClass`, `freedPaymentsToSavings` ; un champ absent garde celui du foyer |
 | `events` | 30 événements au plus, chacun avec `id` (uuid), `kind`, `start` (et `until` pour les changements), `label` facultatif |
+
+Fourchettes (#9, `superpowers/specs/2026-11-10-projection-ranges-design.md`) : sur demande (`?ranges=true` sur `GET /api/v1/projection` et `GET /api/v1/scenarios/projection/{id}`, `ranges` de l'outil MCP `get_projection`), le serveur relance la projection 1 000 fois avec des rendements annuels aléatoires et répond `ranges` : les 10ᵉ, 50ᵉ et 90ᵉ centiles de chaque point (nominal et en euros d'aujourd'hui) et la part des tirages où l'épargne disponible tient jusqu'à l'horizon (`success`, pourcentage entier). Un seul tirage normal par année civile, commun à toutes les classes (un facteur de marché) : l'année d'une classe croît de (1 + taux) × exp(σz − σ²/2), réparti sur ses mois. L'inflation, les revenus, les prêts, la valeur des biens et les événements restent déterministes. Graine fixe : mêmes entrées, mêmes fourchettes ; volatilités nulles : chaque centile égale la projection. Budget : 40 ans, 20 lignes d'épargne, 1 000 tirages en moins d'une seconde sur 4 cœurs (un test échoue au-delà de 5 s).
 
 Une date (`start`, `until`) est soit un jour (`on`), soit une personne avec un âge de 18 à 100 ans (`person`, `age`) : le dernier jour du mois où elle atteint cet âge. Les champs d'un événement selon son `kind` :
 
@@ -287,7 +289,7 @@ Interprétation par les modules (exemples) :
 
 ### 5.4 Historique : chaîne `supersedes_id`
 
-Aucune ligne de `valuation` ni de `flow` n'est supprimée physiquement ; une ligne n'est modifiée que pour recevoir `retired_at`, ou `document_id` quand la proposition qui l'a créée est appliquée (même transaction).
+Aucune ligne de `valuation` ni de `flow` n'est supprimée physiquement, sauf à la suppression d'un élément (#23, §4.2) ; une ligne n'est modifiée que pour recevoir `retired_at`, ou `document_id` quand la proposition qui l'a créée est appliquée (même transaction).
 
 - **Correction** : une nouvelle ligne est créée avec `supersedes_id` vers l'ancienne, et l'ancienne reçoit `retired_at`, **dans la même transaction**. Une valeur ressaisie à sa date est une correction. La nouvelle ligne garde le `document_id` de l'ancienne ; une proposition validée y écrit ensuite le sien.
 - **Annulation** : `retired_at` est renseigné sans ligne de remplacement.
@@ -317,7 +319,7 @@ Les documents ne sont plus dans Core : le module `Nid.Documents` possède le fic
 |---|---|---|
 | `id` | uuid | |
 | `module`, `kind` | text | ex. `investments.record_valuation`, `realestate.import_amortization`, `subscriptions.observed_charge` |
-| `target_item_id?` | uuid | Élément visé |
+| `target_item_id?` | uuid | Élément visé (sans FK : une proposition survit à sa cible) |
 | `for_person_id` | uuid | Personne concernée ; pour un nouvel élément : celui qui a déposé |
 | `subject_key?` | text | Clé métier définie par le module : date de valorisation, période d'un relevé… |
 | `payload`, `payload_version` | jsonb, int | Type défini dans les `Contracts` du module, sérialisé en JSON source-généré |
@@ -433,7 +435,7 @@ Toutes les opérations passent par `IAccessPolicy`. Côté application, les écr
 | `IVisibleItems` | `For(person)` : ensemble des éléments lisibles, filtre unique réutilisé par tous les modules ; variantes « foyer » (partagés seulement) et « moi » |
 | `IItems` | `Create`, `Rename` (met à jour `display_name`), `SetOwners`, `SetVisibility`, `Archive` |
 | `IValuations` | `Record` (crée ou remplace la valeur d'une date), `Void`, `Latest(item, on)`, `Series(item, range)` |
-| `IFlows` | `Record`, `Supersede`, `Void`, `List(item, range, kinds?)`, `FindManyAsync(ids)` (flux actifs par id, sans contrôle d'accès : l'appelant décide qui voit), `Sum(item, kinds, range)` (somme déterministe pour les modules) |
+| `IFlows` | `Record`, `Supersede`, `Void`, `List(item, range, kinds?)`, `FindManyAsync(ids)` (flux actifs par id, sans contrôle d'accès : l'appelant décide qui voit), `CounterpartsAsync(item)` (flux actifs d'autres éléments partageant un `external_ref` avec un flux actif de l'élément, même règle : l'autre côté d'un virement, #23), `Sum(item, kinds, range)` (somme déterministe pour les modules) |
 | `IDocuments` | Retiré de Core : `IDocumentTargets` et `IDocumentLinks` sont dans `Documents.Contracts` (`documents-data-model.md` §5) |
 | `IProposalStore` | Livré en 4C1 : `Submit`, `Find`, `List`, `Decide`, `AddWarning`. Pas d’`Edit` séparé avant 4C2 : la modification se fait à l’approbation (`editedPayload`) |
 | `IProposalHandler` | Non générique, implémenté par chaque module : `Validate`, `Preview`, `Apply` |

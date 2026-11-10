@@ -29,6 +29,9 @@ export const MONTH_CHANGES = '/api/v1/dashboard/changes' as const;
 export type Projection = components['schemas']['ProjectionView'];
 export type HouseholdPoint = components['schemas']['HouseholdPointView'];
 export type ProjectionMilestone = components['schemas']['ProjectionMilestoneView'];
+/** Ranges spec §4: the bands of the projection, asked with `ranges=true`. */
+export type ProjectionRanges = components['schemas']['ProjectionRangesView'];
+export type RangePoint = components['schemas']['RangePointView'];
 
 /** The household's net worth projection (issue 102); the settings page invalidates it too. */
 export const PROJECTION = '/api/v1/projection' as const;

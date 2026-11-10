@@ -5,19 +5,22 @@ namespace Nid.Childcare.Domain;
 
 /// <summary>
 /// Childcare spec §3: hours worked beyond a week's planned hours, complementary up to 45 h, overtime beyond. A week
-/// belongs to the month of its Thursday. Pure.
+/// belongs to the month of its Thursday, or the contract's first or last month when that Thursday lies outside the contract. Pure.
 /// </summary>
 public static class ExtraHours
 {
     /// <summary><paramref name="days"/> covers every ISO week touching <paramref name="month"/>.</summary>
-    public static (decimal Complementary, decimal Overtime) Compute(YearMonth month, IReadOnlyList<StatementDay> days, WeekPlan plan)
+    public static (decimal Complementary, decimal Overtime) Compute(YearMonth month, IReadOnlyList<StatementDay> days, WeekPlan plan, ContractTerms? terms = null)
     {
+        var reasons = terms?.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid;
         decimal complementary = 0m, overtime = 0m;
         foreach (var week in days.GroupBy(d => d.Date.PlusDays(1 - (int)d.Date.DayOfWeek)))
         {
-            if (YearMonth(week.Key.PlusDays(3)) != month) continue;
-            // The week's own plan, not a template's fixed hours: a paid absence stays planned, a deducted one and a gap week do not.
-            var planned = week.Where(d => d.Planned && d.Absence is not (AbsenceReason.CarerAbsent or AbsenceReason.ChildSick)).Sum(d => plan.HoursOn(d.Date));
+            if (Owner(week.Key.PlusDays(3), terms) != month) continue;
+            // The week's own plan, not a template's fixed hours: a paid absence stays planned, an unpaid one (or its missing hours) and a gap week do not.
+            var planned = week.Where(d => d.Planned).Sum(d => d.Absence is { } r && reasons.Contains(r)
+                ? d.Present ? Math.Min(plan.HoursOn(d.Date), Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value)) : 0m
+                : plan.HoursOn(d.Date));
             var actual = week.Where(d => d.Present).Sum(d => Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value));
             var extra = Math.Max(0m, actual - planned);
             var under = Math.Min(extra, Math.Max(0m, ChildcareRules.OvertimeThresholdHours - planned));
@@ -29,6 +32,12 @@ public static class ExtraHours
 
     public static decimal Pay(decimal complementary, decimal overtime, decimal rate, decimal overtimeRate)
         => Mensualisation.Round(complementary * rate + overtime * rate * (1m + overtimeRate));
+
+    private static YearMonth Owner(LocalDate thursday, ContractTerms? terms)
+    {
+        if (terms is not null && thursday < terms.Start) return YearMonth(terms.Start);
+        return terms?.End is { } end && thursday > end ? YearMonth(end) : YearMonth(thursday);
+    }
 
     private static YearMonth YearMonth(LocalDate d) => new(d.Year, d.Month);
 }

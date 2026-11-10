@@ -138,6 +138,11 @@ public sealed class OutputGuardBehavior<TRequest, TResponse>(
         {
             allowed = await visible.ForAsync(actor, VisibilityScope.Me, includeArchived: true, cancellationToken);
         }
+        // The client dropped the request: nothing goes out either way, and it is not an incident to tell every adult about.
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             await violations.RecordAsync(typeof(TRequest).Name, actor, exposed, new AccessViolationCause(AccessViolationReasons.VisibilityLookupFailed, e), cancellationToken);

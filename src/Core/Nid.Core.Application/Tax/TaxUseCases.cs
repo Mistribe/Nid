@@ -373,6 +373,11 @@ public sealed class TaxEstimates(
         var statements = lines.Where(l => l.Code == TaxLineCodes.ChildcareOutsideHome).ToList();
         foreach (var arrangement in statements.GroupBy(l => (l.Item, l.Name)))
             notices.Add(new TaxNoticeView("childcare_from_statements", arrangement.Key.Item, arrangement.Key.Name, Amount(arrangement.Sum(l => l.Amount))));
+        // #14: the months of the current year still to validate, told apart from the validated ones.
+        var projected = lines.Where(l => l.Code == TaxLineCodes.ChildcareProjected).ToList();
+        foreach (var arrangement in projected.GroupBy(l => (l.Item, l.Name)))
+            notices.Add(new TaxNoticeView("childcare_projected", arrangement.Key.Item, arrangement.Key.Name, Amount(arrangement.Sum(l => l.Amount)),
+                statements.Count(l => l.Item == arrangement.Key.Item), arrangement.Count()));
         var rentals = lines.Where(l => l.Code == TaxLineCodes.RentalProperty).ToList();
         var pinel = 0m;
         foreach (var commitment in profile.Pinel)
@@ -397,7 +402,7 @@ public sealed class TaxEstimates(
             columns.Sum(c => c.L215), columns.Sum(c => c.L250), columns.Sum(c => c.L240),
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
             All(TaxLineCodes.CapitalIncome), All(TaxLineCodes.NonTaxable), pinel,
-            statements.Count > 0 ? statements.Sum(l => l.Amount) : profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
+            statements.Count > 0 ? statements.Sum(l => l.Amount) + projected.Sum(l => l.Amount) : profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
             profile.DonationsAidLate, profile.RentalEnergyWorks);
         return (inputs, notices, columns);
     }

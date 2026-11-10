@@ -6,8 +6,8 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Projection;
 
-/// <summary>Spec §7: the household's base projection in the reader's scope, from today to the horizon.</summary>
-public sealed record GetProjectionQuery(VisibilityScope Scope, ProjectionHorizon Horizon) : IQuery<ProjectionView>;
+/// <summary>Spec §7: the household's base projection in the reader's scope, from today to the horizon; with the bands when <c>Ranges</c>.</summary>
+public sealed record GetProjectionQuery(VisibilityScope Scope, ProjectionHorizon Horizon, bool Ranges = false) : IQuery<ProjectionView>;
 
 [RequestHandler<GetProjectionQuery, ProjectionView>]
 public sealed class GetProjectionHandler(ProjectionFactsReader facts) : IRequestHandler<GetProjectionQuery, ProjectionView>
@@ -17,6 +17,8 @@ public sealed class GetProjectionHandler(ProjectionFactsReader facts) : IRequest
         var read = await facts.ReadAsync(query.Scope, query.Horizon, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionView>(failure!);
         read.TryGetValue(out var reading);
-        return Result.Success(ProjectionView.From(query.Horizon, reading!, HouseholdProjection.Project(reading!.Inputs)));
+        var inputs = reading!.Inputs;
+        return Result.Success(ProjectionView.From(query.Horizon, reading, HouseholdProjection.Project(inputs),
+            ranges: query.Ranges ? ProjectionRanges.Simulate(inputs) : null));
     }
 }

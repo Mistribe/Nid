@@ -44,7 +44,7 @@ test('alice opens the CPI from Administration › Inflation, adds the IRL then a
   await page.getByRole('combobox', { name: 'Ajouter une série' }).click();
   await page.getByPlaceholder('Rechercher une série…').fill('eur'); // the stack may hold every currency: past the first page
   await page.getByRole('option', { name: 'EUR pour 1 USD', exact: true }).click();
-  await expect(page.getByText(/^Base 100 le /)).toBeVisible();
+  await expect(page.getByText(/^Base 100 le /)).toBeVisible({ timeout: 15_000 }); // years of daily rates: a slow runner draws them past 5 s
   await expect(page.getByRole('radio', { name: 'Base 100' })).toBeChecked();
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/inflation$/); // chip edits replaced the entry

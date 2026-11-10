@@ -42,8 +42,13 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         var september = await ValidateAsync(app, arrangement, "2025-09");
 
         var tax = await GetAsync(app, "/api/v1/tax?year=2025&scope=household");
-        Assert.Equal(TaxBase(september), tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
+        // Today is 2025-10-15: #14 counts October to December at September's tax base.
+        var perMonth = decimal.Parse(TaxBase(september), CultureInfo.InvariantCulture);
+        Assert.Equal((4 * perMonth).ToString("0.00", CultureInfo.InvariantCulture), tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
         Assert.Contains(tax.GetProperty("notices").EnumerateArray(), n => n.GetProperty("code").GetString() == "childcare_from_statements");
+        var projected = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_projected");
+        Assert.Equal(1, projected.GetProperty("monthsValidated").GetInt32());
+        Assert.Equal(3, projected.GetProperty("monthsEstimated").GetInt32());
 
         var next = await GetAsync(app, "/api/v1/tax?year=2026&scope=household");
         Assert.Equal("9999.00", next.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
@@ -128,7 +133,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
             date = d.GetProperty("date").GetString(), present = d.GetProperty("date").GetString() != "2025-10-06" && d.GetProperty("present").GetBoolean(),
             arrival = d.GetProperty("date").GetString() == "2025-10-06" ? null : d.GetProperty("arrival").GetString(),
             departure = d.GetProperty("date").GetString() == "2025-10-06" ? null : d.GetProperty("departure").GetString(),
-            meal = d.GetProperty("date").GetString() != "2025-10-06" && d.GetProperty("meal").GetBoolean(),
+            lunch = d.GetProperty("date").GetString() != "2025-10-06" && d.GetProperty("lunch").GetBoolean(),
             absence = d.GetProperty("date").GetString() == "2025-10-06" ? "family" : d.GetProperty("absence").GetString(),
         }).ToList();
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", cmg = (string?)null, version = 0 })).StatusCode);
@@ -341,11 +346,11 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         var read = await GetAsync(app, month);
         // A draft keeps its corrections only: the unplanned Friday of the short week is worked.
         var days = read.GetProperty("days").EnumerateArray().Select(d => d.GetProperty("date").GetString() == "2025-09-12"
-            ? new { date = (string?)"2025-09-12", present = true, arrival = (string?)"08:00", departure = (string?)"17:00", meal = true, absence = (string?)null }
+            ? new { date = (string?)"2025-09-12", present = true, arrival = (string?)"08:00", departure = (string?)"17:00", lunch = true, absence = (string?)null }
             : new
             {
                 date = d.GetProperty("date").GetString(), present = d.GetProperty("present").GetBoolean(), arrival = d.GetProperty("arrival").GetString(),
-                departure = d.GetProperty("departure").GetString(), meal = d.GetProperty("meal").GetBoolean(), absence = d.GetProperty("absence").GetString(),
+                departure = d.GetProperty("departure").GetString(), lunch = d.GetProperty("lunch").GetBoolean(), absence = d.GetProperty("absence").GetString(),
             }).ToList();
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, month, new { days, mileage = "0", cmg = (string?)null, version = 0 })).StatusCode);
         Assert.Empty((await GetAsync(app, month)).GetProperty("problems").EnumerateArray());
@@ -406,7 +411,6 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal([2025], summary.GetProperty("years").EnumerateArray().Select(y => y.GetInt32()));
         Assert.Equal("7GA", summary.GetProperty("box").GetString());
         Assert.Equal(TaxBase(september), summary.GetProperty("retained").GetProperty("amount").GetString());
-        Assert.Equal(tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString(), summary.GetProperty("retained").GetProperty("amount").GetString());
         var notice = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_from_statements");
         Assert.Equal(summary.GetProperty("retained").GetProperty("amount").GetString(), notice.GetProperty("amount").GetString());
         Assert.Equal(summary.GetProperty("id").GetGuid(), notice.GetProperty("item").GetGuid());

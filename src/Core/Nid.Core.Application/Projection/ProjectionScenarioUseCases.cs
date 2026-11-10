@@ -22,8 +22,11 @@ public sealed record ReplaceProjectionScenarioCommand(ItemId ItemId, string Name
     public AccessKind Access => AccessKind.Write;
 }
 
-/// <summary>Spec §6 and §7: the document as the reader may see it, against the base, computed now on the scenario's scope.</summary>
-public sealed record GetProjectionScenarioQuery(ItemId ItemId) : IQuery<ProjectionScenarioView>, IItemScoped
+/// <summary>
+/// Spec §6 and §7: the document as the reader may see it, against the base, computed now on the scenario's scope; with the scenario's
+/// bands when <c>Ranges</c> (ranges spec §4).
+/// </summary>
+public sealed record GetProjectionScenarioQuery(ItemId ItemId, bool Ranges = false) : IQuery<ProjectionScenarioView>, IItemScoped
 {
     public AccessKind Access => AccessKind.Read;
 }
@@ -47,7 +50,8 @@ public sealed class SimulateProjectionScenarioHandler(ProjectionScenarioReader r
 internal static class ProjectionScenarios
 {
     public static async Task<Result<ProjectionScenarioView>> ViewAsync(
-        ProjectionScenarioReader reader, IAccessPolicy policy, PersonId actor, ItemAccess item, StoredScenario stored, CancellationToken ct)
+        ProjectionScenarioReader reader, IAccessPolicy policy, PersonId actor, ItemAccess item, StoredScenario stored, CancellationToken ct,
+        bool ranges = false)
     {
         var read = await reader.ReadAsync(stored.Projection!, stored.Scope, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionScenarioView>(failure!);
@@ -55,7 +59,7 @@ internal static class ProjectionScenarios
         var canWrite = (await policy.CheckAsync(actor, item.Id, AccessKind.Write, ct)).IsSuccess;
         return Result.Success(new ProjectionScenarioView(
             item.Id, item.DisplayName, ScenarioResults.Wire(item.Visibility), stored.Scope == VisibilityScope.Me ? "me" : "household", canWrite,
-            ProjectionComparisonView.From(reading!)));
+            ProjectionComparisonView.From(reading!, ranges)));
     }
 
     /// <summary>Inflation spec C15: a saved scenario keeps no yearly override of a past year.</summary>
@@ -85,7 +89,7 @@ public sealed class GetProjectionScenarioHandler(
         var loaded = await ScenarioResults.LoadAsync(items, store, query.ItemId, ct, ScenarioKinds.Projection);
         if (loaded.TryGetFailure(out var failure)) return Result.Failure<ProjectionScenarioView>(failure!);
         loaded.TryGetValue(out var found);
-        return await ProjectionScenarios.ViewAsync(reader, policy, actor.Current!.PersonId!.Value, found.Item, found.Stored, ct);
+        return await ProjectionScenarios.ViewAsync(reader, policy, actor.Current!.PersonId!.Value, found.Item, found.Stored, ct, query.Ranges);
     }
 }
 

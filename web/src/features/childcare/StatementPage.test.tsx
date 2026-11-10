@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { pick } from '@/test/controls';
@@ -75,6 +75,19 @@ describe('StatementPage', () => {
     expect(await screen.findByText('Semaine courte')).toBeInTheDocument();
   });
 
+  it('a day cut short can carry a reason', async () => {
+    const writes: Write[] = [];
+    serve(statement(), writes);
+    const { user } = await renderApp(url);
+    await user.click(await screen.findByRole('button', { name: 'Modifier le lundi 8 septembre' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Départ'), { target: { value: '12:00' } });
+    await pick(user, 'Motif de la journée écourtée', 'Enfant malade');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer le jour' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect((writes[0]!.body as { days: unknown[] }).days[7]).toMatchObject({ present: true, departure: '12:00', absence: 'child_sick' });
+  });
+
   it('marking a day absent sends the month with the reason', async () => {
     const writes: Write[] = [];
     serve(statement(), writes);
@@ -88,7 +101,7 @@ describe('StatementPage', () => {
     const body = writes[0]!.body as { days: { date: string }[]; version: number; cmg: string | null };
     expect(body.version).toBe(3);
     expect(body.days).toHaveLength(30);
-    expect(body.days[7]).toEqual({ date: '2025-09-08', present: false, arrival: null, departure: null, meal: false, absence: 'child_sick' });
+    expect(body.days[7]).toEqual({ date: '2025-09-08', present: false, arrival: null, departure: null, lunch: false, snack: false, absence: 'child_sick' });
   });
 
   it('the total of the month goes to the server with the days as they are', async () => {

@@ -27,6 +27,8 @@
     "upcoming_none": "Aucun prélèvement dans les 30 prochains jours.",
     "watch": "À surveiller",
     "watch_none": "Rien à surveiller",
+    "watch_all": "Tout voir ({{count}})",
+    "watch_less": "Moins",
     "unknown_item": "Un abonnement",
     "unknown_provider": "un même fournisseur",
     "tone_alert": "Alerte",
@@ -65,6 +67,7 @@
     "legend": "Légende",
     "legend_paid": "Prélevé",
     "legend_projected": "Prévu",
+    "legend_weight": "Total du mois",
     "marker": "{{name}}, {{amount}}, {{state}} le {{date}}",
     "paid": "prélevé",
     "projected": "prévu",
@@ -72,7 +75,9 @@
     "summary_one": "{{total}} · {{count}} prélèvement",
     "summary_other": "{{total}} · {{count}} prélèvements",
     "start": "Début de l’historique",
-    "end": "Fin de la prévision affichée"
+    "end": "Fin de la prévision affichée",
+    "several_one": "{{count}} prélèvement de {{name}}, {{date}}",
+    "several_other": "{{count}} prélèvements de {{name}}, {{date}}"
   },
   "partial": "partiel",
   "years": {

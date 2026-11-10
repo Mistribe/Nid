@@ -85,7 +85,7 @@ function Chart({ d, label }: { d: PropertiesOverview; label: (p: PropertyPoint, 
   // Display of the plotting number only: the axis is a scale, not a figure the person reads exactly.
   const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: d.currency, notation: 'compact' });
   return (
-    <ChartContainer config={config} className="h-72 w-full">
+    <ChartContainer config={config} className="h-48 w-full">
       <ComposedChart data={rows} title={t('properties_overview.chart_title')} accessibilityLayer margin={{ top: 8, right: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />

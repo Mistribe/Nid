@@ -46,11 +46,16 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
         return (await holdings.OrderBy(h => h.Name).ThenBy(h => h.Id).ToListAsync(ct)).Select(ToHolding).ToList();
     }
 
-    public async Task AddAsync(EnvelopeHolding holding, CancellationToken ct)
+    public Task AddAsync(EnvelopeHolding holding, CancellationToken ct) => AddManyAsync([holding], ct);
+
+    public async Task AddManyAsync(IReadOnlyList<EnvelopeHolding> holdings, CancellationToken ct)
     {
-        var row = new HoldingRow { Id = holding.Id, EnvelopeItemId = holding.Envelope.Value };
-        Copy(holding, row);
-        db.Holdings.Add(row);
+        foreach (var holding in holdings)
+        {
+            var row = new HoldingRow { Id = holding.Id, EnvelopeItemId = holding.Envelope.Value };
+            Copy(holding, row);
+            db.Holdings.Add(row);
+        }
         await db.SaveChangesAsync(ct);
     }
 

@@ -45,9 +45,11 @@ import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/api/banking';
 import '@/locales/banks';
+import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
 
 // The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));
 // « Opérations » and its import dialog load with the tab, shown once bank sync is on (statement files need no Enable Banking) on an
 // envelope a bank account goes with.
@@ -101,6 +103,7 @@ export function EnvelopeDetailPage() {
   // Closing and reopening: the page owns the toast (the banner and the write actions come and go with
   // the state), and where the focus lands once the refetch has swapped them — never <body>.
   const [closeOpen, setCloseOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const closeWasOpen = useRef(false);
   const [landOn, setLandOn] = useState<'banner' | 'enter' | null>(null);
   const isClosed = answer.data?.closed;
@@ -188,6 +191,7 @@ export function EnvelopeDetailPage() {
     requestAnimationFrame(() => document.getElementById(SALE_TAX)?.scrollIntoView({ block: 'start' }));
   };
 
+  const deleteItem = [{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }];
   const actions = writable ? (
     <>
       <Button ref={enterRef} data-guide="investments.enter" type="button" onClick={() => setValueDialog({})}>
@@ -198,9 +202,9 @@ export function EnvelopeDetailPage() {
         { label: t('envelope.add_flow_open'), phone: true, onSelect: () => setFlowDialog({}) },
         { label: t('envelope.transfer.open'), onSelect: () => setTransferOpen(true) },
         { label: t('envelope.closing.open'), onSelect: () => setCloseOpen(true) },
-      ]} />
+      ]} trailing={deleteItem} />
     </>
-  ) : detail.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('page.more_actions')} /> : null;
+  ) : detail.canWrite ? <SharingMenu item={id} onAnnounce={toast.success} shared={detail.visibility === 'shared'} label={t('page.more_actions')} trailing={deleteItem} /> : null;
 
   return (
     <article className="space-y-6">
@@ -297,6 +301,7 @@ export function EnvelopeDetailPage() {
       {writable && valueDialog ? <ValueDialog envelope={detail} editing={valueDialog.editing} onClose={cancelValue} onDone={savedValue(!!valueDialog.editing)} /> : null}
       {writable && flowDialog ? <FlowDialog envelope={detail} editing={flowDialog.editing} opening={flowDialog.opening} onClose={cancelFlow} onDone={savedFlow(!!flowDialog.editing)} /> : null}
       {transferOpen ? <TransferDialog source={detail} onClose={() => closeTransfer()} onDone={closeTransfer} /> : null}
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="investments.delete_envelope" id={id} closed={detail.closed} onClose={() => setDeleting(false)} /></Suspense> : null}
       {closeOpen ? <CloseDialog envelope={detail} onClose={() => closeClose()} onDone={closeClose} /> : null}
 
       <DetailTabs value={shown} onChange={setTab} guide="investments.history" tabs={[

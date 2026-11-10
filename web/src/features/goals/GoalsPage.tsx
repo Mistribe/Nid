@@ -19,9 +19,11 @@ import { Amounts, Dash, GoalProgress, GoalStatus } from './GoalStatus';
 import { presentGoalConflict, statusText } from './format';
 import '@/locales/goals';
 import '@/locales/forms';
+import '@/locales/deletion';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 
 const TABS = ['open', 'closed'] as const;
 
@@ -107,6 +109,7 @@ function Name({ goal }: { goal: GoalSummary }) {
 function Actions({ goal }: { goal: GoalSummary }) {
   const { t } = useTranslation();
   const [asking, setAsking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const close = useCloseGoal();
   const reopen = useReopenGoal();
   const error = close.error ?? reopen.error;
@@ -116,7 +119,9 @@ function Actions({ goal }: { goal: GoalSummary }) {
     <span className="flex flex-wrap items-center justify-end gap-2">
       <RowMenu label={t('goals_list.row_menu', { name: goal.name })} items={[goal.closed
         ? { label: t('goals_list.reopen'), onSelect: () => { if (!pending) reopen.mutate({ params: { path: { id: goal.id } } }); } }
-        : { label: t('goals_list.close'), onSelect: () => { if (!pending) setAsking(true); } }]} />
+        : { label: t('goals_list.close'), onSelect: () => { if (!pending) setAsking(true); } },
+        ...(goal.canWrite ? [{ separator: true as const }, { label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }] : [])]} />
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="goals.delete_goal" id={goal.id} closed={goal.closed} onClose={() => setDeleting(false)} /></Suspense> : null}
       {asking ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={t('goals_list.close')} confirmation={t('goals_list.close_confirmation', { name: goal.name })} pending={close.isPending}

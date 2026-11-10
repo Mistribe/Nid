@@ -225,7 +225,7 @@ describe('phase actions', () => {
 
   it.each([
     ['the other adult', { canWrite: false, visibility: 'shared' }, ['Afficher en tableau']],
-    ['an ended source', { ended: true, endedOn: '2025-06-30' }, ['Rouvrir', 'Afficher en tableau']],
+    ['an ended source', { ended: true, endedOn: '2025-06-30' }, ['', 'Rouvrir', 'Afficher en tableau']],
   ] as const)('gives %s no form and no phase action', async (_who, over, buttons) => {
     serveStateful(detail({ ...over, gapSoon: [{ label: 'Salaire de base', endsOn: '2026-12-31' }] }));
     const { container } = await renderApp(`/income/${SALARY}`);
@@ -233,7 +233,7 @@ describe('phase actions', () => {
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     await screen.findByRole('list', { name: 'Changements, du plus récent au plus ancien' });
     const article = screen.getByRole('article');
-    // Only the chart's table toggle (and « Rouvrir » on an ended source).
+    // Only the ⋯ menu (Supprimer… for an ended source), the chart's table toggle and « Rouvrir » on an ended source.
     expect(within(article).queryAllByRole('button').map((b) => b.textContent)).toEqual(buttons);
     expect(within(article).queryByRole('textbox')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);

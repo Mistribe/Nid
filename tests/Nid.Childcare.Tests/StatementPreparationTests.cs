@@ -19,7 +19,7 @@ public class StatementPreparationTests
             Assert.True(d.Present);
             Assert.Equal(Arrival, d.Arrival);
             Assert.Equal(Departure, d.Departure);
-            Assert.True(d.Meal);
+            Assert.True(d.Lunch);
             Assert.Null(d.Absence);
         });
         Assert.False(days.Single(d => d.Date == D(2026, 11, 11)).Planned);

@@ -112,6 +112,24 @@ public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<P
         Assert.True(await subs.Purchases.AnyAsync(p => p.ImportRef == "pu-extra", cancellationToken: TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task A_deleted_imported_subscription_is_created_again_by_importing_the_same_file()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, GoldenFile.Sections());
+        var url = $"/api/v1/subscriptions/{await IdOf(app, "Spotify Premium Duo")}";
+        var preview = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/deletion");
+        var version = System.Text.Json.JsonDocument.Parse(await preview.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("version").GetUInt32();
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{url}?version={version}")).StatusCode);
+
+        var again = await CommitAsync(client, app, GoldenFile.Sections());
+
+        Assert.Equal(new CountsResponse(1, 2, 0), again.Report!.Sections["subscriptions"]);
+        Assert.Equal(new CountsResponse(1, 2, 0), again.Report.Sections["purchases"]);
+        await IdOf(app, "Spotify Premium Duo");
+    }
+
     /// <summary>
     /// A file that adds to a subscription imported before is checked against what is stored, not only against
     /// itself: the later file may repeat the stored phases or leave them out, and the new one overlapping the

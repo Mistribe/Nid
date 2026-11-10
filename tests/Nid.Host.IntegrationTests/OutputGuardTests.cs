@@ -49,6 +49,16 @@ public class OutputGuardTests
             => throw new InvalidOperationException("the database is unreachable");
     }
 
+    /// <summary>What the database driver does when the client drops the request.</summary>
+    private sealed class CancelledVisibleItems : IVisibleItems
+    {
+        Task<IReadOnlySet<ItemId>> IVisibleItems.ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+            => ForAsync(actor, scope, includeArchived: false, ct);
+
+        public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
+            => Task.FromCanceled<IReadOnlySet<ItemId>>(ct);
+    }
+
     [Fact]
     public async Task A_response_exposing_an_invisible_item_is_refused_and_carries_no_data()
     {
@@ -141,6 +151,21 @@ public class OutputGuardTests
         var cause = Assert.Single(recorder.Recorded);
         Assert.Equal(AccessViolationReasons.VisibilityLookupFailed, cause.Reason);
         Assert.IsType<InvalidOperationException>(cause.Error);
+    }
+
+    [Fact]
+    public async Task A_cancelled_request_is_cancelled_not_recorded_as_a_violation()
+    {
+        var recorder = new RecordingViolations();
+        var guard = new OutputGuardBehavior<AnyQuery, LeakyResponse>(
+            new Accessor(new PersonId(Guid.CreateVersion7())), new CancelledVisibleItems(), recorder);
+        using var aborted = new CancellationTokenSource();
+        await aborted.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await guard.HandleAsync(new AnyQuery(),
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))), aborted.Token));
+
+        Assert.Empty(recorder.Recorded);
     }
 
     [Fact]

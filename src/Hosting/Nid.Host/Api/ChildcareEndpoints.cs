@@ -87,6 +87,25 @@ public static class ChildcareEndpoints
             => (await invoker.InvokeAsync(new ReopenChildcareCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
+        api.MapGet("/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ChildcareDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        api.MapDelete("/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // A missing version answers 422 at `version`: it would otherwise bind to 0 and pass for a conflict.
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with it is required.");
+                    return reader.Problem();
+                }
+
+                var result = await invoker.InvokeAsync(new DeleteChildcareCommand(new ItemId(id), version.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
         api.MapGet("/{id:guid}/statements", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListStatementsQuery(new ItemId(id)), ct)).ToHttp(list => list))
             .Returns<ChildcareStatementList>();
@@ -150,7 +169,7 @@ public static class ChildcareEndpoints
     }
 
     /// <summary>A day as entered; times <c>HH:mm</c> on a present day, <c>absence</c> snake_case (<c>child_sick</c>) on an absent planned one.</summary>
-    public sealed record StatementDayBody(string? Date, bool? Present, string? Arrival, string? Departure, bool? Meal, string? Absence);
+    public sealed record StatementDayBody(string? Date, bool? Present, string? Arrival, string? Departure, bool? Lunch, string? Absence, bool? Snack = null);
 
     /// <summary>Decision 29: the month's care days, its total hours as a decimal string, and the reason of the planned days left over.</summary>
     public sealed record StatementSummaryBody(int? CareDays, string? Hours, string? Absence);
@@ -177,8 +196,8 @@ public static class ChildcareEndpoints
                 var departure = present ? reader.Time(day!.Departure, $"days[{i}].departure") : null;
                 AbsenceReason? absence = null;
                 if (day?.Absence is { } name && (absence = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent or holiday.");
-                if (date is { } d) days.Add(new DayInput(d, present, arrival, departure, day?.Meal ?? false, absence));
+                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
+                if (date is { } d) days.Add(new DayInput(d, present, arrival, departure, day?.Lunch ?? false, absence, day?.Snack ?? false));
             }
             var mileage = reader.Decimal(Mileage, "mileage") ?? 0m;
             var cmg = reader.Decimal(Cmg, "cmg");
@@ -192,7 +211,7 @@ public static class ChildcareEndpoints
             {
                 AbsenceReason? reason = null;
                 if (s.Absence is { } name && (reason = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent or holiday.");
+                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
                 if (s.CareDays is null) reader.Add("summary.careDays", "request.required", "The care days are required.");
                 var hours = reader.Decimal(s.Hours, "summary.hours");
                 if (hours is null) reader.Add("summary.hours", "request.required", "The hours are required.");
@@ -208,12 +227,12 @@ public static class ChildcareEndpoints
     public sealed record CarerBody(string? Name, string? Pajemploi, string? Approval);
 
     /// <summary>ISO day (1 = Monday), times <c>HH:mm</c>.</summary>
-    public sealed record WeekdaySlotBody(int? Day, string? Arrival, string? Departure, bool? Meal);
+    public sealed record WeekdaySlotBody(int? Day, string? Arrival, string? Departure, bool? Lunch, bool? Snack = null);
 
     /// <summary>Rates as decimal strings; <c>overtimePct</c> in percent (10 = 10 %).</summary>
     public sealed record TermsBody(
-        string? From, string? NetHourlyRate, string? GrossHourlyRate, string? OvertimePct, string? UpkeepPer9h, string? MealPrice,
-        IReadOnlyList<WeekTypeBody>? WeekTypes);
+        string? From, string? NetHourlyRate, string? GrossHourlyRate, string? OvertimePct, string? UpkeepPer9h, string? LunchPrice,
+        IReadOnlyList<WeekTypeBody>? WeekTypes, string? SnackPrice = null, string? LunchProvider = null, string? SnackProvider = null, IReadOnlyList<string>? UnpaidAbsences = null);
 
     /// <summary>A named weekly pattern and the number of weeks of the contract year it covers.</summary>
     public sealed record WeekTypeBody(string? Name, int? Weeks, IReadOnlyList<WeekdaySlotBody>? Schedule);
@@ -290,7 +309,16 @@ public static class ChildcareEndpoints
             var gross = Number(body.GrossHourlyRate, "terms.grossHourlyRate", false);
             var overtime = Number(body.OvertimePct, "terms.overtimePct", true) / 100m;
             var upkeep = Number(body.UpkeepPer9h, "terms.upkeepPer9h", true);
-            var meal = Number(body.MealPrice, "terms.mealPrice", false);
+            var lunch = Number(body.LunchPrice, "terms.lunchPrice", false);
+            var snack = Number(body.SnackPrice, "terms.snackPrice", false);
+            MealProvider Provider(string? value, string path)
+            {
+                var parsed = value is null ? MealProvider.Nanny : MealProviderCodes.TryParse(value);
+                if (parsed is null) reader.Add(path, "request.invalid", "A meal is provided by the nanny or the employer.");
+                return parsed ?? MealProvider.Nanny;
+            }
+            var lunchProvider = Provider(body.LunchProvider, "terms.lunchProvider");
+            var snackProvider = Provider(body.SnackProvider, "terms.snackProvider");
             var types = new List<WeekType>();
             if (body.WeekTypes is null) reader.Add("terms.weekTypes", "request.required", "The week types are required.");
             foreach (var (type, i) in (body.WeekTypes ?? []).Select((t, i) => (t, i)))
@@ -309,11 +337,14 @@ public static class ChildcareEndpoints
                     }
                     var arrival = reader.Time(slot.Arrival, $"{path}.schedule[{k}].arrival");
                     var departure = reader.Time(slot.Departure, $"{path}.schedule[{k}].departure");
-                    if (arrival is { } a && departure is { } d) schedule.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day.Value, a, d, slot.Meal ?? false));
+                    if (arrival is { } a && departure is { } d) schedule.Add(new WeekdaySlot((IsoDayOfWeek)slot.Day.Value, a, d, slot.Lunch ?? false, slot.Snack ?? false));
                 }
                 if (type?.Name is { } name && type.Weeks is { } weeks) types.Add(new WeekType(name, weeks, schedule));
             }
-            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, meal, types) : null;
+            var unpaid = body.UnpaidAbsences?.Select(AbsenceCodes.TryParse).ToList();
+            if (unpaid?.Any(u => u is null) == true)
+                reader.Add("terms.unpaidAbsences", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
+            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, lunch, types, snack, lunchProvider, snackProvider, unpaid?.OfType<AbsenceReason>().Distinct().ToList()) : null;
         }
 
         public static IReadOnlyList<CareGap> Gaps(FieldReader reader, IReadOnlyList<CareGapBody>? body)
