@@ -152,10 +152,29 @@ describe('the shell', () => {
     expect(await screen.findByRole('menu')).toBeInTheDocument();
   });
 
-  it('adds Administration to the person menu for an admin', async () => {
+  it('has no Administration entry in the person menu', async () => {
     const { user } = await renderApp('/subscriptions', { capabilities: adminCapabilities });
     await user.click(await openerReady());
-    expect(await screen.findByRole('menuitem', { name: 'Administration' })).toBeInTheDocument();
+    await screen.findByRole('menu');
+    expect(screen.queryByRole('menuitem', { name: 'Administration' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Administration group in the sidebar for an admin', async () => {
+    await renderApp('/subscriptions', { capabilities: adminCapabilities });
+    const heading = within(sidebar()).getByRole('heading', { name: 'Administration' });
+    const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link').map((l) => l.textContent);
+    expect(links).toEqual(['Vue d\'ensemble', 'Taux de change', 'Cours', 'IRL', 'Inflation', 'Tâches', 'Banque', 'Catalogue', 'Utilisateurs', 'Foyer', 'Journal de sécurité', 'Système', 'Notifications']);
+  });
+
+  it('shows no Administration group to a non-admin', async () => {
+    await renderApp('/subscriptions', { capabilities: allCapabilities });
+    expect(within(sidebar()).queryByRole('heading', { name: 'Administration' })).not.toBeInTheDocument();
+  });
+
+  it('marks the admin section current in the sidebar', async () => {
+    await renderApp('/admin/fx', { capabilities: adminCapabilities });
+    expect(within(sidebar()).getByRole('link', { name: 'Taux de change' })).toHaveAttribute('aria-current', 'page');
+    expect(within(sidebar()).getByRole('link', { name: 'Vue d\'ensemble' })).not.toHaveAttribute('aria-current');
   });
 
   it('shows the routine badge with the dashboard’s todo count', async () => {
@@ -366,6 +385,13 @@ describe('the shell', () => {
     expect(within(list).getByRole('link', { name: 'Administration' })).toBeInTheDocument();
   });
 
+  it('keeps the admin sections off /more', async () => {
+    await renderApp('/more', { capabilities: adminCapabilities });
+    const list = await screen.findByRole('list', { name: 'Autres sections' });
+    expect(within(list).getAllByRole('link', { name: 'Administration' })).toHaveLength(1);
+    expect(within(list).queryByRole('link', { name: 'Taux de change' })).not.toBeInTheDocument();
+  });
+
   it('marks Plus current on a page it gathers', async () => {
     await renderApp('/import');
     expect(within(tabs()).getByRole('link', { name: 'Plus' })).toHaveAttribute('aria-current', 'page');
@@ -397,6 +423,12 @@ describe('the shell', () => {
       await user.click(toggle('Replier le menu'));
       expect(brand().querySelector('[data-wordmark]')).toBeNull();
       expect(brand().querySelector('ellipse')).not.toBeNull();
+    });
+
+    it('keeps an admin link named on the rail', async () => {
+      localStorage.setItem('nid.sidebar', 'rail');
+      await renderApp('/subscriptions', { capabilities: adminCapabilities });
+      expect(within(sidebar()).getByRole('link', { name: 'Taux de change' })).toBeInTheDocument();
     });
 
     it('folds the sidebar into a rail and remembers it on this device', async () => {

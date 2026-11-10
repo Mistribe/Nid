@@ -66,23 +66,24 @@ export function Shell() {
   }, [toggle]);
   const items = visibleNav(capabilities);
   const side = items.filter((item) => item.group !== 'account');
-  const groups = (['follow', 'estate', 'budget'] as const).map((group) => ({ group, entries: side.filter((item) => item.group === group) })).filter((g) => g.entries.length > 0);
+  const groups = (['follow', 'estate', 'budget', 'admin'] as const).map((group) => ({ group, entries: side.filter((item) => item.group === group) })).filter((g) => g.entries.length > 0);
   const more = items.filter((item) => item.mobile === 'more');
   const inMore = pathname === '/more' || pathname === '/changelog'
     || more.some((item) => pathname === section(item.to) || pathname.startsWith(`${section(item.to)}/`));
 
   const sideLink = (item: NavItem) => {
+    const label = t('sideLabel' in item ? item.sideLabel : item.label);
     const anchor = (
-      <Link to={item.to} className={rail ? RAIL : LINK} activeProps={{ 'aria-current': 'page', className: ACTIVE }}>
+      <Link to={item.to} activeOptions={{ exact: item.to === '/admin' }} className={rail ? RAIL : LINK} activeProps={{ 'aria-current': 'page', className: ACTIVE }}>
         <ModuleTile icon={item.icon} tile={item.tile} />
-        <span className={rail ? 'sr-only' : 'truncate'}>{t(item.label)}</span>
+        <span className={rail ? 'sr-only' : 'truncate'}>{label}</span>
         {badge(item, rail)}
       </Link>
     );
     if (!rail) return anchor;
     return (
       <Suspense fallback={anchor}>
-        <RailTip content={<>{t(item.label)}{badge(item)}</>}>{anchor}</RailTip>
+        <RailTip content={<>{label}{badge(item)}</>}>{anchor}</RailTip>
       </Suspense>
     );
   };

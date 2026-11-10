@@ -1,4 +1,4 @@
-import { Baby, Bell, Building2, Calculator, CalendarCheck, FileText, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Sunset, Target, Upload, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Baby, Bell, Building, Building2, Calculator, CalendarCheck, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { components } from '@/api/schema';
 import type { Tile } from '@/components/ModuleTile';
@@ -28,7 +28,19 @@ export const NAV = [
   { group: 'account', module: 'core', admin: false, mobile: 'more', to: '/export', icon: Download, tile: 'neutral', label: 'nav.export' },
   { group: 'account', module: null, admin: false, mobile: 'more', to: '/security', icon: KeyRound, tile: 'neutral', label: 'nav.security' },
   { group: 'account', module: null, admin: false, mobile: 'more', to: '/settings/appearance', icon: Settings, tile: 'neutral', label: 'nav.settings' },
-  { group: 'account', module: null, admin: true, mobile: 'more', to: '/admin/users', icon: ShieldCheck, tile: 'neutral', label: 'nav.admin' },
+  { group: 'admin', module: null, admin: true, mobile: 'more', to: '/admin', icon: LayoutGrid, tile: 'neutral', label: 'nav.admin', sideLabel: 'nav.admin_overview' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/fx', icon: ArrowLeftRight, tile: 'neutral', label: 'nav.admin_fx' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/prices', icon: ChartCandlestick, tile: 'neutral', label: 'nav.admin_prices' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/irl', icon: Building, tile: 'neutral', label: 'nav.admin_irl' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/inflation', icon: TrendingUp, tile: 'neutral', label: 'nav.admin_inflation' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/jobs', icon: Timer, tile: 'neutral', label: 'nav.admin_jobs' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/banking', icon: Landmark, tile: 'neutral', label: 'nav.admin_banking' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/catalog', icon: Library, tile: 'neutral', label: 'nav.admin_catalog' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/users', icon: Users, tile: 'neutral', label: 'nav.admin_users' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/household', icon: HousePlus, tile: 'neutral', label: 'nav.admin_household' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/security', icon: ShieldCheck, tile: 'neutral', label: 'nav.admin_security' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/system', icon: Server, tile: 'neutral', label: 'nav.admin_system' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/notifications', icon: Mail, tile: 'neutral', label: 'nav.admin_notifications' },
 ] as const satisfies readonly ({ tile: Tile } & Record<string, unknown>)[];
 
 export type NavItem = (typeof NAV)[number];
