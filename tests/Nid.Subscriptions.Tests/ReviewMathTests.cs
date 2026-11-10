@@ -46,6 +46,16 @@ public class ReviewMathTests
     }
 
     [Fact]
+    public void A_gap_between_two_phases_at_another_price_is_a_change_dated_on_the_restart()
+    {
+        var sub = Built("Gym", [Phase(new LocalDate(2024, 1, 1), new LocalDate(2024, 3, 1), 20m), Phase(new LocalDate(2024, 5, 1), null, 25m)]);
+
+        var change = Assert.Single(ReviewMath.PriceChanges([sub], Start, End));
+
+        Assert.Equal((new LocalDate(2024, 5, 1), 20m, 25m), (change.On, change.BeforeAmount, change.AfterAmount));
+    }
+
+    [Fact]
     public void Started_and_ended_in_the_year()
     {
         var older = Built("Older", [Phase(new LocalDate(2023, 6, 1), null, 4m)]);

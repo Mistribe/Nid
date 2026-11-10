@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
@@ -12,6 +13,8 @@ namespace Nid.Subscriptions.Application;
 /// </summary>
 public static class ReviewMath
 {
+    private static readonly StringComparer Fr = StringComparer.Create(new CultureInfo("fr-FR"), true);
+
     /// <summary>The household charges dated in <c>(start, end]</c>, a purchase granting to several subscriptions once, as the list counts them.</summary>
     public static IReadOnlyList<CostPiece> Cost(IReadOnlyList<BuiltSubscription> set, LocalDate start, LocalDate end)
         => HouseholdCost.CashPieces(set.Select(b => b.Timeline).ToList(), CostWindow.Resolve(end, start.PlusDays(1), end.PlusDays(1)));
@@ -31,7 +34,7 @@ public static class ReviewMath
             .Where(x => x.On is { } on && on > start && on <= end && on <= today && !SpendingHistory.Replaced(x.Sub, set, on))
             .Select(x => Item(x.Sub, x.On!.Value)));
 
-    /// <summary>Each phase following another at a different price or cycle, the later one starting in the period.</summary>
+    /// <summary>Each phase following another at a different price or cycle, the later one starting in the period; a gap between the two does not matter, the change is dated on the restart.</summary>
     public static IReadOnlyList<SubscriptionPriceChange> PriceChanges(IReadOnlyList<BuiltSubscription> set, LocalDate start, LocalDate end)
     {
         var changes = new List<SubscriptionPriceChange>();
@@ -49,7 +52,7 @@ public static class ReviewMath
                     after.Price.Amount, after.Price.Currency.Code, after.Every, before.MaxCycles is not null));
             }
         }
-        return changes.OrderBy(c => c.On).ThenBy(c => c.Name, StringComparer.Ordinal).ToList();
+        return changes.OrderBy(c => c.On).ThenBy(c => c.Name, Fr).ThenBy(c => c.Id.Value).ToList();
     }
 
     private static bool BeforeArchive(BuiltSubscription sub, LocalDate on) => sub.ArchivedOn is not { } archived || on < archived;
@@ -58,5 +61,5 @@ public static class ReviewMath
         => new(sub.Input.Subscription.Id, sub.DisplayName, sub.Provider?.Name, on);
 
     private static IReadOnlyList<SubscriptionReviewItem> Sorted(IEnumerable<SubscriptionReviewItem> items)
-        => items.OrderBy(i => i.On).ThenBy(i => i.Name, StringComparer.Ordinal).ToList();
+        => items.OrderBy(i => i.On).ThenBy(i => i.Name, Fr).ThenBy(i => i.Id.Value).ToList();
 }

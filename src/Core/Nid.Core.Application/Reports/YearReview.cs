@@ -85,6 +85,7 @@ public static class YearReviewMath
             return sum.Missing is null ? sum.Total ?? 0m : null;
         }
 
+        // The current month counts its whole cash due; the subscriptions section stops at today.
         var sources = months.SelectMany(m => m.Parts.Select(p => (m.On, Part: p))).GroupBy(x => x.Part.Source)
             .Where(g => g.Any(x => x.Part.Estimated || x.Part.Cash.Values.Any(v => v != 0m)))
             .Select(g => (Source: g.Key, Amount: g.Aggregate((decimal?)0m, (total, x) => Convert(x.Part.Cash, x.On) is { } a ? total + a : null),

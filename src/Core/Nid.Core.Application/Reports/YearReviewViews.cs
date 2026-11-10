@@ -47,7 +47,7 @@ public sealed record SubscriptionsReviewView(
     DashboardMoneyView? Cost, DashboardMoneyView? PreviousCost, IReadOnlyList<SubscriptionReviewItemView> Started,
     IReadOnlyList<SubscriptionReviewItemView> Ended, IReadOnlyList<SubscriptionPriceChangeView> PriceChanges);
 
-/// <summary>Issue #12: a subscription that started (its first charge) or ended (its last day covered) on <c>On</c>.</summary>
+/// <summary>Issue #12: a subscription that started (its first charge) or ended (the coverage end the subscription page shows, <c>Timeline.ExpiresOn</c>) on <c>On</c>.</summary>
 public sealed record SubscriptionReviewItemView(ItemId Id, string Name, string? Provider, LocalDate On);
 
 /// <summary>Issue #12: a charging cycle, <c>Unit</c> one of day, week, month, year.</summary>

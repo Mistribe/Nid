@@ -480,6 +480,8 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         var subscriptions = review.GetProperty("subscriptions");
         Assert.Equal(("538.00", "456.00"), (A(subscriptions, "cost"), A(subscriptions, "previousCost")));
         Assert.Equal((D(await ListCostAsync(2024)), D(await ListCostAsync(2023))), (D(A(subscriptions, "cost")), D(A(subscriptions, "previousCost"))));
+        // A past year: the income section's subscriptions engagement is the same cost.
+        Assert.Equal(D(A(subscriptions, "cost")), D(Engagements(review.GetProperty("income"))[CommitmentSources.Subscriptions]));
         Assert.Equal([musique.Value], Ids(subscriptions, "started"));
         Assert.Equal([video.Value], Ids(subscriptions, "ended"));
         var change = Assert.Single(subscriptions.GetProperty("priceChanges").EnumerateArray());

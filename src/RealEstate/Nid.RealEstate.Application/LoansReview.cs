@@ -4,6 +4,7 @@ using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
+using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
 
@@ -66,16 +67,7 @@ public sealed class LoansReview(
                 Convert(endBalance, currency, end), archivedOn));
         }
 
-        static decimal? Sum(IEnumerable<decimal?> amounts)
-        {
-            var total = 0m;
-            foreach (var amount in amounts)
-            {
-                if (amount is not { } value) return null;
-                total += value;
-            }
-            return total;
-        }
+        static decimal? Sum(IEnumerable<decimal?> amounts) => SumOrNull(amounts.Append(0m));
         return Result.Success(new LoansReviewPart(Sum(rows.Select(r => r.Interest)), Sum(rows.Select(r => r.Insurance)),
             Sum(rows.Select(r => r.Fees)), Sum(rows.Select(r => r.CapitalRepaid)), Sum(rows.Select(r => r.StartBalance)),
             Sum(rows.Select(r => r.EndBalance)), rows, missing.ToList()));

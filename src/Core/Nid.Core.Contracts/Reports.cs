@@ -66,7 +66,7 @@ public sealed record SubscriptionsReviewPart(
     decimal? Cost, IReadOnlyList<SubscriptionReviewItem> Started, IReadOnlyList<SubscriptionReviewItem> Ended,
     IReadOnlyList<SubscriptionPriceChange> PriceChanges, IReadOnlyList<string> MissingCurrencies);
 
-/// <summary>Issue #12: a subscription that started (its first charge) or ended (its last day covered, without successor) on <c>On</c>.</summary>
+/// <summary>Issue #12: a subscription that started (its first charge) or ended (the coverage end the subscription page shows, <c>Timeline.ExpiresOn</c>, without successor) on <c>On</c>.</summary>
 public sealed record SubscriptionReviewItem(ItemId Id, string Name, string? Provider, LocalDate On);
 
 public interface ILoansReview
