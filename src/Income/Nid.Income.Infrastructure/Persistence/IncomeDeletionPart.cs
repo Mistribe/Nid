@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
-using Nid.Documents.Contracts;
 using Nid.Income.Application;
 using Nid.Income.Contracts;
 using NodaTime;
@@ -12,7 +11,7 @@ namespace Nid.Income.Infrastructure.Persistence;
 /// #23: Income's share of an item delete: the source, its phases and their taxable shares, and the phases' and one-off incomes' document
 /// anchors. One-off incomes are Core flows: Core's part counts and removes them.
 /// </summary>
-public sealed class IncomeDeletionPart(IncomeDbContext db, IFlows flows, IDocumentLinks documents) : IItemDeletionPart
+public sealed class IncomeDeletionPart(IncomeDbContext db, IFlows flows, IncomeDocumentUnlinks documents) : IItemDeletionPart
 {
     /// <summary>DateRange has no unbounded form; no flow predates this.</summary>
     private static readonly LocalDate Earliest = new(1900, 1, 1);
@@ -34,14 +33,12 @@ public sealed class IncomeDeletionPart(IncomeDbContext db, IFlows flows, IDocume
         var id = item.Id.Value;
         var phases = await db.Phases.Where(p => p.SourceItemId == id).ToListAsync(ct);
         // Dismissals of an expected document go with the target; the links already go with the anchor (Documents' part).
-        foreach (var phase in phases)
-            await documents.UnlinkTargetAsync(new DocumentTarget(IncomeDocumentTargets.PhaseKind, phase.Id), ct);
+        await documents.UnlinkPhasesAsync(phases.Select(p => p.Id), ct);
         DateRange.Create(Earliest, null).TryGetValue(out var everything);
         var listed = await flows.ListAsync(item.Id, everything, new HashSet<FlowKind> { FlowKind.Income }, ct);
         if (!listed.TryGetValue(out var current))
             throw new InvalidOperationException("The actor may write the source, so its flows are readable.");
-        foreach (var flow in current!.Where(f => f.Category == IncomeWire.OneOffCategory))
-            await documents.UnlinkTargetAsync(new DocumentTarget(IncomeDocumentTargets.OneOffKind, flow.Id), ct);
+        await documents.UnlinkOneOffsAsync(current!.Where(f => f.Category == IncomeWire.OneOffCategory).Select(f => f.Id), ct);
 
         // Tracked removes, children first: the audit sees every row the cascade would have taken silently.
         db.OneOffTaxables.RemoveRange(await db.OneOffTaxables.Where(t => t.SourceId == id).ToListAsync(ct));

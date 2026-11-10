@@ -8,7 +8,6 @@
     </PackageReference>
     <ProjectReference Include="..\Nid.Income.Contracts\Nid.Income.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Income.Application\Nid.Income.Application.csproj" />
-    <ProjectReference Include="..\..\Documents\Nid.Documents.Contracts\Nid.Documents.Contracts.csproj" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <ProjectReference Include="..\..\Platform\Nid.Platform\Nid.Platform.csproj" />
     <ProjectReference Include="..\..\Platform\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
