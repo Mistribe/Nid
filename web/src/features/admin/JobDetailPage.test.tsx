@@ -10,7 +10,7 @@ const run = { id: '7f0c6b3e-1d1a-4c55-9a43-1f0b9e1c2d3e', trigger: 'on_demand', 
 
 describe('Administration › Tâches › une tâche', () => {
   it('says what the job does, what it depends on, and lists its runs', async () => {
-    server.use(http.get('*/api/v1/admin/jobs/bank-sync-nightly', () => HttpResponse.json({ key: 'bank-sync-nightly', cron: '0 30 4 * * ?', nextRunAt: '2026-11-03T04:30:00+00:00', runs: { items: [run], total: 1, page: 1 } })));
+    server.use(http.get('*/api/v1/admin/jobs/bank-sync-nightly', () => HttpResponse.json({ key: 'bank-sync-nightly', cron: '0 30 4 * * ?', nextRunAt: '2026-11-03T04:30:00+00:00', lastRun: run, runs: { items: [run], total: 1, page: 1 } })));
     const { container } = await renderApp('/admin/jobs/bank-sync-nightly', { capabilities: adminCapabilities });
 
     expect(await screen.findByText(/Administration › Banque/)).toBeInTheDocument();
@@ -22,14 +22,14 @@ describe('Administration › Tâches › une tâche', () => {
   });
 
   it('says when nothing ran yet', async () => {
-    server.use(http.get('*/api/v1/admin/jobs/fx-backfill', () => HttpResponse.json({ key: 'fx-backfill', cron: null, nextRunAt: null, runs: { items: [], total: 0, page: 1 } })));
+    server.use(http.get('*/api/v1/admin/jobs/fx-backfill', () => HttpResponse.json({ key: 'fx-backfill', cron: null, nextRunAt: null, lastRun: null, runs: { items: [], total: 0, page: 1 } })));
     await renderApp('/admin/jobs/fx-backfill', { capabilities: adminCapabilities });
 
     expect(await screen.findByText('Aucune exécution enregistrée')).toBeInTheDocument();
   });
 
   it('the job’s name is the current crumb', async () => {
-    server.use(http.get('*/api/v1/admin/jobs/bank-sync-nightly', () => HttpResponse.json({ key: 'bank-sync-nightly', cron: null, nextRunAt: null, runs: { items: [], total: 0, page: 1 } })));
+    server.use(http.get('*/api/v1/admin/jobs/bank-sync-nightly', () => HttpResponse.json({ key: 'bank-sync-nightly', cron: null, nextRunAt: null, lastRun: null, runs: { items: [], total: 0, page: 1 } })));
     await renderApp('/admin/jobs/bank-sync-nightly', { capabilities: adminCapabilities });
 
     await screen.findByText('Aucune exécution enregistrée');
@@ -42,7 +42,7 @@ describe('Administration › Tâches › une tâche', () => {
     const seen: string[] = [];
     server.use(http.get('*/api/v1/admin/jobs/bank-sync-nightly', ({ request }) => {
       seen.push(request.url);
-      return HttpResponse.json({ key: 'bank-sync-nightly', cron: null, nextRunAt: null, runs: { items: [run], total: 51, page: 1 } });
+      return HttpResponse.json({ key: 'bank-sync-nightly', cron: null, nextRunAt: null, lastRun: null, runs: { items: [run], total: 51, page: 1 } });
     }));
     const { user, router } = await renderApp('/admin/jobs/bank-sync-nightly', { capabilities: adminCapabilities });
 
@@ -51,5 +51,15 @@ describe('Administration › Tâches › une tâche', () => {
     await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
     await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
+  });
+
+  it('keeps the newest run in the stat on a later page', async () => {
+    server.use(http.get('*/api/v1/admin/jobs/bank-sync-nightly', () => HttpResponse.json({
+      key: 'bank-sync-nightly', cron: null, nextRunAt: null, lastRun: run, runs: { items: [{ ...run, id: 'a1', summary: 'older' }], total: 51, page: 2 },
+    })));
+    await renderApp('/admin/jobs/bank-sync-nightly?page=2', { capabilities: adminCapabilities });
+
+    const stat = (await screen.findByText('Dernière exécution')).parentElement!;
+    expect(stat).toHaveTextContent('échec');
   });
 });

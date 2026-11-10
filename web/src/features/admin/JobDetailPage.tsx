@@ -44,7 +44,7 @@ export function JobDetailPage() {
         <StatLine items={[
           { label: t('admin.jobs.schedule_col'), value: scheduleInWords(t, data.cron) },
           { label: t('admin.jobs.next'), value: data.nextRunAt ? formatInstant(data.nextRunAt) : t('admin.jobs.on_demand') },
-          { label: t('admin.jobs.last'), value: <LastRun run={page === 1 ? data.runs.items[0] : undefined} /> },
+          { label: t('admin.jobs.last'), value: <LastRun run={data.lastRun} /> },
         ]} />
       </PageHeader>
       {description || dependsOn ? (

@@ -30616,6 +30616,7 @@ export interface components {
             cron?: null | string;
             /** Format: date-time */
             nextRunAt?: null | string;
+            lastRun?: null | components["schemas"]["JobRunView"];
             runs: components["schemas"]["JobRunPage"];
         };
         JobRunDetailView: {

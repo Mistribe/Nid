@@ -51,7 +51,7 @@ public sealed record JobSchedule(string Key, string? Cron, DateTimeOffset? NextR
 /// <summary>A row of Administration › Tâches.</summary>
 public sealed record JobView(string Key, string? Cron, DateTimeOffset? NextRunAt, JobRunView? LastRun);
 
-public sealed record JobDetailView(string Key, string? Cron, DateTimeOffset? NextRunAt, JobRunPage Runs);
+public sealed record JobDetailView(string Key, string? Cron, DateTimeOffset? NextRunAt, JobRunView? LastRun, JobRunPage Runs);
 
 public sealed record JobRunPage(IReadOnlyList<JobRunView> Items, int Total, int Page)
 {
@@ -109,7 +109,9 @@ public sealed class GetJobHandler(IJobStatusReader jobs, IJobRunStore runs) : IR
             return Result.Failure<JobDetailView>(new NotFoundFailure("job", query.Key));
         var (page, skip) = ListPage.Of(query.Page, JobRunPage.PageSize);
         var (items, total) = await runs.PageAsync(job.Key, skip, JobRunPage.PageSize, ct);
-        return Result.Success(new JobDetailView(job.Key, job.Cron, job.NextRunAt, new JobRunPage(items, total, page)));
+        // The newest run, whatever page of the history is shown.
+        var last = (await runs.ListAsync(job.Key, 1, ct)).FirstOrDefault();
+        return Result.Success(new JobDetailView(job.Key, job.Cron, job.NextRunAt, last, new JobRunPage(items, total, page)));
     }
 }
 

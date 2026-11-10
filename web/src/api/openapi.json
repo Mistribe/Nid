@@ -41658,6 +41658,16 @@
             ],
             "format": "date-time"
           },
+          "lastRun": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRunView"
+              }
+            ]
+          },
           "runs": {
             "$ref": "#/components/schemas/JobRunPage"
           }

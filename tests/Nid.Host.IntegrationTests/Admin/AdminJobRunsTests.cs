@@ -10,7 +10,7 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
 {
     public sealed record Run(Guid Id, string Trigger, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, long? DurationMs, string Outcome, string? Summary);
     public sealed record Job(string Key, string? Cron, DateTimeOffset? NextRunAt, Run? LastRun);
-    public sealed record JobDetail(string Key, string? Cron, DateTimeOffset? NextRunAt, RunPage Runs);
+    public sealed record JobDetail(string Key, string? Cron, DateTimeOffset? NextRunAt, Run? LastRun, RunPage Runs);
     public sealed record RunPage(List<Run> Items, int Total, int Page);
     public sealed record RunDetail(Guid Id, string Trigger, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, long? DurationMs, string Outcome, string? Summary, List<string>? Logs, bool LogsAvailable);
 
@@ -83,6 +83,17 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(ids.Skip(49).OrderDescending(), first.Items.Take(2).Select(r => r.Id));
         Assert.Equal((1, 51, 2), (second.Items.Count, second.Total, second.Page));
         Assert.Equal(ids[0], Assert.Single(second.Items).Id);
+    }
+
+    [Fact]
+    public async Task The_last_run_is_the_newest_on_every_page()
+    {
+        await using var app = await StartAsync();
+        var ids = await SeedManyAsync(app);
+
+        var page2 = await app.GetAsync<JobDetail>(app.AdultA, "/api/v1/admin/jobs/irl-weekly?page=2");
+
+        Assert.Equal(ids.Skip(49).OrderDescending().First(), page2.LastRun!.Id);
     }
 
     [Fact]
