@@ -23,7 +23,7 @@ public sealed record SavingsHolding(Holding Holding, decimal? Converted, IReadOn
 /// <summary>The reader's figures of today in a scope, converted to the reference; <c>Missing</c> names the currencies left out.</summary>
 public sealed record ScenarioToday(
     LocalDate Date, Currency Reference, IReadOnlyList<SavingsHolding> Savings, decimal? MonthlyIncome,
-    decimal Subscriptions, decimal PropertyCosts, decimal Commitments, IReadOnlyList<string> Missing);
+    decimal Subscriptions, decimal PropertyCosts, decimal Commitments, IReadOnlyList<string> Missing, decimal AmortizedCommitments);
 
 /// <summary>
 /// What the calculator reads, for the reader: <c>Document</c> is the scenario without the funding lines the reader cannot see
@@ -83,10 +83,13 @@ public sealed class ScenarioFactsReader(
             return new SavingsHolding(h, amount, parts, liquidity);
         }).ToList();
 
+        // Retirement spec §3: the loans enter the financial independence test through their own payments, not here.
+        var amortized = Sum(c!.Where(p => p.Source != CommitmentSources.Loans).Select(p => p.Amortized));
         decimal Cash(string source) => Sum(c!.Where(p => p.Source == source).Select(p => p.Cash));
         return Result.Success(new ScenarioToday(
             today, reference, savings, e!.Sum(p => p.Sources) > 0 ? Sum(e!.Select(p => p.MonthlyEquivalent)) : null,
-            Cash(CommitmentSources.Subscriptions), Cash(CommitmentSources.PropertyCosts), Sum(c!.Select(p => p.Cash)), missing.ToList()));
+            Cash(CommitmentSources.Subscriptions), Cash(CommitmentSources.PropertyCosts), Sum(c!.Select(p => p.Cash)), missing.ToList(),
+            amortized));
     }
 
     public async Task<Result<ScenarioReading>> ReadAsync(PropertyPurchase doc, VisibilityScope scope, CancellationToken ct)

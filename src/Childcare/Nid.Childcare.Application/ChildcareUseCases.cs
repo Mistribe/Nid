@@ -274,3 +274,29 @@ public sealed class ReopenChildcareHandler(IItemRegistry items, IChildcareStore 
         return Result.Success(command.ItemId);
     }
 }
+
+/// <summary>#23: a contract created by mistake, deleted with every row of it. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeleteChildcareCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>#23: what deleting a contract removes, and the validated months that refuse it, read before the delete.</summary>
+public sealed record ChildcareDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPreview>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+[RequestHandler<DeleteChildcareCommand, ItemId>]
+public sealed class DeleteChildcareHandler(IItemDeletions deletions) : IRequestHandler<DeleteChildcareCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeleteChildcareCommand command, CancellationToken ct = default)
+        => (await deletions.DeleteAsync(command.ItemId, ChildcareModule.Key, ChildcareKinds.Childminder, command.Version, ct)).Map(() => command.ItemId);
+}
+
+[RequestHandler<ChildcareDeletionQuery, ItemDeletionPreview>]
+public sealed class ChildcareDeletionHandler(IItemDeletions deletions) : IRequestHandler<ChildcareDeletionQuery, ItemDeletionPreview>
+{
+    public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(ChildcareDeletionQuery query, CancellationToken ct = default)
+        => await deletions.PreviewAsync(query.ItemId, ChildcareModule.Key, ChildcareKinds.Childminder, ct);
+}

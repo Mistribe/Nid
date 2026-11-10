@@ -61,8 +61,8 @@ describe('property settings', () => {
     const owned = () => {
       const served = serve(propertyDetail({ owners: [{ personId: ALICE, shareBp: 10000 }], canChangeOwners: true }));
       server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([
-        { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: null, retirementAge: 64 },
-        { id: LEA, kind: 'dependent', displayName: 'Léa Dev', email: null, retirementAge: 64 },
+        { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: null, retirementAge: 64, retirementMonths: 0 },
+        { id: LEA, kind: 'dependent', displayName: 'Léa Dev', email: null, retirementAge: 64, retirementMonths: 0 },
       ])));
       return served;
     };

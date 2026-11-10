@@ -7582,6 +7582,13 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -12597,6 +12604,95 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/childcare/{id}/revisions": {
@@ -13030,6 +13126,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/childcare/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
                 }
               }
             }
@@ -21547,6 +21733,94 @@
         }
       }
     },
+    "/api/v1/retirement": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetirementView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/series": {
       "get": {
         "tags": [
@@ -29717,6 +29991,18 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "withdrawalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyLivingCost": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -33842,6 +34128,57 @@
           "count": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "DepartureView": {
+        "required": [
+          "person",
+          "name",
+          "years",
+          "months",
+          "sources"
+        ],
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "birthDate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "departure": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pension": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PensionSourceView"
+            }
           }
         }
       },
@@ -39817,6 +40154,30 @@
           }
         }
       },
+      "IndependencePointView": {
+        "required": [
+          "on",
+          "capital",
+          "covered",
+          "expenses"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "capital": {
+            "type": "string"
+          },
+          "covered": {
+            "type": "string"
+          },
+          "expenses": {
+            "type": "string"
+          }
+        }
+      },
       "InflationTwelveMonthsView": {
         "required": [
           "to",
@@ -44493,6 +44854,34 @@
           }
         }
       },
+      "PensionSourceView": {
+        "required": [
+          "source",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "monthly": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PeriodView": {
         "required": [
           "from",
@@ -44573,7 +44962,8 @@
           "id",
           "kind",
           "displayName",
-          "retirementAge"
+          "retirementAge",
+          "retirementMonths"
         ],
         "type": "object",
         "properties": {
@@ -44600,6 +44990,10 @@
             ]
           },
           "retirementAge": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "retirementMonths": {
             "type": "integer",
             "format": "int32"
           }
@@ -45460,7 +45854,9 @@
           "inflationByYear",
           "classRatesByYear",
           "incomeGrowth",
-          "classVolatility"
+          "classVolatility",
+          "withdrawalRate",
+          "monthlyLivingCost"
         ],
         "type": "object",
         "properties": {
@@ -45511,6 +45907,12 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "withdrawalRate": {
+            "type": "string"
+          },
+          "monthlyLivingCost": {
+            "type": "string"
           },
           "observedInflation": {
             "oneOf": [
@@ -45609,6 +46011,15 @@
             ],
             "items": {
               "$ref": "#/components/schemas/ProjectionEventView"
+            }
+          },
+          "retirements": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScenarioRetirementView"
             }
           }
         }
@@ -45838,6 +46249,18 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "withdrawalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyLivingCost": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -46017,6 +46440,12 @@
             }
           },
           "observedInflation": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "financialIndependence": {
             "type": [
               "null",
               "string"
@@ -49497,6 +49926,44 @@
           "retirementAge": {
             "type": "integer",
             "format": "int32"
+          },
+          "retirementMonths": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "RetirementFiguresView": {
+        "required": [
+          "month",
+          "incomeNow",
+          "incomeAtRetirement",
+          "gap",
+          "capitalNeeded",
+          "capitalAtRetirement"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "incomeNow": {
+            "type": "string"
+          },
+          "incomeAtRetirement": {
+            "type": "string"
+          },
+          "gap": {
+            "type": "string"
+          },
+          "capitalNeeded": {
+            "type": "string"
+          },
+          "capitalAtRetirement": {
+            "type": "string"
           }
         }
       },
@@ -49518,6 +49985,63 @@
           "on": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "RetirementView": {
+        "required": [
+          "currency",
+          "horizonOn",
+          "departures",
+          "independence",
+          "assumptions",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "horizonOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "departures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepartureView"
+            }
+          },
+          "figures": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RetirementFiguresView"
+              }
+            ]
+          },
+          "financialIndependence": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "independence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndependencePointView"
+            }
+          },
+          "assumptions": {
+            "$ref": "#/components/schemas/ProjectionAssumptionsView"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectionWarningView"
+            }
           }
         }
       },
@@ -50935,6 +51459,38 @@
             "items": {
               "$ref": "#/components/schemas/ScenarioWarningView"
             }
+          }
+        }
+      },
+      "ScenarioRetirementView": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "years": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "months": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "monthlyPension": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

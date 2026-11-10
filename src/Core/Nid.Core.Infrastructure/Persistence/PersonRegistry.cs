@@ -149,7 +149,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         return Result.Success(ToInfo(row));
     }
 
-    public async Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, CancellationToken ct)
+    public async Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, int retirementMonths, CancellationToken ct)
     {
         var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
         if (row is null)
@@ -157,6 +157,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
         row.BirthDate = birthDate;
         row.RetirementAge = retirementAge;
+        row.RetirementMonths = retirementMonths;
         await db.SaveChangesAsync(ct);
         return Result.Success(ToInfo(row));
     }
@@ -298,5 +299,6 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         row.IsAdmin,
         row.Kind == "adult" && row.OidcSubject is null,
         row.BirthDate,
-        row.RetirementAge);
+        row.RetirementAge,
+        row.RetirementMonths);
 }

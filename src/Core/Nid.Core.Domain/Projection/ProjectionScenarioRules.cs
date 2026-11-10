@@ -56,6 +56,26 @@ public static class ProjectionScenarioRules
                 Refuse($"{at}.until", "The end must be after the start.");
         }
 
+        var seen = new HashSet<PersonId>();
+        var retirements = doc.Retirements ?? [];
+        for (var i = 0; i < retirements.Count; i++)
+        {
+            var r = retirements[i];
+            var at = $"retirements[{i}]";
+            if (!seen.Add(r.Person))
+                Refuse($"{at}.person", "A person has one departure per scenario.");
+            if (r is { Years: null, MonthlyPension: null })
+                Refuse(at, "A departure sets an age or a pension.");
+            if (r.Years is < 50 or > 75)
+                Refuse($"{at}.years", "The age is between 50 and 75.");
+            if (r is { Years: null, Months: not null })
+                Refuse($"{at}.months", "The months need an age.");
+            else if (r.Months is < 0 or > 11)
+                Refuse($"{at}.months", "The months are between 0 and 11.");
+            if (r.MonthlyPension < 0)
+                Refuse($"{at}.monthlyPension", "The pension is not negative.");
+        }
+
         return refusals;
     }
 

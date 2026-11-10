@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { RETIREMENT } from '@/api/retirement';
 import { SERIES_POINTS } from '@/api/series';
 import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
@@ -26,6 +27,8 @@ export type Assumptions = {
   inflationByYear: Record<string, string>; classRatesByYear: Record<string, Record<string, string>>; incomeGrowth: string;
   /** Ranges spec §2: every class's annual volatility, in percent. */
   classVolatility: Record<string, string>;
+  /** Retirement spec §3: the financial independence assumptions. */
+  withdrawalRate: string; monthlyLivingCost: string;
   observedInflation?: { percent: string; to: string } | null;
 };
 
@@ -51,6 +54,8 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
   const [inflationYears, setInflationYears] = useState<Record<string, string>>(() => Object.fromEntries(years.map((y) => [y, toFieldAmount(current.inflationByYear[y] ?? '')])));
   const [classYears, setClassYears] = useState<Record<string, Record<string, string>>>(() => Object.fromEntries(YEARLY_CLASSES.map((c) => [c, Object.fromEntries(years.map((y) => [y, toFieldAmount(current.classRatesByYear[c]?.[y] ?? '')]))])));
   const [growth, setGrowth] = useState(toFieldAmount(current.incomeGrowth));
+  const [withdrawal, setWithdrawal] = useState(toFieldAmount(current.withdrawalRate));
+  const [livingCost, setLivingCost] = useState(toFieldAmount(current.monthlyLivingCost));
   const [mode, setMode] = useState<'auto' | 'amount'>(current.monthlySavings ? 'amount' : 'auto');
   const [amount, setAmount] = useState(toFieldAmount(current.monthlySavings ?? ''));
   const [savingsClass, setSavingsClass] = useState(current.savingsClass);
@@ -60,7 +65,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
 
   const fields = fieldErrorsOf(save.error);
   const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? messageFor(t, f) : undefined; };
-  const placed = (path: string) => path === 'inflation' || path === 'incomeGrowth' || /^(inflationByYear|classRatesByYear\.[a-z_]+)\.\d{4}$/.test(path) || path === 'monthlySavings' || path === 'savingsClass'
+  const placed = (path: string) => path === 'inflation' || path === 'incomeGrowth' || /^(inflationByYear|classRatesByYear\.[a-z_]+)\.\d{4}$/.test(path) || path === 'monthlySavings' || path === 'withdrawalRate' || path === 'monthlyLivingCost' || path === 'savingsClass'
     || (path.startsWith(RATE_PREFIX) && (ASSET_CLASSES as readonly string[]).includes(path.slice(RATE_PREFIX.length)))
     || (path.startsWith(VOLATILITY_PREFIX) && (ASSET_CLASSES as readonly string[]).includes(path.slice(VOLATILITY_PREFIX.length)));
   const unplaced = save.error && !(fields.length > 0 && fields.every((f) => placed(f.path)));
@@ -79,6 +84,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
               classRatesByYear: Object.fromEntries(YEARLY_CLASSES.flatMap((c): [string, Record<string, string>][] => { const v = typed(classYears[c] ?? {}); return Object.keys(v).length > 0 ? [[c, v]] : []; })),
               incomeGrowth: wire(growth) || '0',
               classVolatility: Object.fromEntries(ASSET_CLASSES.map((c) => [c, wire(volatility[c] ?? '')])),
+              withdrawalRate: wire(withdrawal), monthlyLivingCost: wire(livingCost) || '0',
               monthlySavings: mode === 'amount' ? wire(amount) : null,
               savingsClass,
               freedPaymentsToSavings: freed,
@@ -86,6 +92,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
           }, {
             onSuccess: () => {
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
+              void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
               void queryClient.invalidateQueries({ queryKey: ['get', SERIES_POINTS] });
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION_ASSUMPTIONS] });
               done(t('settings.projection.assumptions_saved'));
@@ -143,6 +150,14 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
           <div className="max-w-64">
             <Field label={t('settings.projection.income_growth')} error={errorOf('incomeGrowth')}>
               {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={growth} onChange={(e) => setGrowth(e.target.value)} />}
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label={t('settings.projection.withdrawal_rate')} hint={t('settings.projection.withdrawal_rate_hint')} error={errorOf('withdrawalRate')}>
+              {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={withdrawal} onChange={(e) => setWithdrawal(e.target.value)} />}
+            </Field>
+            <Field label={t('settings.projection.living_cost', { currency: current.currency })} hint={t('settings.projection.living_cost_hint')} error={errorOf('monthlyLivingCost')}>
+              {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={livingCost} onChange={(e) => setLivingCost(e.target.value)} />}
             </Field>
           </div>
           <div className="space-y-1">

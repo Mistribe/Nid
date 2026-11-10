@@ -9,7 +9,7 @@
 
 Offrir au foyer une **vue d'ensemble claire et partagée de ses finances** : ce que nous possédons, ce qui est engagé chaque mois, ce qui rapporte et ce qui coûte, et comment tout cela évolue dans le temps.
 
-L'application n'est **pas un outil de comptabilité** : les transactions au quotidien restent dans l'application bancaire. Elle se concentre sur ce qu'aucun outil existant ne fait bien pour nous : une photo fiable du patrimoine, une compréhension fine des engagements (abonnements, crédits) et le suivi de la performance des placements.
+L'application n'est **pas un outil de comptabilité** : on n'y saisit pas ses transactions au quotidien. Les opérations des comptes reliés arrivent par la synchronisation bancaire (étape 5) ; elles servent d'abord à rapprocher les engagements attendus, puis à dire où va l'argent qui n'est pas engagé (catégories et budget, #83 à #85). Elle se concentre sur ce qu'aucun outil existant ne fait bien pour nous : une photo fiable du patrimoine, une compréhension fine des engagements (abonnements, crédits) et le suivi de la performance des placements.
 
 L'application est **auto-hébergée**, pensée pour **deux utilisateurs** (le couple), et **enrichie petit à petit** au fil de nos besoins.
 
@@ -266,7 +266,7 @@ Revenus attendus (lissés par mois, par personne), périodes et historique des c
 
 ### 8b.4 Points d'attention
 
-- La marge s'appelle **« avant dépenses courantes »**, et non « reste à vivre » : les engagements ne couvrent que ce qui est déclaré, pas l'alimentation ni les dépenses du quotidien (§11).
+- La marge s'appelle **« avant dépenses courantes »**, et non « reste à vivre » : les engagements ne couvrent que ce qui est déclaré, pas l'alimentation ni les dépenses du quotidien. Les dépenses courantes, lues sur les opérations bancaires catégorisées, viendront à côté de cette marge (#85).
 - Un revenu est une **donnée très personnelle** : la visibilité est demandée explicitement à la création, et les bulletins de paie sont **toujours traités en local**.
 
 ## 9. Automatisation et IA
@@ -317,7 +317,7 @@ Ordre indicatif, à ajuster selon nos priorités. Chaque étape doit être utili
 | **5. Synchronisation bancaire** | Comptes courants et livrets via DSP2 ; rapprochement avec les abonnements attendus | Détection automatique des prélèvements, hausses de prix, oublis |
 | **6. Approfondissements** | Rendement annualisé (TRI), détail par ligne, simulations de crédit avancées, cartes de crédit en argent, autres modules | Analyse plus fine selon les besoins |
 
-Modules envisageables plus tard : véhicules, épargne des enfants, objectifs d'épargne, budget prévisionnel, export pour la déclaration de revenus, **calcul de fiscalité** (voir ci-dessous).
+Modules envisageables plus tard : véhicules, épargne des enfants, objectifs d'épargne, catégorisation des opérations bancaires et budget prévisionnel (#83, #84, #85), export pour la déclaration de revenus, **calcul de fiscalité** (voir ci-dessous).
 
 ### Idée d'évolution : calcul de fiscalité
 
@@ -343,8 +343,8 @@ Ce que le modèle actuel prépare déjà, sans rien engager :
 
 ## 11. Hors périmètre (pour l'instant)
 
-- Budget détaillé transaction par transaction (l'application bancaire le fait déjà).
-- Catégorisation de toutes les dépenses du quotidien.
+- Saisie des dépenses à la main, y compris en espèces : seules les opérations des comptes reliés sont lues.
+- Budget par enveloppes, où chaque euro reçoit une affectation : le budget prévu (#85) compare des dépenses à un montant par catégorie, sans plus.
 - Suivi de chaque virement de revenu : les revenus sont déclaratifs (§8b).
 - Suivi boursier détaillé à la Ghostfolio (seulement en option, étape 6).
 - Toute opération sur les comptes : l'application est en **lecture seule** vis-à-vis des banques.

@@ -576,6 +576,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(64)
                         .HasColumnName("retirement_age");
 
+                    b.Property<int>("RetirementMonths")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("retirement_months");
+
                     b.Property<int>("SessionEpoch")
                         .HasColumnType("integer")
                         .HasColumnName("session_epoch");
@@ -601,6 +607,8 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_person_kind", "kind in ('adult','dependent')");
 
                             t.HasCheckConstraint("ck_person_retirement_age", "retirement_age between 50 and 75");
+
+                            t.HasCheckConstraint("ck_person_retirement_months", "retirement_months between 0 and 11");
 
                             t.HasCheckConstraint("ck_person_subject", "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
                         });

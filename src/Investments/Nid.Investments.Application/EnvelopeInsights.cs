@@ -48,11 +48,11 @@ internal static class EnvelopeInsights
             ? new InterestEstimateView(e.Year, Amount(e.ToDate, f.Currency), Amount(e.Expected, f.Currency), e.RatePct, e.Source)
             : null;
 
-    /// <summary>A PER's date is its main owner's retirement: their birthday at their retirement age, when the birth date is known.</summary>
+    /// <summary>A PER's date is its main owner's retirement: their birthday at their retirement age plus the months, when the birth date is known.</summary>
     public static TaxMilestone? Milestone(EnvelopePerformance.Facts f, IReadOnlyList<PersonInfo> persons, LocalDate today)
     {
         var owner = f.Item.Owners.OrderByDescending(o => o.ShareBp).Select(o => persons.FirstOrDefault(p => p.Id == o.PersonId)).FirstOrDefault();
-        var retirement = owner?.BirthDate is { } born ? born.PlusYears(owner.RetirementAge) : (LocalDate?)null;
+        var retirement = owner?.BirthDate is { } born ? born.PlusYears(owner.RetirementAge).PlusMonths(owner.RetirementMonths) : (LocalDate?)null;
         return TaxMilestones.Next(f.Envelope.Kind, f.Envelope.OpenedOn, f.Flows, retirement, today);
     }
 

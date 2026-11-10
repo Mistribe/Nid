@@ -92,6 +92,11 @@ public sealed record SaleOutcome(Guid Event, int Month, decimal Proceeds, decima
     public decimal Settled { get; init; }
 
     public decimal LoanPayments { get; init; }
+
+    /// <summary>The parts of <c>MonthlyNet</c> (costs and rent, today's money): the independence series drops each from the sale's month.</summary>
+    public decimal MonthlyCosts { get; init; }
+
+    public decimal MonthlyRent { get; init; }
 }
 
 /// <summary>A repayment at grid month <c>Month</c>: <c>Applied</c> is what the eligible loans took, at most the amount asked (capped at their balance).</summary>

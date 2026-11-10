@@ -239,4 +239,21 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{subscription.Value}")).StatusCode);
     }
+
+    [Fact]
+    public async Task Approving_deletes_the_childcare_contract()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var contract = await McpChildcareToolTests.CreateAsync(app);
+        async Task<uint> ContractVersionAsync()
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/childcare/{contract}/deletion")).RootElement.GetProperty("version").GetUInt32();
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+        var proposal = await ProposeAsync(client, "propose_delete_childcare", new { id = contract, version = await ContractVersionAsync() });
+
+        var response = await ApproveAsync(app, proposal, new { id = contract, version = await ContractVersionAsync() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/childcare/{contract}")).StatusCode);
+    }
 }

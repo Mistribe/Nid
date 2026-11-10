@@ -14,7 +14,7 @@ import { estimate } from '../taxTestData';
 import { jointAssessment, ALICE, BOB, DOCUMENT } from './testData';
 
 type Person = components['schemas']['PersonDto'];
-const adult = (id: string, displayName: string): Person => ({ id, kind: 'adult', displayName, email: null, retirementAge: 64 });
+const adult = (id: string, displayName: string): Person => ({ id, kind: 'adult', displayName, email: null, retirementAge: 64, retirementMonths: 0 });
 const NOTICE = '0192f0aa-0000-7000-8000-0000000000e1';
 const UPLOADED = '0192f0aa-0000-7000-8000-0000000000d2';
 const pdf = (name: string) => new File(['%PDF-1.7'], name, { type: 'application/pdf' });

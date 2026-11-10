@@ -11,8 +11,8 @@ export const PURCHASE = '0192f0aa-0000-7000-8000-0000000000b1';
 export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
 export const persons: components['schemas']['PersonDto'][] = [
-  { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: 'alice@example.test', retirementAge: 64 },
-  { id: BOB, kind: 'adult', displayName: 'Bob Dev', email: 'bob@example.test', retirementAge: 64 },
+  { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: 'alice@example.test', retirementAge: 64, retirementMonths: 0 },
+  { id: BOB, kind: 'adult', displayName: 'Bob Dev', email: 'bob@example.test', retirementAge: 64, retirementMonths: 0 },
 ];
 
 /** A shared monthly subscription owned by Alice, with a gift card: what the detail page and its edits read. */

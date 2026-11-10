@@ -18,3 +18,9 @@ export const formatInstantDay = (iso: string): string => day.format(new Date(iso
 export function monthLabel(year: number, month: number, style: 'long' | 'short' = 'long', locale = 'fr-FR'): string {
   return new Intl.DateTimeFormat(locale, { timeZone: 'UTC', month: style, year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
 }
+
+/** A server month (yyyy-MM) as « novembre 2040 ». */
+export function yyyyMmLabel(yyyyMm: string): string {
+  const [year, m] = yyyyMm.split('-').map(Number);
+  return monthLabel(year ?? 0, m ?? 1, 'long');
+}

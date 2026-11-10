@@ -13,9 +13,9 @@ const BOB = '00000000-0000-7000-8000-0000000000a2';
 const LEA = '00000000-0000-7000-8000-0000000000d1';
 // Every person has a birth date; the server lists Bob's retirement only (Alice retired, Léa a dependent).
 const persons = [
-  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: '1955-01-01', retirementAge: 64 },
-  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62 },
-  { id: LEA, kind: 'dependent', displayName: 'Léa', birthDate: '2015-06-01', retirementAge: 64 },
+  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: '1955-01-01', retirementAge: 64, retirementMonths: 0 },
+  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62, retirementMonths: 0 },
+  { id: LEA, kind: 'dependent', displayName: 'Léa', birthDate: '2015-06-01', retirementAge: 64, retirementMonths: 0 },
 ];
 const retirementHorizons = [{ person: BOB, name: 'Bob', on: '2047-03-31' }];
 
@@ -42,6 +42,12 @@ describe('net worth projection card', () => {
     expect(await within(region).findByRole('radio', { name: '10 ans' })).toBeChecked();
     expect(seen[0]).toContain('scope=me');
     expect(seen[0]).not.toContain('horizon=');
+  });
+
+  it('links to the retirement page', async () => {
+    serve(projection());
+    await renderApp('/dashboard');
+    expect(await within(await card()).findByRole('link', { name: 'Retraite' })).toHaveAttribute('href', '/retirement');
   });
 
   it('keeps the horizon in the URL', async () => {
@@ -150,10 +156,14 @@ describe('net worth projection card', () => {
   });
 
   it('lists the milestones with their server label and date', async () => {
-    serve(projection({ milestones: [{ on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null }] }));
+    serve(projection({ milestones: [
+      { on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null },
+      { on: '2035-06-30', kind: 'financial_independence', label: 'financial_independence', item: null },
+    ] }));
     await renderApp('/dashboard');
     const item = await within(await card()).findByText(/Prêt résidence/);
     expect(item).toHaveTextContent('31/12/2027');
+    expect(within(await card()).getByText(/Indépendance financière/)).toHaveTextContent('30/06/2035');
   });
 
   it('is hidden for an empty household', async () => {
