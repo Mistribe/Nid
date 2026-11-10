@@ -9,7 +9,7 @@ import { expectHeaderActionRule, openMore } from '@/test/headerActions';
 import type { ChildcareDetail } from './api';
 import { link, list, summary } from '../documents/testData';
 import type { StatementList } from './api';
-import { ARRANGEMENT_ID, detail, eur, slot, statements, terms, twoWeekTypes } from './testData';
+import { ARRANGEMENT_ID, detail, eur, list as childcareList, slot, statements, summary as childcareSummary, terms, twoWeekTypes } from './testData';
 
 const url = `/childcare/${ARRANGEMENT_ID}`;
 
@@ -110,19 +110,42 @@ describe('ChildcareDetailPage', () => {
 
     server.use(http.get('*/api/v1/childcare/:id/statements', () => HttpResponse.json({ id: ARRANGEMENT_ID, months: [{ month: '2025-10', state: 'none', cost: null }] })));
     await renderApp(url);
-    await screen.findByRole('table', { name: 'Relevés' });
+    await screen.findByRole('list', { name: 'Relevés 2025' });
     expect(screen.queryByRole('link', { name: 'Voir la série' })).not.toBeInTheDocument();
   });
 
-  it('statements tab lists the months', async () => {
+  it('statements tab shows each month with its state and cost', async () => {
     serve(detail());
     await renderApp(url);
     expect(await screen.findByRole('tab', { name: 'Relevés', selected: true })).toBeInTheDocument();
-    const table = await screen.findByRole('table', { name: 'Relevés' });
-    expect(table).toHaveTextContent('octobre 2025');
-    expect(table).toHaveTextContent('À préparer');
-    expect(table).toHaveTextContent('660,47');
-    expect(within(table).getByRole('link', { name: /septembre 2025/ })).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}/statements/2025-09`);
+    const [october, september] = within(await screen.findByRole('list', { name: 'Relevés 2025' })).getAllByRole('listitem');
+    expect(october).toHaveTextContent('octobre 2025 À préparer —');
+    expect(september).toHaveTextContent('septembre 2025 Validé 660,47');
+    expect(within(september!).getByRole('link', { name: /septembre 2025/ })).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}/statements/2025-09`);
+  });
+
+  it('groups the statements by year', async () => {
+    serve(detail());
+    server.use(http.get('*/api/v1/childcare/:id/statements', () => HttpResponse.json({ id: ARRANGEMENT_ID, months: [
+      { month: '2026-01', state: 'draft', cost: eur('610.00') },
+      { month: '2025-12', state: 'validated', cost: eur('660.47') },
+    ] })));
+    await renderApp(url);
+    expect(await screen.findByRole('list', { name: 'Relevés 2026' })).toHaveTextContent('janvier 2026 Brouillon 610,00');
+    expect(screen.getByRole('list', { name: 'Relevés 2025' })).toHaveTextContent('décembre 2025');
+  });
+
+  it('the title opens the other contracts, the closed ones included', async () => {
+    serve(detail());
+    server.use(http.get('*/api/v1/childcare', () => HttpResponse.json(childcareList([
+      childcareSummary(), childcareSummary({ id: 'b', name: 'Ancienne garde', closed: true, start: '2023-09-01', end: '2025-06-30' }),
+    ]))));
+    const { user } = await renderApp(url);
+    await user.click(await screen.findByRole('button', { name: 'Changer de contrat' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /Ancienne garde/ })).toHaveAttribute('href', '/childcare/b');
+    expect(within(menu).getByRole('menuitem', { name: /Garde de Léa/ })).toHaveAttribute('aria-current', 'page');
+    expect(within(menu).getByRole('menuitem', { name: 'Nouvelle garde' })).toHaveAttribute('href', '/childcare/new');
   });
 
   it('shows the CMG estimate', async () => {
@@ -162,8 +185,7 @@ describe('ChildcareDetailPage', () => {
       })]))),
     );
     await renderApp(url);
-    const table = await screen.findByRole('table', { name: 'Relevés' });
-    const rows = within(table).getAllByRole('row');
+    const rows = within(await screen.findByRole('list', { name: 'Relevés 2025' })).getAllByRole('listitem');
     await waitFor(() => expect(rows.find((r) => r.textContent?.includes('août 2025'))).toHaveTextContent('Pas de bulletin'));
     expect(rows.find((r) => r.textContent?.includes('septembre 2025'))).not.toHaveTextContent('Pas de bulletin');
   });
