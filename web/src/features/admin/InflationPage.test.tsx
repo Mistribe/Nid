@@ -23,7 +23,7 @@ const serve = (inflationEnabled = true) => server.use(
 );
 
 describe('Administration › Inflation', () => {
-  it('lists the stored months, in the server order, and the runs', async () => {
+  it('lists the stored months, in the server order', async () => {
     serve();
     const { container } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
 
@@ -33,8 +33,35 @@ describe('Administration › Inflation', () => {
     expect(screen.getByRole('row', { name: /^août 2026/ })).toHaveTextContent('Saisi à la main');
     const rows = screen.getAllByRole('row').map((r) => r.textContent ?? '');
     expect(rows.findIndex((r) => r.startsWith('septembre 2026'))).toBeLessThan(rows.findIndex((r) => r.startsWith('août 2026')));
-    expect(screen.getByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(view.runs[0]!.startedAt));
     await expectNoAxeViolations(container);
+  });
+
+  it('draws the series above its values', async () => {
+    serve();
+    server.use(http.get('*/api/v1/series/points', () => HttpResponse.json({ baseDate: null, series: [
+      { key: 'cpi', kind: 'cpi', name: 'x', unit: 'index', frequency: 'quarterly', item: null, points: [{ date: '2026-01-01', value: '146.80' }] }] })));
+    await renderApp('/admin/inflation', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('tab', { name: 'Série', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Afficher en tableau' })).toBeInTheDocument();
+    expect(await screen.findByRole('row', { name: /^septembre 2026/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Voir la série' })).toBeInTheDocument();
+  });
+
+  it('shows the collection log on the Journal tab', async () => {
+    serve();
+    const { user, router } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('tab', { name: 'Journal' }));
+    expect(await screen.findByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(view.runs[0]!.startedAt));
+    expect(router.state.location.search).toMatchObject({ tab: 'journal' });
+  });
+
+  it('opens the Journal tab from the URL', async () => {
+    serve();
+    await renderApp('/admin/inflation?tab=journal', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('row', { name: /réussi/ })).toBeInTheDocument();
   });
 
   it('opens the CPI series', async () => {

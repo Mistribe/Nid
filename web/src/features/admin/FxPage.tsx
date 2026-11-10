@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -15,6 +15,10 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { Section } from '@/components/page/Section';
+import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { SeriesLink } from '@/components/page/SeriesLink';
+import { fromOf } from '@/features/series/selection';
+import { AdminSeries } from './AdminSeries';
 import { AdminFrame } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { CURRENCY } from '@/lib/amount';
@@ -35,6 +39,7 @@ export function FxPage() {
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [entering, setEntering] = useState(false);
+  const [tab, setTab] = useDetailTab(['series', 'journal'] as const);
   const runs = $api.useQuery('get', RUNS);
 
   const fail = (error: unknown) => {
@@ -77,58 +82,63 @@ export function FxPage() {
       </Section>
       {entering ? <ManualRateDialog onClose={() => setEntering(false)} onDone={(message) => { setEntering(false); setProblem(null); toast.success(message); }} /> : null}
 
-      <SeriesByCurrency />
-
-      <Section title={t('admin.fx.runs_title')}>
-        {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-        {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
-        {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
-        {runs.data && runs.data.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('admin.fx.started')}</TableHead>
-                <TableHead>{t('admin.fx.kind')}</TableHead>
-                <TableHead>{t('admin.fx.status')}</TableHead>
-                <TableHead>{t('admin.fx.rows')}</TableHead>
-                <TableHead>{t('admin.fx.failure')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {runs.data.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{formatInstant(r.startedAt)}</TableCell>
-                  <TableCell>{kindLabel(r.kind)}</TableCell>
-                  <TableCell>{statusLabel(r.status)}</TableCell>
-                  <TableCell>{r.rowsWritten}</TableCell>
-                  <TableCell>{r.failureCode}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : null}
-      </Section>
+      <DetailTabs value={tab} onChange={setTab} tabs={[
+        { id: 'series', label: t('admin.tab_series'), content: <SeriesByCurrency /> },
+        { id: 'journal', label: t('admin.tab_journal'), content: (
+          <Section title={t('admin.fx.runs_title')}>
+            {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
+            {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
+            {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
+            {runs.data && runs.data.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('admin.fx.started')}</TableHead>
+                    <TableHead>{t('admin.fx.kind')}</TableHead>
+                    <TableHead>{t('admin.fx.status')}</TableHead>
+                    <TableHead>{t('admin.fx.rows')}</TableHead>
+                    <TableHead>{t('admin.fx.failure')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {runs.data.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{formatInstant(r.startedAt)}</TableCell>
+                      <TableCell>{kindLabel(r.kind)}</TableCell>
+                      <TableCell>{statusLabel(r.status)}</TableCell>
+                      <TableCell>{r.rowsWritten}</TableCell>
+                      <TableCell>{r.failureCode}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : null}
+          </Section>
+        ) },
+      ]} />
     </AdminFrame>
   );
 }
 
-/** « Historique d'une devise »: the stored quotes are every currency SubTracker gives, so the code is typed, not picked. */
+/** « Historique d'une devise »: the stored quotes are every currency SubTracker gives, so the code is typed, not picked. Drawn over the last year. */
 function SeriesByCurrency() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { quote = 'EUR' } = useSearch({ strict: false });
   const [error, setError] = useState('');
   return (
-    <Section title={t('admin.fx.series_title')}>
+    <Section title={t('admin.fx.series_title')} actions={<SeriesLink keys={[`fx:${quote}`]} />}>
       <form aria-label={t('admin.fx.series_title')} noValidate className="flex max-w-md items-start gap-2" onSubmit={(event) => {
         event.preventDefault();
         const code = ((new FormData(event.currentTarget).get('quote') as string | null) ?? '').trim().toUpperCase();
         if (!CURRENCY.test(code) || code === 'USD') { setError(t('admin.fx.series_invalid')); return; }
         setError('');
-        void navigate({ to: '/series', search: { s: `fx:${code}` } });
+        void navigate({ to: '.', replace: true, search: (prev) => ({ ...prev, quote: code === 'EUR' ? undefined : code }) });
       }}>
-        <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} name="quote" onChange={() => setError('')} maxLength={3} className="uppercase" />}</Field>
-        <Button type="submit" className="mt-6">{t('series.see')}</Button>
+        <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} key={quote} name="quote" defaultValue={quote} onChange={() => setError('')} maxLength={3} className="uppercase" />}</Field>
+        <Button type="submit" className="mt-6">{t('admin.fx.series_show')}</Button>
       </form>
+      <AdminSeries seriesKey={`fx:${quote}`} from={fromOf('1y')} />
     </Section>
   );
 }
