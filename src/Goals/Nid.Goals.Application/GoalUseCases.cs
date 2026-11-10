@@ -167,21 +167,10 @@ public sealed class CloseGoalHandler(IItemRegistry items, IGoalStore goals, IUni
 }
 
 [RequestHandler<DeleteGoalCommand, ItemId>]
-public sealed class DeleteGoalHandler(IItemRegistry items, IItemDeletions deletions, IUnitOfWork unitOfWork)
-    : IRequestHandler<DeleteGoalCommand, ItemId>
+public sealed class DeleteGoalHandler(IItemDeletions deletions) : IRequestHandler<DeleteGoalCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(DeleteGoalCommand command, CancellationToken ct = default)
-    {
-        var item = await items.FindAsync(command.ItemId, ct);
-        if (item is not { Module: "goals" })
-            return Result.Failure<ItemId>(new NotFoundFailure("goal", command.ItemId.ToString()));
-        await using var transaction = await unitOfWork.BeginAsync(ct);
-        var deleted = await deletions.DeleteAsync(command.ItemId, command.Version, ct);
-        if (deleted.TryGetFailure(out var failure))
-            return Result.Failure<ItemId>(failure!);
-        await transaction.CommitAsync(ct);
-        return Result.Success(command.ItemId);
-    }
+        => (await deletions.DeleteAsync(command.ItemId, "goals", null, command.Version, ct)).Map(() => command.ItemId);
 }
 
 /// <summary>D10, D12: a goal reopens only if its shares still fit on the envelopes the actor sees.</summary>

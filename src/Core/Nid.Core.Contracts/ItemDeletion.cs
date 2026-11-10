@@ -24,20 +24,25 @@ public interface IItemDeletionPart
     /// <summary>True when the item's module row carries an import mark (only the owning module answers true).</summary>
     Task<bool> ImportedAsync(ItemAccess item, CancellationToken ct);
 
-    /// <summary>Tracked removes of this part's rows for the item; called inside the caller's unit of work.</summary>
+    /// <summary>
+    /// Tracked removes of this part's rows for the item; called inside the caller's unit of work. RemoveAsync also runs in dry runs:
+    /// never write outside the unit of work (no own scope, no file or blob deletes); a notice waits for <c>IUnitOfWork.AfterCommit</c>.
+    /// </summary>
     Task RemoveAsync(ItemAccess item, CancellationToken ct);
 }
 
+/// <summary>A module's delete endpoints call these with their own <c>module</c> (and <c>kind</c> when one endpoint serves one kind only).</summary>
 public interface IItemDeletions
 {
-    /// <summary>Null when the item does not exist. No access check (the command's IItemScoped did it).</summary>
-    Task<ItemDeletionPreview?> PreviewAsync(ItemId id, CancellationToken ct);
+    /// <summary>Not found when the item does not exist or is not of <paramref name="module"/> (and <paramref name="kind"/>). No access check (the request's IItemScoped did it).</summary>
+    Task<Result<ItemDeletionPreview>> PreviewAsync(ItemId id, string module, string? kind, CancellationToken ct);
 
     /// <summary>
-    /// Inside the caller's unit of work (a savepoint of it): blockers again (<see cref="ItemCodes.InUse"/>), every part's
-    /// <see cref="IItemDeletionPart.RemoveAsync"/>, then the registry delete (<see cref="ItemCodes.Changed"/>). A failure removes nothing.
+    /// Not found as <see cref="PreviewAsync"/>. In a unit of work of its own, or a savepoint of the caller's: blockers again
+    /// (<see cref="ItemCodes.InUse"/>), every part's <see cref="IItemDeletionPart.RemoveAsync"/>, then the registry delete
+    /// (<see cref="ItemCodes.Changed"/>). A failure removes nothing.
     /// </summary>
-    Task<Result> DeleteAsync(ItemId id, uint version, CancellationToken ct);
+    Task<Result> DeleteAsync(ItemId id, string module, string? kind, uint version, CancellationToken ct);
 }
 
 /// <summary>Scoped: the proposal being approved in this request, so the delete does not supersede it.</summary>

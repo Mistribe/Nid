@@ -7,6 +7,7 @@ using Nid.Host;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.IntegrationTests;
 
@@ -75,6 +76,9 @@ public class ItemDeletionTests(PostgresFixture postgres)
         await db.SaveChangesAsync(Ct);
     }
 
+    private static async Task<ItemDeletionPreview> Preview(IItemDeletions deletions, ItemId item)
+        => (await deletions.PreviewAsync(item, "investments", null, Ct)).Ok();
+
     private static async Task<(int Items, int Owners, int Flows, int Valuations)> RowsAsync(CoreDbContext db, ItemId item)
         => (await db.Items.CountAsync(i => i.Id == item.Value, Ct), await db.Ownerships.CountAsync(o => o.ItemId == item.Value, Ct),
             await db.Flows.CountAsync(f => f.ItemId == item.Value, Ct), await db.Valuations.CountAsync(v => v.ItemId == item.Value, Ct));
@@ -88,9 +92,9 @@ public class ItemDeletionTests(PostgresFixture postgres)
         var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
         await AddFactsAsync(db, item, alice);
         var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
-        var preview = await deletions.PreviewAsync(item, Ct);
+        var preview = await Preview(deletions, item);
 
-        Assert.True((await deletions.DeleteAsync(item, preview!.Version, Ct)).IsSuccess);
+        Assert.True((await deletions.DeleteAsync(item, "investments", null, preview.Version, Ct)).IsSuccess);
 
         Assert.Equal((0, 0, 0, 0), await RowsAsync(db, item));
     }
@@ -104,13 +108,13 @@ public class ItemDeletionTests(PostgresFixture postgres)
         var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
         await AddFactsAsync(db, item, alice);
         var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
-        var preview = await deletions.PreviewAsync(item, Ct);
+        var preview = await Preview(deletions, item);
         var items = scope.ServiceProvider.GetRequiredService<IItemRegistry>();
         var found = (await items.FindAsync(item, Ct))!;
         Assert.True((await items.ReplaceAsync(item, "PEA Alice", found.Visibility,
             found.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), Ct)).IsSuccess);
 
-        Assert.True((await deletions.DeleteAsync(item, preview!.Version, Ct)).TryGetFailure(out var failure));
+        Assert.True((await deletions.DeleteAsync(item, "investments", null, preview.Version, Ct)).TryGetFailure(out var failure));
 
         Assert.Equal(ItemCodes.Changed, failure!.Code);
         Assert.Equal((1, 2, 1, 2), await RowsAsync(db, item));
@@ -125,10 +129,10 @@ public class ItemDeletionTests(PostgresFixture postgres)
         var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
         await AddFactsAsync(db, item, alice);
         var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
-        var preview = await deletions.PreviewAsync(item, Ct);
-        Assert.Equal("goal_funding", Assert.Single(preview!.Blockers).Key);
+        var preview = await Preview(deletions, item);
+        Assert.Equal("goal_funding", Assert.Single(preview.Blockers).Key);
 
-        Assert.True((await deletions.DeleteAsync(item, preview.Version, Ct)).TryGetFailure(out var failure));
+        Assert.True((await deletions.DeleteAsync(item, "investments", null, preview.Version, Ct)).TryGetFailure(out var failure));
 
         Assert.Equal(ItemCodes.InUse, failure!.Code);
         Assert.Equal((1, 2, 1, 2), await RowsAsync(db, item));
@@ -144,14 +148,14 @@ public class ItemDeletionTests(PostgresFixture postgres)
         db.Flows.AddRange(Flow(item, alice, 5), Flow(item, alice, 6));
         await db.SaveChangesAsync(Ct);
 
-        var preview = await scope.ServiceProvider.GetRequiredService<IItemDeletions>().PreviewAsync(item, Ct);
+        var preview = await Preview(scope.ServiceProvider.GetRequiredService<IItemDeletions>(), item);
 
-        Assert.Equal([new DeletionCount("flows", 2)], preview!.Removes);
+        Assert.Equal([new DeletionCount("flows", 2)], preview.Removes);
         Assert.Empty(preview.Blockers);
         Assert.False(preview.Imported);
         Assert.Equal("PEA", preview.Name);
         Assert.Equal((await db.Items.AsNoTracking().SingleAsync(i => i.Id == item.Value, Ct)).Version, preview.Version);
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<IItemDeletions>().PreviewAsync(ItemId.New(), Ct));
+        Assert.IsType<NotFoundFailure>((await scope.ServiceProvider.GetRequiredService<IItemDeletions>().PreviewAsync(ItemId.New(), "investments", null, Ct)).Fails());
     }
 
     [Fact]
@@ -167,11 +171,95 @@ public class ItemDeletionTests(PostgresFixture postgres)
         var other = (await proposals.SubmitAsync(Proposal("2026-01-11"), Ct)).Proposal.Id;
         scope.ServiceProvider.GetRequiredService<IApprovingProposal>().Id = approving;
         var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
-        var preview = await deletions.PreviewAsync(item, Ct);
+        var preview = await Preview(deletions, item);
 
-        Assert.True((await deletions.DeleteAsync(item, preview!.Version, Ct)).IsSuccess);
+        Assert.True((await deletions.DeleteAsync(item, "investments", null, preview.Version, Ct)).IsSuccess);
 
         Assert.Equal(ProposalStatus.Pending, (await proposals.FindAsync(approving, Ct))!.Status);
         Assert.Equal(ProposalStatus.Superseded, (await proposals.FindAsync(other, Ct))!.Status);
+    }
+
+    [Fact]
+    public async Task Preview_counts_only_active_facts_and_the_delete_takes_the_retired_ones_too()
+    {
+        await using var provider = await ProviderAsync();
+        await using var scope = provider.CreateAsyncScope();
+        var (alice, item) = await SeedAsync(scope.ServiceProvider);
+        var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+        await AddFactsAsync(db, item, alice);
+        var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
+
+        var preview = await Preview(deletions, item);
+
+        Assert.Equal([new DeletionCount("flows", 1), new DeletionCount("valuations", 1)], preview.Removes);
+        Assert.True((await deletions.DeleteAsync(item, "investments", null, preview.Version, Ct)).IsSuccess);
+        Assert.Equal((0, 0, 0, 0), await RowsAsync(db, item));
+    }
+
+    [Fact]
+    public async Task Another_module_or_kind_answers_not_found_and_keeps_everything()
+    {
+        await using var provider = await ProviderAsync();
+        await using var scope = provider.CreateAsyncScope();
+        var (_, item) = await SeedAsync(scope.ServiceProvider);
+        var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
+        var version = (await Preview(deletions, item)).Version;
+
+        Assert.IsType<NotFoundFailure>((await deletions.PreviewAsync(item, "goals", null, Ct)).Fails());
+        Assert.IsType<NotFoundFailure>((await deletions.PreviewAsync(item, "investments", "holding", Ct)).Fails());
+        Assert.True((await deletions.DeleteAsync(item, "goals", null, version, Ct)).TryGetFailure(out var failure));
+        Assert.IsType<NotFoundFailure>(failure);
+        Assert.True((await deletions.PreviewAsync(item, "investments", "envelope", Ct)).IsSuccess);
+        Assert.Equal(1, await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Items.CountAsync(i => i.Id == item.Value, Ct));
+    }
+
+    /// <summary>
+    /// Nobody approving (a plain delete): every pending proposal is superseded. Its notice resolves once the delete commits, and stays
+    /// open when the delete ran inside a unit of work that rolls back (a proposal's dry run). The whole app: the notifier builds every store.
+    /// </summary>
+    [Fact]
+    public async Task Superseded_notices_resolve_only_once_the_delete_commits()
+    {
+        await using var app = await NidApp.StartAsync(postgres);
+        var item = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        Guid proposal;
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            proposal = (await scope.ServiceProvider.GetRequiredService<IProposalStore>().SubmitAsync(new NewProposal("investments",
+                "investments.record_valuation", item, app.AdultA, "2026-01-10", JsonDocument.Parse("""{"asOf":"2026-01-10"}""").RootElement.Clone(),
+                1, [], "api", null, "Relevé"), Ct)).Proposal.Id;
+            await scope.ServiceProvider.GetRequiredService<INotifier>().PublishAsync(new Notice("proposal_pending", new Recipients.People([app.AdultA]),
+                ProposalNotices.Key(proposal), [item], new Dictionary<string, string>()), Ct);
+        }
+        Assert.Equal(NotificationStates.Open, await NoticeStateAsync(app, proposal));
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
+            var version = (await Preview(deletions, item)).Version;
+            await using (await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct))
+                Assert.True((await deletions.DeleteAsync(item, "investments", null, version, Ct)).IsSuccess);
+        }
+        Assert.Equal(NotificationStates.Open, await NoticeStateAsync(app, proposal));
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            var deletions = scope.ServiceProvider.GetRequiredService<IItemDeletions>();
+            var proposals = scope.ServiceProvider.GetRequiredService<IProposalStore>();
+            Assert.Equal(ProposalStatus.Pending, (await proposals.FindAsync(proposal, Ct))!.Status);
+            Assert.True((await deletions.DeleteAsync(item, "investments", null, (await Preview(deletions, item)).Version, Ct)).IsSuccess);
+            Assert.Equal(ProposalStatus.Superseded, (await proposals.FindAsync(proposal, Ct))!.Status);
+        }
+        Assert.Equal(NotificationStates.Resolved, await NoticeStateAsync(app, proposal));
+    }
+
+    private static async Task<string> NoticeStateAsync(NidApp app, Guid proposal)
+    {
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var key = ProposalNotices.Key(proposal);
+        return (await platform.Notifications.AsNoTracking().SingleAsync(n => n.Key == key, Ct)).State;
     }
 }

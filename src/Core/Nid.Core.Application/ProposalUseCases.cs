@@ -98,7 +98,7 @@ internal static class ProposalAccess
         return id => id is { } target && found.TryGetValue(target, out var item) ? item.DisplayName : null;
     }
 
-    public static string NoticeKey(Guid proposal) => $"proposal_pending:{proposal}";
+    public static string NoticeKey(Guid proposal) => ProposalNotices.Key(proposal);
 
     /// <summary>Who can decide it: the person it is for without a target, else every active adult with Write on the target (as <see cref="LoadAsync"/> and <c>canDecide</c>).</summary>
     public static async Task<IReadOnlyList<PersonId>> DecidersAsync(IPersonRegistry persons, IAccessPolicy policy, ItemId? target, PersonId forPerson, CancellationToken ct)

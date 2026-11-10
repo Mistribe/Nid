@@ -6,15 +6,17 @@ namespace Nid.Core.Infrastructure.Persistence;
 
 /// <summary>
 /// #23: Core's share of an item delete: its facts, retired rows included (the only physical fact delete), and its pending
-/// proposals, superseded rather than deleted (proposals are history), except the one being approved.
+/// proposals, superseded rather than deleted (proposals are history), except the one being approved. Their notices resolve once the
+/// delete commits, never in a dry run.
 /// </summary>
-public sealed class CoreDeletionPart(CoreDbContext db, IApprovingProposal approving, INotifier notifier) : IItemDeletionPart
+public sealed class CoreDeletionPart(CoreDbContext db, IApprovingProposal approving, IUnitOfWork unitOfWork, INotifier notifier) : IItemDeletionPart
 {
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
         =>
         [
-            new("flows", await db.Flows.CountAsync(f => f.ItemId == item.Id.Value, ct)),
-            new("valuations", await db.Valuations.CountAsync(v => v.ItemId == item.Id.Value, ct)),
+            // The household counts the facts it sees; the retired ones go too (RemoveAsync).
+            new("flows", await db.Flows.CountAsync(f => f.ItemId == item.Id.Value && f.RetiredAt == null, ct)),
+            new("valuations", await db.Valuations.CountAsync(v => v.ItemId == item.Id.Value && v.RetiredAt == null, ct)),
         ];
 
     public Task<IReadOnlyList<DeletionBlocker>> BlockersAsync(ItemAccess item, CancellationToken ct) => Task.FromResult<IReadOnlyList<DeletionBlocker>>([]);
@@ -32,7 +34,11 @@ public sealed class CoreDeletionPart(CoreDbContext db, IApprovingProposal approv
             proposal.Status = "superseded";
         await db.SaveChangesAsync(ct);
 
-        foreach (var proposal in pending)
-            await notifier.ResolveAsync($"proposal_pending:{proposal.Id}", ct); // ProposalAccess.NoticeKey, internal to Core.Application
+        var superseded = pending.Select(p => p.Id).ToList();
+        unitOfWork.AfterCommit(async () =>
+        {
+            foreach (var proposal in superseded)
+                await notifier.ResolveAsync(ProposalNotices.Key(proposal), CancellationToken.None);
+        });
     }
 }

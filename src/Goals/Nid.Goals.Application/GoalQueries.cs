@@ -23,16 +23,10 @@ public sealed record GoalDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPrevi
 }
 
 [RequestHandler<GoalDeletionQuery, ItemDeletionPreview>]
-public sealed class GoalDeletionHandler(IItemRegistry items, IItemDeletions deletions) : IRequestHandler<GoalDeletionQuery, ItemDeletionPreview>
+public sealed class GoalDeletionHandler(IItemDeletions deletions) : IRequestHandler<GoalDeletionQuery, ItemDeletionPreview>
 {
     public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(GoalDeletionQuery query, CancellationToken ct = default)
-    {
-        var item = await items.FindAsync(query.ItemId, ct);
-        var preview = item is { Module: "goals" } ? await deletions.PreviewAsync(query.ItemId, ct) : null;
-        return preview is null
-            ? Result.Failure<ItemDeletionPreview>(new NotFoundFailure("goal", query.ItemId.ToString()))
-            : Result.Success(preview);
-    }
+        => await deletions.PreviewAsync(query.ItemId, "goals", null, ct);
 }
 
 /// <summary>Issue #412: the target an emergency fund of <paramref name="Months"/> would have, before it is created.</summary>

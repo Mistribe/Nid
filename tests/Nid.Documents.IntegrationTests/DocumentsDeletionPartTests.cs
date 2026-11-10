@@ -34,6 +34,20 @@ public class DocumentsDeletionPartTests(PostgresFixture fixture) : IClassFixture
         await store.AddLinkAsync(new LinkRecord(other, TargetKinds.CoreItem, elsewhere, null, "lease", Guid.CreateVersion7(), At), ct);
 
         var db = sp.GetRequiredService<DocumentsDbContext>();
+        foreach (var target in new[] { item, elsewhere })
+        {
+            db.ExpectedDismissals.Add(new ExpectedDismissalRow
+            {
+                TargetKind = TargetKinds.CoreItem, TargetId = target, Role = "lease", Period = 2026, DismissedByPersonId = Guid.CreateVersion7(), DismissedAt = At,
+            });
+            db.UploadTickets.Add(new UploadTicketRow
+            {
+                TokenHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(target.ToByteArray())), PersonId = Guid.CreateVersion7(),
+                TokenId = Guid.CreateVersion7(), FileName = "bail.pdf", Title = "Bail", DocumentDate = new LocalDate(2026, 9, 1),
+                TargetKind = TargetKinds.CoreItem, TargetId = target, Role = "lease", ExpiresAt = At,
+            });
+        }
+        await db.SaveChangesAsync(ct);
         var part = new DocumentsDeletionPart(db);
         var access = new ItemAccess(new ItemId(item), "Appartement", Visibility.Shared, []);
         var count = Assert.Single(await part.CountAsync(access, ct));
@@ -44,5 +58,7 @@ public class DocumentsDeletionPartTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal(0, Assert.Single(await part.CountAsync(access, ct)).Count);
         Assert.Equal(elsewhere, Assert.Single(await db.Links.AsNoTracking().ToListAsync(ct)).TargetId);
         Assert.Equal(3, await db.Documents.CountAsync(ct));
+        Assert.Equal(elsewhere, Assert.Single(await db.ExpectedDismissals.AsNoTracking().ToListAsync(ct)).TargetId);
+        Assert.Equal(elsewhere, Assert.Single(await db.UploadTickets.AsNoTracking().ToListAsync(ct)).TargetId);
     }
 }

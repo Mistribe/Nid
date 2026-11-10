@@ -122,4 +122,16 @@ public class GoalDeleteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Goals}/{goal.Value}")).StatusCode);
     }
+
+    [Fact]
+    public async Task Another_modules_item_answers_404_and_stays()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Goals}/{envelope.Value}/deletion")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Goals}/{envelope.Value}?version=1")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/investments/envelopes/{envelope.Value}")).StatusCode);
+    }
 }

@@ -1,9 +1,11 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 using Nid.Core.Contracts;
 using Nid.Host.IntegrationTests.Admin;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Host.IntegrationTests.Mcp;
@@ -41,6 +43,15 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var scope = app.Services.CreateAsyncScope();
         var stored = await scope.ServiceProvider.GetRequiredService<IProposalStore>().FindAsync(proposal, TestContext.Current.CancellationToken);
         return stored!.Status.ToString().ToLowerInvariant();
+    }
+
+    /// <summary>The state of every decider's notice of the proposal (one adult here).</summary>
+    private static async Task<string> NoticeAsync(NidApp app, JsonElement proposal)
+    {
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var key = ProposalNotices.Key(proposal.GetProperty("id").GetGuid());
+        return Assert.Single((await platform.Notifications.AsNoTracking().Where(n => n.Key == key).ToListAsync(TestContext.Current.CancellationToken))
+            .Select(n => n.State).Distinct());
     }
 
     private static async Task<HttpResponseMessage> ApproveAsync(NidApp app, JsonElement proposal, object? edited)
@@ -93,6 +104,22 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("superseded", await StatusAsync(app, edit.GetProperty("id").GetGuid()));
         Assert.Equal("approved", await StatusAsync(app, delete.GetProperty("id").GetGuid()));
+        Assert.Equal(NotificationStates.Resolved, await NoticeAsync(app, edit));
+    }
+
+    /// <summary>Proposing runs the delete dry: the goal's other proposals keep their notice, as they stay pending.</summary>
+    [Fact]
+    public async Task Proposing_a_delete_keeps_the_other_proposals_notices_open()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var goal = await app.NewGoalAsync("Voyage", app.AdultA);
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+        var edit = await ProposeAsync(client, "propose_edit_goal", new { id = goal.Value, body = new { name = "Vacances", targetAmount = "10000", version = await GoalVersionAsync(app, goal) } });
+
+        await ProposeAsync(client, "propose_delete_goal", new { id = goal.Value, version = await VersionAsync(app, goal) });
+
+        Assert.Equal("pending", await StatusAsync(app, edit.GetProperty("id").GetGuid()));
+        Assert.Equal(NotificationStates.Open, await NoticeAsync(app, edit));
     }
 
     [Fact]
@@ -121,9 +148,10 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         var goal = await app.NewGoalAsync("Voyage", app.AdultA);
         await using var client = await ClientAsync(app, TokenPresets.Direct);
 
-        var (error, _) = await CallAsync(client, "propose_delete_goal", new { id = goal.Value, version = await VersionAsync(app, goal), apply = true });
+        var (error, text) = await CallAsync(client, "propose_delete_goal", new { id = goal.Value, version = await VersionAsync(app, goal), apply = true });
 
         Assert.True(error);
+        Assert.Contains(BrowserOnlyCodes.Required, text);
         Assert.Equal(HttpStatusCode.OK, await GoalStatusAsync(app, goal));
     }
 }

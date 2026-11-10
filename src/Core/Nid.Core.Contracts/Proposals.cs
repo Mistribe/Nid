@@ -36,6 +36,12 @@ public sealed record StoredProposal(
 
 public sealed record SubmitOutcome(StoredProposal Proposal, bool Created, IReadOnlyList<Guid>? Superseded = null);
 
+/// <summary>The key of a pending proposal's notice: what publishes it and every place that resolves it.</summary>
+public static class ProposalNotices
+{
+    public static string Key(Guid proposal) => $"proposal_pending:{proposal}";
+}
+
 public static class ProposalCodes
 {
     public const string KindUnknown = "core.proposal_kind_unknown";
