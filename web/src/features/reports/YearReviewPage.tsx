@@ -21,12 +21,15 @@ import { Button } from '@/components/ui/button';
 import type { RootSearch } from '@/lib/search';
 import { IncomeReview } from './IncomeReview';
 import { InvestmentsReview } from './InvestmentsReview';
+import { LoansReview } from './LoansReview';
 import { NetWorthBridge, signed } from './NetWorthBridge';
+import { PropertiesReview } from './PropertiesReview';
+import { SubscriptionsReview } from './SubscriptionsReview';
 import '@/locales/reports';
 
 const FX_MISSING = 'core.fx_rate_missing';
 
-/** Issue #12: the year's review, net worth then investments, from the server's figures for the Foyer / Moi scope. */
+/** Issue #12: the year's review, net worth, investments, income, subscriptions, loans then properties, from the server's figures for the Foyer / Moi scope. */
 export function YearReviewPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -67,7 +70,10 @@ export function YearReviewPage() {
         : d.findings.includes(FX_MISSING) ? <p className="text-sm text-muted-foreground">{t('reports.fx_missing')}</p> : null}
       {d.investments ? <InvestmentsReview year={d.year} review={d.investments} /> : null}
       {d.income ? <IncomeReview year={d.year} review={d.income} /> : null}
-      {!d.netWorth && !d.investments && !d.income && d.findings.length === 0 ? <p className="text-muted-foreground">{t('reports.empty')}</p> : null}
+      {d.subscriptions ? <SubscriptionsReview year={d.year} review={d.subscriptions} /> : null}
+      {d.loans ? <LoansReview year={d.year} review={d.loans} /> : null}
+      {d.properties ? <PropertiesReview year={d.year} review={d.properties} /> : null}
+      {!d.netWorth && !d.investments && !d.income && !d.subscriptions && !d.loans && !d.properties && d.findings.length === 0 ? <p className="text-muted-foreground">{t('reports.empty')}</p> : null}
     </div>
   );
 }

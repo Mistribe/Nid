@@ -50,6 +50,32 @@ function review(over: Partial<YearReview> = {}): YearReview {
         { source: 'childcare', amount: eur('3000.00'), estimated: true },
       ],
     },
+    subscriptions: {
+      cost: eur('1200.00'), previousCost: eur('1100.00'),
+      started: [{ id: '00000000-0000-0000-0000-0000000000b1', name: 'Musique', provider: 'Ondes', on: '2025-03-01' }],
+      ended: [{ id: '00000000-0000-0000-0000-0000000000b2', name: 'Vidéo', on: '2025-06-30' }],
+      priceChanges: [{ id: '00000000-0000-0000-0000-0000000000b3', name: 'Box internet', on: '2025-09-01',
+        before: eur('20.00'), beforeEvery: { count: 1, unit: 'month' }, after: eur('35.00'), afterEvery: { count: 1, unit: 'month' }, promoEnded: true }],
+    },
+    loans: {
+      interest: eur('2000.00'), insurance: eur('300.00'), fees: eur('0.00'), capitalRepaid: eur('6000.00'),
+      startBalance: eur('150000.00'), endBalance: eur('144000.00'), previousInterestAndInsurance: eur('2400.00'), previousCapitalRepaid: eur('5800.00'),
+      loans: [
+        { id: '00000000-0000-0000-0000-0000000000c1', name: 'Prêt maison', interest: eur('2000.00'), insurance: eur('300.00'), fees: eur('0.00'),
+          capitalRepaid: eur('6000.00'), startBalance: eur('150000.00'), endBalance: eur('144000.00') },
+        { id: '00000000-0000-0000-0000-0000000000c2', name: 'Prêt auto', interest: eur('0.00'), insurance: eur('0.00'), fees: eur('0.00'),
+          capitalRepaid: eur('0.00'), startBalance: eur('0.00'), endBalance: eur('0.00'), archivedOn: '2025-02-15' },
+      ],
+    },
+    properties: {
+      costs: eur('2500.00'), rents: eur('9000.00'), previousCosts: eur('2300.00'), previousRents: eur('8800.00'),
+      properties: [
+        { id: '00000000-0000-0000-0000-0000000000d1', name: 'Studio Lyon', costs: eur('1500.00'), rents: eur('9000.00'), grossYieldPct: 4.4, netYieldPct: 3.6,
+          byCategory: [{ category: 'property_tax', amount: eur('900.00') }, { category: 'condo_fees', amount: eur('600.00') }] },
+        { id: '00000000-0000-0000-0000-0000000000d2', name: 'Maison', costs: eur('1000.00'), rents: eur('0.00'), grossYieldPct: null, netYieldPct: null,
+          byCategory: [{ category: 'works', amount: eur('1000.00') }] },
+      ],
+    },
     ...over,
   };
 }
@@ -188,8 +214,72 @@ describe('YearReviewPage', () => {
     expect(screen.queryByRole('region', { name: 'Placements' })).not.toBeInTheDocument();
   });
 
+  it('shows the subscriptions cost with the year before, those started and ended, and a price change before → after', async () => {
+    serve(() => review());
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Abonnements' });
+    expect(within(section).getByText('1 200,00 €')).toBeInTheDocument();
+    expect(within(section).getByText('2024 : 1 100,00 €')).toBeInTheDocument();
+    const started = within(within(section).getByRole('table', { name: 'Abonnements commencés' })).getAllByRole('row').slice(1);
+    expect(started[0]).toHaveTextContent('Musique1 mars 2025');
+    expect(within(started[0]!).getByRole('link', { name: 'Musique' })).toHaveAttribute('href', '/subscriptions/00000000-0000-0000-0000-0000000000b1');
+    expect(within(within(section).getByRole('table', { name: 'Abonnements terminés' })).getAllByRole('row')[1]).toHaveTextContent('Vidéo30 juin 2025');
+    const change = within(within(section).getByRole('table', { name: 'Changements de prix' })).getAllByRole('row')[1];
+    expect(change).toHaveTextContent('Box internet fin de promotion1 septembre 2025');
+    expect(change).toHaveTextContent('20,00 € pour 1 mois → 35,00 € pour 1 mois');
+  });
+
+  it('shows the loans figures with the year before, one row per loan, an archived one dated', async () => {
+    serve(() => review());
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Crédits' });
+    for (const label of ['Intérêts', 'Assurance', 'Frais', 'Capital remboursé', 'Restant dû au début', 'Restant dû à la fin'])
+      expect(within(section).getAllByText(label).length).toBeGreaterThan(0);
+    expect(within(section).getByText('2024, assurance comprise : 2 400,00 €')).toBeInTheDocument();
+    expect(within(section).getByText('2024 : 5 800,00 €')).toBeInTheDocument();
+    const rows = within(within(section).getByRole('table', { name: 'Crédits de la période' })).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent(/^Prêt maison2 000,00 €300,00 €0,00 €6 000,00 €150 000,00 €144 000,00 €$/);
+    expect(rows[1]).toHaveTextContent(/^Prêt auto archivé le 15 février 2025/);
+    expect(within(rows[0]!).getByRole('link', { name: 'Prêt maison' })).toHaveAttribute('href', '/loans/00000000-0000-0000-0000-0000000000c1');
+  });
+
+  it('shows the properties costs and rents with the year before, their yields, « non significatif » without one, and the costs by category', async () => {
+    serve(() => review());
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Biens' });
+    expect(within(section).getByText('2024 : 2 300,00 €')).toBeInTheDocument();
+    expect(within(section).getByText('2024 : 8 800,00 €')).toBeInTheDocument();
+    const rows = within(within(section).getByRole('table', { name: 'Biens de la période' })).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent(/^Studio Lyon1 500,00 €9 000,00 €4,4 %3,6 %$/);
+    expect(rows[1]).toHaveTextContent(/^Maison1 000,00 €0,00 €Non significatifNon significatif$/);
+    expect(within(rows[0]!).getByRole('link', { name: 'Studio Lyon' })).toHaveAttribute('href', '/properties/00000000-0000-0000-0000-0000000000d1');
+    const costs = within(within(section).getByRole('table', { name: 'Charges par catégorie' })).getAllByRole('row').slice(1);
+    expect(costs).toHaveLength(3);
+    ['Studio LyonTaxe foncière900,00 €', 'Studio LyonCharges de copropriété600,00 €', 'MaisonTravaux1 000,00 €']
+      .forEach((text, i) => expect(costs[i]).toHaveTextContent(text));
+  });
+
+  it('leaves out the subscriptions, loans and properties the server does not give', async () => {
+    serve(() => review({ subscriptions: null, loans: null, properties: null }));
+    await renderApp('/reports/year?year=2025');
+
+    await screen.findByRole('region', { name: 'Patrimoine net' });
+    for (const name of ['Abonnements', 'Crédits', 'Biens']) expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
+  });
+
+  it('puts the sections in order: net worth, investments, income, subscriptions, loans, properties', async () => {
+    serve(() => review());
+    await renderApp('/reports/year?year=2025');
+
+    await screen.findByRole('region', { name: 'Biens' });
+    expect(within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Patrimoine net', 'Placements', 'Revenus et marge', 'Abonnements', 'Crédits', 'Biens']);
+  });
+
   it('says when there is nothing to review', async () => {
-    serve(() => review({ netWorth: null, investments: null, income: null }));
+    serve(() => review({ netWorth: null, investments: null, income: null, subscriptions: null, loans: null, properties: null }));
     await renderApp('/reports/year?year=2025');
 
     expect(await screen.findByText('Rien à montrer pour cette année dans ce périmètre.')).toBeInTheDocument();
