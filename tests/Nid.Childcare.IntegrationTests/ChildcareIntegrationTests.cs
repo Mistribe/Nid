@@ -109,6 +109,30 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
+    public async Task A_past_month_ignores_later_validated_months()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var arrangement = await CreateAsync(app);
+        var draft = (await GetAsync(app, $"{arrangement}/statements/2025-09")).GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString();
+        await ValidateAsync(app, arrangement, "2025-09", cmg: "100");
+        await ValidateAsync(app, arrangement, "2025-10", cmg: "100", contributions: "40");
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+        // September unentered under a validated October: the reopen rule forbids it, stored data need not follow it.
+        var store = scope.ServiceProvider.GetRequiredService<IChildcareStore>();
+        var id = new ItemId(Guid.Parse(arrangement[(Url.Length + 1)..]));
+        await store.ReopenAsync(id, new YearMonth(2025, 9), TestContext.Current.CancellationToken);
+        await store.DiscardAsync(id, new YearMonth(2025, 9), TestContext.Current.CancellationToken);
+
+        // September read on its last day: October's CMG and contributions are not known yet, so neither is estimated from them.
+        var childcare = scope.ServiceProvider.GetServices<ICommitmentsContribution>().Single(c => c is ChildcareCommitments);
+        Assert.True((await childcare.CommitmentsAsync(app.AdultA, VisibilityScope.Household, new LocalDate(2025, 9, 30),
+            TestContext.Current.CancellationToken, includeArchived: true)).TryGetValue(out var september));
+        Assert.Equal(draft, september!.Cash[Currency.Eur].ToString("0.00", CultureInfo.InvariantCulture));
+        Assert.True(september.Estimated);
+    }
+
+    [Fact]
     public async Task Validated_month_is_not_estimated()
     {
         await using var app = await NidApp.StartAsync(fixture);

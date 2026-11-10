@@ -224,6 +224,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
         services.AddScoped<Nid.Investments.Application.InvestmentsOverviewReader>();
+        services.AddScoped<Nid.Investments.Application.InvestmentsPeriodReader>();
+        services.AddScoped<IInvestmentsReview, Nid.Investments.Application.InvestmentsReview>();
         services.AddScoped<ISeriesContribution, Nid.Investments.Application.InvestmentSeries>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Investments.Application.InvestmentsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
@@ -244,6 +246,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IItemDeletionPart, IncomeDeletionPart>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<ISeriesContribution, Nid.Income.Application.IncomeSeries>();
+        services.AddScoped<Nid.Income.Application.IncomeOverviewEntries>();
+        services.AddScoped<IIncomeReview, Nid.Income.Application.IncomeReview>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();

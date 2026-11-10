@@ -33,7 +33,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t('dashboard.title')} />
+      <PageHeader title={t('dashboard.title')}
+        actions={<Link to="/reports/year" className={buttonVariants({ variant: 'outline' })}>{t('dashboard.year_review')}</Link>} />
       <Body data={answer.data} error={answer.error} scope={scope} panel={search.panel} />
     </div>
   );

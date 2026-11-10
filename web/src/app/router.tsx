@@ -34,6 +34,8 @@ export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
+/** The annual review (#12): the year, absent for the current one (so it stays out of the URL). */
+export type YearReviewSearch = { year?: number };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
 /** The kind of scenario to create: a purchase without it (the page it always was), a projection or a sale (issue #416) with it. */
 export type NewScenarioSearch = { kind?: 'projection' | 'sale' };
@@ -139,6 +141,14 @@ const dashboardRoute = createRoute({
       ...(search.ranges === 1 || search.ranges === '1' ? { ranges: 1 as const } : {}),
     }),
   component: DashboardPage,
+});
+
+const yearReviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reports/year',
+  beforeLoad: requireModule('core'),
+  validateSearch: (search: Record<string, unknown>): YearReviewSearch => (/^\d{4}$/.test(String(search.year)) ? { year: Number(search.year) } : {}),
+  component: lazyRouteComponent(() => import('@/features/reports/YearReviewPage'), 'YearReviewPage'),
 });
 
 const subscriptionsRoute = createRoute({
@@ -644,7 +654,7 @@ const adminNotificationsRoute = createRoute({ getParentRoute: () => rootRoute, p
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SecurityJournalPage'), 'SecurityJournalPage') });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
+  indexRoute, dashboardRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,

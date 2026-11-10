@@ -14,9 +14,10 @@ public class InvestmentsPerformanceTests
     private static readonly LocalDate From = new(2025, 12, 31);
     private static readonly LocalDate To = new(2026, 9, 30);
 
-    /// <summary>1 USD = 0.9 EUR at the period's end, 0.8 today.</summary>
+    /// <summary>1 USD = 0.9 EUR at the period's start and end, 0.8 today.</summary>
     private static readonly RateTable Rates = new(
-        [new FxRate(To, Currency.Eur, 0.9m, FxRateSource.Ecb), new FxRate(Today, Currency.Eur, 0.8m, FxRateSource.Ecb)], Today, 7);
+        [new FxRate(From, Currency.Eur, 0.9m, FxRateSource.Ecb), new FxRate(To, Currency.Eur, 0.9m, FxRateSource.Ecb),
+            new FxRate(Today, Currency.Eur, 0.8m, FxRateSource.Ecb)], Today, 7);
 
     private static LocalDate D(int y, int m, int d) => new(y, m, d);
 
@@ -39,12 +40,41 @@ public class InvestmentsPerformanceTests
     }
 
     private static InvestmentsPerformance Build(params EnvelopePerformance.Facts[] facts)
-        => InvestmentsPerformanceMath.Build(facts, Currency.Eur, Rates, Today, From, To);
+        => InvestmentsPerformanceMath.Build(facts, Currency.Eur, Rates, Today, From, To).ToView();
+
+    private static InvestmentsPerformance Between(LocalDate from, LocalDate to, params EnvelopePerformance.Facts[] facts)
+        => InvestmentsPerformanceMath.Build(facts, Currency.Eur, Rates, Today, from, to).ToView();
 
     private static decimal N(AmountView? money) => decimal.Parse(money!.Amount, CultureInfo.InvariantCulture);
 
+    private static decimal? Nullable(AmountView? money) => money is null ? null : N(money);
+
     private static void AssertTheEquality(InvestmentsPerformance p)
         => Assert.Equal(N(p.EndValue), N(p.StartValue) + N(p.Contributions) - N(p.Withdrawals) + N(p.Transfers) + N(p.Performance));
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void The_review_part_matches_the_view(bool rateMissing)
+    {
+        var (savings, pea) = Transfer(savingsStartsLate: true);
+        // Without the rate of the start, the dollars' start (and every household total) is unknown.
+        var rates = rateMissing ? new RateTable([new FxRate(To, Currency.Eur, 0.9m, FxRateSource.Ecb)], Today, 7) : Rates;
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD").Value(From, 1_000m).Value(To, 1_100m).Build();
+        var figures = InvestmentsPerformanceMath.Build([Life(), savings, pea, dollars], Currency.Eur, rates, Today, From, To);
+
+        var view = figures.ToView();
+        var part = figures.ToReviewPart();
+
+        Assert.Equal((Nullable(view.StartValue), Nullable(view.EndValue), Nullable(view.Contributions), Nullable(view.Withdrawals), Nullable(view.Performance), view.PeriodReturnPct),
+            (part.StartValue, part.EndValue, part.Contributions, part.Withdrawals, part.Gain, part.PeriodReturnPct));
+        Assert.Equal(view.Envelopes.Select(e => (e.Id, e.Name, e.Kind, Nullable(e.StartValue), Nullable(e.EndValue), Nullable(e.NetContributions), Nullable(e.PerformanceConverted), e.PeriodReturnPct, e.StaleStart, e.NoStartValue)),
+            part.Envelopes.Select(e => (e.Id, e.Name, e.Kind, e.StartValue, e.EndValue, e.NetContributions, e.Gain, e.PeriodReturnPct, e.StaleStart, e.NoStartValue)));
+        Assert.Equal(view.Findings.Select(f => f.Code), part.Findings);
+        Assert.Equal(rateMissing, part.StartValue is null);
+        Assert.Equal(rateMissing, part.Findings.Count > 0);
+        Assert.Contains(part.Envelopes, e => e.NoStartValue);
+    }
 
     [Fact]
     public void The_change_in_value_adds_up_and_a_transfer_between_two_counted_envelopes_cancels()
@@ -60,17 +90,53 @@ public class InvestmentsPerformanceTests
         Assert.Equal(EnvelopeMath.RoundPercent(2_750m / 40_300m * 100m), p.PerformancePct);
         Assert.Equal(["Assurance-vie", "PEA", "Livret A"], p.Envelopes.Select(e => e.Name));
         Assert.Equal("2000.00", p.Envelopes[0].Performance);
-        Assert.Empty(p.Excluded);
+        Assert.All(p.Envelopes, e => Assert.False(e.StaleStart));
     }
 
     [Fact]
-    public void A_transfer_with_an_envelope_left_out_is_shown_apart()
+    public void An_envelope_valued_late_starts_at_its_amount_paid_in_and_its_transfer_cancels()
     {
         var (savings, pea) = Transfer(savingsStartsLate: true);
 
         var p = Build(savings, pea);
 
-        Assert.Equal(new ExcludedEnvelopeView(savings.Item.Id, "Livret A", "no_start_value"), Assert.Single(p.Excluded));
+        // Opened before the start, the savings account starts at its 10 000 paid in: no contribution of the period, flagged.
+        Assert.Equal((15_000m, 0m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Transfers)));
+        Assert.Equal(450m + 600m, N(p.Performance));
+        Assert.Equal([("PEA", false), ("Livret A", true)], p.Envelopes.Select(e => (e.Name, e.NoStartValue)));
+        AssertTheEquality(p);
+    }
+
+    [Fact]
+    public void An_envelope_entered_without_its_past_values_counts_only_the_periods_flows()
+    {
+        // Opened and paid into before the start, first valued after it: 1 000 + 500 paid in by then, 200 in the period.
+        var entered = new EnvelopeFacts("CTO", EnvelopeKind.Brokerage)
+            .Flow(D(2025, 3, 1), FlowKind.Opening, 1_000m).Flow(D(2025, 9, 1), FlowKind.Contribution, 500m)
+            .Flow(D(2026, 4, 1), FlowKind.Contribution, 200m).Value(D(2026, 9, 30), 1_800m).Build();
+
+        var p = Build(entered);
+
+        var row = Assert.Single(p.Envelopes);
+        Assert.True(row.NoStartValue);
+        Assert.Equal((1_500m, 1_800m, 200m, "100.00"), (N(row.StartValue), N(row.EndValue), N(row.NetContributions), row.Performance));
+        Assert.Equal((1_500m, 200m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Withdrawals)));
+        Assert.Equal(N(p.Performance), p.Months.Sum(m => N(m.Performance)));
+        // The return starts on the amount paid in, not on flows moved from before the start: 100 gained on about 1 640 engaged.
+        Assert.InRange(row.PeriodReturnPct!.Value, 5m, 7m);
+        AssertTheEquality(p);
+    }
+
+    [Fact]
+    public void A_transfer_with_an_envelope_never_valued_is_shown_apart()
+    {
+        var (_, pea) = Transfer();
+        var unvalued = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+            .Flow(D(2024, 12, 31), FlowKind.Opening, 10_000m).Flow(D(2026, 3, 1), FlowKind.Withdrawal, 1_000m, "transfer").Build();
+
+        var p = Build(unvalued, pea);
+
+        Assert.Equal(["PEA"], p.Envelopes.Select(e => e.Name));
         Assert.Equal(1_000m, N(p.Transfers));
         Assert.Equal(600m, N(p.Performance));
         AssertTheEquality(p);
@@ -93,7 +159,7 @@ public class InvestmentsPerformanceTests
     }
 
     [Fact]
-    public void An_envelope_without_a_start_or_with_one_too_old_is_in_no_figure()
+    public void An_envelope_without_a_start_counts_from_zero_and_one_with_a_stale_start_counts_flagged()
     {
         var late = new EnvelopeFacts("Nouveau", EnvelopeKind.Pea).Flow(D(2026, 5, 1), FlowKind.Opening, 3_000m).Value(D(2026, 5, 1), 3_000m)
             .Value(D(2026, 9, 30), 3_300m).Build();
@@ -102,9 +168,10 @@ public class InvestmentsPerformanceTests
 
         var p = Build(Life(), late, stale);
 
-        Assert.Equal([("CTO", "stale_start_value"), ("Nouveau", "no_start_value")], p.Excluded.Select(e => (e.Name, e.Code)));
-        Assert.Equal(2_000m, N(p.Performance));
+        Assert.Equal([("Assurance-vie", false), ("Nouveau", false), ("CTO", true)], p.Envelopes.Select(e => (e.Name, e.StaleStart)));
+        Assert.Equal(2_000m + 300m + 100m, N(p.Performance));
         Assert.Equal(N(p.Performance), p.Months.Sum(m => N(m.Performance)));
+        AssertTheEquality(p);
     }
 
     [Fact]
@@ -143,6 +210,118 @@ public class InvestmentsPerformanceTests
         var p = Build(Life(), closed);
 
         Assert.Equal(["Assurance-vie"], p.Envelopes.Select(e => e.Name));
-        Assert.Empty(p.Excluded);
+    }
+
+    [Fact]
+    public void An_envelope_opened_in_the_period_counts_from_zero()
+    {
+        var opened = new EnvelopeFacts("PEA", EnvelopeKind.Pea).Flow(D(2025, 3, 1), FlowKind.Opening, 1_000m).Value(D(2025, 12, 31), 1_100m).Build();
+
+        var p = Between(D(2024, 12, 31), D(2025, 12, 31), opened);
+
+        var row = Assert.Single(p.Envelopes);
+        Assert.False(row.NoStartValue);
+        Assert.Equal((0m, 1_100m, 1_000m, "100.00"), (N(row.StartValue), N(row.EndValue), N(row.NetContributions), row.Performance));
+        Assert.Equal((0m, 1_100m, 100m), (N(p.StartValue), N(p.EndValue), N(p.Performance)));
+        AssertTheEquality(p);
+    }
+
+    [Fact]
+    public void A_stale_start_is_flagged_not_excluded()
+    {
+        var stale = new EnvelopeFacts("CTO", EnvelopeKind.Brokerage).Flow(From.PlusDays(-200), FlowKind.Opening, 1_000m)
+            .Value(From.PlusDays(-200), 1_000m).Value(To, 1_100m).Build();
+
+        var p = Build(Life(), stale);
+
+        var row = p.Envelopes.Single(e => e.Name == "CTO");
+        Assert.True(row.StaleStart);
+        Assert.Equal(100m, N(row.PerformanceConverted));
+        Assert.False(p.Envelopes.Single(e => e.Name == "Assurance-vie").StaleStart);
+    }
+
+    [Fact]
+    public void The_start_converts_at_its_own_date()
+    {
+        var rates = new RateTable([new FxRate(From, Currency.Eur, 0.90m, FxRateSource.Ecb), new FxRate(To, Currency.Eur, 0.95m, FxRateSource.Ecb)], Today, 7);
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD").Value(From, 1_000m).Value(To, 1_000m).Build();
+
+        var p = InvestmentsPerformanceMath.Build([dollars], Currency.Eur, rates, Today, From, To).ToView();
+
+        Assert.Equal((900m, 950m, 50m), (N(p.StartValue), N(p.EndValue), N(p.Performance)));
+        var row = Assert.Single(p.Envelopes);
+        Assert.Equal(("0.00", 900m, 950m, 50m), (row.Performance, N(row.StartValue), N(row.EndValue), N(row.PerformanceConverted)));
+        AssertTheEquality(p);
+    }
+
+    [Fact]
+    public void Today_ends_on_the_estimate()
+    {
+        var life = Life();
+        var estimate = new Application.Prices.EnvelopeEstimate(life.Item.Id,
+            Money.Create(27_500m, Currency.Eur).TryGetValue(out var m) ? m : throw new InvalidOperationException(), Today, To, false, [], null, []);
+
+        var p = InvestmentsPerformanceMath.Build([life], Currency.Eur, Rates, Today, From, Today,
+            new Dictionary<ItemId, Application.Prices.EnvelopeEstimate> { [life.Item.Id] = estimate }).ToView();
+
+        Assert.Equal((27_500m, 2_500m), (N(p.EndValue), N(p.Performance)));
+        Assert.Equal(27_500m, N(Assert.Single(p.Envelopes).EndValue));
+        Assert.Equal(N(p.Performance), p.Months.Sum(m => N(m.Performance)));
+        AssertTheEquality(p);
+    }
+
+    [Fact]
+    public void A_closed_envelope_ends_on_its_closing_value_not_an_estimate()
+    {
+        // Closed on 1 October with its last holdings still priced: an estimate of today is no value of a closed envelope.
+        var closed = new EnvelopeFacts("Ancien PEA", EnvelopeKind.Pea) { ClosedOn = D(2026, 10, 1) }
+            .Flow(D(2024, 12, 31), FlowKind.Opening, 1_000m).Value(From, 1_000m).Value(D(2026, 10, 1), 0m).Build();
+        var estimate = new Application.Prices.EnvelopeEstimate(closed.Item.Id,
+            Money.Create(1_200m, Currency.Eur).TryGetValue(out var m) ? m : throw new InvalidOperationException(), Today, To, false, [], null, []);
+
+        var p = InvestmentsPerformanceMath.Build([closed], Currency.Eur, Rates, Today, From, Today,
+            new Dictionary<ItemId, Application.Prices.EnvelopeEstimate> { [closed.Item.Id] = estimate }).ToView();
+
+        Assert.Equal(0m, N(Assert.Single(p.Envelopes).EndValue));
+    }
+
+    [Fact]
+    public void The_households_period_return_is_on_its_converted_flows()
+    {
+        var euros = new EnvelopeFacts("PEA", EnvelopeKind.Pea).Value(From, 1_000m).Value(To, 1_050m).Build();
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD").Value(From, 1_000m).Value(To, 1_000m).Build();
+
+        var p = Build(euros, dollars);
+
+        // 1 000 € and 900 € in, 1 050 € and 900 € out: +2,6 %; adding the dollars unconverted would give +2,5 %.
+        Assert.Equal(2.6m, p.PeriodReturnPct);
+        Assert.Equal([5.0m, 0.0m], p.Envelopes.Select(e => e.PeriodReturnPct));
+    }
+
+    [Fact]
+    public void A_missing_rate_leaves_the_households_period_return_unknown()
+    {
+        var rates = new RateTable([new FxRate(To, Currency.Eur, 0.9m, FxRateSource.Ecb)], Today, 7);
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD").Value(From, 1_000m).Value(To, 1_100m).Build();
+
+        var p = InvestmentsPerformanceMath.Build([Life(), dollars], Currency.Eur, rates, Today, From, To).ToView();
+
+        Assert.Null(p.PeriodReturnPct);
+        Assert.Null(p.StartValue);
+        Assert.NotEmpty(p.Findings);
+        // In its own currency, the envelope's return is still known.
+        Assert.Equal(10.0m, p.Envelopes.Single(e => e.Name == "Brokerage").PeriodReturnPct);
+    }
+
+    [Fact]
+    public void The_period_return_is_money_weighted()
+    {
+        var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea).Flow(D(2024, 12, 31), FlowKind.Opening, 1_000m).Value(D(2024, 12, 31), 1_000m)
+            .Flow(D(2025, 7, 1), FlowKind.Contribution, 1_000m).Value(D(2025, 12, 31), 2_100m).Build();
+
+        var p = Between(D(2024, 12, 31), D(2025, 12, 31), pea);
+
+        Assert.InRange(p.PeriodReturnPct!.Value, 6.5m, 6.9m);
+        Assert.Equal(p.PeriodReturnPct, Assert.Single(p.Envelopes).PeriodReturnPct);
     }
 }

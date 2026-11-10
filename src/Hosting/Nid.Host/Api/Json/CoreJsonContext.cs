@@ -7,6 +7,7 @@ using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Inflation;
 using Nid.Core.Application.Projection;
+using Nid.Core.Application.Reports;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Application.Series;
 using Nid.Core.Application.Tax;
@@ -35,6 +36,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(DashboardView))]
 [JsonSerializable(typeof(NetWorthHistoryView))]
 [JsonSerializable(typeof(MonthChangesView))]
+[JsonSerializable(typeof(YearReviewView))]
 [JsonSerializable(typeof(FxRateView))]
 [JsonSerializable(typeof(FxSyncRequested))]
 [JsonSerializable(typeof(PrivateItemsView))]

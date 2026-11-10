@@ -32,7 +32,6 @@ describe('Placements › performance', () => {
     expect(figures).toHaveTextContent('Pire mois-310,00 €février 2025');
     expect(seen).toEqual(['?scope=household&from=2025-01-01&to=2025-10-15']);
     expect(screen.getByRole('radio', { name: 'Cette année' })).toBeChecked();
-    expect(screen.getByText('1 enveloppe ne compte pas : CTO (pas de valeur au début de la période).')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
@@ -56,7 +55,20 @@ describe('Placements › performance', () => {
     const earned = await region('Ce qui a rapporté');
     expect(within(earned).getByRole('link', { name: 'PEA' })).toHaveAttribute('href', `/investments/${PEA}`);
     expect(earned).toHaveTextContent('PEA+1 700,00 €');
+    // An old start value is marked, the envelope still counted.
+    expect(within(earned).getByRole('link', { name: /CTO/ })).toHaveTextContent('CTOvaleur de départ ancienne');
+    expect(within(earned).getByRole('link', { name: 'Livret A' })).not.toHaveTextContent('valeur de départ ancienne');
     expect(await region('Rendement annuel depuis l’ouverture')).toHaveTextContent('Vos livrets +2,6 %');
+  });
+
+  it('marks an envelope without a value at the start, counted at its amount paid in', async () => {
+    const body = householdPerformance();
+    serve({ ...body, envelopes: body.envelopes.map((e) => (e.name === 'Livret A' ? { ...e, noStartValue: true } : e)) });
+    await renderApp('/investments?tab=performance');
+
+    const earned = await region('Ce qui a rapporté');
+    expect(within(earned).getByRole('link', { name: /Livret A/ })).toHaveTextContent('Livret Asans valeur au début : compté au montant versé');
+    expect(within(earned).getByRole('link', { name: 'PEA' })).not.toHaveTextContent('sans valeur au début');
   });
 
   it('keeps a preset in the URL, offers « Tout » from the oldest value, and takes a free period', async () => {
@@ -92,10 +104,10 @@ describe('Placements › performance', () => {
   });
 
   it('without the savings accounts, draws no reference; with nothing counted, says so', async () => {
-    serve(performance({ excluded: [] }));
+    serve(performance());
     await renderApp('/investments?tab=performance');
 
-    expect(await screen.findByText('Aucune enveloppe n’a de valeur au début de cette période.')).toBeInTheDocument();
+    expect(await screen.findByText('Aucune enveloppe n’a de valeur sur cette période.')).toBeInTheDocument();
     expect(screen.queryByText(/Vos livrets/)).not.toBeInTheDocument();
   });
 });

@@ -15,10 +15,13 @@ public sealed record EnvelopeFigures(
     Money ContributionsSince, Money WithdrawalsSince,
     bool MissingOpening, int? StaleDays);
 
-/// <summary>2B1a spec §4 <c>period(a, b)</c>; <see cref="Performance"/> null when either value is unknown.</summary>
+/// <summary>
+/// 2B1a spec §4 <c>period(a, b)</c>; <see cref="Performance"/> null when either value is unknown. <see cref="NoStartValue"/>: no value at
+/// the start but flows before it, the start counted at the amount paid in.
+/// </summary>
 public sealed record PeriodPerformance(
     LocalDate From, LocalDate To, LocalDate? StartAsOf, Money? StartValue, LocalDate? EndAsOf, Money? EndValue,
-    Money? NetContributions, Money? Performance);
+    Money? NetContributions, Money? Performance, bool NoStartValue = false);
 
 /// <summary>One point of an envelope's value series: a valuation, or the amount paid in before the first one (<c>PaidIn</c>), and the net contributions dated on or before it.</summary>
 public sealed record SeriesPointFigures(LocalDate AsOf, Money Value, Money NetContributions, bool PaidIn = false);

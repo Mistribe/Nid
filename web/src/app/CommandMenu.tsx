@@ -1,11 +1,14 @@
 import { useNavigate } from '@tanstack/react-router';
-import { ChartLine, Plus } from 'lucide-react';
+import { CalendarCheck, ChartLine, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModuleTile } from '@/components/ModuleTile';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { visibleNav } from '@/components/nav';
 import { useSession } from './Providers';
 import '@/locales/palette';
+
+/** The pages outside the navigation, each only when its module is enabled. */
+const PAGES = [{ module: 'core', to: '/reports/year', label: 'palette.year_review' }] as const;
 
 /** The creation pages, each only when its module is enabled (as the dashboard's empty state). */
 const CREATE = [
@@ -46,6 +49,12 @@ export function CommandMenu({ open, onOpenChange }: { open: boolean; onOpenChang
             <ModuleTile icon={ChartLine} tile="primary" />
             {t('palette.series')}
           </CommandItem>
+          {PAGES.filter((p) => capabilities.modules.includes(p.module)).map((p) => (
+            <CommandItem key={p.to} value={t(p.label)} onSelect={() => go(p.to)}>
+              <ModuleTile icon={CalendarCheck} tile="primary" />
+              {t(p.label)}
+            </CommandItem>
+          ))}
         </CommandGroup>
         <CommandGroup heading={t('palette.create')}>
           {CREATE.filter((c) => capabilities.modules.includes(c.module)).map((c) => (

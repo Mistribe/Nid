@@ -11,6 +11,7 @@ using Nid.Core.Application.Calendar;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Projection;
+using Nid.Core.Application.Reports;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Domain.Scenarios;
 using Nid.Core.Contracts;
@@ -424,6 +425,7 @@ public static class RequestCatalogue
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
         new(typeof(GetMonthChangesQuery), false, (_, _) => new GetMonthChangesQuery(VisibilityScope.Me)),
+        new(typeof(GetYearReviewQuery), false, (_, _) => new GetYearReviewQuery(null, VisibilityScope.Me)),
         new(typeof(GetPassiveIncomeQuery), false, (_, _) => new GetPassiveIncomeQuery(VisibilityScope.Me)),
         new(typeof(SaveAllocationTargetCommand), false, (_, _) => new SaveAllocationTargetCommand(new Dictionary<string, decimal>())),
         new(typeof(GetProjectionAssumptionsQuery), false, (_, _) => new GetProjectionAssumptionsQuery()),
