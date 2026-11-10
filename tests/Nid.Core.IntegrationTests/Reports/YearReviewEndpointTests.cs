@@ -56,9 +56,12 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal((A(page, "startValue"), A(page, "endValue"), A(page, "contributions"), A(page, "withdrawals"), A(page, "performance")),
             (A(review, "startValue"), A(review, "endValue"), A(review, "contributions"), A(review, "withdrawals"), A(review, "gain")));
         Assert.Equal(page.GetProperty("periodReturnPct").GetDecimal(), review.GetProperty("periodReturnPct").GetDecimal());
-        static IEnumerable<(Guid, string?, string?)> Rows(JsonElement body)
-            => body.GetProperty("envelopes").EnumerateArray().Select(r => (r.GetProperty("id").GetGuid(), A(r, "startValue"), A(r, "endValue")));
-        Assert.Equal(Rows(page), Rows(review));
+        static string? Pct(JsonElement row) => row.GetProperty("periodReturnPct").ValueKind == JsonValueKind.Null ? null : row.GetProperty("periodReturnPct").GetRawText();
+        static IEnumerable<(Guid, string?, string?, string?, string?, string?, bool)> Rows(JsonElement body, string gain)
+            => body.GetProperty("envelopes").EnumerateArray().Select(r => (r.GetProperty("id").GetGuid(), A(r, "startValue"), A(r, "endValue"),
+                A(r, "netContributions"), A(r, gain), Pct(r), r.GetProperty("staleStart").GetBoolean()));
+        Assert.Equal(Rows(page, "performanceConverted"), Rows(review, "gain"));
+        Assert.All(Rows(review, "gain"), r => Assert.NotNull(r.Item5));
     }
 
     [Fact]
@@ -68,7 +71,9 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
         await app.NewPropertyAsync("Maison", Visibility.Shared, (app.AdultA, 10_000));
 
-        var worth = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2024&scope=household"))).GetProperty("netWorth");
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2024&scope=household"));
+        var worth = body.GetProperty("netWorth");
+        Assert.Empty(body.GetProperty("findings").EnumerateArray());
         var points = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth?scope=household&period=3y")))
             .GetProperty("points").EnumerateArray().ToDictionary(p => p.GetProperty("on").GetString()!, p => A(p, "value"));
 
@@ -130,6 +135,20 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal([2023, 2024, 2025], body.GetProperty("years").EnumerateArray().Select(y => y.GetInt32()));
         Assert.Equal(A(previous, "performance"), A(body.GetProperty("investments"), "previousGain"));
         Assert.Equal(("25000.00", "26000.00"), (A(body.GetProperty("netWorth"), "start"), A(body.GetProperty("netWorth"), "end")));
+    }
+
+    [Fact]
+    public async Task A_missing_rate_says_why_the_net_worth_is_absent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var dollars = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD");
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{dollars.Value}/valuations",
+            new { asOf = "2023-12-31", amount = new { amount = "1000.00", currency = "USD" } });
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2024&scope=household"));
+
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("netWorth").ValueKind);
+        Assert.Equal(["core.fx_rate_missing"], body.GetProperty("findings").EnumerateArray().Select(f => f.GetString()));
     }
 
     [Fact]

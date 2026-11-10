@@ -33396,6 +33396,7 @@ export interface components {
             years: number[];
             netWorth?: null | components["schemas"]["NetWorthReviewView"];
             investments?: null | components["schemas"]["InvestmentsReviewView"];
+            findings: string[];
         };
         YearView: {
             /** Format: int32 */

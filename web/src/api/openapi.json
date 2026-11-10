@@ -55319,7 +55319,8 @@
           "start",
           "end",
           "toDate",
-          "years"
+          "years",
+          "findings"
         ],
         "type": "object",
         "properties": {
@@ -55364,6 +55365,12 @@
                 "$ref": "#/components/schemas/InvestmentsReviewView"
               }
             ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

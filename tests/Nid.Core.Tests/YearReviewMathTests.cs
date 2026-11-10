@@ -26,7 +26,7 @@ public class YearReviewMathTests
                 ("real_estate", new NetWorthPoint(Start, Eur(0m), Eur(0m), 0, Eur(0m)),
                     new NetWorthPoint(End, Eur(245_000m - 198_000m), Eur(2_000m), 2, Eur(50_000m))),
             ],
-            Currency.Eur, RateTable.Empty(End, 7), Start, End)!;
+            Currency.Eur, RateTable.Empty(End, 7), Start, End, out _)!;
 
         Assert.Equal(("10000.00", "58300.00", "48300.00"), (split.Start.Amount, split.End.Amount, split.Change.Amount));
         Assert.Equal(
@@ -49,7 +49,7 @@ public class YearReviewMathTests
 
         var split = YearReviewMath.Split(
             [("investments", new NetWorthPoint(Start, usd(1_000m), usd(500m), 1), new NetWorthPoint(End, usd(1_200m), usd(600m), 1))],
-            Currency.Eur, rates, Start, End)!;
+            Currency.Eur, rates, Start, End, out _)!;
 
         // 1 200 × 0.9 − 1 000 × 0.8.
         Assert.Equal(("800.00", "1080.00", "280.00"), (split.Start.Amount, split.End.Amount, split.Change.Amount));
@@ -60,12 +60,39 @@ public class YearReviewMathTests
     public void Nothing_before_and_after_is_no_section()
         => Assert.Null(YearReviewMath.Split(
             [("investments", new NetWorthPoint(Start, Eur(0m), Eur(0m), 0), new NetWorthPoint(End, Eur(0m), Eur(0m), 0))],
-            Currency.Eur, RateTable.Empty(End, 7), Start, End));
+            Currency.Eur, RateTable.Empty(End, 7), Start, End, out _));
 
     [Fact]
-    public void A_missing_rate_is_no_section()
-        => Assert.Null(YearReviewMath.Split(
+    public void Converted_parts_add_up_to_the_change_to_the_cent()
+    {
+        // At 0.333 each part has fractions of a cent: rounded one by one they would sum to 411.12, the rounded ends differ by 411.13.
+        var rates = new RateTable(
+            [new FxRate(Start, Currency.Eur, 0.333m, FxRateSource.Ecb), new FxRate(End, Currency.Eur, 0.333m, FxRateSource.Ecb)], End, maxGapDays: 7);
+        var usd = (decimal amount) => new Dictionary<Currency, decimal> { [Currency.Usd] = amount };
+
+        var split = YearReviewMath.Split(
+            [
+                ("investments", new NetWorthPoint(Start, usd(1_000.01m), usd(500.02m), 1), new NetWorthPoint(End, usd(1_234.56m), usd(700.07m), 1)),
+                ("real_estate", new NetWorthPoint(Start, usd(1_000m), usd(100m), 1, usd(0m)),
+                    new NetWorthPoint(End, usd(2_000.05m), usd(300.03m), 2, usd(1_500.01m))),
+            ],
+            Currency.Eur, rates, Start, End, out _)!;
+
+        Assert.Equal(("666.00", "1077.13", "411.13"), (split.Start.Amount, split.End.Amount, split.Change.Amount));
+        Assert.Equal(5, split.Parts.Count);
+        Assert.Equal(D(split.Change.Amount), split.Parts.Sum(p => D(p.Amount.Amount)));
+        Assert.Equal(D(split.End.Amount) - D(split.Start.Amount), D(split.Change.Amount));
+        Assert.Equal((split.Start.Amount, split.End.Amount), (split.Parts[0].Low.Amount, split.Parts[^1].High.Amount));
+    }
+
+    [Fact]
+    public void A_missing_rate_is_no_section_and_names_its_currency()
+    {
+        var split = YearReviewMath.Split(
             [("investments", new NetWorthPoint(Start, new Dictionary<Currency, decimal> { [Currency.Usd] = 10m }, Eur(0m), 1),
                 new NetWorthPoint(End, Eur(10m), Eur(0m), 1))],
-            Currency.Eur, RateTable.Empty(End, 7), Start, End));
+            Currency.Eur, RateTable.Empty(End, 7), Start, End, out var missing);
+
+        Assert.Equal((null, "USD"), (split, missing));
+    }
 }

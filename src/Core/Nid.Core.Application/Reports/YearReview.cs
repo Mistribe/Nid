@@ -35,11 +35,13 @@ public sealed record InvestmentsReviewView(
 
 /// <summary>
 /// Issue #12: the year from <c>Start</c> (31 December before it) to <c>End</c> (its 31 December, or today when <c>ToDate</c>);
-/// <c>Years</c> are those the household can review. A section is null when it has nothing to show.
+/// <c>Years</c> are those the household can review. A section is null when it has nothing to show. <c>Findings</c> are the codes of
+/// what the net worth could not convert (a missing rate, in this period or the previous one): the reason its section, or its previous
+/// change, is absent.
 /// </summary>
 public sealed record YearReviewView(
     int Year, LocalDate Start, LocalDate End, bool ToDate, IReadOnlyList<int> Years,
-    NetWorthReviewView? NetWorth, InvestmentsReviewView? Investments) : IExposesItems
+    NetWorthReviewView? NetWorth, InvestmentsReviewView? Investments, IReadOnlyList<string> Findings) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Investments?.Envelopes.Select(e => e.Id) ?? [];
 }
@@ -54,11 +56,15 @@ public static class YearReviewMath
 
     /// <summary>
     /// Each module's points on <paramref name="from"/> and <paramref name="to"/> as their parts, each date at its own rate, as the curve
-    /// does. Every part is kept but those zero to the cent, the largest first. Null when nothing was there at either date, or a rate is missing.
+    /// does, the largest first. A part is the step of the running total from the start, both ends rounded to the cent, so the parts add up
+    /// to the change exactly; a step of zero is left out. Null when nothing was there at either date, or when a rate is missing (then
+    /// <paramref name="missing"/> names its currency).
     /// </summary>
     public static NetWorthSplit? Split(
-        IReadOnlyList<(string Module, NetWorthPoint From, NetWorthPoint To)> modules, Currency reference, RateTable rates, LocalDate from, LocalDate to)
+        IReadOnlyList<(string Module, NetWorthPoint From, NetWorthPoint To)> modules, Currency reference, RateTable rates, LocalDate from, LocalDate to,
+        out string? missing)
     {
+        missing = null;
         if (modules.Sum(m => m.From.Envelopes + m.To.Envelopes) == 0) return null;
         decimal start = 0m, end = 0m;
         var changes = new List<(string Key, decimal Change)>();
@@ -66,7 +72,8 @@ public static class YearReviewMath
         {
             var b = DashboardMath.Sum.Of(DashboardMath.Merge(group.Select(p => p.Before)), reference, rates, from);
             var n = DashboardMath.Sum.Of(DashboardMath.Merge(group.Select(p => p.Now)), reference, rates, to);
-            if (b.Missing is not null || n.Missing is not null) return null;
+            missing = b.Missing ?? n.Missing;
+            if (missing is not null) return null;
             start += b.Total ?? 0m;
             end += n.Total ?? 0m;
             changes.Add((group.Key, (n.Total ?? 0m) - (b.Total ?? 0m)));
@@ -74,16 +81,21 @@ public static class YearReviewMath
 
         var parts = new List<ReviewPartView>();
         var running = start;
-        foreach (var (key, change) in changes.Where(c => Math.Round(c.Change, 2, MidpointRounding.AwayFromZero) != 0m)
-                     .OrderByDescending(c => Math.Abs(c.Change)).ThenBy(c => c.Key, StringComparer.Ordinal))
+        foreach (var (key, change) in changes.OrderByDescending(c => Math.Abs(c.Change)).ThenBy(c => c.Key, StringComparer.Ordinal))
         {
-            var before = running;
+            var before = Cents(running);
             running += change;
-            parts.Add(new ReviewPartView(key, DashboardMath.Money(change, reference),
-                DashboardMath.Money(Math.Min(before, running), reference), DashboardMath.Money(Math.Max(before, running), reference)));
+            var after = Cents(running);
+            if (after == before) continue;
+            parts.Add(new ReviewPartView(key, DashboardMath.Money(after - before, reference),
+                DashboardMath.Money(Math.Min(before, after), reference), DashboardMath.Money(Math.Max(before, after), reference)));
         }
-        return new NetWorthSplit(DashboardMath.Money(start, reference), DashboardMath.Money(end, reference), DashboardMath.Money(end - start, reference), parts);
+        // The running total ends on the end exactly: the parts are the same sums.
+        return new NetWorthSplit(DashboardMath.Money(start, reference), DashboardMath.Money(end, reference),
+            DashboardMath.Money(Cents(end) - Cents(start), reference), parts);
     }
+
+    private static decimal Cents(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>The first year whose 31 December (today for the current year) has a holding, up to today's; today's year alone without any.</summary>
     public static IReadOnlyList<int> Years(IReadOnlyList<LocalDate> dates, IReadOnlyList<IReadOnlyList<NetWorthPoint>> points, int currentYear)
@@ -133,8 +145,14 @@ public sealed class GetYearReviewHandler(
         // The reference's own quote too: rates are per USD.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync(foreign.Append(reference).ToList(), prevStart, today, ct);
 
-        NetWorthSplit? Split(LocalDate from, LocalDate to) => YearReviewMath.Split(
-            sources.Zip(points!, (s, p) => (s.Module, p[dates.IndexOf(from)], p[dates.IndexOf(to)])).ToList(), reference, rates, from, to);
+        var findings = new List<string>();
+        NetWorthSplit? Split(LocalDate from, LocalDate to)
+        {
+            var split = YearReviewMath.Split(
+                sources.Zip(points!, (s, p) => (s.Module, p[dates.IndexOf(from)], p[dates.IndexOf(to)])).ToList(), reference, rates, from, to, out var missing);
+            if (missing is not null && !findings.Contains(FxCodes.RateMissing)) findings.Add(FxCodes.RateMissing);
+            return split;
+        }
         var current = Split(start, end);
         var previous = Split(prevStart, prevEnd);
         var worth = current is null ? null
@@ -152,7 +170,7 @@ public sealed class GetYearReviewHandler(
             invested = n!.Envelopes.Count == 0 ? null : Investments(n, b!.Envelopes.Count == 0 ? null : b, reference);
         }
 
-        return Result.Success(new YearReviewView(year, start, end, toDate, years, worth, invested));
+        return Result.Success(new YearReviewView(year, start, end, toDate, years, worth, invested, findings));
     }
 
     private static InvestmentsReviewView Investments(InvestmentsReviewPart now, InvestmentsReviewPart? before, Currency reference)
