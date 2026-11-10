@@ -180,6 +180,7 @@
       "delete_envelope": "Suppression d’une enveloppe créée par erreur",
       "delete_property": "Suppression d’un bien créé par erreur",
       "delete_loan": "Suppression d’un crédit créé par erreur",
+      "delete_subscription": "Suppression d’un abonnement créé par erreur",
       "create_subscription": "Nouvel abonnement",
       "edit_subscription": "Modification d’un abonnement",
       "set_insurance": "Assurance d’un abonnement",
