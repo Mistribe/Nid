@@ -99,7 +99,7 @@ Vérifiés à l'écriture par Core, doublés de tests d'intégration :
 - Un `item` a **au moins un** propriétaire ; la somme de ses `share_bp` vaut exactement 10 000 ; chaque `share_bp` est compris entre 1 et 10 000.
 - `visibility = private` ⇒ **exactement un** propriétaire, et `share_level = view` (contrainte `ck_item_share_level`).
 - Ajouter un propriétaire à un élément privé le passe en `shared`.
-- Un `item` terminé est clos (archivé). Il n'est supprimé physiquement que par la suppression d'élément (#23), pour un élément qui n'aurait jamais dû exister : avec ses lignes propres, ses faits, ses propriétaires, ses liens de documents et ses références bancaires (liens et règles bancaires, lien d'un compte vers une enveloppe), en une transaction, après un aperçu du serveur. Elle est refusée (`core.item_in_use`) quand quelque chose hors de l'élément en dépend (liste par module dans la doc de chaque module). La `version` est celle de l'élément. Les chiffres passés sont recalculés. Un ré-import le recrée. Ses lignes d'audit restent, mais ne sont plus lisibles par l'élément. Les propositions en attente sur l'élément passent à `superseded` (pas de blocage).
+- Un `item` terminé est clos (archivé). Il n'est supprimé physiquement que par la suppression d'élément (#23), pour un élément qui n'aurait jamais dû exister : avec ses lignes propres, ses faits, ses propriétaires, ses liens de documents et ses références bancaires (liens et règles bancaires, lien d'un compte vers une enveloppe), en une transaction, après un aperçu du serveur. Elle est refusée (`core.item_in_use`) quand quelque chose hors de l'élément en dépend (liste par module dans la doc de chaque module). Un contrat de garde dont des mois sont validés est refusé (`validated_statements`) : les rouvrir du plus récent au plus ancien. La `version` est celle de l'élément. Les chiffres passés sont recalculés. Un ré-import le recrée. Ses lignes d'audit restent, mais ne sont plus lisibles par l'élément. Les propositions en attente sur l'élément passent à `superseded` (pas de blocage).
 - `module` + `kind` appartiennent au module : Core n'interprète pas ces valeurs.
 - Un `adult` actif a un `oidc_subject`, un `adult` en attente et un `dependent` n'en ont pas. Le nombre d'`adult` ne dépasse pas `max_adults`.
 - Dès qu'un `adult` existe, au moins un `adult` est admin ; un `dependent` ne l'est jamais. Le rôle n'entre pas dans la matrice de droits (§4.3).
@@ -289,7 +289,7 @@ Interprétation par les modules (exemples) :
 
 ### 5.4 Historique : chaîne `supersedes_id`
 
-Aucune ligne de `valuation` ni de `flow` n'est supprimée physiquement ; une ligne n'est modifiée que pour recevoir `retired_at`, ou `document_id` quand la proposition qui l'a créée est appliquée (même transaction).
+Aucune ligne de `valuation` ni de `flow` n'est supprimée physiquement, sauf à la suppression d'un élément (#23, §4.2) ; une ligne n'est modifiée que pour recevoir `retired_at`, ou `document_id` quand la proposition qui l'a créée est appliquée (même transaction).
 
 - **Correction** : une nouvelle ligne est créée avec `supersedes_id` vers l'ancienne, et l'ancienne reçoit `retired_at`, **dans la même transaction**. Une valeur ressaisie à sa date est une correction. La nouvelle ligne garde le `document_id` de l'ancienne ; une proposition validée y écrit ensuite le sien.
 - **Annulation** : `retired_at` est renseigné sans ligne de remplacement.
