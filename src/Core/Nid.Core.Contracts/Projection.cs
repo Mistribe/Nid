@@ -8,13 +8,17 @@ namespace Nid.Core.Contracts;
 /// <c>ClassRates</c> are the long-term rates; <c>InflationByYear</c> and <c>ClassRatesByYear</c> (cash and money market only) set a
 /// calendar year's rate; incomes grow by inflation plus <c>IncomeGrowth</c> (D6). Ranges spec §2: <c>ClassVolatility</c> is each class's
 /// annual volatility (a fraction), a class absent (or the whole table null) taking <see cref="ProjectionDefaults.ClassVolatility"/>.
+/// Retirement spec §3: <c>WithdrawalRate</c> is the annual fraction of the capital drawn in financial independence (0 &lt; x ≤ 0.1, 0.04 by default);
+/// <c>MonthlyLivingCost</c> is the monthly living cost in today's money, in the reference currency (0 by default).
 /// </summary>
 public sealed record ProjectionAssumptions(
     IReadOnlyDictionary<string, decimal> ClassRates, decimal Inflation, decimal? MonthlySavings, string SavingsClass, bool FreedPaymentsToSavings,
     IReadOnlyDictionary<int, decimal>? InflationByYear = null,
     IReadOnlyDictionary<string, IReadOnlyDictionary<int, decimal>>? ClassRatesByYear = null,
     decimal IncomeGrowth = 0m,
-    IReadOnlyDictionary<string, decimal>? ClassVolatility = null)
+    IReadOnlyDictionary<string, decimal>? ClassVolatility = null,
+    decimal WithdrawalRate = 0.04m,
+    decimal MonthlyLivingCost = 0m)
 {
     /// <summary>The class's annual volatility: its own, else the default (0 for a class with none).</summary>
     public decimal VolatilityOf(string @class)
@@ -104,7 +108,9 @@ public sealed record ProjectionOverrides(
     IReadOnlyDictionary<int, decimal>? InflationByYear = null,
     IReadOnlyDictionary<string, IReadOnlyDictionary<int, decimal>>? ClassRatesByYear = null,
     decimal? IncomeGrowth = null,
-    IReadOnlyDictionary<string, decimal>? ClassVolatility = null)
+    IReadOnlyDictionary<string, decimal>? ClassVolatility = null,
+    decimal? WithdrawalRate = null,
+    decimal? MonthlyLivingCost = null)
 {
     /// <summary>
     /// Class rates and volatilities merged key by key, the yearly class tables class by class; the inflation table replaced whole (C18); every other
@@ -134,7 +140,8 @@ public sealed record ProjectionOverrides(
         return new ProjectionAssumptions(
             rates, Inflation ?? household.Inflation, MonthlySavings ?? household.MonthlySavings,
             SavingsClass ?? household.SavingsClass, FreedPaymentsToSavings ?? household.FreedPaymentsToSavings,
-            InflationByYear ?? household.InflationByYear, yearly, IncomeGrowth ?? household.IncomeGrowth, volatility);
+            InflationByYear ?? household.InflationByYear, yearly, IncomeGrowth ?? household.IncomeGrowth, volatility,
+            WithdrawalRate ?? household.WithdrawalRate, MonthlyLivingCost ?? household.MonthlyLivingCost);
     }
 }
 

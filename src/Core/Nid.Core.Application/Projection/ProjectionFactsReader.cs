@@ -42,6 +42,12 @@ public sealed record ProjectionReading(
     /// when the year has its own rate, the reference is not EUR, no series is stored, or no month of the year is ahead.
     /// </summary>
     public decimal? ObservedInflation { get; init; }
+
+    /// <summary>Retirement spec §3: the pension sources, each in its own currency.</summary>
+    public IReadOnlyList<PensionSource> PensionSources { get; init; } = [];
+
+    /// <summary>Retirement spec §3: each single holder's pensions per month, nominal, in the reference.</summary>
+    public IReadOnlyDictionary<PersonId, IReadOnlyList<decimal>> PensionsByHolder { get; init; } = new Dictionary<PersonId, IReadOnlyList<decimal>>();
 }
 
 /// <summary>
@@ -107,7 +113,7 @@ public sealed class ProjectionFactsReader(
             .Where(c => c != reference).Distinct().ToList();
         // Rates are per USD: the reference's own quote is needed too.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
-        var missing = new SortedSet<string>(StringComparer.Ordinal);
+        var missing = new SortedSet<string>(now.Missing, StringComparer.Ordinal); // the commitments' and the holdings' own
 
         decimal Converted(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts)
         {
@@ -136,11 +142,19 @@ public sealed class ProjectionFactsReader(
         var resolved = ProjectionRates.Resolve(assumptions, observed, today, months, slices.Select(s => s.Class).Append(assumptions.SavingsClass));
         var growth = resolved.Income;
         // C17, D8: each part is indexed from the month its amount is in; a timeline without parts (rents) is in today's money.
-        var incomes = Enumerable.Range(0, months + 1).Select(k => earned!
+        List<decimal> Series(IEnumerable<IncomeTimeline> lines, Func<TimelinePart, bool> keep) => Enumerable.Range(0, months + 1).Select(k => lines
             .SelectMany(t => t.Parts?[k] ?? t.Monthly[k].Select(m => new TimelinePart(m.Key, m.Value, 0)))
+            .Where(keep)
             .GroupBy(p => p.IndexedFrom)
             .Sum(from => Converted(from.Select(p => new Dictionary<Currency, decimal> { [p.Currency] = p.Amount })) * growth[k] / growth[from.Key]))
             .ToList();
+        var incomes = Series(earned!, _ => true);
+        // Retirement spec §3: pensions are the pension parts, passive income the rents' timeline.
+        var pensions = Series(earned!, p => p.Pension);
+        var passive = Series(income.Zip(earned!).Where(x => x.First.Module == IncomeModules.Rents).Select(x => x.Second), _ => true);
+        var pensionsByHolder = earned!.SelectMany(t => t.Parts?.SelectMany(p => p) ?? []).Where(p => p.Pension && p.Holder is not null)
+            .Select(p => p.Holder!.Value).Distinct()
+            .ToDictionary(h => h, h => (IReadOnlyList<decimal>)Series(earned!, p => p.Pension && p.Holder == h));
 
         var milestones = property!.LoanEnds.Select(e => new ProjectionMilestone(e.On, "loan_end", e.Name, e.Loan))
             .Concat(property.PropertiesFree.Select(p => new ProjectionMilestone(p.On, "property_free", p.Name, p.Property)))
@@ -160,13 +174,16 @@ public sealed class ProjectionFactsReader(
             .OrderBy(r => r.On).ThenBy(r => r.Name, StringComparer.Ordinal)
             .ToList();
 
-        var inputs = new ProjectionInputs(today, months, slices, incomes, property.Months, monthlySavings, assumptions, milestones, Rates: resolved);
+        var inputs = new ProjectionInputs(today, months, slices, incomes, property.Months, monthlySavings, assumptions, milestones, Rates: resolved,
+            Pensions: pensions, PassiveIncome: passive, Expenses0: now.AmortizedCommitments);
         return Result.Success(new ProjectionReading(
             inputs, reference, horizonOn, assumptions.MonthlySavings is null ? AutoSavings : HouseholdSavings,
             earned!.SelectMany(t => t.Extended).DistinctBy(e => e.Source).ToList(),
             missing.Union(property.MissingCurrencies).Order(StringComparer.Ordinal).ToList(), retirements)
         {
             RealEstate = property,
+            PensionSources = earned!.SelectMany(t => t.Pensions ?? []).ToList(),
+            PensionsByHolder = pensionsByHolder,
             ObservedInflation = ProjectionRules.ShowsObserved(assumptions, today) ? observed : null,
         });
     }

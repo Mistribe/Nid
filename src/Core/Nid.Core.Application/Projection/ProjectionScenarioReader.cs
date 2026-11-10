@@ -290,6 +290,16 @@ public sealed class ProjectionScenarioReader(
             cashFlows[sale.Month] += sale.Proceeds;
             for (var k = sale.Month + 1; k <= months; k++) adjustments[k] += sale.MonthlyNet;
         }
+        // Retirement spec §3: the sold property's rent leaves the passive income and its costs the expenses, from the month after the sale.
+        var passive = scenario.Inputs.PassiveIncome?.ToArray();
+        var expenseAdjustments = new decimal[months + 1];
+        if (passive is not null && scenario.Inputs.Rates is { } resolvedRates)
+            foreach (var sale in realEstate.Sales)
+                for (var k = sale.Month + 1; k <= months; k++)
+                {
+                    passive[k] -= sale.MonthlyRent * resolvedRates.Income[k];
+                    expenseAdjustments[k] -= sale.MonthlyCosts * resolvedRates.Inflation[k];
+                }
 
         // Spec §4.4: the purchased homes and their loans' balances join the real estate (value and debt; their payments are in the
         // monthly cost, so they are not freed payments).
@@ -328,6 +338,7 @@ public sealed class ProjectionScenarioReader(
         var inputs = scenario.Inputs with
         {
             RealEstate = property, MonthlyAdjustments = adjustments, CashFlows = cashFlows, Withdrawals = withdrawals, Changes = changes,
+            PassiveIncome = passive, ExpenseAdjustments = expenseAdjustments,
             Milestones = [.. scenario.Inputs.Milestones, .. milestones],
         };
         return Result.Success(new ProjectionScenarioReading(

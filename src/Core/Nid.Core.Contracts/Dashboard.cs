@@ -108,6 +108,12 @@ public interface ICommitmentsContribution
     Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
 }
 
+/// <summary>The module name of the rents' income contribution: the projection reads it as passive income (retirement spec §3).</summary>
+public static class IncomeModules
+{
+    public const string Rents = "rents";
+}
+
 public interface IIncomeContribution
 {
     /// <summary>Issue #415: the module this part is, as the causes of a month's change name it.</summary>
@@ -126,15 +132,21 @@ public interface IIncomeContribution
 /// <summary>An open source whose phase ends without a successor: the timeline keeps it running (projection spec §3.2) and names it so the screen can warn.</summary>
 public sealed record ExtendedSource(ItemId Source, string Name);
 
-/// <summary>An amount of <c>Monthly[k]</c> and the month it is indexed from (D8): 0 for what runs today or is carried on, else the months from this month to its start.</summary>
-public sealed record TimelinePart(Currency Currency, decimal Amount, int IndexedFrom);
+/// <summary>
+/// An amount of <c>Monthly[k]</c> and the month it is indexed from (D8): 0 for what runs today or is carried on, else the months from this month to its start.
+/// <c>Pension</c> marks a pension's part; <c>Holder</c> is its source's single adult owner (null with several; retirement spec §3).
+/// </summary>
+public sealed record TimelinePart(Currency Currency, decimal Amount, int IndexedFrom, bool Pension = false, PersonId? Holder = null);
+
+/// <summary>A pension source: its single adult <c>Holder</c> (null with several) and the monthly equivalent of its first phase still running or ahead, in its own currency (null if none).</summary>
+public sealed record PensionSource(ItemId Source, string Name, PersonId? Holder, Money? Monthly);
 
 /// <summary>
 /// <c>Monthly</c> has months + 1 entries (see <see cref="IIncomeContribution.TimelineAsync"/>); <c>Extended</c> lists the sources whose income was carried on.
 /// <c>Parts[k]</c> splits <c>Monthly[k]</c> by phase; null reads every amount as indexed from 0.
 /// </summary>
 public sealed record IncomeTimeline(IReadOnlyList<IReadOnlyDictionary<Currency, decimal>> Monthly, IReadOnlyList<ExtendedSource> Extended,
-    IReadOnlyList<IReadOnlyList<TimelinePart>>? Parts = null);
+    IReadOnlyList<IReadOnlyList<TimelinePart>>? Parts = null, IReadOnlyList<PensionSource>? Pensions = null);
 
 /// <summary>2D2a spec §4: a dated event of « À venir » (or, for <see cref="UpcomingKinds.IncomeGapSoon"/>, of « À faire »). <c>Amount</c> stays in its own currency.</summary>
 public sealed record UpcomingEvent(LocalDate On, string Kind, ItemId Item, string Module, string Name, string? Label, Money? Amount);

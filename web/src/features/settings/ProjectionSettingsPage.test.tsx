@@ -14,7 +14,7 @@ const BOB = '22222222-2222-4222-8222-222222222222';
 
 const assumptions = (over: Body = {}) => ({
   classRates: { cash: '1.5', money_market: '2', bond: '3', equity: '6', mixed: '4', capital_guaranteed: '2.5', real_estate: '2', other: '0' },
-  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0',
+  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0', withdrawalRate: '4', monthlyLivingCost: '0.00',
   classVolatility: { cash: '0', money_market: '0', bond: '6', equity: '16', mixed: '10', capital_guaranteed: '0', real_estate: '10', other: '0' },
   observedInflation: null, ...over,
 });
@@ -110,6 +110,32 @@ describe('the projection settings page', () => {
     expect(await screen.findByText(/Épargne mensuelle : 500,00\s*CHF/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
     expect(await screen.findByLabelText('Épargne mensuelle (CHF)')).toHaveValue('500,00');
+  });
+
+  it('shows and sends the withdrawal rate and the living cost', async () => { // retirement spec §3
+    const { puts } = serve(assumptions({ withdrawalRate: '3.5', monthlyLivingCost: '2500.00' }));
+    const { user } = await renderApp('/settings/projection');
+
+    expect(await screen.findByText(/Taux de retrait : 3,5 %/)).toBeInTheDocument();
+    expect(screen.getByText(/Coût de la vie mensuel : 2\s?500,00\s*€/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
+    const rate = await screen.findByLabelText('Taux de retrait');
+    await user.clear(rate);
+    await user.type(rate, '3,5');
+    const cost = screen.getByLabelText('Coût de la vie mensuel (EUR)');
+    await user.clear(cost);
+    await user.type(cost, '2500');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ withdrawalRate: '3.5', monthlyLivingCost: '2500' });
+  });
+
+  it('shows an unset living cost as not filled in', async () => {
+    serve();
+    await renderApp('/settings/projection');
+
+    expect(await screen.findByText('Coût de la vie mensuel : non renseigné')).toBeInTheDocument();
   });
 
   it('sends a fixed monthly amount', async () => {

@@ -229,4 +229,88 @@ public class HouseholdProjectionTests
         Assert.Equal(9_000m, points[0].Savings);
         Assert.Equal(9_000m, points[12].Savings);
     }
+
+    private static HouseholdProjectionResult Independence(
+        IReadOnlyList<SavingsSlice> savings, decimal? expenses0 = 500m, decimal living = 500m, decimal inflation = 0m, int months = 12,
+        IReadOnlyList<decimal>? pensions = null, IReadOnlyList<RealEstateMonth>? realEstate = null,
+        IReadOnlyList<decimal>? expenseAdjustments = null) =>
+        HouseholdProjection.Project(new(
+            Today, months, savings, Enumerable.Repeat(0m, months + 1).ToList(), realEstate ?? [], 0m,
+            Assumptions(inflation: inflation) with { WithdrawalRate = 0.04m, MonthlyLivingCost = living }, [],
+            Pensions: pensions, Expenses0: expenses0, ExpenseAdjustments: expenseAdjustments));
+
+    private static YearMonth ThisMonth => new(Today.Year, Today.Month);
+
+    [Fact]
+    public void Independence_needs_expenses0()
+    {
+        var result = Independence([Cash(300_000m)], expenses0: null);
+        Assert.Empty(result.Independence);
+        Assert.Null(result.FinancialIndependenceIn);
+    }
+
+    [Fact]
+    public void Capital_alone_reaches_independence()
+    {
+        var result = Independence([Cash(300_000m)]);
+        Assert.Equal(ThisMonth, result.FinancialIndependenceIn);
+        Assert.Equal(1_000m, result.Independence[0].Covered);
+        Assert.Equal(300_000m, result.Independence[0].Capital);
+        Assert.Equal(result.Independence[0].Capital, result.Independence[0].CapitalReal);
+        Assert.DoesNotContain(result.Milestones, m => m.Kind == "financial_independence"); // this month is no milestone
+    }
+
+    [Fact]
+    public void Pension_closes_the_gap_from_its_month()
+    {
+        var pensions = Enumerable.Range(0, 13).Select(k => k >= 5 ? 600m : 0m).ToList();
+        var result = Independence([Cash(120_000m)], pensions: pensions);
+        Assert.Equal(ThisMonth.PlusMonths(5), result.FinancialIndependenceIn);
+        Assert.Equal(ThisMonth.PlusMonths(5).ToDateInterval().End,
+            result.Milestones.Single(m => m.Kind == "financial_independence").On);
+    }
+
+    [Fact]
+    public void Locked_capital_counts_once_unlocked()
+    {
+        SavingsSlice Locked(int? unlocksAt) => new(Envelope, AllocationClasses.Cash, AllocationLiquidity.Locked, 240_000m, unlocksAt);
+        Assert.Equal(ThisMonth.PlusMonths(7), Independence([Cash(60_000m), Locked(7)]).FinancialIndependenceIn);
+        Assert.Null(Independence([Cash(60_000m), Locked(null)]).FinancialIndependenceIn);
+    }
+
+    [Fact]
+    public void Expenses_follow_inflation_and_loans()
+    {
+        var result = Independence([], inflation: 0.12m, realEstate: NoDebt(12, k => k < 3 ? 500m : 0m));
+        var i = ProjectionRates.Resolve(Assumptions(inflation: 0.12m), null, Today, 12, [AllocationClasses.Cash]).Inflation;
+        Assert.Equal(Math.Round(1_000m * i[1] + 500m, 2, MidpointRounding.AwayFromZero), result.Independence[1].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[2] + 500m, 2, MidpointRounding.AwayFromZero), result.Independence[2].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[3], 2, MidpointRounding.AwayFromZero), result.Independence[3].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[4], 2, MidpointRounding.AwayFromZero), result.Independence[4].Expenses);
+        Assert.Equal(Math.Round(1_000m * i[4] / i[4], 2, MidpointRounding.AwayFromZero), result.Independence[4].ExpensesReal);
+    }
+
+    [Fact]
+    public void Expense_adjustments_are_added_to_the_expenses()
+    {
+        var adjustments = Enumerable.Range(0, 13).Select(k => k >= 4 ? -300m : 0m).ToList();
+        var result = Independence([Cash(240_000m)], living: 1_000m, expenseAdjustments: adjustments); // 800 covered, 1 500 spent, then 1 200
+        Assert.Equal(1_500m, result.Independence[3].Expenses);
+        Assert.Equal(1_200m, result.Independence[4].Expenses);
+        Assert.Null(Independence([Cash(240_000m)], living: 1_000m).FinancialIndependenceIn);
+        Assert.Equal(ThisMonth.PlusMonths(4), Independence([Cash(240_000m)], living: 1_000m, expenseAdjustments: Enumerable.Range(0, 13).Select(k => k >= 4 ? -700m : 0m).ToList()).FinancialIndependenceIn);
+    }
+
+    [Fact]
+    public void Living_cost_adds_to_expenses() =>
+        Assert.Equal(2_500m, Independence([], living: 2_000m).Independence[0].Expenses);
+
+    [Fact]
+    public void No_living_cost_no_independence_month()
+    {
+        var result = Independence([Cash(300_000m)], expenses0: 0m, living: 0m);
+        Assert.Equal(13, result.Independence.Count);
+        Assert.Null(result.FinancialIndependenceIn);
+        Assert.DoesNotContain(result.Milestones, m => m.Kind == "financial_independence");
+    }
 }

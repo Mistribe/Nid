@@ -150,10 +150,14 @@ describe('net worth projection card', () => {
   });
 
   it('lists the milestones with their server label and date', async () => {
-    serve(projection({ milestones: [{ on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null }] }));
+    serve(projection({ milestones: [
+      { on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null },
+      { on: '2035-06-30', kind: 'financial_independence', label: 'financial_independence', item: null },
+    ] }));
     await renderApp('/dashboard');
     const item = await within(await card()).findByText(/Prêt résidence/);
     expect(item).toHaveTextContent('31/12/2027');
+    expect(within(await card()).getByText(/Indépendance financière/)).toHaveTextContent('30/06/2035');
   });
 
   it('is hidden for an empty household', async () => {

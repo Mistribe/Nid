@@ -17,7 +17,8 @@ public sealed record EventDateView(string? On, Guid? Person, int? Age);
 public sealed record ProjectionOverridesView(
     IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,
     IReadOnlyDictionary<string, string>? InflationByYear = null, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? ClassRatesByYear = null,
-    string? IncomeGrowth = null, IReadOnlyDictionary<string, string>? ClassVolatility = null);
+    string? IncomeGrowth = null, IReadOnlyDictionary<string, string>? ClassVolatility = null, string? WithdrawalRate = null,
+    string? MonthlyLivingCost = null);
 
 /// <summary>
 /// Spec §4: one event on the wire, the fields of <see cref="ProjectionEvent"/>; amounts are decimal strings in the reference currency.
@@ -49,7 +50,8 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
                 o.FreedPaymentsToSavings, ProjectionAssumptionsView.Years(o.InflationByYear),
                 o.ClassRatesByYear?.Where(c => c.Value is not null).ToDictionary(c => c.Key, c => (IReadOnlyDictionary<string, string>)ProjectionAssumptionsView.Years(c.Value)!),
                 o.IncomeGrowth is { } growth ? PropertyPurchaseView.Rate(growth) : null,
-                o.ClassVolatility?.ToDictionary(v => v.Key, v => PropertyPurchaseView.Rate(v.Value))),
+                o.ClassVolatility?.ToDictionary(v => v.Key, v => PropertyPurchaseView.Rate(v.Value)),
+                o.WithdrawalRate is { } withdrawal ? PropertyPurchaseView.Rate(withdrawal) : null, Optional(o.MonthlyLivingCost)),
             doc.Events.Select(e => new ProjectionEventView(
                 e.Id, e.Kind, Date(e.Start), e.Until is { } until ? Date(until) : null, e.Label, Optional(e.MonthlyAmount),
                 Optional(e.Amount), e.Split, e.Loan?.Value, e.Effect, Optional(e.Penalty),
@@ -109,7 +111,8 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
             Decimal(a?.MonthlySavings, "assumptions.monthlySavings"), a?.SavingsClass, a?.FreedPaymentsToSavings,
             ProjectionAssumptionsView.Years(a?.InflationByYear, "assumptions.inflationByYear", Decimal, Refuse),
             ProjectionAssumptionsView.ClassYears(a?.ClassRatesByYear, "assumptions.classRatesByYear", Decimal, Refuse),
-            Decimal(a?.IncomeGrowth, "assumptions.incomeGrowth") / 100m, a?.ClassVolatility is null ? null : volatility);
+            Decimal(a?.IncomeGrowth, "assumptions.incomeGrowth") / 100m, a?.ClassVolatility is null ? null : volatility,
+            Decimal(a?.WithdrawalRate, "assumptions.withdrawalRate") / 100m, Decimal(a?.MonthlyLivingCost, "assumptions.monthlyLivingCost"));
 
         var events = new List<ProjectionEvent>();
         for (var i = 0; i < (view.Events?.Count ?? 0); i++)
