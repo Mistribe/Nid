@@ -19,6 +19,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { PageTrail } from '@/components/page/trail';
 import { Button } from '@/components/ui/button';
 import type { RootSearch } from '@/lib/search';
+import { IncomeReview } from './IncomeReview';
 import { InvestmentsReview } from './InvestmentsReview';
 import { NetWorthBridge, signed } from './NetWorthBridge';
 import '@/locales/reports';
@@ -65,7 +66,8 @@ export function YearReviewPage() {
       {d.netWorth ? <NetWorth d={d} review={d.netWorth} />
         : d.findings.includes(FX_MISSING) ? <p className="text-sm text-muted-foreground">{t('reports.fx_missing')}</p> : null}
       {d.investments ? <InvestmentsReview year={d.year} review={d.investments} /> : null}
-      {!d.netWorth && !d.investments && d.findings.length === 0 ? <p className="text-muted-foreground">{t('reports.empty')}</p> : null}
+      {d.income ? <IncomeReview year={d.year} review={d.income} /> : null}
+      {!d.netWorth && !d.investments && !d.income && d.findings.length === 0 ? <p className="text-muted-foreground">{t('reports.empty')}</p> : null}
     </div>
   );
 }

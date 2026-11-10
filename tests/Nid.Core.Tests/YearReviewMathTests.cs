@@ -95,4 +95,99 @@ public class YearReviewMathTests
 
         Assert.Equal((null, "USD"), (split, missing));
     }
+
+    private static Dictionary<Currency, decimal> Usd(decimal amount) => new() { [Currency.Usd] = amount };
+
+    private static CommitmentsPart Cash(string source, Dictionary<Currency, decimal> cash, bool estimated = false)
+        => new(source, 1, cash, cash, estimated);
+
+    /// <summary>The months of 2025 to 15 October: each read on its last day, October on the 15th.</summary>
+    private static List<(LocalDate On, IReadOnlyList<CommitmentsPart> Parts)> Months(int count, Func<int, IReadOnlyList<CommitmentsPart>> parts)
+        => Enumerable.Range(1, count)
+            .Select(m => (m == 10 ? new LocalDate(2025, 10, 15) : new LocalDate(2025, m, 1).PlusMonths(1).PlusDays(-1), parts(m))).ToList();
+
+    [Fact]
+    public void Engagements_sum_the_months_cash_at_each_months_rate()
+    {
+        // 100 $ a month: 0.8 € per $ on 31 January, 0.9 € on 28 February. Childcare not yet validated in February.
+        var rates = new RateTable(
+            [new FxRate(new LocalDate(2025, 1, 31), Currency.Eur, 0.8m, FxRateSource.Ecb), new FxRate(new LocalDate(2025, 2, 28), Currency.Eur, 0.9m, FxRateSource.Ecb)],
+            new LocalDate(2025, 2, 28), maxGapDays: 7);
+
+        var sum = YearReviewMath.Engagements(
+            Months(2, m => [Cash(CommitmentSources.Loans, Eur(500m)), Cash(CommitmentSources.Subscriptions, Usd(100m)),
+                Cash(CommitmentSources.Childcare, Eur(300m), estimated: m == 2)]),
+            0m, Currency.Eur, rates);
+
+        Assert.Equal(
+            [(CommitmentSources.Subscriptions, (decimal?)170m, false), (CommitmentSources.Loans, 1_000m, false),
+                (CommitmentSources.Childcare, 600m, true)],
+            sum.Sources.Select(s => (s.Source, s.Amount, s.Estimated)));
+        Assert.Equal(1_770m, sum.Total);
+        Assert.Null(sum.Missing);
+    }
+
+    [Fact]
+    public void Tax_is_the_estimate_pro_rata()
+    {
+        var sum = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(100m))]), 2_400m, Currency.Eur, RateTable.Empty(End, 7));
+
+        Assert.Equal([(CommitmentSources.Loans, (decimal?)1_000m, false), (CommitmentSources.Tax, 2_000m, true)],
+            sum.Sources.Select(s => (s.Source, s.Amount, s.Estimated)));
+        Assert.Equal(3_000m, sum.Total);
+        // A refund commits nothing.
+        Assert.DoesNotContain(YearReviewMath.Engagements(Months(10, _ => []), -500m, Currency.Eur, RateTable.Empty(End, 7)).Sources,
+            s => s.Source == CommitmentSources.Tax);
+    }
+
+    private static IncomeReviewPart Earned(decimal? total)
+        => new(total, [new IncomeReviewSource(new ItemId(Guid.NewGuid()), "salary", "Salaire", "salary", total)], total is null ? ["USD"] : []);
+
+    [Fact]
+    public void The_margin_is_income_minus_engagements()
+    {
+        var engagements = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(100m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
+        var before = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(50m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
+
+        var view = YearReviewMath.Income(Earned(24_000m), engagements, Earned(20_000m), before, Currency.Eur)!;
+
+        Assert.Equal(("24000.00", "1000.00", "23000.00"), (view.Income!.Amount, view.Engagements!.Amount, view.Margin!.Amount));
+        Assert.Equal(("20000.00", "500.00", "19500.00"), (view.PreviousIncome!.Amount, view.PreviousEngagements!.Amount, view.PreviousMargin!.Amount));
+        Assert.Equal([("salary", "24000.00")], view.Sources.Select(s => (s.Key, s.Amount!.Amount)));
+        Assert.Equal([(CommitmentSources.Loans, "1000.00", false)], view.EngagementSources.Select(s => (s.Source, s.Amount!.Amount, s.Estimated)));
+        // Nothing earned nor committed is no section.
+        var none = YearReviewMath.Engagements(Months(10, _ => []), 0m, Currency.Eur, RateTable.Empty(End, 7));
+        Assert.Null(YearReviewMath.Income(new IncomeReviewPart(0m, [], []), none, null, null, Currency.Eur));
+        // A loan counted before its first payment commits nothing: no row, no section.
+        var notYet = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(0m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
+        Assert.Empty(notYet.Sources);
+        Assert.Null(YearReviewMath.Income(new IncomeReviewPart(0m, [], []), notYet, null, null, Currency.Eur));
+        Assert.Null(YearReviewMath.Income(Earned(24_000m), engagements, new IncomeReviewPart(0m, [], []), notYet, Currency.Eur)!.PreviousEngagements);
+    }
+
+    [Fact]
+    public void A_missing_rate_nulls_the_margin_and_is_a_finding()
+    {
+        var engagements = YearReviewMath.Engagements(Months(1, _ => [Cash(CommitmentSources.Subscriptions, Usd(10m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
+
+        var view = YearReviewMath.Income(Earned(24_000m), engagements, null, null, Currency.Eur)!;
+
+        Assert.Equal(("USD", (decimal?)null), (engagements.Missing, engagements.Total));
+        Assert.Null(Assert.Single(view.EngagementSources).Amount);
+        Assert.Equal((null, null), (view.Engagements, view.Margin));
+        Assert.Null(YearReviewMath.Income(Earned(null), engagements, null, null, Currency.Eur)!.Margin);
+    }
+
+    [Fact]
+    public void The_years_start_at_the_first_holding_or_income()
+    {
+        LocalDate[] dates = [new(2023, 12, 31), new(2024, 12, 31), new(2025, 10, 15)];
+        IReadOnlyList<NetWorthPoint> Held(int from) => dates.Select((d, i) => new NetWorthPoint(d, Eur(0m), Eur(0m), i >= from ? 1 : 0)).ToList();
+
+        Assert.Equal([2024, 2025], YearReviewMath.Years(dates, [Held(1)], 2025));
+        Assert.Equal([2022, 2023, 2024, 2025], YearReviewMath.Years(dates, [Held(1)], 2025, new LocalDate(2022, 3, 1)));
+        Assert.Equal([2024, 2025], YearReviewMath.Years(dates, [Held(1)], 2025, new LocalDate(2025, 1, 1)));
+        // No further back than the review reaches.
+        Assert.Equal(2025 - YearReviewMath.MaxYears, YearReviewMath.Years(dates, [Held(3)], 2025, new LocalDate(1900, 1, 1))[0]);
+    }
 }

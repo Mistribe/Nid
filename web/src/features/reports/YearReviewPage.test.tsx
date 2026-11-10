@@ -35,6 +35,21 @@ function review(over: Partial<YearReview> = {}): YearReview {
           endValue: eur('17000.00'), netContributions: eur('500.00'), gain: eur('1500.00'), periodReturnPct: 9.8, staleStart: true, noStartValue: false },
       ],
     },
+    income: {
+      income: eur('50000.00'), engagements: eur('30000.00'), margin: eur('20000.00'),
+      previousIncome: eur('48000.00'), previousEngagements: eur('29000.00'), previousMargin: eur('19000.00'),
+      sources: [
+        { id: '00000000-0000-0000-0000-0000000000a1', key: 'a1', name: 'Salaire Alice', kind: 'salary', amount: eur('40000.00') },
+        { key: 'one_off', amount: eur('10000.00') },
+        { id: '00000000-0000-0000-0000-0000000000a2', key: 'a2', kind: 'rent', amount: eur('5000.00') },
+        { id: '00000000-0000-0000-0000-0000000000a3', key: 'a3', kind: 'pension', amount: null },
+      ],
+      engagementSources: [
+        { source: 'loans', amount: eur('18000.00'), estimated: false },
+        { source: 'tax', amount: eur('12000.00'), estimated: true },
+        { source: 'childcare', amount: eur('3000.00'), estimated: true },
+      ],
+    },
     ...over,
   };
 }
@@ -128,6 +143,43 @@ describe('YearReviewPage', () => {
     expect(rows[1]).not.toHaveTextContent('sans valeur au début');
   });
 
+  it('shows the income, engagements and margin with the year before, and their sources', async () => {
+    serve(() => review());
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Revenus et marge' });
+    for (const text of ['2024 : 48 000,00 €', '2024 : 29 000,00 €', '2024 : +19 000,00 €']) expect(within(section).getByText(text)).toBeInTheDocument();
+    const sources = within(within(section).getByRole('table', { name: 'Revenus par source' })).getAllByRole('row').slice(1);
+    expect(sources[0]).toHaveTextContent('Salaire Alice');
+    expect(sources[1]).toHaveTextContent('Exceptionnels');
+    const engagements = within(within(section).getByRole('table', { name: 'Engagements par poste' })).getAllByRole('row').slice(1);
+    expect(engagements[0]).not.toHaveTextContent('estimé');
+    expect(engagements[1]).toHaveTextContent(/^Impôts estimés[^é]*12/);
+    expect(engagements[1]).not.toHaveTextContent('estimé estimé');
+    expect(engagements[2]).toHaveTextContent(/^Garde estimé/);
+    expect(sources[2]).toHaveTextContent('Loyers');
+    expect(sources[3]).toHaveTextContent(/^PensionInconnu/);
+  });
+
+  it('says unknown for a margin and an amount the server could not give', async () => {
+    const base = review().income!;
+    serve(() => review({ income: { ...base, margin: null, previousMargin: null } }));
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Revenus et marge' });
+    const margin = within(section).getByText('Marge avant dépenses courantes').closest('div')!;
+    expect(within(margin).getByText('Inconnu')).toBeInTheDocument();
+    expect(margin).not.toHaveTextContent('2024');
+  });
+
+  it('shows no income section without income', async () => {
+    serve(() => review({ income: null }));
+    await renderApp('/reports/year?year=2025');
+
+    await screen.findByRole('region', { name: 'Patrimoine net' });
+    expect(screen.queryByRole('region', { name: 'Revenus et marge' })).not.toBeInTheDocument();
+  });
+
   it('leaves out a part the server does not give', async () => {
     serve(() => review({ investments: null }));
     await renderApp('/reports/year?year=2025');
@@ -137,7 +189,7 @@ describe('YearReviewPage', () => {
   });
 
   it('says when there is nothing to review', async () => {
-    serve(() => review({ netWorth: null, investments: null }));
+    serve(() => review({ netWorth: null, investments: null, income: null }));
     await renderApp('/reports/year?year=2025');
 
     expect(await screen.findByText('Rien à montrer pour cette année dans ce périmètre.')).toBeInTheDocument();

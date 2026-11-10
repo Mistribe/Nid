@@ -50,7 +50,7 @@ export const handlers = [
   http.get('*/api/v1/projection', () => HttpResponse.json(emptyProjection())),
   // The annual review (#12): nothing to review yet.
   http.get('*/api/v1/reports/year', () => HttpResponse.json({
-    year: 2026, start: '2025-12-31', end: '2026-11-10', toDate: true, years: [2026], netWorth: null, investments: null, findings: [],
+    year: 2026, start: '2025-12-31', end: '2026-11-10', toDate: true, years: [2026], netWorth: null, investments: null, income: null, findings: [],
   })),
   // The subscriptions list is read by every test that lands on it.
   http.get('*/api/v1/subscriptions', () => HttpResponse.json({

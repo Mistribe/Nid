@@ -24,3 +24,27 @@ public sealed record InvestmentsReviewPart(
 public sealed record InvestmentsReviewRow(
     ItemId Id, string Name, string Kind, decimal? StartValue, decimal? EndValue, decimal? NetContributions, decimal? Gain,
     decimal? PeriodReturnPct, bool StaleStart, bool NoStartValue);
+
+public interface IIncomeReview
+{
+    /// <summary>Issue #12: the income due in (start, end], in the reference currency at each due's date, as the income overview counts it.</summary>
+    Task<Result<IncomeReviewPart>> ReviewAsync(PersonId reader, VisibilityScope scope, LocalDate start, LocalDate end, CancellationToken ct);
+
+    /// <summary>
+    /// Issue #12: the earliest due of the visible sources, archived ones included (a phase's first occurrence, a one-off or a rent), up to
+    /// today and no further back than <see cref="MaxYears"/> years; null without any. The years the review offers start no later.
+    /// </summary>
+    Task<LocalDate?> FirstDueAsync(PersonId reader, VisibilityScope scope, CancellationToken ct);
+
+    /// <summary>How far back the annual review reaches.</summary>
+    const int MaxYears = 50;
+}
+
+/// <summary>Issue #12: the period's income; <c>Total</c> is null when a due could not be converted (<c>MissingCurrencies</c>).</summary>
+public sealed record IncomeReviewPart(decimal? Total, IReadOnlyList<IncomeReviewSource> Sources, IReadOnlyList<string> MissingCurrencies);
+
+/// <summary>
+/// Issue #12: one source of the period, largest first. <c>Key</c> is the item id, or <c>one_off</c> for every one-off together
+/// (no id, name nor kind); <c>Kind</c> is the source kind's wire value, <c>rent</c> for a rent.
+/// </summary>
+public sealed record IncomeReviewSource(ItemId? Id, string Key, string? Name, string? Kind, decimal? Amount);

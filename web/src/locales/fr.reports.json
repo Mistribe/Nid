@@ -50,6 +50,17 @@
       "pct": "{{value}} %",
       "unknown": "Inconnu"
     },
+    "income": {
+      "title": "Revenus et marge",
+      "income": "Revenus",
+      "engagements": "Engagements",
+      "margin": "Marge avant dépenses courantes",
+      "sources": "Revenus par source",
+      "engagement_sources": "Engagements par poste",
+      "col": { "source": "Source", "amount": "Montant" },
+      "estimated": "estimé",
+      "unknown": "Inconnu"
+    },
     "empty": "Rien à montrer pour cette année dans ce périmètre."
   }
 }
