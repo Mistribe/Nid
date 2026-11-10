@@ -154,7 +154,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
             assumptions = new
             {
                 inflationByYear = new Dictionary<string, string> { ["2026"] = "2.5" },
-                classRatesByYear = new { cash = new Dictionary<string, string> { ["2027"] = "3" } }, incomeGrowth = "0.5",
+                classRatesByYear = new { cash = new Dictionary<string, string> { ["2027"] = "3" } }, incomeGrowth = "0.5", withdrawalRate = "3.5", monthlyLivingCost = "1800.00",
             },
         };
 
@@ -164,6 +164,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.Equal("""{"2026":"2.5"}""", echoed.GetProperty("inflationByYear").GetRawText());
         Assert.Equal("""{"cash":{"2027":"3"}}""", echoed.GetProperty("classRatesByYear").GetRawText());
         Assert.Equal("0.5", echoed.GetProperty("incomeGrowth").GetString());
+        Assert.Equal(("3.5", "1800.00"), (echoed.GetProperty("withdrawalRate").GetString(), echoed.GetProperty("monthlyLivingCost").GetString()));
     }
 
     [Fact]
@@ -235,6 +236,75 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
 
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.target_not_found", "events[0].loan"), await RefusalAsync(response));
         Assert.Empty(List(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/scenarios")), "items"));
+    }
+
+    [Fact]
+    public async Task Scenario_withdrawal_rate_of_zero_is_refused_at_write() // retirement spec §3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await CreateAsync(app, Body(app, new
+        {
+            version = 1, horizon = "10y", events = Array.Empty<object>(), assumptions = new { withdrawalRate = "0" },
+        }));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "assumptions.withdrawalRate"), await RefusalAsync(response));
+    }
+
+    private static object WithRetirements(params object[] retirements)
+        => new { version = 1, horizon = "10y", events = Array.Empty<object>(), assumptions = new { }, retirements };
+
+    [Fact]
+    public async Task Departures_round_trip_and_an_absent_list_reads_empty() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var departure = new { person = app.AdultA.Value, years = 60, months = 6, monthlyPension = "1500" };
+
+        var id = await SavedAsync(await CreateAsync(app, Body(app, WithRetirements(departure))));
+        var plain = await SavedAsync(await CreateAsync(app, Body(app, Document("10y", Income()))));
+
+        var read = Assert.Single(List((await GetAsync(app, id)).GetProperty("result").GetProperty("document"), "retirements"));
+        Assert.Equal((app.AdultA.Value, 60, 6, "1500.00"),
+            (read.GetProperty("person").GetGuid(), read.GetProperty("years").GetInt32(), read.GetProperty("months").GetInt32(), Str(read, "monthlyPension")));
+        Assert.Empty(List((await GetAsync(app, plain)).GetProperty("result").GetProperty("document"), "retirements"));
+    }
+
+    [Theory]
+    [InlineData(49, 0, "-1", "retirements[0].years")]
+    [InlineData(76, 0, "-1", "retirements[0].years")]
+    [InlineData(60, 12, "-1", "retirements[0].months")]
+    [InlineData(60, 0, "-5", "retirements[0].monthlyPension")]
+    public async Task Departure_out_of_bounds_is_refused_at_write(int years, int months, string pension, string field)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await CreateAsync(app, Body(app, WithRetirements(new { person = app.AdultA.Value, years, months, monthlyPension = pension == "-1" ? null : pension })));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", field), await RefusalAsync(response));
+    }
+
+    [Fact]
+    public async Task Two_departures_of_one_person_are_refused_at_write()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var departure = new { person = app.AdultA.Value, years = 60, months = 0 };
+
+        var response = await CreateAsync(app, Body(app, WithRetirements(departure, departure)));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.invalid_field", "retirements[1].person"), await RefusalAsync(response));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Departure_of_an_unknown_person_or_a_dependent_is_refused_at_write(bool dependent)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var person = dependent ? app.Dependent.Value : Guid.NewGuid();
+
+        var response = await CreateAsync(app, Body(app, WithRetirements(new { person, years = 60, months = 0 })));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.target_not_found", "retirements[0].person"), await RefusalAsync(response));
     }
 
     [Fact]
@@ -526,5 +596,64 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
 
         Assert.Contains(List(view.GetProperty("base"), "warnings"), w => Str(w, "code") == "income_end_extended");
         Assert.DoesNotContain(List(Assert.Single(List(view, "scenarios")).GetProperty("result"), "warnings"), w => Str(w, "code") == "income_end_extended");
+    }
+
+    [Fact]
+    public async Task A_scenario_that_saves_more_reaches_independence_earlier() // retirement spec §3, on the scenario and compare views
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = "2500", savingsClass = "cash",
+            freedPaymentsToSavings = true, withdrawalRate = "4", monthlyLivingCost = "2000",
+        })).EnsureSuccessStatusCode(); // 600 000 of capital are needed: 240 months at 2 500, 120 at 5 000
+        var document = new { version = 1, horizon = "20y", events = Array.Empty<object>(), assumptions = new { monthlySavings = "5000" } };
+        var id = await SavedAsync(await CreateAsync(app, Body(app, document)));
+
+        var result = (await GetAsync(app, id)).GetProperty("result");
+        var compared = Assert.Single(List(await CompareAsync(app, $"{id}"), "scenarios"));
+
+        Assert.Equal(("2045-10", "2035-10"), (Str(result.GetProperty("base"), "financialIndependence"), Str(result.GetProperty("scenario"), "financialIndependence")));
+        Assert.Equal("2035-10", Str(compared.GetProperty("result"), "financialIndependence"));
+    }
+
+    [Fact]
+    public async Task Selling_a_let_property_takes_its_rent_out_of_the_independence() // retirement spec §3: the sale's rent no longer covers the living cost
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/valuations", new { asOf = "2025-06-01", amount = "100000" }));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/tenancies",
+            new { label = "Bail", startsOn = "2025-01-01", endsOn = (string?)null, rentMonthly = "800", chargesMonthly = "0" }));
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = "1000", savingsClass = "cash",
+            freedPaymentsToSavings = true, withdrawalRate = "4", monthlyLivingCost = "1200",
+        })).EnsureSuccessStatusCode(); // rent 800 + 4 % of 120 000 cover 1 200: 120 months of savings at 1 000 (2035-10)
+        var sale = new { id = Guid.NewGuid(), kind = "property_sale", start = new { on = "2026-03-01" }, property = home, price = "100000", costs = "0" };
+        var id = await SavedAsync(await CreateAsync(app, Body(app, Document("20y", sale))));
+
+        var result = (await GetAsync(app, id)).GetProperty("result");
+
+        Assert.Equal("2035-10", Str(result.GetProperty("base"), "financialIndependence"));
+        // Without its rent the sold home leaves 360 000 of capital to build from 100 000 and 200 a month: beyond the horizon.
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("scenario").GetProperty("financialIndependence").ValueKind);
+    }
+
+    [Fact]
+    public async Task Compare_on_a_retire_horizon_uses_the_households_departure_for_every_scenario() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{app.AdultA.Value}/retirement",
+            new { birthDate = "1990-05-10", retirementAge = 64, retirementMonths = 0 })).EnsureSuccessStatusCode(); // the household: 2054-05
+        var ids = new List<Guid>();
+        foreach (var years in new[] { 58, 60 })
+            ids.Add(await SavedAsync(await CreateAsync(app, Body(app, WithRetirements(new { person = app.AdultA.Value, years, months = 0 }), $"A {years}"))));
+
+        var view = await CompareAsync(app, string.Join(',', ids), $"retire:{app.AdultA.Value}");
+
+        Assert.Equal("2054-05-31", Str(List(view.GetProperty("base"), "points")[^1], "on"));
+        foreach (var scenario in List(view, "scenarios"))
+            Assert.Equal("2054-05-31", Str(List(scenario.GetProperty("result"), "points")[^1], "on"));
     }
 }

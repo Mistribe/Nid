@@ -9,7 +9,7 @@ import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
 import type { ProjectionScenario } from '../api';
 import type { ProjectionDocument } from './api';
-import { comparison, LOAN_A, LOAN_B, scenarioList } from './testData';
+import { ALICE, comparison, LOAN_A, LOAN_B, persons, scenarioList } from './testData';
 
 const ID = '0192f0aa-0000-7000-8000-0000000000d9';
 const REPAYMENT = { id: '0192f0aa-0000-7000-8000-0000000000a1', kind: 'early_repayment', start: { on: '2027-03-15' }, amount: '20000.00', split: 'highest_rate', effect: 'reduce_term', penalty: '0.00' };
@@ -33,6 +33,7 @@ function serve(initial: ProjectionScenario = view()) {
   const deleted: string[] = [];
   let current = initial;
   server.use(
+    http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
     http.get('*/api/v1/scenarios/projection/:id', () => HttpResponse.json(current)),
     http.put('*/api/v1/scenarios/projection/:id', async ({ request }) => {
       const body = await request.json() as Put;
@@ -63,6 +64,82 @@ describe('ProjectionScenarioPage', () => {
     await renderApp(`/scenarios/projection/${ID}`);
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
+  });
+
+  it('shows the independence month, « Non atteinte avant l\'horizon », or a dash when no living cost is set', async () => {
+    const withCost = (financialIndependence: string | null, cost: string) => {
+      const v = view();
+      v.result.scenario = { ...v.result.scenario, financialIndependence, assumptions: { ...v.result.scenario.assumptions, monthlyLivingCost: cost } };
+      return v;
+    };
+    serve(withCost('2041-03', '2500.00'));
+    await renderApp(`/scenarios/projection/${ID}`);
+    await screen.findByRole('region', { name: 'Chiffres clés' });
+    expect(await figures().findByText('mars 2041')).toBeInTheDocument();
+    cleanup();
+
+    serve(withCost(null, '2500.00'));
+    await renderApp(`/scenarios/projection/${ID}`);
+    await screen.findByRole('region', { name: 'Chiffres clés' });
+    expect(await figures().findByText('Non atteinte avant l\'horizon')).toBeInTheDocument();
+    cleanup();
+
+    serve(withCost(null, '0.00'));
+    await renderApp(`/scenarios/projection/${ID}`);
+    expect(await within(await screen.findByRole('region', { name: 'Chiffres clés' })).findByRole('button', { name: 'Renseignez le coût de la vie mensuel dans Réglages › Projection.' })).toBeInTheDocument();
+  });
+
+  it('lists the departures it moves and saves them with the assumptions', async () => {
+    const { puts } = serve(view({ result: { ...view().result, document: { ...DOCUMENT, retirements: [{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }] } } }));
+    const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+
+    expect(await screen.findByText('Alice : départ à 60 ans et 6 mois · pension 1 500,00 € par mois')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.clear(within(dialog).getByLabelText('Pension mensuelle de Alice'));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6 }]));
+  });
+
+  it('keeps the saved departures when the persons did not load', async () => {
+    const retirements = [{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }];
+    const { puts } = serve(view({ result: { ...view().result, document: { ...DOCUMENT, retirements } } }));
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json({ status: 500, code: null, title: 'Boom' }, { status: 500 })));
+    const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }]));
+  });
+
+  it('refuses months typed without an age', async () => {
+    const { puts } = serve();
+    const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(await within(dialog).findByLabelText('Âge de départ de Alice (mois)'), '4');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await within(dialog).findByText('Les mois demandent un âge.')).toBeInTheDocument();
+    expect(puts).toEqual([]);
+  });
+
+  it('warns of the departures on an adult without a birth date', async () => {
+    const v = view();
+    v.result.scenario.warnings = [{ code: 'retirement_undated', detail: '2' }];
+    serve(v);
+    await renderApp(`/scenarios/projection/${ID}`);
+
+    expect(await screen.findByText('2 départs portent sur des adultes sans date de naissance : ils sont ignorés.')).toBeInTheDocument();
+  });
+
+  it('shows « âge du foyer » for a pension-only departure', async () => {
+    serve(view({ result: { ...view().result, document: { ...DOCUMENT, retirements: [{ person: ALICE, monthlyPension: '1500.00' }] } } }));
+    await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+
+    expect(await screen.findByText('Alice : départ à âge du foyer · pension 1 500,00 € par mois')).toBeInTheDocument();
   });
 
   it('« Comparer » opens the compare page with this scenario, also for a reader who cannot write', async () => {

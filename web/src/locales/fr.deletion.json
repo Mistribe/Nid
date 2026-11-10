@@ -15,13 +15,15 @@
       "goal_funding": "Retirez l’enveloppe du financement de ces objectifs.",
       "transfers": "Annulez d’abord les virements avec ces enveloppes.",
       "loan": "Rattachez ces crédits à un autre bien, ou supprimez-les s’ils ont eux aussi été créés par erreur.",
-      "insurance": "Détachez d’abord le bien de ces assurances."
+      "insurance": "Détachez d’abord le bien de ces assurances.",
+      "validated_statements": "Rouvrez d’abord les mois validés, du plus récent au plus ancien."
     },
     "close_hint": {
       "goals.delete_goal": "Clôturer",
       "income.delete_income_source": "Terminer cette source",
       "investments.delete_envelope": "Clôturer l’enveloppe",
-      "subscriptions.delete_subscription": "Indiquer une date de résiliation (onglet Réglages)"
+      "subscriptions.delete_subscription": "Indiquer une date de résiliation (onglet Réglages)",
+      "childcare.delete_childcare": "Terminer la garde"
     },
     "done": "Élément supprimé : « {{name}} »",
     "keys": {
@@ -78,7 +80,15 @@
       "subscription_users_one": "{{count}} utilisateur du service",
       "subscription_users_other": "{{count}} utilisateurs du service",
       "progress_entries_one": "{{count}} versement suivi",
-      "progress_entries_other": "{{count}} versements suivis"
+      "progress_entries_other": "{{count}} versements suivis",
+      "statements_one": "{{count}} relevé mensuel",
+      "statements_other": "{{count}} relevés mensuels",
+      "gaps_one": "{{count}} période sans accueil",
+      "gaps_other": "{{count}} périodes sans accueil",
+      "week_overrides_one": "{{count}} semaine d’exception",
+      "week_overrides_other": "{{count}} semaines d’exception",
+      "validated_statements_one": "{{count}} mois validé",
+      "validated_statements_other": "{{count}} mois validés"
     }
   }
 }
