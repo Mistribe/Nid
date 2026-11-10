@@ -63,6 +63,18 @@ public class ExtraHoursTests
         Assert.Equal(36.80m, ExtraHours.Pay(7m, 2m, 4m, 0.10m));
     }
 
+    /// <summary>Half an hour extra in two weeks: one started hour in the month, not one per week.</summary>
+    [Fact]
+    public void Started_hour_is_rounded_over_the_month()
+    {
+        var month = new YearMonth(2026, 11);
+        var days = Around(month).Select(d => d.Date == D(2026, 11, 3) || d.Date == D(2026, 11, 10) ? d with { Departure = d.Departure!.Value.PlusMinutes(20) } : d).ToList();
+        var (complementary, _) = ExtraHours.Compute(month, days, Plan);
+        Assert.Equal(1m, ExtraHours.Started(complementary));
+        Assert.Equal(3m, ExtraHours.Started(2.5m));
+        Assert.Equal(0m, ExtraHours.Started(0m));
+    }
+
     [Fact]
     public void Short_week_is_not_negative()
     {

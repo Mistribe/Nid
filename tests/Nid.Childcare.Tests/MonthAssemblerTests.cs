@@ -27,9 +27,11 @@ public class MonthAssemblerTests
             _ => d,
         }).ToList();
         var figures = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+        // 1.5 h extra paid as worked, declared as 2 h, the half hour taken out of the normal hours.
         Assert.Equal(598.02m, figures.Declaration.NetPay);
-        Assert.Equal(1.50m, figures.Declaration.ComplementaryHours);
-        Assert.Equal(16, figures.Declaration.ActivityDays);
+        Assert.Equal(2m, figures.Declaration.ComplementaryHours);
+        Assert.Equal(137, figures.Declaration.NormalHours); // (598.02 − 2 × 4.30) ÷ 4.30 = 137.07
+        Assert.Equal(15, figures.Declaration.ActivityDays);
     }
 
     /// <summary>Friday 2026-05-01 belongs to April's last week: the hours really worked that day are April's extra hours.</summary>

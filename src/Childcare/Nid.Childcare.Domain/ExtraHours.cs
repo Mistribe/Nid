@@ -30,6 +30,12 @@ public static class ExtraHours
         return (complementary, overtime);
     }
 
+    /// <summary>
+    /// The whole hours Pajemploi is told: every started hour of the month, 3.5 h declared as 4 h, while the pay keeps the
+    /// hours really worked. Rounded to the minute first so sums of thirds do not tip over a whole hour.
+    /// </summary>
+    public static decimal Started(decimal hours) => Math.Ceiling(Math.Round(hours * 60m) / 60m);
+
     public static decimal Pay(decimal complementary, decimal overtime, decimal rate, decimal overtimeRate)
         => Mensualisation.Round(complementary * rate + overtime * rate * (1m + overtimeRate));
 

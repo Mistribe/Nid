@@ -54,12 +54,14 @@ public class AbsenceDeductionTests
         => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((9, AbsenceReason.ParentRtt), (10, AbsenceReason.Family)), Plan, 0));
 
     [Fact]
-    public void A_short_day_weighs_as_much_as_a_long_one()
+    public void A_short_day_weighs_its_own_hours()
     {
         var plan = Household(D(2026, 9, 1));
         var days = Absent(StatementPreparation.Prepare(new YearMonth(2026, 11), plan, []), (3, AbsenceReason.CarerAbsent));
-        // Art. 111, 46 weeks or fewer: one day of November's 17 template days, whatever its hours.
-        Assert.Equal((Mensualisation.Round(698.20m / 17m), 1, 0), AbsenceDeduction.Compute(698.20m, days, plan, 0));
+        // The hours of that day over November's template hours, not one day of 17.
+        var potential = days.Sum(d => plan.HoursOn(d.Date));
+        Assert.Equal((Mensualisation.Round(698.20m * plan.HoursOn(D(2026, 11, 3)) / potential), 1, 0), AbsenceDeduction.Compute(698.20m, days, plan, 0));
+        Assert.Equal(36.35m, AbsenceDeduction.Compute(698.20m, days, plan, 0).Deduction);
     }
 
     [Fact]
