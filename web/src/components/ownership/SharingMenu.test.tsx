@@ -27,7 +27,8 @@ describe('SharingMenu (#294)', () => {
     expect(await screen.findByText('Vous en êtes propriétaire')).toBeInTheDocument();
     expect(screen.getByText('Lecture seule')).toBeInTheDocument();
 
-    await user.click(await screen.findByRole('button', { name: 'Partage' }));
+    // The goal page folds the sharing entry into its « Autres actions » menu, with « Supprimer… » (#23).
+    await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Partage…' }));
     const dialog = await screen.findByRole('dialog', { name: 'Partage' });
     expect(await within(dialog).findByText('L’autre adulte le consulte ; seuls les propriétaires le modifient.')).toBeInTheDocument();
@@ -45,19 +46,23 @@ describe('SharingMenu (#294)', () => {
       http.get('*/api/v1/goals/:id', () => HttpResponse.json(detail())),
       http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json(sharing({ shareLevel: 'edit', canChange: false, isOwner: false }))),
     );
-    await renderApp(`/goals/${GOAL}`);
+    const { user } = await renderApp(`/goals/${GOAL}`);
 
     expect(await screen.findByText('Vous n’en êtes pas propriétaire')).toBeInTheDocument();
     expect(screen.getByText('Lecture et modification')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Partage' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+    expect(await screen.findByRole('menuitem', { name: 'Supprimer…' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Partage…' })).not.toBeInTheDocument();
   });
 
   it('offers nothing on a private item', async () => {
     server.use(http.get('*/api/v1/goals/:id', () => HttpResponse.json(detail({}, { visibility: 'private' }))));
-    await renderApp(`/goals/${GOAL}`);
+    const { user } = await renderApp(`/goals/${GOAL}`);
 
     await screen.findByRole('heading', { name: 'Voyage', level: 1 });
-    expect(screen.queryByRole('button', { name: 'Partage' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+    expect(await screen.findByRole('menuitem', { name: 'Supprimer…' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Partage…' })).not.toBeInTheDocument();
   });
 });

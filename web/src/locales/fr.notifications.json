@@ -4,7 +4,8 @@
     "empty": "Rien de nouveau.",
     "read_all": "Tout marquer comme lu",
     "see_all": "Tout voir",
-    "arrived": "Arrivée le"
+    "arrived": "Arrivée le",
+    "critical": "Importante"
   },
   "notifications_page": {
     "title": "Notifications",

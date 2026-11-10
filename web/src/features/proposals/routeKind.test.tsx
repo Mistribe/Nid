@@ -195,4 +195,23 @@ describe('Une proposition d’action du web', () => {
     expect(screen.queryByText('Élément inconnu')).not.toBeInTheDocument();
     expect(screen.getByText('Aucun champ.')).toBeInTheDocument();
   });
+
+  it('« Recharger » after a conflict starts the decision again from the new version', async () => {
+    let current = proposal({ kind: 'tax.delete_tax_year', targetItemId: null, targetName: null, subjectKey: null, payload: { id: '00000000-0000-7000-8000-0000000000f1' } });
+    serve([current], { preview: {} });
+    server.use(
+      http.get('*/api/v1/core/proposals/:id', () => HttpResponse.json({ proposal: current, preview: {}, canDecide: true })),
+      http.post('*/api/v1/core/proposals/:id/approve', () => {
+        current = { ...current, version: current.version + 1 };
+        return HttpResponse.json({ status: 409, code: 'core.proposal_conflict', title: 'x' }, { status: 409 });
+      }),
+    );
+    const { user } = await renderApp(`/proposals/${current.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    await user.click(await screen.findByRole('button', { name: 'Recharger' }));
+
+    await waitFor(() => expect(screen.queryByText('Cette proposition a changé.')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Recharger' })).not.toBeInTheDocument();
+  });
 });

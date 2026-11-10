@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useParams, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -27,7 +27,10 @@ import { FundingTab } from './detail/FundingTab';
 import { kindText, presentGoalConflict } from './format';
 import { Dash, GoalProgress, GoalStatus } from './GoalStatus';
 import '@/locales/goals';
+import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
+
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 
 // A pace of zero or less never reaches the target; read from the decimal text, nothing is computed.
 const NOT_POSITIVE = /^(-|0+(\.0+)?$)/;
@@ -44,6 +47,7 @@ export function GoalDetailPage() {
   const { scope }: RootSearch = useSearch({ strict: false });
   const answer = useGoal(id, scope === 'me' ? 'me' : 'household');
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const close = useCloseGoal();
   const reopen = useReopenGoal();
   const crumbs = [{ label: t('goals_list.title'), to: '/goals' as const }];
@@ -55,7 +59,8 @@ export function GoalDetailPage() {
   const pending = close.isPending || reopen.isPending;
   const error = close.error ?? reopen.error;
   const params = { params: { path: { id } } };
-  const sharing = <SharingMenu item={id} onAnnounce={toast.success} shared={goal.visibility === 'shared'} />;
+  const sharing = <SharingMenu item={id} onAnnounce={toast.success} shared={goal.visibility === 'shared'} label={t('page.more_actions')}
+    trailing={[{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }]} />;
   const actions = !goal.canWrite ? null : goal.closed
     ? <><Button type="button" variant="outline" disabled={pending} onClick={() => reopen.mutate(params)}>{t('goals_list.reopen')}</Button>{sharing}</>
     : <>
@@ -91,6 +96,7 @@ export function GoalDetailPage() {
         </section>
       </PageHeader>
       {goal.canWrite ? null : <p>{t('goals_list.read_only')}</p>}
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="goals.delete_goal" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
       {editing ? <EditGoalDialog goalId={id} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); toast.success(message); }} /> : null}
       {error ? <ProblemMessage problem={presentGoalConflict(t, error)} /> : null}
       <ul className="space-y-1 text-sm">

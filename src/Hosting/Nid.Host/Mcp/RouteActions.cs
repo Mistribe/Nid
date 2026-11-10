@@ -212,6 +212,10 @@ public static class RouteActions
             "End an income source on a date. " + Ids + Amounts, Destructive: true),
         new("reopen_income_source", "POST", "/api/v1/income/sources/{id:guid}/reopen", null,
             "Reopen an ended income source. " + Ids),
+        new("delete_income_source", "DELETE", "/api/v1/income/sources/{id:guid}", null,
+            "Propose deleting an income source created by mistake (to end one that stopped, use close_income_source). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/income/sources/{id:guid}/deletion"),
 
         // Childcare (childminder, Pajemploi).
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
@@ -255,6 +259,10 @@ public static class RouteActions
             "Record the amount a goal without envelopes has reached on a date (on, not in the future); it replaces that date's entry. " + Ids + Amounts),
         new("delete_goal_progress", "DELETE", "/api/v1/goals/{id:guid}/progress/{on}", null,
             "Remove a goal's progress entry of a date. " + Ids, Destructive: true),
+        new("delete_goal", "DELETE", "/api/v1/goals/{id:guid}", null,
+            "Propose deleting a goal created by mistake (to close a goal that ended, use close_goal). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/goals/{id:guid}/deletion"),
 
         // Subscriptions.
         new("create_subscription", "POST", "/api/v1/subscriptions/", typeof(CreateSubscriptionBody),

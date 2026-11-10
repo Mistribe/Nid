@@ -251,7 +251,7 @@ describe('EnvelopesPage, closed envelopes', () => {
     server.use(http.get('*/api/v1/investments/overview', () => HttpResponse.json(household())));
     await renderApp('/investments');
 
-    await screen.findByRole('heading', { level: 2, name: 'Répartition par type' });
+    await screen.findByRole('heading', { level: 2, name: 'À surveiller' });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(0);
   });

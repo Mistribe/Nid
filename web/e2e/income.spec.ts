@@ -28,7 +28,7 @@ test('alice keeps a private salary up to date and bob never sees it', async ({ b
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
   const url = alice.url();
 
-  await alice.goto('/income?scope=me');
+  await alice.goto('/income?scope=me&tab=sources');
   await expect(alice.getByRole('table', { name: 'Liste des revenus' }).getByRole('row').filter({ hasText: name })).toContainText('2 450,00 €');
 
   await alice.goto(url);

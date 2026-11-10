@@ -1,21 +1,29 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
+import { TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 import { LocalDate } from '@/components/LocalDate';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import '@/locales/notifications';
-import { useLatestNotifications, useRead, useReadAll } from './api';
+import { useLatestNotifications, useNotificationCount, useRead, useReadAll } from './api';
 import { localDateOf, parseNotificationLink, readsOnFollow } from './link';
 
 const LATEST = 8;
 
 function Entries({ onNavigate }: { onNavigate: () => void }) {
   const { t } = useTranslation();
+  const waiting = (useNotificationCount().data?.criticalUnread ?? 0) > 0;
   const list = useLatestNotifications('todo', LATEST);
+  // The unread important ones the bell's warning badge points at, asked apart: they may be older than the latest to do.
+  const critical = useLatestNotifications('critical', LATEST, waiting);
   const readAll = useReadAll();
   const read = useRead();
-  const entries = list.data?.entries.slice(0, LATEST) ?? [];
+  const urgent = (entry: { critical: boolean; read: boolean }) => entry.critical && !entry.read;
+  const first = waiting ? (critical.data?.entries ?? []) : [];
+  const ids = new Set(first.map((e) => e.id));
+  const entries = [...first, ...(list.data?.entries ?? []).filter((e) => !ids.has(e.id))].slice(0, LATEST);
   return (
     <>
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
@@ -34,7 +42,13 @@ function Entries({ onNavigate }: { onNavigate: () => void }) {
               <li key={entry.id}>
                 <Link to={(target?.to ?? '/notifications') as never} search={(target?.search ?? {}) as never}
                   onClick={() => { if (readsOnFollow(entry)) read.mutate({ params: { path: { id: entry.id } } }); onNavigate(); }}
-                  className="block px-3 py-2 text-sm outline-none hover:bg-accent focus-visible:bg-accent">
+                  className={cn('block px-3 py-2 text-sm outline-none hover:bg-accent focus-visible:bg-accent',
+                    urgent(entry) && 'border-l-3 border-status-warning bg-status-warning/10')}>
+                  {urgent(entry) ? (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-status-warning-text">
+                      <TriangleAlert aria-hidden="true" className="size-3.5" />{t('notification_popover.critical')}
+                    </span>
+                  ) : null}
                   <span className={entry.read ? 'block' : 'block font-semibold'}>{entry.title}</span>
                   <span className="block text-muted-foreground">{entry.body}</span>
                   {/* No relative-time helper in the app: the arrival date is shown instead. */}

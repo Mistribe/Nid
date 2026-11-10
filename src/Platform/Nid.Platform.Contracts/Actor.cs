@@ -38,6 +38,9 @@ public static class ScopeNames
     public const string Read = "read";
     public const string Write = "write";
     public const string WriteDirect = "write:direct";
+
+    /// <summary>Lent only to a proposal's dry run (<c>RouteReplay</c>); no token preset holds it.</summary>
+    public const string DryRun = "dry-run";
 }
 
 public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, IReadOnlySet<string> Scopes)

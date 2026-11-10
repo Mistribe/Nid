@@ -503,6 +503,8 @@ public static class RequestCatalogue
         new(typeof(DeleteIncomeOneOffCommand), true, (_, item) => new DeleteIncomeOneOffCommand(item, Guid.NewGuid())),
         new(typeof(CloseIncomeSourceCommand), true, (_, item) => new CloseIncomeSourceCommand(item, new LocalDate(2020, 1, 1))),
         new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
+        new(typeof(IncomeSourceDeletionQuery), true, (_, item) => new IncomeSourceDeletionQuery(item)),
+        new(typeof(DeleteIncomeSourceCommand), true, (_, item) => new DeleteIncomeSourceCommand(item, 1)),
 
         new(typeof(ListGoalsQuery), false, (_, _) => new ListGoalsQuery(VisibilityScope.Me, true)),
         new(typeof(GetGoalQuery), true, (_, item) => new GetGoalQuery(item, VisibilityScope.Me)),
@@ -523,6 +525,9 @@ public static class RequestCatalogue
             SecondItemAccess = AccessKind.Read,
         },
         new(typeof(CloseGoalCommand), true, (_, item) => new CloseGoalCommand(item)),
+        new(typeof(GoalDeletionQuery), true, (_, item) => new GoalDeletionQuery(item)),
+        // Version 1 is never a row's xmin: an allowed writer meets a conflict, never an access refusal.
+        new(typeof(DeleteGoalCommand), true, (_, item) => new DeleteGoalCommand(item, 1)),
         new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
         new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
         new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),

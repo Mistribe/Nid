@@ -1,0 +1,37 @@
+{
+  "deletion": {
+    "title": "Supprimer {{name}}",
+    "loading": "Chargement de l’aperçu",
+    "warning": "La suppression est définitive et ne peut pas être annulée. Si l’élément est simplement terminé, utilisez plutôt « {{hint}} ».",
+    "removes": "Seront supprimés avec lui :",
+    "recomputed": "L’historique du patrimoine, le tableau de bord et les estimations d’impôt seront recalculés sans lui.",
+    "imported": "Il vient d’un import : réimporter le même fichier le recréera.",
+    "blocked": "Impossible de le supprimer :",
+    "type": "Tapez {{name}} pour confirmer",
+    "confirm": "Supprimer définitivement",
+    "menu": "Supprimer…",
+    "close_hint": {
+      "goals.delete_goal": "Clôturer",
+      "income.delete_income_source": "Terminer cette source"
+    },
+    "done": "« {{name}} » supprimé",
+    "keys": {
+      "flows_one": "{{count}} flux",
+      "flows_other": "{{count}} flux",
+      "valuations_one": "{{count}} valorisation",
+      "valuations_other": "{{count}} valorisations",
+      "documents_one": "{{count}} document détaché",
+      "documents_other": "{{count}} documents détachés",
+      "bank_links_one": "{{count}} lien bancaire",
+      "bank_links_other": "{{count}} liens bancaires",
+      "bank_rules_one": "{{count}} règle bancaire",
+      "bank_rules_other": "{{count}} règles bancaires",
+      "bank_account_one": "{{count}} compte bancaire rattaché",
+      "bank_account_other": "{{count}} comptes bancaires rattachés",
+      "funding_one": "{{count}} financement",
+      "funding_other": "{{count}} financements",
+      "progress_entries_one": "{{count}} versement suivi",
+      "progress_entries_other": "{{count}} versements suivis"
+    }
+  }
+}

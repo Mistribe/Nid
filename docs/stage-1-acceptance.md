@@ -51,7 +51,7 @@ Dans **Abonnements**, en face de l'ancien fichier ou des relevés bancaires :
 - [ ] Se connecter comme le second adulte : il voit les abonnements partagés, et ni « Test recette » ni aucun
       élément privé du premier.
 - [ ] Revenir au premier adulte et résilier « Test recette » (Réglages, date de résiliation d'aujourd'hui). Un
-      abonnement ne se supprime pas : il reste dans la liste, résilié.
+      abonnement résilié reste dans la liste ; seul un abonnement créé par erreur se supprime (#23).
 - [ ] **Réimporter le fichier d'origine** : le rapport donne tout en « Inchangés », rien n'est créé. (Pas un export :
       le réimporter dans l'instance d'où il vient n'est pas garanti, `import-format.md` §10.)
 - [ ] **Export** : le fichier se télécharge et passe le contrôle local de l'import (§2), sans aller plus loin.

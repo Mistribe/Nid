@@ -11,8 +11,8 @@ const SharingDialog = lazy(() => import('./SharingDialog').then((m) => ({ defaul
  * level (an owner; an adult who may only edit it sees the level in the page's badges instead). The menu owns the dialog and the
  * focus coming back to it; the page toasts what was saved (`onAnnounce`).
  */
-export function SharingMenu({ item, shared, label, items = [], triggerRef, onAnnounce }: {
-  item: string; shared: boolean; label?: string; items?: ComponentProps<typeof RowMenu>['items']; triggerRef?: RefObject<HTMLButtonElement | null>;
+export function SharingMenu({ item, shared, label, items = [], trailing = [], triggerRef, onAnnounce }: {
+  item: string; shared: boolean; label?: string; items?: ComponentProps<typeof RowMenu>['items']; trailing?: ComponentProps<typeof RowMenu>['items']; triggerRef?: RefObject<HTMLButtonElement | null>;
   onAnnounce: (message: string) => void;
 }) {
   const { t } = useTranslation();
@@ -24,7 +24,8 @@ export function SharingMenu({ item, shared, label, items = [], triggerRef, onAnn
   return (
     <>
       <RowMenu label={label ?? t('sharing.level')} triggerRef={trigger}
-        items={shared && canChange ? [...items, { label: t('sharing.menu'), onSelect: () => setOpen(true) }] : items} />
+        items={[...(shared && canChange ? [...items, { label: t('sharing.menu'), onSelect: () => setOpen(true) }] : items),
+          ...(trailing.length > 0 ? [{ separator: true as const }, ...trailing] : [])]} />
       {open ? <Suspense fallback={null}><SharingDialog item={item} onClose={() => close()} onDone={close} /></Suspense> : null}
     </>
   );

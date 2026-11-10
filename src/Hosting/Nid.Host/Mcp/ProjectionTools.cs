@@ -16,15 +16,16 @@ namespace Nid.Host.Mcp;
 public sealed class ProjectionTools
 {
     [McpServerTool(Name = "get_projection", ReadOnly = true)]
-    [Description("The household's projected net worth to a horizon, at today, each December 31st and the horizon's last month, in nominal and today's money, with milestones (loan ends) and the assumptions used. Indicative: assumed returns, no future tax. With scenarioId, a saved projection scenario: the base and the scenario at year ends, the gap at the horizon, milestones and warnings. " + McpSetup.Untrusted)]
+    [Description("The household's projected net worth to a horizon, at today, each December 31st and the horizon's last month, in nominal and today's money, with milestones (loan ends) and the assumptions used. Indicative: assumed returns, no future tax. With scenarioId, a saved projection scenario: the base and the scenario at year ends, the gap at the horizon, milestones and warnings. With ranges, 1,000 runs with random yearly returns (one market factor, each class's volatility) add the 10th, 50th and 90th percentiles at the same points and the share of runs whose savings last to the horizon (the scenario's only, with scenarioId). " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetProjection(IServiceProvider services,
         [Description("'household' (default) or 'me'. Ignored with scenarioId: the scenario's own scope governs.")] string? scope = null,
         [Description("'10y' (default), '5y', '20y', '30y', 'Ny' (1 to 40) or 'retire:<personId>'. Ignored with scenarioId: the scenario's stored horizon governs.")] string? horizon = null,
         [Description("A saved projection scenario's id; a purchase scenario's id is not found here.")] Guid? scenarioId = null,
+        [Description("true adds the percentile bands and the probability the savings last (slower).")] bool ranges = false,
         CancellationToken ct = default)
         => scenarioId is { } id
-            ? McpCalls.RunAsync(services, () => new GetProjectionScenarioQuery(new ItemId(id)), view => Trim(view.Result), ct)
-            : McpCalls.RunAsync(services, () => new GetProjectionQuery(SubscriptionEndpoints.ParseScope(scope), ProjectionEndpoints.ParseHorizon(horizon)),
+            ? McpCalls.RunAsync(services, () => new GetProjectionScenarioQuery(new ItemId(id), ranges), view => Trim(view.Result), ct)
+            : McpCalls.RunAsync(services, () => new GetProjectionQuery(SubscriptionEndpoints.ParseScope(scope), ProjectionEndpoints.ParseHorizon(horizon), ranges),
                 YearEnds, ct);
 
     [McpServerTool(Name = "simulate_projection", ReadOnly = true)]
@@ -32,7 +33,7 @@ public sealed class ProjectionTools
     public static async Task<CallToolResult> SimulateProjection(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null,
         [Description("'10y' (default), '5y', '20y', '30y', 'Ny' (1 to 40) or 'retire:<personId>'.")] string? horizon = null,
-        [Description("Assumption overrides, each optional: { classRates: { cash: '2' }, inflation: '1.8', monthlySavings: '500', savingsClass: 'cash', freedPaymentsToSavings: true, inflationByYear: { '2026': '2.5' }, classRatesByYear: { cash: { '2026': '3' } }, incomeGrowth: '0.5' }. Rates are percents, amounts decimal strings; omitted fields keep the household's. The yearly rates are for calendar years from this one to 4 years later (cash and money_market only for classes); inflationByYear replaces the household's table whole, classRatesByYear merges class by class; incomeGrowth is the income growth over inflation, a percent.")] ProjectionOverridesView? assumptions = null,
+        [Description("Assumption overrides, each optional: { classRates: { cash: '2' }, inflation: '1.8', monthlySavings: '500', savingsClass: 'cash', freedPaymentsToSavings: true, inflationByYear: { '2026': '2.5' }, classRatesByYear: { cash: { '2026': '3' } }, incomeGrowth: '0.5', classVolatility: { equity: '16' } }. Rates are percents, amounts decimal strings; omitted fields keep the household's. The yearly rates are for calendar years from this one to 4 years later (cash and money_market only for classes); inflationByYear replaces the household's table whole, classRatesByYear merges class by class; incomeGrowth is the income growth over inflation, a percent; classVolatility sets a class's annual volatility (0 to 50), merged class by class.")] ProjectionOverridesView? assumptions = null,
         [Description("The events, each { kind, start: { on: 'yyyy-mm-dd' } or { person, age }, until?, label?, monthlyAmount? (income_change, savings_change), amount?, split?, loan?, effect?, penalty? (early_repayment), property?, price?, costs? (property_sale), scenario? (property_purchase of a saved purchase scenario; a purchase still needs a start, ignored: the purchase scenario's own date counts) }. Amounts are decimal strings.")] IReadOnlyList<ProjectionEventView>? events = null,
         CancellationToken ct = default)
     {
@@ -105,6 +106,7 @@ public sealed class ProjectionTools
         => view with
         {
             Points = view.Points.Where((p, i) => IsKept(p.On, i, view.Points.Count)).ToList(),
+            Ranges = view.Ranges is { } r ? r with { Points = r.Points.Where((p, i) => IsKept(p.On, i, r.Points.Count)).ToList() } : null,
         };
 
     [McpServerTool(Name = "get_inflation", ReadOnly = true)]

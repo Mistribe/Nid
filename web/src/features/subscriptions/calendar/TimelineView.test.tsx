@@ -101,15 +101,44 @@ describe('Abonnements › frise', () => {
     expect(paid).not.toHaveClass('border-dashed');
   });
 
-  it('More_than_three_on_a_day_show_two_and_plus_n', async () => {
-    serveMonths({ '2026-11': { charges: ['D', 'E', 'F', 'G'].map((n) => line('2026-11-10', n)) } });
+  it('Each_subscription_has_its_own_lane_so_a_shared_day_does_not_stack', async () => {
+    serveMonths({ '2026-11': { charges: ['D', 'E', 'F', 'G'].map((n, i) => line('2026-11-10', n, { itemId: `${SPOTIFY.slice(0, -1)}${i}` })) } });
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const november = await segment('novembre 2026');
+    await waitFor(() => expect(within(november).getAllByRole('link')).toHaveLength(4));
+    expect(within(november).queryByRole('button', { name: /prélèvement/ })).not.toBeInTheDocument();
+  });
+
+  it('One_subscription_charged_twice_on_a_day_opens_as_a_list', async () => {
+    serveMonths({ '2026-11': { charges: [line('2026-11-10', 'Spotify'), line('2026-11-10', 'Spotify', { price: eur('4.99') })] } });
     const { user } = await renderApp('/subscriptions?tab=calendar&view=timeline');
 
     const november = await segment('novembre 2026');
-    await waitFor(() => expect(within(november).getAllByRole('link')).toHaveLength(2));
-    await user.click(within(november).getByRole('button', { name: '+2 autres prélèvements' }));
+    await user.click(await within(november).findByRole('button', { name: '2 prélèvements de Spotify, mardi 10 novembre' }));
     const list = await screen.findByRole('dialog', { name: 'mardi 10 novembre' });
-    expect(within(list).getAllByRole('link')).toHaveLength(4);
+    expect(within(list).getAllByRole('link')).toHaveLength(2);
+  });
+
+  it('The_month_in_focus_lists_its_charges_under_the_band', async () => {
+    serveMonths({
+      '2026-11': { total: eur('9.99'), charges: [line('2026-11-03', 'Spotify')] },
+      '2026-12': { total: eur('42.00'), charges: [line('2026-12-05', 'Assurance', { isProjected: true })] },
+    });
+    const { user } = await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const detail = await screen.findByRole('region', { name: 'Novembre 2026' });
+    expect(await within(detail).findByRole('link', { name: /Spotify/ })).toBeInTheDocument();
+
+    await user.click(within(await segment('décembre 2026')).getByRole('button', { name: 'décembre 2026' }));
+    const december = await screen.findByRole('region', { name: 'Décembre 2026' });
+    expect(december).toHaveTextContent('42,00 €');
+    expect(within(december).getByRole('link', { name: /Assurance/ })).toBeInTheDocument();
+    expect(within(await segment('décembre 2026')).getByRole('button', { name: 'décembre 2026' })).toHaveAttribute('aria-current', 'true');
+
+    // Scrolled so that October sits under the band's centre.
+    act(() => FakeObserver.trigger(document.querySelector('[data-month="2026-10"]')!));
+    expect(await screen.findByRole('region', { name: 'Octobre 2026' })).toHaveTextContent('Aucun prélèvement ce mois-ci');
   });
 
   it('A_segment_shows_the_servers_total_and_count', async () => {
@@ -126,7 +155,7 @@ describe('Abonnements › frise', () => {
 
     expect(await within(await segment('décembre 2026')).findByRole('alert')).toBeInTheDocument();
     expect(await within(await segment('novembre 2026')).findByRole('link', { name: /Spotify/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mois suivant' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Aujourd’hui' })).toBeInTheDocument();
   });
 
   it('A_failed_current_month_still_shows_the_band', async () => {
@@ -280,12 +309,39 @@ describe('Abonnements › frise › défilement', () => {
     expect(within(await segment('janvier 2027')).getByText('29')).toBeInTheDocument();
   });
 
-  it('The_buttons_scroll_by_a_month_and_back_to_today', async () => {
+  it('The_edge_arrows_show_only_where_the_band_can_move', async () => {
+    serveMonths();
+    await renderApp('/subscriptions?tab=calendar&view=timeline');
+
+    const region = await band();
+    await segment('novembre 2026');
+    let left = 0;
+    Object.defineProperty(region, 'scrollWidth', { configurable: true, get: () => 2000 });
+    Object.defineProperty(region, 'clientWidth', { configurable: true, get: () => 800 });
+    Object.defineProperty(region, 'scrollLeft', { configurable: true, get: () => left });
+    const arrows = () => screen.queryAllByRole('button', { name: /^Mois (précédent|suivant)$/ }).map((b) => b.getAttribute('aria-label'));
+
+    fireEvent.scroll(region);
+    expect(arrows()).toEqual(['Mois suivant']);
+    left = 600;
+    fireEvent.scroll(region);
+    expect(arrows()).toEqual(['Mois précédent', 'Mois suivant']);
+    left = 1200;
+    fireEvent.scroll(region);
+    expect(arrows()).toEqual(['Mois précédent']);
+  });
+
+  it('The_arrows_scroll_by_a_month_and_the_button_back_to_today', async () => {
     serveMonths();
     const { user } = await renderApp('/subscriptions?tab=calendar&view=timeline');
 
+    const region = await band();
     await segment('novembre 2026');
     await waitFor(() => expect(scrollTo).toHaveBeenCalled()); // centred on today when it opens
+    Object.defineProperty(region, 'scrollWidth', { configurable: true, get: () => 2000 });
+    Object.defineProperty(region, 'clientWidth', { configurable: true, get: () => 800 });
+    Object.defineProperty(region, 'scrollLeft', { configurable: true, get: () => 600 });
+    fireEvent.scroll(region);
     await user.click(screen.getByRole('button', { name: 'Mois suivant' }));
     expect(scrollBy).toHaveBeenLastCalledWith(expect.objectContaining({ left: expect.any(Number) as number }));
     expect((scrollBy.mock.lastCall![0] as ScrollToOptions).left).toBeGreaterThan(0);

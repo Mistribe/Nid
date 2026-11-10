@@ -6,6 +6,9 @@ var csrfKey = builder.AddParameter("csrf-key", "dev-csrf-key-0123456789abcdef012
 // baked in at initdb, and PostgreSQL would refuse the AppHost from the second run on.
 var postgresPassword = builder.AddParameter("postgres-password", "nid-dev-postgres-password", secret: true);
 
+// The repository root: this project sits in src/Hosting/Nid.AppHost.
+var root = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
+
 var postgres = builder.AddPostgres("postgres", password: postgresPassword)
     .WithDataVolume("nid-dev-pgdata");
 var nidDb = postgres.AddDatabase("nid");
@@ -24,8 +27,8 @@ var pocketId = builder.AddContainer("pocket-id", "ghcr.io/pocket-id/pocket-id", 
 
 // Pocket ID chooses Nid's client secret and shows it once: this one-shot creates the groups, the users (alice, bob, carol)
 // and the client, then writes the secret where nid-api reads its key-per-file secrets (Secrets:Path, HostingSetup).
-var secretsPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".data", "secrets"));
-var bootstrap = builder.AddExecutable("pocket-id-bootstrap", "node", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "deploy", "local")), "bootstrap-pocket-id.mjs")
+var secretsPath = Path.Combine(root, ".data", "secrets");
+var bootstrap = builder.AddExecutable("pocket-id-bootstrap", "node", Path.Combine(root, "deploy", "local"), "bootstrap-pocket-id.mjs")
     .WithEnvironment("POCKET_ID_URL", "http://localhost:1411")
     .WithEnvironment("POCKET_ID_API_KEY", "nid-local-smoke-api-key-0123456789abcdef")
     .WithEnvironment("NID_URL", "https://nid.localtest.me")
@@ -48,8 +51,8 @@ var api = builder.AddProject<Projects.Nid_Host>("nid-api")
     .WithEnvironment("Auth__CsrfKey", csrfKey)
     .WithEnvironment("Auth__TrustAnyIdentityProviderCertificate", "true")
     // 1C2c: the asset store of development, git-ignored; production mounts a volume at /var/lib/nid/assets (1F).
-    .WithEnvironment("Assets__Root", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".data", "assets")))
-    .WithEnvironment("Documents__Storage__Path", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".data", "documents")))
+    .WithEnvironment("Assets__Root", Path.Combine(root, ".data", "assets"))
+    .WithEnvironment("Documents__Storage__Path", Path.Combine(root, ".data", "documents"))
     // Notifications: a count requests a refresh at most every 5 s here (900 s in production), so the end-to-end journey sees its data evaluated.
     .WithEnvironment("Notifications__RefreshThrottleSeconds", "5")
     // Email through the mail catcher (nid-api runs on the host: the container's published port is on localhost).
@@ -64,7 +67,7 @@ var api = builder.AddProject<Projects.Nid_Host>("nid-api")
 
 // The SPA is started by Vite on port 5173; Caddy's catch-all route forwards everything outside
 // /api, /auth, /mcp and /health there.
-var webPath = Path.Combine(builder.AppHostDirectory, "..", "..", "web");
+var webPath = Path.Combine(root, "web");
 var web = Directory.Exists(webPath)
     ? builder.AddViteApp("nid-web", webPath).WithPnpm().WithHttpEndpoint(port: 5173, env: "PORT", isProxied: false)
         // Bare Vite has no /auth or /api proxy: the app only works through Caddy, so keep this link out of the grid.

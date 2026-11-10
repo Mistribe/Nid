@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atEnd, atStart, dayOffset, extend, initialRange, months } from './timeline';
+import { atEnd, atStart, dayOffset, extend, initialRange, lanes, months } from './timeline';
 
 describe('frise › plage de mois', () => {
   it('lists the months of a range, both ends included', () => {
@@ -36,5 +36,16 @@ describe('frise › plage de mois', () => {
     expect(dayOffset('2026-11-30')).toBe(1);
     expect(dayOffset('2027-02-28')).toBe(1);
     expect(dayOffset('2026-11-16')).toBeCloseTo(15 / 29);
+  });
+});
+
+describe('frise › lignes', () => {
+  it('gives each subscription one lane, sorted by name, whichever month it appears in', () => {
+    const c = (itemId: string, displayName: string) => ({ itemId, displayName });
+    expect(lanes([
+      { charges: [c('b', 'Spotify'), c('a', 'Électricité'), c('b', 'Spotify')] },
+      { charges: [c('c', 'assurance'), c('a', 'Électricité')] },
+    ]).map((l) => l.itemId)).toEqual(['c', 'a', 'b']);
+    expect(lanes([])).toEqual([]);
   });
 });

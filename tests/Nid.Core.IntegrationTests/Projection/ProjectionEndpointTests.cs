@@ -82,6 +82,56 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         Assert.Equal(61, List(await ProjectionAsync(app, app.AdultA, "?horizon=5y"), "points").Count);
     }
 
+    /// <summary>The household's assumptions with every class at <paramref name="volatility"/> percent.</summary>
+    private static async Task VolatilityAsync(NidApp app, string volatility)
+    {
+        var assumptions = await app.GetAsync<JsonElement>(app.AdultA, "/api/v1/core/projection-assumptions");
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = assumptions.GetProperty("classRates"), inflation = "2", monthlySavings = "100", savingsClass = "cash", freedPaymentsToSavings = true,
+            classVolatility = AllocationClasses.All.ToDictionary(c => c, _ => volatility),
+        })).EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task Ranges_come_only_when_asked_and_equal_the_points_without_volatility() // ranges spec §3, §4
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ValuedEnvelopeAsync(app, app.AdultA, "10000.00");
+        await VolatilityAsync(app, "0");
+
+        Assert.Equal(JsonValueKind.Null, (await ProjectionAsync(app, app.AdultA)).GetProperty("ranges").ValueKind);
+        var view = await ProjectionAsync(app, app.AdultA, "?horizon=5y&ranges=true");
+
+        var ranges = view.GetProperty("ranges");
+        Assert.Equal((1000, "100"), (ranges.GetProperty("runs").GetInt32(), Str(ranges, "success")));
+        var points = List(view, "points");
+        var bands = List(ranges, "points");
+        Assert.Equal(points.Count, bands.Count);
+        Assert.All(points.Zip(bands), pair =>
+        {
+            var (point, band) = pair;
+            Assert.Equal(Str(point, "on"), Str(band, "on"));
+            Assert.Equal((Str(point, "nominal"), Str(point, "nominal"), Str(point, "nominal")), (Str(band, "low"), Str(band, "median"), Str(band, "high")));
+            Assert.Equal((Str(point, "real"), Str(point, "real"), Str(point, "real")), (Str(band, "lowReal"), Str(band, "medianReal"), Str(band, "highReal")));
+        });
+    }
+
+    [Fact]
+    public async Task Volatility_spreads_the_ranges_the_same_way_each_time()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ValuedEnvelopeAsync(app, app.AdultA, "10000.00");
+        await VolatilityAsync(app, "20");
+
+        var first = await ProjectionAsync(app, app.AdultA, "?horizon=5y&ranges=true");
+        var again = await ProjectionAsync(app, app.AdultA, "?horizon=5y&ranges=true");
+
+        var last = List(first.GetProperty("ranges"), "points")[^1];
+        Assert.True(Dec(last, "low") < Dec(last, "median") && Dec(last, "median") < Dec(last, "high"), last.GetRawText());
+        Assert.Equal(first.GetProperty("ranges").GetRawText(), again.GetProperty("ranges").GetRawText());
+    }
+
     [Fact]
     public async Task Point_zero_equals_the_dashboard_net_worth()
     {

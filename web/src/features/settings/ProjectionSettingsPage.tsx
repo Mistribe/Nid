@@ -54,6 +54,7 @@ export function ProjectionSettingsPage() {
             <ul className="space-y-1 text-sm">
               {ASSET_CLASSES.map((c) => <li key={c}>{t(`settings.projection.class.${c}`)} : {withYears(assumptions.data.classRates[c] ?? '', assumptions.data.classRatesByYear[c], t('settings.projection.then'))}</li>)}
               <li>{t('settings.projection.inflation')} : {withYears(assumptions.data.inflation, assumptions.data.inflationByYear, t('settings.projection.then'))}</li>
+              <li>{t('settings.projection.volatility_summary')} : {ASSET_CLASSES.map((c) => `${t(`settings.projection.class.${c}`)} ${percent(assumptions.data.classVolatility[c] ?? '0')}`).join(', ')}</li>
               <li>{t('settings.projection.income_growth_summary')} : {t('settings.projection.income_growth_value', { percent: percent(assumptions.data.incomeGrowth) })}</li>
               <li>{t('settings.projection.monthly_savings')} : {assumptions.data.monthlySavings ? formatCurrency(assumptions.data.monthlySavings, assumptions.data.currency) : t('settings.projection.savings_auto_summary')}</li>
               <li>{t('settings.projection.savings_class')} : {t(`settings.projection.class.${assumptions.data.savingsClass as (typeof ASSET_CLASSES)[number]}`)}</li>

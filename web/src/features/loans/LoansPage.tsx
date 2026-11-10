@@ -30,13 +30,15 @@ function useLoans(scope: 'me' | 'household', ended: boolean, enabled = true) {
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 
+const AnalysisTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.AnalysisTab })));
+
 const EarlyTab = lazy(() => import('./early/EarlyTab').then((m) => ({ default: m.EarlyTab })));
 
-const WITH_EARLY = ['overview', 'list', 'early'] as const;
-const WITHOUT_EARLY = ['overview', 'list'] as const;
+const WITH_EARLY = ['overview', 'analysis', 'list', 'early'] as const;
+const WITHOUT_EARLY = ['overview', 'analysis', 'list'] as const;
 
 /**
- * Loans dashboard §3.1 and §5.3: the overview opens first; the list keeps its switch of the ended loans under `?tab=list`;
+ * Loans dashboard §3.1 and §5.3: the overview opens first (the simple view, issue #20), then « Analyse » (the rest of it); the list keeps its switch of the ended loans under `?tab=list`;
  * « Rembourser plus tôt » (`?tab=early`) only while a loan is running. The overview's answer is shared with its tab.
  */
 export function LoansPage() {
@@ -53,6 +55,7 @@ export function LoansPage() {
       <PageHeader title={t('loans.title')} actions={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('loans_overview.tab_overview'), content: <Suspense fallback={fallback}><OverviewTab scope={scope} /></Suspense> },
+        { id: 'analysis', label: t('loans_overview.tab_analysis'), content: <Suspense fallback={fallback}><AnalysisTab scope={scope} /></Suspense> },
         { id: 'list', label: t('loans_overview.tab_list'), content: <ListTab scope={scope} /> },
         ...(running ? [{ id: 'early' as const, label: t('loans_early.tab'),
           content: <Suspense fallback={fallback}><EarlyTab scope={scope} overview={running} /></Suspense> }] : []),

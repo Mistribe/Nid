@@ -58,7 +58,7 @@ describe('Abonnements › vue d’ensemble', () => {
       { personId: ALICE, amortized: eur('15.00'), ownedAlone: 2, shared: 1 },
       { personId: BOB, amortized: eur('0.00'), ownedAlone: 0, shared: 0 },
     ] }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=analysis');
 
     const people = within(await region('Par personne')).getAllByRole('listitem');
     await waitFor(() => expect(people[0]).toHaveTextContent('Alice Dev'));
@@ -78,7 +78,7 @@ describe('Abonnements › vue d’ensemble', () => {
       seen.push(new URL(request.url).search);
       return HttpResponse.json(list([summary({})]));
     }));
-    const { user, router } = await renderApp('/subscriptions');
+    const { user, router } = await renderApp('/subscriptions?tab=analysis');
 
     const labels = await region('Par libellé');
     const rows = within(labels).getAllByRole('listitem');
@@ -99,7 +99,7 @@ describe('Abonnements › vue d’ensemble', () => {
       { date: '2026-10-28', itemId: SPOTIFY, displayName: 'Spotify', provider: null, price: { amount: '9.99', currency: 'USD' }, converted: eur('9.20'), isProjected: true },
       { date: '2026-11-02', itemId: PRIME, displayName: 'Prime', provider: null, price: { amount: '69.90', currency: 'USD' }, converted: null, isProjected: true },
     ] }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=analysis');
 
     const [first, second] = within(await region('Prochains prélèvements')).getAllByRole('listitem');
     expect(first).toHaveTextContent(/28 oct\. 2026.*Spotify.*9,20 €/);
@@ -109,7 +109,7 @@ describe('Abonnements › vue d’ensemble', () => {
 
   it('Upcoming_links_to_the_calendar', async () => {
     serve(overview({ activeCount: 1 }));
-    await renderApp('/subscriptions?scope=me');
+    await renderApp('/subscriptions?scope=me&tab=analysis');
 
     const link = within(await region('Prochains prélèvements')).getByRole('link', { name: 'Calendrier' });
     expect(link).toHaveAttribute('href', '/subscriptions?scope=me&tab=calendar');
@@ -128,7 +128,7 @@ describe('Abonnements › vue d’ensemble', () => {
   it('shows the first eight upcoming charges and counts the others', async () => {
     const charge = (n: number) => ({ date: '2026-10-28', itemId: SPOTIFY, displayName: `Charge ${n}`, provider: null, price: eur('1.00'), converted: null, isProjected: true });
     serve(overview({ activeCount: 1, upcoming: Array.from({ length: 10 }, (_, n) => charge(n)) }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=analysis');
 
     const rows = within(await region('Prochains prélèvements')).getAllByRole('listitem');
     expect(rows).toHaveLength(9);
@@ -178,6 +178,42 @@ describe('Abonnements › vue d’ensemble', () => {
     expect(within(watch).getByRole('link', { name: /^2 abonnements chez un même fournisseur : 40,00\s€ par mois$/ })).toBeInTheDocument();
   });
 
+  it('keeps the simple view to the figures, the months and what to watch; « Analyse » has the rest (issue #20)', async () => {
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/subscriptions/overview', ({ request }) => {
+      seen.push(new URL(request.url).search);
+      return HttpResponse.json(overview({ activeCount: 1 }));
+    }));
+    const { user, container } = await renderApp('/subscriptions');
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Vue d’ensemble', 'Analyse', 'Liste', 'Calendrier']);
+    await region('À surveiller');
+    expect(screen.getByRole('region', { name: '12 prochains mois' })).toBeInTheDocument();
+    for (const name of ['Par personne', 'Par libellé', 'Prochains prélèvements'])
+      expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
+    for (const name of ['Par personne', 'Par libellé', 'Prochains prélèvements']) expect(await region(name)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'À surveiller' })).not.toBeInTheDocument();
+    expect(seen).toHaveLength(1);
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows three lines to watch, the others on demand', async () => {
+    serve(overview({ activeCount: 4, watch: [
+      { code: 'subscriptions.ends_without_renewal', itemIds: [SPOTIFY], date: '2026-12-31', amount: null },
+      { code: 'subscriptions.long_cycle_charge_soon', itemIds: [PRIME], date: '2026-11-15', amount: eur('69.90') },
+      { code: 'subscriptions.same_provider', itemIds: [CLAUDE_PRO, CLAUDE_API], date: null, amount: eur('40.00') },
+      { code: 'subscriptions.long_cycle_charge_soon', itemIds: [CLAUDE_PRO], date: '2026-11-20', amount: eur('120.00') },
+    ] }));
+    const { user } = await renderApp('/subscriptions');
+
+    const watch = await region('À surveiller');
+    await waitFor(() => expect(within(watch).getAllByRole('listitem')).toHaveLength(3));
+    await user.click(within(watch).getByRole('button', { name: 'Tout voir (4)' }));
+    expect(within(watch).getAllByRole('listitem')).toHaveLength(4);
+  });
+
   it('says there is nothing to watch', async () => {
     serve(overview({ activeCount: 1 }));
     await renderApp('/subscriptions');
@@ -187,7 +223,7 @@ describe('Abonnements › vue d’ensemble', () => {
 
   it('Top_providers_open_the_list_on_their_provider', async () => {
     serve(overview({ activeCount: 1, endedCount: 1, topProviders: [{ provider: ANTHROPIC, spent: eur('480.00'), partial: true }] }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=analysis');
 
     const row = within(await region('Fournisseurs qui ont le plus coûté')).getByRole('listitem');
     expect(row).toHaveTextContent(/Anthropic.*480,00 €.*partiel/);
@@ -199,7 +235,7 @@ describe('Abonnements › vue d’ensemble', () => {
     serve(overview({ activeCount: 1, endedCount: 1, savings: { last12Months: eur('60.00'), partial: false, items: [
       { itemId: PRIME, displayName: 'World of Warcraft', provider: null, endedOn: '2025-04-01', last12Months: eur('60.00') },
     ] } }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=analysis');
 
     const savings = await region('Économisé grâce aux résiliations');
     expect(savings).toHaveTextContent('60,00 € depuis 12 mois');
@@ -208,8 +244,8 @@ describe('Abonnements › vue d’ensemble', () => {
 
   it('Price_rises_list_increases_and_launch_offers_ending_and_are_absent_without_any', async () => {
     serve(overview({ activeCount: 2 }));
-    await renderApp('/subscriptions');
-    await region('À surveiller');
+    await renderApp('/subscriptions?tab=analysis');
+    await region('Par libellé');
     expect(screen.queryByRole('region', { name: 'Hausses de prix' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Économisé grâce aux résiliations' })).not.toBeInTheDocument();
 
@@ -220,7 +256,7 @@ describe('Abonnements › vue d’ensemble', () => {
       { itemId: PRIME, displayName: 'Prime', provider: null, on: '2026-02-01', oldPrice: eur('0.99'), oldEvery: month,
         newPrice: eur('9.99'), newEvery: month, yearlyDifference: eur('108.00'), promoEnded: true },
     ] } }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=analysis');
 
     const rises = await region('Hausses de prix');
     expect(rises).toHaveTextContent('+36,00 € par an sur 12 mois');
@@ -241,7 +277,7 @@ describe('Abonnements › vue d’ensemble', () => {
       rise(PRIME, 'Prime', { changePct: 10 }),
       rise('0192f0aa-0000-7000-8000-0000000000f3', 'Gratuit', { oldPrice: eur('0.00'), changePct: null, real: { percent: null, inflationTo: null, missing: null } }),
     ] } }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=analysis');
 
     const [chf, absent, free] = within(await region('Hausses de prix')).getAllByRole('listitem');
     expect(chf).toHaveTextContent('+10,0 %');
@@ -263,7 +299,7 @@ describe('Abonnements › vue d’ensemble', () => {
 
   it('Years_open_in_the_explorer', async () => {
     serve(overview({ activeCount: 1, years: [{ year: 2026, paid: eur('100.00'), upcoming: eur('20.00'), total: eur('120.00'), byLabel: [] }] }));
-    const { user, router } = await renderApp('/subscriptions');
+    const { user, router } = await renderApp('/subscriptions?tab=analysis');
 
     await user.click(await within(await region('Coût par an')).findByRole('link', { name: 'Voir la série' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
@@ -276,7 +312,7 @@ describe('Abonnements › vue d’ensemble', () => {
       { year: 2025, paid: eur('120.00'), upcoming: eur('0.00'), total: eur('120.00'), byLabel: label('120.00') },
       { year: 2026, paid: eur('100.00'), upcoming: eur('20.00'), total: eur('120.00'), byLabel: label('100.00') },
     ] }));
-    const { user } = await renderApp('/subscriptions');
+    const { user } = await renderApp('/subscriptions?tab=analysis');
 
     const years = await region('Coût par an');
     await user.click(await within(years).findByRole('button', { name: 'Afficher en tableau' }));
