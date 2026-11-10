@@ -97,39 +97,40 @@ export function IrlPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'series', label: t('admin.tab_series'), content: (
           <>
-          <AdminSeries seriesKey="irl" />
-          <Section title={t('admin.irl.values_title')} actions={<SeriesLink keys={['irl']} />}>
-            {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
-            {irl.data && irl.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_values')} body="" level={3} /> : null}
-            {irl.data && irl.data.values.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('admin.irl.quarter')}</TableHead>
-                    <TableHead>{t('admin.irl.value')}</TableHead>
-                    <TableHead>{t('admin.irl.published')}</TableHead>
-                    <TableHead>{t('admin.irl.fetched')}</TableHead>
-                    <TableHead>{t('admin.irl.source')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {irl.data.values.map((v) => (
-                    <TableRow key={v.quarter}>
-                      <TableCell>{quarterText(v.quarter)}</TableCell>
-                      <TableCell className="tabular-nums">{v.value}</TableCell>
-                      <TableCell>{v.publishedOn ? formatLocalDate(v.publishedOn) : null}</TableCell>
-                      <TableCell>{formatLocalDate(v.fetchedOn)}</TableCell>
-                      <TableCell>{v.source === 'insee' ? t('admin.irl.source_insee') : t('admin.irl.source_manual')}</TableCell>
+            <AdminSeries seriesKey="irl" />
+            <Section title={t('admin.irl.values_title')} actions={<SeriesLink keys={['irl']} />}>
+              {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
+              {irl.data && irl.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_values')} body="" level={3} /> : null}
+              {irl.data && irl.data.values.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('admin.irl.quarter')}</TableHead>
+                      <TableHead>{t('admin.irl.value')}</TableHead>
+                      <TableHead>{t('admin.irl.published')}</TableHead>
+                      <TableHead>{t('admin.irl.fetched')}</TableHead>
+                      <TableHead>{t('admin.irl.source')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : null}
-          </Section>
+                  </TableHeader>
+                  <TableBody>
+                    {irl.data.values.map((v) => (
+                      <TableRow key={v.quarter}>
+                        <TableCell>{quarterText(v.quarter)}</TableCell>
+                        <TableCell className="tabular-nums">{v.value}</TableCell>
+                        <TableCell>{v.publishedOn ? formatLocalDate(v.publishedOn) : null}</TableCell>
+                        <TableCell>{formatLocalDate(v.fetchedOn)}</TableCell>
+                        <TableCell>{v.source === 'insee' ? t('admin.irl.source_insee') : t('admin.irl.source_manual')}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : null}
+            </Section>
           </>
         ) },
         { id: 'journal', label: t('admin.tab_journal'), content: (
           <Section title={t('admin.irl.runs_title')}>
+            {!irl.data && !irl.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
             {irl.data && irl.data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.irl.no_runs')} body="" level={3} /> : null}
             {irl.data && irl.data.runs.length > 0 ? (
               <Table>

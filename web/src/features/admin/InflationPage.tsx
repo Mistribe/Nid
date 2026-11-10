@@ -100,37 +100,38 @@ export function InflationPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'series', label: t('admin.tab_series'), content: (
           <>
-          <AdminSeries seriesKey="cpi" />
-          <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
-            {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
-            {inflation.data && inflation.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}
-            {inflation.data && inflation.data.values.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('admin.inflation.month')}</TableHead>
-                    <TableHead>{t('admin.inflation.value')}</TableHead>
-                    <TableHead>{t('admin.inflation.source')}</TableHead>
-                    <TableHead>{t('admin.inflation.fetched')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {inflation.data.values.map((v) => (
-                    <TableRow key={v.month}>
-                      <TableCell>{monthText(v.month)}</TableCell>
-                      <TableCell className="tabular-nums">{v.value}</TableCell>
-                      <TableCell>{v.source === 'insee' ? t('admin.inflation.source_insee') : t('admin.inflation.source_manual')}</TableCell>
-                      <TableCell>{formatLocalDate(v.fetchedOn)}</TableCell>
+            <AdminSeries seriesKey="cpi" />
+            <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
+              {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
+              {inflation.data && inflation.data.values.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}
+              {inflation.data && inflation.data.values.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('admin.inflation.month')}</TableHead>
+                      <TableHead>{t('admin.inflation.value')}</TableHead>
+                      <TableHead>{t('admin.inflation.source')}</TableHead>
+                      <TableHead>{t('admin.inflation.fetched')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : null}
-          </Section>
+                  </TableHeader>
+                  <TableBody>
+                    {inflation.data.values.map((v) => (
+                      <TableRow key={v.month}>
+                        <TableCell>{monthText(v.month)}</TableCell>
+                        <TableCell className="tabular-nums">{v.value}</TableCell>
+                        <TableCell>{v.source === 'insee' ? t('admin.inflation.source_insee') : t('admin.inflation.source_manual')}</TableCell>
+                        <TableCell>{formatLocalDate(v.fetchedOn)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : null}
+            </Section>
           </>
         ) },
         { id: 'journal', label: t('admin.tab_journal'), content: (
           <Section title={t('admin.inflation.runs_title')}>
+            {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
             {inflation.data && inflation.data.runs.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_runs')} body="" level={3} /> : null}
             {inflation.data && inflation.data.runs.length > 0 ? (
               <Table>

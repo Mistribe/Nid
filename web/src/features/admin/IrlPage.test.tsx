@@ -22,7 +22,7 @@ const serve = (irlEnabled = true) => server.use(
 );
 
 describe('Administration › IRL', () => {
-  it('lists the stored quarters and the runs', async () => {
+  it('lists the stored quarters', async () => {
     serve();
     const { container } = await renderApp('/admin/irl', { capabilities: adminCapabilities });
 

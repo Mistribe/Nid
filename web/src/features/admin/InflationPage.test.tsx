@@ -23,7 +23,7 @@ const serve = (inflationEnabled = true) => server.use(
 );
 
 describe('Administration › Inflation', () => {
-  it('lists the stored months, in the server order, and the runs', async () => {
+  it('lists the stored months, in the server order', async () => {
     serve();
     const { container } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
 
