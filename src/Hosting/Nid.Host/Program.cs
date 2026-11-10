@@ -187,6 +187,7 @@ app.MapChildcareEndpoints();
 app.MapDocumentEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
+app.MapReportEndpoints();
 app.MapProjectionEndpoints();
 app.MapSeriesEndpoints();
 app.MapInflationEndpoints();

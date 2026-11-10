@@ -3,6 +3,12 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Core.Contracts;
 
+public static class ReportCodes
+{
+    /// <summary>Issue #12: a year after the current one, or before the first with a holding.</summary>
+    public const string InvalidYear = "reports.invalid_year";
+}
+
 /// <summary>Issue #12: the investments over [Start, End], converted into the reference currency as the Performance page does.</summary>
 public interface IInvestmentsReview
 {

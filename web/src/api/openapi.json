@@ -21175,6 +21175,102 @@
         }
       }
     },
+    "/api/v1/reports/year": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/YearReviewView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/core/projection-assumptions": {
       "get": {
         "tags": [
@@ -40331,6 +40427,172 @@
           }
         }
       },
+      "InvestmentsReviewRowView": {
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "staleStart"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "startValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "netContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "gain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "staleStart": {
+            "type": "boolean"
+          }
+        }
+      },
+      "InvestmentsReviewView": {
+        "required": [
+          "envelopes",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "startValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "contributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "withdrawals": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "gain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "previousGain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousPeriodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "envelopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvestmentsReviewRowView"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "IReadOnlyListOfSwitchLegBody": {
         "type": "array",
         "items": {
@@ -43413,6 +43675,49 @@
                 "$ref": "#/components/schemas/DashboardMoneyView"
               }
             ]
+          }
+        }
+      },
+      "NetWorthReviewView": {
+        "required": [
+          "start",
+          "end",
+          "change",
+          "parts",
+          "previousParts"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "end": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "change": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewPartView"
+            }
+          },
+          "previousChange": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousParts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewPartView"
+            }
           }
         }
       },
@@ -48881,6 +49186,29 @@
             "items": {
               "$ref": "#/components/schemas/ReturnBreakdownLineView"
             }
+          }
+        }
+      },
+      "ReviewPartView": {
+        "required": [
+          "key",
+          "amount",
+          "low",
+          "high"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "low": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "high": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
           }
         }
       },
@@ -54980,6 +55308,60 @@
               },
               {
                 "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          }
+        }
+      },
+      "YearReviewView": {
+        "required": [
+          "year",
+          "start",
+          "end",
+          "toDate",
+          "years"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "end": {
+            "type": "string",
+            "format": "date"
+          },
+          "toDate": {
+            "type": "boolean"
+          },
+          "years": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "netWorth": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NetWorthReviewView"
+              }
+            ]
+          },
+          "investments": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InvestmentsReviewView"
               }
             ]
           }

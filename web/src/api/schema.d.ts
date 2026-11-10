@@ -19710,6 +19710,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/year": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    year?: number;
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["YearReviewView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/projection-assumptions": {
         parameters: {
             query?: never;
@@ -29894,6 +29986,33 @@ export interface components {
             reference?: null | components["schemas"]["ReturnReferenceView"];
             findings: components["schemas"]["OverviewFindingView"][];
         };
+        InvestmentsReviewRowView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            startValue?: null | components["schemas"]["DashboardMoneyView"];
+            endValue?: null | components["schemas"]["DashboardMoneyView"];
+            netContributions?: null | components["schemas"]["DashboardMoneyView"];
+            gain?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            periodReturnPct?: null | number;
+            staleStart: boolean;
+        };
+        InvestmentsReviewView: {
+            startValue?: null | components["schemas"]["DashboardMoneyView"];
+            endValue?: null | components["schemas"]["DashboardMoneyView"];
+            contributions?: null | components["schemas"]["DashboardMoneyView"];
+            withdrawals?: null | components["schemas"]["DashboardMoneyView"];
+            gain?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            periodReturnPct?: null | number;
+            previousGain?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            previousPeriodReturnPct?: null | number;
+            envelopes: components["schemas"]["InvestmentsReviewRowView"][];
+            findings: string[];
+        };
         IReadOnlyListOfSwitchLegBody: components["schemas"]["SwitchLegBody"][];
         IrlAdminView: {
             values: components["schemas"]["IrlValueView"][];
@@ -30608,6 +30727,14 @@ export interface components {
             missingCurrency?: null | string;
             realValue?: null | components["schemas"]["DashboardMoneyView"];
             realContributions?: null | components["schemas"]["DashboardMoneyView"];
+        };
+        NetWorthReviewView: {
+            start: components["schemas"]["DashboardMoneyView"];
+            end: components["schemas"]["DashboardMoneyView"];
+            change: components["schemas"]["DashboardMoneyView"];
+            parts: components["schemas"]["ReviewPartView"][];
+            previousChange?: null | components["schemas"]["DashboardMoneyView"];
+            previousParts: components["schemas"]["ReviewPartView"][];
         };
         NewTokenBody: {
             name: string;
@@ -31879,6 +32006,12 @@ export interface components {
             priceSource: string;
             savingsEffort: string;
             breakdown: components["schemas"]["ReturnBreakdownLineView"][];
+        };
+        ReviewPartView: {
+            key: string;
+            amount: components["schemas"]["DashboardMoneyView"];
+            low: components["schemas"]["DashboardMoneyView"];
+            high: components["schemas"]["DashboardMoneyView"];
         };
         ReviseChildcareBody: {
             terms?: null | components["schemas"]["TermsBody"];
@@ -33251,6 +33384,18 @@ export interface components {
             name?: null | string;
             color?: null | string;
             paid?: null | components["schemas"]["MoneyView"];
+        };
+        YearReviewView: {
+            /** Format: int32 */
+            year: number;
+            /** Format: date */
+            start: string;
+            /** Format: date */
+            end: string;
+            toDate: boolean;
+            years: number[];
+            netWorth?: null | components["schemas"]["NetWorthReviewView"];
+            investments?: null | components["schemas"]["InvestmentsReviewView"];
         };
         YearView: {
             /** Format: int32 */
