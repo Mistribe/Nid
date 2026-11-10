@@ -41,10 +41,13 @@ function review(over: Partial<YearReview> = {}): YearReview {
       sources: [
         { id: '00000000-0000-0000-0000-0000000000a1', key: 'a1', name: 'Salaire Alice', kind: 'salary', amount: eur('40000.00') },
         { key: 'one_off', amount: eur('10000.00') },
+        { id: '00000000-0000-0000-0000-0000000000a2', key: 'a2', kind: 'rent', amount: eur('5000.00') },
+        { id: '00000000-0000-0000-0000-0000000000a3', key: 'a3', kind: 'pension', amount: null },
       ],
       engagementSources: [
         { source: 'loans', amount: eur('18000.00'), estimated: false },
         { source: 'tax', amount: eur('12000.00'), estimated: true },
+        { source: 'childcare', amount: eur('3000.00'), estimated: true },
       ],
     },
     ...over,
@@ -151,7 +154,20 @@ describe('YearReviewPage', () => {
     expect(sources[1]).toHaveTextContent('Exceptionnels');
     const engagements = within(within(section).getByRole('table', { name: 'Engagements par poste' })).getAllByRole('row').slice(1);
     expect(engagements[0]).not.toHaveTextContent('estimé');
-    expect(engagements[1]).toHaveTextContent('Impôts estimés estimé');
+    expect(engagements[1]).toHaveTextContent(/^Impôts estimés[^é]*12/);
+    expect(engagements[1]).not.toHaveTextContent('estimé estimé');
+    expect(engagements[2]).toHaveTextContent(/^Garde estimé/);
+    expect(sources[2]).toHaveTextContent('Loyers');
+    expect(sources[3]).toHaveTextContent(/^PensionInconnu/);
+  });
+
+  it('says unknown for a margin and an amount the server could not give', async () => {
+    const base = review().income!;
+    serve(() => review({ income: { ...base, margin: null, previousMargin: null } }));
+    await renderApp('/reports/year?year=2025');
+
+    const section = await screen.findByRole('region', { name: 'Revenus et marge' });
+    expect(within(section).getAllByText('Inconnu').length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows no income section without income', async () => {

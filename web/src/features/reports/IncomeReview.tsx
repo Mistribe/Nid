@@ -29,8 +29,8 @@ export function IncomeReview({ year, review }: { year: number; review: Review })
   const engagement = (r: EngagementReviewSource) => (
     <span className="inline-flex flex-wrap items-baseline gap-x-2">
       {posting(r)}
-      {r.estimated ? ' ' : null}
-      {r.estimated ? <span className="text-xs text-muted-foreground">{t('reports.income.estimated')}</span> : null}
+      {/* Tax's label already says it is an estimate. */}
+      {r.estimated && r.source !== 'tax' ? <> <span className="text-xs text-muted-foreground">{t('reports.income.estimated')}</span></> : null}
     </span>
   );
   return (
