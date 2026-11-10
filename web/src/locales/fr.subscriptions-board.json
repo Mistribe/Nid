@@ -27,6 +27,8 @@
     "upcoming_none": "Aucun prélèvement dans les 30 prochains jours.",
     "watch": "À surveiller",
     "watch_none": "Rien à surveiller",
+    "watch_all": "Tout voir ({{count}})",
+    "watch_less": "Moins",
     "unknown_item": "Un abonnement",
     "unknown_provider": "un même fournisseur",
     "tone_alert": "Alerte",
