@@ -397,8 +397,7 @@
     "pension_name": "Pension de retraite",
     "pension_phase": "Pension",
     "pension_amount": "Pension mensuelle nette",
-    "pension_hint": "En euros d'aujourd'hui.",
-    "pension_currency": "Devise",
+    "pension_hint": "Montant d'aujourd'hui, en {{currency}}.",
     "pension_shared": "Visible de l'autre adulte",
     "pension_save": "Enregistrer",
     "pension_saved": "Pension enregistrée."

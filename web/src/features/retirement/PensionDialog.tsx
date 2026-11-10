@@ -5,24 +5,23 @@ import { useApi } from '@/api/ApiProvider';
 import { invalidateIncome, SOURCES } from '@/api/income';
 import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
-import { CurrencyField } from '@/components/form/CurrencyField';
 import { Field } from '@/components/form/Field';
+import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toWireAmount } from '@/lib/amount';
-import { RETIREMENT } from './api';
 
 /** The first day of the month after a server month: « 2030-06 » is « 2030-07-01 » (a date, not an amount). */
-export function startsOnAfter(yyyyMm: string) {
+function startsOnAfter(yyyyMm: string) {
   const [year = 0, m = 1] = yyyyMm.split('-').map(Number);
   return m === 12 ? `${year + 1}-01-01` : `${year}-${String(m + 1).padStart(2, '0')}-01`;
 }
 
 /** One's own retirement pension as an income source, from the month after the departure. */
-export function PensionDialog({ personId, departure, currency: initialCurrency, onClose, onDone }: {
+export function PensionDialog({ personId, departure, currency, onClose, onDone }: {
   personId: string; departure: string; currency: string; onClose: () => void; onDone: (message: string) => void;
 }) {
   const { t } = useTranslation();
@@ -30,8 +29,10 @@ export function PensionDialog({ personId, departure, currency: initialCurrency, 
   const queryClient = useQueryClient();
   const create = $api.useMutation('post', SOURCES);
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState(initialCurrency);
   const [shared, setShared] = useState(true);
+  const fields = fieldErrorsOf(create.error);
+  const amountError = fields.find((f) => f.path.startsWith('phases'));
+  const unplaced = create.error && !(fields.length > 0 && fields.every((f) => f.path.startsWith('phases')));
 
   return (
     <FormDialog title={t('retirement.enter_pension')} onClose={onClose} onDone={onDone}>
@@ -48,17 +49,13 @@ export function PensionDialog({ personId, departure, currency: initialCurrency, 
           }, {
             onSuccess: () => {
               void invalidateIncome(queryClient);
-              void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
               done(t('retirement.pension_saved'));
             },
           });
         }}>
-          {create.error ? <ProblemMessage problem={present(toProblem(create.error))} /> : null}
-          <Field label={t('retirement.pension_amount')} hint={t('retirement.pension_hint')}>
+          {unplaced ? <ProblemMessage problem={present(toProblem(create.error))} /> : null}
+          <Field label={t('retirement.pension_amount')} hint={t('retirement.pension_hint', { currency })} error={amountError ? messageFor(t, amountError) : undefined}>
             {(c) => <Input {...c} inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />}
-          </Field>
-          <Field label={t('retirement.pension_currency')}>
-            {(c) => <CurrencyField {...c} value={currency} onValueChange={setCurrency} />}
           </Field>
           <div className="flex items-center gap-2 text-sm">
             <Checkbox id="pension-shared" checked={shared} onCheckedChange={(v) => setShared(v === true)} />
