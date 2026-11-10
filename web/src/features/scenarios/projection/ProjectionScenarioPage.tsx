@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } fr
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
+import { PERSONS } from '@/api/persons';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { ConfirmFromMenu } from '@/components/ConfirmAction';
@@ -266,16 +267,18 @@ function Assumptions({ scenario }: { scenario: ProjectionScenario }) {
 function Departures({ scenario }: { scenario: ProjectionScenario }) {
   const { t } = useTranslation();
   const adults = useAdults();
+  const loading = useApi().$api.useQuery('get', PERSONS, {}).isPending;
   const { base, document } = scenario.result;
-  const entries = document.retirements ?? [];
+  const entries = (document.retirements ?? []).filter((r) => adults.some((a) => a.id === r.person));
+  if (loading) return null;
   if (entries.length === 0) return <p className="text-sm text-muted-foreground">{t('scenarios.projection.departures.none')}</p>;
   return (
     <section aria-label={t('scenarios.projection.departures.title')} className="space-y-1">
       <h3 className="font-medium">{t('scenarios.projection.departures.title')}</h3>
       <ul className="space-y-0.5 text-sm">
         {entries.map((r) => {
-          const adult = adults.find((a) => a.id === r.person);
-          return adult && (
+          const adult = adults.find((a) => a.id === r.person)!;
+          return (
           <li key={r.person}>
             {t('scenarios.projection.departures.line', {
               name: adult.displayName,

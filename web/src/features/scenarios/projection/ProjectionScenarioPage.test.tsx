@@ -114,6 +114,18 @@ describe('ProjectionScenarioPage', () => {
     await waitFor(() => expect(puts.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }]));
   });
 
+  it('refuses months typed without an age', async () => {
+    const { puts } = serve();
+    const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(await within(dialog).findByLabelText('Âge de départ de Alice (mois)'), '4');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await within(dialog).findByText('Les mois demandent un âge.')).toBeInTheDocument();
+    expect(puts).toEqual([]);
+  });
+
   it('warns of the departures on an adult without a birth date', async () => {
     const v = view();
     v.result.scenario.warnings = [{ code: 'retirement_undated', detail: '2' }];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { departurePath, retirementsOf } from './departures';
+import { departurePath, departuresComplete, retirementsOf } from './departures';
 
 const A = '0192f0aa-0000-7000-8000-0000000000a1';
 const B = '0192f0aa-0000-7000-8000-0000000000b2';
@@ -11,6 +11,13 @@ describe('retirementsOf', () => {
     expect(retirementsOf({ [A]: typed('', '4', '') })).toEqual([]);
     expect(retirementsOf({ [A]: typed('60', '', '') })).toEqual([{ person: A, years: 60 }]);
     expect(retirementsOf({ [A]: typed('60', '6', '') })).toEqual([{ person: A, years: 60, months: 6 }]);
+  });
+});
+
+describe('departuresComplete', () => {
+  it('refuses months without an age', () => {
+    expect(departuresComplete({ [A]: typed('', '4', '') })).toBe(false);
+    expect(departuresComplete({ [A]: typed('60', '4', '') })).toBe(true);
   });
 });
 

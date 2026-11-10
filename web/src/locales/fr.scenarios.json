@@ -336,6 +336,7 @@
         "intro": "L’âge de départ et la pension d’un adulte dans ce scénario ; un champ vide garde ceux du foyer.",
         "years": "Âge de départ de {{name}} (années)",
         "months": "Âge de départ de {{name}} (mois)",
+        "months_need_age": "Les mois demandent un âge.",
         "pension": "Pension mensuelle de {{name}}",
         "pension_hint": "Vide : les pensions du foyer.",
         "household_age": "âge du foyer",

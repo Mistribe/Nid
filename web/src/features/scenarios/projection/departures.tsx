@@ -49,7 +49,7 @@ export const ageText = (t: TFunction, years: number, months: number | null | und
 
 /** Every typed figure reads as a number. */
 export const departuresComplete = (draft: DeparturesDraft | undefined) =>
-  Object.values(draft ?? {}).every((d) => [d.years, d.months].every((v) => !bare(v) || INTEGER.test(bare(v))) && (!bare(d.pension) || AMOUNT.test(bare(d.pension))));
+  Object.values(draft ?? {}).every((d) => (!bare(d.months) || !!bare(d.years)) && [d.years, d.months].every((v) => !bare(v) || INTEGER.test(bare(v))) && (!bare(d.pension) || AMOUNT.test(bare(d.pension))));
 
 /** A server path `retirements[i].years` as the draft's field, `i` being the i-th adult sent. */
 export function departurePath(path: string, sent: Retirements): `departures.${string}` | undefined {
@@ -64,8 +64,8 @@ export function departurePath(path: string, sent: Retirements): `departures.${st
 export function DepartureFields({ adults }: { adults: Adult[] }) {
   const { t } = useTranslation();
   const form = useFormContext<{ departures: DeparturesDraft }>();
-  const input = (name: `departures.${string}`, pattern: RegExp, message: string) => form.register(name, {
-    validate: (v) => { const typed = bare(typeof v === 'string' ? v : ''); return !typed || pattern.test(typed) || message; },
+  const input = (name: `departures.${string}`, pattern: RegExp, message: string, allowed = () => true, refused = '') => form.register(name, {
+    validate: (v) => { const typed = bare(typeof v === 'string' ? v : ''); return !typed || (allowed() ? pattern.test(typed) || message : refused); },
   });
   const integer = t('scenarios.projection.form.invalid_integer');
   const error = (name: `departures.${string}`) => { const e = form.getFieldState(name, form.formState).error?.message; return typeof e === 'string' ? e : undefined; };
@@ -81,7 +81,7 @@ export function DepartureFields({ adults }: { adults: Adult[] }) {
             {(c) => <Input inputMode="numeric" {...c} {...input(`departures.${a.id}.years`, INTEGER, integer)} />}
           </Field>
           <Field label={t('scenarios.projection.departures.months', { name: a.displayName })} error={error(`departures.${a.id}.months`)}>
-            {(c) => <Input inputMode="numeric" {...c} {...input(`departures.${a.id}.months`, INTEGER, integer)} />}
+            {(c) => <Input inputMode="numeric" {...c} {...input(`departures.${a.id}.months`, INTEGER, integer, () => !!bare(form.getValues(`departures.${a.id}.years`)), t('scenarios.projection.departures.months_need_age'))} />}
           </Field>
           <Field label={t('scenarios.projection.departures.pension', { name: a.displayName })} error={error(`departures.${a.id}.pension`)}
             hint={t('scenarios.projection.departures.pension_hint')}>
