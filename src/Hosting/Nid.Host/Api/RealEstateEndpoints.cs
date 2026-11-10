@@ -60,6 +60,21 @@ public static class RealEstateEndpoints
             => (await invoker.InvokeAsync(new GetLoanQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<LoanDetail>();
 
+        api.MapGet("/loans/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new LoanDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        api.MapDelete("/loans/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // A missing version answers 422 at `version`: it would otherwise bind to 0 and pass for a conflict.
+                var reader = new FieldReader();
+                if (RequireVersion(reader, version) is not { } read)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeleteLoanCommand(new ItemId(id), read), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
         api.MapGet("/loans/{id:guid}/schedule", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetLoanScheduleQuery(new ItemId(id)), ct)).ToHttp(schedule => schedule))
             .Returns<LoanScheduleView>();
@@ -236,6 +251,21 @@ public static class RealEstateEndpoints
         api.MapGet("/properties/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetPropertyQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<PropertyDetail>();
+
+        api.MapGet("/properties/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new PropertyDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        api.MapDelete("/properties/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // A missing version answers 422 at `version`: it would otherwise bind to 0 and pass for a conflict.
+                var reader = new FieldReader();
+                if (RequireVersion(reader, version) is not { } read)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeletePropertyCommand(new ItemId(id), read), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
 
         // Rental receipts spec §4: the receipt of a month (yyyy-mm), by default the latest cash in's.
         api.MapGet("/properties/{id:guid}/receipts", async (Guid id, string? month, IInvoker invoker, CancellationToken ct) =>

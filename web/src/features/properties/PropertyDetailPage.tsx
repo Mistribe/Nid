@@ -28,10 +28,12 @@ import { ValuationDialog } from './valuations/ValuationForm';
 import { ValuationsSection } from './valuations/ValuationsSection';
 import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/properties';
+import '@/locales/deletion';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { PageSkeleton } from '@/components/page/skeletons';
 
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 const TABS = ['overview', 'rental', 'return', 'expenses', 'valuations', 'documents', 'settings'] as const;
 
 // Property return spec §6: loaded with its tab.
@@ -51,6 +53,7 @@ export function PropertyDetailPage() {
   const answer = $api.useQuery('get', PROPERTY, { params: { path: { id } } });
   const [tab, setTab] = useDetailTab(TABS);
   const [estimating, setEstimating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const estimateRef = useRef<HTMLButtonElement>(null);
   const [focusEstimate, setFocusEstimate] = useState(false);
   useEffect(() => {
@@ -78,7 +81,8 @@ export function PropertyDetailPage() {
           <Plus aria-hidden="true" />{t('property_valuations.add')}
         </Button>
       ) : null}
-      <SharingMenu item={id} onAnnounce={toast.success} shared={property.canWrite && property.visibility === 'shared'} />
+      <SharingMenu item={id} onAnnounce={toast.success} shared={property.canWrite && property.visibility === 'shared'} label={t('page.more_actions')}
+        trailing={property.canWrite ? [{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }] : []} />
     </>
   );
 
@@ -109,6 +113,7 @@ export function PropertyDetailPage() {
           ))}
         </ul>
       ) : null}
+      {property.canWrite && deleting ? <Suspense fallback={null}><DeleteItemFlow kind="realestate.delete_property" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
       {property.canWrite && estimating ? (
         <ValuationDialog property={property}
           onClose={() => { setEstimating(false); setFocusEstimate(true); }}

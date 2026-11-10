@@ -188,6 +188,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+        services.AddScoped<IItemDeletionPart, SubscriptionsDeletionPart>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
@@ -325,6 +326,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<RealEstateDbContext>>();
         services.AddScoped<ILoanStore, LoanStore>();
         services.AddScoped<IPropertyStore, PropertyStore>();
+        services.AddScoped<IItemDeletionPart, RealEstateDeletionPart>();
         services.AddScoped<Nid.RealEstate.Domain.IIrlStore, IrlStore>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.Irl.IrlSeries>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.LoanSeries>();

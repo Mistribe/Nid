@@ -15,7 +15,7 @@ public sealed class LoanRow : IImportMarked
     public string FirstPeriodMode { get; set; } = "";
     public string? Note { get; set; }
 
-    /// <summary>Spec 3C1 §2: the property financed; no foreign key across items (a property is never deleted).</summary>
+    /// <summary>Spec 3C1 §2: the property financed; no foreign key across items (a property it finances refuses its delete, #23).</summary>
     public Guid? PropertyItemId { get; set; }
 
     /// <summary>Spec 3F2 §2: <c>computed</c> or <c>bank</c>, the schedule the loan's readers read.</summary>

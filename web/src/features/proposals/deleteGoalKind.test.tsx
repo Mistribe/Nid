@@ -97,4 +97,36 @@ describe('A proposal to delete a goal', () => {
     await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: ENVELOPE, version: 3 } }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/investments'));
   });
+
+  it('a property deletion opens the same dialog and approves with the preview version', async () => {
+    const ITEM = '0192f0aa-0000-7000-8000-00000000f001';
+    const p = proposal({ kind: 'realestate.delete_property', targetItemId: ITEM, targetName: 'Maison de Nantes', subjectKey: null, payload: { id: ITEM, version: 1 } });
+    const sent = serve([p], { preview: {} });
+    server.use(http.get('*/api/v1/realestate/properties/:id/deletion', () => HttpResponse.json({ name: 'Maison de Nantes', version: 2, imported: false, removes: [], blockers: [] })));
+    const { user, router } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer Maison de Nantes' });
+    await user.type(await within(dialog).findByLabelText(/Tapez/), 'Maison de Nantes');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: ITEM, version: 2 } }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/properties'));
+  });
+
+  it('a loan deletion opens the same dialog and approves with the preview version', async () => {
+    const ITEM = '0192f0aa-0000-7000-8000-00000000f002';
+    const p = proposal({ kind: 'realestate.delete_loan', targetItemId: ITEM, targetName: 'Prêt maison', subjectKey: null, payload: { id: ITEM, version: 1 } });
+    const sent = serve([p], { preview: {} });
+    server.use(http.get('*/api/v1/realestate/loans/:id/deletion', () => HttpResponse.json({ name: 'Prêt maison', version: 2, imported: false, removes: [], blockers: [] })));
+    const { user, router } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer Prêt maison' });
+    await user.type(await within(dialog).findByLabelText(/Tapez/), 'Prêt maison');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: ITEM, version: 2 } }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/loans'));
+  });
 });

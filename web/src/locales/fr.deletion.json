@@ -13,7 +13,9 @@
     "warning_closed": "La suppression est définitive et ne peut pas être annulée.",
     "way_out": {
       "goal_funding": "Retirez l’enveloppe du financement de ces objectifs.",
-      "transfers": "Annulez d’abord les virements avec ces enveloppes."
+      "transfers": "Annulez d’abord les virements avec ces enveloppes.",
+      "loan": "Rattachez ces crédits à un autre bien, ou supprimez-les s’ils ont eux aussi été créés par erreur.",
+      "insurance": "Détachez d’abord le bien de ces assurances."
     },
     "close_hint": {
       "goals.delete_goal": "Clôturer",
@@ -46,6 +48,24 @@
       "transfers_other": "{{count}} virements avec d’autres enveloppes",
       "funding_one": "{{count}} financement",
       "funding_other": "{{count}} financements",
+      "tenancies_one": "{{count}} bail",
+      "tenancies_other": "{{count}} baux",
+      "recurring_costs_one": "{{count}} charge récurrente",
+      "recurring_costs_other": "{{count}} charges récurrentes",
+      "loan_phases_one": "{{count}} phase de crédit",
+      "loan_phases_other": "{{count}} phases de crédit",
+      "loan_insurances_one": "{{count}} assurance de crédit",
+      "loan_insurances_other": "{{count}} assurances de crédit",
+      "loan_fees_one": "{{count}} frais de crédit",
+      "loan_fees_other": "{{count}} frais de crédit",
+      "loan_repayments_one": "{{count}} remboursement",
+      "loan_repayments_other": "{{count}} remboursements",
+      "bank_schedule_rows_one": "{{count}} ligne d’échéancier bancaire",
+      "bank_schedule_rows_other": "{{count}} lignes d’échéancier bancaire",
+      "loan_one": "{{count}} crédit le finance",
+      "loan_other": "{{count}} crédits le financent",
+      "insurance_one": "{{count}} assurance le couvre",
+      "insurance_other": "{{count}} assurances le couvrent",
       "progress_entries_one": "{{count}} versement suivi",
       "progress_entries_other": "{{count}} versements suivis"
     }
