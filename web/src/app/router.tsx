@@ -17,6 +17,7 @@ import type { LoanContractView } from '@/api/loans';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
 import { ErrorPage } from '@/components/ErrorPage';
 import { PageSkeleton } from '@/components/page/skeletons';
+import { CURRENCY } from '@/lib/amount';
 import { ForbiddenPage } from './ForbiddenPage';
 import { NotFoundPage } from './NotFoundPage';
 import { useSession, type Capabilities } from './Providers';
@@ -83,6 +84,12 @@ const isIsoDate = (value: unknown): value is string => typeof value === 'string'
 // The router parses a numeric value (`tab=2044`) to a number: both spellings are read.
 export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
   ((typeof search.tab === 'string' && search.tab !== '') || typeof search.tab === 'number' ? { tab: String(search.tab) } : {});
+
+/** Administration › Taux de change: the tab, and the currency drawn (EUR is the default, USD the base: neither is a choice). */
+const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: string } => {
+  const quote = typeof search.quote === 'string' ? search.quote.toUpperCase() : '';
+  return { ...detailSearch(search), ...(CURRENCY.test(quote) && quote !== 'USD' ? { quote } : {}) };
+};
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
 export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
@@ -637,7 +644,7 @@ const adminRoute = createRoute({
 
 const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/UsersPage'), 'UsersPage') });
 const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/household', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/HouseholdPage'), 'HouseholdPage') });
-const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/fx', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/FxPage'), 'FxPage') });
+const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: fxSearch, path: '/admin/fx', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/FxPage'), 'FxPage') });
 const adminPricesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/prices', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/PricesPage'), 'PricesPage') });
 const adminIrlRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: detailSearch, path: '/admin/irl', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/IrlPage'), 'IrlPage') });
 const adminInflationRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: detailSearch, path: '/admin/inflation', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/InflationPage'), 'InflationPage') });

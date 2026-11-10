@@ -7,6 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { formatInstant } from '@/lib/format';
+import { fromOf } from '@/features/series/selection';
 
 const run = {
   id: '01926b9e-0000-7000-8000-0000000000f1', kind: 'backfill', startedAt: '2026-09-24T07:00:00+00:00',
@@ -16,8 +17,9 @@ const run = {
 describe('Administration › Taux de change', () => {
   it('lists the collection runs', async () => {
     server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([run])));
-    const { container } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+    const { container, user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
+    await user.click(await screen.findByRole('tab', { name: 'Journal' }));
     const row = await screen.findByRole('row', { name: /rattrapage/ });
     expect(row).toHaveTextContent('réussi');
     expect(row).toHaveTextContent(formatInstant(run.startedAt));
@@ -93,17 +95,33 @@ describe('Administration › Taux de change', () => {
     expect(calls).toBe(0);
   });
 
-  it('opens a currency against the dollar', async () => {
-    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])));
-    const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
-
-    await user.type(await screen.findByLabelText('Devise'), 'eur');
-    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
-    expect(router.state.location.search).toMatchObject({ s: 'fx:EUR' });
+  const points = (asked: URLSearchParams[]) => http.get('*/api/v1/series/points', ({ request }) => {
+    asked.push(new URL(request.url).searchParams);
+    return HttpResponse.json({ baseDate: null, series: [] });
   });
 
-  it('refuses USD and a code that is not three letters', async () => {
+  it('draws EUR by default over the last year', async () => {
+    const asked: URLSearchParams[] = [];
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    await waitFor(() => expect(asked.length).toBeGreaterThan(0));
+    expect(asked[0]!.get('s')).toBe('fx:EUR');
+    expect(asked[0]!.get('from')).toBe(fromOf('1y'));
+  });
+
+  it('draws the currency asked', async () => {
+    const asked: URLSearchParams[] = [];
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    await user.type(await screen.findByLabelText('Devise'), 'gbp');
+    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ quote: 'GBP' }));
+    await waitFor(() => expect(asked.some((p) => p.get('s') === 'fx:GBP')).toBe(true));
+  });
+
+  it('refuses an invalid code', async () => {
     server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])));
     const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
@@ -116,6 +134,18 @@ describe('Administration › Taux de change', () => {
     await user.type(field, 'EU');
     await user.click(screen.getByRole('button', { name: 'Voir la série' }));
     expect(screen.getByText(/Trois lettres, autre que USD/)).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/admin/fx');
+    expect(router.state.location.search).not.toHaveProperty('quote');
+  });
+
+  it('keeps the currency across tabs', async () => {
+    const asked: URLSearchParams[] = [];
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    const { user } = await renderApp('/admin/fx?quote=CHF', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('tab', { name: 'Journal' }));
+    await user.click(await screen.findByRole('tab', { name: 'Série' }));
+    expect(await screen.findByLabelText('Devise')).toBeInTheDocument();
+    expect(asked.every((p) => p.get('s') === 'fx:CHF')).toBe(true);
+    expect(asked.length).toBeGreaterThan(0);
   });
 });
