@@ -11,8 +11,9 @@ costs, and how it all moves over time.**
   <img alt="The investments overview: total value, net contributions, gain, annual return and a chart of value and contributions" src="docs/frontend/screens/overview-light.png">
 </picture>
 
-Nid is not a budgeting or bookkeeping tool: day-to-day transactions stay in your banking app. It answers the questions
-those apps leave open:
+Nid is not a bookkeeping tool: nobody types in day-to-day transactions. Bank lines arrive through bank sync and are
+matched to what Nid expects (subscriptions, loan payments, rents, transfers). It answers the questions banking apps
+leave open:
 
 - **Where do we stand?** Net worth, by envelope and by owner (mine, yours, joint).
 - **What is committed each month?** Subscriptions, loans, insurance, childcare, and what is coming up next.
