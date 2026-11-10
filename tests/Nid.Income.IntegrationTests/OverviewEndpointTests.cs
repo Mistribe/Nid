@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Nid.Core.Contracts;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
 using static Nid.TestSupport.PropertyApi;
@@ -276,5 +277,95 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal("income.invalid_period", (await JsonAsync(response)).GetProperty("code").GetString());
         Assert.Equal(36, Months(await OverviewAsync(app, "?period=3y")).Count);
         Assert.Equal("2024-11-01", (await OverviewAsync(app, "?period=12m")).GetProperty("from").GetString());
+    }
+    private static async Task<IncomeReviewPart> ReviewAsync(NidApp app, int year)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+        var end = year == NidApp.GoldenCaseToday.Year ? NidApp.GoldenCaseToday : new LocalDate(year, 12, 31);
+        var review = await scope.ServiceProvider.GetRequiredService<IIncomeReview>()
+            .ReviewAsync(app.AdultA, VisibilityScope.Me, new LocalDate(year - 1, 12, 31), end, TestContext.Current.CancellationToken);
+        Assert.True(review.TryGetValue(out var part));
+        return part!;
+    }
+
+    [Fact]
+    public async Task The_overview_reads_a_past_year()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA, startsOn: "2023-06-01");
+
+        var overview = await OverviewAsync(app, "?period=year&year=2024");
+
+        Assert.Equal(("2024-01-01", "2024-12-31"), (overview.GetProperty("from").GetString(), overview.GetProperty("to").GetString()));
+        var figures = overview.GetProperty("figures");
+        Assert.Equal(("24000.00", "24000.00", "10000.00"),
+            (Amount(figures.GetProperty("total")), Amount(figures.GetProperty("elapsed")), Amount(figures.GetProperty("changeVsPrevious"))));
+        Assert.DoesNotContain(Months(overview), m => m.GetProperty("upcoming").GetBoolean());
+    }
+
+    [Fact]
+    public async Task The_review_part_matches_the_overview()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var salary = await SalaryAsync(app, app.AdultA, startsOn: "2023-06-01");
+        var property = await RentalAsync(app, app.AdultA);
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{salary}/one-offs",
+            new { occurredOn = "2024-06-15", amount = new { amount = "500", currency = "EUR" }, note = "Prime" }));
+
+        var past = await ReviewAsync(app, 2024);
+        var current = await ReviewAsync(app, 2025);
+
+        Assert.Equal(Amount((await OverviewAsync(app, "?period=year&year=2024")).GetProperty("figures").GetProperty("total")), $"{past.Total:0.00}");
+        Assert.Equal(Amount((await OverviewAsync(app)).GetProperty("figures").GetProperty("elapsed")), $"{current.Total:0.00}");
+        Assert.Equal([(salary.ToString(), "Salaire", "salary", 24000m), (property.ToString(), "Studio", "rent", 9600m), ("one_off", null, null, 500m)],
+            past.Sources.Select(s => (s.Key, s.Name, s.Kind, s.Amount!.Value)));
+        Assert.Equal(new ItemId(salary), past.Sources[0].Id);
+        Assert.Null(past.Sources[2].Id);
+        Assert.Empty(past.MissingCurrencies);
+    }
+
+    [Fact]
+    public async Task A_foreign_salary_converts_at_each_date()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA, "Dollars", currency: "USD");
+        var days = Enumerable.Range(0, 1000).Select(i => new LocalDate(2023, 1, 1).PlusDays(i)).TakeWhile(d => d <= NidApp.GoldenCaseToday);
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
+                .WriteAsync(days.Select(d => new FxRate(d, Currency.Eur, d.Year == 2025 ? 0.8m : 0.9m, FxRateSource.Ecb)).ToList(), TestContext.Current.CancellationToken);
+
+        var past = await ReviewAsync(app, 2024);
+        var current = await ReviewAsync(app, 2025);
+
+        Assert.Equal((21600m, 16000m), (past.Total, current.Total));
+        Assert.Equal(Amount((await OverviewAsync(app, "?period=year&year=2024")).GetProperty("figures").GetProperty("total")), $"{past.Total:0.00}");
+        Assert.Equal(Amount((await OverviewAsync(app)).GetProperty("figures").GetProperty("elapsed")), $"{current.Total:0.00}");
+    }
+
+    [Fact]
+    public async Task A_review_without_a_rate_has_no_total_and_names_the_currency()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA, "Dollars", currency: "USD");
+
+        var current = await ReviewAsync(app, 2025);
+
+        Assert.Null(current.Total);
+        Assert.Null(Assert.Single(current.Sources).Amount);
+        Assert.Equal(["USD"], current.MissingCurrencies);
+    }
+
+    [Fact]
+    public async Task A_year_out_of_range_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        foreach (var query in new[] { "?period=year&year=2026", "?period=year&year=1900", "?period=12m&year=2024" })
+        {
+            var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Overview}{query}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        Assert.Equal("2025-01-01", (await OverviewAsync(app, "?year=2025")).GetProperty("from").GetString());
     }
 }

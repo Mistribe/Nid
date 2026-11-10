@@ -116,14 +116,14 @@ public static class IncomeEndpoints
             => (await invoker.InvokeAsync(new GetIncomeSourceOverviewQuery(new ItemId(id), period ?? "12m"), ct)).ToHttp(o => o))
             .Returns<IncomeSourceOverview>();
 
-        api.MapGet("/overview", async (string? scope, string? period, Guid? person, string? kind, Guid? source, bool? ended,
+        api.MapGet("/overview", async (string? scope, string? period, Guid? person, string? kind, Guid? source, bool? ended, int? year,
                 IInvoker invoker, CancellationToken ct) =>
             {
                 if (!OverviewPeriods.TryParse(period ?? "year", out var p))
                     return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.InvalidPeriod, "A period is year, 12m or 3y.", null)).ToHttp(o => o);
                 if (kind is not null && kind != GetIncomeOverviewHandler.RentKind && !IncomeWire.TryKind(kind, out _))
                     return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.UnknownKind, $"'{kind}' is not an income kind.", null)).ToHttp(o => o);
-                var query = new GetIncomeOverviewQuery(ParseScope(scope), p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false);
+                var query = new GetIncomeOverviewQuery(ParseScope(scope), p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false, year);
                 return (await invoker.InvokeAsync(query, ct)).ToHttp(o => o);
             })
             .Returns<IncomeOverview>();

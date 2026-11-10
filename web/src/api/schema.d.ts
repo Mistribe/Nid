@@ -8125,6 +8125,7 @@ export interface paths {
                     kind?: string;
                     source?: string;
                     ended?: boolean;
+                    year?: number;
                 };
                 header?: never;
                 path?: never;

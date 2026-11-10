@@ -8785,6 +8785,14 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
