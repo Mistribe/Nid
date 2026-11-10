@@ -206,6 +206,7 @@
         "assumptions_intro": "Le scénario reprend les hypothèses du foyer ; un champ vide garde celle du foyer.",
         "assumptions_more": "Changer les hypothèses du foyer",
         "class_rate": "{{name}} (%)",
+        "class_volatility": "Volatilité {{name}} (%)",
         "inflation": "Inflation (%)",
         "year_rate": "{{name}} {{year}} (%)",
         "inflation_name": "Inflation",

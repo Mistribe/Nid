@@ -103,7 +103,7 @@ test('alice opens the calendar from the overview and reaches a subscription from
   await alice.getByRole('button', { name: "Ajouter l'abonnement" }).click();
   await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
 
-  await alice.goto('/subscriptions');
+  await alice.goto('/subscriptions?tab=analysis');
   await alice.getByRole('region', { name: 'Prochains prélèvements' }).getByRole('link', { name: 'Calendrier', exact: true }).click();
   await expect(alice).toHaveURL(/tab=calendar/);
   // Monthly since 2025-01-01: charged on the 1st of the current month. The shared database holds many charges on the

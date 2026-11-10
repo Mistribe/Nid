@@ -17,12 +17,12 @@ export const SNOOZE_NOTIFICATION = '/api/v1/platform/notifications/{id}/snooze' 
 
 export type NotificationList = 'todo' | 'snoozed' | 'history';
 
-/** Every write changes the lists and the counts the bell and the banner show. */
+/** Every write changes the lists and the counts the bell shows. */
 export function invalidateNotifications(queryClient: QueryClient): Promise<void> {
   return Promise.all([NOTIFICATIONS, NOTIFICATION_COUNT].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }
 
-/** The bell and the banner share this query; it follows the window focus and refreshes every 5 minutes. */
+/** The bell and its popover share this query; it follows the window focus and refreshes every 5 minutes. */
 export function useNotificationCount() {
   const { $api } = useApi();
   return $api.useQuery('get', NOTIFICATION_COUNT, undefined, { refetchOnWindowFocus: true, refetchInterval: 300_000 });
@@ -47,9 +47,9 @@ export function useNotifications(list: NotificationList, limit: number = PAGE) {
 }
 
 /** The latest few, for the bell. */
-export function useLatestNotifications(list: NotificationList, limit: number) {
+export function useLatestNotifications(list: NotificationList | 'critical', limit: number, enabled = true) {
   const { $api } = useApi();
-  return $api.useQuery('get', NOTIFICATIONS, { params: { query: { list, limit } } });
+  return $api.useQuery('get', NOTIFICATIONS, { params: { query: { list, limit } } }, { enabled });
 }
 
 function useWrite() {

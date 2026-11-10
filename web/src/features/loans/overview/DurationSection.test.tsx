@@ -24,7 +24,7 @@ describe('Crédits › durée et mensualité du foyer', () => {
 
   it('draws each loan from its start to its end, a deferral hatched and named', async () => {
     serve(household());
-    const { container } = await renderApp('/loans');
+    const { container } = await renderApp('/loans?tab=analysis');
 
     await region('Durée des crédits et mensualité du foyer');
     const drawn = phases(container);
@@ -41,7 +41,7 @@ describe('Crédits › durée et mensualité du foyer', () => {
 
   it('bounds the axis from today with ?span=, and the choice goes to the URL', async () => {
     serve(household());
-    const { container, user, router } = await renderApp('/loans');
+    const { container, user, router } = await renderApp('/loans?tab=analysis');
 
     await user.click(within(await region('Durée des crédits et mensualité du foyer')).getByRole('radio', { name: '5 ans' }));
 
@@ -54,14 +54,14 @@ describe('Crédits › durée et mensualité du foyer', () => {
 
   it('starts on « 10 ans » from the URL', async () => {
     serve(household());
-    await renderApp('/loans?span=10y');
+    await renderApp('/loans?tab=analysis&span=10y');
 
     expect(within(await region('Durée des crédits et mensualité du foyer')).getByRole('radio', { name: '10 ans' })).toBeChecked();
   });
 
   it('lists each loan with its start, end and running phase on a phone, and the steps', async () => {
     serve(household());
-    await renderApp('/loans');
+    await renderApp('/loans?tab=analysis');
 
     const section = await region('Durée des crédits et mensualité du foyer');
     const car = within(section).getByRole('link', { name: /Prêt auto/ });
@@ -74,7 +74,7 @@ describe('Crédits › durée et mensualité du foyer', () => {
 
   it('gives the spans and the steps as tables', async () => {
     serve(household());
-    await renderApp('/loans');
+    await renderApp('/loans?tab=analysis');
 
     const spans = await screen.findByRole('table', { name: 'Durée de chaque crédit et ses phases' });
     expect(within(spans).getAllByRole('row')[2]).toHaveTextContent(
@@ -88,7 +88,7 @@ describe('Crédits › durée et mensualité du foyer', () => {
   it('shows each person’s share of each loan', async () => {
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)));
     serve(household());
-    await renderApp('/loans');
+    await renderApp('/loans?tab=analysis');
 
     const section = await region('Part de chacun');
     // One card, as on Placements and Biens: a list item a person, not a card each.

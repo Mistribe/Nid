@@ -2,8 +2,13 @@ import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useApi } from '@/api/ApiProvider';
+import { present, toProblem } from '@/api/errors';
 import type { HouseholdPoint } from '@/api/dashboard';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { RangesSummary } from '@/features/dashboard/ProjectionRanges';
 import { monthLabel } from '@/lib/format';
+import { PROJECTION_SCENARIO } from '../api';
 import type { ProjectionComparison } from './api';
 import { ProjectionComparisonChart, useMilestoneText } from './ProjectionComparisonChart';
 import { baseAndScenario } from './chartSeries';
@@ -17,10 +22,14 @@ const reading = (p: HouseholdPoint | undefined, real: boolean) => (p ? (real ? p
 /**
  * Spec §8 « Projection » of a projection scenario: the base and the scenario on one chart, the scenario's milestones, then each year
  * end (and the horizon's month) as a table of the base, the scenario and the gap, in the chosen reading. The grids are the same:
- * the base's point and the gap at a scenario point share its index. Every figure is a server string.
+ * the base's point and the gap at a scenario point share its index. Every figure is a server string. Ranges spec §6: with `ranges`,
+ * the scenario's bands, asked apart so the page itself stays quick.
  */
-export default function ProjectionScenarioTab({ comparison, real }: { comparison: ProjectionComparison; real: boolean }) {
+export default function ProjectionScenarioTab({ id, comparison, real, ranges }: { id: string; comparison: ProjectionComparison; real: boolean; ranges: boolean }) {
   const { t } = useTranslation();
+  const { $api } = useApi();
+  const ranged = $api.useQuery('get', PROJECTION_SCENARIO, { params: { path: { id }, query: { ranges: true } } }, { enabled: ranges });
+  const bands = ranges ? ranged.data?.result.scenario.ranges ?? undefined : undefined;
   const text = useMilestoneText();
   const currency = comparison.base.currency;
   const money = (amount: string | undefined) => (amount === undefined ? t('scenarios.dash') : formatCurrency(amount, currency));
@@ -30,7 +39,11 @@ export default function ProjectionScenarioTab({ comparison, real }: { comparison
   return (
     <>
       <Section title={t('scenarios.projection.detail.chart')} srTitle>
-        <ProjectionComparisonChart series={baseAndScenario(comparison, t)} currency={comparison.base.currency} milestones={comparison.scenario.milestones} real={real} className="h-72" />
+        <ProjectionComparisonChart series={baseAndScenario(comparison, t)} currency={comparison.base.currency} milestones={comparison.scenario.milestones} real={real}
+          className="h-72" band={bands?.points} />
+        {ranges && ranged.isFetching && !bands ? <p role="status" className="text-sm text-muted-foreground">{t('dashboard.projection.ranges_loading')}</p> : null}
+        {ranges && ranged.error ? <ProblemMessage problem={present(toProblem(ranged.error))} /> : null}
+        {bands ? <RangesSummary ranges={bands} assumptions={comparison.scenario.assumptions} /> : null}
         {milestones.length > 0 ? (
           <ul aria-label={t('scenarios.projection.detail.milestones')} className="space-y-0.5 text-sm text-muted-foreground">
             {milestones.map((m) => (

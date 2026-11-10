@@ -24,10 +24,13 @@ export type Assumptions = {
   currency: string;
   /** Yearly rates (percent strings by calendar year) and income growth over inflation. */
   inflationByYear: Record<string, string>; classRatesByYear: Record<string, Record<string, string>>; incomeGrowth: string;
+  /** Ranges spec §2: every class's annual volatility, in percent. */
+  classVolatility: Record<string, string>;
   observedInflation?: { percent: string; to: string } | null;
 };
 
 const RATE_PREFIX = 'classRates.';
+const VOLATILITY_PREFIX = 'classVolatility.';
 
 /** A typed percent as the wire string: a French comma reads as a point, nothing else is touched (the server checks it). */
 const wire = (text: string) => text.trim().replace(',', '.');
@@ -42,6 +45,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
   const queryClient = useQueryClient();
   const save = $api.useMutation('put', PROJECTION_ASSUMPTIONS);
   const [rates, setRates] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(current.classRates).map(([k, v]) => [k, toFieldAmount(v)])));
+  const [volatility, setVolatility] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(current.classVolatility).map(([k, v]) => [k, toFieldAmount(v)])));
   const [inflation, setInflation] = useState(toFieldAmount(current.inflation));
   const [years] = useState(projectionYears);
   const [inflationYears, setInflationYears] = useState<Record<string, string>>(() => Object.fromEntries(years.map((y) => [y, toFieldAmount(current.inflationByYear[y] ?? '')])));
@@ -57,7 +61,8 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
   const fields = fieldErrorsOf(save.error);
   const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? messageFor(t, f) : undefined; };
   const placed = (path: string) => path === 'inflation' || path === 'incomeGrowth' || /^(inflationByYear|classRatesByYear\.[a-z_]+)\.\d{4}$/.test(path) || path === 'monthlySavings' || path === 'savingsClass'
-    || (path.startsWith(RATE_PREFIX) && (ASSET_CLASSES as readonly string[]).includes(path.slice(RATE_PREFIX.length)));
+    || (path.startsWith(RATE_PREFIX) && (ASSET_CLASSES as readonly string[]).includes(path.slice(RATE_PREFIX.length)))
+    || (path.startsWith(VOLATILITY_PREFIX) && (ASSET_CLASSES as readonly string[]).includes(path.slice(VOLATILITY_PREFIX.length)));
   const unplaced = save.error && !(fields.length > 0 && fields.every((f) => placed(f.path)));
 
   return (
@@ -73,6 +78,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
               inflationByYear: typed(inflationYears),
               classRatesByYear: Object.fromEntries(YEARLY_CLASSES.flatMap((c): [string, Record<string, string>][] => { const v = typed(classYears[c] ?? {}); return Object.keys(v).length > 0 ? [[c, v]] : []; })),
               incomeGrowth: wire(growth) || '0',
+              classVolatility: Object.fromEntries(ASSET_CLASSES.map((c) => [c, wire(volatility[c] ?? '')])),
               monthlySavings: mode === 'amount' ? wire(amount) : null,
               savingsClass,
               freedPaymentsToSavings: freed,
@@ -93,6 +99,16 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
               {ASSET_CLASSES.map((c) => (
                 <Field key={c} label={t(`settings.projection.class.${c}`)} error={errorOf(`${RATE_PREFIX}${c}`)}>
                   {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={rates[c] ?? ''} onChange={(e) => setRates((all) => ({ ...all, [c]: e.target.value }))} />}
+                </Field>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">{t('settings.projection.volatility')}</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {ASSET_CLASSES.map((c) => (
+                <Field key={c} label={t('settings.projection.volatility_label', { name: t(`settings.projection.class.${c}`) })} error={errorOf(`${VOLATILITY_PREFIX}${c}`)}>
+                  {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={volatility[c] ?? ''} onChange={(e) => setVolatility((all) => ({ ...all, [c]: e.target.value }))} />}
                 </Field>
               ))}
             </div>

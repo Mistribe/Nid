@@ -20,6 +20,8 @@
   --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #d03b3b;
   /* As text, --status-warning reaches 1.75:1 and --status-good 3.20:1 on a light background (enough for an icon): text takes these (contrast.test.ts). */
   --status-warning-text: #b45309; --status-good-text: #008300;
+  /* A glyph on a --status-warning fill (the bell's badge while an important notification is unread), in both modes. */
+  --status-warning-foreground: #3d2400;
   /* The sidebar follows the theme's surfaces unless a theme says otherwise. */
   --sidebar: var(--card); --sidebar-foreground: var(--card-foreground);
   --sidebar-primary: var(--primary); --sidebar-primary-foreground: var(--primary-foreground);
@@ -84,6 +86,7 @@
   --color-chart-1: var(--chart-1); --color-chart-2: var(--chart-2); --color-chart-3: var(--chart-3); --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5); --color-chart-6: var(--chart-6); --color-chart-7: var(--chart-7); --color-chart-8: var(--chart-8);
   --color-status-good: var(--status-good); --color-status-warning: var(--status-warning); --color-status-warning-text: var(--status-warning-text);
+  --color-status-warning-foreground: var(--status-warning-foreground);
   --color-status-good-text: var(--status-good-text);
   --color-status-serious: var(--status-serious); --color-status-critical: var(--status-critical);
   --radius-sm: calc(var(--radius) - 4px);

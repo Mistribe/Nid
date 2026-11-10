@@ -294,6 +294,32 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task Critical_list_holds_the_open_unread_critical_ones_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var item = new ItemId(Guid.NewGuid());
+        var critical = new NotificationKind("crit_kind", "test", NotificationLevel.Critical, "test", null);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<INotificationStore>();
+            await store.ApplyAsync(app.AdultA,
+            [
+                new LifecycleChange.Insert(SignalOf("unread", item) with { Kind = critical.Kind }, critical, Today, true),
+                new LifecycleChange.Insert(SignalOf("read", item) with { Kind = critical.Kind }, critical, Today, true),
+                new LifecycleChange.Insert(SignalOf("snoozed", item) with { Kind = critical.Kind }, critical, Today, true),
+            ], TestContext.Current.CancellationToken);
+            await InsertAsync(store, app.AdultA, SignalOf("info", item));
+            await store.MarkReadAsync(app.AdultA, [await IdOfAsync(app, app.AdultA, "read")], Now, TestContext.Current.CancellationToken);
+            await store.SnoozeAsync(await IdOfAsync(app, app.AdultA, "snoozed"), Today.PlusDays(7), TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal([await IdOfAsync(app, app.AdultA, "unread")], await ListAsync(app, app.AdultA, NotificationList.Critical, item));
+        // Over the visible items only, and the person's own.
+        Assert.Empty(await ListAsync(app, app.AdultA, NotificationList.Critical));
+        Assert.Empty(await ListAsync(app, app.AdultB, NotificationList.Critical, item));
+    }
+
+    [Fact]
     public async Task Retime_with_open_opens_and_refreshes_the_row()
     {
         await using var app = await NidApp.StartAsync(fixture);

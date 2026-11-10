@@ -53,16 +53,21 @@ describe('Income overview', () => {
     expect(screen.getByRole('button', { name: /Pas assez d’historique/ })).toHaveTextContent('—');
   });
 
-  it('leads with today’s monthly income in the hero, then the split, months and sources each in their card (#394)', async () => {
+  it('leads with today’s monthly income in the hero and the months; « Sources » has the split and the sources (#394, #20)', async () => {
     serve(overview({ sources: [sourceRow()] }));
-    await renderApp('/income');
+    const { user } = await renderApp('/income');
 
     const hero = await screen.findByRole('region', { name: 'Revenu net / mois' });
     expect(hero).toHaveTextContent('6 420,00 €');
     expect(hero).toHaveTextContent('Aujourd’hui, lissé sur l’année');
     expect(screen.getByText('77 040,00 €').closest('dl')).not.toHaveTextContent('Revenu net / mois');
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Vue d’ensemble', 'Sources']);
+    expect(screen.queryByRole('region', { name: 'Répartition des revenus' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Sources de revenu' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Sources' }));
     // The split's monthly amounts are the period's average, the table's today's smoothed amount: each says which.
-    const split = screen.getByRole('region', { name: 'Répartition des revenus' });
+    const split = await screen.findByRole('region', { name: 'Répartition des revenus' });
     expect(split).toHaveTextContent('Moyenne par mois en 2026');
     expect(split).toHaveTextContent('5 000,00 €');
     const sources = screen.getByRole('region', { name: 'Sources de revenu' });
@@ -130,7 +135,7 @@ describe('Income overview', () => {
 
   it('isolates a source from the split bar and clears it on a second click', async () => {
     const seen = serve();
-    const { user, router } = await renderApp('/income');
+    const { user, router } = await renderApp('/income?tab=sources');
 
     const bar = await screen.findByRole('group', { name: 'Répartition des revenus' });
     expect(within(bar).getByText(/Exceptionnels/)).toBeInTheDocument();
@@ -145,7 +150,7 @@ describe('Income overview', () => {
   it('labels the neutral shares in words', async () => {
     const [salary] = overview().split;
     serve(overview({ split: [salary!, { item: null, name: 'other', kind: 'other', total: salary!.total, perMonth: salary!.perMonth, percent: 5 }] }));
-    await renderApp('/income');
+    await renderApp('/income?tab=sources');
 
     expect(await screen.findByText(/Autres/)).toBeInTheDocument();
     expect(screen.queryByText(/^other/)).toBeNull();
@@ -171,7 +176,7 @@ describe('Income overview', () => {
 
   it('says why the split is missing when a rate is', async () => {
     serve(overview({ split: [], sources: [sourceRow({ perMonth: null })], missingRates: ['USD'] }));
-    await renderApp('/income');
+    await renderApp('/income?tab=sources');
 
     expect(await screen.findByText('Répartition indisponible : taux manquant (USD)')).toBeInTheDocument();
   });

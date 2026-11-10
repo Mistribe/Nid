@@ -34,7 +34,7 @@ describe('IncomeSourcesPage', () => {
     const alice = '0192f0aa-0000-7000-8000-0000000000a1';
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
     serve([sourceRow({ owners: [{ personId: alice, shareBp: 10000 }], gapOn: '2026-12-31' })]);
-    const { container } = await renderApp('/income');
+    const { container } = await renderApp('/income?tab=sources');
 
     const table = await screen.findByRole('table', { name: 'Liste des revenus' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
@@ -52,7 +52,7 @@ describe('IncomeSourcesPage', () => {
 
   it('sorts by the monthly equivalent, biggest first', async () => {
     serve([sourceRow({ id: 'b', name: 'Petit', perMonth: eur('333.33') }), sourceRow({ name: 'Gros' })]);
-    const { user } = await renderApp('/income');
+    const { user } = await renderApp('/income?tab=sources');
 
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/^(Gros|Petit)/)?.[0]);
     expect(await names()).toEqual(['Gros', 'Petit']);
@@ -62,7 +62,7 @@ describe('IncomeSourcesPage', () => {
 
   it('a rent row links to its property', async () => {
     serve([sourceRow({ id: 'p1', module: 'realestate', name: 'Appartement Lyon' })]);
-    await renderApp('/income');
+    await renderApp('/income?tab=sources');
 
     const row = (await rows())[0]!;
     expect(within(row).getByRole('link', { name: /Appartement Lyon/ })).toHaveAttribute('href', '/properties/p1?tab=rental');
@@ -70,7 +70,7 @@ describe('IncomeSourcesPage', () => {
 
   it('the add link is always shown', async () => {
     serve([sourceRow()]);
-    await renderApp('/income');
+    await renderApp('/income?tab=sources');
 
     await rows();
     expect(screen.getByRole('link', { name: 'Ajouter un revenu' })).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('IncomeSourcesPage', () => {
 
   it('says the filter is empty, not the household, and offers to clear it', async () => {
     serve([]);
-    const { user, router } = await renderApp('/income?kind=rent');
+    const { user, router } = await renderApp('/income?kind=rent&tab=sources');
 
     expect(await screen.findByRole('heading', { name: 'Aucun revenu pour ce filtre' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Aucun revenu pour l’instant' })).toBeNull();
@@ -108,7 +108,7 @@ describe('IncomeSourcesPage', () => {
   it('says nothing is running when only ended sources exist, with a link that shows them', async () => {
     const seen: string[] = [];
     serve([], seen, [sourceRow({ ended: true })]);
-    const { user, router, container } = await renderApp('/income');
+    const { user, router, container } = await renderApp('/income?tab=sources');
 
     expect(await screen.findByRole('heading', { name: 'Aucun revenu en cours' })).toBeInTheDocument();
     expect(seen.some((s) => s.includes('ended=true'))).toBe(true);
@@ -136,7 +136,7 @@ describe('IncomeSourcesPage', () => {
   it('passes the Moi scope to the API', async () => {
     const seen: string[] = [];
     serve([sourceRow()], seen);
-    await renderApp('/income?scope=me');
+    await renderApp('/income?scope=me&tab=sources');
 
     await rows();
     expect(seen[0]).toContain('scope=me');
@@ -153,7 +153,7 @@ describe('IncomeSourcesPage, ended sources', () => {
   it('shows ended sources on demand: asks ended=true, keeps it in the URL, marks them in words', async () => {
     const seen: string[] = [];
     serve([sourceRow()], seen, [sourceRow(), sourceRow({ id: 'old', name: 'Ancien emploi', ended: true })]);
-    const { user, router, container } = await renderApp('/income');
+    const { user, router, container } = await renderApp('/income?tab=sources');
 
     const box = await screen.findByRole('switch', { name: 'Afficher les sources terminées' });
     expect(box).not.toBeChecked();
@@ -174,7 +174,7 @@ describe('IncomeSourcesPage, ended sources', () => {
   it('starts checked from the URL and ignores any value other than 1', async () => {
     const seen: string[] = [];
     serve([sourceRow()], seen);
-    await renderApp('/income?ended=yes');
+    await renderApp('/income?ended=yes&tab=sources');
 
     await rows();
     expect(screen.getByRole('switch', { name: 'Afficher les sources terminées' })).not.toBeChecked();

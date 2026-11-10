@@ -106,6 +106,40 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task Volatility_defaults_then_round_trips_class_by_class() // ranges spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var defaults = (await app.GetAsync<JsonElement>(app.AdultA, Url)).GetProperty("classVolatility");
+        Assert.Equal(("16", "0", "6"), (defaults.GetProperty("equity").GetString(), defaults.GetProperty("cash").GetString(), defaults.GetProperty("bond").GetString()));
+
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, new
+        {
+            classRates = Rates("6"), inflation = "2", monthlySavings = (string?)null, savingsClass = "cash", freedPaymentsToSavings = true,
+            classVolatility = new { equity = "20" },
+        });
+
+        Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var view = (await app.GetAsync<JsonElement>(app.AdultA, Url)).GetProperty("classVolatility");
+        Assert.Equal(("20", "6"), (view.GetProperty("equity").GetString(), view.GetProperty("bond").GetString()));
+    }
+
+    [Fact]
+    public async Task Volatility_above_fifty_percent_names_its_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, new
+        {
+            classRates = Rates("6"), inflation = "2", monthlySavings = (string?)null, savingsClass = "cash", freedPaymentsToSavings = true,
+            classVolatility = new { equity = "60" },
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal("classVolatility.equity", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+    }
+
+    [Fact]
     public async Task Saving_drops_past_years()
     {
         await using var app = await NidApp.StartAsync(fixture);
