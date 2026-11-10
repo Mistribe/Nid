@@ -154,4 +154,21 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Contains(BrowserOnlyCodes.Required, text);
         Assert.Equal(HttpStatusCode.OK, await GoalStatusAsync(app, goal));
     }
+
+    [Fact]
+    public async Task Approving_deletes_the_income_source()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await app.NewIncomeSourceAsync("Salaire", app.AdultA);
+        async Task<uint> SourceVersionAsync()
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source.Value}/deletion")).RootElement.GetProperty("version").GetUInt32();
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+        var proposal = await ProposeAsync(client, "propose_delete_income_source", new { id = source.Value, version = await SourceVersionAsync() });
+
+        var response = await ApproveAsync(app, proposal, new { id = source.Value, version = await SourceVersionAsync() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/income/sources/{source.Value}")).StatusCode);
+    }
 }

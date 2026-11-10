@@ -38,6 +38,18 @@ public sealed record GetIncomeSourceQuery(ItemId ItemId, LocalDate? From = null,
 
 public sealed record ListIncomeSourcesQuery(VisibilityScope Scope, bool IncludeEnded) : IQuery<IncomeSourceList>;
 
+/// <summary>#23: an income source created by mistake, deleted with its phases and one-off incomes. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeleteIncomeSourceCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>#23: what deleting an income source removes, read before the delete.</summary>
+public sealed record IncomeSourceDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPreview>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 [RequestHandler<CreateIncomeSourceCommand, ItemId>]
 public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IUnitOfWork unitOfWork)
     : IRequestHandler<CreateIncomeSourceCommand, ItemId>
@@ -214,4 +226,18 @@ public sealed class ListIncomeSourcesHandler(
         // A stable order: the name alone ties on a duplicate (as the envelopes' list).
         return Result.Success(new IncomeSourceList(summaries.OrderBy(s => s.DisplayName, French).ThenBy(s => s.Id.Value).ToList()));
     }
+}
+
+[RequestHandler<DeleteIncomeSourceCommand, ItemId>]
+public sealed class DeleteIncomeSourceHandler(IItemDeletions deletions) : IRequestHandler<DeleteIncomeSourceCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeleteIncomeSourceCommand command, CancellationToken ct = default)
+        => (await deletions.DeleteAsync(command.ItemId, "income", null, command.Version, ct)).Map(() => command.ItemId);
+}
+
+[RequestHandler<IncomeSourceDeletionQuery, ItemDeletionPreview>]
+public sealed class IncomeSourceDeletionHandler(IItemDeletions deletions) : IRequestHandler<IncomeSourceDeletionQuery, ItemDeletionPreview>
+{
+    public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(IncomeSourceDeletionQuery query, CancellationToken ct = default)
+        => await deletions.PreviewAsync(query.ItemId, "income", null, ct);
 }
