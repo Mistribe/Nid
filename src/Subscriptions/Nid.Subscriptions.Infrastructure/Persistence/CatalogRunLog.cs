@@ -76,7 +76,7 @@ public sealed partial class CatalogRunLog(SubscriptionsDbContext db, IClock cloc
     public Task<bool> HasSucceededAsync(CancellationToken ct) => db.CatalogSyncRuns.AnyAsync(r => r.Status == "succeeded", ct);
 
     public async Task<IReadOnlyList<CatalogSyncRun>> RecentAsync(int count, CancellationToken ct)
-        => (await db.CatalogSyncRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).Take(count).ToListAsync(ct))
+        => (await db.CatalogSyncRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).ThenByDescending(r => r.Id).Take(count).ToListAsync(ct))
             .Select(ToRun).ToList();
 
     public async Task<(IReadOnlyList<CatalogSyncRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)

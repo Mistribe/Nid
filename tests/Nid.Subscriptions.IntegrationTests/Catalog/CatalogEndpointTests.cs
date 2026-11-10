@@ -148,7 +148,7 @@ public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
         for (var i = 1; i <= 51; i++)
             seed.CatalogSyncRuns.Add(new CatalogSyncRunRow
             {
-                Id = Guid.CreateVersion7(), StartedAt = start + Duration.FromMinutes(i), FinishedAt = start + Duration.FromMinutes(i),
+                Id = Guid.CreateVersion7(), StartedAt = start + Duration.FromMinutes(Math.Min(i, 50)), FinishedAt = start + Duration.FromMinutes(i),
                 Status = "succeeded", Commit = $"c{i}",
             });
         await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -167,6 +167,7 @@ public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
         Assert.Equal((1, 51, 2), (second.Runs.Items.Count, second.Runs.Total, second.Runs.Page));
         Assert.Equal("c1", second.Runs.Items[0].Commit);
         // Page 1 still lists the newest run, and page 2 carries it in the card.
+        // The last two seeded runs share a start: Latest breaks the tie as the page does.
         Assert.Equal(first.Runs.Items[0].Id, first.Latest!.Id);
         Assert.Equal(first.Latest.Id, second.Latest!.Id);
     }

@@ -30,7 +30,7 @@ public sealed class SyncCatalogHandler(CatalogSync sync, IVisibleItems visible, 
         ran.TryGetValue(out var run);
 
         // The caller sees the report as the journal would show it to them (spec §3.6); the job, a system actor, all of it.
-        var filter = await CatalogReportFilter.ForAsync(actor.Current, [run!], visible, ct);
+        var filter = await CatalogReportFilter.ForAsync(actor.Current, visible, ct);
         return Result.Success(CatalogSyncRunView.From(run!, filter));
     }
 }
@@ -61,7 +61,7 @@ public sealed class GetCatalogRunsHandler(
         var (page, skip) = ListPage.Of(query.Page, CatalogRunPage.PageSize);
         var (items, total) = await runs.PageAsync(skip, CatalogRunPage.PageSize, ct);
         var latest = await runs.RecentAsync(1, ct);
-        var filter = await CatalogReportFilter.ForAsync(actor.Current, [.. latest, .. items], visible, ct);
+        var filter = await CatalogReportFilter.ForAsync(actor.Current, visible, ct);
         return Result.Success(new CatalogRunsView(options.Commit, latest.Select(r => CatalogSyncRunView.From(r, filter)).SingleOrDefault(),
             new CatalogRunPage(items.Select(r => CatalogSyncRunView.From(r, filter)).ToList(), total, page)));
     }
