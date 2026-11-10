@@ -93,6 +93,21 @@
       "pct": "{{value}} %",
       "unknown": "Inconnu"
     },
+    "goals": {
+      "title": "Objectifs",
+      "table": "Objectifs de la période",
+      "col_name": "Objectif",
+      "col_start": "Atteint au début",
+      "col_end": "Atteint à la fin",
+      "reached_in_period": "atteint cette année",
+      "archived_on": "archivé le {{date}}"
+    },
+    "tax": {
+      "title": "Impôts",
+      "total": "Impôt estimé",
+      "estimate": "Estimation à partir des données saisies",
+      "unknown": "Inconnu"
+    },
     "empty": "Rien à montrer pour cette année dans ce périmètre."
   }
 }
