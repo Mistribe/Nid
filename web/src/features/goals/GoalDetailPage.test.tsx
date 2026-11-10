@@ -268,7 +268,7 @@ const preview = { name: 'Voyage', version: 3, imported: false, removes: [], bloc
 const serveDeletion = () => server.use(http.get('*/api/v1/goals/:id/deletion', () => HttpResponse.json(preview)));
 
 describe('GoalDetailPage deletion', () => {
-  beforeAll(async () => { await import('./GoalDetailPage'); await import('./DeleteGoalDialog'); }, 30_000);
+  beforeAll(async () => { await import('./GoalDetailPage'); await import('@/components/DeleteItemFlow'); }, 30_000);
 
   it('Supprimer… is last in the menu and opens the dialog', async () => {
     serve(detail());

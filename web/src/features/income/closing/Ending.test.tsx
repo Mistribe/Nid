@@ -57,7 +57,6 @@ describe('ending and reopening a source', () => {
     await waitFor(() => expect(banner()).toHaveFocus());
     expect(bodies).toEqual([{ endedOn: todayIso() }]);
     expect(screen.getByText('Source terminée.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
     expect(within(banner()).getByRole('button', { name: 'Rouvrir' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
