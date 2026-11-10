@@ -569,6 +569,8 @@
       "next_line": "{{date}} · {{amount}}", "gap_on": "{{date}} sans suite"
     },
     "title": "Revenus",
+    "tab_overview": "Vue d’ensemble",
+    "tab_sources": "Sources",
     "list": "Liste des revenus",
     "loading": "Chargement des revenus",
     "smoothed": "Revenus en net versé, après prélèvement à la source ; loyers hors charges, avant impôt. Montants mensuels lissés sur l’année.",

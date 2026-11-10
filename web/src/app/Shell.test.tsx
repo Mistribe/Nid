@@ -234,7 +234,7 @@ describe('the shell', () => {
       http.get('*/api/v1/income/overview', () => HttpResponse.json(overview({ sources: [sourceRow()] }))),
       http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail())),
     );
-    const { router, user } = await renderApp('/income?scope=me');
+    const { router, user } = await renderApp('/income?scope=me&tab=sources');
 
     await user.click((await screen.findAllByRole('link', { name: /Salaire Alice/ }))[0]!);
     expect(router.state.location.pathname).toBe(`/income/${SALARY}`);
