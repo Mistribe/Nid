@@ -116,8 +116,9 @@ describe('NewProjectionScenarioPage', () => {
     await user.type(screen.getByLabelText(`Inflation ${year} (%)`), '2,5');
     await user.type(screen.getByLabelText(`Liquidités ${year + 1} (%)`), '3');
     await user.type(screen.getByLabelText('Évolution des revenus : inflation + x %'), '0,5');
+    await user.type(screen.getByLabelText('Volatilité Actions (%)'), '20');
     await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({
-      inflationByYear: { [year]: '2.5' }, classRatesByYear: { cash: { [year + 1]: '3' } }, incomeGrowth: '0.5',
+      inflationByYear: { [year]: '2.5' }, classRatesByYear: { cash: { [year + 1]: '3' } }, incomeGrowth: '0.5', classVolatility: { equity: '20' },
     }));
   });
 

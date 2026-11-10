@@ -125,6 +125,27 @@ describe('ProjectionScenarioPage', () => {
     expect(figures().getByText('Patrimoine à l’horizon, valeur courante').nextSibling).toHaveTextContent('43 000,00 €');
   });
 
+  it('« Fourchette » asks for the scenario’s bands and shows the probability its savings last', async () => { // ranges spec §6
+    const plain = view();
+    const scenario = plain.result.scenario;
+    const ranges = {
+      runs: 1000, success: '64',
+      points: scenario.points.map((p) => ({ on: p.on, low: p.nominal, median: p.nominal, high: p.nominal, lowReal: p.real, medianReal: p.real, highReal: p.real })),
+    };
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/scenarios/projection/:id', ({ request }) => {
+      const search = new URL(request.url).search;
+      seen.push(search);
+      return HttpResponse.json(search.includes('ranges=true') ? { ...plain, result: { ...plain.result, scenario: { ...scenario, ranges } } } : plain);
+    }));
+    const { user } = await renderApp(`/scenarios/projection/${ID}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Fourchette' }));
+    expect(await screen.findByText('L’épargne disponible tient jusqu’à l’horizon dans 64 % des 1 000 tirages.')).toBeInTheDocument();
+    expect(seen.filter((s) => s.includes('ranges=true'))).toHaveLength(1);
+    expect(screen.getByRole('list', { name: 'Légende' })).toHaveTextContent('Médiane des tirages');
+  });
+
   it('keeps the open tab in the URL', async () => {
     serve();
     const { user, router } = await renderApp(`/scenarios/projection/${ID}`);
