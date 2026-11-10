@@ -18,24 +18,25 @@ describe('Hero', () => {
     expect(screen.getByText('au 31 août 2025')).toHaveClass('text-sm', 'text-muted-foreground');
   });
 
-  it('draws the curve only with two values or more', () => {
-    const { container, rerender } = render(<Hero label="Valeur" figure="1 €" values={[1]} />);
-    expect(container.querySelector('svg')).toBeNull();
+  it('puts the other figures beside the lead one, in the same card (issue #20)', () => {
+    render(<Hero label="Valeur" figure="1 €" aside={<dl aria-label="Chiffres"><dt>Gain</dt><dd>2 €</dd></dl>} />);
 
-    rerender(<Hero label="Valeur" figure="1 €" values={[1, 2]} />);
+    const hero = screen.getByRole('region', { name: 'Valeur' });
+    expect(hero).toContainElement(screen.getByRole('definition'));
+    expect(hero.querySelector('svg')).toBeNull();
+  });
+
+  it('draws the curve only with two values or more', () => {
+    const { container, rerender } = render(<HeroBody label="Valeur" figure="1 €" curve={<HeroCurve values={[1]} />} />);
+    expect(container.querySelector('svg')).toBeNull();
+    // No empty box is left beside the figure.
+    expect(container.querySelector('.w-56')).toBeNull();
+
+    rerender(<HeroBody label="Valeur" figure="1 €" curve={<HeroCurve values={[1, 2]} />} />);
     const svg = container.querySelector('svg')!;
     expect(svg).not.toBeNull();
     expect(svg.querySelector('path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
     expect(svg.parentElement).toHaveClass('hidden', 'w-56', 'sm:block');
-  });
-
-  it('leaves no empty curve box when there is no curve to draw', () => {
-    const { container, rerender } = render(<Hero label="Valeur" figure="1 €" values={[1]} />);
-    expect(container.querySelector('.w-56')).toBeNull();
-
-    // The dashboard's sparkline hands its own values to the same box.
-    rerender(<HeroBody label="Valeur" figure="1 €" curve={<HeroCurve values={[]} />} />);
-    expect(container.querySelector('.w-56')).toBeNull();
   });
 
   it('sets an unknown figure back, small and muted', () => {
@@ -44,7 +45,7 @@ describe('Hero', () => {
   });
 
   it('hides the curve from assistive technology', () => {
-    const { container } = render(<Hero label="Valeur" figure="1 €" values={[1, 2, 3]} />);
+    const { container } = render(<HeroBody label="Valeur" figure="1 €" curve={<HeroCurve values={[1, 2, 3]} />} />);
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
 });

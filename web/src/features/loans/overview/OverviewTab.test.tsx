@@ -63,8 +63,10 @@ describe('Crédits › vue d’ensemble', () => {
 
     const hero = await region('Capital restant dû');
     expect(within(hero).getByText('199 564,23 €')).toHaveClass('text-hero', 'tabular-nums');
-    expect(hero.querySelector('svg[aria-hidden="true"] path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
     const figures = (await screen.findByText('Mensualités', { selector: 'dt' })).closest('dl')!;
+    // Issue #20: the other figures sit in the hero's card, with no curve beside the figure (the chart below draws it).
+    expect(hero).toContainElement(figures);
+    expect(hero.querySelector('path[stroke="var(--primary)"]')).toBeNull();
     expect(figures).not.toHaveTextContent('Capital restant dû');
     expect(figures).not.toHaveTextContent('199 564,23 €');
   });

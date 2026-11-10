@@ -41,8 +41,10 @@ describe('Biens › vue d’ensemble', () => {
 
     const hero = await region('Valeur nette');
     expect(within(hero).getByText('294 435,77 €')).toHaveClass('text-hero', 'tabular-nums');
-    expect(hero.querySelector('svg[aria-hidden="true"] path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
     const figures = (await screen.findByText('Valeur des biens', { selector: 'dt' })).closest('dl')!;
+    // Issue #20: the other figures sit in the hero's card, with no curve beside the figure (the chart below draws it).
+    expect(hero).toContainElement(figures);
+    expect(hero.querySelector('path[stroke="var(--primary)"]')).toBeNull();
     expect(figures).not.toHaveTextContent('Valeur nette');
     expect(figures).not.toHaveTextContent('294 435,77 €');
     expect(figures).not.toHaveTextContent('Plus-value latente');

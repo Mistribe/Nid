@@ -54,7 +54,7 @@ export function MonthsChart({ months, missingRates, period, year }: {
           : (
             // Only the 36 months scroll: a scroll box around a chart that fits shows a bar for its sub-pixel overflow.
             <div className={wide ? 'overflow-x-auto overflow-y-hidden' : undefined}>
-              <ChartContainer config={config} className={wide ? 'h-64 w-full min-w-[48rem] overflow-hidden' : 'h-64 w-full overflow-hidden'}>
+              <ChartContainer config={config} className={wide ? 'h-48 w-full min-w-[48rem] overflow-hidden' : 'h-48 w-full overflow-hidden'}>
                 <BarChart data={rows} title={t('income.overview.months_chart')} accessibilityLayer>
                   <CartesianGrid vertical={false} />
                   <XAxis xAxisId="now" dataKey="label" tickLine={false} tickMargin={8} minTickGap={24} />
