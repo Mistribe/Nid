@@ -28,8 +28,8 @@ const YEAR = new Date().getFullYear();
 const NEXT = YEAR + 1;
 
 const persons = [
-  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: null, retirementAge: 64 },
-  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62 },
+  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: null, retirementAge: 64, retirementMonths: 0 },
+  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62, retirementMonths: 9 },
 ];
 
 function serve(initial: Body = assumptions(), inflation: Body = observed) {
@@ -63,7 +63,7 @@ describe('the projection settings page', () => {
     expect(screen.getByText(/Automatique \(moyenne des 12 derniers mois\)/)).toBeInTheDocument();
     expect(screen.getByText('Mensualités terminées versées à l’épargne : oui')).toBeInTheDocument();
     expect(await screen.findByText('20/05/1984')).toBeInTheDocument();
-    expect(screen.getByText('62 ans')).toBeInTheDocument();
+    expect(screen.getByText('62 ans et 9 mois')).toBeInTheDocument();
     expect(screen.getByText('Non renseignée')).toBeInTheDocument();
   });
 
@@ -153,8 +153,27 @@ describe('the projection settings page', () => {
     await user.type(age, '64');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: '1984-05-20', retirementAge: 64 } }]));
+    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: '1984-05-20', retirementAge: 64, retirementMonths: 0 } }]));
     await waitFor(() => expect(queryClient.getQueryState(['get', SERIES_POINTS])?.isInvalidated).toBe(true));
+  });
+
+  it('reads the departure in years and months and sends the typed months', async () => {
+    const { retirements } = serve();
+    const { user } = await renderApp('/settings/projection');
+
+    expect(await screen.findByText('62 ans et 9 mois')).toBeInTheDocument();
+    expect(screen.getByText('64 ans')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier la retraite de Alice' }));
+    const dialog = await screen.findByRole('dialog');
+    const age = within(dialog).getByLabelText('Âge de départ à la retraite');
+    await user.clear(age);
+    await user.type(age, '62');
+    const months = within(dialog).getByLabelText('Mois');
+    await user.clear(months);
+    await user.type(months, '9');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: null, retirementAge: 62, retirementMonths: 9 } }]));
   });
 
   it('sends only the typed years and the income growth', async () => {

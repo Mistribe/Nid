@@ -521,7 +521,9 @@
       "birth_date": "Date de naissance",
       "no_birth_date": "Non renseignée",
       "retirement_age": "Âge de départ à la retraite",
-      "age_years": "{{count}} ans"
+      "retirement_months": "Mois",
+      "age_years": "{{count}} ans",
+      "age_years_months": "{{years}} ans et {{months}} mois"
     }
   },
   "investments": {

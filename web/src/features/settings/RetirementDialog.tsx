@@ -20,7 +20,7 @@ const ageOf = (text: string) => (/^\d+$/.test(text.trim()) ? Number(text) : -1);
 
 /** A person's birth date and retirement age (« Modifier » of the Retraite section). */
 export function RetirementDialog({ person, onClose, onDone }: {
-  person: { id: string; displayName: string; birthDate?: string | null; retirementAge: number }; onClose: () => void; onDone: (message: string) => void;
+  person: { id: string; displayName: string; birthDate?: string | null; retirementAge: number; retirementMonths: number }; onClose: () => void; onDone: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -28,10 +28,11 @@ export function RetirementDialog({ person, onClose, onDone }: {
   const save = $api.useMutation('put', PERSON_RETIREMENT);
   const [birthDate, setBirthDate] = useState(person.birthDate ?? '');
   const [age, setAge] = useState(String(person.retirementAge));
+  const [months, setMonths] = useState(String(person.retirementMonths));
 
   const fields = fieldErrorsOf(save.error);
   const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? messageFor(t, f) : undefined; };
-  const unplaced = save.error && !(fields.length > 0 && fields.every((f) => f.path === 'birthDate' || f.path === 'retirementAge'));
+  const unplaced = save.error && !(fields.length > 0 && fields.every((f) => f.path === 'birthDate' || f.path === 'retirementAge' || f.path === 'retirementMonths'));
 
   return (
     <FormDialog title={t('settings.projection.retirement_of', { name: person.displayName })} onClose={onClose} onDone={onDone}>
@@ -39,7 +40,7 @@ export function RetirementDialog({ person, onClose, onDone }: {
         <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          save.mutate({ params: { path: { id: person.id } }, body: { birthDate: birthDate === '' ? null : birthDate, retirementAge: ageOf(age) } }, {
+          save.mutate({ params: { path: { id: person.id } }, body: { birthDate: birthDate === '' ? null : birthDate, retirementAge: ageOf(age), retirementMonths: ageOf(months) } }, {
             onSuccess: () => {
               void queryClient.invalidateQueries({ queryKey: ['get', PERSONS] });
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
@@ -52,9 +53,12 @@ export function RetirementDialog({ person, onClose, onDone }: {
           <Field label={t('settings.projection.birth_date')} error={errorOf('birthDate')}>
             {(c) => <DateField {...c} value={birthDate} onChange={setBirthDate} max={todayIso()} />}
           </Field>
-          <div className="max-w-48">
+          <div className="flex max-w-96 gap-3">
             <Field label={t('settings.projection.retirement_age')} error={errorOf('retirementAge')}>
               {(c) => <Input {...c} type="number" inputMode="numeric" min={50} max={75} step={1} value={age} onChange={(e) => setAge(e.target.value)} />}
+            </Field>
+            <Field label={t('settings.projection.retirement_months')} error={errorOf('retirementMonths')}>
+              {(c) => <Input {...c} type="number" inputMode="numeric" min={0} max={11} step={1} value={months} onChange={(e) => setMonths(e.target.value)} />}
             </Field>
           </div>
           <div className="flex justify-end gap-2">

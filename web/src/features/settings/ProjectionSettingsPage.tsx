@@ -100,7 +100,7 @@ export function ProjectionSettingsPage() {
             <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="font-medium">{p.displayName}</span>
               <span>{p.birthDate ? dayFirst(p.birthDate) : t('settings.projection.no_birth_date')}</span>
-              <span>{t('settings.projection.age_years', { count: p.retirementAge })}</span>
+              <span>{p.retirementMonths > 0 ? t('settings.projection.age_years_months', { years: p.retirementAge, months: p.retirementMonths }) : t('settings.projection.age_years', { count: p.retirementAge })}</span>
               <Button variant="outline" size="sm" aria-label={t('settings.projection.edit_retirement', { name: p.displayName })} onClick={() => open(p.id)}>{t('settings.projection.edit')}</Button>
             </li>
           ))}
