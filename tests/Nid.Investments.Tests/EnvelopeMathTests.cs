@@ -200,13 +200,20 @@ public class EnvelopeMathTests
             EnvelopeMath.RoundPercent(decimal.Parse(exact, System.Globalization.CultureInfo.InvariantCulture)));
 
     [Fact]
-    public void A_period_without_a_start_value_is_unknown()
+    public void A_period_before_the_first_value_starts_at_zero_and_counts_the_opening()
     {
         var p = EnvelopeMath.Period(PeaValues, PeaFlows, Currency.Eur, new LocalDate(2024, 6, 30), new LocalDate(2025, 12, 31));
 
-        Assert.Null(p.StartValue);
-        Assert.Null(p.Performance);
-        Assert.Equal(Eur(25_000m), p.EndValue);
+        Assert.Null(p.StartAsOf);
+        Assert.Equal((Eur(0m), Eur(25_000m), Eur(22_000m), Eur(3_000m)), (p.StartValue, p.EndValue, p.NetContributions, p.Performance));
+    }
+
+    [Fact]
+    public void A_period_without_an_end_value_is_unknown()
+    {
+        var p = EnvelopeMath.Period(PeaValues, PeaFlows, Currency.Eur, new LocalDate(2024, 6, 30), new LocalDate(2024, 12, 30));
+
+        Assert.Equal((null, null, null), (p.StartValue, p.EndValue, p.Performance));
     }
 
     [Fact]

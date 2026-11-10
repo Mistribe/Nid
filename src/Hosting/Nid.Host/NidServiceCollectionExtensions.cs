@@ -224,6 +224,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
         services.AddScoped<Nid.Investments.Application.InvestmentsOverviewReader>();
+        services.AddScoped<Nid.Investments.Application.InvestmentsPeriodReader>();
         services.AddScoped<ISeriesContribution, Nid.Investments.Application.InvestmentSeries>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Investments.Application.InvestmentsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();

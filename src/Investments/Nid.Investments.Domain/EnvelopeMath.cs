@@ -40,17 +40,22 @@ public static class EnvelopeMath
             threshold is { } limit && age > limit ? age : null);
     }
 
+    /// <summary>
+    /// An envelope with no value on or before <paramref name="from"/> but one on or before <paramref name="to"/> starts at 0: its
+    /// <c>StartAsOf</c> stays null and its net contributions count every flow up to the end value, the opening included.
+    /// </summary>
     public static PeriodPerformance Period(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         LocalDate from, LocalDate to)
     {
         var start = LastOnOrBefore(values, from);
         var end = LastOnOrBefore(values, to);
-        if (start is null || end is null)
-            return new PeriodPerformance(from, to, start?.AsOf, start?.Value, end?.AsOf, end?.Value, null, null);
+        if (end is null)
+            return new PeriodPerformance(from, to, start?.AsOf, start?.Value, null, null, null, null);
 
-        var net = NetContributions(flows, f => f.OccurredOn > start.AsOf && f.OccurredOn <= end.AsOf);
-        return new PeriodPerformance(from, to, start.AsOf, start.Value, end.AsOf, end.Value,
-            M(net, currency), M(end.Value.Amount - start.Value.Amount - net, currency));
+        var startValue = start?.Value ?? M(0m, currency);
+        var net = NetContributions(flows, f => (start is null || f.OccurredOn > start.AsOf) && f.OccurredOn <= end.AsOf);
+        return new PeriodPerformance(from, to, start?.AsOf, startValue, end.AsOf, end.Value,
+            M(net, currency), M(end.Value.Amount - startValue.Amount - net, currency));
     }
 
     /// <summary>

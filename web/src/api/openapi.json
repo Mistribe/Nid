@@ -35154,7 +35154,8 @@
           "id",
           "name",
           "kind",
-          "currency"
+          "currency",
+          "staleStart"
         ],
         "type": "object",
         "properties": {
@@ -35193,6 +35194,46 @@
               "number"
             ],
             "format": "double"
+          },
+          "startValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "endValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "netContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "staleStart": {
+            "type": "boolean"
           }
         }
       },
@@ -40159,7 +40200,6 @@
           "to",
           "months",
           "envelopes",
-          "excluded",
           "findings"
         ],
         "type": "object",
@@ -40242,6 +40282,13 @@
             ],
             "format": "double"
           },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "months": {
             "type": "array",
             "items": {
@@ -40264,12 +40311,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EnvelopePeriodRow"
-            }
-          },
-          "excluded": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ExcludedEnvelopeView"
             }
           },
           "reference": {

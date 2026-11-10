@@ -301,13 +301,8 @@
     "returns_reference": "Vos livrets {{pct}}",
     "returns_none": "Aucune enveloppe n’a encore un an de valeurs.",
     "returns_not_meaningful": "Non significatif (moins de 12 mois) : {{names}}",
-    "excluded_one": "1 enveloppe ne compte pas : {{names}}.",
-    "excluded_other": "{{count}} enveloppes ne comptent pas : {{names}}.",
-    "excluded_reason": {
-      "no_start_value": "pas de valeur au début de la période",
-      "stale_start_value": "une valeur trop ancienne au début de la période"
-    },
-    "empty": "Aucune enveloppe n’a de valeur au début de cette période."
+    "stale_start": "valeur de départ ancienne",
+    "empty": "Aucune enveloppe n’a de valeur sur cette période."
   },
   "investments_income": {
     "loading": "Chargement des revenus",

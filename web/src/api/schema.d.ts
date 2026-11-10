@@ -28725,6 +28725,12 @@ export interface components {
             performanceConverted?: null | components["schemas"]["AmountView"];
             /** Format: double */
             annualReturnPct?: null | number;
+            startValue?: null | components["schemas"]["AmountView"];
+            endValue?: null | components["schemas"]["AmountView"];
+            netContributions?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            periodReturnPct?: null | number;
+            staleStart: boolean;
         };
         EnvelopeSaleView: {
             remainingCapital: string;
@@ -29879,11 +29885,12 @@ export interface components {
             performance?: null | components["schemas"]["AmountView"];
             /** Format: double */
             performancePct?: null | number;
+            /** Format: double */
+            periodReturnPct?: null | number;
             months: components["schemas"]["MonthPerformanceView"][];
             bestMonth?: null | string;
             worstMonth?: null | string;
             envelopes: components["schemas"]["EnvelopePeriodRow"][];
-            excluded: components["schemas"]["ExcludedEnvelopeView"][];
             reference?: null | components["schemas"]["ReturnReferenceView"];
             findings: components["schemas"]["OverviewFindingView"][];
         };

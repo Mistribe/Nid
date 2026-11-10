@@ -219,16 +219,19 @@ public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : ICla
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await JsonAsync(response);
-        Assert.Equal(("21000.00", "25000.00", "2000.00", "0.00", "0.00", "2000.00"),
+        // The recent envelope counts from 0: its 100 is all performance.
+        Assert.Equal(("21000.00", "25100.00", "2000.00", "0.00", "0.00", "2100.00"),
             (S(body.GetProperty("startValue"), "amount"), S(body.GetProperty("endValue"), "amount"), S(body.GetProperty("contributions"), "amount"),
                 S(body.GetProperty("withdrawals"), "amount"), S(body.GetProperty("transfers"), "amount"), S(body.GetProperty("performance"), "amount")));
-        Assert.Equal(8.7m, body.GetProperty("performancePct").GetDecimal());
+        Assert.Equal(9.1m, body.GetProperty("performancePct").GetDecimal());
         var months = body.GetProperty("months");
         Assert.Equal(("2025-01", "2025-10"), (S(months[0], "month"), S(months[months.GetArrayLength() - 1], "month")));
         Assert.Equal(("2000.00", "2025-09"), (S(months[8].GetProperty("performance"), "amount"), S(body, "bestMonth")));
-        Assert.Equal(pea.Value, Assert.Single(body.GetProperty("envelopes").EnumerateArray()).GetProperty("id").GetGuid());
-        var excluded = Assert.Single(body.GetProperty("excluded").EnumerateArray());
-        Assert.Equal((late.Value, "no_start_value"), (excluded.GetProperty("envelopeId").GetGuid(), S(excluded, "code")));
+        var rows = body.GetProperty("envelopes").EnumerateArray().ToList();
+        Assert.Equal([pea.Value, late.Value], rows.Select(r => r.GetProperty("id").GetGuid()));
+        Assert.Equal(("0.00", "100.00", false), (S(rows[1].GetProperty("startValue"), "amount"), S(rows[1].GetProperty("endValue"), "amount"),
+            rows[1].GetProperty("staleStart").GetBoolean()));
+        Assert.False(body.TryGetProperty("excluded", out _));
     }
 
     [Fact]

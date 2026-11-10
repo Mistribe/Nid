@@ -1,5 +1,6 @@
 using System.Globalization;
 using Nid.Core.Contracts;
+using Nid.Investments.Application.Prices;
 using Nid.Investments.Contracts;
 using Nid.Investments.Domain;
 using Nid.Platform.Contracts;
@@ -17,41 +18,36 @@ public sealed record GetInvestmentsPerformanceQuery(VisibilityScope Scope, Local
 /// <summary>D12: one calendar month of the period, its envelopes' performances converted at the period's end (D4).</summary>
 public sealed record MonthPerformanceView(string Month, AmountView? Performance);
 
-/// <summary>An envelope of the period: its performance in its currency and converted, and its annual return since its opening (D2).</summary>
+/// <summary>
+/// An envelope of the period: its performance in its currency and converted, its values and net contributions converted (the start at
+/// the rate of <c>From</c>, the rest at the rate of <c>To</c>), its money-weighted return over the period, and its annual return since its
+/// opening (D2). <c>StaleStart</c>: its value at the start is older than its staleness threshold.
+/// </summary>
 public sealed record EnvelopePeriodRow(
-    ItemId Id, string Name, string Kind, string Currency, string? Performance, AmountView? PerformanceConverted, decimal? AnnualReturnPct);
-
-/// <summary>D11: an envelope left out of the period, and why (<c>no_start_value</c>, <c>stale_start_value</c>).</summary>
-public sealed record ExcludedEnvelopeView(ItemId EnvelopeId, string Name, string Code);
+    ItemId Id, string Name, string Kind, string Currency, string? Performance, AmountView? PerformanceConverted, decimal? AnnualReturnPct,
+    AmountView? StartValue, AmountView? EndValue, AmountView? NetContributions, decimal? PeriodReturnPct, bool StaleStart);
 
 /// <summary>D15: the household's savings accounts together, the reference the envelopes' annual returns are read against.</summary>
 public sealed record ReturnReferenceView(decimal AnnualReturnPct);
 
 /// <summary>
 /// Spec §4.2. D13: <c>EndValue = StartValue + Contributions − Withdrawals + Transfers + Performance</c>, the transfers being the legs
-/// with an envelope out of the period. Every figure in <c>Currency</c> at the rate of <c>To</c>; null when a rate is missing.
+/// with an envelope out of the period. Every figure in <c>Currency</c>, the start value at the rate of <c>From</c> and the rest at the
+/// rate of <c>To</c>; null when a rate is missing. An envelope without a value at the start counts from 0.
 /// </summary>
 public sealed record InvestmentsPerformance(
     string Currency, LocalDate From, LocalDate To,
     AmountView? StartValue, AmountView? EndValue, AmountView? Contributions, AmountView? Withdrawals, AmountView? Transfers,
-    AmountView? Performance, decimal? PerformancePct,
+    AmountView? Performance, decimal? PerformancePct, decimal? PeriodReturnPct,
     IReadOnlyList<MonthPerformanceView> Months, string? BestMonth, string? WorstMonth,
-    IReadOnlyList<EnvelopePeriodRow> Envelopes, IReadOnlyList<ExcludedEnvelopeView> Excluded, ReturnReferenceView? Reference,
+    IReadOnlyList<EnvelopePeriodRow> Envelopes, ReturnReferenceView? Reference,
     IReadOnlyList<OverviewFindingView> Findings) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => Envelopes.Select(e => e.Id).Concat(Excluded.Select(e => e.EnvelopeId));
-}
-
-public static class PerformanceCodes
-{
-    public const string NoStartValue = "no_start_value";
-    public const string StaleStartValue = "stale_start_value";
+    public IEnumerable<ItemId> ExposedItems() => Envelopes.Select(e => e.Id);
 }
 
 [RequestHandler<GetInvestmentsPerformanceQuery, InvestmentsPerformance>]
-public sealed class GetInvestmentsPerformanceHandler(
-    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHouseholdCalendar calendar,
-    IActorAccessor actor, IHouseholdSettings household, IFxRates fx)
+public sealed class GetInvestmentsPerformanceHandler(InvestmentsPeriodReader period, IHouseholdCalendar calendar, IActorAccessor actor)
     : IRequestHandler<GetInvestmentsPerformanceQuery, InvestmentsPerformance>
 {
     public async ValueTask<Result<InvestmentsPerformance>> HandleAsync(GetInvestmentsPerformanceQuery query, CancellationToken ct = default)
@@ -61,26 +57,7 @@ public sealed class GetInvestmentsPerformanceHandler(
             return Result.Failure<InvestmentsPerformance>(new Failure(InvestmentsCodes.InvalidPeriod,
                 "The period's start must be before its end, and its end no later than today.", null));
 
-        var reader = actor.Current!.PersonId!.Value;
-        // D9: a closed envelope counts before its closing.
-        var ids = await visible.ForAsync(reader, query.Scope, includeArchived: true, ct);
-        var found = await envelopes.FindManyAsync(ids.ToList(), ct);
-        var accesses = await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct);
-        var block = await performance.FactsManyAsync(found, accesses, ct);
-        var facts = new List<EnvelopePerformance.Facts>();
-        foreach (var envelope in found)
-        {
-            EnvelopePerformance.Facts? f;
-            if (block is not null) block.TryGetValue(envelope.ItemId, out f);
-            else (await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out f);
-            if (f is not null) facts.Add(f);
-        }
-
-        var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
-        // The period's end and today (the reference's annual return): rates are per USD, the reference's own quote too.
-        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], query.To, today, ct);
-        return Result.Success(InvestmentsPerformanceMath.Build(facts, reference, rates, today, query.From, query.To));
+        return (await period.ReadAsync(actor.Current!.PersonId!.Value, query.Scope, query.From, query.To, ct)).Map(figures => figures.ToView());
     }
 }
 
@@ -89,92 +66,120 @@ internal static class InvestmentsPerformanceMath
 {
     internal static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
-    private sealed record Counted(EnvelopePerformance.Facts Facts, PeriodPerformance Period);
+    /// <summary>An envelope of the period; <c>End</c> its value at the end, today's estimate when <see cref="TodayValue"/> picks it.</summary>
+    private sealed record Counted(EnvelopePerformance.Facts Facts, PeriodPerformance Period, decimal End, bool StaleStart)
+    {
+        public decimal Start => Period.StartValue!.Value.Amount;
 
-    public static InvestmentsPerformance Build(
-        IReadOnlyList<EnvelopePerformance.Facts> facts, Currency reference, RateTable rates, LocalDate today, LocalDate from, LocalDate to)
+        public decimal Net => Period.NetContributions!.Value.Amount;
+
+        /// <summary>D13: the flows its performance counts, after its start value; without one, every flow up to its end value.</summary>
+        public IEnumerable<Flow> Window
+            => Facts.Flows.Where(f => (Period.StartAsOf is not { } start || f.OccurredOn > start) && f.OccurredOn <= Period.EndAsOf);
+
+        /// <summary>
+        /// Its period return's cash flows: the start value at <paramref name="from"/> (<c>AtStart</c>), the money in and out (a flow before
+        /// <paramref name="from"/> was in at the start), the end value at <paramref name="to"/>.
+        /// </summary>
+        public IEnumerable<(LocalDate On, decimal Amount, bool AtStart)> Cash(LocalDate from, LocalDate to)
+            => Window.Where(f => f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal)
+                .Select(f => (LocalDate.Max(f.OccurredOn, from), f.Kind == FlowKind.Withdrawal ? f.Amount.Amount : -f.Amount.Amount, false))
+                .Prepend((from, -Start, true))
+                .Append((to, End, false));
+    }
+
+    /// <param name="estimates">The open envelopes' estimates (holding prices spec §5.4), read when <paramref name="to"/> is today.</param>
+    public static PeriodFigures Build(
+        IReadOnlyList<EnvelopePerformance.Facts> facts, Currency reference, RateTable rates, LocalDate today, LocalDate from, LocalDate to,
+        IReadOnlyDictionary<ItemId, Prices.EnvelopeEstimate>? estimates = null)
     {
         var convert = new Converter(reference, rates);
         decimal? At(decimal amount, Currency currency) => convert.Of(amount, currency, to);
+        decimal? AtStart(decimal amount, Currency currency) => convert.Of(amount, currency, from);
 
         var counted = new List<Counted>();
-        var excluded = new List<ExcludedEnvelopeView>();
-        // An envelope closed by the start has nothing in the period.
+        // An envelope closed by the start has nothing in the period; one without a value by the end, nothing to count.
         foreach (var f in facts.Where(f => f.Envelope.ClosedOn is not { } closed || closed > from))
         {
             var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, from, to);
+            if (period.EndValue is not { } end) continue;
             var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
-            if (period.StartAsOf is not { } start)
-                excluded.Add(new ExcludedEnvelopeView(f.Item.Id, f.Item.DisplayName, PerformanceCodes.NoStartValue));
-            else if (limit is { } days && Period.DaysBetween(start, from) > days)
-                excluded.Add(new ExcludedEnvelopeView(f.Item.Id, f.Item.DisplayName, PerformanceCodes.StaleStartValue));
-            else
-                counted.Add(new Counted(f, period));
+            var stale = period.StartAsOf is { } start && limit is { } days && Period.DaysBetween(start, from) > days;
+            var value = to == today && estimates?.GetValueOrDefault(f.Item.Id) is { } estimate
+                ? TodayValue.Pick(EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today), estimate).Value.Amount
+                : end.Amount;
+            counted.Add(new Counted(f, period, value, stale));
         }
 
-        // D13: the flows each envelope's performance counts, between its two values.
-        decimal Window(Counted c, Func<Flow, bool> which)
-            => c.Facts.Flows.Where(f => f.OccurredOn > c.Period.StartAsOf && f.OccurredOn <= c.Period.EndAsOf && which(f)).Sum(f => f.Amount.Amount);
-        decimal? Household(Func<Counted, decimal> amount) => SumOrNull(counted.Select(c => At(amount(c), c.Facts.Currency)));
+        decimal Window(Counted c, Func<Flow, bool> which) => c.Window.Where(which).Sum(f => f.Amount.Amount);
+        decimal? Household(Func<Counted, decimal?> amount) => SumOrNull(counted.Select(amount));
 
-        var startValue = Household(c => c.Period.StartValue!.Value.Amount);
-        var endValue = Household(c => c.Period.EndValue!.Value.Amount);
-        var contributions = Household(c => Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && !IsTransfer(f)));
-        var withdrawals = Household(c => Window(c, f => f.Kind == FlowKind.Withdrawal && !IsTransfer(f)));
-        var transfers = Household(c => Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && IsTransfer(f))
-            - Window(c, f => f.Kind == FlowKind.Withdrawal && IsTransfer(f)));
-        var performance = Household(c => c.Period.Performance!.Value.Amount);
-        var engaged = startValue is { } s && contributions is { } paid ? s + paid : (decimal?)null;
-
-        var months = Months(counted, from, to, At);
-        var known = months.Where(m => m.Amount is not null).ToList();
-        var rows = counted
-            .Select(c => (c.Facts, Amount: c.Period.Performance!.Value, Converted: At(c.Period.Performance.Value.Amount, c.Facts.Currency)))
-            .OrderBy(x => x.Converted is null).ThenByDescending(x => x.Converted).ThenBy(x => x.Facts.Item.DisplayName, French).ThenBy(x => x.Facts.Item.Id.Value)
-            .Select(x => new EnvelopePeriodRow(x.Facts.Item.Id, x.Facts.Item.DisplayName, EnvelopeWire.Of(x.Facts.Envelope.Kind), x.Facts.Currency.Code,
-                x.Amount.Amount.ToString("0.00", CultureInfo.InvariantCulture), convert.View(x.Converted),
-                EnvelopeMath.At(x.Facts.Values, x.Facts.Flows, x.Facts.Currency, x.Facts.Envelope.Cadence, x.Facts.Envelope.StaleAfterDays, today).AnnualReturnPct))
+        var startValue = Household(c => AtStart(c.Start, c.Facts.Currency));
+        var endValue = Household(c => At(c.End, c.Facts.Currency));
+        var contributions = Household(c => At(Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && !IsTransfer(f)), c.Facts.Currency));
+        var withdrawals = Household(c => At(Window(c, f => f.Kind == FlowKind.Withdrawal && !IsTransfer(f)), c.Facts.Currency));
+        var transfers = Household(c => At(Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && IsTransfer(f))
+            - Window(c, f => f.Kind == FlowKind.Withdrawal && IsTransfer(f)), c.Facts.Currency));
+        // D13 in converted terms: the start and the end are not at the same rate.
+        var performance = endValue - startValue - contributions + withdrawals - transfers;
+        var engaged = startValue + contributions;
+        // Converted as the figures; one that cannot convert leaves the return unknown.
+        var cash = counted.SelectMany(c => c.Cash(from, to).Select(x => (x.On, Amount: x.AtStart ? AtStart(x.Amount, c.Facts.Currency) : At(x.Amount, c.Facts.Currency))))
             .ToList();
 
-        return new InvestmentsPerformance(reference.Code, from, to,
-            convert.View(startValue), convert.View(endValue), convert.View(contributions), convert.View(withdrawals), convert.View(transfers),
-            convert.View(performance),
+        var months = Months(counted, from, to, At);
+        var known = months.Where(m => m.Performance is not null).ToList();
+        var rows = counted
+            .Select(c =>
+            {
+                var (start, end, net) = (AtStart(c.Start, c.Facts.Currency), At(c.End, c.Facts.Currency), At(c.Net, c.Facts.Currency));
+                return new PeriodFigures.Row(c.Facts, c.End - c.Start - c.Net, start, end, net, end - start - net,
+                    EnvelopeMath.At(c.Facts.Values, c.Facts.Flows, c.Facts.Currency, c.Facts.Envelope.Cadence, c.Facts.Envelope.StaleAfterDays, today).AnnualReturnPct,
+                    Xirr.PeriodPercent(c.Cash(from, to).Select(x => (x.On, x.Amount)), from, to), c.StaleStart);
+            })
+            .OrderBy(r => r.PerformanceConverted is null).ThenByDescending(r => r.PerformanceConverted)
+            .ThenBy(r => r.Facts.Item.DisplayName, French).ThenBy(r => r.Facts.Item.Id.Value)
+            .ToList();
+
+        return new PeriodFigures(reference, from, to, startValue, endValue, contributions, withdrawals, transfers, performance,
             performance is { } p && engaged is { } e && e > 0m ? EnvelopeMath.RoundPercent(p / e * 100m) : null,
-            months.Select(m => new MonthPerformanceView(m.Month, convert.View(m.Amount))).ToList(),
-            known.Count >= 2 ? known.MaxBy(m => m.Amount)!.Month : null,
-            known.Count >= 2 ? known.MinBy(m => m.Amount)!.Month : null,
-            rows, excluded.OrderBy(x => x.Name, French).ThenBy(x => x.EnvelopeId.Value).ToList(),
-            Reference(facts, convert, today), convert.Missing);
+            cash.All(x => x.Amount is not null) ? Xirr.PeriodPercent(cash.Select(x => (x.On, x.Amount!.Value)), from, to) : null,
+            months,
+            known.Count >= 2 ? known.MaxBy(m => m.Performance)!.Month : null,
+            known.Count >= 2 ? known.MinBy(m => m.Performance)!.Month : null,
+            rows, Reference(facts, convert, today), convert.Missing);
     }
 
     /// <summary>
     /// D12: each calendar month of the period, from the end of the month before (or <paramref name="from"/>) to its end (or
     /// <paramref name="to"/>); a month of no length is left out. The performance is additive, so the months add up to the period.
     /// </summary>
-    private static List<(string Month, decimal? Amount)> Months(
+    private static List<PeriodFigures.MonthFigure> Months(
         IReadOnlyList<Counted> counted, LocalDate from, LocalDate to, Func<decimal, Currency, decimal?> at)
     {
-        var months = new List<(string, decimal?)>();
+        var months = new List<PeriodFigures.MonthFigure>();
         for (var month = from.ToYearMonth(); month <= to.ToYearMonth(); month = month.PlusMonths(1))
         {
             var start = month == from.ToYearMonth() ? from : month.PlusMonths(-1).ToDateInterval().End;
             var end = month == to.ToYearMonth() ? to : month.ToDateInterval().End;
             if (start >= end) continue;
+            // The period's last month carries today's estimate over the end value.
             var amount = SumOrNull(counted.Select(c =>
-                EnvelopeMath.Period(c.Facts.Values, c.Facts.Flows, c.Facts.Currency, start, end).Performance is { } p ? at(p.Amount, c.Facts.Currency) : 0m));
-            months.Add((month.ToString("yyyy-MM", CultureInfo.InvariantCulture), amount ?? (counted.Count == 0 ? 0m : null)));
+                EnvelopeMath.Period(c.Facts.Values, c.Facts.Flows, c.Facts.Currency, start, end).Performance is { } p
+                    ? at(p.Amount + (end == to ? c.End - c.Period.EndValue!.Value.Amount : 0m), c.Facts.Currency) : 0m));
+            months.Add(new(month.ToString("yyyy-MM", CultureInfo.InvariantCulture), amount ?? (counted.Count == 0 ? 0m : null)));
         }
         return months;
     }
 
     /// <summary>D15: the open savings accounts with a value, together (the household's annual return, D6, on that kind alone).</summary>
-    private static ReturnReferenceView? Reference(IReadOnlyList<EnvelopePerformance.Facts> facts, Converter convert, LocalDate today)
+    private static decimal? Reference(IReadOnlyList<EnvelopePerformance.Facts> facts, Converter convert, LocalDate today)
     {
         var savings = facts.Where(f => f.Item.ArchivedAt is null && f.Envelope.Kind == EnvelopeKind.Savings)
             .Select(f => (Facts: f, Figures: EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today)))
             .Where(x => x.Figures.Value is not null)
             .Select(x => new Valued(x.Facts, x.Figures, convert.Of(x.Figures.Value!.Value.Amount, x.Facts.Currency, today), null))
             .ToList();
-        return AnnualReturn(savings, convert, today) is { } pct ? new ReturnReferenceView(pct) : null;
+        return AnnualReturn(savings, convert, today);
     }
 }
