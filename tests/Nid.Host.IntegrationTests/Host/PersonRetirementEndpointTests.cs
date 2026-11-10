@@ -69,6 +69,18 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp
         await AssertRefusedAsync(response, "core.invalid_retirement_age", "retirementAge");
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(12)]
+    public async Task Months_outside_0_to_11_are_refused(int months)
+    {
+        var app = shared.App;
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url(app.AdultB.Value), new { birthDate = (string?)null, retirementAge = 64, retirementMonths = months });
+
+        await AssertRefusedAsync(response, "core.invalid_retirement_age", "retirementMonths");
+    }
+
     [Fact]
     public async Task Unknown_person_is_404()
     {

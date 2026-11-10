@@ -33,7 +33,8 @@ public class DeparturesTests
     public void SwitchMonths_keeps_a_past_departure_below_one()
     {
         var a = Adult(PersonId.New(), new LocalDate(1950, 1, 1), 64);
-        Assert.True(Departures.SwitchMonths([a], Today)[a.Id] <= 0);
+        // Departure 2014-01: (2014 - 2026) * 12 + 1 - 11 + 1.
+        Assert.Equal(-153, Departures.SwitchMonths([a], Today)[a.Id]);
     }
 
     [Fact]
