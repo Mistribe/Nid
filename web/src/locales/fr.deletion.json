@@ -12,7 +12,8 @@
     "menu": "Supprimer…",
     "close_hint": {
       "goals.delete_goal": "Clôturer",
-      "income.delete_income_source": "Terminer cette source"
+      "income.delete_income_source": "Terminer cette source",
+      "investments.delete_envelope": "Clôturer l’enveloppe"
     },
     "done": "« {{name}} » supprimé",
     "keys": {
@@ -28,6 +29,16 @@
       "bank_rules_other": "{{count}} règles bancaires",
       "bank_account_one": "{{count}} compte bancaire rattaché",
       "bank_account_other": "{{count}} comptes bancaires rattachés",
+      "holdings_one": "{{count}} support",
+      "holdings_other": "{{count}} supports",
+      "holding_snapshots_one": "{{count}} relevé de supports",
+      "holding_snapshots_other": "{{count}} relevés de supports",
+      "goal_funding_one": "{{count}} objectif qu’elle finance",
+      "goal_funding_other": "{{count}} objectifs qu’elle finance",
+      "goal_funding_closed_one": "{{count}} financement d’un objectif clôturé",
+      "goal_funding_closed_other": "{{count}} financements d’objectifs clôturés",
+      "transfers_one": "{{count}} virement avec une autre enveloppe",
+      "transfers_other": "{{count}} virements avec d’autres enveloppes",
       "funding_one": "{{count}} financement",
       "funding_other": "{{count}} financements",
       "progress_entries_one": "{{count}} versement suivi",

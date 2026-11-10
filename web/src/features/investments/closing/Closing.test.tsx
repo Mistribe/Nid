@@ -176,12 +176,13 @@ describe('a closed envelope', () => {
     for (const name of ['Saisir une valeur', 'Ajouter un flux', 'Saisir les versements antérieurs'])
       expect(within(article).queryByRole('button', { name })).not.toBeInTheDocument();
     expect(within(article).queryByRole('tab', { name: 'Réglages' })).not.toBeInTheDocument();
-    // The shared item the viewer may change keeps its menu, and only its sharing entry.
+    // The shared item the viewer may change keeps its menu: its sharing entry, then the delete.
     await user.click(within(article).getByRole('button', { name: 'Autres actions' }));
     expect(screen.queryByRole('menuitem', { name: 'Clôturer l’enveloppe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Virement' })).not.toBeInTheDocument();
-    expect(await screen.findAllByRole('menuitem')).toHaveLength(1);
+    expect(await screen.findAllByRole('menuitem')).toHaveLength(2);
     expect(screen.getByRole('menuitem', { name: 'Partage…' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Supprimer…' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await expectNoAxeViolations(container);
   });
