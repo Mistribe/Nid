@@ -44,7 +44,9 @@ export function DeleteItemDialog({ preview, previewError, closeHint, pending, er
             <div className="space-y-1 text-sm">
               <p className="font-medium">{t('deletion.blocked')}</p>
               <ul className="list-disc pl-5">
-                {preview.blockers.map((b) => <li key={b.key}>{label(b.key, b.count)} : {b.items.map((i) => i.name).join(', ')}</li>)}
+                {preview.blockers.map((b) => (
+                  <li key={b.key}>{label(b.key, b.count)}{b.items.length > 0 ? ` : ${b.items.map((i) => i.name).join(', ')}` : null}</li>
+                ))}
               </ul>
             </div>
           ) : (

@@ -28,4 +28,41 @@ describe('A proposal to delete a goal', () => {
     await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: GOAL, version: 4 } }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/goals'));
   });
+
+  it('after a refused approval, the next confirm sends the proposal’s new version', async () => {
+    const p = proposal({ kind: 'goals.delete_goal', targetItemId: GOAL, targetName: 'Voyage', subjectKey: null, payload: { id: GOAL, version: 1 } });
+    serve([p], { preview: {} });
+    let current = p;
+    let refused = false;
+    let proposalReads = 0;
+    const approvals: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/goals/:id/deletion', () => HttpResponse.json({ name: 'Voyage', version: refused ? 5 : 4, imported: false, removes: [], blockers: [] })),
+      http.get('*/api/v1/core/proposals/:id', () => { proposalReads += 1; return HttpResponse.json({ proposal: current, preview: {}, canDecide: true }); }),
+      http.post('*/api/v1/core/proposals/:id/approve', async ({ request }) => {
+        approvals.push(await request.json());
+        if (refused) return HttpResponse.json({ ...current, status: 'approved' });
+        // The refusal leaves its warning on the proposal: a new version.
+        refused = true;
+        current = { ...current, version: current.version + 1, warnings: [{ code: 'apply_failed', severity: 'error', message: 'core.item_changed: Changed.' }] };
+        return HttpResponse.json({ status: 409, code: 'core.item_changed', title: 'Changed.' }, { status: 409 });
+      }),
+    );
+    const { user, router } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer Voyage' });
+    await user.type(await within(dialog).findByLabelText(/Tapez/), 'Voyage');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+    await waitFor(() => expect(proposalReads).toBeGreaterThan(1));
+    await waitFor(() => expect(within(dialog).getByLabelText(/Tapez/)).toHaveValue(''));
+    await user.type(within(dialog).getByLabelText(/Tapez/), 'Voyage');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+
+    await waitFor(() => expect(approvals).toEqual([
+      { version: p.version, editedPayload: { id: GOAL, version: 4 } },
+      { version: p.version + 1, editedPayload: { id: GOAL, version: 5 } },
+    ]));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/goals'));
+  });
 });

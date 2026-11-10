@@ -22,6 +22,7 @@ import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { PERSONS } from '@/api/persons';
 import { useGoalDeletion } from '@/api/goals';
+import { useItemDeleted } from '@/components/useItemDeleted';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from '@/api/proposals';
 import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
@@ -30,9 +31,9 @@ import { focusHeading, focusNextHeading } from './focus';
 import '@/locales/proposals';
 import '@/locales/deletion';
 import '@/locales/goals';
+import '@/locales/forms';
 
 const DeleteItemDialog = lazy(() => import('@/components/DeleteItemDialog').then((m) => ({ default: m.DeleteItemDialog })));
-import '@/locales/forms';
 
 /** A decision that lost a race: reload (any other 409, such as a reference already recorded, is the payload's own refusal). */
 const RACES = ['core.proposal_conflict', 'core.proposal_decided', 'core.fact_conflict', 'income.phase_conflict'];
@@ -126,7 +127,8 @@ function Proposal({ id }: { id: string }) {
     <div className="flex flex-col gap-6">
       {p.status !== 'pending' ? <>{head(null)}{body}<Decided p={p} target={p.status === 'approved' ? link ?? null : null} /></>
         : !canDecide ? <>{head(null)}{body}<p>{t('proposal.read_only')}</p></>
-        : <Decide key={`${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
+        // A kind's form starts again from a new version; a route kind keeps its delete dialog open across one (a refused approval).
+        : <Decide key={kind && !unsupported ? `${p.id}:${p.version}` : p.id} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
       {tail}
     </div>
   );
@@ -183,13 +185,15 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
   const goal = p.kind === 'goals.delete_goal' ? (original as { id?: string }).id ?? p.targetItemId : null;
   const [deleting, setDeleting] = useState(false);
   const deletion = useGoalDeletion(goal ?? '', deleting && !!goal);
+  const deleted = useItemDeleted('/goals');
   // The goal is gone once approved and the proposal with it (404): leave first, refresh after.
   const approveDeletion = (version: number) => approve.mutate({ params: { path: { id: p.id } }, body: { version: p.version, editedPayload: { id: goal, version } } }, {
-    onSuccess: () => {
-      toast.success(t('deletion.done', { name: deletion.data?.name ?? '' }));
-      void navigate({ to: '/goals' }).then(() => queryClient.invalidateQueries());
+    onSuccess: () => deleted(deletion.data?.name ?? ''),
+    onError: (e) => {
+      if (toProblem(e).status === 409) void deletion.refetch();
+      // A refused approval writes its warning on the proposal (a new version): the next confirm must send that one.
+      void invalidateProposals(queryClient);
     },
-    onError: (e) => { if (toProblem(e).status === 409) void deletion.refetch(); },
   });
   const reject = $api.useMutation('post', REJECT);
   const conflict = [approve.error, reject.error].find((e) => e && isRace(e));

@@ -50,6 +50,11 @@ describe('DeleteItemDialog', () => {
     expect(screen.getByRole('button', { name: 'Fermer' })).toBeInTheDocument();
   });
 
+  it('a blocker without items reads its label alone', () => {
+    show(preview({ blockers: [{ key: 'funding', count: 2, items: [] }] }));
+    expect(screen.getByRole('listitem')).toHaveTextContent(/^2 financements$/);
+  });
+
   it('lists what will be removed', () => {
     show(preview({ removes: [{ key: 'flows', count: 3 }] }));
     expect(screen.getByText('3 flux')).toBeInTheDocument();

@@ -95,7 +95,22 @@ describe('GoalsPage', () => {
     serve(list([summary({ canWrite: false })]));
     await renderApp('/goals');
     await rows();
-    expect(screen.queryByRole('button', { name: 'Actions pour Voyage' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actions pour Voyage' })).not.toBeInTheDocument();    expect(screen.queryByText('Supprimer…')).not.toBeInTheDocument();
+  });
+
+  it('the row menu ends with « Supprimer… », after a separator, and it opens the delete dialog', async () => {
+    serve(list([summary()]));
+    server.use(http.get('*/api/v1/goals/:id/deletion', () => HttpResponse.json({ name: 'Voyage', version: 3, imported: false, removes: [], blockers: [] })));
+    const { user } = await renderApp('/goals');
+    await rows();
+    await user.click(screen.getAllByRole('button', { name: 'Actions pour Voyage' })[0]!);
+    const menu = await screen.findByRole('menu');
+
+    const entries = [...menu.querySelectorAll('[role=menuitem], [role=separator]')] as HTMLElement[];
+    expect(entries.map((e) => e.getAttribute('role'))).toEqual(['menuitem', 'separator', 'menuitem']);
+    expect(entries.at(-1)).toHaveTextContent('Supprimer…');
+    await user.click(entries.at(-1)!);
+    expect(await screen.findByRole('dialog', { name: 'Supprimer Voyage' })).toBeInTheDocument();
   });
 
   it('says why a reopen is refused', async () => {
