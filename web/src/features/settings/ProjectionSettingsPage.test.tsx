@@ -176,6 +176,24 @@ describe('the projection settings page', () => {
     await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: null, retirementAge: 62, retirementMonths: 9 } }]));
   });
 
+  it('sends zero for empty months and shows a server error on the months field', async () => {
+    serve();
+    const sent: Body[] = [];
+    server.use(http.put('*/api/v1/core/persons/:id/retirement', async ({ request }) => { sent.push((await request.json()) as Body); return HttpResponse.json(
+      { status: 422, code: 'core.invalid_retirement_age', errors: [{ path: 'retirementMonths', code: 'core.invalid_retirement_age', message: 'Mois hors limites.' }] },
+      { status: 422, headers: { 'content-type': 'application/problem+json' } }); }));
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier la retraite de Alice' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.clear(within(dialog).getByLabelText('Mois'));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    const months = within(dialog).getByLabelText('Mois');
+    await waitFor(() => expect(months).toHaveAccessibleDescription('Mois hors limites.'));
+    expect(sent[0]!.retirementMonths).toBe(0);
+  });
+
   it('sends only the typed years and the income growth', async () => {
     const { puts } = serve(assumptions({ observedInflation: { percent: '3.1', to: '2026-09' } }));
     const { user } = await renderApp('/settings/projection');

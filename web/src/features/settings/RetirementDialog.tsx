@@ -40,7 +40,7 @@ export function RetirementDialog({ person, onClose, onDone }: {
         <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          save.mutate({ params: { path: { id: person.id } }, body: { birthDate: birthDate === '' ? null : birthDate, retirementAge: ageOf(age), retirementMonths: ageOf(months) } }, {
+          save.mutate({ params: { path: { id: person.id } }, body: { birthDate: birthDate === '' ? null : birthDate, retirementAge: ageOf(age), retirementMonths: months.trim() === '' ? 0 : ageOf(months) } }, {
             onSuccess: () => {
               void queryClient.invalidateQueries({ queryKey: ['get', PERSONS] });
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
