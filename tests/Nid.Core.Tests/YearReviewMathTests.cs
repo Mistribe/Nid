@@ -172,4 +172,17 @@ public class YearReviewMathTests
         Assert.Equal((null, null), (view.Engagements, view.Margin));
         Assert.Null(YearReviewMath.Income(Earned(null), engagements, null, null, Currency.Eur)!.Margin);
     }
+
+    [Fact]
+    public void The_years_start_at_the_first_holding_or_income()
+    {
+        LocalDate[] dates = [new(2023, 12, 31), new(2024, 12, 31), new(2025, 10, 15)];
+        IReadOnlyList<NetWorthPoint> Held(int from) => dates.Select((d, i) => new NetWorthPoint(d, Eur(0m), Eur(0m), i >= from ? 1 : 0)).ToList();
+
+        Assert.Equal([2024, 2025], YearReviewMath.Years(dates, [Held(1)], 2025));
+        Assert.Equal([2022, 2023, 2024, 2025], YearReviewMath.Years(dates, [Held(1)], 2025, new LocalDate(2022, 3, 1)));
+        Assert.Equal([2024, 2025], YearReviewMath.Years(dates, [Held(1)], 2025, new LocalDate(2025, 1, 1)));
+        // No further back than the review reaches.
+        Assert.Equal(2025 - YearReviewMath.MaxYears, YearReviewMath.Years(dates, [Held(3)], 2025, new LocalDate(1900, 1, 1))[0]);
+    }
 }

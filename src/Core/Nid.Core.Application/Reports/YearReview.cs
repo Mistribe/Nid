@@ -73,7 +73,7 @@ public sealed record NetWorthSplit(DashboardMoneyView Start, DashboardMoneyView 
 public static class YearReviewMath
 {
     /// <summary>How far back the years on offer reach.</summary>
-    public const int MaxYears = 50;
+    public const int MaxYears = IIncomeReview.MaxYears;
 
     /// <summary>
     /// Each module's points on <paramref name="from"/> and <paramref name="to"/> as their parts, each date at its own rate, as the curve
@@ -167,10 +167,15 @@ public static class YearReviewMath
             before ? M(Margin(previousIncome!.Total, previousEngagements!.Total)) : null);
     }
 
-    /// <summary>The first year whose 31 December (today for the current year) has a holding, up to today's; today's year alone without any.</summary>
-    public static IReadOnlyList<int> Years(IReadOnlyList<LocalDate> dates, IReadOnlyList<IReadOnlyList<NetWorthPoint>> points, int currentYear)
+    /// <summary>
+    /// From the first year whose 31 December (today for the current year) has a holding, or the year of the first income due when earlier,
+    /// up to today's, at most <see cref="MaxYears"/> back; today's year alone without either.
+    /// </summary>
+    public static IReadOnlyList<int> Years(
+        IReadOnlyList<LocalDate> dates, IReadOnlyList<IReadOnlyList<NetWorthPoint>> points, int currentYear, LocalDate? firstDue = null)
     {
         var first = dates.Where((_, i) => points.Any(p => p[i].Envelopes > 0)).Select(d => d.Year).DefaultIfEmpty(currentYear).First();
+        if (firstDue is { } due) first = Math.Max(currentYear - MaxYears, Math.Min(first, due.Year));
         return Enumerable.Range(first, currentYear - first + 1).ToList();
     }
 }
@@ -203,8 +208,9 @@ public sealed class GetYearReviewHandler(
         var collected = await Contributions.CollectAsync(sources, c => c.NetWorthHistoryAsync(reader, query.Scope, dates, ct));
         if (collected.TryGetFailure(out var failure)) return Result.Failure<YearReviewView>(failure!);
         collected.TryGetValue(out var points);
+        var firstDue = incomes.FirstOrDefault() is { } earning ? await earning.FirstDueAsync(reader, query.Scope, ct) : null;
         var years = YearReviewMath.Years(scan,
-            points!.Select(p => (IReadOnlyList<NetWorthPoint>)scan.Select(d => p[dates.IndexOf(d)]).ToList()).ToList(), today.Year);
+            points!.Select(p => (IReadOnlyList<NetWorthPoint>)scan.Select(d => p[dates.IndexOf(d)]).ToList()).ToList(), today.Year, firstDue);
 
         if (year > today.Year || year < years[0])
             return Result.Failure<YearReviewView>(new Failure(ReportCodes.InvalidYear,

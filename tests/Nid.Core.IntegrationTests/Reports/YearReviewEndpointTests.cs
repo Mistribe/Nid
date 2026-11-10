@@ -182,16 +182,17 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Contains("reports.invalid_year", await before.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
-    /// <summary>A monthly salary of <paramref name="amount"/> from 2024-01-01, until <paramref name="endsOn"/> when given.</summary>
+    /// <summary>A monthly salary of <paramref name="amount"/> from <paramref name="startsOn"/>, until <paramref name="endsOn"/> when given.</summary>
     private static async Task<Guid> SalaryAsync(
-        NidApp app, PersonId owner, string name = "Salaire", string visibility = "shared", string? endsOn = null, string amount = "2000")
+        NidApp app, PersonId owner, string name = "Salaire", string visibility = "shared", string? endsOn = null, string amount = "2000",
+        string startsOn = "2024-01-01")
         => await CreatedAsync(await app.RawAsync(owner, HttpMethod.Post, "/api/v1/income/sources", new
         {
             displayName = name, kind = "salary", currency = "EUR", visibility,
             owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
             phases = new[]
             {
-                new { label = "Salaire", startsOn = "2024-01-01", endsOn, netAmount = new { amount, currency = "EUR" }, every = new { count = 1, unit = "month" } },
+                new { label = "Salaire", startsOn, endsOn, netAmount = new { amount, currency = "EUR" }, every = new { count = 1, unit = "month" } },
             },
         }));
 
@@ -226,7 +227,6 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task The_income_matches_the_overview()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared); // a holding from 2023: 2024 can be reviewed
         var salary = await SalaryAsync(app, app.AdultA, amount: "5000");
         await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{salary}/one-offs",
             new { occurredOn = "2024-06-15", amount = Eur("500"), note = "Prime" }));
@@ -236,7 +236,8 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         static async Task<string?> OverviewAsync(NidApp app, string query, string figure)
             => A((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/income/overview?scope=household{query}"))).GetProperty("figures"), figure);
-        Assert.Equal(("60500.00", await OverviewAsync(app, "&period=year&year=2024", "total")), (A(past, "income"), A(past, "income")));
+        Assert.Equal("60500.00", A(past, "income"));
+        Assert.Equal(await OverviewAsync(app, "&period=year&year=2024", "total"), A(past, "income"));
         Assert.Equal(await OverviewAsync(app, "&period=year", "elapsed"), A(current, "income"));
         Assert.Equal([(salary.ToString(), "60000.00"), ("one_off", "500.00")],
             past.GetProperty("sources").EnumerateArray().Select(s => (s.GetProperty("key").GetString(), A(s, "amount"))));
@@ -256,7 +257,7 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task The_engagements_are_the_months_cash()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        await SalaryAsync(app, app.AdultA); // income since 2024: the year is on offer
         await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
         await NewAsync(app, Golden(app));
 
@@ -280,14 +281,14 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.True(cash[CommitmentSources.Loans] > 0m);
         Assert.Equal(cash[CommitmentSources.Loans], D(engagements[CommitmentSources.Loans]));
         Assert.Equal(engagements.Values.Sum(D), D(A(past, "engagements")));
-        Assert.Equal(("0.00", -D(A(past, "engagements"))), (A(past, "income"), D(A(past, "margin"))));
+        Assert.Equal(24_000m - D(A(past, "engagements")), D(A(past, "margin")));
     }
 
     [Fact]
     public async Task An_archived_subscription_counts_in_its_year()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        await SalaryAsync(app, app.AdultA);
         var presse = await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
         await SubscriptionAsync(app, app.AdultA, "Musique", Visibility.Shared, "10");
         await ArchiveAsync(app, presse, 2024, 6, 15);
@@ -303,7 +304,6 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task Another_adults_private_income_and_subscription_are_left_out(string scope)
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
         var salary = await SalaryAsync(app, app.AdultA);
         await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
         var hidden = await SalaryAsync(app, app.AdultB, "Salaire secret de B", "private", amount: "5000");
@@ -325,7 +325,6 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task The_previous_year_is_beside()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
         // All of 2024 before 15 October: the previous period of 2025 to date holds the same figures as the year 2024.
         var salary = await SalaryAsync(app, app.AdultA, endsOn: "2024-06-30");
         var presse = await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
@@ -340,5 +339,46 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal((A(past, "income"), A(past, "engagements"), A(past, "margin")),
             (A(current, "previousIncome"), A(current, "previousEngagements"), A(current, "previousMargin")));
         Assert.Equal("500.00", A(current, "income"));
+    }
+
+    [Fact]
+    public async Task Income_without_a_holding_opens_its_years()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA, startsOn: "2023-06-01");
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2024&scope=household"));
+
+        Assert.Equal([2023, 2024, 2025], body.GetProperty("years").EnumerateArray().Select(y => y.GetInt32()));
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("netWorth").ValueKind);
+        Assert.Equal("24000.00", A(body.GetProperty("income"), "income"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)] // the net worth misses the same rate
+    public async Task A_subscription_without_a_rate_is_one_finding(bool foreignHolding)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA);
+        var id = await app.NewSubscriptionAsync("Streaming", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
+        {
+            startsOn = "2024-01-01", price = new { amount = "10", currency = "USD" }, every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        if (foreignHolding)
+        {
+            var dollars = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD");
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{dollars.Value}/valuations",
+                new { asOf = "2023-12-31", amount = new { amount = "1000.00", currency = "USD" } });
+        }
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2025&scope=household"));
+        var income = body.GetProperty("income");
+
+        Assert.Equal(["core.fx_rate_missing"], body.GetProperty("findings").EnumerateArray().Select(f => f.GetString()));
+        Assert.Equal((null, null, null), (Engagements(income)[CommitmentSources.Subscriptions], A(income, "engagements"), A(income, "margin")));
+        Assert.Equal("20000.00", A(income, "income"));
     }
 }

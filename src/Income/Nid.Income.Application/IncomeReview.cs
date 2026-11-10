@@ -27,4 +27,14 @@ public sealed class IncomeReview(IncomeOverviewEntries overviewEntries, IHouseho
                 : new IncomeReviewSource(null, r.Kind, null, null, r.Amount)).ToList(),
             missing));
     }
+
+    public async Task<LocalDate?> FirstDueAsync(PersonId reader, VisibilityScope scope, CancellationToken ct)
+    {
+        var today = await calendar.TodayAsync(ct);
+        var loaded = await overviewEntries.ReadAsync(
+            reader, scope, null, null, null, new LocalDate(today.Year - IIncomeReview.MaxYears, 1, 1), today, today, ct);
+        // Unreadable entries offer no year: the review of any year would fail on them anyway.
+        if (!loaded.TryGetValue(out var read)) return null;
+        return read!.Entries.SelectMany(e => e.Input.Recurring.Concat(e.Input.OneOffs)).Select(d => (LocalDate?)d.On).Min();
+    }
 }
