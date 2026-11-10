@@ -11,7 +11,11 @@ public sealed record NotificationRecord(
     Instant CreatedAt, Instant? OpenedAt, Instant? ResolvedAt, int Round = 1);
 
 /// <summary>The three lists of the centre: what to do, what is put off, what is over (notifications design §4).</summary>
-public enum NotificationList { Todo, Snoozed, History }
+/// <summary>
+/// <see cref="Critical"/>: the open, unread critical ones, which the bell lists first while its badge says one is waiting:
+/// newest first, they may be older than the latest to do.
+/// </summary>
+public enum NotificationList { Todo, Snoozed, History, Critical }
 
 /// <summary>Persistence of notifications and of the evaluation runs (notifications design §2.3, §4).</summary>
 public interface INotificationStore

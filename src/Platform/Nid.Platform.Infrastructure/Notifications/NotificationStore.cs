@@ -230,6 +230,10 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
             case NotificationList.Snoozed:
                 query = query.Where(n => n.State == NotificationStates.Snoozed);
                 break;
+            case NotificationList.Critical:
+                var critical = LevelText(NotificationLevel.Critical);
+                query = query.Where(n => n.State == NotificationStates.Open && n.ReadAt == null && n.Level == critical);
+                break;
             default:
                 var since = today.PlusDays(-HistoryDays).AtMidnight().InUtc().ToInstant();
                 query = query.Where(n => (n.State == NotificationStates.Resolved || n.State == NotificationStates.Dismissed)
