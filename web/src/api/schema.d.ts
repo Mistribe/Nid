@@ -28728,6 +28728,11 @@ export interface components {
             commitments: components["schemas"]["GoalCommitmentView"][];
             flags: string[];
         };
+        EngagementSourceView: {
+            source: string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
+            estimated: boolean;
+        };
         EnvelopeDetail: {
             /** Format: uuid */
             id: string;
@@ -29727,6 +29732,16 @@ export interface components {
             version: number;
             taxableAmount?: null | components["schemas"]["IncomeMoneyView"];
         };
+        IncomeReviewView: {
+            income?: null | components["schemas"]["DashboardMoneyView"];
+            sources: components["schemas"]["IncomeSourceView"][];
+            engagements?: null | components["schemas"]["DashboardMoneyView"];
+            engagementSources: components["schemas"]["EngagementSourceView"][];
+            margin?: null | components["schemas"]["DashboardMoneyView"];
+            previousIncome?: null | components["schemas"]["DashboardMoneyView"];
+            previousEngagements?: null | components["schemas"]["DashboardMoneyView"];
+            previousMargin?: null | components["schemas"]["DashboardMoneyView"];
+        };
         IncomeRowView: {
             source: string;
             /** Format: uuid */
@@ -29821,6 +29836,14 @@ export interface components {
             /** Format: date */
             endedOn?: null | string;
             owners: components["schemas"]["ItemOwnerView"][];
+        };
+        IncomeSourceView: {
+            /** Format: uuid */
+            id?: null | string;
+            key: string;
+            name?: null | string;
+            kind?: null | string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
         };
         IncomeWithholdingView: {
             /** Format: uuid */
@@ -33400,6 +33423,7 @@ export interface components {
             years: number[];
             netWorth?: null | components["schemas"]["NetWorthReviewView"];
             investments?: null | components["schemas"]["InvestmentsReviewView"];
+            income?: null | components["schemas"]["IncomeReviewView"];
             findings: string[];
         };
         YearView: {

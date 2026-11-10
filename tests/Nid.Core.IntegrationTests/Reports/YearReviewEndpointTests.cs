@@ -1,8 +1,12 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
+using static Nid.TestSupport.LoanApi;
 
 namespace Nid.Core.IntegrationTests.Reports;
 
@@ -176,5 +180,165 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal((HttpStatusCode.BadRequest, HttpStatusCode.BadRequest, HttpStatusCode.BadRequest), (future.StatusCode, before.StatusCode, unreadable.StatusCode));
         Assert.Contains("reports.invalid_year", await future.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Contains("reports.invalid_year", await before.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>A monthly salary of <paramref name="amount"/> from 2024-01-01, until <paramref name="endsOn"/> when given.</summary>
+    private static async Task<Guid> SalaryAsync(
+        NidApp app, PersonId owner, string name = "Salaire", string visibility = "shared", string? endsOn = null, string amount = "2000")
+        => await CreatedAsync(await app.RawAsync(owner, HttpMethod.Post, "/api/v1/income/sources", new
+        {
+            displayName = name, kind = "salary", currency = "EUR", visibility,
+            owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
+            phases = new[]
+            {
+                new { label = "Salaire", startsOn = "2024-01-01", endsOn, netAmount = new { amount, currency = "EUR" }, every = new { count = 1, unit = "month" } },
+            },
+        }));
+
+    /// <summary>A subscription of <paramref name="price"/> charged on the 1st of each month from 2024-01-01.</summary>
+    private static async Task<ItemId> SubscriptionAsync(NidApp app, PersonId owner, string name, Visibility visibility, string price = "30")
+    {
+        var id = await app.NewSubscriptionAsync(name, owner, visibility);
+        (await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
+        {
+            startsOn = "2024-01-01", price = new { amount = price, currency = "EUR" }, every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        return id;
+    }
+
+    /// <summary>Archives an item on a day, mid-morning UTC: the same day in the household's zone.</summary>
+    private static async Task ArchiveAsync(NidApp app, ItemId id, int year, int month, int day)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        Assert.True((await scope.ServiceProvider.GetRequiredService<IItemRegistry>()
+            .ArchiveAsync(id, Instant.FromUtc(year, month, day, 10, 0), TestContext.Current.CancellationToken)).IsSuccess);
+    }
+
+    private static async Task<JsonElement> IncomeAsync(NidApp app, string year)
+        => (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year={year}&scope=household"))).GetProperty("income");
+
+    private static Dictionary<string, string?> Engagements(JsonElement income)
+        => income.GetProperty("engagementSources").EnumerateArray().ToDictionary(s => s.GetProperty("source").GetString()!, s => A(s, "amount"));
+
+    [Fact]
+    public async Task The_income_matches_the_overview()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared); // a holding from 2023: 2024 can be reviewed
+        var salary = await SalaryAsync(app, app.AdultA, amount: "5000");
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{salary}/one-offs",
+            new { occurredOn = "2024-06-15", amount = Eur("500"), note = "Prime" }));
+
+        var past = await IncomeAsync(app, "2024");
+        var current = await IncomeAsync(app, "2025");
+
+        static async Task<string?> OverviewAsync(NidApp app, string query, string figure)
+            => A((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/income/overview?scope=household{query}"))).GetProperty("figures"), figure);
+        Assert.Equal(("60500.00", await OverviewAsync(app, "&period=year&year=2024", "total")), (A(past, "income"), A(past, "income")));
+        Assert.Equal(await OverviewAsync(app, "&period=year", "elapsed"), A(current, "income"));
+        Assert.Equal([(salary.ToString(), "60000.00"), ("one_off", "500.00")],
+            past.GetProperty("sources").EnumerateArray().Select(s => (s.GetProperty("key").GetString(), A(s, "amount"))));
+        Assert.Equal(salary, past.GetProperty("sources")[0].GetProperty("id").GetGuid());
+        // 2025: ten months of the year's tax estimate; none before the rules.
+        var tax = D((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?scope=household&year=2025")))
+            .GetProperty("result").GetProperty("totalTax").GetString());
+        Assert.True(tax > 0m);
+        Assert.Equal(Math.Round(tax * 10 / 12, 2, MidpointRounding.AwayFromZero), D(Engagements(current)[CommitmentSources.Tax]));
+        Assert.True(current.GetProperty("engagementSources").EnumerateArray()
+            .Single(s => s.GetProperty("source").GetString() == CommitmentSources.Tax).GetProperty("estimated").GetBoolean());
+        Assert.DoesNotContain(CommitmentSources.Tax, Engagements(past).Keys);
+        Assert.Equal(D(A(current, "income")) - D(A(current, "engagements")), D(A(current, "margin")));
+    }
+
+    [Fact]
+    public async Task The_engagements_are_the_months_cash()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
+        await NewAsync(app, Golden(app));
+
+        var past = await IncomeAsync(app, "2024");
+
+        var cash = new Dictionary<string, decimal>();
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+            foreach (var month in Enumerable.Range(1, 12))
+                foreach (var contribution in scope.ServiceProvider.GetServices<ICommitmentsContribution>())
+                {
+                    var result = await contribution.CommitmentsAsync(app.AdultA, VisibilityScope.Household,
+                        new LocalDate(2024, month, 1).PlusMonths(1).PlusDays(-1), TestContext.Current.CancellationToken, includeArchived: true);
+                    Assert.True(result.TryGetValue(out var part));
+                    cash[part!.Source] = cash.GetValueOrDefault(part.Source) + part.Cash.GetValueOrDefault(Currency.Eur);
+                }
+        }
+        var engagements = Engagements(past);
+        Assert.Equal((360m, 360m), (cash[CommitmentSources.Subscriptions], D(engagements[CommitmentSources.Subscriptions])));
+        Assert.True(cash[CommitmentSources.Loans] > 0m);
+        Assert.Equal(cash[CommitmentSources.Loans], D(engagements[CommitmentSources.Loans]));
+        Assert.Equal(engagements.Values.Sum(D), D(A(past, "engagements")));
+        Assert.Equal(("0.00", -D(A(past, "engagements"))), (A(past, "income"), D(A(past, "margin"))));
+    }
+
+    [Fact]
+    public async Task An_archived_subscription_counts_in_its_year()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        var presse = await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
+        await SubscriptionAsync(app, app.AdultA, "Musique", Visibility.Shared, "10");
+        await ArchiveAsync(app, presse, 2024, 6, 15);
+
+        // Presse: January to June 2024. Musique: the twelve months, then ten in 2025 (October's is due on the 1st).
+        Assert.Equal("300.00", Engagements(await IncomeAsync(app, "2024"))[CommitmentSources.Subscriptions]);
+        Assert.Equal("100.00", Engagements(await IncomeAsync(app, "2025"))[CommitmentSources.Subscriptions]);
+    }
+
+    [Theory]
+    [InlineData("household")]
+    [InlineData("me")]
+    public async Task Another_adults_private_income_and_subscription_are_left_out(string scope)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        var salary = await SalaryAsync(app, app.AdultA);
+        await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
+        var hidden = await SalaryAsync(app, app.AdultB, "Salaire secret de B", "private", amount: "5000");
+        var secret = await SubscriptionAsync(app, app.AdultB, "Abonnement secret de B", Visibility.Private, "99");
+
+        foreach (var (year, income, subscriptions) in new[] { ("2024", "24000.00", "360.00"), ("2025", "20000.00", "300.00") })
+        {
+            var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year={year}&scope={scope}"));
+            var section = body.GetProperty("income");
+
+            Assert.Equal([salary], section.GetProperty("sources").EnumerateArray().Select(s => s.GetProperty("id").GetGuid()));
+            Assert.Equal((income, subscriptions), (A(section, "income"), Engagements(section)[CommitmentSources.Subscriptions]));
+            foreach (var leak in new[] { hidden.ToString(), secret.Value.ToString(), "Salaire secret de B", "Abonnement secret de B" })
+                Assert.DoesNotContain(leak, body.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task The_previous_year_is_beside()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        // All of 2024 before 15 October: the previous period of 2025 to date holds the same figures as the year 2024.
+        var salary = await SalaryAsync(app, app.AdultA, endsOn: "2024-06-30");
+        var presse = await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
+        await ArchiveAsync(app, presse, 2024, 6, 15);
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{salary}/one-offs",
+            new { occurredOn = "2025-03-01", amount = Eur("500"), note = "Prime" }));
+
+        var past = await IncomeAsync(app, "2024");
+        var current = await IncomeAsync(app, "2025");
+
+        Assert.Equal(("12000.00", "180.00", "11820.00"), (A(past, "income"), A(past, "engagements"), A(past, "margin")));
+        Assert.Equal((A(past, "income"), A(past, "engagements"), A(past, "margin")),
+            (A(current, "previousIncome"), A(current, "previousEngagements"), A(current, "previousMargin")));
+        Assert.Equal("500.00", A(current, "income"));
     }
 }

@@ -221,7 +221,7 @@ public static class DashboardMath
     }
 
     /// <summary>3E1 spec §3: « Abonnements · Crédits · Charges des biens », then « Impôts ».</summary>
-    private static int SourceRank(string source) => source switch
+    internal static int SourceRank(string source) => source switch
     {
         CommitmentSources.Subscriptions => 0,
         CommitmentSources.Loans => 1,

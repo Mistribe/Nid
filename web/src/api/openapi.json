@@ -34874,6 +34874,31 @@
           }
         }
       },
+      "EngagementSourceView": {
+        "required": [
+          "source",
+          "estimated"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "estimated": {
+            "type": "boolean"
+          }
+        }
+      },
       "EnvelopeDetail": {
         "required": [
           "id",
@@ -39237,6 +39262,87 @@
           }
         }
       },
+      "IncomeReviewView": {
+        "required": [
+          "sources",
+          "engagementSources"
+        ],
+        "type": "object",
+        "properties": {
+          "income": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeSourceView"
+            }
+          },
+          "engagements": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "engagementSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementSourceView"
+            }
+          },
+          "margin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousIncome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousEngagements": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousMargin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "IncomeRowView": {
         "required": [
           "source",
@@ -39638,6 +39744,46 @@
             "items": {
               "$ref": "#/components/schemas/ItemOwnerView"
             }
+          }
+        }
+      },
+      "IncomeSourceView": {
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
           }
         }
       },
@@ -55383,6 +55529,16 @@
               },
               {
                 "$ref": "#/components/schemas/InvestmentsReviewView"
+              }
+            ]
+          },
+          "income": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeReviewView"
               }
             ]
           },
