@@ -69,6 +69,25 @@ public sealed record SubscriptionsReviewPart(
 /// <summary>Issue #12: a subscription that started (its first charge) or ended (its last day covered, without successor) on <c>On</c>.</summary>
 public sealed record SubscriptionReviewItem(ItemId Id, string Name, string? Provider, LocalDate On);
 
+public interface ILoansReview
+{
+    /// <summary>
+    /// Issue #12: the loans of (start, end], every visible one archived and ended ones included, as <c>LoanMath.At(end) − LoanMath.At(start)</c>;
+    /// an archived loan read on its last counted day. The period sums convert at <paramref name="end"/>'s rate, the start balance at
+    /// <paramref name="start"/>'s, the end balance at <paramref name="end"/>'s.
+    /// </summary>
+    Task<Result<LoansReviewPart>> ReviewAsync(PersonId reader, VisibilityScope scope, LocalDate start, LocalDate end, CancellationToken ct);
+}
+
+/// <summary>Issue #12: the period's loans, in the reference currency; a total is null when a loan's figure could not be converted (<c>MissingCurrencies</c>).</summary>
+public sealed record LoansReviewPart(
+    decimal? Interest, decimal? Insurance, decimal? Fees, decimal? CapitalRepaid, decimal? StartBalance, decimal? EndBalance,
+    IReadOnlyList<LoanReviewRow> Loans, IReadOnlyList<string> MissingCurrencies);
+
+/// <summary>Issue #12: a loan with activity or a balance in the period; <c>CapitalRepaid</c>: its scheduled principal and early repayments.</summary>
+public sealed record LoanReviewRow(ItemId Id, string Name, decimal? Interest, decimal? Insurance, decimal? Fees, decimal? CapitalRepaid,
+    decimal? StartBalance, decimal? EndBalance);
+
 /// <summary>Issue #12: a phase following another at a different price or cycle; <c>PromoEnded</c>: the earlier one had a cycle limit.</summary>
 public sealed record SubscriptionPriceChange(ItemId Id, string Name, LocalDate On, decimal BeforeAmount, string BeforeCurrency, Duration BeforeEvery,
     decimal AfterAmount, string AfterCurrency, Duration AfterEvery, bool PromoEnded);
