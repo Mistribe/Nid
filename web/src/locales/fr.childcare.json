@@ -265,7 +265,7 @@
     },
     "reason": {
       "family": "Convenance de la famille",
-      "parent_rtt": "RTT d'un parent",
+      "parent_rtt": "RTT employeur",
       "child_sick": "Enfant malade",
       "carer_absent": "Absence de l'assistante",
       "holiday": "Jour férié",
