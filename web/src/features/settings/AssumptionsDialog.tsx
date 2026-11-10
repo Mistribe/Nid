@@ -150,7 +150,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
               {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={growth} onChange={(e) => setGrowth(e.target.value)} />}
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t('settings.projection.withdrawal_rate')} hint={t('settings.projection.withdrawal_rate_hint')} error={errorOf('withdrawalRate')}>
               {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={withdrawal} onChange={(e) => setWithdrawal(e.target.value)} />}
             </Field>

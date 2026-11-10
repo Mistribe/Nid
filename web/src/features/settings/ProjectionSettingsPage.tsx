@@ -57,7 +57,7 @@ export function ProjectionSettingsPage() {
               <li>{t('settings.projection.volatility_summary')} : {ASSET_CLASSES.map((c) => `${t(`settings.projection.class.${c}`)} ${percent(assumptions.data.classVolatility[c] ?? '0')}`).join(', ')}</li>
               <li>{t('settings.projection.income_growth_summary')} : {t('settings.projection.income_growth_value', { percent: percent(assumptions.data.incomeGrowth) })}</li>
               <li>{t('settings.projection.withdrawal_rate')} : {percent(assumptions.data.withdrawalRate)}</li>
-              <li>{t('settings.projection.living_cost_summary')} : {formatCurrency(assumptions.data.monthlyLivingCost, assumptions.data.currency)}</li>
+              <li>{t('settings.projection.living_cost_summary')} : {Number(assumptions.data.monthlyLivingCost) > 0 ? formatCurrency(assumptions.data.monthlyLivingCost, assumptions.data.currency) : t('settings.projection.living_cost_unset')}</li>
               <li>{t('settings.projection.monthly_savings')} : {assumptions.data.monthlySavings ? formatCurrency(assumptions.data.monthlySavings, assumptions.data.currency) : t('settings.projection.savings_auto_summary')}</li>
               <li>{t('settings.projection.savings_class')} : {t(`settings.projection.class.${assumptions.data.savingsClass as (typeof ASSET_CLASSES)[number]}`)}</li>
               <li>{t('settings.projection.freed')} : {t(assumptions.data.freedPaymentsToSavings ? 'settings.projection.yes' : 'settings.projection.no')}</li>

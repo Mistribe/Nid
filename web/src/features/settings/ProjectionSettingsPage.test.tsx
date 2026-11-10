@@ -131,6 +131,13 @@ describe('the projection settings page', () => {
     expect(puts[0]).toMatchObject({ withdrawalRate: '3.5', monthlyLivingCost: '2500' });
   });
 
+  it('shows an unset living cost as not filled in', async () => {
+    serve();
+    await renderApp('/settings/projection');
+
+    expect(await screen.findByText('Coût de la vie mensuel : non renseigné')).toBeInTheDocument();
+  });
+
   it('sends a fixed monthly amount', async () => {
     const { puts } = serve();
     const { user } = await renderApp('/settings/projection');

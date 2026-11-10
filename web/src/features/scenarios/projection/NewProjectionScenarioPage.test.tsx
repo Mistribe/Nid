@@ -122,6 +122,21 @@ describe('NewProjectionScenarioPage', () => {
     }));
   });
 
+  it('sends the withdrawal rate and living cost typed, and omits them when empty', async () => {
+    const { simulated } = serve();
+    const { user } = await renderApp('/scenarios/new?kind=projection');
+
+    await general(user);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: 'Changer les hypothèses du foyer' }));
+    await user.type(screen.getByLabelText('Taux de retrait (%)'), '3,5');
+    await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({ withdrawalRate: '3.5' }));
+    await user.type(screen.getByLabelText('Coût de la vie mensuel'), '2500');
+    await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({ withdrawalRate: '3.5', monthlyLivingCost: '2500' }));
+    await user.clear(screen.getByLabelText('Taux de retrait (%)'));
+    await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({ monthlyLivingCost: '2500' }));
+  });
+
   it('sends no simulation while a typed assumption cannot be read', async () => {
     const { simulated } = serve();
     const { user } = await renderApp('/scenarios/new?kind=projection');
