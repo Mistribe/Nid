@@ -646,6 +646,8 @@ public static class RequestCatalogue
         },
         // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
         new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
+        new(typeof(LoanDeletionQuery), true, (_, item) => new LoanDeletionQuery(item)),
+        new(typeof(DeleteLoanCommand), true, (_, item) => new DeleteLoanCommand(item, 1)),
 
         // A fee or repayment id is looked up in the route's loan only (StoredLoan's own lists), so an id alone can never
         // reach another item: no BuildNamingAnother, as the income phases.
@@ -680,6 +682,8 @@ public static class RequestCatalogue
             [new OwnerShare(d.App.AdultA, 10_000)], BenchProperty)),
         // Version 1 is never a row's xmin: an allowed writer meets realestate.property_conflict, never an access refusal.
         new(typeof(EditPropertyCommand), true, (_, item) => new EditPropertyCommand(item, null, new PropertyChange(Note: "bench"), 1)),
+        new(typeof(PropertyDeletionQuery), true, (_, item) => new PropertyDeletionQuery(item)),
+        new(typeof(DeletePropertyCommand), true, (_, item) => new DeletePropertyCommand(item, 1)),
 
         // A fact id is looked up by (id, item_id) in the Core (2A), as the envelopes': no BuildNamingAnother.
         new(typeof(RecordPropertyValuationCommand), true, (_, item) => new RecordPropertyValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),

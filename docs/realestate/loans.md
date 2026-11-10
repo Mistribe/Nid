@@ -312,6 +312,8 @@ Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
 
 **Avertissements** : `projection_uses_last_rate`, `schedule_mismatch`, `bank_schedule_unfit`, `event_off_payment_date`, `exceeds_total_payments`, `override_ignored_after_early_repayment`, `visibility_mismatch` (bien et prêt).
 
+**Suppression d'un crédit** (#23) : réservée à un crédit créé par erreur (un crédit remboursé se termine seul). Partent le crédit, ses phases, ses assurances, ses frais, ses remboursements anticipés et le tableau de la banque, avec les propriétaires, liens de documents et références bancaires de l'élément ; le bien qu'il finance reste. Rien ne bloque. `DELETE /api/v1/realestate/loans/{id}?version=` (le `version` lu par `GET …/deletion` : 422 sans lui, 409 s'il est périmé).
+
 ## 12. Tests
 
 | Test | Vérifie |

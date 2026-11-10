@@ -199,6 +199,8 @@ Sections de `../import-format.md` définies par ce module (les `valuations` et `
 
 **Avertissements** : valeur périmée ; `visibility_mismatch` ; prêt lié dans une autre devise ; bien de type `rental` sans bail ni `rental_starts_on`.
 
+**Suppression d'un bien** (#23) : réservée à un bien créé par erreur. Partent le bien, ses baux (une révision avant le bail qu'elle prolonge), ses charges récurrentes, ses estimations et ses flux (faits du Core), avec les propriétaires, liens de documents et références bancaires de l'élément. Bloquent : un crédit qui le finance (`loan`, `loan.property_item_id` : supprimer le crédit ou changer son bien) et une assurance d'abonnement qui le couvre (`insurance`, `subscription_insurance.property_id` : détacher l'assurance). Un blocage ne nomme que les éléments que l'auteur voit. `DELETE /api/v1/realestate/properties/{id}?version=` (le `version` lu par `GET …/deletion` : 422 sans lui, 409 s'il est périmé, 409 `core.item_in_use` si un blocage tient).
+
 ## 12. Exemple (chiffres fictifs)
 
 Achat de 250 000 € + notaire 19 000 € + travaux 12 000 € (`works`).

@@ -188,4 +188,38 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/investments/envelopes/{envelope.Value}")).StatusCode);
     }
+
+    [Fact]
+    public async Task Approving_deletes_the_property()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var property = await app.NewPropertyAsync("Studio", Visibility.Shared, (app.AdultA, 10_000));
+        async Task<uint> PropertyVersionAsync()
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/realestate/properties/{property.Value}/deletion")).RootElement.GetProperty("version").GetUInt32();
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+        var proposal = await ProposeAsync(client, "propose_delete_property", new { id = property.Value, version = await PropertyVersionAsync() });
+
+        var response = await ApproveAsync(app, proposal, new { id = property.Value, version = await PropertyVersionAsync() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/realestate/properties/{property.Value}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Approving_deletes_the_loan()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await app.NewLoanAsync("Prêt travaux", Visibility.Shared, (app.AdultA, 10_000));
+        async Task<uint> LoanVersionAsync()
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/realestate/loans/{loan.Value}/deletion")).RootElement.GetProperty("version").GetUInt32();
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+        var proposal = await ProposeAsync(client, "propose_delete_loan", new { id = loan.Value, version = await LoanVersionAsync() });
+
+        var response = await ApproveAsync(app, proposal, new { id = loan.Value, version = await LoanVersionAsync() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/realestate/loans/{loan.Value}")).StatusCode);
+    }
 }

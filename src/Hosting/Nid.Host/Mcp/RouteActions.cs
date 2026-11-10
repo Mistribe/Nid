@@ -105,6 +105,10 @@ public static class RouteActions
             "The monthly property routine (get_property_routine): estimates and flows of several properties on one date. " + Ids + Amounts),
         new("undo_property_routine", "POST", "/api/v1/realestate/routine/undo", typeof(PropertyRoutineUndoBody),
             "Undo the facts a property routine recorded. " + Ids, Destructive: true),
+        new("delete_property", "DELETE", "/api/v1/realestate/properties/{id:guid}", null,
+            "Propose deleting a property created by mistake. The household confirms it by typing its name; a loan or a subscription insurance "
+            + "linked to it refuses it. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/realestate/properties/{id:guid}/deletion"),
 
         // Real estate: loans.
         new("create_loan", "POST", "/api/v1/realestate/loans", typeof(CreateLoanBody),
@@ -128,6 +132,9 @@ public static class RouteActions
             "Remove an early repayment. " + Ids + Versioned, Destructive: true, Query: ["version"]),
         new("delete_bank_schedule", "DELETE", "/api/v1/realestate/loans/{id:guid}/bank-schedule", null,
             "Remove the bank's amortisation table stored for a loan. " + Ids + Versioned, Destructive: true, Query: ["version"]),
+        new("delete_loan", "DELETE", "/api/v1/realestate/loans/{id:guid}", null,
+            "Propose deleting a loan created by mistake. The household confirms it by typing its name. version is the one the deletion "
+            + "preview returned. " + Ids, Destructive: true, Query: ["version"], Current: "/api/v1/realestate/loans/{id:guid}/deletion"),
 
         // Investments.
         new("create_envelope", "POST", "/api/v1/investments/envelopes", typeof(CreateEnvelopeBody),
