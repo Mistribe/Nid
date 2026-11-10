@@ -13,7 +13,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { TableToggle } from '@/components/page/TableToggle';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { personColor } from '@/components/colors';
 import { toPlot } from '@/lib/plot';
@@ -36,13 +36,69 @@ type Scope = 'household' | 'me';
 /** A server figure as text; « — » when a rate is missing. */
 const text = (value?: MoneyValue | null) => (value ? formatMoney(value) : '—');
 
-/** Subscriptions dashboard design §4.2: the server's figures, then its panels; nothing is computed here. */
+/** Issue #20: the simple view — the server's figures, then the months with what to watch beside them; nothing is computed here. */
 export function OverviewTab({ scope }: { scope: Scope }) {
+  const { t } = useTranslation('subscriptions-board');
+  const { t: tc } = useTranslation();
+  const [monthsTable, setMonthsTable] = useState(false);
+  return (
+    <OverviewAnswer scope={scope}>
+      {(d) => (
+        <>
+          <StatLine items={[
+            { label: tc('subscriptions.per_month'), value: text(d.monthlyAmortized) },
+            { label: tc('subscriptions.per_year'), value: text(d.annualAmortized) },
+            // #376: the figure on its line, what it is read against under it.
+            { label: t('overview.remaining'), value: text(d.monthCashRemaining), hint: t('overview.remaining_of', { total: text(d.monthCash) }) },
+            { label: t('overview.count'), value: t('overview.active', { count: d.activeCount }), hint: t('overview.ended', { count: d.endedCount }) },
+          ]} />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Panel title={t('overview.months')} className="lg:col-span-2"
+              action={<TableToggle asTable={monthsTable} onToggle={() => setMonthsTable((v) => !v)} />}>
+              <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><MonthsChart months={d.months} asTable={monthsTable} /></Suspense>
+            </Panel>
+            <Panel title={t('overview.watch')}><Watch d={d} scope={scope} /></Panel>
+          </div>
+        </>
+      )}
+    </OverviewAnswer>
+  );
+}
+
+/** Issue #20: « Analyse », the panels the simple view leaves out, in the desktop order they had. */
+export function AnalysisTab({ scope }: { scope: Scope }) {
+  const { t } = useTranslation('subscriptions-board');
+  return (
+    <OverviewAnswer scope={scope}>
+      {(d) => (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Panel title={t('overview.persons')}><Persons d={d} /></Panel>
+          <Panel title={t('overview.labels')}
+            action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'list', group: 'label', status: 'all' })} className={seeAllClass}>{t('overview.see_list')}</Link>}>
+            <Labels d={d} />
+          </Panel>
+          <Panel title={t('overview.upcoming')}
+            action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'calendar' })} className="text-sm underline-offset-4 hover:underline">{t('overview.calendar')}</Link>}><Upcoming d={d} /></Panel>
+          {d.years.length > 0 ? (
+            <Panel title={t('years.title')} className="lg:col-span-3">
+              <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><YearsChart years={d.years} /></Suspense>
+            </Panel>
+          ) : null}
+          {d.topProviders.length > 0 ? <Panel title={t('providers.title')}><TopProviders d={d} /></Panel> : null}
+          {d.savings.items.length > 0 ? <Panel title={t('savings.title')}><Savings d={d} /></Panel> : null}
+          {d.priceRises.items.length > 0 ? <Panel title={t('rises.title')}><PriceRises d={d} /></Panel> : null}
+        </div>
+      )}
+    </OverviewAnswer>
+  );
+}
+
+/** Subscriptions dashboard design §4.2: the server's answer both tabs read (one request), or what to show instead. */
+function OverviewAnswer({ scope, children }: { scope: Scope; children: (d: Overview) => ReactNode }) {
   const { t } = useTranslation('subscriptions-board');
   const { t: tc } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', OVERVIEW, { params: { query: { scope } } });
-  const [monthsTable, setMonthsTable] = useState(false);
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
@@ -53,40 +109,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
         action={<Link to="/subscriptions/new" className={buttonVariants({ variant: 'outline' })}>{tc('subscriptions.empty_action')}</Link>} />
     );
 
-  // DOM order is the phone's (figures, months, watch, upcoming, persons, labels); `lg:order-*` lays out the desktop grid.
-  return (
-    <div className="space-y-6">
-      <StatLine items={[
-        { label: tc('subscriptions.per_month'), value: text(d.monthlyAmortized) },
-        { label: tc('subscriptions.per_year'), value: text(d.annualAmortized) },
-        // #376: the figure on its line, what it is read against under it.
-        { label: t('overview.remaining'), value: text(d.monthCashRemaining), hint: t('overview.remaining_of', { total: text(d.monthCash) }) },
-        { label: t('overview.count'), value: t('overview.active', { count: d.activeCount }), hint: t('overview.ended', { count: d.endedCount }) },
-      ]} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Panel title={t('overview.months')} className="lg:order-1 lg:col-span-2"
-          action={<TableToggle asTable={monthsTable} onToggle={() => setMonthsTable((v) => !v)} />}>
-          <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><MonthsChart months={d.months} asTable={monthsTable} /></Suspense>
-        </Panel>
-        <Panel title={t('overview.watch')} className="lg:order-5"><Watch d={d} scope={scope} /></Panel>
-        <Panel title={t('overview.upcoming')} className="lg:order-4"
-          action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'calendar' })} className="text-sm underline-offset-4 hover:underline">{t('overview.calendar')}</Link>}><Upcoming d={d} /></Panel>
-        <Panel title={t('overview.persons')} className="lg:order-2"><Persons d={d} /></Panel>
-        <Panel title={t('overview.labels')} className="lg:order-3"
-          action={<Link to="/subscriptions" search={(prev) => ({ scope: prev.scope, tab: 'list', group: 'label', status: 'all' })} className={seeAllClass}>{t('overview.see_list')}</Link>}>
-          <Labels d={d} />
-        </Panel>
-        {d.years.length > 0 ? (
-          <Panel title={t('years.title')} className="lg:order-6 lg:col-span-3">
-            <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><YearsChart years={d.years} /></Suspense>
-          </Panel>
-        ) : null}
-        {d.topProviders.length > 0 ? <Panel title={t('providers.title')} className="lg:order-7"><TopProviders d={d} /></Panel> : null}
-        {d.savings.items.length > 0 ? <Panel title={t('savings.title')} className="lg:order-8"><Savings d={d} /></Panel> : null}
-        {d.priceRises.items.length > 0 ? <Panel title={t('rises.title')} className="lg:order-9"><PriceRises d={d} /></Panel> : null}
-      </div>
-    </div>
-  );
+  return <div className="space-y-6">{children(d)}</div>;
 }
 
 function Panel({ title, className, action, children }: { title: string; className?: string; action?: ReactNode; children: ReactNode }) {
@@ -188,6 +211,7 @@ function Watch({ d, scope }: { d: Overview; scope: Scope }) {
   const { t } = useTranslation('subscriptions-board');
   const { $api } = useApi();
   const items = $api.useQuery('get', LIST, { params: { query: { scope, status: 'all' } } }, { enabled: d.watch.length > 0 });
+  const [all, setAll] = useState(false);
   if (d.watch.length === 0) return <p className="text-sm text-muted-foreground">{t('overview.watch_none')}</p>;
   if (!items.data && !items.error) return <Skeleton aria-busy="true" className="h-16 w-full" />;
   // Without the list the sentences still show, with generic names.
@@ -196,26 +220,36 @@ function Watch({ d, scope }: { d: Overview; scope: Scope }) {
 
   // design-system.md §6.1, « Listes groupées »: a row per alert, as on Placements and Biens; an alert says so after its sentence.
   return (
-    <GroupedList>
-      {d.watch.map((w) => {
-        const first = byId.get(w.itemIds[0] ?? '');
-        const provider = first?.provider?.name ?? t('overview.unknown_provider');
-        const alert = w.code === ALERT;
-        return (
-          <GroupedRow key={`${w.code}/${w.itemIds.join()}`} tile={tileOf('/subscriptions')}
-            link={w.code === 'subscriptions.same_provider'
-              ? { to: '/subscriptions', search: { scope: scope === 'me' ? 'me' as const : undefined, tab: 'list', group: 'provider' as const } }
-              : { to: '/subscriptions/$id', params: { id: w.itemIds[0] ?? '' } }}
-            title={w.code === 'subscriptions.same_provider'
-              ? t('overview.watch_same_provider', { count: w.itemIds.length, provider, amount: text(w.amount) })
-              : t(alert ? 'overview.watch_ends' : 'overview.watch_long_cycle',
-                { name: first?.displayName ?? t('overview.unknown_item'), date: date(w.date), amount: text(w.amount) })}
-            trailing={alert ? <span data-tone="alert" className="text-xs font-medium text-status-warning-text">{t('overview.tone_alert')}</span> : undefined} />
-        );
-      })}
-    </GroupedList>
+    <>
+      <GroupedList>
+        {(all ? d.watch : d.watch.slice(0, WATCH_SHOWN)).map((w) => {
+          const first = byId.get(w.itemIds[0] ?? '');
+          const provider = first?.provider?.name ?? t('overview.unknown_provider');
+          const alert = w.code === ALERT;
+          return (
+            <GroupedRow key={`${w.code}/${w.itemIds.join()}`} tile={tileOf('/subscriptions')}
+              link={w.code === 'subscriptions.same_provider'
+                ? { to: '/subscriptions', search: { scope: scope === 'me' ? 'me' as const : undefined, tab: 'list', group: 'provider' as const } }
+                : { to: '/subscriptions/$id', params: { id: w.itemIds[0] ?? '' } }}
+              title={w.code === 'subscriptions.same_provider'
+                ? t('overview.watch_same_provider', { count: w.itemIds.length, provider, amount: text(w.amount) })
+                : t(alert ? 'overview.watch_ends' : 'overview.watch_long_cycle',
+                  { name: first?.displayName ?? t('overview.unknown_item'), date: date(w.date), amount: text(w.amount) })}
+              trailing={alert ? <span data-tone="alert" className="text-xs font-medium text-status-warning-text">{t('overview.tone_alert')}</span> : undefined} />
+          );
+        })}
+      </GroupedList>
+      {d.watch.length > WATCH_SHOWN ? (
+        <Button type="button" variant="link" className="h-auto p-0" onClick={() => setAll((v) => !v)}>
+          {all ? t('overview.watch_less') : t('overview.watch_all', { count: d.watch.length })}
+        </Button>
+      ) : null}
+    </>
   );
 }
+
+/** Issue #20: three lines on the simple view, as on Placements and Biens; the others on demand. */
+const WATCH_SHOWN = 3;
 
 /** A partial total (a rate was missing) says so after the amount; the findings name the rate. */
 function Partial({ partial }: { partial: boolean }) {
