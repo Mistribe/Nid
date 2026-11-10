@@ -496,7 +496,7 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal((S(years[2024], "interest"), S(years[2024], "insurance"), D(S(years[2024], "principal")) + D(S(years[2024], "earlyRepayment")),
                 S(years[2023], "balance"), S(years[2024], "balance")),
             (A(loans, "interest"), A(loans, "insurance"), D(A(loans, "capitalRepaid")), A(loans, "startBalance"), A(loans, "endBalance")));
-        Assert.Equal((D(S(years[2023], "interest")) + D(S(years[2023], "insurance")), D(S(years[2023], "principal"))),
+        Assert.Equal((D(S(years[2023], "interest")) + D(S(years[2023], "insurance")), D(S(years[2023], "principal")) + D(S(years[2023], "earlyRepayment"))),
             (D(A(loans, "previousInterestAndInsurance")), D(A(loans, "previousCapitalRepaid"))));
 
         // Properties: the costs page's year, by category.
@@ -528,11 +528,12 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         var hiddenLoan = await NewAsync(app, Golden(app, "Prêt secret de B", "private", app.AdultB), app.AdultB);
         var hiddenHouse = await app.NewPropertyAsync("Maison secrète de B", Visibility.Private, (app.AdultB, 10_000));
 
-        foreach (var (year, cost) in new[] { ("2024", "360.00"), ("2025", "300.00") })
+        // 2025 to date: its previous period, January to 15 October 2024, holds ten charges.
+        foreach (var (year, cost, previous) in new[] { ("2024", "360.00", (string?)null), ("2025", "300.00", "300.00") })
         {
             var body = await YearAsync(app, year, scope);
 
-            Assert.Equal(cost, A(body.GetProperty("subscriptions"), "cost"));
+            Assert.Equal((cost, previous), (A(body.GetProperty("subscriptions"), "cost"), A(body.GetProperty("subscriptions"), "previousCost")));
             Assert.Equal(year == "2024" ? [presse.Value] : [], Ids(body.GetProperty("subscriptions"), "started"));
             Assert.Equal([loan], Ids(body.GetProperty("loans"), "loans"));
             Assert.Equal([house.Value], Ids(body.GetProperty("properties"), "properties"));
@@ -576,5 +577,37 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(("100.00", null), (A(current.GetProperty("subscriptions"), "cost"), A(current.GetProperty("subscriptions"), "previousCost")));
         Assert.Equal(("10000.00", null, null), (A(current.GetProperty("loans"), "capitalRepaid"),
             A(current.GetProperty("loans"), "previousInterestAndInsurance"), A(current.GetProperty("loans"), "previousCapitalRepaid")));
+    }
+
+    [Theory]
+    [InlineData("subscription")]
+    [InlineData("income")]
+    public async Task A_rate_missing_only_the_year_before_an_absent_section_is_no_finding(string source)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // In dollars, without any rate, and only in 2023.
+        if (source == "subscription")
+        {
+            var id = await app.NewSubscriptionAsync("Streaming", app.AdultA, Visibility.Shared);
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
+            {
+                startsOn = "2023-01-01", endsOn = "2023-12-01", price = new { amount = "10", currency = "USD" },
+                every = new { count = 1, unit = "month" }, payer = new { type = "household" },
+            })).EnsureSuccessStatusCode();
+        }
+        else
+            await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new
+            {
+                displayName = "Salary", kind = "salary", currency = "USD", visibility = "shared",
+                owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+                phases = new[] { new { label = "Salary", startsOn = "2023-01-01", endsOn = "2023-12-01", netAmount = new { amount = "2000", currency = "USD" }, every = new { count = 1, unit = "month" } } },
+            }));
+
+        var shown = await YearAsync(app, "2023");
+        var after = await YearAsync(app, "2024");
+
+        Assert.Equal(["core.fx_rate_missing"], shown.GetProperty("findings").EnumerateArray().Select(f => f.GetString()));
+        Assert.Equal((JsonValueKind.Null, JsonValueKind.Null), (after.GetProperty("subscriptions").ValueKind, after.GetProperty("income").ValueKind));
+        Assert.Empty(after.GetProperty("findings").EnumerateArray());
     }
 }
