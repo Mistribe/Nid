@@ -466,12 +466,15 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
             {
                 new
                 {
-                    label = "Pension", startsOn = "2046-07-01", netAmount = new { amount = "1500.00", currency = "EUR" },
+                    label = "Pension", startsOn = "2047-03-01", netAmount = new { amount = "1500.00", currency = "EUR" },
                     every = new { count = 1, unit = "month" },
                 },
             },
         };
 
+        // Born 1984-05-20, 62 y 9 m: departure 2047-02, so the pension starts 2047-03-01.
+        var departure = await AnswerAsync(propose, "propose_set_retirement", new { id = app.AdultA.Value, body = new { birthDate = "1984-05-20", retirementAge = 62, retirementMonths = 9 } });
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, departure.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
         var proposed = await AnswerAsync(propose, "propose_create_income_source", new { body, sourceLabel = "Estimation indicative globale" });
         Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
 
