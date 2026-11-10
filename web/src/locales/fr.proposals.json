@@ -177,6 +177,7 @@
       "delete_goal_progress": "Suppression d’un relevé d’objectif",
       "delete_goal": "Suppression d’un objectif créé par erreur",
       "delete_income_source": "Suppression d’une source de revenu créée par erreur",
+      "delete_envelope": "Suppression d’une enveloppe créée par erreur",
       "create_subscription": "Nouvel abonnement",
       "edit_subscription": "Modification d’un abonnement",
       "set_insurance": "Assurance d’un abonnement",

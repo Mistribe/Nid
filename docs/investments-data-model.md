@@ -217,6 +217,8 @@ Le module ne contribue **pas** aux engagements mensuels.
 
 **Avertissements** : `missing_opening`, `large_change`, valeur périmée, virement interne dont un seul côté est présent (`transfer:` sans contrepartie).
 
+**Suppression d'une enveloppe** (#23) : réservée à une enveloppe créée par erreur (pour un compte fermé, `close`). Partent l'enveloppe, ses supports avec leurs mouvements, rapports de frais et lignes de relevé, ses relevés de supports, ses flux et valorisations (faits du Core), avec les propriétaires, liens de documents et références bancaires de l'élément ; le compte bancaire associé est détaché. Bloquent : un objectif **ouvert** qu'elle finance (`goal_funding`, modifier son financement ; les lignes des objectifs clôturés partent avec elle) et un virement interne actif dont l'autre côté est un flux actif d'une autre enveloppe (`transfers`, annuler ses côtés). Un blocage ne nomme que les éléments que l'auteur voit. `DELETE /api/v1/investments/envelopes/{id}?version=` (le `version` lu par `GET …/deletion` : 422 sans lui, 409 s'il est périmé, 409 `core.item_in_use` si un blocage tient).
+
 ## 12. Exemples
 
 ### 12.1 PEA (chiffres fictifs)

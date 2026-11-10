@@ -205,6 +205,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<InvestmentsDbContext>>();
         services.AddScoped<IEnvelopeStore, EnvelopeStore>();
+        services.AddScoped<IItemDeletionPart, InvestmentsDeletionPart>();
         services.AddScoped<IHoldingStore, HoldingStore>();
         services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
         services.AddScoped<ISecurityBreakdownStore, SecurityBreakdownStore>();
