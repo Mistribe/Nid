@@ -6,8 +6,8 @@ using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
-using NodaTime;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Host.IntegrationTests.Audit;
 

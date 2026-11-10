@@ -85,8 +85,6 @@ const isIsoDate = (value: unknown): value is string => typeof value === 'string'
 export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
   ((typeof search.tab === 'string' && search.tab !== '') || typeof search.tab === 'number' ? { tab: String(search.tab) } : {});
 
-export { pageOf };
-
 /** A list's `page`, kept in the URL from page 2. */
 const pageSearch = (search: Record<string, unknown>): { page?: number } => {
   const page = pageOf(search);

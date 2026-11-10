@@ -3,8 +3,8 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
-using NodaTime;
 using Nid.TestSupport;
+using NodaTime;
 using UnambitiousFx.Functional;
 
 namespace Nid.Investments.IntegrationTests;
