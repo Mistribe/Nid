@@ -96,19 +96,36 @@ public class LoansReviewTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
-    public async Task A_loan_archived_on_the_first_day_is_left_out()
+    public async Task An_archive_around_the_first_day_is_counted_from_Start()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var id = await NewAsync(app, Golden(app, "Prêt vendu"));
-        Assert.True(await ArchiveAsync(app, id, new LocalDate(2024, 1, 1)));
+        // 12 000 at no interest, 1 000 on the 1st of each month from July 2023: 6 000 owed on Start, a payment on 1 January.
+        async Task<Guid> NewArchivedAsync(string name, LocalDate on)
+        {
+            var body = Short(app, name);
+            body["disbursedOn"] = "2023-06-01";
+            body["firstPaymentDate"] = "2023-07-01";
+            var id = await NewAsync(app, body);
+            Assert.True(await ArchiveAsync(app, id, on));
+            return id;
+        }
+        await NewArchivedAsync("A 31 décembre", new LocalDate(2023, 12, 31));
+        await NewArchivedAsync("B 1er janvier", new LocalDate(2024, 1, 1));
+        await NewArchivedAsync("C 2 janvier", new LocalDate(2024, 1, 2));
         var after = await NewAsync(app, Golden(app));
         Assert.True(await ArchiveAsync(app, after, new LocalDate(2025, 3, 1)));
 
-        var row = Assert.Single((await ReviewAsync(app)).Loans);
+        var part = await ReviewAsync(app);
 
+        // Off the books on Start: left out. On them on Start: its start balance, then 0; the 2 January one paid on 1 January.
+        Assert.Equal(["B 1er janvier", "C 2 janvier", "Prêt maison"], part.Loans.Select(l => l.Name));
+        Assert.Equal((0m, 6_000m, 0m, new LocalDate(2024, 1, 1)),
+            (part.Loans[0].CapitalRepaid!.Value, part.Loans[0].StartBalance!.Value, part.Loans[0].EndBalance!.Value, part.Loans[0].ArchivedOn));
+        Assert.Equal((1_000m, 6_000m, 0m, new LocalDate(2024, 1, 2)),
+            (part.Loans[1].CapitalRepaid!.Value, part.Loans[1].StartBalance!.Value, part.Loans[1].EndBalance!.Value, part.Loans[1].ArchivedOn));
         // Archived after the year: counted in full, still on the books.
-        Assert.Equal(("Prêt maison", (LocalDate?)null), (row.Name, row.ArchivedOn));
-        Assert.NotEqual(0m, row.EndBalance);
+        Assert.Null(part.Loans[2].ArchivedOn);
+        Assert.NotEqual(0m, part.Loans[2].EndBalance);
     }
 
     [Fact]

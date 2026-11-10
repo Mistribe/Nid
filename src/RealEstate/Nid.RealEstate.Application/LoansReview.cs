@@ -46,7 +46,9 @@ public sealed class LoansReview(
             // An archived loan counts strictly before its archive day, then leaves the books (balance 0, as in the net worth).
             var archivedOn = DashboardParts.ArchiveDay(item, zone) is { } day && day <= end ? day : (LocalDate?)null;
             var last = archivedOn?.PlusDays(-1) ?? end;
-            if (last <= start) continue; // archived on or before the period's first day: none of it is counted
+            // Archived on or before Start: off the books on Start, left out. Archived on 1 January: on the books on Start (its start
+            // balance, as the net worth), then off them (end 0).
+            if (last < start) continue;
             var currency = LoanViews.CurrencyOf(item);
             var terms = LoanReading.Terms(currency, loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms, loan);
