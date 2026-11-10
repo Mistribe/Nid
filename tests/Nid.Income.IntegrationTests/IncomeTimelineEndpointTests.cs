@@ -235,4 +235,16 @@ public class IncomeTimelineEndpointTests(PostgresFixture fixture) : IClassFixtur
 
         Assert.Equal(3000m, timeline.Monthly[12][eur]); // shared salary 2000 + A's pension 1000
     }
+
+    [Fact]
+    public async Task A_running_pension_keeps_its_amounts_at_the_departure()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewKindSourceAsync(app, "Retraite", "pension", [new { personId = app.AdultA.Value, shareBp = 10_000 }], Phase("Retraite", "2020-01-01", "1000"));
+
+        var (_, timeline) = await ReadAsync(app, 12, new Dictionary<PersonId, int> { [app.AdultA] = 3 });
+
+        Assert.All(timeline.Monthly, m => Assert.Equal(1000m, m[Currency.Eur]));
+        Assert.All(timeline.Parts!, month => Assert.All(month, p => Assert.Equal(0, p.IndexedFrom)));
+    }
 }

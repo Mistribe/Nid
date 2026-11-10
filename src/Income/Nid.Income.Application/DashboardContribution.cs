@@ -61,7 +61,8 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
             IReadOnlyList<IncomePhase> list = bySource[source.ItemId].ToList();
             var wasExtended = false;
             var adults = item.Owners.Where(o => o.Kind == PersonKind.Adult).Select(o => o.PersonId);
-            var cutAt = Departures.SwitchOf(adults, switches) is >= 1 and var sw ? sw : (int?)null; // Retirement spec §2
+            var owned = Departures.SwitchOf(adults, switches); // Retirement spec §2
+            int? cutAt = owned >= 1 ? owned : null;
             var stops = cutAt is not null && RetirementSwitch.Stops(source.Kind);
             var isPension = source.Kind == IncomeKind.Pension;
             if (isPension && cutAt is { } at)
