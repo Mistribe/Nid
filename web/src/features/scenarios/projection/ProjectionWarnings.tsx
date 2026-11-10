@@ -20,7 +20,6 @@ export function ProjectionWarnings({ warnings }: { warnings: Warning[] }) {
     switch (w.code) {
       case 'income_end_extended': return t('dashboard.projection.warning_income_end_extended', { name: w.detail });
       case 'savings_exhausted': return t('dashboard.projection.warning_savings_exhausted', { month: w.detail ? month(w.detail) : '' });
-      case 'living_cost_missing': return t('dashboard.projection.warning_living_cost_missing');
       case 'fx_missing': return t('dashboard.projection.warning_fx_missing', { code: w.detail });
       case 'hidden_targets':
       case 'event_in_past':

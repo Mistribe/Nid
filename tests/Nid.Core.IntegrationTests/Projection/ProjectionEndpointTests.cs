@@ -392,8 +392,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         Assert.Equal(("0.00", "auto"), (Str(view, "monthlySavings"), Str(view, "savingsOrigin")));
         Assert.Empty(List(view, "milestones"));
         Assert.Equal(JsonValueKind.Null, view.GetProperty("financialIndependence").ValueKind); // no living cost: no date (retirement spec §3)
-        var warning = Assert.Single(List(view, "warnings"));
-        Assert.Equal(("living_cost_missing", JsonValueKind.Null), (Str(warning, "code"), warning.GetProperty("detail").ValueKind));
+        Assert.Empty(List(view, "warnings"));
     }
 
     [Fact]
@@ -407,8 +406,8 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         var view = await ProjectionAsync(app, app.AdultA);
 
         Assert.All(List(view, "points"), p => Assert.Equal("0.00", Str(p, "debt")));
-        var warning = Assert.Single(List(view, "warnings"), w => Str(w, "code") == "fx_missing");
-        Assert.Equal("GBP", Str(warning, "detail"));
+        var warning = Assert.Single(List(view, "warnings"));
+        Assert.Equal(("fx_missing", "GBP"), (Str(warning, "code"), Str(warning, "detail")));
     }
 
     [Fact]
@@ -431,7 +430,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
 
         var view = await ProjectionAsync(app, app.AdultA);
 
-        var warning = Assert.Single(List(view, "warnings"), w => Str(w, "code") == "income_end_extended");
+        var warning = Assert.Single(List(view, "warnings"));
         Assert.Equal(("income_end_extended", "Mon CDD"), (Str(warning, "code"), Str(warning, "detail")));
     }
 
@@ -634,7 +633,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
             startsOn = "2025-01-01", price = new { amount = "10", currency = "GBP" }, every = new { count = 1, unit = "month" }, payer = new { type = "household" },
         })).EnsureSuccessStatusCode();
 
-        var warning = Assert.Single(List(await ProjectionAsync(app, app.AdultA), "warnings"), w => Str(w, "code") == "fx_missing");
+        var warning = Assert.Single(List(await ProjectionAsync(app, app.AdultA), "warnings"));
 
         Assert.Equal("GBP", Str(warning, "detail"));
     }

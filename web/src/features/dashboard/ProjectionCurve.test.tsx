@@ -172,14 +172,12 @@ describe('net worth projection card', () => {
       { code: 'income_end_extended', detail: 'Mon CDD' },
       { code: 'savings_exhausted', detail: '2027-06' },
       { code: 'fx_missing', detail: 'GBP' },
-      { code: 'living_cost_missing', detail: null },
     ] }));
     await renderApp('/dashboard');
     const region = await card();
     expect(await within(region).findByText('Le revenu « Mon CDD » est supposé continuer après sa fin.')).toBeInTheDocument();
     expect(within(region).getByText('L’épargne disponible serait épuisée en juin 2027.')).toBeInTheDocument();
     expect(within(region).getByText(/GBP/)).toBeInTheDocument();
-    expect(within(region).getByText(/Renseignez le coût de la vie mensuel/)).toBeInTheDocument();
   });
 
   it('says why when the server refuses', async () => {
