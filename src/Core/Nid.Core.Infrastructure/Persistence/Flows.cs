@@ -125,31 +125,87 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
             await db.SaveChangesAsync(ct); // retired first: the replacement may take its opening or its reference
         }
 
-        var row = new FlowRow
-        {
-            Id = Guid.CreateVersion7(),
-            ItemId = item,
-            OccurredOn = flow.OccurredOn,
-            Kind = kind,
-            Amount = flow.Amount.Amount,
-            Currency = w!.Currency.Code,
-            Category = flow.Category,
-            ExternalRef = flow.ExternalRef,
-            Note = flow.Note,
-            Source = flow.Source == FactSource.Import ? "import" : "manual",
-            CreatedVia = w.Via,
-            CreatedByPersonId = w.Person.Value,
-            CreatedAt = now,
-            SupersedesId = old?.Id,
-            ImportRef = flow.Import?.Ref,
-            ImportHash = flow.Import?.Hash,
-            ImportedBy = flow.Import?.ImportedBy.Value,
-            DocumentId = old?.DocumentId, // a correction keeps its source
-        };
+        var row = Row(flow, w!, now, old);
         db.Flows.Add(row);
         await db.SaveChangesAsync(ct);
         return Result.Success(ToFlow(row));
     }
+
+    public Task<Result<IReadOnlyList<Flow>>> RecordManyAsync(ItemId item, IReadOnlyList<NewFlow> flows, CancellationToken ct) => gate.WriteAsync(async () =>
+    {
+        if (flows.Count == 0)
+            return Result.Success<IReadOnlyList<Flow>>([]);
+        var writer = await gate.ForWriteAsync(item, ct);
+        if (!writer.TryGetValue(out var w))
+            return Result.Failure<IReadOnlyList<Flow>>(FailureOf(writer));
+        var today = await gate.TodayAsync(ct);
+
+        // What RecordAsync asks the database once per flow, asked once for all: the references taken, an opening.
+        var id = item.Value;
+        var references = flows.Select(f => f.ExternalRef).OfType<string>().Distinct().ToList();
+        var taken = references.Count == 0 ? [] : (await db.Flows.AsNoTracking()
+            .Where(r => r.ItemId == id && r.RetiredAt == null && r.ExternalRef != null && references.Contains(r.ExternalRef))
+            .Select(r => r.ExternalRef!).ToListAsync(ct)).ToHashSet();
+        var opening = flows.Any(f => f.Kind == FlowKind.Opening)
+            && await db.Flows.AnyAsync(r => r.ItemId == id && r.Kind == "opening" && r.RetiredAt == null, ct);
+
+        var now = clock.GetCurrentInstant();
+        var rows = new List<FlowRow>(flows.Count);
+        for (var i = 0; i < flows.Count; i++)
+        {
+            var flow = flows[i];
+            Failure? refused = null;
+            if (flow.Item != item)
+                refused = new Failure(CoreFactCodes.InvalidFact, "Every flow of the write is on its item.", new Dictionary<string, object?> { ["field"] = "item" });
+            else if (FactGate.Check(w!, flow.Amount, flow.OccurredOn, today).TryGetFailure(out var failure) || FactRules.CheckFlow(flow).TryGetFailure(out failure))
+                refused = failure;
+            // Within the write as against the database: the second opening, the second use of a reference, is the one refused.
+            else if (flow.Kind == FlowKind.Opening && opening)
+                refused = new Failure(CoreFactCodes.OpeningExists, "This item already has an opening; correct it instead.", null);
+            else if (flow.ExternalRef is { } reference && !taken.Add(reference))
+                refused = new Failure(CoreFactCodes.ExternalRefTaken, "This item already has a flow with that reference.", null);
+            if (refused is not null)
+                return Result.Failure<IReadOnlyList<Flow>>(At(refused, i));
+            opening |= flow.Kind == FlowKind.Opening;
+            // One microsecond apart (the column's precision): the flows of a day keep the order they were given in, as one by one.
+            rows.Add(Row(flow, w!, now.Plus(NodaTime.Duration.FromTicks(10L * i)), old: null));
+        }
+        db.Flows.AddRange(rows);
+        await db.SaveChangesAsync(ct);
+        return Result.Success<IReadOnlyList<Flow>>(rows.Select(ToFlow).ToList());
+    }, ct);
+
+    /// <summary>A refusal of <see cref="RecordManyAsync"/>, with the position of the flow it names; a typed failure stays as it is.</summary>
+    private static Failure At(Failure failure, int index)
+    {
+        if (failure.GetType() != typeof(Failure))
+            return failure;
+        var metadata = failure.Metadata is { } m ? new Dictionary<string, object?>(m) : [];
+        metadata[IFlows.RecordManyIndex] = index;
+        return new Failure(failure.Code, failure.Message, metadata);
+    }
+
+    private static FlowRow Row(NewFlow flow, FactWriter w, Instant at, FlowRow? old) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        ItemId = flow.Item.Value,
+        OccurredOn = flow.OccurredOn,
+        Kind = Wire(flow.Kind),
+        Amount = flow.Amount.Amount,
+        Currency = w.Currency.Code,
+        Category = flow.Category,
+        ExternalRef = flow.ExternalRef,
+        Note = flow.Note,
+        Source = flow.Source == FactSource.Import ? "import" : "manual",
+        CreatedVia = w.Via,
+        CreatedByPersonId = w.Person.Value,
+        CreatedAt = at,
+        SupersedesId = old?.Id,
+        ImportRef = flow.Import?.Ref,
+        ImportHash = flow.Import?.Hash,
+        ImportedBy = flow.Import?.ImportedBy.Value,
+        DocumentId = old?.DocumentId, // a correction keeps its source
+    };
 
     private async Task<Result<FlowRow>> FindCurrentAsync(ItemId item, Guid id, CancellationToken ct)
     {
