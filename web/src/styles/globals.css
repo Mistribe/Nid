@@ -261,7 +261,7 @@ body:has([data-guide-active]) main { padding-bottom: 100dvh; }
   tr, [data-stat-line], [data-slot=chart] { break-inside: avoid; }
   section > h2, section > :has(> h2) { break-after: avoid; }
   [data-slot=table-container] { overflow: visible; }
-  [data-slot=table] { font-size: 0.8125rem; }
+  [data-slot=table] { font-size: 0.75rem; }
   [data-slot=table-head], [data-slot=table-cell] { white-space: normal; }
   .recharts-responsive-container, .recharts-wrapper { max-width: 100%; }
   .recharts-surface { max-width: 100%; height: auto; }

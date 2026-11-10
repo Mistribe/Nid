@@ -39,8 +39,12 @@ test('alice reviews her year and prints it on A4, light even on a dark screen', 
   expect(await alice.evaluate<boolean>(`document.documentElement.classList.contains('dark')`)).toBe(true);
   await expect.poll(() => alice.evaluate<string>(BACKGROUND)).toBe(light);
   await expect.poll(() => alice.evaluate<boolean>(`document.documentElement.scrollWidth <= window.innerWidth`)).toBe(true);
-  // A table wider than the page would be cut on paper: each one fits its container, which no longer scrolls.
-  await expect.poll(() => alice.evaluate<boolean>(`[...document.querySelectorAll('[data-slot=table-container]')].every((c) => c.scrollWidth <= c.clientWidth)`)).toBe(true);
+  // A table wider than the page would be cut on paper: each one fits its container, which no longer scrolls. Only the sections
+  // this journey fills: alice's other sections hold what other journeys left on her shared account.
+  const fits = `((tables) => tables.length > 0 && tables.every((c) => c.scrollWidth <= c.clientWidth))([...document.querySelectorAll('section')]
+    .filter((s) => ['Patrimoine net', 'Placements'].includes(s.querySelector('h2')?.textContent ?? ''))
+    .flatMap((s) => [...s.querySelectorAll('[data-slot=table-container]')]))`;
+  await expect.poll(() => alice.evaluate<boolean>(fits)).toBe(true);
   // The sidebar is hidden at this width anyway; the top bar and the phone tabs are not, on screen.
   await expect(alice.locator('[data-pane="toolbar"]')).toBeHidden();
   await expect(alice.locator('[data-pane="tabs"]')).toBeHidden();

@@ -25,6 +25,8 @@ describe('print', () => {
 
   it('fits tables and charts in the page: cells wrap, nothing scrolls out of sight', () => {
     expect(print).toMatch(/\[data-slot=table-container\]\s*\{\s*overflow:\s*visible;\s*\}/);
+    // Small enough for the widest table, the loans' name and six amounts (whose spaces never break), on A4.
+    expect(print).toMatch(/\[data-slot=table\]\s*\{\s*font-size:\s*0\.75rem;\s*\}/);
     expect(print).toMatch(/\[data-slot=table-head\],\s*\[data-slot=table-cell\]\s*\{\s*white-space:\s*normal;\s*\}/);
     expect(print).toMatch(/\.recharts-surface\s*\{\s*max-width:\s*100%;/);
   });
