@@ -19,13 +19,19 @@ import { StatLine } from '@/components/page/StatLine';
 import { PageTrail } from '@/components/page/trail';
 import { Button } from '@/components/ui/button';
 import type { RootSearch } from '@/lib/search';
+import { GoalsReview } from './GoalsReview';
+import { IncomeReview } from './IncomeReview';
 import { InvestmentsReview } from './InvestmentsReview';
+import { LoansReview } from './LoansReview';
 import { NetWorthBridge, signed } from './NetWorthBridge';
+import { PropertiesReview } from './PropertiesReview';
+import { SubscriptionsReview } from './SubscriptionsReview';
+import { TaxReview } from './TaxReview';
 import '@/locales/reports';
 
 const FX_MISSING = 'core.fx_rate_missing';
 
-/** Issue #12: the year's review, net worth then investments, from the server's figures for the Foyer / Moi scope. */
+/** Issue #12: the year's review, net worth, investments, income, subscriptions, loans, properties, goals then tax, from the server's figures for the Foyer / Moi scope. */
 export function YearReviewPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -65,7 +71,13 @@ export function YearReviewPage() {
       {d.netWorth ? <NetWorth d={d} review={d.netWorth} />
         : d.findings.includes(FX_MISSING) ? <p className="text-sm text-muted-foreground">{t('reports.fx_missing')}</p> : null}
       {d.investments ? <InvestmentsReview year={d.year} review={d.investments} /> : null}
-      {!d.netWorth && !d.investments && d.findings.length === 0 ? <p className="text-muted-foreground">{t('reports.empty')}</p> : null}
+      {d.income ? <IncomeReview year={d.year} review={d.income} /> : null}
+      {d.subscriptions ? <SubscriptionsReview year={d.year} review={d.subscriptions} /> : null}
+      {d.loans ? <LoansReview year={d.year} review={d.loans} /> : null}
+      {d.properties ? <PropertiesReview year={d.year} review={d.properties} /> : null}
+      {d.goals ? <GoalsReview review={d.goals} /> : null}
+      {d.tax ? <TaxReview year={d.year} review={d.tax} /> : null}
+      {!d.netWorth && !d.investments && !d.income && !d.subscriptions && !d.loans && !d.properties && !d.goals && !d.tax && d.findings.length === 0 ? <p className="text-muted-foreground">{t('reports.empty')}</p> : null}
     </div>
   );
 }

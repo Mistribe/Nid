@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Nid.Core.Application;
 using Nid.Core.Application.Admin;
+using Nid.Core.Application.Calendar;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Inflation;
@@ -28,6 +29,10 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ItemDeletionPreview))] // #23: every module's delete preview
 [JsonSerializable(typeof(HouseholdSettingsView))]
 [JsonSerializable(typeof(CreatedTokenView))]
+[JsonSerializable(typeof(MyCalendarView))] // #80
+[JsonSerializable(typeof(CalendarFeedView))]
+[JsonSerializable(typeof(CalendarEndpoints.CalendarFeedBody))]
+[JsonSerializable(typeof(CalendarEndpoints.CreatedCalendarFeedResponse))]
 [JsonSerializable(typeof(DashboardView))]
 [JsonSerializable(typeof(NetWorthHistoryView))]
 [JsonSerializable(typeof(MonthChangesView))]

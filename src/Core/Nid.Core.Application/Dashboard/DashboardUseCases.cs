@@ -59,6 +59,29 @@ public sealed class DashboardReader(
         var target = await household.AllocationTargetAsync(ct);
         return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
     }
+
+    /// <summary>
+    /// Issue #80: « À venir » alone over [<paramref name="today"/>, <paramref name="until"/>], for the calendar feed: the modules' events
+    /// (not the income gap, which is « À faire »), the PER deadline and the tax calendar, by date then name, each amount in its own currency.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<DashboardEventView>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
+    {
+        var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, scope, today, until, ct));
+        if (dated.TryGetFailure(out var failure)) return Result.Failure<IReadOnlyList<DashboardEventView>>(failure!);
+        var per = await perDeadline.EventsAsync(reader, scope, today, until, ct);
+        if (per.TryGetFailure(out failure)) return Result.Failure<IReadOnlyList<DashboardEventView>>(failure!);
+        dated.TryGetValue(out var d);
+        per.TryGetValue(out var p);
+        var taxDates = await taxCalendar.EventsAsync(reader, scope, today, until, ct);
+        return Result.Success<IReadOnlyList<DashboardEventView>>(d!.SelectMany(x => x)
+            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon)
+            .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
+                e.Amount is { } a ? DashboardMath.Money(a.Amount, a.Currency) : null))
+            .Concat(p!).Concat(taxDates)
+            .OrderBy(e => e.On).ThenBy(e => e.Name, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("fr-FR"), true))
+            .ThenBy(e => e.Kind, StringComparer.Ordinal)
+            .ToList());
+    }
 }
 
 /// <summary>Issue #104: replaces the household's target allocation; an empty one removes it.</summary>

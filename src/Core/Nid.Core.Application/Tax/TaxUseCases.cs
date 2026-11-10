@@ -9,6 +9,9 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Tax;
 
+/// <summary>Issue #12: a year's computed estimate; <c>HasData</c>: the year has a tax line or a profile stored for that very year.</summary>
+public sealed record TaxComputation(TaxResult Result, bool HasData);
+
 /// <summary>Tax estimate spec §8: the year's profile, the inputs read from the modules, the result and what was left out.</summary>
 public sealed record GetTaxEstimateQuery(int? Year, VisibilityScope Scope) : IQuery<TaxEstimateView>;
 
@@ -190,17 +193,24 @@ public sealed class TaxEstimates(
     /// twice, for « Impôts » and the PER deadline. Keyed by the reader too, as a job's scope may read for several.
     /// </summary>
     public async Task<Result<TaxResult>> ComputeAsync(int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
+        => (await ComputeWithDataAsync(year, scope, today, ct)).Map(c => c.Result);
+
+    /// <summary>
+    /// <see cref="ComputeAsync"/>'s result, from the same cache, and whether the year has anything to estimate from: a tax line, or
+    /// a profile stored for that very year (an earlier one standing in alone is not).
+    /// </summary>
+    public async Task<Result<TaxComputation>> ComputeWithDataAsync(int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
     {
         var key = (actor.Current!.PersonId!.Value, year, scope, today);
         if (computed.TryGetValue(key, out var kept)) return Result.Success(kept);
         var read = await ReadAsync(year, scope, today, ct);
-        if (read.TryGetFailure(out var failure)) return Result.Failure<TaxResult>(failure!);
+        if (read.TryGetFailure(out var failure)) return Result.Failure<TaxComputation>(failure!);
         read.TryGetValue(out var r);
         var (inputs, _, _) = Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome);
-        return Result.Success(computed[key] = TaxCalculator.Compute(inputs));
+        return Result.Success(computed[key] = new TaxComputation(TaxCalculator.Compute(inputs), r.Lines.Count > 0 || r.Stored?.Year == year));
     }
 
-    private readonly Dictionary<(PersonId Reader, int Year, VisibilityScope Scope, NodaTime.LocalDate Today), TaxResult> computed = [];
+    private readonly Dictionary<(PersonId Reader, int Year, VisibilityScope Scope, NodaTime.LocalDate Today), TaxComputation> computed = [];
 
     /// <summary>
     /// Rental 2044 spec §4–§5: the form from the estimate's own lines and calculation, so the two never differ; the regime is the
@@ -481,8 +491,11 @@ public sealed class TaxEstimates(
 /// </summary>
 public sealed class TaxCommitments(TaxEstimates estimates) : ICommitmentsContribution
 {
-    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct, bool includeArchived = false)
     {
+        // A year before the rules (the annual review's past months) has no estimate: nothing to commit, never a throw.
+        if (today.Year < TaxRules.FirstYear)
+            return Result.Success(new CommitmentsPart(CommitmentSources.Tax, 0, new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>()));
         var result = await estimates.ComputeAsync(today.Year, scope, today, ct);
         if (result.TryGetFailure(out var failure)) return Result.Failure<CommitmentsPart>(failure!);
         result.TryGetValue(out var r);

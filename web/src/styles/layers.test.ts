@@ -35,7 +35,7 @@ const OPAQUE = [
 describe('layers', () => {
   it('the :root and .dark blocks define the layer tokens', () => {
     const root = /^:root\s*\{([^}]*)\}/m.exec(css)![1];
-    const dark = /^\.dark\s*\{([^}]*)\}/m.exec(css)![1];
+    const dark = /^\s*\.dark\s*\{([^}]*)\}/m.exec(css)![1];
     for (const t of ['--material-opacity: 80%', '--glass-opacity: 55%', '--glass-regular-opacity: 85%']) expect(root).toContain(t);
     expect(dark).toContain('--glass-opacity: 45%');
   });
@@ -57,7 +57,7 @@ describe('layers', () => {
     const start = at(selector);
     expect(start).toBeGreaterThan(0);
     for (const theme of css.matchAll(/^@import\b/gm)) expect(start).toBeGreaterThan(theme.index);
-    for (const dark of css.matchAll(/^\.dark\s*\{/gm)) expect(start).toBeGreaterThan(dark.index);
+    for (const dark of css.matchAll(/^\s*\.dark\s*\{/gm)) expect(start).toBeGreaterThan(dark.index);
   });
 
   // CSS cannot share a declaration list between a media query and an attribute selector: the three copies stay equal.
@@ -100,7 +100,7 @@ describe('layers', () => {
 
   it('defines --separator and --fill in both modes', () => {
     const root = /^:root\s*\{([^}]*)\}/m.exec(css)![1];
-    const dark = /^\.dark\s*\{([^}]*)\}/m.exec(css)![1];
+    const dark = /^\s*\.dark\s*\{([^}]*)\}/m.exec(css)![1];
     expect(root).toContain('--separator: oklch(0.4 0.01 265 / .12)');
     expect(root).toContain('--fill: oklch(0.6 0.01 265 / .12)');
     expect(dark).toContain('--separator: oklch(0.45 0.01 265 / .6)');

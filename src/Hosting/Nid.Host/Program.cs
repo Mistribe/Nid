@@ -198,6 +198,7 @@ app.MapImportEndpoints();
 app.MapExportEndpoints();
 app.MapPlatformEndpoints();
 app.MapNotificationEndpoints();
+app.MapCalendarEndpoints();
 app.MapFxEndpoints();
 app.MapCatalogEndpoints();
 app.MapAdminEndpoints();

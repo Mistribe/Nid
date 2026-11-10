@@ -50,6 +50,65 @@
       "pct": "{{value}} %",
       "unknown": "Inconnu"
     },
+    "income": {
+      "title": "Revenus et marge",
+      "income": "Revenus",
+      "engagements": "Engagements",
+      "margin": "Marge avant dépenses courantes",
+      "sources": "Revenus par source",
+      "engagement_sources": "Engagements par poste",
+      "col": { "source": "Source", "amount": "Montant" },
+      "estimated": "estimé",
+      "unknown": "Inconnu"
+    },
+    "subscriptions": {
+      "title": "Abonnements",
+      "cost": "Coût",
+      "started": "Abonnements commencés",
+      "ended": "Abonnements terminés",
+      "price_changes": "Changements de prix",
+      "col": { "name": "Abonnement", "date": "Date", "price": "Prix" },
+      "price": "{{amount}} pour {{every}}",
+      "price_change": "{{before}} → {{after}}",
+      "promo_ended": "fin de promotion",
+      "unknown": "Inconnu"
+    },
+    "loans": {
+      "title": "Crédits",
+      "start_balance": "Restant dû au début",
+      "end_balance": "Restant dû à la fin",
+      "previous_with_insurance": "{{year}}, assurance comprise : {{amount}}",
+      "table": "Crédits de la période",
+      "col_name": "Crédit",
+      "archived_on": "archivé le {{date}}",
+      "unknown": "Inconnu"
+    },
+    "properties": {
+      "title": "Biens",
+      "costs": "Charges",
+      "rents": "Loyers perçus",
+      "table": "Biens de la période",
+      "by_category": "Charges par catégorie",
+      "col": { "name": "Bien", "category": "Catégorie", "amount": "Montant" },
+      "pct": "{{value}} %",
+      "unknown": "Inconnu"
+    },
+    "goals": {
+      "title": "Objectifs",
+      "table": "Objectifs de la période",
+      "col_name": "Objectif",
+      "col_start": "Atteint au début",
+      "col_end": "Atteint à la fin",
+      "reached_in_period": "atteint cette année",
+      "archived_on": "archivé le {{date}}",
+      "unknown": "Inconnu"
+    },
+    "tax": {
+      "title": "Impôts",
+      "total": "Impôt estimé",
+      "estimate": "Estimation à partir des données saisies",
+      "unknown": "Inconnu"
+    },
     "empty": "Rien à montrer pour cette année dans ce périmètre."
   }
 }

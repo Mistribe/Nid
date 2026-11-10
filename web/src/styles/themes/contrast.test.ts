@@ -73,7 +73,7 @@ const THEMES_DIR = dirname(fileURLToPath(import.meta.url));
 
 // The fixed colours of globals.css (status text), under each theme's own.
 const globals = readFileSync(join(THEMES_DIR, '..', 'globals.css'), 'utf8');
-const fixed = { light: block(globals, /^:root\s*\{([^}]*)\}/m), dark: block(globals, /^\.dark\s*\{([^}]*)\}/m) };
+const fixed = { light: block(globals, /^:root\s*\{([^}]*)\}/m), dark: block(globals, /^\s*\.dark\s*\{([^}]*)\}/m) };
 
 function variables(id: string) {
   const css = readFileSync(join(THEMES_DIR, `${id}.css`), 'utf8');

@@ -125,17 +125,16 @@ public sealed class RealEstateNetWorth(
         var accesses = await items.FindManyAsync([.. found.Select(p => p.ItemId), .. owing.Select(l => l.ItemId)], ct);
         var estimates = await DashboardParts.EstimatesAsync(valuations, found, accesses, ct);
         var zone = await calendar.ZoneAsync(ct);
-        LocalDate? ArchivedOn(ItemAccess item) => item.ArchivedAt?.InZone(zone).Date;
         var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series, PropertyDetails Details, LocalDate? Archived)>();
         foreach (var property in found)
             if (accesses.TryGetValue(property.ItemId, out var item) && estimates?.GetValueOrDefault(property.ItemId) is { Count: > 0 } series)
-                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details, ArchivedOn(item)));
+                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details, DashboardParts.ArchiveDay(item, zone)));
         var owed = new List<(LoanTerms Terms, LoanSchedule Schedule, LocalDate? Archived)>();
         foreach (var loan in owing)
             if (accesses.TryGetValue(loan.ItemId, out var item))
             {
                 var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-                owed.Add((terms, LoanReading.Schedule(terms, loan), ArchivedOn(item)));
+                owed.Add((terms, LoanReading.Schedule(terms, loan), DashboardParts.ArchiveDay(item, zone)));
             }
 
         var points = new List<NetWorthPoint>();
@@ -199,6 +198,9 @@ internal static class DashboardParts
 
     public static IReadOnlyList<OwnerShare> OwnersOf(ItemAccess item) => item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
 
+    /// <summary>Issue #12: the household's day an item was archived on; it counts strictly before it.</summary>
+    public static LocalDate? ArchiveDay(ItemAccess item, DateTimeZone zone) => item.ArchivedAt?.InZone(zone).Date;
+
     /// <summary>
     /// The current estimates by date of the properties the registry knows, read as the ambient actor in one block (batched reads
     /// spec §2); null when they cannot be read. Only known ids: one the registry does not know would refuse the whole block.
@@ -211,29 +213,32 @@ internal static class DashboardParts
 
 /// <summary>
 /// 3E1 spec §3: the visible loans still running this month — amortized, the payment and insurance of the first row due this
-/// month (nothing when none is); cash, every row due this month. A loan ended before this month counts nowhere.
+/// month (nothing when none is); cash, every row due this month. A loan ended before this month counts nowhere. Issue #12: with
+/// <c>includeArchived</c>, archived ones too, for their rows due strictly before their archive day.
 /// </summary>
-public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, ILoanStore loans) : ICommitmentsContribution
+public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, ILoanStore loans, IHouseholdCalendar calendar) : ICommitmentsContribution
 {
-    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool includeArchived = false)
     {
         var first = new LocalDate(today.Year, today.Month, 1);
         var last = first.PlusMonths(1).PlusDays(-1);
         var amortized = new Dictionary<Currency, decimal>();
         var cash = new Dictionary<Currency, decimal>();
         var count = 0;
-        var found = await loans.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct);
+        var found = await loans.FindManyAsync(await visible.ForAsync(reader, scope, includeArchived, ct), ct);
         var accesses = await items.FindManyAsync(found.Select(l => l.ItemId).ToList(), ct); // batched reads spec §3
+        var zone = includeArchived ? await calendar.ZoneAsync(ct) : null;
         foreach (var loan in found)
         {
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms, loan);
-            if (LoanReading.EndOf(terms, schedule) < first)
+            var archived = zone is null ? null : item.ArchivedAt?.InZone(zone).Date;
+            if (LoanReading.EndOf(terms, schedule) < first || archived is { } gone && gone <= first)
                 continue;
             count++;
-            var due = schedule.Rows.Where(r => r.DueDate >= first && r.DueDate <= last).ToList();
+            var due = schedule.Rows.Where(r => r.DueDate >= first && r.DueDate <= last && (archived is not { } a || r.DueDate < a)).ToList();
             if (due.Count == 0)
                 continue;
             DashboardParts.Add(amortized, terms.Currency, due[0].Payment + due[0].Insurance);
@@ -245,30 +250,39 @@ public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, 
 
 /// <summary>
 /// 3E1 spec §3: the visible properties' planned costs — amortized, the monthly equivalents (3C2) of those running today; cash,
-/// the occurrences dated this month (a cost comes every month or more: at most one).
+/// the occurrences dated this month (a cost comes every month or more: at most one). Issue #12: with <c>includeArchived</c>,
+/// archived properties too, for their occurrences strictly before their archive day.
 /// </summary>
-public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry items, IPropertyStore properties) : ICommitmentsContribution
+public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, IHouseholdCalendar calendar)
+    : ICommitmentsContribution
 {
-    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool includeArchived = false)
     {
         var amortized = new Dictionary<Currency, decimal>();
         var cash = new Dictionary<Currency, decimal>();
         var count = 0;
-        var found = await properties.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct);
+        var found = await properties.FindManyAsync(await visible.ForAsync(reader, scope, includeArchived, ct), ct);
         var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct); // batched reads spec §3
+        var zone = includeArchived ? await calendar.ZoneAsync(ct) : null;
+        var first = new LocalDate(today.Year, today.Month, 1);
         foreach (var property in found)
         {
             if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
+            var archived = zone is null ? null : item.ArchivedAt?.InZone(zone).Date;
+            if (archived is { } gone && gone <= first)
+                continue; // archived before this month: counts nowhere
+            // Amortized: the costs running on its last counted day, the day before its archive day when that falls this month.
+            var held = archived is { } sold && sold <= today ? sold.PlusDays(-1) : today;
             var currency = LoanViews.CurrencyOf(item);
             foreach (var cost in property.Costs.Select(c => c.Cost))
             {
-                if (Running(cost, today))
+                if (Running(cost, held))
                 {
                     count++;
                     DashboardParts.Add(amortized, currency, PropertyMath.MonthlyEquivalent(cost));
                 }
-                if (PropertyMath.DueIn(cost, today) is not null)
+                if (PropertyMath.DueIn(cost, today) is { } on && (archived is not { } a || on < a))
                     DashboardParts.Add(cash, currency, cost.Amount);
             }
         }

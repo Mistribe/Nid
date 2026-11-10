@@ -30,6 +30,9 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
     /// <summary>2B1a: set when the item is archived (a closed envelope); null while it is active.</summary>
     public Instant? ArchivedAt { get; init; }
 
+    /// <summary>Issue #12: when the item was created (imported items: when they were imported).</summary>
+    public Instant CreatedAt { get; init; }
+
     /// <summary>2B1b: the item's currency (ISO code), null when it has none.</summary>
     public string? Currency { get; init; }
 

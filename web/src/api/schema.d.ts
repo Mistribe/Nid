@@ -185,6 +185,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar/{secret}.ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    secret: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/calendar": string;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/persons": {
         parameters: {
             query?: never;
@@ -8128,6 +8172,7 @@ export interface paths {
                     kind?: string;
                     source?: string;
                     ended?: boolean;
+                    year?: number;
                 };
                 header?: never;
                 path?: never;
@@ -25664,6 +25709,249 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/me/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MyCalendarView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarFeedView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreatedCalendarFeedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/fx-rates": {
         parameters: {
             query?: never;
@@ -28179,6 +28467,15 @@ export interface components {
             /** Format: double */
             pct?: null | number;
         };
+        CalendarFeedBody: {
+            scope?: null | string;
+            amounts: boolean;
+        };
+        CalendarFeedView: {
+            token: components["schemas"]["TokenView"];
+            scope: string;
+            amounts: boolean;
+        };
         CancellationView: {
             status: string;
             /** Format: date */
@@ -28701,6 +28998,10 @@ export interface components {
             visibility?: null | string;
             owners?: null | components["schemas"]["OwnerBody"][];
             shareLevel?: null | string;
+        };
+        CreatedCalendarFeedResponse: {
+            feed: components["schemas"]["CalendarFeedView"];
+            url: string;
         };
         CreateDependentBody: {
             displayName: string;
@@ -29229,6 +29530,11 @@ export interface components {
             commitments: components["schemas"]["GoalCommitmentView"][];
             flags: string[];
         };
+        EngagementSourceView: {
+            source: string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
+            estimated: boolean;
+        };
         EnvelopeDetail: {
             /** Format: uuid */
             id: string;
@@ -29681,6 +29987,26 @@ export interface components {
         };
         GoalProgressBody: {
             amount?: null | string;
+        };
+        GoalReviewRowView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            target?: null | components["schemas"]["DashboardMoneyView"];
+            startReached?: null | components["schemas"]["DashboardMoneyView"];
+            endReached?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            startProgressPct?: null | number;
+            /** Format: double */
+            endProgressPct?: null | number;
+            reachedInPeriod: boolean;
+            /** Format: date */
+            archivedOn?: null | string;
+            partial: boolean;
+        };
+        GoalsReviewView: {
+            goals: components["schemas"]["GoalReviewRowView"][];
         };
         GoalSummary: {
             /** Format: uuid */
@@ -30242,6 +30568,16 @@ export interface components {
             version: number;
             taxableAmount?: null | components["schemas"]["IncomeMoneyView"];
         };
+        IncomeReviewView: {
+            income?: null | components["schemas"]["DashboardMoneyView"];
+            sources: components["schemas"]["IncomeSourceView"][];
+            engagements?: null | components["schemas"]["DashboardMoneyView"];
+            engagementSources: components["schemas"]["EngagementSourceView"][];
+            margin?: null | components["schemas"]["DashboardMoneyView"];
+            previousIncome?: null | components["schemas"]["DashboardMoneyView"];
+            previousEngagements?: null | components["schemas"]["DashboardMoneyView"];
+            previousMargin?: null | components["schemas"]["DashboardMoneyView"];
+        };
         IncomeRowView: {
             source: string;
             /** Format: uuid */
@@ -30336,6 +30672,14 @@ export interface components {
             /** Format: date */
             endedOn?: null | string;
             owners: components["schemas"]["ItemOwnerView"][];
+        };
+        IncomeSourceView: {
+            /** Format: uuid */
+            id?: null | string;
+            key: string;
+            name?: null | string;
+            kind?: null | string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
         };
         IncomeWithholdingView: {
             /** Format: uuid */
@@ -31028,6 +31372,19 @@ export interface components {
             /** Format: uint32 */
             version: number;
         };
+        LoanReviewRowView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            interest?: null | components["schemas"]["DashboardMoneyView"];
+            insurance?: null | components["schemas"]["DashboardMoneyView"];
+            fees?: null | components["schemas"]["DashboardMoneyView"];
+            capitalRepaid?: null | components["schemas"]["DashboardMoneyView"];
+            startBalance?: null | components["schemas"]["DashboardMoneyView"];
+            endBalance?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: date */
+            archivedOn?: null | string;
+        };
         LoanScheduleRowView: {
             /** Format: int32 */
             number: number;
@@ -31110,6 +31467,17 @@ export interface components {
             /** Format: date */
             end: string;
             phases: components["schemas"]["LoanPhaseSpanView"][];
+        };
+        LoansReviewView: {
+            interest?: null | components["schemas"]["DashboardMoneyView"];
+            insurance?: null | components["schemas"]["DashboardMoneyView"];
+            fees?: null | components["schemas"]["DashboardMoneyView"];
+            capitalRepaid?: null | components["schemas"]["DashboardMoneyView"];
+            startBalance?: null | components["schemas"]["DashboardMoneyView"];
+            endBalance?: null | components["schemas"]["DashboardMoneyView"];
+            previousInterestAndInsurance?: null | components["schemas"]["DashboardMoneyView"];
+            previousCapitalRepaid?: null | components["schemas"]["DashboardMoneyView"];
+            loans: components["schemas"]["LoanReviewRowView"][];
         };
         LoansSimulation: {
             currency: string;
@@ -31248,6 +31616,9 @@ export interface components {
             label?: null | string;
             externalRef?: null | string;
             switchLegs?: null | components["schemas"]["SwitchLegView"][];
+        };
+        MyCalendarView: {
+            feed?: null | components["schemas"]["CalendarFeedView"];
         };
         NetValueTurn: {
             /** Format: date */
@@ -31853,6 +32224,13 @@ export interface components {
             tenancies: components["schemas"]["RentalTenancyView"][];
             findings: components["schemas"]["LoanFindingView"][];
         };
+        PropertiesReviewView: {
+            costs?: null | components["schemas"]["DashboardMoneyView"];
+            rents?: null | components["schemas"]["DashboardMoneyView"];
+            previousCosts?: null | components["schemas"]["DashboardMoneyView"];
+            previousRents?: null | components["schemas"]["DashboardMoneyView"];
+            properties: components["schemas"]["PropertyReviewRowView"][];
+        };
         PropertiesValuation: {
             currency: string;
             /** Format: int32 */
@@ -31884,6 +32262,10 @@ export interface components {
             overdueTotal: string;
             months: components["schemas"]["ArrearsMonthView"][];
             letter?: null | components["schemas"]["ArrearsLetterView"];
+        };
+        PropertyCostCategoryView: {
+            category: string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
         };
         PropertyCostLineView: {
             code: string;
@@ -32085,6 +32467,18 @@ export interface components {
             /** Format: date */
             pinelEnd?: null | string;
             warnings: components["schemas"]["PropertyWarning"][];
+        };
+        PropertyReviewRowView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            costs?: null | components["schemas"]["DashboardMoneyView"];
+            byCategory: components["schemas"]["PropertyCostCategoryView"][];
+            rents?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            grossYieldPct?: null | number;
+            /** Format: double */
+            netYieldPct?: null | number;
         };
         PropertyRoutineBody: {
             on?: null | string;
@@ -32593,6 +32987,11 @@ export interface components {
             priceSource: string;
             savingsEffort: string;
             breakdown: components["schemas"]["ReturnBreakdownLineView"][];
+        };
+        ReviewDurationView: {
+            /** Format: int32 */
+            count: number;
+            unit: string;
         };
         ReviewPartView: {
             key: string;
@@ -33288,6 +33687,26 @@ export interface components {
             findings: components["schemas"]["FindingView"][];
             householdAnnualCostConverted?: null | components["schemas"]["MoneyView"];
         };
+        SubscriptionPriceChangeView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: date */
+            on: string;
+            before: components["schemas"]["DashboardMoneyView"];
+            beforeEvery: components["schemas"]["ReviewDurationView"];
+            after: components["schemas"]["DashboardMoneyView"];
+            afterEvery: components["schemas"]["ReviewDurationView"];
+            promoEnded: boolean;
+        };
+        SubscriptionReviewItemView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            provider?: null | string;
+            /** Format: date */
+            on: string;
+        };
         SubscriptionsOverview: {
             currency: string;
             convertedIsEstimate: boolean;
@@ -33309,6 +33728,13 @@ export interface components {
             topProviders: components["schemas"]["TopProviderView"][];
             savings: components["schemas"]["SavingsView"];
             priceRises: components["schemas"]["PriceRisesView"];
+        };
+        SubscriptionsReviewView: {
+            cost?: null | components["schemas"]["DashboardMoneyView"];
+            previousCost?: null | components["schemas"]["DashboardMoneyView"];
+            started: components["schemas"]["SubscriptionReviewItemView"][];
+            ended: components["schemas"]["SubscriptionReviewItemView"][];
+            priceChanges: components["schemas"]["SubscriptionPriceChangeView"][];
         };
         SubscriptionSummary: {
             /** Format: uuid */
@@ -33749,6 +34175,13 @@ export interface components {
             /** @default 0.00 */
             referenceIncome: string;
         };
+        TaxReviewView: {
+            totalTax?: null | components["schemas"]["DashboardMoneyView"];
+            incomeTax?: null | components["schemas"]["DashboardMoneyView"];
+            socialLevies?: null | components["schemas"]["DashboardMoneyView"];
+            capitalFlatTax?: null | components["schemas"]["DashboardMoneyView"];
+            previousTotalTax?: null | components["schemas"]["DashboardMoneyView"];
+        };
         TaxSalaryDetailView: {
             /** Format: uuid */
             person: string;
@@ -33992,6 +34425,12 @@ export interface components {
             years: number[];
             netWorth?: null | components["schemas"]["NetWorthReviewView"];
             investments?: null | components["schemas"]["InvestmentsReviewView"];
+            income?: null | components["schemas"]["IncomeReviewView"];
+            subscriptions?: null | components["schemas"]["SubscriptionsReviewView"];
+            loans?: null | components["schemas"]["LoansReviewView"];
+            properties?: null | components["schemas"]["PropertiesReviewView"];
+            goals?: null | components["schemas"]["GoalsReviewView"];
+            tax?: null | components["schemas"]["TaxReviewView"];
             findings: string[];
         };
         YearView: {
