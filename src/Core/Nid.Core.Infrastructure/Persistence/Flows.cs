@@ -78,7 +78,7 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
     public async Task<IReadOnlyList<Flow>> CounterpartsAsync(ItemId item, CancellationToken ct)
     {
         var id = item.Value;
-        var references = db.Flows.Where(r => r.ItemId == id && r.RetiredAt == null && r.ExternalRef != null).Select(r => r.ExternalRef);
+        var references = db.Flows.Where(r => r.ItemId == id && r.RetiredAt == null && r.ExternalRef != null && r.ExternalRef.StartsWith("transfer:")).Select(r => r.ExternalRef);
         return (await db.Flows.AsNoTracking().Where(r => r.ItemId != id && r.RetiredAt == null && references.Contains(r.ExternalRef)).ToListAsync(ct))
             .Select(ToFlow).ToList();
     }

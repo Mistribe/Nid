@@ -30,6 +30,7 @@ public sealed class ItemDeletions(
         }
 
         // A blocker counts every item but names only those the actor may read: a private goal is not disclosed by its envelope.
+        // An actor without a person (a service) gets no names, the counts stay.
         var named = blockers.SelectMany(b => b.Items).Select(i => new ItemId(i.Id)).Distinct().ToList();
         var readable = named.Count == 0 || actor.Current?.PersonId is not { } person
             ? new HashSet<ItemId>()

@@ -23,6 +23,7 @@ public sealed class GoalsDeletionPart(GoalsDbContext db, IItemRegistry items) : 
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
     {
         if (IsEnvelope(item))
+            // (goal, envelope) is the funding key: one line per goal, so goals counted are lines counted.
             return [new("goal_funding_closed", (await FundedAsync(item, ct)).Count(g => g.ArchivedAt is not null))];
         return !IsGoal(item) ? []
         :

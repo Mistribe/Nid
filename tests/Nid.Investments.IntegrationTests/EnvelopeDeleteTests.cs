@@ -23,9 +23,9 @@ public class EnvelopeDeleteTests(PostgresFixture fixture) : IClassFixture<Postgr
     private static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
         => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
 
-    private static async Task<JsonElement> SendAsync(NidApp app, HttpMethod method, string url, object? body, HttpStatusCode expected)
+    private static async Task<JsonElement> SendAsync(NidApp app, HttpMethod method, string url, object? body, HttpStatusCode expected, PersonId? actor = null)
     {
-        var response = await app.RawAsync(app.AdultA, method, url, body);
+        var response = await app.RawAsync(actor ?? app.AdultA, method, url, body);
         Assert.True(response.StatusCode == expected, $"{response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
         return response.Content.Headers.ContentLength == 0 ? default : await JsonAsync(response);
     }
@@ -182,6 +182,21 @@ public class EnvelopeDeleteTests(PostgresFixture fixture) : IClassFixture<Postgr
         var named = Assert.Single(blocker.GetProperty("items").EnumerateArray());
         Assert.Equal((pea.Value, "PEA"), (named.GetProperty("id").GetGuid(), named.GetProperty("name").GetString()));
         Assert.Equal(HttpStatusCode.OK, await EnvelopeStatusAsync(app, livret));
+    }
+
+    [Fact]
+    public async Task Transfer_to_a_private_envelope_of_another_adult_blocks_without_its_name()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var livret = await app.NewEnvelopeAsync("Livret", Visibility.Shared, (app.AdultA, 5000), (app.AdultB, 5000));
+        var pea = await app.NewEnvelopeAsync("PEA", app.AdultB, Visibility.Private);
+        await SendAsync(app, HttpMethod.Post, "/api/v1/investments/transfers",
+            new { from = livret.Value, to = pea.Value, occurredOn = "2025-06-15", amount = Eur("200.00") }, HttpStatusCode.Created, app.AdultB);
+
+        var blocker = Blocker(await PreviewAsync(app, app.AdultA, livret), "transfers");
+
+        Assert.Equal(1, blocker.GetProperty("count").GetInt32());
+        Assert.Empty(blocker.GetProperty("items").EnumerateArray());
     }
 
     [Fact]
