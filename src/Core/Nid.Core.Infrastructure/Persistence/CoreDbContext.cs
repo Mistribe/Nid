@@ -121,7 +121,10 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             {
                 t.HasCheckConstraint("ck_personal_access_token_expiry", "expires_at > created_at");
                 t.HasCheckConstraint("ck_personal_access_token_scopes",
-                    "scopes = '{read}'::text[] or scopes = '{read,write}'::text[] or scopes = '{read,write,write:direct}'::text[]");
+                    "scopes = '{read}'::text[] or scopes = '{read,write}'::text[] or scopes = '{read,write,write:direct}'::text[] or scopes = '{calendar}'::text[]");
+                // Issue #80: a calendar feed, and only one, has its options.
+                t.HasCheckConstraint("ck_personal_access_token_calendar",
+                    "(scopes = '{calendar}'::text[]) = (calendar_scope is not null and calendar_amounts is not null) and (calendar_scope is null or calendar_scope in ('household','me'))");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();

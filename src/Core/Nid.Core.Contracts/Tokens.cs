@@ -10,12 +10,19 @@ public static class TokenPresets
     public const string Propose = "propose";
     public const string Direct = "direct";
 
+    /// <summary>Issue #80: a calendar feed's secret (<c>nid_cal_…</c>): it reads that feed and nothing else, and is never a bearer token.</summary>
+    public const string Calendar = "calendar";
+
     private static readonly Dictionary<string, string[]> Scopes = new(StringComparer.Ordinal)
     {
         [Read] = ["read"],
         [Propose] = ["read", "write"],
         [Direct] = ["read", "write", "write:direct"],
+        [Calendar] = ["calendar"],
     };
+
+    /// <summary>The presets « Mes jetons » creates; a calendar feed is made from Réglages › Calendrier.</summary>
+    public static bool IsBearer(string? preset) => preset is Read or Propose or Direct;
 
     public static IReadOnlySet<string>? ScopesOf(string preset)
         => Scopes.TryGetValue(preset, out var scopes) ? scopes.ToHashSet(StringComparer.Ordinal) : null;
@@ -44,11 +51,30 @@ public static class TokenCodes
     public const string NameInvalid = "core.token_name_invalid";
     public const string PresetUnknown = "core.token_preset_unknown";
     public const string ExpiryInvalid = "core.token_expiry_invalid";
+    public const string CalendarScopeInvalid = "core.calendar_scope_invalid";
 }
+
+/// <summary>Issue #80: what a calendar feed lists: the events of the items its person reads in <c>Scope</c>, amounts only when <c>Amounts</c>.</summary>
+public sealed record CalendarFeedOptions(VisibilityScope Scope, bool Amounts);
+
+public static class CalendarFeedLimits
+{
+    /// <summary>A feed lives as long as the longest token, from its creation or its last regeneration.</summary>
+    public const int Days = TokenLimits.MaxDays;
+
+    /// <summary>The feed's window, from today.</summary>
+    public const int Months = 12;
+
+    /// <summary>The feed's row in « Mes jetons ».</summary>
+    public const string Name = "Calendrier";
+}
+
+/// <summary>What the feed route needs of a calendar row: never sent anywhere.</summary>
+public sealed record CalendarCredential(Guid Id, PersonId Person, string Hash, CalendarFeedOptions Options, Instant ExpiresAt, Instant? RevokedAt);
 
 public sealed record PersonalAccessToken(
     Guid Id, PersonId Person, string Name, string Prefix, IReadOnlySet<string> Scopes,
-    Instant CreatedAt, Instant ExpiresAt, Instant? LastUsedAt, Instant? RevokedAt);
+    Instant CreatedAt, Instant ExpiresAt, Instant? LastUsedAt, Instant? RevokedAt, CalendarFeedOptions? Calendar = null);
 
 /// <summary>What authentication needs of a row: never the name, never sent anywhere.</summary>
 public sealed record TokenCredential(Guid Id, PersonId Person, string Hash, IReadOnlySet<string> Scopes, Instant ExpiresAt, Instant? RevokedAt);
@@ -70,7 +96,19 @@ public interface IPersonalAccessTokens
     /// <summary>Revokes every active token of the person; the count revoked.</summary>
     Task<int> RevokeAllAsync(PersonId person, CancellationToken ct);
 
+    /// <summary>A bearer token's row; never a calendar feed's.</summary>
     Task<TokenCredential?> FindByPrefixAsync(string prefix, CancellationToken ct);
+
+    /// <summary>
+    /// Issue #80: creates the person's calendar feed under the same lock and limit, revoking the active one first (a regeneration).
+    /// Its secret is a <c>nid_cal_…</c>, which bearer authentication never reads.
+    /// </summary>
+    Task<Result<NewToken>> CreateCalendarAsync(PersonId person, CalendarFeedOptions options, CancellationToken ct);
+
+    /// <summary>Changes the active feed's options, its URL unchanged; not found when the person has none.</summary>
+    Task<Result<PersonalAccessToken>> SetCalendarOptionsAsync(PersonId person, CalendarFeedOptions options, CancellationToken ct);
+
+    Task<CalendarCredential?> FindCalendarByPrefixAsync(string prefix, CancellationToken ct);
 
     /// <summary>Sets <c>last_used_at</c> to now when it is unset or older than a minute (spec D3).</summary>
     Task TouchAsync(Guid token, CancellationToken ct);
