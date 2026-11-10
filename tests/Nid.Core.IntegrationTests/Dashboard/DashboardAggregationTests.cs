@@ -27,7 +27,7 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
     }
     private sealed class Commitments(CommitmentsPart part) : ICommitmentsContribution
     {
-        public Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct) => Task.FromResult(Result.Success(part));
+        public Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool includeArchived = false) => Task.FromResult(Result.Success(part));
     }
     private sealed class Income(IncomePart part) : IIncomeContribution
     {

@@ -110,7 +110,11 @@ public sealed record NetWorthPoint(
 
 public interface ICommitmentsContribution
 {
-    Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
+    /// <summary>
+    /// The month of <paramref name="today"/>. Issue #12: <paramref name="includeArchived"/> (the annual review's past months) adds the
+    /// archived items, each counting only what is due strictly before its archive day; the dashboard leaves them out.
+    /// </summary>
+    Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool includeArchived = false);
 }
 
 public interface IIncomeContribution

@@ -481,7 +481,7 @@ public sealed class TaxEstimates(
 /// </summary>
 public sealed class TaxCommitments(TaxEstimates estimates) : ICommitmentsContribution
 {
-    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct, bool includeArchived = false)
     {
         var result = await estimates.ComputeAsync(today.Year, scope, today, ct);
         if (result.TryGetFailure(out var failure)) return Result.Failure<CommitmentsPart>(failure!);

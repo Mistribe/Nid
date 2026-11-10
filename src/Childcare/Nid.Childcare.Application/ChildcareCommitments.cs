@@ -13,7 +13,7 @@ namespace Nid.Childcare.Application;
 public sealed class ChildcareCommitments(IVisibleItems visible, IChildcareStore store, StatementAssembly assembly, IHouseholdSettings household)
     : ICommitmentsContribution
 {
-    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool includeArchived = false)
     {
         var currency = await household.ReferenceCurrencyAsync(ct);
         var month = today.ToYearMonth();
