@@ -40,7 +40,7 @@ export function CommandMenu({ open, onOpenChange }: { open: boolean; onOpenChang
         <CommandEmpty>{t('palette.empty')}</CommandEmpty>
         <CommandGroup heading={t('palette.go')}>
           {visibleNav(capabilities).map((item) => (
-            <CommandItem key={item.to} value={t(item.label)} onSelect={() => go(item.to)}>
+            <CommandItem key={item.to} value={t(item.label)} keywords={item.group === 'admin' ? [t('nav.admin')] : undefined} onSelect={() => go(item.to)}>
               <ModuleTile icon={item.icon} tile={item.tile} />
               {t(item.label)}
             </CommandItem>

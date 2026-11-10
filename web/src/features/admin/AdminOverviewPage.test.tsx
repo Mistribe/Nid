@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -45,14 +45,15 @@ describe('Administration › vue d’ensemble', () => {
   });
 
   it('shows no state when jobs and system fail', async () => {
+    const handled = new Set<string>();
     server.use(
-      http.get('*/api/v1/admin/jobs', () => new HttpResponse(null, { status: 500 })),
-      http.get('*/api/v1/admin/system', () => new HttpResponse(null, { status: 500 })),
+      http.get('*/api/v1/admin/jobs', () => { handled.add('jobs'); return new HttpResponse(null, { status: 500 }); }),
+      http.get('*/api/v1/admin/system', () => { handled.add('system'); return new HttpResponse(null, { status: 500 }); }),
     );
     await renderApp('/admin', { capabilities: adminCapabilities });
 
     expect(await within(await screen.findByRole('main')).findByRole('link', { name: 'Taux de change' })).toBeInTheDocument();
-    await new Promise((r) => setTimeout(r, 100));
+    await waitFor(() => { expect(handled.size).toBe(2); });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText(/échec|disponible|injoignable/)).not.toBeInTheDocument();
   });

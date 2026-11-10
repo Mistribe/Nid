@@ -115,8 +115,8 @@ export function Shell() {
           <div className={`flex-1 overflow-x-hidden overflow-y-auto ${rail ? 'p-1' : 'p-3'}`}>
             {groups.map(({ group, entries }, index) => (
               <div key={group} className={index === 0 ? undefined : rail ? 'mt-2 border-t pt-2' : 'mt-5'}>
-                <h2 className={rail ? 'sr-only' : 'px-3 pb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground'}>{t(`nav.group_${group}`)}</h2>
-                <ul className="space-y-0.5">{entries.map((item) => <li key={item.to}>{sideLink(item)}</li>)}</ul>
+                <h2 id={`nav-group-${group}`} className={rail ? 'sr-only' : 'px-3 pb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground'}>{t(`nav.group_${group}`)}</h2>
+                <ul aria-labelledby={`nav-group-${group}`} className="space-y-0.5">{entries.map((item) => <li key={item.to}>{sideLink(item)}</li>)}</ul>
               </div>
             ))}
           </div>

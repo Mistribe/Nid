@@ -40,7 +40,7 @@ describe('ChangelogPage', () => {
     const figures = screen.getByText("Version de l'application").closest('dl')!;
     expect(figures).toHaveTextContent('0.5.1');
     await waitFor(() => expect(figures).toHaveTextContent('1.2.3'));
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.id).filter(Boolean)).toEqual(['0.5.0', '0.4.0', '0.3.1']);
+    expect(within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((h) => h.id).filter(Boolean)).toEqual(['0.5.0', '0.4.0', '0.3.1']);
     const patches = screen.getByRole('list', { name: 'Correctifs de la version 0.5' });
     expect(within(patches).getByRole('heading', { level: 3 })).toHaveTextContent('Version actuelle');
     expect(screen.getByText('1 novembre 2026')).toBeInTheDocument();
