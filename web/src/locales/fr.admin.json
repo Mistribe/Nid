@@ -2,6 +2,26 @@
   "admin": {
     "loading": "Chargement",
     "nav": { "household": "Foyer" },
+    "overview": {
+      "group_reference": "Données de référence",
+      "group_operations": "Opérations",
+      "group_access": "Accès",
+      "group_system": "Système",
+      "jobs_failed_one": "{{count}} tâche en échec",
+      "jobs_failed_other": "{{count}} tâches en échec",
+      "fx_hint": "Collecte quotidienne et saisie manuelle des taux",
+      "prices_hint": "Collecte des cours des titres",
+      "irl_hint": "Indice de référence des loyers de l'INSEE",
+      "inflation_hint": "Indice des prix à la consommation de l'INSEE",
+      "jobs_hint": "Planification et historique des tâches",
+      "banking_hint": "Synchronisation bancaire et conservation des opérations",
+      "catalog_hint": "Catalogue des fournisseurs d'abonnements",
+      "users_hint": "Adultes du foyer et invitations",
+      "household_hint": "Plafond d'adultes et devise de référence",
+      "security_hint": "Connexions, sessions et accès retenus",
+      "system_hint": "Version, santé et taille de la base",
+      "notifications_hint": "Envoi des emails et Discord du foyer"
+    },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",

@@ -631,10 +631,8 @@ const requireAdmin = ({ context }: { context: RouterContext }) => {
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
-  beforeLoad: ({ context }) => {
-    requireAdmin({ context });
-    redirect({ to: '/admin/users', throw: true });
-  },
+  beforeLoad: requireAdmin,
+  component: lazyRouteComponent(() => import('@/features/admin/AdminOverviewPage'), 'AdminOverviewPage'),
 });
 
 const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/UsersPage'), 'UsersPage') });
