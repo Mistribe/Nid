@@ -13,9 +13,9 @@ const BOB = '00000000-0000-7000-8000-0000000000a2';
 const LEA = '00000000-0000-7000-8000-0000000000d1';
 // Every person has a birth date; the server lists Bob's retirement only (Alice retired, Léa a dependent).
 const persons = [
-  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: '1955-01-01', retirementAge: 64 },
-  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62 },
-  { id: LEA, kind: 'dependent', displayName: 'Léa', birthDate: '2015-06-01', retirementAge: 64 },
+  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: '1955-01-01', retirementAge: 64, retirementMonths: 0 },
+  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62, retirementMonths: 0 },
+  { id: LEA, kind: 'dependent', displayName: 'Léa', birthDate: '2015-06-01', retirementAge: 64, retirementMonths: 0 },
 ];
 const retirementHorizons = [{ person: BOB, name: 'Bob', on: '2047-03-31' }];
 

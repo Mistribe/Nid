@@ -39,8 +39,8 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         => Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope.Value}/flows",
             new { occurredOn = on, kind = "contribution", amount = new { amount, currency = "EUR" } })).StatusCode);
 
-    private static async Task RetirementAsync(NidApp app, PersonId person, string? birthDate, int age = 64)
-        => (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{person.Value}/retirement", new { birthDate, retirementAge = age }))
+    private static async Task RetirementAsync(NidApp app, PersonId person, string? birthDate, int age = 64, int months = 0)
+        => (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{person.Value}/retirement", new { birthDate, retirementAge = age, retirementMonths = months }))
             .EnsureSuccessStatusCode();
 
     private static async Task<string?> RefusalCodeAsync(NidApp app, string query)
@@ -246,6 +246,106 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
     }
 
     [Fact]
+    public async Task Retirement_horizon_includes_the_months() // retirement spec §1
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RetirementAsync(app, app.AdultA, "1990-05-10", 64, 3);
+
+        Assert.Equal("2054-08-31", Str(await ProjectionAsync(app, app.AdultA, $"?horizon=retire:{app.AdultA.Value}"), "horizonOn"));
+    }
+
+    [Fact]
+    public async Task Every_adult_departure_in_the_grid_is_a_milestone() // retirement spec §1
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RetirementAsync(app, app.AdultA, "1964-01-10");
+        await RetirementAsync(app, app.AdultB, "1966-06-10");
+
+        var view = await ProjectionAsync(app, app.AdultA, "?horizon=10y");
+
+        var names = (await app.GetAsync<JsonElement>(app.AdultA, "/api/v1/core/persons")).EnumerateArray()
+            .ToDictionary(p => p.GetProperty("id").GetGuid(), p => p.GetProperty("displayName").GetString());
+        Assert.Equal(
+            [("2028-01-31", names[app.AdultA.Value]), ("2030-06-30", names[app.AdultB.Value])],
+            List(view, "milestones").Where(m => Str(m, "kind") == "retirement").Select(m => (Str(m, "on")!, Str(m, "label"))).ToList());
+    }
+
+    [Fact]
+    public async Task Salary_stops_at_the_departure() // retirement spec §1
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RetirementAsync(app, app.AdultA, "1963-10-10"); // leaves in 2027-10, month 24: the switch is month 25
+        var rates = AllocationClasses.All.ToDictionary(c => c, _ => "0");
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = rates, inflation = "0", monthlySavings = "100", savingsClass = "cash", freedPaymentsToSavings = true,
+        })).EnsureSuccessStatusCode();
+        var money = new { amount = "2300", currency = "EUR" };
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
+        {
+            ["displayName"] = "Salaire", ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = "shared",
+            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["phases"] = new object[]
+            {
+                new Dictionary<string, object?>
+                {
+                    ["label"] = "Salaire", ["startsOn"] = "2025-01-01", ["endsOn"] = null, ["netAmount"] = money, ["grossAmount"] = null,
+                    ["every"] = new { count = 1, unit = "month" }, ["taxableAmount"] = null,
+                },
+            },
+        })).EnsureSuccessStatusCode();
+
+        var savings = List(await ProjectionAsync(app, app.AdultA, "?horizon=3y"), "points")
+            .Select(p => decimal.Parse(Str(p, "savings")!, CultureInfo.InvariantCulture)).ToList();
+
+        Assert.Equal(100m, savings[24] - savings[23]); // the salary is still counted
+        Assert.Equal(-2200m, savings[25] - savings[24]); // the salary stops: 100 − 2 300
+    }
+
+    /// <summary>1 000 in cash, 50 000 in a PER, saving −500 a month at 0 %: the cash runs out in month 3 unless the PER has opened.</summary>
+    private static async Task<List<JsonElement>> PerWarningsAsync(NidApp app, string? birthDate)
+    {
+        await RetirementAsync(app, app.AdultA, birthDate); // 1961-11-10 + 64 y: leaves in 2025-11, the PER opens in month 2
+        await ValuedEnvelopeAsync(app, app.AdultA, "1000.00");
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "PER", kind = "per", currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        created.EnsureSuccessStatusCode();
+        var per = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{per}/valuations",
+            new { asOf = "2025-09-30", amount = new { amount = "50000.00", currency = "EUR" }, note = (string?)null })).EnsureSuccessStatusCode();
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = "-500", savingsClass = "cash",
+            freedPaymentsToSavings = true,
+        })).EnsureSuccessStatusCode();
+        return List(await ProjectionAsync(app, app.AdultA, "?horizon=5y"), "warnings");
+    }
+
+    [Fact]
+    public async Task A_per_opens_at_its_holders_departure() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        Assert.DoesNotContain(await PerWarningsAsync(app, "1961-11-10"), w => Str(w, "code") == "savings_exhausted");
+    }
+
+    [Fact]
+    public async Task A_per_is_open_from_the_start_after_a_past_departure() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        Assert.DoesNotContain(await PerWarningsAsync(app, "1950-01-01"), w => Str(w, "code") == "savings_exhausted");
+    }
+
+    [Fact]
+    public async Task A_per_stays_locked_without_a_departure() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        Assert.Contains(await PerWarningsAsync(app, null), w => Str(w, "code") == "savings_exhausted");
+    }
+
+    [Fact]
     public async Task Retirement_without_birth_date_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -409,6 +509,27 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
     {
         await using var app = await NidApp.StartAsync(fixture);
         await IncomeSourceAsync(app, "Salaire", "salary", "2020-01-01", "3000");
+        await IncomeSourceAsync(app, "Prime", "other", "2045-01-01", "2000");
+        var assumptions = ProjectionDefaults.Assumptions with { IncomeGrowth = 0.01m };
+
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+        var read = await scope.ServiceProvider.GetRequiredService<ProjectionFactsReader>()
+            .ReadAsync(VisibilityScope.Household, new ProjectionHorizon(20, null), assumptions, RealEstateEvents.None, TestContext.Current.CancellationToken);
+
+        Assert.True(read.TryGetValue(out var reading), read.ToString());
+        var g = ProjectionRates.Resolve(assumptions, null, Today, 240, []).Income;
+        const int pension = 231; // 2045-01: the phase's first month, in euros of that month; the salary runs since before today
+        Assert.Equal(Math.Round(3000m * g[pension - 1], 6), Math.Round(reading!.Inputs.Income[pension - 1], 6));
+        Assert.Equal(Math.Round(3000m * g[pension] + 2000m, 6), Math.Round(reading.Inputs.Income[pension], 6));
+        Assert.Equal(Math.Round(3000m * g[240] + 2000m * g[240] / g[pension], 6), Math.Round(reading.Inputs.Income[240], 6));
+    }
+
+    [Fact]
+    public async Task A_pension_is_indexed_from_today() // retirement spec: pension parts are indexed from 0
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await IncomeSourceAsync(app, "Salaire", "salary", "2020-01-01", "3000");
         await IncomeSourceAsync(app, "Retraite", "pension", "2045-01-01", "2000");
         var assumptions = ProjectionDefaults.Assumptions with { IncomeGrowth = 0.01m };
 
@@ -419,9 +540,9 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
 
         Assert.True(read.TryGetValue(out var reading), read.ToString());
         var g = ProjectionRates.Resolve(assumptions, null, Today, 240, []).Income;
-        const int pension = 231; // 2045-01: the pension's first month, in euros of that month; the salary runs since before today
+        const int pension = 231; // 2045-01: the pension's first month; both are in euros of today
         Assert.Equal(Math.Round(3000m * g[pension - 1], 6), Math.Round(reading!.Inputs.Income[pension - 1], 6));
-        Assert.Equal(Math.Round(3000m * g[pension] + 2000m, 6), Math.Round(reading.Inputs.Income[pension], 6));
-        Assert.Equal(Math.Round(3000m * g[240] + 2000m * g[240] / g[pension], 6), Math.Round(reading.Inputs.Income[240], 6));
+        Assert.Equal(Math.Round(5000m * g[pension], 6), Math.Round(reading.Inputs.Income[pension], 6));
+        Assert.Equal(Math.Round(5000m * g[240], 6), Math.Round(reading.Inputs.Income[240], 6));
     }
 }

@@ -268,15 +268,15 @@ public class PersonRegistryTests(PostgresFixture postgres)
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
         var alice = (await registry.ProvisionAdultAsync("sub-a", "Alice", null, isAdmin: false, TestContext.Current.CancellationToken)).Ok();
         var kid = (await registry.CreateDependentAsync("Kid", TestContext.Current.CancellationToken)).Ok();
-        Assert.Equal((null, 64), (kid.BirthDate, kid.RetirementAge));
+        Assert.Equal((null, 64, 0), (kid.BirthDate, kid.RetirementAge, kid.RetirementMonths));
 
-        Assert.True((await registry.SetRetirementAsync(alice.Id, new NodaTime.LocalDate(1985, 3, 14), 62, TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await registry.SetRetirementAsync(alice.Id, new NodaTime.LocalDate(1985, 3, 14), 62, 9, TestContext.Current.CancellationToken)).IsSuccess);
 
         var listed = await registry.ListAsync(TestContext.Current.CancellationToken);
         var saved = listed.Single(p => p.Id == alice.Id);
-        Assert.Equal((new NodaTime.LocalDate(1985, 3, 14), 62), (saved.BirthDate, saved.RetirementAge));
+        Assert.Equal((new NodaTime.LocalDate(1985, 3, 14), 62, 9), (saved.BirthDate, saved.RetirementAge, saved.RetirementMonths));
         var untouched = listed.Single(p => p.Id == kid.Id);
-        Assert.Equal((null, 64), (untouched.BirthDate, untouched.RetirementAge));
+        Assert.Equal((null, 64, 0), (untouched.BirthDate, untouched.RetirementAge, untouched.RetirementMonths));
     }
 
     [Fact]
@@ -286,6 +286,6 @@ public class PersonRegistryTests(PostgresFixture postgres)
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
 
         Assert.IsType<UnambitiousFx.Functional.Failures.NotFoundFailure>(
-            (await registry.SetRetirementAsync(PersonId.New(), null, 64, TestContext.Current.CancellationToken)).TryGetFailure(out var missing) ? missing : null);
+            (await registry.SetRetirementAsync(PersonId.New(), null, 64, 0, TestContext.Current.CancellationToken)).TryGetFailure(out var missing) ? missing : null);
     }
 }

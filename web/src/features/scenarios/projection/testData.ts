@@ -8,7 +8,7 @@ export const LOAN_B = '0192f0aa-0000-7000-8000-0000000000e2';
 export const FLAT = '0192f0aa-0000-7000-8000-0000000000f1';
 export const PURCHASE = '0192f0aa-0000-7000-8000-0000000000b1';
 
-export const persons = [{ id: ALICE, kind: 'adult', displayName: 'Alice', email: null, birthDate: '1980-05-02', retirementAge: 64 }];
+export const persons = [{ id: ALICE, kind: 'adult', displayName: 'Alice', email: null, birthDate: '1980-05-02', retirementAge: 64, retirementMonths: 0 }];
 
 export const loans = {
   items: [

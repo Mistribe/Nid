@@ -79,8 +79,7 @@ public sealed class ProjectionFactsReader(
 
         var span = await MonthsAsync(horizon, today, ct);
         if (span.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
-        span.TryGetValue(out var horizonSpan);
-        var (months, retirement) = horizonSpan;
+        span.TryGetValue(out var months);
         var thisMonth = today.ToYearMonth();
         var horizonOn = thisMonth.PlusMonths(months).ToDateInterval().End;
 
@@ -93,7 +92,9 @@ public sealed class ProjectionFactsReader(
         if (saved.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
         saved.TryGetValue(out var contributions);
 
-        var timelines = await Contributions.CollectAsync(income, c => c.TimelineAsync(Reader, scope, today, months, ct));
+        var people = await persons.ListAsync(ct);
+        var switches = Departures.SwitchMonths(people, today);
+        var timelines = await Contributions.CollectAsync(income, c => c.TimelineAsync(Reader, scope, today, months, switches, ct));
         if (timelines.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
         timelines.TryGetValue(out var earned);
 
@@ -122,7 +123,12 @@ public sealed class ProjectionFactsReader(
         foreach (var holding in now.Savings)
             if (holding.Converted is null && holding.Holding.Value is { Amount: not 0m } value)
                 missing.Add(value.Currency.Code);
-        var slices = now.Savings.Where(s => s.Converted is not null).SelectMany(s => s.Slices).ToList();
+        // Retirement spec §2: a PER's locked slices open at its holder's departure (the latest of its owners).
+        var adultIds = people.Where(p => p.Kind == PersonKind.Adult).Select(p => p.Id).ToHashSet();
+        var slices = now.Savings.Where(s => s.Converted is not null).SelectMany(s =>
+            s.Holding.UnlocksAtRetirement && Departures.SwitchOf(s.Holding.Owners.Select(o => o.PersonId).Where(adultIds.Contains), switches) is { } unlock
+                ? s.Slices.Select(x => x.Liquidity == AllocationLiquidity.Locked ? x with { UnlocksAt = Math.Max(0, unlock) } : x)
+                : s.Slices).ToList();
 
         var monthlySavings = assumptions.MonthlySavings ?? Converted(contributions!) / 12m;
         // Inflation spec C7, D5: the current year falls back on the observed inflation, for a EUR household only.
@@ -139,10 +145,14 @@ public sealed class ProjectionFactsReader(
         var milestones = property!.LoanEnds.Select(e => new ProjectionMilestone(e.On, "loan_end", e.Name, e.Loan))
             .Concat(property.PropertiesFree.Select(p => new ProjectionMilestone(p.On, "property_free", p.Name, p.Property)))
             .ToList();
-        if (retirement is not null) milestones.Add(new ProjectionMilestone(horizonOn, "retirement", retirement.DisplayName, null));
+        // Retirement spec §1: every adult's departure is a milestone (the engine keeps those inside the grid).
+        milestones.AddRange(people.Where(p => p.Kind == PersonKind.Adult)
+            .Select(p => (Person: p, Month: Departures.MonthOf(p)))
+            .Where(d => d.Month is not null)
+            .Select(d => new ProjectionMilestone(d.Month!.Value.ToDateInterval().End, "retirement", d.Person.DisplayName, null)));
 
         // Spec §2.3: the retirements offered as a horizon are the adults' the route accepts.
-        var retirements = (await persons.ListAsync(ct))
+        var retirements = people
             .Where(p => p.Kind == PersonKind.Adult)
             .Select(p => (Person: p, Months: RetirementMonths(p, today)))
             .Where(r => r.Months is not null)
@@ -162,13 +172,12 @@ public sealed class ProjectionFactsReader(
     }
 
     /// <summary>
-    /// Spec §2.2 and §2.3: the months from this one to the person's retirement, the month of their <c>RetirementAge</c>th birthday;
+    /// Spec §2.2 and §2.3: the months from this one to the person's departure month (<see cref="Departures.MonthOf"/>);
     /// <c>null</c> without a birth date, or when it has no month ahead or lies past 40 years.
     /// </summary>
     private static int? RetirementMonths(PersonInfo person, LocalDate today)
     {
-        if (person.BirthDate is not { } born) return null;
-        var retires = born.PlusYears(person.RetirementAge).ToYearMonth();
+        if (Departures.MonthOf(person) is not { } retires) return null;
         var months = (retires.Year - today.Year) * 12 + retires.Month - today.Month;
         return months is <= 0 or > MaxMonths ? null : months;
     }
@@ -177,15 +186,15 @@ public sealed class ProjectionFactsReader(
     /// Spec §2.2 and §2.3: the months from this one to the horizon's; a retirement is refused when <see cref="RetirementMonths"/>
     /// has none.
     /// </summary>
-    internal async Task<Result<(int Months, PersonInfo? Retiring)>> MonthsAsync(ProjectionHorizon horizon, LocalDate today, CancellationToken ct)
+    internal async Task<Result<int>> MonthsAsync(ProjectionHorizon horizon, LocalDate today, CancellationToken ct)
     {
-        if (horizon.RetireOf is not { } id) return Result.Success<(int, PersonInfo?)>((horizon.Years!.Value * 12, null));
+        if (horizon.RetireOf is not { } id) return Result.Success(horizon.Years!.Value * 12);
         var person = await persons.FindAsync(id, ct);
         if (person?.BirthDate is null)
-            return Result.Failure<(int, PersonInfo?)>(new Failure(ProjectionCodes.NoBirthDate, "This person has no birth date.", null));
+            return Result.Failure<int>(new Failure(ProjectionCodes.NoBirthDate, "This person has no birth date.", null));
         return RetirementMonths(person, today) is { } months
-            ? Result.Success<(int, PersonInfo?)>((months, person))
-            : Result.Failure<(int, PersonInfo?)>(new Failure(ProjectionCodes.InvalidHorizon,
+            ? Result.Success(months)
+            : Result.Failure<int>(new Failure(ProjectionCodes.InvalidHorizon,
                 "This retirement is past or more than 40 years away.", null));
     }
 }

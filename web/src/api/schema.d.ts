@@ -30900,6 +30900,8 @@ export interface components {
             birthDate?: null | string;
             /** Format: int32 */
             retirementAge: number;
+            /** Format: int32 */
+            retirementMonths: number;
         };
         PersonEnvelopeShareView: {
             /** Format: uuid */
@@ -31994,6 +31996,8 @@ export interface components {
             birthDate?: null | string;
             /** Format: int32 */
             retirementAge: number;
+            /** Format: int32 */
+            retirementMonths?: null | number;
         };
         RetirementHorizonView: {
             /** Format: uuid */

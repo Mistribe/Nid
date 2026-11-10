@@ -173,8 +173,8 @@ describe('an envelope\'s settings', () => {
     const LEA = '0192f0aa-0000-7000-8000-0000000000c1';
     const owned = (over = {}) => detail({ owners: [{ personId: ALICE, shareBp: 10000 }], canChangeOwners: true, ...over });
     const household = () => server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([
-      { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: null, retirementAge: 64 },
-      { id: LEA, kind: 'dependent', displayName: 'Léa Dev', email: null, retirementAge: 64 },
+      { id: ALICE, kind: 'adult', displayName: 'Alice Dev', email: null, retirementAge: 64, retirementMonths: 0 },
+      { id: LEA, kind: 'dependent', displayName: 'Léa Dev', email: null, retirementAge: 64, retirementMonths: 0 },
     ])));
 
     it('hands the envelope to a child, sending only the owners', async () => {
