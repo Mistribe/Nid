@@ -11,9 +11,10 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
+import { SortableTable } from '@/components/page/SortableTable';
 import { AdminFrame } from './AdminFrame';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
@@ -34,7 +35,9 @@ export function BankingPage() {
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [appId, setAppId] = useState<string | null>(null);
   const household = $api.useQuery('get', HOUSEHOLD);
-  const runs = $api.useQuery('get', RUNS);
+  const [page, toPage] = useListPage();
+  const runs = $api.useQuery('get', RUNS, { params: { query: { page } } });
+  useStepBack(page, runs.data, toPage);
   const save = $api.useMutation('patch', HOUSEHOLD, {
     onSuccess: () => {
       setProblem(null);
@@ -94,40 +97,32 @@ export function BankingPage() {
       <Section title={t('admin.banking.runs_title')}>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
         {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={10} /></Loading> : null}
-        {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.banking.no_runs')} body="" level={3} /> : null}
-        {runs.data && runs.data.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('admin.banking.started')}</TableHead>
-                <TableHead>{t('admin.banking.trigger')}</TableHead>
-                <TableHead>{t('admin.banking.outcome')}</TableHead>
-                <TableHead>{t('admin.banking.connections')}</TableHead>
-                <TableHead>{t('admin.banking.accounts')}</TableHead>
-                <TableHead>{t('admin.banking.balances')}</TableHead>
-                <TableHead>{t('admin.banking.proposals')}</TableHead>
-                <TableHead>{t('admin.banking.written')}</TableHead>
-                <TableHead>{t('admin.banking.skipped')}</TableHead>
-                <TableHead>{t('admin.banking.failure')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {runs.data.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{formatInstant(r.startedAt)}</TableCell>
-                  <TableCell>{triggerLabel(r.trigger)}</TableCell>
-                  <TableCell>{outcomeLabel(r.outcome)}</TableCell>
-                  <TableCell>{r.connections}</TableCell>
-                  <TableCell>{r.accounts}</TableCell>
-                  <TableCell>{r.balances}</TableCell>
-                  <TableCell>{r.proposals}</TableCell>
-                  <TableCell>{r.written}</TableCell>
-                  <TableCell>{r.skipped}</TableCell>
-                  <TableCell>{r.failureCode}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        {runs.data && runs.data.items.length === 0 ? <EmptyState module="/admin" title={t('admin.banking.no_runs')} body="" level={3} /> : null}
+        {runs.data && runs.data.items.length > 0 ? (
+          <>
+            <SortableTable caption={t('admin.banking.runs_title')} rows={runs.data.items} rowKey={(r) => r.id}
+              columns={[
+                { id: 'started', header: t('admin.banking.started'), cell: (r) => formatInstant(r.startedAt) },
+                { id: 'trigger', header: t('admin.banking.trigger'), cell: (r) => triggerLabel(r.trigger) },
+                { id: 'outcome', header: t('admin.banking.outcome'), cell: (r) => outcomeLabel(r.outcome) },
+                { id: 'connections', header: t('admin.banking.connections'), cell: (r) => r.connections },
+                { id: 'accounts', header: t('admin.banking.accounts'), cell: (r) => r.accounts },
+                { id: 'balances', header: t('admin.banking.balances'), cell: (r) => r.balances },
+                { id: 'proposals', header: t('admin.banking.proposals'), cell: (r) => r.proposals },
+                { id: 'written', header: t('admin.banking.written'), cell: (r) => r.written },
+                { id: 'skipped', header: t('admin.banking.skipped'), cell: (r) => r.skipped },
+                { id: 'failure', header: t('admin.banking.failure'), cell: (r) => r.failureCode },
+              ]}
+              mobile={(r) => (
+                <>
+                  <p className="font-medium">{formatInstant(r.startedAt)} · {triggerLabel(r.trigger)} · {outcomeLabel(r.outcome)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('admin.banking.connections')} {r.connections} · {t('admin.banking.accounts')} {r.accounts} · {t('admin.banking.balances')} {r.balances} · {t('admin.banking.proposals')} {r.proposals} · {t('admin.banking.written')} {r.written} · {t('admin.banking.skipped')} {r.skipped}{r.failureCode ? ` · ${r.failureCode}` : ''}
+                  </p>
+                </>
+              )} />
+            <Pager page={page} total={runs.data.total} onPage={toPage} />
+          </>
         ) : null}
       </Section>
     </AdminFrame>

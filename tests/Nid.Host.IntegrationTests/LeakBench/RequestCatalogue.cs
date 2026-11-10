@@ -579,7 +579,7 @@ public static class RequestCatalogue
         new(typeof(UpdateBankAccountCommand), false, (_, item) => new UpdateBankAccountCommand(Guid.NewGuid(), item.Value, false, null, false, null, null)),
         new(typeof(Nid.Banking.Application.Sync.SyncAllCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncAllCommand()),
         new(typeof(Nid.Banking.Application.Sync.SyncMineCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncMineCommand(Guid.NewGuid(), new PsuHeaders(null, null))),
-        new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery()),
+        new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery(null)),
         // An envelope's bank lines (and its card's): read by whoever reads the envelope, A's two on her private envelope never reach B.
         new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1, "all")),
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.

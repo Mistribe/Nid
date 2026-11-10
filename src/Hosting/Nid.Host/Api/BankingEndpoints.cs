@@ -192,9 +192,9 @@ public static class BankingEndpoints
         var admin = routes.MapGroup("/api/v1/admin/banking").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
-        admin.MapGet("/runs", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetBankSyncRunsQuery(), ct)).ToHttp(runs => runs))
-            .Returns<IReadOnlyList<BankSyncRunView>>();
+        admin.MapGet("/runs", async (int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetBankSyncRunsQuery(page), ct)).ToHttp(runs => runs))
+            .Returns<BankSyncRunPage>();
 
         return routes;
     }

@@ -123,6 +123,11 @@ public sealed record BankSyncRunView(
     Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
     int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0);
 
+public sealed record BankSyncRunPage(IReadOnlyList<BankSyncRunView> Items, int Total, int Page)
+{
+    public const int PageSize = 50;
+}
+
 public interface IBankSyncRunLog
 {
     /// <summary>
@@ -137,6 +142,9 @@ public interface IBankSyncRunLog
 
     /// <summary>The most recent runs first.</summary>
     Task<IReadOnlyList<BankSyncRunView>> RecentAsync(int count, CancellationToken ct);
+
+    /// <summary>One page of runs, newest first, and the total number of runs.</summary>
+    Task<(IReadOnlyList<BankSyncRunView> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
 
     /// <summary>Deletes finished runs started before <paramref name="before"/>.</summary>
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
