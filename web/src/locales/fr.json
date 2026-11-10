@@ -103,6 +103,7 @@
     "list": "Autres sections"
   },
   "dashboard": {
+    "year_review": "Bilan annuel",
     "projection": {
       "title": "Projection du patrimoine",
       "horizon": "Horizon de la projection",

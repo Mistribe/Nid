@@ -1,0 +1,52 @@
+{
+  "reports": {
+    "title": "Bilan {{year}}",
+    "title_to_date": "Bilan {{year}} — à ce jour",
+    "loading": "Chargement du bilan",
+    "year": "Année du bilan",
+    "print": "Imprimer",
+    "previous": "{{year}} : {{amount}}",
+    "fx_missing": "Un taux de change manque : le patrimoine de l'année ne peut pas être calculé.",
+    "net_worth": {
+      "title": "Patrimoine net",
+      "at": "Au {{date}}",
+      "change": "Variation",
+      "opening": "Début",
+      "closing": "Fin",
+      "chart": "Passage du patrimoine net du début à la fin de la période",
+      "table": "Composantes de la variation du patrimoine",
+      "part": "Composante",
+      "amount": "Montant"
+    },
+    "parts": {
+      "investments": {
+        "paid_in": "Versements",
+        "value": "Gains des marchés"
+      },
+      "real_estate": {
+        "paid_in": "Capital remboursé",
+        "value": "Réévaluation des biens",
+        "moved": "Achats et ventes"
+      }
+    },
+    "investments": {
+      "title": "Placements",
+      "gain": "Gain",
+      "return": "Rendement",
+      "contributions": "Versements",
+      "withdrawals": "Retraits",
+      "envelopes": "Enveloppes de la période",
+      "col": {
+        "name": "Enveloppe",
+        "start": "Début",
+        "end": "Fin",
+        "net_contributions": "Versé net",
+        "gain": "Gain",
+        "return": "Rendement"
+      },
+      "stale_start": "valeur de départ ancienne",
+      "pct": "{{value}} %",
+      "unknown": "Inconnu"
+    }
+  }
+}
