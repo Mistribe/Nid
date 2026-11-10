@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { detailSearch } from '@/app/router';
+import { detailSearch, pageOf } from '@/app/router';
 import { ApiContext } from '@/api/ApiProvider';
 import { createApi } from '@/api/client';
 import { createQueryClient } from '@/app/bootstrap';
@@ -39,7 +39,7 @@ function TabsPage() {
 
 async function renderTabs(path: string) {
   const root = createRootRoute();
-  const detail = createRoute({ getParentRoute: () => root, path: '/investments/$id', validateSearch: detailSearch, component: TabsPage });
+  const detail = createRoute({ getParentRoute: () => root, path: '/investments/$id', validateSearch: (s: Record<string, unknown>) => ({ ...detailSearch(s), page: pageOf(s) }), component: TabsPage });
   const router = createRouter({ routeTree: root.addChildren([detail]), history: createMemoryHistory({ initialEntries: [path] }) });
   render(<RouterProvider router={router} />);
   await router.load();
@@ -60,6 +60,13 @@ describe('page grammar', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
+  it('useDetailTab drops the page when the tab changes', async () => {
+    const user = userEvent.setup();
+    const router = await renderTabs('/investments/x?page=3');
+    await user.click(await screen.findByRole('tab', { name: 'Valeurs' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'values' }));
   });
 
   it('useDetailTab keeps the scroll: a tab low on the page stays under the pointer', async () => {
