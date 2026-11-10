@@ -33,8 +33,42 @@ import { OverviewSkeleton } from '@/components/page/skeletons';
 
 type Scope = 'household' | 'me';
 
-/** Loans dashboard §3.3: the server's figures, then the curve, the running loans and what changes ahead; nothing computed here. */
+/** Issue #20: the simple view — the balance, the figures, then the curve with what comes beside it; nothing computed here. */
 export function OverviewTab({ scope }: { scope: Scope }) {
+  return (
+    <Overview scope={scope}>
+      {(d) => (
+        <>
+          <BalanceHero d={d} />
+          <Figures d={d} />
+          <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+            <div className="lg:col-span-2"><BalanceChart d={d} /></div>
+            <Upcoming d={d} />
+          </div>
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Issue #20: « Analyse », what the simple view leaves out — the progress, the durations and the running loans. */
+export function AnalysisTab({ scope }: { scope: Scope }) {
+  const { t } = useTranslation();
+  return (
+    <Overview scope={scope}>
+      {(d) => (
+        <>
+          <SectionCard title={t('loans_overview.progress_title')}><Advance d={d} /></SectionCard>
+          <DurationSection d={d} />
+          <SectionCard title={t('loans_overview.running')}><Running d={d} /></SectionCard>
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Loans dashboard §3.3: the server's answer both tabs read (one request, shared with the page), or what to show instead. */
+function Overview({ scope, children }: { scope: Scope; children: (d: LoansOverview) => ReactNode }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', OVERVIEW, { params: { query: { scope } } });
@@ -56,18 +90,9 @@ export function OverviewTab({ scope }: { scope: Scope }) {
         )} />
     );
 
-  // DOM order is the phone's (figures, progress, curve, upcoming, loans); `md:order-*` puts the loans before what comes.
   return (
     <TooltipProvider>
-    <div className="flex flex-col gap-6">
-      <BalanceHero d={d} />
-      <Figures d={d} />
-      <SectionCard title={t('loans_overview.progress_title')}><Advance d={d} /></SectionCard>
-      <BalanceChart d={d} />
-      <DurationSection d={d} />
-      <div className="md:order-last"><Upcoming d={d} /></div>
-      <SectionCard title={t('loans_overview.running')}><Running d={d} /></SectionCard>
-    </div>
+      <div className="flex flex-col gap-6">{children(d)}</div>
     </TooltipProvider>
   );
 }
