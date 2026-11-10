@@ -1,5 +1,5 @@
 import { useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
@@ -31,9 +31,12 @@ import { YearSummary } from './YearSummary';
 import { reasonLabel } from './statementText';
 import '@/locales/childcare';
 import '@/locales/forms';
+import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
 
-type Open = 'edit' | 'revise' | 'gaps' | 'end' | null;
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
+
+type Open = 'edit' | 'revise' | 'gaps' | 'end' | 'delete' | null;
 
 /** Hours as the server writes them (`38.00`), shown the French way (`38`, `37,5`): text only, nothing computed. */
 export const hoursText = (hours: string) => hours.replace(/\.?0+$/, '').replace('.', ',');
@@ -54,7 +57,8 @@ export function ChildcareDetailPage() {
   const terms = detail.terms.find((r) => r.from === summary.inForceFrom)!;
   const show = (o: Open) => () => setOpen(o);
   const more = <SharingMenu item={id} onAnnounce={toast.success} shared={summary.visibility === 'shared'} label={t('page.more_actions')}
-    items={summary.closed ? [] : [{ label: t('childcare_detail.end'), onSelect: show('end') }]} />;
+    items={summary.closed ? [] : [{ label: t('childcare_detail.end'), onSelect: show('end') }]}
+    trailing={[{ label: t('deletion.menu'), destructive: true, onSelect: show('delete') }]} />;
   const actions = !summary.canWrite ? null : summary.closed
     ? <><Button type="button" variant="outline" disabled={reopen.isPending} onClick={() => reopen.mutate({ params: { path: { id } } })}>{t('childcare_detail.reopen')}</Button>{more}</>
     : <>
@@ -98,6 +102,8 @@ export function ChildcareDetailPage() {
       {open === 'revise' ? <ReviseDialog {...dialog} /> : null}
       {open === 'gaps' ? <GapsDialog {...dialog} /> : null}
       {open === 'end' ? <EndDialog {...dialog} /> : null}
+      {summary.canWrite && open === 'delete'
+        ? <Suspense fallback={null}><DeleteItemFlow kind="childcare.delete_childcare" id={id} closed={summary.closed} onClose={() => setOpen(null)} /></Suspense> : null}
       <Tabs detail={detail} terms={terms} onGaps={summary.canWrite && !summary.closed ? show('gaps') : null} />
     </article>
   );
