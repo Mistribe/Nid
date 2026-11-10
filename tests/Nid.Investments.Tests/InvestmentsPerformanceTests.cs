@@ -51,6 +51,22 @@ public class InvestmentsPerformanceTests
         => Assert.Equal(N(p.EndValue), N(p.StartValue) + N(p.Contributions) - N(p.Withdrawals) + N(p.Transfers) + N(p.Performance));
 
     [Fact]
+    public void The_review_part_matches_the_view()
+    {
+        var (savings, pea) = Transfer();
+        var figures = InvestmentsPerformanceMath.Build([Life(), savings, pea], Currency.Eur, Rates, Today, From, To);
+
+        var view = figures.ToView();
+        var part = figures.ToReviewPart();
+
+        Assert.Equal((N(view.StartValue), N(view.EndValue), N(view.Contributions), N(view.Withdrawals), N(view.Performance), view.PeriodReturnPct),
+            (part.StartValue, part.EndValue, part.Contributions, part.Withdrawals, part.Gain, part.PeriodReturnPct));
+        Assert.Equal(view.Envelopes.Select(e => (e.Id, e.Name, e.Kind, N(e.StartValue), N(e.EndValue), N(e.NetContributions), N(e.PerformanceConverted), e.PeriodReturnPct, e.StaleStart)),
+            part.Envelopes.Select(e => (e.Id, e.Name, e.Kind, e.StartValue!.Value, e.EndValue!.Value, e.NetContributions!.Value, e.Gain!.Value, e.PeriodReturnPct, e.StaleStart)));
+        Assert.Equal(view.Findings.Select(f => f.Code), part.Findings);
+    }
+
+    [Fact]
     public void The_change_in_value_adds_up_and_a_transfer_between_two_counted_envelopes_cancels()
     {
         var (savings, pea) = Transfer();

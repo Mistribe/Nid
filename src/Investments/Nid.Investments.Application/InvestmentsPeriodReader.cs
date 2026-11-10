@@ -74,6 +74,13 @@ internal sealed record PeriodFigures(
                 View(r.StartValue), View(r.EndValue), View(r.NetContributions), r.PeriodReturnPct, r.StaleStart)).ToList(),
             ReferenceReturnPct is { } pct ? new ReturnReferenceView(pct) : null, Findings);
 
+    /// <summary>Issue #12: the same figures for the yearly review.</summary>
+    public InvestmentsReviewPart ToReviewPart()
+        => new(StartValue, EndValue, Contributions, Withdrawals, Performance, PeriodReturnPct,
+            Envelopes.Select(r => new InvestmentsReviewRow(r.Facts.Item.Id, r.Facts.Item.DisplayName, EnvelopeWire.Of(r.Facts.Envelope.Kind),
+                r.StartValue, r.EndValue, r.NetContributions, r.PerformanceConverted, r.PeriodReturnPct, r.StaleStart)).ToList(),
+            Findings.Select(f => f.Code).ToList());
+
     private AmountView? View(decimal? amount)
         => amount is { } a ? new AmountView(a.ToString("0.00", CultureInfo.InvariantCulture), Reference.Code) : null;
 }
