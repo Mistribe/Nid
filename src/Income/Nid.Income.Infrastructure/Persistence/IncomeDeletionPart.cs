@@ -14,6 +14,9 @@ namespace Nid.Income.Infrastructure.Persistence;
 /// </summary>
 public sealed class IncomeDeletionPart(IncomeDbContext db, IFlows flows, IDocumentLinks documents) : IItemDeletionPart
 {
+    /// <summary>DateRange has no unbounded form; no flow predates this.</summary>
+    private static readonly LocalDate Earliest = new(1900, 1, 1);
+
     private static bool IsSource(ItemAccess item) => item is { Module: "income", Kind: "source" };
 
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
@@ -33,7 +36,7 @@ public sealed class IncomeDeletionPart(IncomeDbContext db, IFlows flows, IDocume
         // Dismissals of an expected document go with the target; the links already go with the anchor (Documents' part).
         foreach (var phase in phases)
             await documents.UnlinkTargetAsync(new DocumentTarget(IncomeDocumentTargets.PhaseKind, phase.Id), ct);
-        DateRange.Create(new LocalDate(1900, 1, 1), null).TryGetValue(out var everything);
+        DateRange.Create(Earliest, null).TryGetValue(out var everything);
         var listed = await flows.ListAsync(item.Id, everything, new HashSet<FlowKind> { FlowKind.Income }, ct);
         if (!listed.TryGetValue(out var current))
             throw new InvalidOperationException("The actor may write the source, so its flows are readable.");

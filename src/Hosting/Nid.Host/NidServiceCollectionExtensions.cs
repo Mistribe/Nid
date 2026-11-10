@@ -87,8 +87,6 @@ public static class NidServiceCollectionExtensions
         // #23: an item delete asks every module's part.
         services.AddScoped<IItemDeletions, Nid.Core.Application.ItemDeletions>();
         services.AddScoped<IApprovingProposal, Nid.Core.Application.ApprovingProposal>();
-        // Before Core's part: Income lists the source's one-off flows to unlink them, and Core's part retires them.
-        services.AddScoped<IItemDeletionPart, Nid.Income.Infrastructure.Persistence.IncomeDeletionPart>();
         services.AddScoped<IItemDeletionPart, CoreDeletionPart>();
 
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -256,6 +254,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<GoalsDbContext>>();
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
+        services.AddScoped<IItemDeletionPart, Nid.Income.Infrastructure.Persistence.IncomeDeletionPart>();
         services.AddScoped<GoalReader>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 

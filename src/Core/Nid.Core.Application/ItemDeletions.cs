@@ -43,7 +43,7 @@ public sealed class ItemDeletions(IItemRegistry registry, IEnumerable<IItemDelet
             if ((await part.BlockersAsync(item, ct)).Count > 0)
                 return Result.Failure(new Failure(ItemCodes.InUse, "Something still refers to this item.", null));
 
-        foreach (var part in parts)
+        foreach (var part in parts.OrderBy(p => p.RunsLast))
             await part.RemoveAsync(item, ct);
 
         var deleted = await registry.DeleteAsync(id, version, ct);

@@ -11,6 +11,8 @@ namespace Nid.Core.Infrastructure.Persistence;
 /// </summary>
 public sealed class CoreDeletionPart(CoreDbContext db, IApprovingProposal approving, IUnitOfWork unitOfWork, INotifier notifier) : IItemDeletionPart
 {
+    public bool RunsLast => true;
+
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
         =>
         [
