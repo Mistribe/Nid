@@ -195,6 +195,32 @@ public class IncomeTimelineEndpointTests(PostgresFixture fixture) : IClassFixtur
     }
 
     [Fact]
+    public async Task Pension_parts_carry_their_holder_and_the_pension_source_is_listed() // retirement spec §3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var (timeline, eur) = await RetiringAsync(app, 3);
+
+        Assert.All(timeline.Parts![3], p => Assert.Equal(p.Amount == 1000m, p.Pension));
+        Assert.All(timeline.Parts[3].Where(p => p.Pension), p => Assert.Equal(app.AdultA, p.Holder));
+        Assert.All(timeline.Parts[0].Where(p => !p.Pension), p => Assert.Equal(app.AdultA, p.Holder));
+        var pension = Assert.Single(timeline.Pensions!);
+        Assert.Equal(("Retraite", app.AdultA, 1000m, eur), (pension.Name, pension.Holder, pension.Monthly!.Value.Amount, pension.Monthly.Value.Currency));
+    }
+
+    [Fact]
+    public async Task A_pension_co_owned_by_both_adults_has_no_holder() // retirement spec §3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewKindSourceAsync(app, "Retraite", "pension",
+            [new { personId = app.AdultA.Value, shareBp = 5_000 }, new { personId = app.AdultB.Value, shareBp = 5_000 }], Phase("Retraite", "2035-11-01", "1000"));
+
+        var (_, timeline) = await ReadAsync(app, 12);
+
+        Assert.Null(Assert.Single(timeline.Pensions!).Holder);
+    }
+
+    [Fact]
     public async Task A_departure_next_month_cuts_from_month_one()
     {
         await using var app = await NidApp.StartAsync(fixture);

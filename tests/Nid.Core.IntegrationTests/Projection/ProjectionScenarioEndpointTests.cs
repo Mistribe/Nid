@@ -541,4 +541,23 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.Contains(List(view.GetProperty("base"), "warnings"), w => Str(w, "code") == "income_end_extended");
         Assert.DoesNotContain(List(Assert.Single(List(view, "scenarios")).GetProperty("result"), "warnings"), w => Str(w, "code") == "income_end_extended");
     }
+
+    [Fact]
+    public async Task A_scenario_that_saves_more_reaches_independence_earlier() // retirement spec §3, on the scenario and compare views
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = "2500", savingsClass = "cash",
+            freedPaymentsToSavings = true, withdrawalRate = "4", monthlyLivingCost = "2000",
+        })).EnsureSuccessStatusCode(); // 600 000 of capital are needed: 240 months at 2 500, 120 at 5 000
+        var document = new { version = 1, horizon = "20y", events = Array.Empty<object>(), assumptions = new { monthlySavings = "5000" } };
+        var id = await SavedAsync(await CreateAsync(app, Body(app, document)));
+
+        var result = (await GetAsync(app, id)).GetProperty("result");
+        var compared = Assert.Single(List(await CompareAsync(app, $"{id}"), "scenarios"));
+
+        Assert.Equal(("2045-10", "2035-10"), (Str(result.GetProperty("base"), "financialIndependence"), Str(result.GetProperty("scenario"), "financialIndependence")));
+        Assert.Equal("2035-10", Str(compared.GetProperty("result"), "financialIndependence"));
+    }
 }

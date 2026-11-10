@@ -45549,6 +45549,12 @@
               "string"
             ]
           },
+          "financialIndependence": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "ranges": {
             "oneOf": [
               {

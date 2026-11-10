@@ -53,6 +53,7 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
         var monthly = dates.Select(_ => new Dictionary<Currency, decimal>()).ToList();
         var parts = dates.Select(_ => new List<TimelinePart>()).ToList();
         var extended = new List<ExtendedSource>();
+        var pensions = new List<PensionSource>();
         foreach (var source in found)
         {
             if (!accesses.TryGetValue(source.ItemId, out var item) || item.ArchivedAt is not null)
@@ -60,13 +61,20 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
             var currency = SourceCheck.CurrencyOf(item);
             IReadOnlyList<IncomePhase> list = bySource[source.ItemId].ToList();
             var wasExtended = false;
-            var adults = item.Owners.Where(o => o.Kind == PersonKind.Adult).Select(o => o.PersonId);
+            var adults = item.Owners.Where(o => o.Kind == PersonKind.Adult).Select(o => o.PersonId).ToList();
+            PersonId? holder = adults.Count == 1 ? adults[0] : null;
             var owned = Departures.SwitchOf(adults, switches); // Retirement spec §2
             int? cutAt = owned >= 1 ? owned : null;
             var stops = cutAt is not null && RetirementSwitch.Stops(source.Kind);
             var isPension = source.Kind == IncomeKind.Pension;
             if (isPension && cutAt is { } at)
                 list = RetirementSwitch.MovePension(list, today, thisMonth.PlusMonths(at).OnDayOfMonth(1));
+            if (isPension)
+            {
+                var first = list.Where(p => IncomeMath.EffectiveEnd(p) is not { } end || end > today).OrderBy(p => p.StartsOn).FirstOrDefault();
+                pensions.Add(new PensionSource(source.ItemId, item.DisplayName, holder,
+                    first is not null && Money.Create(IncomeMath.Round(IncomeMath.MonthlyEquivalent(first)), currency).TryGetValue(out var perMonth) ? perMonth : null));
+            }
             for (var k = 0; k < dates.Count; k++)
             {
                 var sum = 0m;
@@ -79,7 +87,7 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
                 {
                     // An extension keeps the month of the phase it extends.
                     var from = phase.StartsOn <= today ? 0 : (phase.StartsOn.Year - today.Year) * 12 + phase.StartsOn.Month - today.Month;
-                    parts[k].Add(new TimelinePart(currency, amount, isPension ? 0 : from));
+                    parts[k].Add(new TimelinePart(currency, amount, isPension ? 0 : from, isPension, holder));
                     sum += amount;
                     wasExtended |= isExtended;
                 }
@@ -89,7 +97,7 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
                 extended.Add(new ExtendedSource(source.ItemId, item.DisplayName));
         }
         return Result.Success(new IncomeTimeline(monthly.Select(m => (IReadOnlyDictionary<Currency, decimal>)m).ToList(), extended,
-            parts.Select(p => (IReadOnlyList<TimelinePart>)p).ToList()));
+            parts.Select(p => (IReadOnlyList<TimelinePart>)p).ToList(), pensions));
     }
 }
 

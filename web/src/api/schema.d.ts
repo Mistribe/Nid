@@ -31246,6 +31246,7 @@ export interface components {
             warnings: components["schemas"]["ProjectionWarningView"][];
             retirementHorizons: components["schemas"]["RetirementHorizonView"][];
             observedInflation?: null | string;
+            financialIndependence?: null | string;
             ranges?: null | components["schemas"]["ProjectionRangesView"];
         };
         ProjectionWarningView: {
