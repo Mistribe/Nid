@@ -9,6 +9,7 @@ import type { DashboardSearch, ProjectionHorizon } from '@/app/router';
 import type { RootSearch } from '@/lib/search';
 import { formatCurrency } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/form/Segmented';
 import { SectionCard } from '@/components/page/SectionCard';
 import { TableToggle } from '@/components/page/TableToggle';
@@ -83,6 +84,7 @@ export function ProjectionCurve() {
         <Segmented value={real ? 'real' : 'nominal'} onValueChange={chooseReading} aria-labelledby={readingId}
           options={[{ value: 'real', label: t('dashboard.projection.real') }, { value: 'nominal', label: t('dashboard.projection.nominal') }]} />
         <RangesToggle pressed={ranged} onPressedChange={chooseRanges} />
+        <Button asChild variant="outline" size="sm"><Link to="/retirement">{t('nav.retirement')}</Link></Button>
         {data ? <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} /> : null}
       </>
     }>

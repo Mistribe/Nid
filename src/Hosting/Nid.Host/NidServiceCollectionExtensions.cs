@@ -301,6 +301,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<ChildcareDbContext>>();
         services.AddScoped<Nid.Childcare.Application.IChildcareStore, ChildcareStore>();
+        services.AddScoped<IItemDeletionPart, ChildcareDeletionPart>();
         services.AddScoped<Nid.Childcare.Application.ChildcareReader>();
         services.AddScoped<Nid.Childcare.Application.StatementAssembly>();
         services.AddScoped<ISeriesContribution, Nid.Childcare.Application.ChildcareSeries>();

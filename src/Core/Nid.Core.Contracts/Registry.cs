@@ -52,7 +52,7 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
 /// </summary>
 public sealed record PersonInfo(
     PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch,
-    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64);
+    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64, int RetirementMonths = 0);
 
 /// <summary>1F4 design §3: what a rebinding did; <c>Changed</c> is false when the adult already had that subject.</summary>
 public sealed record RebindOutcome(PersonInfo Person, string? PreviousSubject, bool Changed);
@@ -89,7 +89,7 @@ public interface IPersonRegistry
     Task<Result<PersonInfo>> CreateDependentAsync(string displayName, CancellationToken ct);
 
     /// <summary>Stores the person's birth date (<c>null</c> clears it) and retirement age. The ranges are the caller's to check; the table refuses what is outside them.</summary>
-    Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, CancellationToken ct);
+    Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, int retirementMonths, CancellationToken ct);
 
     Task<PersonInfo?> FindAsync(PersonId id, CancellationToken ct);
 

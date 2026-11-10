@@ -160,6 +160,8 @@ public class RegulatedSavingsTests
         var per = new EnvelopeFacts("PER", EnvelopeKind.Per, "EUR", (owner, 10_000)).Build();
         PersonInfo[] persons = [new(owner, PersonKind.Adult, "Alice", null, 0, BirthDate: D(1963, 1, 20), RetirementAge: 64)];
         Assert.Equal(D(2027, 1, 20), EnvelopeInsights.Milestone(per, persons, D(2026, 11, 5))!.On);
+        PersonInfo[] withMonths = [persons[0] with { RetirementMonths = 3 }];
+        Assert.Equal(D(2027, 4, 20), EnvelopeInsights.Milestone(per, withMonths, D(2026, 11, 5))!.On);
         Assert.Single(InvestmentsOverviewMath.InsightWatch([per], persons, D(2026, 11, 5)), w => w.Code == OverviewCodes.TaxMilestone && w.Milestone == TaxMilestones.PerRetirement);
         Assert.Empty(InvestmentsOverviewMath.InsightWatch([per], persons, D(2026, 10, 1))); // 111 days ahead
     }

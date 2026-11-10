@@ -66,6 +66,7 @@
     "income": "Revenus",
     "tax": "Impôts",
     "scenarios": "Simulations",
+    "retirement": "Retraite",
     "properties": "Biens",
     "loans": "Crédits",
     "routine": "Routine",
@@ -139,6 +140,7 @@
       "milestone_property_free": "« {{label}} » libre de prêt",
       "milestone_retirement": "Retraite de {{label}}",
       "milestone_savings_exhausted": "Épargne épuisée",
+      "milestone_financial_independence": "Indépendance financière",
       "milestone_line": "{{date}} : {{what}}",
       "warning_income_end_extended": "Le revenu « {{name}} » est supposé continuer après sa fin.",
       "warning_savings_exhausted": "L’épargne disponible serait épuisée en {{month}}.",
@@ -501,6 +503,12 @@
       "income_growth": "Évolution des revenus : inflation + x %",
       "income_growth_summary": "Évolution des revenus",
       "income_growth_value": "inflation + {{percent}}",
+      "withdrawal_rate": "Taux de retrait",
+      "withdrawal_rate_hint": "Part du capital retirée chaque année pour vivre (4 % est un usage courant).",
+      "living_cost": "Coût de la vie mensuel ({{currency}})",
+      "living_cost_summary": "Coût de la vie mensuel",
+      "living_cost_unset": "non renseigné",
+      "living_cost_hint": "Dépenses mensuelles hors engagements suivis (abonnements, crédits, impôts…), en euros d'aujourd'hui.",
       "monthly_savings": "Épargne mensuelle",
       "monthly_savings_in": "Épargne mensuelle ({{currency}})",
       "savings_mode": "Épargne mensuelle du foyer",
@@ -522,7 +530,9 @@
       "birth_date": "Date de naissance",
       "no_birth_date": "Non renseignée",
       "retirement_age": "Âge de départ à la retraite",
-      "age_years": "{{count}} ans"
+      "retirement_months": "Mois",
+      "age_years": "{{count}} ans",
+      "age_years_months": "{{years}} ans et {{months}} mois"
     }
   },
   "investments": {

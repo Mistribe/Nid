@@ -211,7 +211,8 @@ public sealed class MixedDataset
             items[row.Name] = await app.NewOwnedSubscriptionAsync(row.Label, row.Visibility, owners);
             envelopes[row.Name] = await app.NewEnvelopeAsync(row.Label, row.Visibility, owners);
             // Its one phase carries the label in its note, so the textual scan catches a phase read by the wrong adult.
-            incomeSources[row.Name] = await app.NewIncomeSourceAsync(row.Label, row.Visibility, owners);
+            // A private row of an adult is a pension, so the retirement read has one to leak.
+            incomeSources[row.Name] = await app.NewIncomeSourceAsync(row.Label, row.Name is "P-A" or "P-B" ? "pension" : "salary", row.Visibility, owners);
             // Named after the label, so the textual scan catches a loan read by the wrong adult.
             loans[row.Name] = await app.NewLoanAsync(row.Label, row.Visibility, owners);
             properties[row.Name] = await app.NewPropertyAsync(row.Label, row.Visibility, owners);

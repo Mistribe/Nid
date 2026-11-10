@@ -259,6 +259,34 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Contains("'everyone' is not a scope", scopeText);
     }
 
+    /// <summary>Retirement spec §2: the tool takes departures into the document; an unreadable pension or an age out of range is a tool error naming its field.</summary>
+    [Fact]
+    public async Task Simulate_projection_takes_departures()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+
+        var ok = await AnswerAsync(client, "simulate_projection", new
+        {
+            horizon = "5y", retirements = new[] { new { person = app.AdultA.Value, years = 60, months = 3, monthlyPension = "1500" } },
+        });
+        Assert.Equal(7, ok.GetProperty("base").GetProperty("points").GetArrayLength());
+
+        var (unreadable, unreadableText) = await CallAsync(client, "simulate_projection", new
+        {
+            retirements = new[] { new { person = app.AdultA.Value, years = 60, months = 0, monthlyPension = "abc" } },
+        });
+        Assert.True(unreadable);
+        Assert.Contains("retirements[0].monthlyPension", unreadableText);
+
+        var (young, youngText) = await CallAsync(client, "simulate_projection", new
+        {
+            retirements = new[] { new { person = app.AdultA.Value, years = 40, months = 0 } },
+        });
+        Assert.True(young);
+        Assert.Contains("retirements[0].years", youngText);
+    }
+
     /// <summary>Issue #416: the sale simulation answers as its route does; a missing price or an unreadable date is a tool error.</summary>
     [Fact]
     public async Task Simulate_property_sale_returns_the_simulate_route_answer()
@@ -406,6 +434,62 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var (invalid, reason) = await CallAsync(propose, "propose_set_retirement", new { id, body = new { birthDate = "1984-05-20", retirementAge = 40 } });
         Assert.True(invalid);
         Assert.Contains("payload.body.retirementAge", reason);
+    }
+
+    /// <summary>Retirement #8 PR 5: the departure read off the official statement (62 years 9 months) is proposed and stored as is.</summary>
+    [Fact]
+    public async Task A_departure_with_months_is_proposed_and_stored_when_approved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var id = app.AdultA.Value;
+
+        var proposed = await AnswerAsync(propose, "propose_set_retirement",
+            new { id, body = new { birthDate = "1984-05-20", retirementAge = 62, retirementMonths = 9 }, sourceLabel = "Estimation indicative globale" });
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+
+        var person = (await AnswerAsync(propose, "list_persons", new { })).EnumerateArray().Single(p => p.GetProperty("id").GetGuid() == id);
+        Assert.Equal((62, 9), (person.GetProperty("retirementAge").GetInt32(), person.GetProperty("retirementMonths").GetInt32()));
+    }
+
+    /// <summary>Retirement #8 PR 5: the pension the guidance describes (private, monthly, starting the month after the departure) validates and is created; the statement is then linked to its period.</summary>
+    [Fact]
+    public async Task A_private_pension_from_the_statement_is_proposed_created_and_its_document_linked()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var body = new
+        {
+            displayName = "Retraite de base", kind = "pension", currency = "EUR", visibility = "private",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            phases = new[]
+            {
+                new
+                {
+                    label = "Pension", startsOn = "2047-03-01", netAmount = new { amount = "1500.00", currency = "EUR" },
+                    every = new { count = 1, unit = "month" },
+                },
+            },
+        };
+
+        // Born 1984-05-20, 62 y 9 m: departure 2047-02, so the pension starts 2047-03-01.
+        var departure = await AnswerAsync(propose, "propose_set_retirement", new { id = app.AdultA.Value, body = new { birthDate = "1984-05-20", retirementAge = 62, retirementMonths = 9 } });
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, departure.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+        var proposed = await AnswerAsync(propose, "propose_create_income_source", new { body, sourceLabel = "Estimation indicative globale" });
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+
+        var items = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/income/sources?scope=me")).RootElement.GetProperty("items");
+        var source = Assert.Single(items.EnumerateArray());
+        Assert.Equal(("pension", "private"), (source.GetProperty("kind").GetString(), source.GetProperty("visibility").GetString()));
+        var phase = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source.GetProperty("id").GetGuid()}")).RootElement
+            .GetProperty("phases")[0].GetProperty("id").GetGuid();
+
+        var document = await DocumentApi.UploadedAsync(app, app.AdultA, DocumentApi.Pdf);
+        var link = await AnswerAsync(propose, "propose_link_document",
+            new { id = document, body = new { targetKind = "income.phase", targetId = phase, role = "statement" } });
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, link.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+        Assert.Single(JsonDocument.Parse(await app.GetRawAsync(app.AdultA,
+            $"{DocumentApi.Documents}?targetKind=income.phase&targetId={phase}")).RootElement.GetProperty("items").EnumerateArray());
     }
 
     /// <summary>Issue #34 §2.5: a cost report's year is the first integer route parameter.</summary>
