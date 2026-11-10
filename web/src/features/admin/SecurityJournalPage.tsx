@@ -10,7 +10,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { eventLabel } from '@/features/security/eventLabel';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 
@@ -75,8 +76,8 @@ export function SecurityJournalPage() {
           )}
         </FilterField>
       </FilterRow>
-      {!journal.data || !adults.data ? <AdminSkeleton /> : journal.data.entries.length === 0 ? (
-        <EmptyState module="/admin/users" title={t('admin.security.empty')} body="" />
+      {!journal.data || !adults.data ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : journal.data.entries.length === 0 ? (
+        <EmptyState module="/admin" title={t('admin.security.empty')} body="" />
       ) : (
         <Table>
           <TableHeader>

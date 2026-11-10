@@ -8,7 +8,9 @@ import type { components } from '@/api/schema';
 import { EmptyState } from '@/components/EmptyState';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Section } from '@/components/page/Section';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
@@ -151,8 +153,7 @@ export function CatalogPage() {
     <AdminFrame title={t('admin.catalog.title')}>
       {problem ? <ProblemMessage problem={problem} /> : null}
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.catalog.sync_title')}</h2>
+      <Section title={t('admin.catalog.sync_title')}>
         {runs.data ? (
           <p className="text-sm text-muted-foreground">{t('admin.catalog.pinned', { commit: short(runs.data.pinnedCommit) })}</p>
         ) : null}
@@ -163,14 +164,14 @@ export function CatalogPage() {
           pending={sync.isPending}
           onConfirm={() => sync.mutate({})}
         />
-      </section>
+      </Section>
 
       {runs.error ? (
         <ProblemMessage problem={present(toProblem(runs.error))} />
       ) : !runs.data ? (
-        <AdminSkeleton />
+        <Loading label={t('admin.loading')}><SectionSkeleton /></Loading>
       ) : latest === undefined ? (
-        <EmptyState module="/admin/users" title={t('admin.catalog.empty_title')} body={t('admin.catalog.empty_body')} />
+        <EmptyState module="/admin" title={t('admin.catalog.empty_title')} body={t('admin.catalog.empty_body')} />
       ) : (
         <>
           <LastSync run={latest} />
@@ -326,8 +327,7 @@ function Lines({ title, lines }: { title: string; lines: readonly { id: string; 
 function History({ runs }: { runs: readonly Run[] }) {
   const { t } = useTranslation();
   return (
-    <section aria-labelledby="catalog-history" className="space-y-2">
-      <h2 id="catalog-history" className="text-lg font-semibold">{t('admin.catalog.history')}</h2>
+    <Section title={t('admin.catalog.history')}>
       <ol className="divide-y rounded-lg border">
         {runs.map((run) => (
           <li key={run.id} className="flex flex-wrap items-center gap-3 px-4 py-2 text-sm">
@@ -338,6 +338,6 @@ function History({ runs }: { runs: readonly Run[] }) {
           </li>
         ))}
       </ol>
-    </section>
+    </Section>
   );
 }

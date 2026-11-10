@@ -16,7 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fieldErrorsOf, knownConflictMessage, messageFor } from '@/components/form/fieldErrors';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
+import { Section } from '@/components/page/Section';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 import '@/locales/forms';
@@ -73,7 +75,7 @@ export function InflationPage() {
 
   const title = t('admin.inflation.title');
   if (household.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(household.error))} /></AdminFrame>;
-  if (!household.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
+  if (!household.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></AdminFrame>;
   const enabled = household.data.inflationEnabled;
 
   return (
@@ -88,13 +90,9 @@ export function InflationPage() {
       </section>
 
       {inflation.error ? <ProblemMessage problem={present(toProblem(inflation.error))} /> : null}
-      {!inflation.data && !inflation.error ? <AdminSkeleton /> : null}
+      {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{t('admin.inflation.values_title')}</h2>
-          <SeriesLink keys={['cpi']} />
-        </div>
+      <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
         {inflation.data && inflation.data.values.length === 0 ? <p>{t('admin.inflation.no_values')}</p> : null}
         {inflation.data && inflation.data.values.length > 0 ? (
           <Table>
@@ -118,12 +116,11 @@ export function InflationPage() {
             </TableBody>
           </Table>
         ) : null}
-      </section>
+      </Section>
 
       <ManualMonth />
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.inflation.runs_title')}</h2>
+      <Section title={t('admin.inflation.runs_title')}>
         {inflation.data && inflation.data.runs.length === 0 ? <p>{t('admin.inflation.no_runs')}</p> : null}
         {inflation.data && inflation.data.runs.length > 0 ? (
           <Table>
@@ -151,7 +148,7 @@ export function InflationPage() {
             </TableBody>
           </Table>
         ) : null}
-      </section>
+      </Section>
     </AdminFrame>
   );
 }
@@ -188,8 +185,7 @@ function ManualMonth() {
   };
 
   return (
-    <section className="space-y-2">
-      <h2 className="text-lg font-semibold">{t('admin.inflation.manual_title')}</h2>
+    <Section title={t('admin.inflation.manual_title')}>
       <p className="max-w-prose text-sm text-muted-foreground">{t('admin.inflation.manual_hint')}</p>
       <form aria-label={t('admin.inflation.manual_title')} noValidate className="max-w-md space-y-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         {problem ? <ProblemMessage problem={problem} /> : null}
@@ -204,6 +200,6 @@ function ManualMonth() {
         </Field>
         <Button type="submit" disabled={put.isPending}>{t('admin.inflation.manual_save')}</Button>
       </form>
-    </section>
+    </Section>
   );
 }

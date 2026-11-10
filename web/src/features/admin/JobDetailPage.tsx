@@ -8,7 +8,7 @@ import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { AdminSkeleton } from './AdminFrame';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 import { formatDuration } from './format';
 import { formatInstant } from '@/lib/format';
 import { JobOutcome } from './JobOutcome';
@@ -28,7 +28,7 @@ export function JobDetailPage() {
   const crumbs = [{ label: t('nav.admin'), to: '/admin' as const }, { label: t('admin.jobs.title'), to: '/admin/jobs' as const }];
 
   if (job.error) return <div className="space-y-6"><PageHeader crumbs={crumbs} title={name} /><ProblemMessage problem={present(toProblem(job.error))} /></div>;
-  if (!job.data) return <div className="space-y-6"><PageHeader crumbs={crumbs} title={name} /><AdminSkeleton /></div>;
+  if (!job.data) return <div className="space-y-6"><PageHeader crumbs={crumbs} title={name} /><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></div>;
   const data = job.data;
   const description = jobDescription(t, key);
   const dependsOn = jobDependsOn(t, key);

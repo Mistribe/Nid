@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { elision } from '@/lib/elision';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import '@/locales/admin';
 
@@ -54,7 +55,7 @@ export function UsersPage() {
   const title = t('admin.users.title');
   const loadError = adults.error ?? household.error;
   if (loadError) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(loadError))} /></AdminFrame>;
-  if (!adults.data || !household.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
+  if (!adults.data || !household.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading></AdminFrame>;
 
   const capReached = household.data.adultCount >= household.data.maxAdults;
 

@@ -11,7 +11,9 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
+import { Section } from '@/components/page/Section';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 
@@ -50,7 +52,7 @@ export function BankingPage() {
   const title = t('admin.banking.title');
   const retention = household.data?.bankRetentionMonths;
   if (household.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(household.error))} /></AdminFrame>;
-  if (!household.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
+  if (!household.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></AdminFrame>;
 
   return (
     <AdminFrame title={title}>
@@ -88,10 +90,9 @@ export function BankingPage() {
         </div>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.banking.runs_title')}</h2>
+      <Section title={t('admin.banking.runs_title')}>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-        {!runs.data && !runs.error ? <AdminSkeleton /> : null}
+        {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={10} /></Loading> : null}
         {runs.data && runs.data.length === 0 ? <p>{t('admin.banking.no_runs')}</p> : null}
         {runs.data && runs.data.length > 0 ? (
           <Table>
@@ -127,7 +128,7 @@ export function BankingPage() {
             </TableBody>
           </Table>
         ) : null}
-      </section>
+      </Section>
     </AdminFrame>
   );
 }

@@ -12,7 +12,9 @@ import { FormDialog } from '@/components/FormDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
+import { Section } from '@/components/page/Section';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { CURRENCY } from '@/lib/amount';
 import { formatInstant } from '@/lib/format';
@@ -59,8 +61,7 @@ export function FxPage() {
     <AdminFrame title={t('admin.fx.title')}>
       {problem ? <ProblemMessage problem={problem} /> : null}
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.fx.sync_title')}</h2>
+      <Section title={t('admin.fx.sync_title')}>
         <p className="text-sm text-muted-foreground">{t('admin.fx.sync_hint')}</p>
         <ConfirmAction
           label={t('admin.fx.sync')}
@@ -68,20 +69,18 @@ export function FxPage() {
           pending={sync.isPending}
           onConfirm={() => sync.mutate({})}
         />
-      </section>
+      </Section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.fx.manual_title')}</h2>
+      <Section title={t('admin.fx.manual_title')}>
         <Button variant="outline" onClick={() => { setEntering(true); }}>{t('admin.fx.manual_title')}</Button>
-      </section>
+      </Section>
       {entering ? <ManualRateDialog onClose={() => setEntering(false)} onDone={(message) => { setEntering(false); setProblem(null); toast.success(message); }} /> : null}
 
       <SeriesByCurrency />
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.fx.runs_title')}</h2>
+      <Section title={t('admin.fx.runs_title')}>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-        {!runs.data && !runs.error ? <AdminSkeleton /> : null}
+        {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
         {runs.data && runs.data.length === 0 ? <p>{t('admin.fx.no_runs')}</p> : null}
         {runs.data && runs.data.length > 0 ? (
           <Table>
@@ -107,7 +106,7 @@ export function FxPage() {
             </TableBody>
           </Table>
         ) : null}
-      </section>
+      </Section>
     </AdminFrame>
   );
 }
@@ -118,8 +117,7 @@ function SeriesByCurrency() {
   const navigate = useNavigate();
   const [error, setError] = useState('');
   return (
-    <section className="space-y-2">
-      <h2 className="text-lg font-semibold">{t('admin.fx.series_title')}</h2>
+    <Section title={t('admin.fx.series_title')}>
       <form aria-label={t('admin.fx.series_title')} noValidate className="flex max-w-md items-start gap-2" onSubmit={(event) => {
         event.preventDefault();
         const code = ((new FormData(event.currentTarget).get('quote') as string | null) ?? '').trim().toUpperCase();
@@ -130,7 +128,7 @@ function SeriesByCurrency() {
         <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} name="quote" onChange={() => setError('')} maxLength={3} className="uppercase" />}</Field>
         <Button type="submit" className="mt-6">{t('series.see')}</Button>
       </form>
-    </section>
+    </Section>
   );
 }
 
