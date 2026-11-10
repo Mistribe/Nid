@@ -17,11 +17,19 @@ export function DeleteItemDialog({ preview, previewError, closeHint, pending, er
 }) {
   const { t } = useTranslation();
   const [typed, setTyped] = useState('');
+  const [version, setVersion] = useState(preview?.version);
+  // A refetched preview (after a 409) is a new decision: the name is typed again.
+  if (preview?.version !== version) { setVersion(preview?.version); setTyped(''); }
   const label = (key: string, count: number) => t(`deletion.keys.${key}`, { count, defaultValue: key });
   const blocked = (preview?.blockers.length ?? 0) > 0;
   return (
     <ModalDialog title={t('deletion.title', { name: preview?.name ?? '' })} onClose={onClose}>
-      {() => previewError ? <ProblemMessage problem={present(toProblem(previewError))} /> : !preview ? <p>{t('deletion.loading')}</p> : (
+      {() => previewError || !preview ? (
+        <div className="space-y-4">
+          {previewError ? <ProblemMessage problem={present(toProblem(previewError))} /> : <p>{t('deletion.loading')}</p>}
+          <div className="flex justify-end"><Button type="button" variant="outline" onClick={onClose}>{t('common.close')}</Button></div>
+        </div>
+      ) : (
         <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
           <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{t('deletion.warning', { hint: closeHint })}</p>
           {preview.removes.length > 0 ? (

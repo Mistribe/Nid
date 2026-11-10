@@ -59,4 +59,23 @@ describe('DeleteItemDialog', () => {
     show();
     await waitFor(() => expect(screen.getByLabelText('Tapez Épargne vacances pour confirmer')).toHaveFocus());
   });
+
+  it('asks for the name again when the preview version changes', async () => {
+    const user = userEvent.setup();
+    const props = { previewError: null, closeHint: 'Clore l’objectif', pending: false, error: null, onConfirm: vi.fn(), onClose: vi.fn() };
+    const { rerender } = render(<DeleteItemDialog preview={preview()} {...props} />);
+    const field = screen.getByLabelText('Tapez Épargne vacances pour confirmer');
+    await user.type(field, 'Épargne vacances');
+    rerender(<DeleteItemDialog preview={preview({ version: 8 })} {...props} />);
+    expect(screen.getByLabelText('Tapez Épargne vacances pour confirmer')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Supprimer définitivement' })).toBeDisabled();
+  });
+
+  it('can be closed while loading', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<DeleteItemDialog preview={undefined} previewError={null} closeHint="x" pending={false} error={null} onConfirm={vi.fn()} onClose={onClose} />);
+    await user.click(screen.getByRole('button', { name: 'Fermer' }));
+    expect(onClose).toHaveBeenCalled();
+  });
 });
