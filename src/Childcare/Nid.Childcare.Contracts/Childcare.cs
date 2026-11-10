@@ -63,7 +63,7 @@ public static class MealProviderCodes
 public static class AbsenceCodes
 {
     /// <summary>The reasons a contract does not pay unless it says otherwise.</summary>
-    public static readonly IReadOnlyList<AbsenceReason> DefaultUnpaid = [AbsenceReason.ChildSick, AbsenceReason.CarerAbsent];
+    public static readonly IReadOnlyList<AbsenceReason> DefaultUnpaid = [AbsenceReason.ParentRtt, AbsenceReason.ChildSick, AbsenceReason.CarerAbsent];
 
     private static readonly Dictionary<AbsenceReason, string> Names = new()
     {

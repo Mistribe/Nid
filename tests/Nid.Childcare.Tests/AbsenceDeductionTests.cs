@@ -50,8 +50,14 @@ public class AbsenceDeductionTests
         => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, ShortMonday(AbsenceReason.Family), Plan, 0));
 
     [Fact]
-    public void Rtt_and_family_are_paid()
-        => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((9, AbsenceReason.ParentRtt), (10, AbsenceReason.Family)), Plan, 0));
+    public void Family_is_paid()
+        => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((10, AbsenceReason.Family)), Plan, 0));
+
+    /// <summary>An employer's RTT day is deducted by default, as a carer's absence on the same day would be.</summary>
+    [Fact]
+    public void Employer_rtt_is_unpaid()
+        => Assert.Equal(AbsenceDeduction.Compute(BasePay, November((9, AbsenceReason.CarerAbsent)), Plan, 0),
+            AbsenceDeduction.Compute(BasePay, November((9, AbsenceReason.ParentRtt)), Plan, 0));
 
     [Fact]
     public void A_short_day_weighs_as_much_as_a_long_one()
