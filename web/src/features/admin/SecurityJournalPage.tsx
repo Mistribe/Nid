@@ -56,7 +56,7 @@ export function SecurityJournalPage() {
   const { event = '' }: { event?: string } = useSearch({ strict: false });
   const [page, toPage] = useListPage();
   // A new filter starts again at the first page.
-  const setEvent = (value: string) => void navigate({ to: '.', replace: true, search: ((prev: Record<string, unknown>) => ({ ...prev, event: value || undefined, page: undefined })) as never });
+  const setEvent = (value: string) => void navigate({ to: '.', replace: true, search: (prev) => ({ ...prev, event: value || undefined, page: undefined }) });
   const journal = $api.useQuery('get', '/api/v1/admin/security-journal', { params: { query: { ...(event ? { event } : {}), page } } });
   useStepBack(page, journal.data, toPage);
   const adults = $api.useQuery('get', '/api/v1/admin/users');
@@ -86,31 +86,31 @@ export function SecurityJournalPage() {
         <EmptyState module="/admin" title={t('admin.security.empty')} body="" />
       ) : (
         <>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('admin.security.when')}</TableHead>
-              <TableHead>{t('admin.security.event')}</TableHead>
-              <TableHead>{t('admin.security.subject')}</TableHead>
-              <TableHead>{t('admin.security.actor')}</TableHead>
-              <TableHead>{t('admin.security.details')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {journal.data.items.map((entry) => (
-              <TableRow key={entry.seq}>
-                <TableCell>{formatInstant(entry.at)}</TableCell>
-                <TableCell>{eventLabel(t, entry.event)}</TableCell>
-                <TableCell>{name(entry.subjectPersonId)}</TableCell>
-                <TableCell>{entry.actor.personId ? name(entry.actor.personId) : t('admin.security.system')}</TableCell>
-                <TableCell className="font-mono">
-                  {entry.event === 'access_violation' && entry.details.reason ? <ViolationDetails entry={entry} /> : rawDetails(entry.details)}
-                </TableCell>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('admin.security.when')}</TableHead>
+                <TableHead>{t('admin.security.event')}</TableHead>
+                <TableHead>{t('admin.security.subject')}</TableHead>
+                <TableHead>{t('admin.security.actor')}</TableHead>
+                <TableHead>{t('admin.security.details')}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <Pager page={page} total={journal.data.total} onPage={toPage} />
+            </TableHeader>
+            <TableBody>
+              {journal.data.items.map((entry) => (
+                <TableRow key={entry.seq}>
+                  <TableCell>{formatInstant(entry.at)}</TableCell>
+                  <TableCell>{eventLabel(t, entry.event)}</TableCell>
+                  <TableCell>{name(entry.subjectPersonId)}</TableCell>
+                  <TableCell>{entry.actor.personId ? name(entry.actor.personId) : t('admin.security.system')}</TableCell>
+                  <TableCell className="font-mono">
+                    {entry.event === 'access_violation' && entry.details.reason ? <ViolationDetails entry={entry} /> : rawDetails(entry.details)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Pager page={page} total={journal.data.total} onPage={toPage} />
         </>
       )}
     </AdminFrame>
