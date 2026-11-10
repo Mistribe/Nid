@@ -4,7 +4,7 @@ using NodaTime;
 namespace Nid.Core.Domain.Scenarios;
 
 /// <summary>A holding already converted, split by class; <c>Locked</c> per slice from its liquidity.</summary>
-public sealed record SavingsSlice(ItemId Item, string Class, string Liquidity, decimal Amount);
+public sealed record SavingsSlice(ItemId Item, string Class, string Liquidity, decimal Amount, int? UnlocksAt = null);
 
 public sealed record ScenarioFacts(
     LocalDate Today, decimal? MonthlyIncome,          // null: no income declared

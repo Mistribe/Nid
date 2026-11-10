@@ -82,6 +82,8 @@ public static class HouseholdProjection
         var sliceRates = slices.Select(s => monthlyRate[s.Class]).ToArray();
         var savingsRate = monthlyRate[a.SavingsClass];
         var available = slices.Select(s => s.Liquidity == AllocationLiquidity.Available).ToArray();
+        // Retirement spec §2: a PER slice counts as available from the month its holder leaves work.
+        var unlocksAt = slices.Select(s => s.UnlocksAt ?? int.MaxValue).ToArray();
 
         // The month's withdrawals leave their items' slices; what the slices cannot give is returned, to leave the pot.
         decimal Withdraw(int k)
@@ -128,7 +130,7 @@ public static class HouseholdProjection
                 + Changes(k);
             pot = (pot - leftOver) * (1m + savingsRate[k]) + monthlySavings + (inputs.CashFlows?[k] ?? 0m);
 
-            if (exhausted is null && Available() + pot < 0m)
+            if (exhausted is null && Available(k) + pot < 0m)
             {
                 exhausted = month;
                 milestones.Add(new(end, "savings_exhausted", "savings_exhausted", null));
@@ -141,11 +143,11 @@ public static class HouseholdProjection
         milestones.AddRange(inputs.Milestones.Where(m => m.On > inputs.Today && m.On <= last));
         return new(points, milestones.OrderBy(m => m.On).ThenBy(m => m.Kind, StringComparer.Ordinal).ToList(), exhausted);
 
-        decimal Available()
+        decimal Available(int k)
         {
             var sum = 0m;
             for (var j = 0; j < amounts.Length; j++)
-                if (available[j]) sum += amounts[j];
+                if (available[j] || unlocksAt[j] <= k) sum += amounts[j];
             return sum;
         }
 

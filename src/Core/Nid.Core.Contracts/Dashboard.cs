@@ -23,7 +23,8 @@ public sealed record NetWorthPart(
 /// </summary>
 public sealed record Holding(
     ItemId Item, string Module, string Name, Money? Value, LocalDate? AsOf, bool Stale, IReadOnlyList<OwnerShare> Owners,
-    IReadOnlyList<AllocationSlice>? Slices = null, bool Estimated = false, LocalDate? ValuedOn = null);
+    IReadOnlyList<AllocationSlice>? Slices = null, bool Estimated = false, LocalDate? ValuedOn = null,
+    bool UnlocksAtRetirement = false);
 
 /// <summary>Issue #104: a part of a holding's value, in its currency; <c>Approximate</c> when the class is guessed from a kind.</summary>
 public sealed record AllocationSlice(string Class, string Liquidity, decimal Amount, bool Approximate);

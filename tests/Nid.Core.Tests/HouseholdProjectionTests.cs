@@ -120,6 +120,20 @@ public class HouseholdProjectionTests
         Assert.Contains(result.Milestones, m => m.Kind == "savings_exhausted" && m.On == new LocalDate(2027, 1, 31));
     }
 
+    /// <summary>1 000 in cash and 50 000 locked, saving −500 a month: cash plus pot reads 500, 0, −500 at months 1 to 3.</summary>
+    private static YearMonth? ExhaustedWith(int? unlocksAt) => HouseholdProjection.Project(new(
+        Today, 12, [Cash(1_000m), new(Envelope, AllocationClasses.Cash, AllocationLiquidity.Locked, 50_000m, unlocksAt)],
+        Enumerable.Repeat(0m, 13).ToList(), [], -500m, Assumptions(), [])).SavingsExhaustedIn;
+
+    [Fact]
+    public void A_locked_slice_without_unlock_stays_locked() => Assert.Equal(new YearMonth(2027, 1), ExhaustedWith(null)); // retirement spec §2
+
+    [Fact]
+    public void A_per_unlocking_after_the_shortfall_does_not_save_it() => Assert.Equal(new YearMonth(2027, 1), ExhaustedWith(6));
+
+    [Fact]
+    public void An_unlocked_per_counts_as_available() => Assert.Null(ExhaustedWith(2));
+
     [Fact]
     public void Milestones_outside_the_grid_are_dropped()
     {
