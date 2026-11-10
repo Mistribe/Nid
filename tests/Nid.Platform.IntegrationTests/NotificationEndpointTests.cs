@@ -173,6 +173,10 @@ public class NotificationEndpointTests(PostgresFixture fixture) : IClassFixture<
         await using var app = await NidApp.StartAsync(fixture);
         var item = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
         var id = await SeedAsync(app, app.AdultA, item, "a", NotificationLevel.Critical);
+        await SeedAsync(app, app.AdultA, item, "b");
+        // The bell's list of the unread critical ones holds it, and only it.
+        var critical = await app.GetAsync<JsonElement>(app.AdultA, $"{Route}?list=critical");
+        Assert.Equal([id], critical.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("id").GetGuid()));
 
         var snooze = await PostAsync(app, app.AdultA, id, "snooze", new { preset = "week" });
         var dismiss = await PostAsync(app, app.AdultA, id, "dismiss");
@@ -182,7 +186,9 @@ public class NotificationEndpointTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.UnprocessableEntity, dismiss.StatusCode);
         Assert.Equal("notifications.not_dismissable", (await JsonOf(dismiss)).GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(app, app.AdultA, id, "read")).StatusCode);
-        Assert.Equal(0, await UnreadAsync(app, app.AdultA));
+        Assert.Equal(1, await UnreadAsync(app, app.AdultA));
+        // Read, it leaves that list.
+        Assert.Empty((await app.GetAsync<JsonElement>(app.AdultA, $"{Route}?list=critical")).GetProperty("entries").EnumerateArray());
     }
 
     [Fact]

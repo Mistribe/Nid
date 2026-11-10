@@ -8,7 +8,6 @@ import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Guides } from '@/features/guides/Guides';
 import { PendingBadge } from '@/features/proposals/PendingBadge';
 import { TokenBanner } from '@/features/security/TokenBanner';
-import { CriticalBanner } from './CriticalBanner';
 import { NotificationBell } from './NotificationBell';
 import { RoutineBadge } from './RoutineBadge';
 import { TopBarTrail } from './TopBarTrail';
@@ -156,7 +155,6 @@ export function Shell() {
         </header>
         {palette !== null ? <Suspense fallback={null}><CommandMenu open={palette} onOpenChange={setPalette} /></Suspense> : null}
         <TokenBanner />
-        <CriticalBanner />
         {/* The page is one frosted window, like the panes around it: text never sits on the bare halo. */}
         <main className="flex flex-1 flex-col px-2 pb-2 md:pl-0">
           <div data-pane="content" className="content-pane rounded-pane flex-1 p-4 shadow-card md:p-6">

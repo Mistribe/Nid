@@ -16,6 +16,68 @@ describe('the notification bell', () => {
     expect(bell).toHaveTextContent('3');
   });
 
+  it('turns to the warning colour while an important one is unread, and says so in its name, with no banner', async () => {
+    server.use(count(3, 1));
+    const { container } = await renderApp('/subscriptions');
+    const bell = await screen.findByRole('button', { name: 'Notifications, 3 non lues, dont 1 importante' });
+    expect(bell).toHaveClass('bg-status-warning/15');
+    expect(bell.querySelector('.bg-status-warning')).toHaveTextContent('3');
+    expect(bell.querySelector('.bg-primary')).toBeNull();
+    // The bell carries it: no banner under the top bar any more.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(container).not.toHaveTextContent('Une notification importante');
+  });
+
+  it('stays in the primary colour without an important one unread', async () => {
+    server.use(count(2));
+    await renderApp('/subscriptions');
+    const bell = await screen.findByRole('button', { name: 'Notifications, 2 non lues' });
+    expect(bell).not.toHaveClass('bg-status-warning/15');
+    expect(bell.querySelector('.bg-primary')).toHaveTextContent('2');
+  });
+
+  it('lists the unread important ones first, even older than the latest, marked in words', async () => {
+    const asked: string[] = [];
+    const older = notification(20, { level: 'critical', critical: true, title: 'Échéance' });
+    server.use(
+      count(10, 1),
+      http.get('*/api/v1/platform/notifications', ({ request }) => {
+        const list = new URL(request.url).searchParams.get('list');
+        asked.push(list ?? '');
+        // The eight latest to do hold no important one, and a read important one is not singled out.
+        return HttpResponse.json(list === 'critical'
+          ? { entries: [older], next: null }
+          : { entries: [notification(1, { level: 'critical', critical: true, read: true, title: 'Ancienne' }), ...Array.from({ length: 7 }, (_, i) => notification(i + 2))], next: null });
+      }),
+    );
+    const { user } = await renderApp('/subscriptions');
+    await user.click(await screen.findByRole('button', { name: 'Notifications, 10 non lues, dont 1 importante', expanded: false }));
+    const popover = await screen.findByRole('dialog');
+    await within(popover).findByText('Échéance');
+    const links = within(popover).getAllByRole('link').filter((l) => /Titre|Échéance|Ancienne/.test(l.textContent ?? ''));
+    expect(links).toHaveLength(8);
+    expect(links[0]).toHaveTextContent(/^ImportanteÉchéance/);
+    expect(links[1]).toHaveTextContent(/^Ancienne/);
+    expect(links[1]).not.toHaveTextContent('Importante');
+    expect(asked.sort()).toEqual(['critical', 'todo']);
+    await expectNoAxeViolations(popover);
+  });
+
+  it('asks for the important ones only while one is unread', async () => {
+    const asked: string[] = [];
+    server.use(
+      count(1),
+      http.get('*/api/v1/platform/notifications', ({ request }) => {
+        asked.push(new URL(request.url).searchParams.get('list') ?? '');
+        return HttpResponse.json({ entries: [notification(1)], next: null });
+      }),
+    );
+    const { user } = await renderApp('/subscriptions');
+    await user.click(await screen.findByRole('button', { name: 'Notifications, 1 non lue', expanded: false }));
+    await within(await screen.findByRole('dialog')).findByText('Titre 1');
+    expect(asked).toEqual(['todo']);
+  });
+
   it('has no badge at zero', async () => {
     await renderApp('/subscriptions');
     const bell = await screen.findByRole('button', { name: 'Notifications' });

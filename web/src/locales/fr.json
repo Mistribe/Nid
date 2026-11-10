@@ -90,8 +90,8 @@
     "bell": "Notifications",
     "bell_count_one": "Notifications, {{count}} non lue",
     "bell_count_other": "Notifications, {{count}} non lues",
-    "critical_banner": "Une notification importante attend votre lecture.",
-    "see": "Voir"
+    "bell_critical_one": "dont {{count}} importante",
+    "bell_critical_other": "dont {{count}} importantes"
   },
   "command": {
     "open": "Rechercher ou aller à…",
