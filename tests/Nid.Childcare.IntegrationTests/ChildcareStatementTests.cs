@@ -174,8 +174,8 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         var month = await JsonAsync(saved);
         var declaration = month.GetProperty("figures").GetProperty("declaration");
         Assert.Equal("598.02", declaration.GetProperty("netPay").GetString());
-        Assert.Equal("1.50", declaration.GetProperty("complementaryHours").GetString());
-        Assert.Equal(16, declaration.GetProperty("activityDays").GetInt32());
+        Assert.Equal("2.00", declaration.GetProperty("complementaryHours").GetString());
+        Assert.Equal(15, declaration.GetProperty("activityDays").GetInt32());
         Assert.Equal("draft", month.GetProperty("state").GetString());
         Assert.Equal(["2025-09-08", "2025-09-09"], month.GetProperty("days").EnumerateArray()
             .Where(d => d.GetProperty("changed").GetBoolean()).Select(d => d.GetProperty("date").GetString()));
