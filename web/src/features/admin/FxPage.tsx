@@ -90,8 +90,8 @@ export function FxPage() {
         { id: 'journal', label: t('admin.tab_journal'), content: (
           <Section title={t('admin.fx.runs_title')}>
             {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-            {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
-            {runs.data && runs.data.items.length === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
+            {!runs.error && (!runs.data || (runs.data.items.length === 0 && runs.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
+            {runs.data && runs.data.total === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
             {runs.data && runs.data.items.length > 0 ? (
               <>
                 <SortableTable caption={t('admin.fx.runs_title')} rows={runs.data.items} rowKey={(r) => r.id}

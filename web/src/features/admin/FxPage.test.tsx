@@ -44,6 +44,16 @@ describe('Administration › Taux de change', () => {
     await waitFor(() => expect(seen.at(-1)).toContain('page=2'));
   });
 
+  it('steps back from a page past the end without flashing the empty state', async () => {
+    server.use(http.get('*/api/v1/core/fx-rates/runs', ({ request }) => HttpResponse.json(
+      new URL(request.url).searchParams.get('page') === '3' ? { items: [], total: 51, page: 3 } : { items: [run], total: 51, page: 2 })));
+    const { router } = await renderApp('/admin/fx?tab=journal&page=3', { capabilities: adminCapabilities });
+
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'journal', page: 2 }));
+    expect(screen.queryByText("Aucune collecte pour l'instant.")).not.toBeInTheDocument();
+    expect(await screen.findByRole('row', { name: /rattrapage/ })).toBeInTheDocument();
+  });
+
   it('asks for a collection, and says when one is already running', async () => {
     let calls = 0;
     server.use(

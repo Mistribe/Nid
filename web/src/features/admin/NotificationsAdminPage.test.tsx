@@ -115,6 +115,7 @@ describe('Administration › Notifications', () => {
     const table = screen.getByRole('table', { name: 'Envois en échec' });
     expect(within(table).getAllByText('rent.due')).toHaveLength(2);
   });
+
   it('pages the failed deliveries', async () => {
     const seen: string[] = [];
     server.use(http.get('*/api/v1/admin/notifications', ({ request }) => {

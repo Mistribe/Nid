@@ -119,8 +119,8 @@ function InflationValues() {
   return (
     <Section title={t('admin.inflation.values_title')} actions={<SeriesLink keys={['cpi']} />}>
       {inflation.error ? <ProblemMessage problem={present(toProblem(inflation.error))} /> : null}
-      {!inflation.data && !inflation.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
-      {inflation.data && inflation.data.items.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}
+      {!inflation.error && (!inflation.data || (inflation.data.items.length === 0 && inflation.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : null}
+      {inflation.data && inflation.data.total === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_values')} body="" level={3} /> : null}
       {inflation.data && inflation.data.items.length > 0 ? (
         <>
           <SortableTable caption={t('admin.inflation.values_title')} rows={inflation.data.items} rowKey={(v) => v.month}
@@ -155,8 +155,8 @@ function InflationRuns() {
   return (
     <Section title={t('admin.inflation.runs_title')}>
       {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-      {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
-      {runs.data && runs.data.items.length === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_runs')} body="" level={3} /> : null}
+      {!runs.error && (!runs.data || (runs.data.items.length === 0 && runs.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={6} /></Loading> : null}
+      {runs.data && runs.data.total === 0 ? <EmptyState module="/admin" title={t('admin.inflation.no_runs')} body="" level={3} /> : null}
       {runs.data && runs.data.items.length > 0 ? (
         <>
           <SortableTable caption={t('admin.inflation.runs_title')} rows={runs.data.items} rowKey={(r) => r.id}

@@ -2,7 +2,7 @@ import { createMemoryHistory, createRootRoute, createRoute, createRouter, Router
 import { render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { pageOf } from '@/app/router';
+import { pageOf } from '@/lib/search';
 import { Pager, useListPage, useStepBack } from './Pager';
 
 describe('Pager', () => {
@@ -36,11 +36,16 @@ describe('Pager', () => {
     expect(toPage.mock.calls).toEqual([[3]]);
   });
 
-  it('does not step back on the last page itself, nor on an empty list', () => {
+  it('does not step back on the last page itself', () => {
     const toPage = vi.fn();
     renderHook(() => useStepBack(3, { items: [], total: 101 }, toPage));
-    renderHook(() => useStepBack(2, { items: [], total: 0 }, toPage));
     expect(toPage).not.toHaveBeenCalled();
+  });
+
+  it('steps back to the first page when the whole list emptied', () => {
+    const toPage = vi.fn();
+    renderHook(() => useStepBack(2, { items: [], total: 0 }, toPage));
+    expect(toPage.mock.calls).toEqual([[1]]);
   });
 });
 

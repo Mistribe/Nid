@@ -31,14 +31,14 @@ export function useListPage(): [page: number, toPage: (n: number) => void] {
   return [pageOf(search) ?? 1, toPage];
 }
 
-/** A page past the end (the last rows went away) steps back to the last one. */
+/** A page past the end (the last rows went away) steps back to the last one, page 1 when the list emptied. */
 export function useStepBack(page: number, answer: { items: unknown[]; total: number } | undefined, toPage: (n: number) => void) {
   const empty = answer !== undefined && answer.items.length === 0;
   const total = answer?.total ?? 0;
-  const last = Math.ceil(total / PAGE_SIZE);
-  // Only when the last page is before this one: the same page again would loop.
+  const last = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Only when the last page is before this one: the same page again would loop. An emptied list goes back to page 1.
   useEffect(() => {
-    if (empty && total > 0 && last < page) toPage(last);
+    if (empty && page > 1 && last < page) toPage(last);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toPage is a new function each render
   }, [empty, total, last, page]);
 }

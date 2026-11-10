@@ -10,7 +10,7 @@ import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Loading, SectionSkeleton } from '@/components/page/skeletons';
+import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { formatDuration } from './format';
 import { formatInstant } from '@/lib/format';
 import { JobOutcome } from './JobOutcome';
@@ -54,7 +54,7 @@ export function JobDetailPage() {
         </Section>
       ) : null}
       <Section title={t('admin.jobs.history')}>
-        {data.runs.total === 0 ? <EmptyState module="/admin" title={t('admin.jobs.no_runs')} body="" level={3} /> : (
+        {data.runs.total === 0 ? <EmptyState module="/admin" title={t('admin.jobs.no_runs')} body="" level={3} /> : data.runs.items.length === 0 ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : (
           <SortableTable<JobRunView> caption={t('admin.jobs.history')} rows={data.runs.items} rowKey={(r) => r.id}
             rowLink={(r) => ({ to: '/admin/jobs/$key/runs/$runId', params: { key, runId: r.id } })}
             columns={[

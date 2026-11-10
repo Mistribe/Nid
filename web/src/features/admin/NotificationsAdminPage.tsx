@@ -13,7 +13,7 @@ import { DiscordWebhookControl } from '@/features/notifications/DiscordWebhookCo
 import { DISCORD_HOUSEHOLD, useWebhook } from '@/features/notifications/preferences';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { AdminFrame } from './AdminFrame';
-import { Loading, SectionSkeleton } from '@/components/page/skeletons';
+import { Loading, SectionSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { Section } from '@/components/page/Section';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
@@ -94,29 +94,29 @@ export function NotificationsAdminPage() {
       </Section>
 
       <Section title={t('admin.notifications.failures_title')}>
-        {failures.items.length === 0 ? (
+        {failures.total === 0 ? (
           <EmptyState module="/admin" title={t('admin.notifications.no_failures')} body="" level={3} />
-        ) : (
+        ) : failures.items.length === 0 ? <Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading> : (
           <>
-          <SortableTable
-            caption={t('admin.notifications.failures_title')}
-            rows={failures.items}
-            rowKey={(f) => f.id}
-            columns={[
-              { id: 'channel', header: t('admin.notifications.channel'), cell: (f) => f.channel },
-              { id: 'kind', header: t('admin.notifications.kind'), cell: (f) => <Kind kind={f.kind} /> },
-              { id: 'at', header: t('admin.notifications.queued'), cell: (f) => formatInstant(f.at) },
-              { id: 'error', header: t('admin.notifications.error'), cell: (f) => <ErrorText error={f.error} /> },
-            ]}
-            mobile={(f) => (
-              <div className="space-y-1">
-                <p><Kind kind={f.kind} /> · {f.channel}</p>
-                <p className="text-sm text-muted-foreground">{formatInstant(f.at)}</p>
-                <p className="text-sm"><ErrorText error={f.error} /></p>
-              </div>
-            )}
-          />
-          <Pager page={page} total={failures.total} onPage={toPage} />
+            <SortableTable
+              caption={t('admin.notifications.failures_title')}
+              rows={failures.items}
+              rowKey={(f) => f.id}
+              columns={[
+                { id: 'channel', header: t('admin.notifications.channel'), cell: (f) => f.channel },
+                { id: 'kind', header: t('admin.notifications.kind'), cell: (f) => <Kind kind={f.kind} /> },
+                { id: 'at', header: t('admin.notifications.queued'), cell: (f) => formatInstant(f.at) },
+                { id: 'error', header: t('admin.notifications.error'), cell: (f) => <ErrorText error={f.error} /> },
+              ]}
+              mobile={(f) => (
+                <div className="space-y-1">
+                  <p><Kind kind={f.kind} /> · {f.channel}</p>
+                  <p className="text-sm text-muted-foreground">{formatInstant(f.at)}</p>
+                  <p className="text-sm"><ErrorText error={f.error} /></p>
+                </div>
+              )}
+            />
+            <Pager page={page} total={failures.total} onPage={toPage} />
           </>
         )}
       </Section>
