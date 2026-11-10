@@ -7064,6 +7064,7 @@ export interface paths {
                 query?: {
                     scope?: string;
                     archived?: boolean;
+                    kind?: string;
                 };
                 header?: never;
                 path?: never;

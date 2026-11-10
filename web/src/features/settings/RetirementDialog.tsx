@@ -11,6 +11,7 @@ import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PERSONS } from '@/api/persons';
+import { RETIREMENT } from '@/api/retirement';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { todayIso } from '@/lib/today';
 import { PERSON_RETIREMENT, PROJECTION } from './api';
@@ -44,6 +45,7 @@ export function RetirementDialog({ person, onClose, onDone }: {
             onSuccess: () => {
               void queryClient.invalidateQueries({ queryKey: ['get', PERSONS] });
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
+              void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
               void queryClient.invalidateQueries({ queryKey: ['get', SERIES_POINTS] });
               done(t('settings.projection.retirement_saved', { name: person.displayName }));
             },

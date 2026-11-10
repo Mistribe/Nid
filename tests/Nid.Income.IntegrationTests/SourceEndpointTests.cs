@@ -275,4 +275,31 @@ public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) :
         // No phase yet: the monthly equivalent is zero, in the source's currency.
         Assert.Equal("0.00", me.GetProperty("items")[0].GetProperty("monthlyEquivalent").GetProperty("amount").GetString());
     }
+
+    [Fact]
+    public async Task The_kind_filter_keeps_the_readers_pension_sources_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var own = await app.NewIncomeSourceAsync("Ma pension", "pension", Visibility.Private, (app.AdultA, 10_000));
+        var shared = await app.NewIncomeSourceAsync("Pension partagée", "pension", Visibility.Shared, (app.AdultB, 10_000));
+        await app.NewIncomeSourceAsync("Salaire", "salary", Visibility.Shared, (app.AdultA, 10_000));
+        var other = await app.NewIncomeSourceAsync("Pension privée de l'autre", "pension", Visibility.Private, (app.AdultB, 10_000));
+
+        var items = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}?scope=me&kind=pension")))
+            .GetProperty("items").EnumerateArray().Select(s => s.GetProperty("id").GetGuid()).Order().ToList();
+
+        Assert.Equal(new[] { own.Value, shared.Value }.Order(), items);
+        Assert.DoesNotContain(other.Value, items);
+    }
+
+    [Fact]
+    public async Task An_unknown_kind_filter_is_refused_at_its_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}?kind=lottery");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal("income.unknown_kind", (await JsonAsync(response)).GetProperty("code").GetString());
+    }
 }
