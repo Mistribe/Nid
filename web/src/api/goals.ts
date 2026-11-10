@@ -18,6 +18,7 @@ export type EmergencyTarget = components['schemas']['EmergencyTargetView'];
 export const GOALS = '/api/v1/goals' as const;
 export const GOAL = '/api/v1/goals/{id}' as const;
 export const CLOSE_GOAL = '/api/v1/goals/{id}/close' as const;
+export const GOAL_DELETION = '/api/v1/goals/{id}/deletion' as const;
 export const REOPEN_GOAL = '/api/v1/goals/{id}/reopen' as const;
 export const PROGRESS = '/api/v1/goals/{id}/progress/{on}' as const;
 export const EMERGENCY_TARGET = '/api/v1/goals/emergency-target' as const;
@@ -75,4 +76,16 @@ export function useReopenGoal() {
 export function usePutProgress() {
   const { $api } = useApi();
   return $api.useMutation('put', PROGRESS, useWrite());
+}
+
+/** What deleting the goal removes and what blocks it, read only while the dialog is open. */
+export function useGoalDeletion(id: string, enabled: boolean) {
+  const { $api } = useApi();
+  return $api.useQuery('get', GOAL_DELETION, { params: { path: { id } } }, { enabled });
+}
+
+/** No invalidation here: the goal is gone, so the page leaves first and refreshes the lists after (a refetch of it would 404). */
+export function useDeleteGoal() {
+  const { $api } = useApi();
+  return $api.useMutation('delete', GOAL);
 }

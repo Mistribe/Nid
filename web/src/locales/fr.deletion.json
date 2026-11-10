@@ -9,6 +9,8 @@
     "blocked": "Impossible de le supprimer :",
     "type": "Tapez {{name}} pour confirmer",
     "confirm": "Supprimer définitivement",
+    "menu": "Supprimer…",
+    "done": "« {{name}} » supprimé",
     "keys": {
       "flows_one": "{{count}} flux",
       "flows_other": "{{count}} flux",

@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useForm, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -21,12 +21,17 @@ import { Field } from '@/components/form/Field';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { PERSONS } from '@/api/persons';
+import { useGoalDeletion } from '@/api/goals';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from '@/api/proposals';
 import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
 import { RoutePayload, isRouteKind, routeElement, routeLabel, routeLink, useNames } from './routeKind';
 import { focusHeading, focusNextHeading } from './focus';
 import '@/locales/proposals';
+import '@/locales/deletion';
+import '@/locales/goals';
+
+const DeleteItemDialog = lazy(() => import('@/components/DeleteItemDialog').then((m) => ({ default: m.DeleteItemDialog })));
 import '@/locales/forms';
 
 /** A decision that lost a race: reload (any other 409, such as a reference already recorded, is the payload's own refusal). */
@@ -174,6 +179,18 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
     void (next ? navigate({ to: '/proposals/$id', params: { id: next.id } }) : navigate({ to: '/proposals' }));
   };
   const approve = $api.useMutation('post', APPROVE);
+  // Approving a deletion asks for the goal's name first; its id comes from the payload.
+  const goal = p.kind === 'goals.delete_goal' ? (original as { id?: string }).id ?? p.targetItemId : null;
+  const [deleting, setDeleting] = useState(false);
+  const deletion = useGoalDeletion(goal ?? '', deleting && !!goal);
+  // The goal is gone once approved and the proposal with it (404): leave first, refresh after.
+  const approveDeletion = (version: number) => approve.mutate({ params: { path: { id: p.id } }, body: { version: p.version, editedPayload: { id: goal, version } } }, {
+    onSuccess: () => {
+      toast.success(t('deletion.done', { name: deletion.data?.name ?? '' }));
+      void navigate({ to: '/goals' }).then(() => queryClient.invalidateQueries());
+    },
+    onError: (e) => { if (toProblem(e).status === 409) void deletion.refetch(); },
+  });
   const reject = $api.useMutation('post', REJECT);
   const conflict = [approve.error, reject.error].find((e) => e && isRace(e));
 
@@ -199,7 +216,7 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
   const actions = (
     <>
       {kind ? <Button type="submit" form={formId} disabled={approve.isPending || nothing} aria-describedby={nothing ? 'nothing-to-record' : undefined}>{t('proposal.approve')}</Button>
-        : asProposed ? <Button type="button" disabled={approve.isPending} onClick={() => send(null)}>{t('proposal.approve')}</Button> : null}
+        : asProposed ? <Button type="button" disabled={approve.isPending} onClick={() => goal ? setDeleting(true) : send(null)}>{t('proposal.approve')}</Button> : null}
       {rejecting ? null : <Button type="button" variant="outline" onClick={() => setRejecting(true)}>{t('proposal.reject')}</Button>}
     </>
   );
@@ -208,6 +225,12 @@ function Decide({ p, preview, next, kind, asProposed, head, body }: {
     <>
       {head(actions)}
       {body}
+      {deleting ? (
+        <Suspense fallback={null}>
+          <DeleteItemDialog preview={deletion.data} previewError={deletion.error} closeHint={t('goals_list.close')} pending={approve.isPending}
+            error={approve.error} onConfirm={approveDeletion} onClose={() => setDeleting(false)} />
+        </Suspense>
+      ) : null}
       {conflict ? (
         <>
           <ProblemMessage problem={{ ...presentConflict(t, conflict), detail: t('proposal.conflict') }} />
