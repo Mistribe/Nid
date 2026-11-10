@@ -55,7 +55,7 @@ export function IncomeSourcesPage() {
         <DetailTabs value={tab} onChange={setTab} tabs={[
           { id: 'overview', label: t('income.tab_overview'), content: data && period ? (
             <div className="space-y-4">
-              <OverviewFigures figures={data.figures} months={data.months} missingRates={data.missingRates} period={period} year={year} />
+              <OverviewFigures figures={data.figures} missingRates={data.missingRates} period={period} year={year} />
               <MonthsChart months={data.months} missingRates={data.missingRates} period={period} year={year} />
             </div>
           ) : sources },

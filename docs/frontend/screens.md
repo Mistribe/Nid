@@ -77,7 +77,7 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 
 ### Grammaire des écrans (refonte)
 
-Les vues d'ensemble de Placements, de Biens et de Crédits s'ouvrent sur un `Hero` (chiffre principal, variation, courbe), puis le `StatLine` des autres chiffres. Les « À surveiller » et l'agenda sont des `GroupedList`.
+Les vues d'ensemble de Placements, de Biens et de Crédits s'ouvrent sur un `Hero` (chiffre principal, variation) qui porte à sa droite le `StatLine` des autres chiffres (issue #20). Les « À surveiller » et l'agenda sont des `GroupedList`.
 
 Listes : tableaux denses triables avec colonne des propriétaires. Fiches : chiffres clés en ligne, onglets (`?tab=`), dialogues, menus de ligne. Formulaires : pages à part en grille ; étapes pour crédit, revenu, bien et assistant d'abonnement ; champs rares repliés ; devises cherchables. Détail : `design-system.md` §4 et §6.1.
 
@@ -240,7 +240,7 @@ Une capture par type de page, en clair et en sombre, à 1372×870, thème `ardoi
 
 | Type | Clair | Sombre | Ce qu'elle montre |
 |---|---|---|---|
-| Vue d'ensemble | ![Placements, vue d’ensemble, clair](screens/overview-light.png) | ![Placements, vue d’ensemble, sombre](screens/overview-dark.png) | Placements : le `Hero` (valeur, variation, courbe), le `StatLine` des autres chiffres, puis le graphique dans son `SectionCard` |
+| Vue d'ensemble | ![Placements, vue d’ensemble, clair](screens/overview-light.png) | ![Placements, vue d’ensemble, sombre](screens/overview-dark.png) | Placements : le `Hero` (valeur, variation) avec le `StatLine` des autres chiffres dans sa carte, puis le graphique dans son `SectionCard` |
 | Liste | ![Abonnements, liste, clair](screens/list-light.png) | ![Abonnements, liste, sombre](screens/list-dark.png) | Abonnements › Liste : la rangée de filtres de l'onglet, le total du foyer, puis le tableau dense avec ses propriétaires et ses libellés |
 | Fiche | ![Fiche d’une enveloppe, clair](screens/detail-light.png) | ![Fiche d’une enveloppe, sombre](screens/detail-dark.png) | Une enveloppe (PEA) : badges, un bouton principal, un secondaire et le `⋯` ; chiffres clés dans l'en-tête, puis les onglets |
 | Formulaire | ![Nouveau crédit, clair](screens/form-light.png) | ![Nouveau crédit, sombre](screens/form-dark.png) | Nouveau crédit : un `StepForm` dans `FormPage`, sans carte, l'indicateur d'étapes sous le titre et les boutons au pied |

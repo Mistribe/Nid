@@ -23,7 +23,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { seeAllClass } from '@/components/page/seeAll';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { toPlot } from '@/lib/plot';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PERSONS } from '@/api/persons';
 import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow, type PropertyWatch } from '@/api/properties';
@@ -43,8 +42,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
     <Overview scope={scope} span={span}>
       {(d) => (
         <>
-          <NetHero d={d} />
-          <Figures d={d} />
+          <NetHero d={d} aside={<Figures d={d} />} />
           <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
             <div className={d.watch.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}><NetValueChart d={d} span={span} /></div>
             <WatchCard d={d} />
@@ -89,7 +87,7 @@ function Overview({ scope, span, children }: { scope: Scope; span: Span; childre
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-6">{children(d)}</div>
+      <div className="flex flex-col gap-4">{children(d)}</div>
     </TooltipProvider>
   );
 }
@@ -113,19 +111,19 @@ const share = (t: TFunction, value: number) =>
 
 const known = (value?: number | null): value is number => value !== null && value !== undefined;
 
-/** The net value leads, with the latent gain and the server's points as its curve. */
-function NetHero({ d }: { d: PropertiesOverview }) {
+/** The net value leads, with the latent gain and the other figures beside it. */
+function NetHero({ d, aside }: { d: PropertiesOverview; aside?: ReactNode }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
   return (
-    <Hero label={t('properties_overview.net')} figure={d.netValue ? figure(d.netValue) : <HeroUnknown>{figure(d.netValue)}</HeroUnknown>}
+    <Hero aside={aside} label={t('properties_overview.net')} figure={d.netValue ? figure(d.netValue) : <HeroUnknown>{figure(d.netValue)}</HeroUnknown>}
       change={d.latentGain ? (
         <HeroChange amount={d.latentGain} pct={known(d.latentGainPct) ? share(t, d.latentGainPct) : null}>
           {t(known(d.latentGainPct) ? 'properties_overview.hero_gain' : 'properties_overview.hero_gain_plain')}
         </HeroChange>
       ) : <span className="flex flex-wrap gap-x-1"><span className="text-muted-foreground">{t('properties_overview.gain')}</span>{figure(d.latentGain)}</span>}
       note={known(d.netValuePct) ? t('properties_overview.net_note', { pct: share(t, d.netValuePct) }) : null}
-      values={d.points.flatMap((p) => (p.netValue ? [toPlot(p.netValue.amount)] : []))} />
+    />
   );
 }
 

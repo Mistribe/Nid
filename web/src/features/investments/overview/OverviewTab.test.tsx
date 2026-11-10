@@ -39,9 +39,10 @@ describe('Placements › vue d’ensemble', () => {
 
     const hero = await region('Valeur des placements');
     expect(within(hero).getByText('35 000,00 €')).toHaveClass('text-hero', 'tabular-nums');
-    // The curve is the server's points, a shape beside the figure.
-    expect(hero.querySelector('svg[aria-hidden="true"] path[stroke]')).toHaveAttribute('stroke', 'var(--primary)');
     const figures = (await screen.findByText('Versé net', { selector: 'dt' })).closest('dl')!;
+    // Issue #20: the other figures sit in the hero's card, with no curve beside the figure (the chart below draws it).
+    expect(hero).toContainElement(figures);
+    expect(hero.querySelector('path[stroke="var(--primary)"]')).toBeNull();
     expect(figures).not.toHaveTextContent('Valeur des placements');
     expect(figures).not.toHaveTextContent('35 000,00 €');
     expect(figures).not.toHaveTextContent('Depuis le 1er janvier');

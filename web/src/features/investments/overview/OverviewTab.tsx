@@ -25,7 +25,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PERSONS } from '@/api/persons';
 import { OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '@/api/investments';
-import { toPlot } from '@/lib/plot';
 import { AnnualReturn, Gain, pct } from '../Figures';
 import { Direction } from '@/components/Direction';
 import { kindText } from '../format';
@@ -44,8 +43,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
     <Overview scope={scope} span={span}>
       {(d) => (
         <>
-          <ValueHero d={d} />
-          <Figures d={d} />
+          <ValueHero d={d} aside={<Figures d={d} />} />
           <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
             <div className={d.watch.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}><ValueChart d={d} span={span} /></div>
             <WatchCard d={d} />
@@ -98,7 +96,7 @@ function Overview({ scope, span, children }: { scope: Scope; span: Span; childre
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-6">{children(d)}</div>
+      <div className="flex flex-col gap-4">{children(d)}</div>
     </TooltipProvider>
   );
 }
@@ -127,13 +125,13 @@ function Estimated({ on }: { on: string }) {
   return <span className="block text-xs text-muted-foreground">{t('investments_overview.estimated_on', { date: formatLocalDate(on, 'short') })}</span>;
 }
 
-/** The value leads, with the change since 1 January and the server's points as its curve. */
-function ValueHero({ d }: { d: InvestmentsOverview }) {
+/** The value leads, with the change since 1 January and the other figures beside it. */
+function ValueHero({ d, aside }: { d: InvestmentsOverview; aside?: ReactNode }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
   const notes = d.oldestAsOf || d.staleCount > 0 || d.estimatedCount > 0 || d.withoutValueCount > 0;
   return (
-    <Hero label={t('investments_overview.value')} figure={d.value ? figure(d.value) : <HeroUnknown>{figure(d.value)}</HeroUnknown>}
+    <Hero aside={aside} label={t('investments_overview.value')} figure={d.value ? figure(d.value) : <HeroUnknown>{figure(d.value)}</HeroUnknown>}
       change={d.sinceJanuary ? (
         <HeroChange amount={d.sinceJanuary}
           pct={d.sinceJanuaryPct === null || d.sinceJanuaryPct === undefined ? null : t('investments.pct', { value: pct(d.sinceJanuaryPct) })}>
@@ -148,7 +146,7 @@ function ValueHero({ d }: { d: InvestmentsOverview }) {
           {d.withoutValueCount > 0 ? <Sub>{t('investments_overview.without_value', { count: d.withoutValueCount })}</Sub> : null}
         </>
       ) : null}
-      values={d.points.flatMap((p) => (p.value ? [toPlot(p.value.amount)] : []))} />
+    />
   );
 }
 

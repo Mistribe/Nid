@@ -39,8 +39,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
     <Overview scope={scope}>
       {(d) => (
         <>
-          <BalanceHero d={d} />
-          <Figures d={d} />
+          <BalanceHero d={d} aside={<Figures d={d} />} />
           <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
             <div className="lg:col-span-2"><BalanceChart d={d} /></div>
             <Upcoming d={d} />
@@ -92,7 +91,7 @@ function Overview({ scope, children }: { scope: Scope; children: (d: LoansOvervi
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-6">{children(d)}</div>
+      <div className="flex flex-col gap-4">{children(d)}</div>
     </TooltipProvider>
   );
 }
@@ -110,14 +109,14 @@ function Sub({ children }: { children: ReactNode }) {
   return <span className="block text-sm font-normal text-muted-foreground">{children}</span>;
 }
 
-/** The balance leads, the months ahead as its curve; the server gives no signed change for it. */
-function BalanceHero({ d }: { d: LoansOverview }) {
+/** The balance leads, the other figures beside it; the server gives no signed change for it. */
+function BalanceHero({ d, aside }: { d: LoansOverview; aside?: ReactNode }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
   return (
-    <Hero label={t('loans_overview.balance')} figure={d.balance ? figure(d.balance) : <HeroUnknown>{figure(d.balance)}</HeroUnknown>}
+    <Hero aside={aside} label={t('loans_overview.balance')} figure={d.balance ? figure(d.balance) : <HeroUnknown>{figure(d.balance)}</HeroUnknown>}
       note={d.principal ? t('loans_overview.balance_of', { principal: formatMoney(d.principal) }) : null}
-      values={d.months.flatMap((m) => (m.total ? [toPlot(m.total.amount)] : []))} />
+    />
   );
 }
 
@@ -131,7 +130,8 @@ function Figures({ d }: { d: LoansOverview }) {
     ? t('loans_overview.span_both', { years: t('loans_overview.years', { count: years }), months: t('loans_overview.months', { count: months }) })
     : years > 0 ? t('loans_overview.years', { count: years }) : t('loans_overview.months', { count: months });
   return (
-    <StatLine items={[
+    // Issue #20: the four figures on one row beside the hero from 1 280 px, where 10 rem columns leave room for three only.
+    <StatLine className="xl:grid-cols-4" items={[
       { label: t('loans_overview.monthly'), value: figure(d.monthlyPayment), hint: t('loans_overview.monthly_note') },
       { label: t('loans_overview.cost'), value: figure(d.costRemaining), hint: d.costPaid ? t('loans_overview.cost_paid', { amount: formatMoney(d.costPaid) }) : null },
       ...(d.freeOn ? [{ label: t('loans_overview.free'), value: monthText(d.freeOn.slice(0, 7)), hint: left > 0 ? t('loans_overview.free_in', { span }) : t('loans_overview.free_this_month') }] : []),
@@ -243,7 +243,7 @@ function Running({ d }: { d: LoansOverview }) {
   );
 }
 
-const UPCOMING_SHOWN = 3;
+const UPCOMING_SHOWN = 2;
 
 /** Loans dashboard §3.4: the next payment, then the coming events, as the dashboard's agenda (`GroupedList`). */
 function Upcoming({ d }: { d: LoansOverview }) {
