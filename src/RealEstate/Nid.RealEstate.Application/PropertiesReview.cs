@@ -4,6 +4,7 @@ using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
+using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
 
@@ -57,23 +58,15 @@ public sealed class PropertiesReview(
                 .Select(c => new PropertyCostCategory(c.Category, c.Amount)).ToList();
             var rental = PropertyMath.Rental(details, own, property.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(),
                 PropertyMath.CostPrice(details, own, last), start, last);
-            rows.Add(new PropertyReviewRow(item.Id, item.DisplayName, Sum(byCategory.Select(c => c.Amount)), byCategory,
+            rows.Add(new PropertyReviewRow(item.Id, item.DisplayName, Total(byCategory.Select(c => c.Amount)), byCategory,
                 Convert(rental.RentReceived, currency), Percent(rental.GrossYield), Percent(rental.NetYieldBeforeTax)));
         }
-        return Result.Success(new PropertiesReviewPart(Sum(rows.Select(r => r.Costs)), Sum(rows.Select(r => r.Rents)), rows, missing.ToList()));
+        return Result.Success(new PropertiesReviewPart(Total(rows.Select(r => r.Costs)), Total(rows.Select(r => r.Rents)), rows, missing.ToList()));
     }
 
+    /// <summary>A fraction in %, 0.1 %, as the module's other percentages (their <c>Pct</c> takes a part and a total).</summary>
     private static decimal? Percent(decimal? fraction) => fraction is { } f ? Math.Round(f * 100m, 1, MidpointRounding.AwayFromZero) : null;
 
-    /// <summary>0 with nothing to sum, null on the first unknown amount.</summary>
-    private static decimal? Sum(IEnumerable<decimal?> amounts)
-    {
-        var total = 0m;
-        foreach (var amount in amounts)
-        {
-            if (amount is not { } value) return null;
-            total += value;
-        }
-        return total;
-    }
+    /// <summary>0 with nothing to sum (nothing paid is 0 paid), null when one amount is unknown.</summary>
+    private static decimal? Total(IEnumerable<decimal?> amounts) => SumOrNull(amounts.Append(0m));
 }
