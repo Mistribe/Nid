@@ -32,9 +32,28 @@ describe('Crédits › vue d’ensemble', () => {
     expect(figures).toHaveTextContent('2 159,92 €par mois, assurances comprises');
     expect(figures).toHaveTextContent('72 157,31 €6 823,35 € déjà payés');
     expect(figures).toHaveTextContent('Sans crédit enoctobre 2045dans 18 ans et 11 mois');
-    expect(await region('Avancement')).toHaveTextContent('12 435,77 € remboursés sur 212 000,00 € · 5,87 %');
     expect(seen).toEqual(['?scope=household']);
     expect(screen.getByRole('link', { name: 'Ajouter un crédit' })).toHaveAttribute('href', '/loans/new');
+    await expectNoAxeViolations(container);
+  });
+
+  it('keeps the simple view to the figures, the curve and what comes; « Analyse » has the rest (issue #20)', async () => {
+    const seen: string[] = [];
+    serve(household(), seen);
+    const { user, container } = await renderApp('/loans');
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent).slice(0, 3)).toEqual(['Vue d’ensemble', 'Analyse', 'Liste']);
+    await region('À venir');
+    expect(screen.getByRole('region', { name: 'Capital restant dû jusqu’à la fin' })).toBeInTheDocument();
+    for (const name of ['Avancement', 'Crédits en cours'])
+      expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
+    expect(await region('Avancement')).toHaveTextContent('12 435,77 € remboursés sur 212 000,00 € · 5,87 %');
+    expect(await region('Crédits en cours')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'À venir' })).not.toBeInTheDocument();
+    // Both tabs and the page read the one answer.
+    expect(seen).toEqual(['?scope=household']);
     await expectNoAxeViolations(container);
   });
 
@@ -52,7 +71,7 @@ describe('Crédits › vue d’ensemble', () => {
 
   it('lists the running loans with their figures, a total, and links to each detail', async () => {
     serve(household());
-    await renderApp('/loans');
+    await renderApp('/loans?tab=analysis');
 
     const table = await screen.findByRole('table', { name: 'Crédits en cours du foyer' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
@@ -134,7 +153,7 @@ describe('Crédits › vue d’ensemble', () => {
 
   it('shows a loan in another currency in its currency, the converted amount on hover', async () => {
     serve(household({ loans: [overviewRow({ currency: 'USD', balance: '1000.00', balanceConverted: { amount: '900.00', currency: 'EUR' } })] }));
-    const { user } = await renderApp('/loans');
+    const { user } = await renderApp('/loans?tab=analysis');
 
     const table = await screen.findByRole('table', { name: 'Crédits en cours du foyer' });
     const amount = within(table).getByText(/^1\s000,00\s\$US$/);
