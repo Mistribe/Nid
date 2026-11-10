@@ -201,8 +201,8 @@ public static class RouteActions
         new("create_income_source", "POST", "/api/v1/income/sources", typeof(CreateIncomeSourceBody),
             "Create an income source (a salary, a pension, an allowance) with its first period. Once approved, propose_payslip and "
             + "the other income tools work on it. If the person already has a pension source (list_income_sources, get_income_source), do not create another: "
-            + "a pension not started yet -> correct_income_phase (its startsOn and netAmount, with the version from get_income_source); a pension already "
-            + "paid -> change_income_phase from its next payment date. A retirement pension from the official statement: kind 'pension', the statement's monthly net amount "
+            + "a pension not started yet -> propose_correct_income_phase (its startsOn and netAmount, with the version from get_income_source); a pension already "
+            + "paid -> propose_change_income_phase from its next payment date. A retirement pension from the official statement: kind 'pension', the statement's monthly net amount "
             + "in today's money, one monthly period starting on the first day of the month after the departure (the projection moves a pension that "
             + "has not started to the departure anyway), owned by that person; ask whether it is shared or private (shared lets the other adult see it "
             + "in the household's figures). Once approved, if the statement is stored in Nid (list_documents), link it to the period (its id from get_income_source) "
