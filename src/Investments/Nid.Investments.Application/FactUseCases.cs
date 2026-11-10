@@ -32,6 +32,15 @@ public sealed record RecordFlowCommand(ItemId ItemId, FlowDraft Flow) : ICommand
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>
+/// Several flows of one envelope as one write (a statement's movements): what <see cref="RecordFlowCommand"/> checks, made once
+/// for all, then <see cref="IFlows.RecordManyAsync"/>. A refusal that names a flow carries its index (<see cref="IFlows.RecordManyIndex"/>).
+/// </summary>
+public sealed record RecordFlowsCommand(ItemId ItemId, IReadOnlyList<FlowDraft> Flows) : ICommand<IReadOnlyList<Guid>>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 public sealed record CorrectFlowCommand(ItemId ItemId, Guid FlowId, FlowDraft Flow) : ICommand<Guid>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -120,6 +129,74 @@ public sealed class RecordFlowHandler(IEnvelopeStore envelopes, IItemRegistry it
         return recorded.TryGetValue(out var saved) ? Result.Success(saved!.Id)
             : Result.Failure<Guid>(recorded.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
     }
+}
+
+[RequestHandler<RecordFlowsCommand, IReadOnlyList<Guid>>]
+public sealed class RecordFlowsHandler(IEnvelopeStore envelopes, IItemRegistry items, IFlows flows, EnvelopePerformance performance)
+    : IRequestHandler<RecordFlowsCommand, IReadOnlyList<Guid>>
+{
+    public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(RecordFlowsCommand command, CancellationToken ct = default)
+    {
+        Failure? failure = null;
+        var open = await OpenEnvelope.RequireAsync(envelopes, items, command.ItemId, ct);
+        if (!open.TryGetValue(out var envelope))
+            return Result.Failure<IReadOnlyList<Guid>>(open.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
+
+        // A livret's deposits are held against its ceiling, each with the ones before it, as recorded one by one: its facts read once.
+        EnvelopePerformance.Facts? facts = null;
+        var drafted = new List<NewFlow>(command.Flows.Count);
+        for (var i = 0; i < command.Flows.Count; i++)
+        {
+            var draft = command.Flows[i].ToNewFlow(command.ItemId);
+            if (!draft.TryGetValue(out var flow))
+                return Refused(draft.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException(), i);
+            if (OpenEnvelope.RefuseIncomeCategory(envelope!, flow!) is { } refused)
+                return Refused(refused, i);
+            if (envelope!.Regulated is not null && flow!.Kind is FlowKind.Opening or FlowKind.Contribution)
+            {
+                if (facts is null)
+                {
+                    var read = await performance.FactsAsync(command.ItemId, ct);
+                    if (!read.TryGetValue(out facts))
+                        return Result.Failure<IReadOnlyList<Guid>>(read.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
+                }
+                var before = facts! with { Flows = [.. facts.Flows, .. drafted.Select(Pending)] };
+                if (EnvelopeInsights.AboveCeiling(before, flow.OccurredOn, flow.Amount.Amount, "amount") is { } above)
+                    return Refused(above, i);
+            }
+            drafted.Add(flow!);
+        }
+
+        var recorded = await flows.RecordManyAsync(command.ItemId, drafted, ct);
+        return recorded.TryGetValue(out var saved) ? Result.Success<IReadOnlyList<Guid>>(saved!.Select(f => f.Id).ToList())
+            : Result.Failure<IReadOnlyList<Guid>>(recorded.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
+    }
+
+    /// <summary>A flow not saved yet, as the ceiling reads it.</summary>
+    private static Flow Pending(NewFlow f) => new(Guid.Empty, f.Item, f.OccurredOn, f.Kind, f.Amount, f.Category, f.ExternalRef, f.Note);
+
+    private static Result<IReadOnlyList<Guid>> Refused(Failure failure, int index) => Result.Failure<IReadOnlyList<Guid>>(Batch.At(failure, index));
+}
+
+/// <summary>The commands that write several lines at once (a statement's): a refusal names its line by index.</summary>
+public static class Batch
+{
+    /// <summary>The metadata key of the refused line's index, the same as the Core's (<see cref="IFlows.RecordManyIndex"/>).</summary>
+    public const string Index = IFlows.RecordManyIndex;
+
+    /// <summary>A rule's refusal, with the index of its line; a typed failure (not found, forbidden) is no line's and stays as it is.</summary>
+    public static Failure At(Failure failure, int index)
+    {
+        if (failure.GetType() != typeof(Failure))
+            return failure;
+        var metadata = failure.Metadata is { } m ? new Dictionary<string, object?>(m) : [];
+        metadata[Index] = index;
+        return new Failure(failure.Code, failure.Message, metadata);
+    }
+
+    /// <summary>The index a refusal names, if any.</summary>
+    public static int? IndexOf(Failure failure)
+        => failure.Metadata is { } m && m.TryGetValue(Index, out var named) && named is int index ? index : null;
 }
 
 [RequestHandler<CorrectFlowCommand, Guid>]

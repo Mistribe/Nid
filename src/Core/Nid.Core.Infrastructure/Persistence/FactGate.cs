@@ -55,10 +55,17 @@ public sealed class FactGate(CoreDbContext db, IAccessPolicy policy, IActorAcces
 
     /// <summary>The fact's own currency and date, once the item is known.</summary>
     public async Task<Result> CheckAsync(FactWriter writer, Money amount, LocalDate date, CancellationToken ct)
+        => Check(writer, amount, date, await TodayAsync(ct));
+
+    /// <summary>The household's today, read once for a write of several facts.</summary>
+    public async Task<LocalDate> TodayAsync(CancellationToken ct) => await calendar.TodayAsync(ct);
+
+    /// <summary><see cref="CheckAsync"/> against a <paramref name="today"/> already read.</summary>
+    public static Result Check(FactWriter writer, Money amount, LocalDate date, LocalDate today)
     {
         if (amount.Currency != writer.Currency)
             return Fail(CoreFactCodes.CurrencyMismatch, $"This item's facts are in {writer.Currency}.");
-        if (date > await calendar.TodayAsync(ct))
+        if (date > today)
             return Fail(CoreFactCodes.DateInFuture, "A value or a flow is not dated after today.");
         return Result.Success();
     }

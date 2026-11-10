@@ -163,6 +163,59 @@ public class FlowsTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Record_many_saves_the_flows_in_their_order()
+    {
+        await using var w = await FactWorld.NewAsync(postgres);
+        var item = await w.ItemAsync(w.Alice);
+
+        var saved = (await w.Flows.RecordManyAsync(item,
+            [Flow(item, FlowKind.Opening, 1_000m), Flow(item, FlowKind.Contribution, 30m, externalRef: "R-1"), Flow(item, FlowKind.Contribution, 20m)],
+            TestContext.Current.CancellationToken)).Ok();
+
+        var listed = (await w.Flows.ListAsync(item, UpTo(V), null, TestContext.Current.CancellationToken)).Ok();
+        Assert.Equal(saved.Select(f => f.Id), listed.Select(f => f.Id)); // same day: the order given
+        Assert.Equal([1_000m, 30m, 20m], listed.Select(f => f.Amount.Amount));
+        Assert.Equal("R-1", listed[1].ExternalRef);
+        Assert.Empty((await w.Flows.RecordManyAsync(item, [], TestContext.Current.CancellationToken)).Ok());
+    }
+
+    [Fact]
+    public async Task Record_many_refuses_them_all_at_the_flow_a_rule_refuses()
+    {
+        await using var w = await FactWorld.NewAsync(postgres);
+        var item = await w.ItemAsync(w.Alice);
+        (await w.Flows.RecordAsync(Flow(item, FlowKind.Opening, 1_000m), TestContext.Current.CancellationToken)).Ok();
+        (await w.Flows.RecordAsync(Flow(item, FlowKind.Contribution, 10m, externalRef: "R-1"), TestContext.Current.CancellationToken)).Ok();
+
+        foreach (var (flows, code, index) in new (NewFlow[] Flows, string Code, int Index)[]
+                 {
+                     ([Flow(item, FlowKind.Contribution, 5m), Flow(item, FlowKind.Contribution, 6m, externalRef: "R-1")], CoreFactCodes.ExternalRefTaken, 1),
+                     ([Flow(item, FlowKind.Contribution, 5m, externalRef: "R-2"), Flow(item, FlowKind.Income, 6m, externalRef: "R-2")], CoreFactCodes.ExternalRefTaken, 1),
+                     ([Flow(item, FlowKind.Opening, 5m)], CoreFactCodes.OpeningExists, 0),
+                     ([Flow(item, FlowKind.Contribution, 5m), Flow(item, FlowKind.Contribution, 6m, on: FactWorld.Today.PlusDays(1))], CoreFactCodes.DateInFuture, 1),
+                     ([Flow(item, FlowKind.Contribution, 5m), new NewFlow(item, V, FlowKind.Contribution, FactWorld.Usd(6m), null, null, null)], CoreFactCodes.CurrencyMismatch, 1),
+                 })
+        {
+            Assert.True((await w.Flows.RecordManyAsync(item, flows, TestContext.Current.CancellationToken)).TryGetFailure(out var failure));
+            Assert.Equal((code, index), (failure!.Code, (int)failure.Metadata![IFlows.RecordManyIndex]!));
+        }
+
+        // Nothing of a refused write stays: the opening and the first contribution only.
+        Assert.Equal(2, (await w.Flows.ListAsync(item, UpTo(FactWorld.Today), null, TestContext.Current.CancellationToken)).Ok().Count);
+    }
+
+    [Fact]
+    public async Task Record_many_needs_write_access_to_the_item()
+    {
+        await using var w = await FactWorld.NewAsync(postgres);
+        var item = await w.ItemAsync(w.Alice, Visibility.Private);
+        w.Act(w.Bob);
+
+        Assert.True((await w.Flows.RecordManyAsync(item, [Flow(item, FlowKind.Contribution, 1m)], TestContext.Current.CancellationToken)).TryGetFailure(out var failure));
+        Assert.IsType<NotFoundFailure>(failure);
+    }
+
+    [Fact]
     public async Task Another_adult_cannot_read_a_private_item_s_flows()
     {
         await using var w = await FactWorld.NewAsync(postgres);
