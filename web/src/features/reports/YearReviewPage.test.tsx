@@ -148,7 +148,7 @@ describe('YearReviewPage', () => {
     await renderApp('/reports/year?year=2025');
 
     const section = await screen.findByRole('region', { name: 'Revenus et marge' });
-    for (const text of ['2024 : +48 000,00 €', '2024 : +29 000,00 €', '2024 : +19 000,00 €']) expect(within(section).getByText(text)).toBeInTheDocument();
+    for (const text of ['2024 : 48 000,00 €', '2024 : 29 000,00 €', '2024 : +19 000,00 €']) expect(within(section).getByText(text)).toBeInTheDocument();
     const sources = within(within(section).getByRole('table', { name: 'Revenus par source' })).getAllByRole('row').slice(1);
     expect(sources[0]).toHaveTextContent('Salaire Alice');
     expect(sources[1]).toHaveTextContent('Exceptionnels');
@@ -167,7 +167,9 @@ describe('YearReviewPage', () => {
     await renderApp('/reports/year?year=2025');
 
     const section = await screen.findByRole('region', { name: 'Revenus et marge' });
-    expect(within(section).getAllByText('Inconnu').length).toBeGreaterThanOrEqual(2);
+    const margin = within(section).getByText('Marge avant dépenses courantes').closest('div')!;
+    expect(within(margin).getByText('Inconnu')).toBeInTheDocument();
+    expect(margin).not.toHaveTextContent('2024');
   });
 
   it('shows no income section without income', async () => {

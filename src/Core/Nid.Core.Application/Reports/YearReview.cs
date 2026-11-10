@@ -121,7 +121,8 @@ public static class YearReviewMath
     /// <summary>
     /// Each month's cash due by source, at the rate of its date (<paramref name="months"/>: one per month, read on that date), and the
     /// year's tax (in euros, as the estimate reads it) for as many twelfths as there are months, at the last month's rate; a refund
-    /// commits nothing. A source counting no item is left out; one with a month still estimated is estimated, as the tax always is.
+    /// commits nothing. A source with no cash due and nothing estimated is left out (a loan not yet started); one with a month still
+    /// estimated is estimated, as the tax always is.
     /// </summary>
     public static EngagementsSum Engagements(
         IReadOnlyList<(LocalDate On, IReadOnlyList<CommitmentsPart> Parts)> months, decimal yearTax, Currency reference, RateTable rates)
@@ -135,7 +136,7 @@ public static class YearReviewMath
         }
 
         var sources = months.SelectMany(m => m.Parts.Select(p => (m.On, Part: p))).GroupBy(x => x.Part.Source)
-            .Where(g => g.Sum(x => x.Part.Count) > 0)
+            .Where(g => g.Any(x => x.Part.Estimated || x.Part.Cash.Values.Any(v => v != 0m)))
             .Select(g => (Source: g.Key, Amount: g.Aggregate((decimal?)0m, (total, x) => Convert(x.Part.Cash, x.On) is { } a ? total + a : null),
                 Estimated: g.Any(x => x.Part.Estimated)))
             .ToList();

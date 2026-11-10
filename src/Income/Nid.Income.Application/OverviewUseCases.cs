@@ -85,16 +85,13 @@ public sealed class GetIncomeOverviewHandler(
 
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
-    /// <summary>How far back <see cref="GetIncomeOverviewQuery.Year"/> reaches, as the annual review's years.</summary>
-    public const int MaxYearsBack = 50;
-
     public async ValueTask<Result<IncomeOverview>> HandleAsync(GetIncomeOverviewQuery query, CancellationToken ct = default)
     {
         var reader = actor.Current!.PersonId!.Value;
         var today = await calendar.TodayAsync(ct);
-        if (query.Year is { } y && (query.Period != OverviewPeriod.Year || y > today.Year || y < today.Year - MaxYearsBack))
+        if (query.Year is { } y && (query.Period != OverviewPeriod.Year || y > today.Year || y < today.Year - IIncomeReview.MaxYears))
             return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.InvalidYear,
-                $"A year goes with the period year, between {today.Year - MaxYearsBack} and {today.Year}.", null));
+                $"A year goes with the period year, between {today.Year - IIncomeReview.MaxYears} and {today.Year}.", null));
         var window = OverviewMath.Window(query.Period, query.Year is { } year ? new LocalDate(year, 1, 1) : today);
         // Wide enough for every month's previous year and the previous window's total.
         var loaded = await overviewEntries.ReadAsync(reader, query.Scope, query.Person is { } p ? new PersonId(p) : null, query.Kind, query.Source,

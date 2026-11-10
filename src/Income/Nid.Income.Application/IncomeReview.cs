@@ -16,25 +16,23 @@ public sealed class IncomeReview(IncomeOverviewEntries overviewEntries, IHouseho
         if (loaded.TryGetFailure(out var failure)) return Result.Failure<IncomeReviewPart>(failure!);
         loaded.TryGetValue(out var read);
         var rows = OverviewMath.BySource(read!.Entries.Select(e => e.Input).ToList(), from, end);
+        // The total as the overview counts it; each row to the cent, as the engagements: the rows may miss the total by a cent.
         decimal? total = rows.Any(r => r.Amount is null) ? null : rows.Sum(r => r.Amount!.Value);
+        static decimal? Cents(decimal? amount) => amount is { } a ? Math.Round(a, 2, MidpointRounding.AwayFromZero) : null;
         // Only the dues of the period: the entries also convert today's monthly amounts, which the review does not show.
         var missing = read.Entries
             .Where(e => e.Input.Recurring.Concat(e.Input.OneOffs).Any(d => d.On >= from && d.On <= end && d.Amount is null))
             .Select(e => e.Currency).Distinct().Order(StringComparer.Ordinal).ToList();
         return Result.Success(new IncomeReviewPart(total,
             rows.Select(r => r.Item is { } id
-                ? new IncomeReviewSource(id, id.Value.ToString(), r.Name, r.Kind, r.Amount)
-                : new IncomeReviewSource(null, r.Kind, null, null, r.Amount)).ToList(),
+                ? new IncomeReviewSource(id, id.Value.ToString(), r.Name, r.Kind, Cents(r.Amount))
+                : new IncomeReviewSource(null, r.Kind, null, null, Cents(r.Amount))).ToList(),
             missing));
     }
 
     public async Task<LocalDate?> FirstDueAsync(PersonId reader, VisibilityScope scope, CancellationToken ct)
     {
         var today = await calendar.TodayAsync(ct);
-        var loaded = await overviewEntries.ReadAsync(
-            reader, scope, null, null, null, new LocalDate(today.Year - IIncomeReview.MaxYears, 1, 1), today, today, ct);
-        // Unreadable entries offer no year: the review of any year would fail on them anyway.
-        if (!loaded.TryGetValue(out var read)) return null;
-        return read!.Entries.SelectMany(e => e.Input.Recurring.Concat(e.Input.OneOffs)).Select(d => (LocalDate?)d.On).Min();
+        return await overviewEntries.FirstDueAsync(reader, scope, new LocalDate(today.Year - IIncomeReview.MaxYears, 1, 1), today, ct);
     }
 }

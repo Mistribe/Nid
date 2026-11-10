@@ -308,6 +308,8 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         await SubscriptionAsync(app, app.AdultA, "Presse", Visibility.Shared);
         var hidden = await SalaryAsync(app, app.AdultB, "Salaire secret de B", "private", amount: "5000");
         var secret = await SubscriptionAsync(app, app.AdultB, "Abonnement secret de B", Visibility.Private, "99");
+        var loan = await NewAsync(app, Golden(app, "Prêt secret de B", "private", app.AdultB), app.AdultB);
+        var care = await ChildcareAsync(app, app.AdultB, "Garde secrète de B", "private");
 
         foreach (var (year, income, subscriptions) in new[] { ("2024", "24000.00", "360.00"), ("2025", "20000.00", "300.00") })
         {
@@ -316,9 +318,57 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
             Assert.Equal([salary], section.GetProperty("sources").EnumerateArray().Select(s => s.GetProperty("id").GetGuid()));
             Assert.Equal((income, subscriptions), (A(section, "income"), Engagements(section)[CommitmentSources.Subscriptions]));
-            foreach (var leak in new[] { hidden.ToString(), secret.Value.ToString(), "Salaire secret de B", "Abonnement secret de B" })
+            Assert.Equal([CommitmentSources.Subscriptions], Engagements(section).Keys.Where(k => k != CommitmentSources.Tax));
+            foreach (var leak in new[] { hidden.ToString(), secret.Value.ToString(), loan.ToString(), care.ToString(),
+                         "Salaire secret de B", "Abonnement secret de B", "Prêt secret de B", "Garde secrète de B" })
                 Assert.DoesNotContain(leak, body.ToString());
         }
+    }
+
+    /// <summary>A childcare arrangement of <paramref name="owner"/> for the dependent from 2024-01-01, Monday to Friday 08:00–17:00.</summary>
+    private static async Task<Guid> ChildcareAsync(NidApp app, PersonId owner, string name, string visibility)
+        => await CreatedAsync(await app.RawAsync(owner, HttpMethod.Post, "/api/v1/childcare", new
+        {
+            name, childId = app.Dependent.Value,
+            carer = new { name = "Nounou", pajemploi = "P1", approval = (string?)null },
+            terms = new
+            {
+                from = "2024-01-01", netHourlyRate = "5.00", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "4.00", lunchPrice = "3.00",
+                weekTypes = new[] { new { name = "Semaine", weeks = 46, schedule = Enumerable.Range(1, 5).Select(d => new { day = d, arrival = "08:00", departure = "17:00", lunch = true }).ToArray() } },
+            },
+            gaps = Array.Empty<object>(), visibility,
+            owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
+        }));
+
+    [Fact]
+    public async Task A_loan_not_yet_started_is_no_engagement()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SalaryAsync(app, app.AdultA, startsOn: "2023-01-01");
+        await NewAsync(app, Short(app)); // from 2025-01-15
+
+        var past = await IncomeAsync(app, "2024");
+
+        Assert.DoesNotContain(CommitmentSources.Loans, Engagements(past).Keys);
+        Assert.DoesNotContain(CommitmentSources.Loans, Engagements(await IncomeAsync(app, "2023")).Keys);
+        Assert.Equal(("0.00", "24000.00"), (A(past, "engagements"), A(past, "previousMargin")));
+        Assert.Equal("10000.00", Engagements(await IncomeAsync(app, "2025"))[CommitmentSources.Loans]);
+    }
+
+    [Fact]
+    public async Task A_foreign_source_without_rates_opens_its_years()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new
+        {
+            displayName = "Salary", kind = "salary", currency = "USD", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            phases = new[] { new { label = "Salary", startsOn = "2023-06-01", endsOn = (string?)null, netAmount = new { amount = "2000", currency = "USD" }, every = new { count = 1, unit = "month" } } },
+        }));
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2025&scope=household"));
+
+        Assert.Equal([2023, 2024, 2025], body.GetProperty("years").EnumerateArray().Select(y => y.GetInt32()));
     }
 
     [Fact]

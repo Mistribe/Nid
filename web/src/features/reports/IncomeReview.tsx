@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { EngagementReviewSource, IncomeReview as Review, IncomeReviewSource } from '@/api/reports';
 import { Direction } from '@/components/Direction';
-import { Money, type MoneyValue } from '@/components/Money';
+import { formatMoney, Money, type MoneyValue } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
@@ -13,13 +13,17 @@ import '@/locales/income';
 import '@/locales/reports';
 
 const COMMITMENTS = ['subscriptions', 'loans', 'property_costs', 'tax', 'childcare'] as const;
+/** The postings whose label already says « estimé »: no second mark. */
+const ALREADY_ESTIMATED = new Set(['tax']);
 
 /** The year's income, engagements and margin from the server's figures, beside the year before, then where each comes from. */
 export function IncomeReview({ year, review }: { year: number; review: Review }) {
   const { t } = useTranslation();
   const unknown = <span className="text-muted-foreground">{t('reports.income.unknown')}</span>;
   const money = (value?: MoneyValue | null): ReactNode => (value ? <Money value={value} tabular /> : unknown);
-  const before = (value?: MoneyValue | null) => (value ? t('reports.previous', { year: year - 1, amount: signed(value) }) : null);
+  // Only the margin can go either way: the year before's income and engagements read plainly.
+  const before = (value?: MoneyValue | null, format: (v: MoneyValue) => string = formatMoney) =>
+    (value ? t('reports.previous', { year: year - 1, amount: format(value) }) : null);
   const source = (r: IncomeReviewSource) => (r.key === 'one_off' ? t('income.overview.one_off')
     : r.name ?? (r.kind === 'rent' ? t('income.overview.kind_rent') : r.kind ? kindText(t, r.kind) : r.key));
   const posting = (r: EngagementReviewSource): string => {
@@ -29,8 +33,7 @@ export function IncomeReview({ year, review }: { year: number; review: Review })
   const engagement = (r: EngagementReviewSource) => (
     <span className="inline-flex flex-wrap items-baseline gap-x-2">
       {posting(r)}
-      {/* Tax's label already says it is an estimate. */}
-      {r.estimated && r.source !== 'tax' ? <> <span className="text-xs text-muted-foreground">{t('reports.income.estimated')}</span></> : null}
+      {r.estimated && !ALREADY_ESTIMATED.has(r.source) ? <> <span className="text-xs text-muted-foreground">{t('reports.income.estimated')}</span></> : null}
     </span>
   );
   return (
@@ -38,7 +41,7 @@ export function IncomeReview({ year, review }: { year: number; review: Review })
       <StatLine items={[
         { label: t('reports.income.income'), value: money(review.income), hint: before(review.previousIncome) },
         { label: t('reports.income.engagements'), value: money(review.engagements), hint: before(review.previousEngagements) },
-        { label: t('reports.income.margin'), value: review.margin ? <Direction amount={review.margin} /> : unknown, hint: before(review.previousMargin) },
+        { label: t('reports.income.margin'), value: review.margin ? <Direction amount={review.margin} /> : unknown, hint: before(review.previousMargin, signed) },
       ]} />
       <SortableTable<IncomeReviewSource> caption={t('reports.income.sources')} rows={review.sources} rowKey={(r) => r.key}
         columns={[

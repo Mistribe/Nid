@@ -158,6 +158,11 @@ public class YearReviewMathTests
         // Nothing earned nor committed is no section.
         var none = YearReviewMath.Engagements(Months(10, _ => []), 0m, Currency.Eur, RateTable.Empty(End, 7));
         Assert.Null(YearReviewMath.Income(new IncomeReviewPart(0m, [], []), none, null, null, Currency.Eur));
+        // A loan counted before its first payment commits nothing: no row, no section.
+        var notYet = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(0m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
+        Assert.Empty(notYet.Sources);
+        Assert.Null(YearReviewMath.Income(new IncomeReviewPart(0m, [], []), notYet, null, null, Currency.Eur));
+        Assert.Null(YearReviewMath.Income(Earned(24_000m), engagements, new IncomeReviewPart(0m, [], []), notYet, Currency.Eur)!.PreviousEngagements);
     }
 
     [Fact]

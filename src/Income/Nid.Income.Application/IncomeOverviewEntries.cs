@@ -98,6 +98,27 @@ public sealed class IncomeOverviewEntries(
         return Result.Success(new OverviewEntries(reference, entries, kinds.ToList(), missing.ToList()));
     }
 
+    /// <summary>
+    /// The earliest due in [<paramref name="from"/>, <paramref name="today"/>] of the visible sources, archived ones included: a phase's
+    /// first occurrence, a one-off or a rent. Dates only: no rate is read, so a source in a currency without rates still has its date.
+    /// </summary>
+    internal async Task<LocalDate?> FirstDueAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate today, CancellationToken ct)
+    {
+        var until = today.PlusDays(1);
+        var span = DateRange.Create(from, until).TryGetValue(out var r) ? r : throw new InvalidOperationException("The window always ends after it starts.");
+        var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, includeArchived: true, ct)).ToList(), ct);
+        var accesses = await items.FindManyAsync(found.Select(s => s.ItemId).ToList(), ct);
+        var ids = found.Select(s => s.ItemId).Where(accesses.ContainsKey).ToList();
+        var dates = (await phases.ForSourcesAsync(ids, ct))
+            .Select(p => IncomeMath.Occurrences(p, from, until).Select(o => (LocalDate?)o.On).FirstOrDefault()).ToList();
+        // Unreadable entries offer no year: the review of any year would fail on them anyway.
+        if (!(await flows.ListManyAsync(ids, span, new HashSet<FlowKind> { FlowKind.Income }, ct)).TryGetValue(out var byItem)
+            || !(await rents.RentsAsync(reader, scope, span, [], today, ct)).TryGetValue(out var properties))
+            return null;
+        return dates.Concat(byItem!.Values.SelectMany(f => f).Where(f => f.Category == IncomeWire.OneOffCategory).Select(f => (LocalDate?)f.OccurredOn))
+            .Concat(properties!.Select(p => p.Dues.Count == 0 ? null : (LocalDate?)p.Dues[0].On)).Min();
+    }
+
     /// <summary>The person's share of an item she owns (spec §4), 1 without a person, null when she does not own it.</summary>
     private static decimal? Weight(PersonId? person, IEnumerable<(PersonId Person, int ShareBp)> owners)
         => person is not { } p ? 1m : owners.Where(o => o.Person == p).Select(o => (decimal?)(o.ShareBp / 10_000m)).FirstOrDefault();
