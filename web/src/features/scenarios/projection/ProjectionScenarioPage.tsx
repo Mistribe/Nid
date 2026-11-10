@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } fr
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
+import { PERSONS } from '@/api/persons';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { ConfirmFromMenu } from '@/components/ConfirmAction';
@@ -17,6 +18,7 @@ import { PageTrail, type Crumb } from '@/components/page/trail';
 import { RowMenu, shownOr } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
+import { RangesToggle } from '@/features/dashboard/ProjectionRanges';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +27,8 @@ import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { PROJECTION_SCENARIO, SCENARIO, SCENARIOS, type ProjectionScenario } from '../api';
 import type { ProjectionEvent } from './api';
 import { comma } from './AssumptionFields';
+import { Independence } from './Independence';
+import { ageText, useAdults } from './departures';
 import type { EventFieldError } from './EventDialog';
 import { EventList } from './EventList';
 import type { ScenarioDialog } from './ProjectionScenarioDialogs';
@@ -80,6 +84,7 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
   const readingId = useId();
   const [tab, setTab] = useDetailTab(TABS);
   const [real, setReal] = useState(true);
+  const [ranges, setRanges] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<ScenarioDialog | null>(null);
   const [refused, setRefused] = useState<Refused | null>(null);
@@ -161,6 +166,7 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
             { label: t(real ? 'scenarios.projection.detail.at_horizon_real' : 'scenarios.projection.detail.at_horizon_nominal'), value: money(last ? (real ? last.real : last.nominal) : undefined) },
             { label: t(real ? 'scenarios.projection.result.gap_real' : 'scenarios.projection.result.gap_nominal'), value: money(real ? result.gapReal : result.gapNominal) },
             { label: t('scenarios.projection.detail.last_loan_end'), value: lastLoanEnd ? <LocalDate value={lastLoanEnd} /> : t('scenarios.dash') },
+            { label: t('scenarios.projection.independence.label'), value: <Independence projection={result.scenario} /> },
           ]} />
           <ProjectionWarnings warnings={result.scenario.warnings} />
           <p className="text-sm text-muted-foreground">{t('scenarios.projection.result.reminder')}</p>
@@ -187,9 +193,10 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
               <span id={readingId} className="sr-only">{t('dashboard.projection.reading')}</span>
               <Segmented aria-labelledby={readingId} value={real ? 'real' : 'nominal'} onValueChange={(v) => setReal(v === 'real')}
                 options={[{ value: 'real', label: t('dashboard.projection.real') }, { value: 'nominal', label: t('dashboard.projection.nominal') }]} />
+              <RangesToggle pressed={ranges} onPressedChange={setRanges} />
             </>
           ),
-          content: <Suspense fallback={tabFallback}><ProjectionScenarioTab comparison={result} real={real} /></Suspense>,
+          content: <Suspense fallback={tabFallback}><ProjectionScenarioTab id={scenario.id} comparison={result} real={real} ranges={ranges} /></Suspense>,
         },
         {
           id: 'events', label: t('scenarios.projection.detail.tab.events'),
@@ -209,6 +216,7 @@ function ScenarioView({ scenario, crumbs }: { scenario: ProjectionScenario; crum
           content: (
             <Section title={t('scenarios.projection.detail.assumptions')}>
               <Assumptions scenario={scenario} />
+              <Departures scenario={scenario} />
               {canWrite ? (
                 <Button ref={assumptionsRef} type="button" variant="outline" onClick={() => open('assumptions')}>{t('scenarios.projection.detail.edit_assumptions')}</Button>
               ) : null}
@@ -252,5 +260,35 @@ function Assumptions({ scenario }: { scenario: ProjectionScenario }) {
       {CLASSES.map((c) => row(t('scenarios.projection.form.class_rate', { name: className(c) }),
         o?.classRates?.[c] == null && h.classRates[c] === undefined ? t('scenarios.dash') : own(o?.classRates?.[c], h.classRates[c] ?? '', rate)))}
     </dl>
+  );
+}
+
+/** The departures the scenario moves: the adult, the age and the pension, as saved (edited with the assumptions). */
+function Departures({ scenario }: { scenario: ProjectionScenario }) {
+  const { t } = useTranslation();
+  const adults = useAdults();
+  const loading = useApi().$api.useQuery('get', PERSONS, {}).isPending;
+  const { base, document } = scenario.result;
+  const entries = (document.retirements ?? []).filter((r) => adults.some((a) => a.id === r.person));
+  if (loading) return null;
+  if (entries.length === 0) return <p className="text-sm text-muted-foreground">{t('scenarios.projection.departures.none')}</p>;
+  return (
+    <section aria-label={t('scenarios.projection.departures.title')} className="space-y-1">
+      <h3 className="font-medium">{t('scenarios.projection.departures.title')}</h3>
+      <ul className="space-y-0.5 text-sm">
+        {entries.map((r) => {
+          const adult = adults.find((a) => a.id === r.person)!;
+          return (
+          <li key={r.person}>
+            {t('scenarios.projection.departures.line', {
+              name: adult.displayName,
+              age: r.years == null ? t('scenarios.projection.departures.household_age') : ageText(t, r.years, r.months),
+            })}
+            {r.monthlyPension == null ? null : ` · ${t('scenarios.projection.departures.pension_line', { amount: formatCurrency(r.monthlyPension, base.currency) })}`}
+          </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

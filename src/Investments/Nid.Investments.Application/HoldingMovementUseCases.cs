@@ -26,6 +26,18 @@ public sealed record AddHoldingMovementCommand(ItemId ItemId, Guid Holding, Move
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>One movement of <see cref="AddHoldingMovementsCommand"/>: its holding and what it records.</summary>
+public sealed record HoldingMovementLine(Guid Holding, MovementDraft Movement);
+
+/// <summary>
+/// Several movements of one envelope's holdings as one write (a statement's): what <see cref="AddHoldingMovementCommand"/> checks,
+/// with the envelope read once; a refusal names its movement by index (<see cref="Batch.Index"/>).
+/// </summary>
+public sealed record AddHoldingMovementsCommand(ItemId ItemId, IReadOnlyList<HoldingMovementLine> Movements) : ICommand<IReadOnlyList<Guid>>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 /// <summary>Every leg of a switch in one write, sharing a generated <c>switch_ref</c>.</summary>
 public sealed record RecordSwitchCommand(ItemId ItemId, SwitchDraft Switch) : ICommand<SwitchRecorded>, IItemScoped
 {
@@ -137,6 +149,42 @@ public sealed class AddHoldingMovementHandler(
         await holdings.AddMovementsAsync([movement], ct);
         await transaction.CommitAsync(ct);
         return Result.Success(new MovementRecorded(movement.Id, facts.WarningsAfter([movement])));
+    }
+}
+
+[RequestHandler<AddHoldingMovementsCommand, IReadOnlyList<Guid>>]
+public sealed class AddHoldingMovementsHandler(
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    : IRequestHandler<AddHoldingMovementsCommand, IReadOnlyList<Guid>>
+{
+    public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(AddHoldingMovementsCommand command, CancellationToken ct = default)
+    {
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, command.ItemId, write: true, null, ct);
+        if (!loaded.TryGetValue(out var facts))
+            return Result.Failure<IReadOnlyList<Guid>>(loaded.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+        var today = await calendar.TodayAsync(ct);
+        var written = new List<HoldingMovement>(command.Movements.Count);
+        for (var i = 0; i < command.Movements.Count; i++)
+        {
+            var (holding, d) = command.Movements[i];
+            Failure? failure;
+            // As AddHoldingMovementCommand: another envelope's holding is absent (spec D3), a switch is recorded on /switches.
+            if (facts!.Holdings.All(h => h.Holding.Id != holding))
+                return Result.Failure<IReadOnlyList<Guid>>(new NotFoundFailure("holding", holding.ToString()));
+            if (d.Kind is MovementKinds.SwitchIn or MovementKinds.SwitchOut)
+                return Result.Failure<IReadOnlyList<Guid>>(Batch.At(new Failure(InvestmentsCodes.InvalidMovement,
+                    "A switch is recorded with both its legs, on /switches.", new Dictionary<string, object?> { ["field"] = "kind" }), i));
+            var checkedMovement = MovementRules.Check(command.ItemId, holding, d.Kind, d.OccurredOn, d.Units, d.UnitPrice, d.Amount, d.EnvelopeFlowId, null,
+                d.Label, d.ExternalRef, facts.Holdings, facts.Flows, facts.Currency, today);
+            if (!checkedMovement.TryGetValue(out var movement))
+                return Result.Failure<IReadOnlyList<Guid>>(Batch.At(checkedMovement.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException(), i));
+            written.Add(movement!);
+        }
+
+        await holdings.AddMovementsAsync(written, ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success<IReadOnlyList<Guid>>(written.Select(m => m.Id).ToList());
     }
 }
 

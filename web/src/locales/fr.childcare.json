@@ -210,6 +210,9 @@
     "snack": "Goûter",
     "meal_parts": "dont déjeuners {{lunch}} · goûters {{snack}}",
     "absence": "Motif de l'absence",
+    "short_day_reason": "Motif de la journée écourtée",
+    "short_day_hint": "Sans motif, ou avec un motif payé, le salaire ne change pas.",
+    "no_reason": "Aucun motif",
     "save_day": "Enregistrer le jour",
     "cancel": "Annuler",
     "costs": "Frais du mois",
@@ -277,7 +280,7 @@
       "childcare_absence_required": "Une absence un jour prévu a besoin d'un motif.",
       "childcare_summary_invalid": "Ces jours et ces heures ne vont pas ensemble : chaque jour doit tenir dans la journée.",
       "childcare_summary_too_many_days": "Le mois compte moins de jours ouvrés que cela.",
-      "childcare_absence_not_allowed": "Un motif d'absence va seulement sur un jour prévu où l'enfant est absent.",
+      "childcare_absence_not_allowed": "Un motif d'absence va seulement sur un jour prévu.",
       "childcare_day_replanned": "Le planning ou les semaines sans accueil ont changé ce jour depuis l'enregistrement."
     },
     "error": {

@@ -576,6 +576,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(64)
                         .HasColumnName("retirement_age");
 
+                    b.Property<int>("RetirementMonths")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("retirement_months");
+
                     b.Property<int>("SessionEpoch")
                         .HasColumnType("integer")
                         .HasColumnName("session_epoch");
@@ -602,6 +608,8 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_person_retirement_age", "retirement_age between 50 and 75");
 
+                            t.HasCheckConstraint("ck_person_retirement_months", "retirement_months between 0 and 11");
+
                             t.HasCheckConstraint("ck_person_subject", "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
                         });
                 });
@@ -611,6 +619,14 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<bool?>("CalendarAmounts")
+                        .HasColumnType("boolean")
+                        .HasColumnName("calendar_amounts");
+
+                    b.Property<string>("CalendarScope")
+                        .HasColumnType("text")
+                        .HasColumnName("calendar_scope");
 
                     b.Property<Instant>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -664,9 +680,11 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.ToTable("personal_access_token", "core", t =>
                         {
+                            t.HasCheckConstraint("ck_personal_access_token_calendar", "(scopes = '{calendar}'::text[]) = (calendar_scope is not null and calendar_amounts is not null) and (calendar_scope is null or calendar_scope in ('household','me'))");
+
                             t.HasCheckConstraint("ck_personal_access_token_expiry", "expires_at > created_at");
 
-                            t.HasCheckConstraint("ck_personal_access_token_scopes", "scopes = '{read}'::text[] or scopes = '{read,write}'::text[] or scopes = '{read,write,write:direct}'::text[]");
+                            t.HasCheckConstraint("ck_personal_access_token_scopes", "scopes = '{read}'::text[] or scopes = '{read,write}'::text[] or scopes = '{read,write,write:direct}'::text[] or scopes = '{calendar}'::text[]");
                         });
                 });
 
@@ -1195,12 +1213,6 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_proposal_person_for_person_id");
-
-                    b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
-                        .WithMany()
-                        .HasForeignKey("TargetItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_proposal_item_target_item_id");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ScenarioRow", b =>

@@ -41,6 +41,9 @@ public sealed record IncomeRowView(string Source, ItemId Id, string Name, string
 /// <summary>Spec C5: the next 12 months, the window's income of the sources still open today.</summary>
 public sealed record IncomeEstimateView(AmountView? Total, IReadOnlyList<IncomeKindView> ByKind);
 
+/// <summary>An envelope left out of the income, and why (<see cref="PassiveIncomeCodes"/>).</summary>
+public sealed record ExcludedEnvelopeView(ItemId EnvelopeId, string Name, string Code);
+
 /// <summary>
 /// Spec §3.2: the household's income of the 12 months to <c>To</c>. Each (row, month, kind) amount is converted alone at today's rate (C8);
 /// every total adds them, null when one is missing (then a finding names the currency).
@@ -108,8 +111,9 @@ internal static class PassiveIncomeMath
             }
             if (savings)
                 for (var i = 0; i < ends.Count; i++)
+                    // A window without a value at its start earns no interest: counted from 0, its whole first value would.
                     entries.Add((source, ends[i], PassiveIncomeKinds.Interest,
-                        EnvelopeMath.Period(f.Values, f.Flows, f.Currency, bounds[i], bounds[i + 1]).Performance?.Amount ?? 0m));
+                        EnvelopeMath.Period(f.Values, f.Flows, f.Currency, bounds[i], bounds[i + 1]) is { StartAsOf: not null, Performance: { } p } ? p.Amount : 0m));
         }
 
         var holdingKinds = holdings.ToDictionary(h => h.Id, h => h.Kind);

@@ -3,6 +3,7 @@ import { delay } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { openMore } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
 import { expectTrailBack } from '@/test/trail';
 import { server } from '@/test/server';
@@ -260,5 +261,48 @@ describe('GoalDetailPage', () => {
     expect(stat('Date prévue')).toHaveTextContent('Non disponible');
     expect(screen.getByText('Privé')).toBeInTheDocument();
     expect(screen.getByText('Clôturé')).toBeInTheDocument();
+  });
+});
+
+const preview = { name: 'Voyage', version: 3, imported: false, removes: [], blockers: [] };
+const serveDeletion = () => server.use(http.get('*/api/v1/goals/:id/deletion', () => HttpResponse.json(preview)));
+
+describe('GoalDetailPage deletion', () => {
+  beforeAll(async () => { await import('./GoalDetailPage'); await import('@/components/DeleteItemFlow'); }, 30_000);
+
+  it('Supprimer… is last in the menu and opens the dialog', async () => {
+    serve(detail());
+    serveDeletion();
+    const { user } = await renderApp(`/goals/${GOAL}`);
+    await screen.findByRole('heading', { name: 'Voyage', level: 1 });
+    await openMore(user);
+    const items = screen.getAllByRole('menuitem');
+    expect(items.at(-1)).toHaveTextContent('Supprimer…');
+    await user.click(items.at(-1)!);
+    expect(await screen.findByRole('dialog', { name: 'Supprimer Voyage' })).toBeInTheDocument();
+  });
+
+  it('deleting navigates to the list', async () => {
+    serve(detail({}, { closed: true }));
+    serveDeletion();
+    let version: string | null = null;
+    server.use(http.delete('*/api/v1/goals/:id', ({ request }) => { version = new URL(request.url).searchParams.get('version'); return new HttpResponse(null, { status: 204 }); }));
+    const { user, router } = await renderApp(`/goals/${GOAL}`);
+    await screen.findByRole('heading', { name: 'Voyage', level: 1 });
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer Voyage' });
+    await user.type(await within(dialog).findByLabelText(/Tapez/), 'Voyage');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/goals'));
+    expect(version).toBe('3');
+  });
+
+  it('a reader sees no Supprimer', async () => {
+    serve(detail({}, { canWrite: false }));
+    await renderApp(`/goals/${GOAL}`);
+    await screen.findByRole('heading', { name: 'Voyage', level: 1 });
+    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Supprimer…')).not.toBeInTheDocument();
   });
 });

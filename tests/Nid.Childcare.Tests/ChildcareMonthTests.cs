@@ -19,9 +19,8 @@ public class ChildcareMonthWeekTypeTests
     {
         var terms = HouseholdTerms with { Start = D(2026, 9, 16) };
         var figures = Month(new YearMonth(2026, 9), Household(terms.Start), terms);
-        // From the 16th: Thu 17, Fri 18, Mon 21, Tue 22, Thu 24, Fri 25, Mon 28, Tue 29 = 8 of the month's 17 template days.
-        Assert.Equal(Mensualisation.Round(698.20m * 8m / 17m), figures.BasePay);
-        Assert.Equal(328.56m, figures.BasePay);
+        // The template hours before the 16th are deducted from the monthly pay, as an absence's would be.
+        Assert.Equal(328.25m, figures.BasePay);
     }
 
     [Fact]
@@ -62,6 +61,16 @@ public class ChildcareMonthTests
         Assert.Equal(436.58m, figures.TaxBase);
     }
 
+    /// <summary>Half an hour extra: paid as worked, declared as a whole hour, taken back out of the 145.67 normal hours.</summary>
+    [Fact]
+    public void A_started_extra_hour_is_declared_whole_and_lowers_the_normal_hours()
+    {
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), days => [.. days.Select(d => d.Date.Day == 3 ? d with { Departure = d.Departure!.Value.PlusMinutes(30) } : d)]));
+        Assert.Equal(628.52m, figures.Declaration.NetPay); // 626.37 + 0.5 × 4.30
+        Assert.Equal(1m, figures.Declaration.ComplementaryHours);
+        Assert.Equal(145, figures.Declaration.NormalHours); // (628.52 − 4.30) ÷ 4.30 = 145.17
+    }
+
     [Fact]
     public void November_with_two_carer_absences()
     {
@@ -69,7 +78,7 @@ public class ChildcareMonthTests
             days => AbsenceDeductionTests.Absent(days, (2, AbsenceReason.CarerAbsent), (3, AbsenceReason.CarerAbsent))));
         Assert.Equal(552.68m, figures.Declaration.NetPay);
         Assert.Equal(129, figures.Declaration.NormalHours); // 552.68 / 4.30
-        Assert.Equal(16, figures.Declaration.ActivityDays);
+        Assert.Equal(14, figures.Declaration.ActivityDays); // 16 − 16 × 2 ÷ 17
         Assert.Equal(61.95m, figures.Declaration.Upkeep);
         Assert.Equal(48.00m, figures.Declaration.Meals);
     }
@@ -125,9 +134,14 @@ public class ChildcareMonthValidationTests
             d => d.Date.Day == 22 ? d with { Absence = AbsenceReason.CarerAbsent } : d)));
 
     [Fact]
-    public void Absence_on_a_present_day_is_refused()
-        => Assert.Throws<ArgumentException>(() => ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps,
-            d => d.Date.Day == 5 ? d with { Absence = AbsenceReason.ChildSick } : d)));
+    public void An_unpaid_reason_on_a_shortened_day_lowers_the_pay_and_keeps_the_activity_days()
+    {
+        var whole = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps, d => d));
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps,
+            d => d.Date.Day == 5 ? d with { Departure = new LocalTime(12, 45), Absence = AbsenceReason.CarerAbsent } : d));
+        Assert.Equal(18.42m, figures.Deduction);
+        Assert.Equal(whole.Declaration.ActivityDays, figures.Declaration.ActivityDays);
+    }
 
     [Fact]
     public void Planned_flag_must_match_the_template()
@@ -148,6 +162,16 @@ public class ChildcareMonthValidationTests
         Assert.Equal(9, figures.Declaration.ActivityDays);
         Assert.Equal(9 * 4.13m, figures.Declaration.Upkeep);
         Assert.Equal(77, figures.Declaration.NormalHours); // 331.61 / 4.30
+    }
+
+    /// <summary>A Wednesday the plan leaves free but the child came: an activity day on top of the contract's 9.</summary>
+    [Fact]
+    public void A_day_worked_outside_the_plan_is_an_activity_day()
+    {
+        var terms = Terms with { Start = D(2026, 11, 16) };
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps,
+            d => d.Date == D(2026, 11, 18) ? d with { Present = true, Arrival = new LocalTime(8, 0), Departure = new LocalTime(12, 0) } : d, terms: terms));
+        Assert.Equal(10, figures.Declaration.ActivityDays);
     }
 
     [Fact]

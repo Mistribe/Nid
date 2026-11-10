@@ -72,6 +72,7 @@ public sealed class PersonRow
     public string Preferences { get; set; } = "{}";
     public LocalDate? BirthDate { get; set; }
     public int RetirementAge { get; set; } = 64;
+    public int RetirementMonths { get; set; }
     public Instant CreatedAt { get; set; }
     public uint Version { get; set; }
 }
@@ -182,6 +183,10 @@ public sealed class PersonalAccessTokenRow
     public Instant ExpiresAt { get; set; }
     public Instant? LastUsedAt { get; set; }
     public Instant? RevokedAt { get; set; }
+    /// <summary>Issue #80: a calendar feed's scope (<c>household</c>, <c>me</c>); null on every other token.</summary>
+    public string? CalendarScope { get; set; }
+    /// <summary>Issue #80: whether a calendar feed shows the amounts; null on every other token.</summary>
+    public bool? CalendarAmounts { get; set; }
 }
 
 public sealed class ProposalRow

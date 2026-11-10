@@ -65,6 +65,16 @@
 - **Limitation de débit** : 60 requêtes/minute par jeton ; sur les échecs d'authentification, 20 en 10 minutes par IP (`429`).
 - Les jetons sont **masqués** dans les journaux ; un échec d'authentification journalise le préfixe seulement (`token_auth_failed`, fréquence limitée).
 
+### 1.6 Abonnement de calendrier (#80)
+
+Une application de calendrier ne sait pas envoyer d'en-tête : le secret est dans l'URL. Réglages › Calendrier crée, régénère ou supprime **un flux par personne**.
+
+- Une ligne de `personal_access_token` au preset `calendar` (portées `{calendar}`), avec ses options `calendar_scope` (`household`, `me`) et `calendar_amounts` (`ck_personal_access_token_calendar` : ces colonnes, et elles seules, sur un flux). Elle compte dans les 10 jetons actifs, figure dans « Mes jetons » avec sa dernière utilisation, se révoque de là comme les autres, et « Déconnecter partout » la révoque aussi. Validité : 365 jours depuis la création ou la dernière régénération ; la notification `token_expiring` la couvre.
+- Secret `nid_cal_<préfixe>_<secret>`, même format et même hachage que `nid_pat_` : l'authentification par `Bearer` ne lit que `nid_pat_` et `FindByPrefixAsync` ignore les flux, si bien que ce secret n'ouvre ni `/api` ni `/mcp`. Il n'est affiché qu'une fois, dans l'adresse rendue à la création ; régénérer révoque l'ancien dans la même transaction.
+- `GET /api/v1/calendar/<secret>.ics`, sans session : un secret inconnu, falsifié, révoqué ou expiré, ou une personne qui n'est plus un adulte actif, répond `404`. Sinon la lecture se fait comme cette personne, avec la seule portée `read`, par le même pipeline que toute lecture (garde de sortie comprise) : « À venir » sur 12 mois (modules, échéance du PER, calendrier fiscal) dans la portée du flux. Le Foyer ne montre que les éléments partagés, Moi y ajoute les siens : jamais les éléments privés de l'autre adulte.
+- iCalendar (RFC 5545) : un événement d'un jour par échéance, `UID` stable (type, élément, date, haché), le libellé de « À venir », un lien vers l'élément. **Pas de montant** sauf option : un calendrier abonné est souvent copié chez un tiers.
+- Le chemin n'est jamais journalisé : la ligne de début de requête d'ASP.NET est filtrée (niveau `Warning`), les traces OpenTelemetry excluent `/api/v1/calendar` (`url.path` porterait le secret). Réponse `Cache-Control: private, no-store`.
+
 ## 2. Configuration d'un client MCP
 
 Le client MCP envoie le jeton en en-tête `Authorization: Bearer …` vers `{PUBLIC_URL}/mcp`. Aucun flux OAuth ni enregistrement de client n'est nécessaire.

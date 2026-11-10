@@ -4,7 +4,8 @@
     "empty": "Rien de nouveau.",
     "read_all": "Tout marquer comme lu",
     "see_all": "Tout voir",
-    "arrived": "Arrivée le"
+    "arrived": "Arrivée le",
+    "critical": "Importante"
   },
   "notifications_page": {
     "title": "Notifications",
@@ -60,7 +61,7 @@
     "more": "Voir plus"
   },
   "settings_frame": {
-    "nav": { "label": "Réglages", "appearance": "Apparence", "notifications": "Notifications", "projection": "Projection", "persons": "Personnes", "banks": "Banques" }
+    "nav": { "label": "Réglages", "appearance": "Apparence", "notifications": "Notifications", "projection": "Projection", "persons": "Personnes", "calendar": "Calendrier", "banks": "Banques" }
   },
   "channel_errors": {
     "unreachable": "Le serveur d’envoi ne répond pas.",

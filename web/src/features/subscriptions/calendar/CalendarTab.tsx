@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import board from '@/locales/fr.subscriptions-board.json';
 import { cn } from '@/lib/utils';
 import { CHARGES } from '@/api/subscriptions';
-import { ChargeLink, DayMore, formatDate as format, type Line } from './charges';
+import { byDay, ChargeLink, DayList, DayMore, formatDate as format } from './charges';
 import { todayIso } from '@/lib/today';
 import { monthGrid, shiftMonth } from './monthGrid';
 import { Loading, StatLineSkeleton } from '@/components/page/skeletons';
@@ -78,8 +78,7 @@ function MonthCalendar({ scope }: { scope: 'household' | 'me' }) {
   const d = answer.data;
   if (!d) return <div className="space-y-4">{header}<Loading label={t('calendar.loading')}><StatLineSkeleton items={3} /><Skeleton className="h-96 w-full" /></Loading></div>;
 
-  const byDay = new Map<string, Line[]>();
-  for (const c of d.charges) byDay.set(c.date, [...(byDay.get(c.date) ?? []), c]);
+  const days = byDay(d.charges);
   const horizon = d.findings.some((f) => f.code === 'subscriptions.horizon_reached');
   const beyond = horizon && d.charges.length === 0; // with charges, the forecast stops within the month
 
@@ -97,7 +96,7 @@ function MonthCalendar({ scope }: { scope: 'household' | 'me' }) {
       <div role="group" aria-label={t('calendar.grid')} className="hidden overflow-hidden rounded-lg border md:grid md:grid-cols-7">
         {WEEKDAYS.map((w) => <div key={w} aria-hidden="true" className="px-2 py-1 text-xs text-muted-foreground">{w}</div>)}
         {monthGrid(month).map((cell) => {
-          const lines = byDay.get(cell.date) ?? [];
+          const lines = days.get(cell.date) ?? [];
           const shown = lines.length > SHOWN ? lines.slice(0, SHOWN - 1) : lines;
           const label = format(cell.date, { weekday: 'long', day: 'numeric', month: 'long' });
           return (
@@ -115,14 +114,7 @@ function MonthCalendar({ scope }: { scope: 'household' | 'me' }) {
         })}
       </div>
 
-      {byDay.size > 0 ? <ul aria-label={t('calendar.by_day')} className="space-y-4 md:hidden">
-        {[...byDay].map(([date, lines]) => (
-          <li key={date} className="space-y-1">
-            <h3 className="text-sm font-semibold">{format(date, { weekday: 'short', day: 'numeric', month: 'short' })}</h3>
-            {lines.map((c, i) => <ChargeLink key={`${c.itemId}/${i}`} c={c} />)}
-          </li>
-        ))}
-      </ul> : null}
+      {days.size > 0 ? <DayList lines={d.charges} label={t('calendar.by_day')} className="space-y-4 md:hidden" /> : null}
     </div>
   );
 }

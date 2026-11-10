@@ -21,6 +21,8 @@ const PAIRS: [foreground: string, background: string, minimum: number][] = [
   ['destructive', 'background', 4.5],
   ['status-warning-text', 'background', 4.5],
   ['status-warning-text', 'card', 4.5],
+  // The bell's badge while an important notification is unread.
+  ['status-warning-foreground', 'status-warning', 4.5],
   ['status-good-text', 'background', 4.5],
   ['status-good-text', 'card', 4.5],
   ['input', 'background', 3],
@@ -44,9 +46,10 @@ const COMPOSITE: [text: string, surface: string, opacity: string, tint?: [colour
   ['sidebar-foreground', 'glass', 'glass-opacity'],
   ['popover-foreground', 'popover', 'glass-regular-opacity'],
   ['muted-foreground', 'popover', 'glass-regular-opacity'],
-  // The rail's initials (Shell, PersonMenu: `bg-primary/15`) and the critical banner (`bg-status-warning/10` on material).
+  // The rail's initials (Shell, PersonMenu: `bg-primary/15`) and the bell's halo while an important notification is unread
+  // (`bg-status-warning/15` on the glass top bar).
   ['foreground', 'glass', 'glass-opacity', ['primary', 0.15]],
-  ['foreground', 'card', 'material-opacity', ['status-warning', 0.1]],
+  ['foreground', 'glass', 'glass-opacity', ['status-warning', 0.15]],
 ];
 
 // Composites in sRGB: a·top + (1 − a)·bottom per channel.
@@ -70,7 +73,7 @@ const THEMES_DIR = dirname(fileURLToPath(import.meta.url));
 
 // The fixed colours of globals.css (status text), under each theme's own.
 const globals = readFileSync(join(THEMES_DIR, '..', 'globals.css'), 'utf8');
-const fixed = { light: block(globals, /^:root\s*\{([^}]*)\}/m), dark: block(globals, /^\.dark\s*\{([^}]*)\}/m) };
+const fixed = { light: block(globals, /^:root\s*\{([^}]*)\}/m), dark: block(globals, /^\s*\.dark\s*\{([^}]*)\}/m) };
 
 function variables(id: string) {
   const css = readFileSync(join(THEMES_DIR, `${id}.css`), 'utf8');

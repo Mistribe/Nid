@@ -7,9 +7,11 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application;
 using Nid.Core.Application.Admin;
+using Nid.Core.Application.Calendar;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Projection;
+using Nid.Core.Application.Reports;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Domain.Scenarios;
 using Nid.Core.Contracts;
@@ -198,6 +200,11 @@ public static class RequestCatalogue
         new(typeof(SetItemSharingCommand), true, (d, item) => new SetItemSharingCommand(item, d.ShareLevelOf(item))),
         new(typeof(CreateTokenCommand), false, (_, _) => new CreateTokenCommand("bench-token", TokenPresets.Read, 30)),
         new(typeof(RevokeMyTokenCommand), false, (_, _) => new RevokeMyTokenCommand(Guid.NewGuid())),
+        // #80: the calendar feed; its read is the dashboard's « À venir », in the feed's scope.
+        new(typeof(GetMyCalendarQuery), false, (_, _) => new GetMyCalendarQuery()),
+        new(typeof(CreateCalendarFeedCommand), false, (_, _) => new CreateCalendarFeedCommand("me", false)),
+        new(typeof(UpdateCalendarFeedCommand), false, (_, _) => new UpdateCalendarFeedCommand("me", true)),
+        new(typeof(GetCalendarFeedQuery), false, (_, _) => new GetCalendarFeedQuery(new CalendarFeedOptions(VisibilityScope.Me, true))),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
         new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),
@@ -248,6 +255,8 @@ public static class RequestCatalogue
             },
             SecondItemAccess = AccessKind.Read,
         },
+        new(typeof(SubscriptionDeletionQuery), true, (_, item) => new SubscriptionDeletionQuery(item)),
+        new(typeof(DeleteSubscriptionCommand), true, (_, item) => new DeleteSubscriptionCommand(item, 1)),
         new(typeof(DeleteInsuranceCommand), true,
             (_, item) => new DeleteInsuranceCommand(item)),
         new(typeof(ChangePriceCommand), true,
@@ -362,6 +371,7 @@ public static class RequestCatalogue
         new(typeof(RecordValuationCommand), true, (_, item) => new RecordValuationCommand(item, new LocalDate(2025, 1, 1), Money.Create(1m, Currency.Eur).Ok(), null)),
         new(typeof(VoidValuationCommand), true, (_, item) => new VoidValuationCommand(item, Guid.NewGuid())),
         new(typeof(RecordFlowCommand), true, (_, item) => new RecordFlowCommand(item, new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
+        new(typeof(RecordFlowsCommand), true, (_, item) => new RecordFlowsCommand(item, [new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null)])),
         new(typeof(CorrectFlowCommand), true, (_, item) => new CorrectFlowCommand(item, Guid.NewGuid(), new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
         new(typeof(VoidFlowCommand), true, (_, item) => new VoidFlowCommand(item, Guid.NewGuid())),
 
@@ -375,9 +385,12 @@ public static class RequestCatalogue
         },
         new(typeof(CloseEnvelopeCommand), true, (_, item) => new CloseEnvelopeCommand(item, new LocalDate(2025, 1, 1), null)),
         new(typeof(ReopenEnvelopeCommand), true, (_, item) => new ReopenEnvelopeCommand(item)),
+        new(typeof(EnvelopeDeletionQuery), true, (_, item) => new EnvelopeDeletionQuery(item)),
+        new(typeof(DeleteEnvelopeCommand), true, (_, item) => new DeleteEnvelopeCommand(item, 1)),
         new(typeof(GetEnvelopeSeriesQuery), true, (_, item) => new GetEnvelopeSeriesQuery(item)),
         new(typeof(GetPeriodPerformanceQuery), true, (_, item) => new GetPeriodPerformanceQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
         new(typeof(AddHoldingCommand), true, (_, item) => new AddHoldingCommand(item, new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null))),
+        new(typeof(AddHoldingsCommand), true, (_, item) => new AddHoldingsCommand(item, [new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null)])),
         new(typeof(EditHoldingCommand), true, (_, item) => new EditHoldingCommand(item, Guid.NewGuid(), new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null), 1)),
         new(typeof(DeleteHoldingCommand), true, (_, item) => new DeleteHoldingCommand(item, Guid.NewGuid(), 1)),
         new(typeof(AcceptHoldingPriceCommand), true, (_, item) => new AcceptHoldingPriceCommand(item, Guid.NewGuid(), new LocalDate(2025, 1, 1))),
@@ -388,6 +401,8 @@ public static class RequestCatalogue
         new(typeof(ListHoldingsSnapshotsQuery), true, (_, item) => new ListHoldingsSnapshotsQuery(item)),
         new(typeof(AddHoldingMovementCommand), true, (_, item) => new AddHoldingMovementCommand(item, Guid.NewGuid(),
             new MovementDraft(new LocalDate(2025, 1, 1), "fee", null, null, Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
+        new(typeof(AddHoldingMovementsCommand), true, (_, item) => new AddHoldingMovementsCommand(item, [new HoldingMovementLine(Guid.NewGuid(),
+            new MovementDraft(new LocalDate(2025, 1, 1), "fee", null, null, Money.Create(1m, Currency.Eur).Ok(), null, null, null))])),
         new(typeof(RecordSwitchCommand), true, (_, item) => new RecordSwitchCommand(item, new SwitchDraft(new LocalDate(2025, 1, 1), false,
             [new SwitchLegDraft(Guid.NewGuid(), Money.Create(1m, Currency.Eur).Ok(), null, null)], [new SwitchLegDraft(Guid.NewGuid(), Money.Create(1m, Currency.Eur).Ok(), null, null)], null))),
         new(typeof(ListHoldingMovementsQuery), true, (_, item) => new ListHoldingMovementsQuery(item, Guid.NewGuid())),
@@ -410,11 +425,14 @@ public static class RequestCatalogue
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
         new(typeof(GetMonthChangesQuery), false, (_, _) => new GetMonthChangesQuery(VisibilityScope.Me)),
+        new(typeof(GetYearReviewQuery), false, (_, _) => new GetYearReviewQuery(null, VisibilityScope.Me)),
         new(typeof(GetPassiveIncomeQuery), false, (_, _) => new GetPassiveIncomeQuery(VisibilityScope.Me)),
         new(typeof(SaveAllocationTargetCommand), false, (_, _) => new SaveAllocationTargetCommand(new Dictionary<string, decimal>())),
         new(typeof(GetProjectionAssumptionsQuery), false, (_, _) => new GetProjectionAssumptionsQuery()),
         new(typeof(SaveProjectionAssumptionsCommand), false, (_, _) => new SaveProjectionAssumptionsCommand(ProjectionDefaults.Assumptions)),
         new(typeof(GetProjectionQuery), false, (_, _) => new GetProjectionQuery(VisibilityScope.Me, ProjectionHorizon.Default)),
+        new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Me)),
+        new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Household)),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
         new(typeof(GetTaxChangesQuery), false, (_, _) => new GetTaxChangesQuery(2026, VisibilityScope.Me)),
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),
@@ -503,6 +521,8 @@ public static class RequestCatalogue
         new(typeof(DeleteIncomeOneOffCommand), true, (_, item) => new DeleteIncomeOneOffCommand(item, Guid.NewGuid())),
         new(typeof(CloseIncomeSourceCommand), true, (_, item) => new CloseIncomeSourceCommand(item, new LocalDate(2020, 1, 1))),
         new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
+        new(typeof(IncomeSourceDeletionQuery), true, (_, item) => new IncomeSourceDeletionQuery(item)),
+        new(typeof(DeleteIncomeSourceCommand), true, (_, item) => new DeleteIncomeSourceCommand(item, 1)),
 
         new(typeof(ListGoalsQuery), false, (_, _) => new ListGoalsQuery(VisibilityScope.Me, true)),
         new(typeof(GetGoalQuery), true, (_, item) => new GetGoalQuery(item, VisibilityScope.Me)),
@@ -523,6 +543,9 @@ public static class RequestCatalogue
             SecondItemAccess = AccessKind.Read,
         },
         new(typeof(CloseGoalCommand), true, (_, item) => new CloseGoalCommand(item)),
+        new(typeof(GoalDeletionQuery), true, (_, item) => new GoalDeletionQuery(item)),
+        // Version 1 is never a row's xmin: an allowed writer meets a conflict, never an access refusal.
+        new(typeof(DeleteGoalCommand), true, (_, item) => new DeleteGoalCommand(item, 1)),
         new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
         new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
         new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),
@@ -539,6 +562,8 @@ public static class RequestCatalogue
         new(typeof(SetWeekOverrideCommand), true, (_, item) => new SetWeekOverrideCommand(item, new LocalDate(2025, 9, 1), 0)),
         new(typeof(CloseChildcareCommand), true, (_, item) => new CloseChildcareCommand(item, new LocalDate(2030, 1, 1))),
         new(typeof(ReopenChildcareCommand), true, (_, item) => new ReopenChildcareCommand(item)),
+        new(typeof(ChildcareDeletionQuery), true, (_, item) => new ChildcareDeletionQuery(item)),
+        new(typeof(DeleteChildcareCommand), true, (_, item) => new DeleteChildcareCommand(item, 1)),
         new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),
         new(typeof(GetStatementQuery), true, (_, item) => new GetStatementQuery(item, new YearMonth(2025, 9))),
         new(typeof(GetChildcareYearQuery), true, (_, item) => new GetChildcareYearQuery(item, 2025)),
@@ -639,6 +664,8 @@ public static class RequestCatalogue
         },
         // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
         new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
+        new(typeof(LoanDeletionQuery), true, (_, item) => new LoanDeletionQuery(item)),
+        new(typeof(DeleteLoanCommand), true, (_, item) => new DeleteLoanCommand(item, 1)),
 
         // A fee or repayment id is looked up in the route's loan only (StoredLoan's own lists), so an id alone can never
         // reach another item: no BuildNamingAnother, as the income phases.
@@ -673,6 +700,8 @@ public static class RequestCatalogue
             [new OwnerShare(d.App.AdultA, 10_000)], BenchProperty)),
         // Version 1 is never a row's xmin: an allowed writer meets realestate.property_conflict, never an access refusal.
         new(typeof(EditPropertyCommand), true, (_, item) => new EditPropertyCommand(item, null, new PropertyChange(Note: "bench"), 1)),
+        new(typeof(PropertyDeletionQuery), true, (_, item) => new PropertyDeletionQuery(item)),
+        new(typeof(DeletePropertyCommand), true, (_, item) => new DeletePropertyCommand(item, 1)),
 
         // A fact id is looked up by (id, item_id) in the Core (2A), as the envelopes': no BuildNamingAnother.
         new(typeof(RecordPropertyValuationCommand), true, (_, item) => new RecordPropertyValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),

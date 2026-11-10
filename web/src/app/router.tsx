@@ -33,7 +33,9 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
-export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0 };
+export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
+/** The annual review (#12): the year, absent for the current one (so it stays out of the URL). */
+export type YearReviewSearch = { year?: number };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
 /** The kind of scenario to create: a purchase without it (the page it always was), a projection or a sale (issue #416) with it. */
 export type NewScenarioSearch = { kind?: 'projection' | 'sale' };
@@ -58,9 +60,9 @@ export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'
 
 /**
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
- * default and stays out of the URL), person, kind and isolated source; anything invalid is dropped.
+ * default and stays out of the URL), person, kind and isolated source; the tab (issue #20); anything invalid is dropped.
  */
-export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string };
+export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string; tab?: string };
 
 /**
  * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue
@@ -136,8 +138,17 @@ const dashboardRoute = createRoute({
       ...(search.projection === '5y' || search.projection === '20y' || search.projection === '30y' ? { projection: search.projection } : {}),
       ...(typeof search.projection === 'string' && RETIRE.test(search.projection) ? { projection: search.projection as ProjectionHorizon } : {}),
       ...(search.real === 0 || search.real === '0' ? { real: 0 as const } : {}),
+      ...(search.ranges === 1 || search.ranges === '1' ? { ranges: 1 as const } : {}),
     }),
   component: DashboardPage,
+});
+
+const yearReviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reports/year',
+  beforeLoad: requireModule('core'),
+  validateSearch: (search: Record<string, unknown>): YearReviewSearch => (/^\d{4}$/.test(String(search.year)) ? { year: Number(search.year) } : {}),
+  component: lazyRouteComponent(() => import('@/features/reports/YearReviewPage'), 'YearReviewPage'),
 });
 
 const subscriptionsRoute = createRoute({
@@ -311,6 +322,7 @@ const incomeRoute = createRoute({
     ...(typeof search.person === 'string' && search.person ? { person: search.person } : {}),
     ...(typeof search.kind === 'string' && search.kind ? { kind: search.kind } : {}),
     ...(typeof search.source === 'string' && search.source ? { source: search.source } : {}),
+    ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourcesPage'), 'IncomeSourcesPage'),
 });
@@ -340,6 +352,13 @@ const taxAssessmentEditRoute = createRoute({
   path: '/tax/assessments/$id/edit',
   beforeLoad: requireModule('income'),
   component: lazyRouteComponent(() => import('@/features/tax/assessments/AssessmentForm'), 'EditAssessment'),
+});
+
+const retirementRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/retirement',
+  beforeLoad: requireModule('core'),
+  component: lazyRouteComponent(() => import('@/features/retirement/RetirementPage'), 'RetirementPage'),
 });
 
 // Property purchase scenarios spec §7 and projection spec §8: list, creation in steps (the kind in `?kind=`), detail by kind.
@@ -583,6 +602,7 @@ const banksSettingsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });
 const notificationSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/notifications', component: lazyRouteComponent(() => import('@/features/settings/NotificationSettingsPage'), 'NotificationSettingsPage') });
+const calendarSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/calendar', component: lazyRouteComponent(() => import('@/features/settings/CalendarSettingsPage'), 'CalendarSettingsPage') });
 
 const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
 const changelogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/changelog', component: lazyRouteComponent(() => import('./ChangelogPage'), 'ChangelogPage') });
@@ -634,9 +654,9 @@ const adminNotificationsRoute = createRoute({ getParentRoute: () => rootRoute, p
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SecurityJournalPage'), 'SecurityJournalPage') });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
-  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, banksSettingsRoute,
+  indexRoute, dashboardRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
 ]);

@@ -106,6 +106,92 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task Volatility_defaults_then_round_trips_class_by_class() // ranges spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var defaults = (await app.GetAsync<JsonElement>(app.AdultA, Url)).GetProperty("classVolatility");
+        Assert.Equal(("16", "0", "6"), (defaults.GetProperty("equity").GetString(), defaults.GetProperty("cash").GetString(), defaults.GetProperty("bond").GetString()));
+
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, new
+        {
+            classRates = Rates("6"), inflation = "2", monthlySavings = (string?)null, savingsClass = "cash", freedPaymentsToSavings = true,
+            classVolatility = new { equity = "20" },
+        });
+
+        Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var view = (await app.GetAsync<JsonElement>(app.AdultA, Url)).GetProperty("classVolatility");
+        Assert.Equal(("20", "6"), (view.GetProperty("equity").GetString(), view.GetProperty("bond").GetString()));
+    }
+
+    [Fact]
+    public async Task Withdrawal_rate_and_living_cost_round_trip() // retirement spec §3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var defaults = await app.GetAsync<JsonElement>(app.AdultA, Url);
+        Assert.Equal(("4", "0.00"), (defaults.GetProperty("withdrawalRate").GetString(), defaults.GetProperty("monthlyLivingCost").GetString()));
+
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, new
+        {
+            classRates = Rates("6"), inflation = "2", monthlySavings = (string?)null, savingsClass = "cash", freedPaymentsToSavings = true,
+            withdrawalRate = "3.5", monthlyLivingCost = "2500",
+        });
+
+        Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var view = await app.GetAsync<JsonElement>(app.AdultA, Url);
+        Assert.Equal(("3.5", "2500.00"), (view.GetProperty("withdrawalRate").GetString(), view.GetProperty("monthlyLivingCost").GetString()));
+    }
+
+    [Theory]
+    [InlineData("0", "withdrawalRate")]
+    [InlineData("10.5", "withdrawalRate")]
+    public async Task Withdrawal_rate_is_refused_outside_0_to_10(string rate, string field)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, new
+        {
+            classRates = Rates("6"), inflation = "2", monthlySavings = (string?)null, savingsClass = "cash", freedPaymentsToSavings = true,
+            withdrawalRate = rate,
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(field, problem.GetProperty("errors")[0].GetProperty("path").GetString());
+    }
+
+    [Fact]
+    public async Task Living_cost_is_refused_negative()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, new
+        {
+            classRates = Rates("6"), inflation = "2", monthlySavings = (string?)null, savingsClass = "cash", freedPaymentsToSavings = true,
+            monthlyLivingCost = "-1",
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal("monthlyLivingCost", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+    }
+
+    [Fact]
+    public async Task Volatility_above_fifty_percent_names_its_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url, new
+        {
+            classRates = Rates("6"), inflation = "2", monthlySavings = (string?)null, savingsClass = "cash", freedPaymentsToSavings = true,
+            classVolatility = new { equity = "60" },
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal("classVolatility.equity", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+    }
+
+    [Fact]
     public async Task Saving_drops_past_years()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -2,10 +2,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Nid.Core.Application;
 using Nid.Core.Application.Admin;
+using Nid.Core.Application.Calendar;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Inflation;
 using Nid.Core.Application.Projection;
+using Nid.Core.Application.Reports;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Application.Series;
 using Nid.Core.Application.Tax;
@@ -24,11 +26,17 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(IReadOnlyList<FxSyncRunView>))]
 [JsonSerializable(typeof(IReadOnlyList<TokenView>))]
 [JsonSerializable(typeof(AdultView))]
+[JsonSerializable(typeof(ItemDeletionPreview))] // #23: every module's delete preview
 [JsonSerializable(typeof(HouseholdSettingsView))]
 [JsonSerializable(typeof(CreatedTokenView))]
+[JsonSerializable(typeof(MyCalendarView))] // #80
+[JsonSerializable(typeof(CalendarFeedView))]
+[JsonSerializable(typeof(CalendarEndpoints.CalendarFeedBody))]
+[JsonSerializable(typeof(CalendarEndpoints.CreatedCalendarFeedResponse))]
 [JsonSerializable(typeof(DashboardView))]
 [JsonSerializable(typeof(NetWorthHistoryView))]
 [JsonSerializable(typeof(MonthChangesView))]
+[JsonSerializable(typeof(YearReviewView))]
 [JsonSerializable(typeof(FxRateView))]
 [JsonSerializable(typeof(FxSyncRequested))]
 [JsonSerializable(typeof(PrivateItemsView))]
@@ -36,6 +44,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(PersonEndpoints.SharingBody))]
 [JsonSerializable(typeof(ProjectionAssumptionsView))]
 [JsonSerializable(typeof(ProjectionView))]
+[JsonSerializable(typeof(RetirementView))]
 [JsonSerializable(typeof(ProjectionComparisonView))]
 [JsonSerializable(typeof(ProjectionCompareView))]
 [JsonSerializable(typeof(ProjectionScenarioView))]

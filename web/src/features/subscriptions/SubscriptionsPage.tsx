@@ -68,13 +68,17 @@ function rowsOf(data: ListResponse, nameOf: (g: Group) => string, groupBy: Group
 }
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
+const AnalysisTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.AnalysisTab })));
 const CalendarTab = lazy(() => import('./calendar/CalendarTab').then((m) => ({ default: m.CalendarTab })));
 
-/** Subscriptions dashboard design §4.2: the overview opens first; the list keeps its filters under `?tab=list`. */
+/**
+ * Subscriptions dashboard design §4.2: the overview opens first (the simple view, issue #20), then « Analyse » (the rest of it); the
+ * list keeps its filters under `?tab=list`.
+ */
 export function SubscriptionsPage() {
   const { t } = useTranslation();
   const search: RootSearch = useSearch({ strict: false });
-  const [tab, setTab] = useDetailTab(['overview', 'list', 'calendar'] as const);
+  const [tab, setTab] = useDetailTab(['overview', 'analysis', 'list', 'calendar'] as const);
   const scope = search.scope === 'me' ? 'me' : 'household';
   const add = <Link to="/subscriptions/new" className={buttonVariants()}>{t('subscriptions.add')}</Link>;
   return (
@@ -83,6 +87,8 @@ export function SubscriptionsPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('subscriptions.tab_overview'),
           content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><OverviewTab scope={scope} /></Suspense> },
+        { id: 'analysis', label: t('subscriptions.tab_analysis'),
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><AnalysisTab scope={scope} /></Suspense> },
         { id: 'list', label: t('subscriptions.tab_list'), content: <ListTab scope={scope} /> },
         { id: 'calendar', label: t('subscriptions.tab_calendar'),
           content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><CalendarTab scope={scope} /></Suspense> },

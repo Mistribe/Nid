@@ -24,6 +24,14 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
     private int depth;
     // An inner scope could not roll back to its savepoint: its writes may still be in the transaction, so it must not commit.
     private bool poisoned;
+    private readonly List<Func<Task>> afterCommit = [];
+
+    public void AfterCommit(Func<Task> action)
+    {
+        if (open is null)
+            throw new InvalidOperationException("No unit of work is open.");
+        afterCommit.Add(action);
+    }
 
     public async Task<ITransactionScope> BeginAsync(CancellationToken ct)
     {
@@ -72,12 +80,12 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
         var name = $"uow_{depth + 1}";
         await transaction.SaveAsync(name, ct);
         depth++;
-        return new Savepoint(this, transaction, name);
+        return new Savepoint(this, transaction, name, afterCommit.Count);
     }
 
     // ponytail: rolling back to a savepoint leaves the rows saved under it tracked by the contexts; every caller today then
     // fails its outer unit of work too. Detach them here if a caller ever goes on after an inner failure.
-    private sealed class Savepoint(UnitOfWork owner, DbTransaction transaction, string name) : ITransactionScope
+    private sealed class Savepoint(UnitOfWork owner, DbTransaction transaction, string name, int hooksBefore) : ITransactionScope
     {
         private bool released;
         private bool disposed;
@@ -98,6 +106,8 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
             {
                 if (!released)
                 {
+                    // What was registered under the savepoint goes with its writes.
+                    owner.afterCommit.RemoveRange(hooksBefore, owner.afterCommit.Count - hooksBefore);
                     try
                     {
                         await transaction.RollbackAsync(name);
@@ -132,6 +142,10 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
             commitAttempted = true;
             await transaction.CommitAsync(ct);
             committed = true;
+            var hooks = owner.afterCommit.ToList();
+            owner.afterCommit.Clear();
+            foreach (var hook in hooks)
+                await hook();
         }
 
         public async ValueTask DisposeAsync()
@@ -162,6 +176,7 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
                 await transaction.DisposeAsync();
                 owner.open = null;
                 owner.poisoned = false;
+                owner.afterCommit.Clear();
             }
         }
     }

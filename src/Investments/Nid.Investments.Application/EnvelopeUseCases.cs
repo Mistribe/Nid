@@ -34,6 +34,18 @@ public sealed record GetEnvelopeQuery(ItemId ItemId) : IQuery<EnvelopeDetail>, I
 
 public sealed record ListEnvelopesQuery(VisibilityScope Scope, bool IncludeClosed) : IQuery<EnvelopeList>;
 
+/// <summary>#23: an envelope created by mistake, deleted with its holdings and facts. <paramref name="Version"/>: the one the preview read.</summary>
+public sealed record DeleteEnvelopeCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>#23: what deleting an envelope removes, and what refuses it, read before the delete.</summary>
+public sealed record EnvelopeDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPreview>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 [RequestHandler<CreateEnvelopeCommand, ItemId>]
 public sealed class CreateEnvelopeHandler(
     IItemRegistry items, IEnvelopeStore envelopes, IValuations valuations, IFlows flows, IUnitOfWork unitOfWork)
@@ -240,4 +252,18 @@ public sealed class ListEnvelopesHandler(
             .ThenBy(s => s.Id.Value)
             .ToList()));
     }
+}
+
+[RequestHandler<DeleteEnvelopeCommand, ItemId>]
+public sealed class DeleteEnvelopeHandler(IItemDeletions deletions) : IRequestHandler<DeleteEnvelopeCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(DeleteEnvelopeCommand command, CancellationToken ct = default)
+        => (await deletions.DeleteAsync(command.ItemId, "investments", "envelope", command.Version, ct)).Map(() => command.ItemId);
+}
+
+[RequestHandler<EnvelopeDeletionQuery, ItemDeletionPreview>]
+public sealed class EnvelopeDeletionHandler(IItemDeletions deletions) : IRequestHandler<EnvelopeDeletionQuery, ItemDeletionPreview>
+{
+    public async ValueTask<Result<ItemDeletionPreview>> HandleAsync(EnvelopeDeletionQuery query, CancellationToken ct = default)
+        => await deletions.PreviewAsync(query.ItemId, "investments", "envelope", ct);
 }

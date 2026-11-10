@@ -17,8 +17,8 @@ public static class IncomeEndpoints
         var api = routes.MapGroup("/api/v1/income").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
-        api.MapGet("/sources", async (string? scope, bool? archived, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListIncomeSourcesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))
+        api.MapGet("/sources", async (string? scope, bool? archived, string? kind, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListIncomeSourcesQuery(ParseScope(scope), archived ?? false, kind), ct)).ToHttp(list => list))
             .Returns<IncomeSourceList>();
 
         api.MapGet("/sources/{id:guid}", async (Guid id, string? from, string? to, IInvoker invoker, CancellationToken ct)
@@ -54,6 +54,24 @@ public static class IncomeEndpoints
                         .ToHttp(phase => new IdResponse(phase), StatusCodes.Status201Created);
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapGet("/sources/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new IncomeSourceDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        api.MapDelete("/sources/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // A missing version answers 422 at `version`: it would otherwise bind to 0 and pass for a conflict.
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with the preview is required.");
+                    return reader.Problem();
+                }
+                var result = await invoker.InvokeAsync(new DeleteIncomeSourceCommand(new ItemId(id), version.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
 
         api.MapPut("/sources/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, IncomePhaseCorrectionBody body, IInvoker invoker, CancellationToken ct) =>
             {
@@ -98,14 +116,14 @@ public static class IncomeEndpoints
             => (await invoker.InvokeAsync(new GetIncomeSourceOverviewQuery(new ItemId(id), period ?? "12m"), ct)).ToHttp(o => o))
             .Returns<IncomeSourceOverview>();
 
-        api.MapGet("/overview", async (string? scope, string? period, Guid? person, string? kind, Guid? source, bool? ended,
+        api.MapGet("/overview", async (string? scope, string? period, Guid? person, string? kind, Guid? source, bool? ended, int? year,
                 IInvoker invoker, CancellationToken ct) =>
             {
                 if (!OverviewPeriods.TryParse(period ?? "year", out var p))
                     return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.InvalidPeriod, "A period is year, 12m or 3y.", null)).ToHttp(o => o);
                 if (kind is not null && kind != GetIncomeOverviewHandler.RentKind && !IncomeWire.TryKind(kind, out _))
                     return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.UnknownKind, $"'{kind}' is not an income kind.", null)).ToHttp(o => o);
-                var query = new GetIncomeOverviewQuery(ParseScope(scope), p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false);
+                var query = new GetIncomeOverviewQuery(ParseScope(scope), p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false, year);
                 return (await invoker.InvokeAsync(query, ct)).ToHttp(o => o);
             })
             .Returns<IncomeOverview>();

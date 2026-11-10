@@ -40,6 +40,7 @@ Un objectif est financé par des enveloppes **ou** libre (relevés) : tant qu'il
 - **Clôture** : un objectif clôturé refuse toute écriture sauf sa réouverture (`goals.goal_closed`), ne compte plus dans la somme des parts, et se rouvre sous le contrôle des parts. Rouvrir un objectif ouvert répond `goals.goal_open`.
 - **Modification concurrente** : la modification (`PUT /goals/{id}`) porte la `version` lue avec l'objectif, obligatoire (sans elle, `422` à `version`) ; une version périmée répond `goals.conflict` (jeton `xmin`).
 - **Montants** : une cible ou un montant de relevé a au plus 4 décimales et 15 chiffres avant la virgule (`goals.invalid_target` au champ), à l'API comme à l'import.
+- **Suppression** (#23) : réservée à un objectif créé par erreur. Partent l'objectif, ses lignes de financement et ses relevés de progression, avec les faits, propriétaires, liens de documents et références bancaires de l'élément. Rien ne bloque : aucun autre élément ne dépend d'un objectif. À la suppression d'une enveloppe, un objectif ouvert qu'elle finance la bloque (`goal_funding`) ; les lignes de financement des objectifs clôturés partent avec elle (`goal_funding_closed`). Un objectif clôturé qui perd ainsi sa seule ligne de financement devient un objectif sans enveloppe : il se lit sur ses relevés de progression. Un objectif clôturé n'est pas modifié (il faudrait d'abord le rouvrir). Seules les lignes des objectifs clôturés sont retirées, jamais celle d'un objectif ouvert (un financement ajouté après le contrôle bloquera la tentative suivante).
 
 ## 4. Routes
 

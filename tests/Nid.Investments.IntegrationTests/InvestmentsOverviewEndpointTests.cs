@@ -219,16 +219,39 @@ public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : ICla
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await JsonAsync(response);
-        Assert.Equal(("21000.00", "25000.00", "2000.00", "0.00", "0.00", "2000.00"),
+        // The recent envelope counts from 0: its 100 is all performance.
+        Assert.Equal(("21000.00", "25100.00", "2000.00", "0.00", "0.00", "2100.00"),
             (S(body.GetProperty("startValue"), "amount"), S(body.GetProperty("endValue"), "amount"), S(body.GetProperty("contributions"), "amount"),
                 S(body.GetProperty("withdrawals"), "amount"), S(body.GetProperty("transfers"), "amount"), S(body.GetProperty("performance"), "amount")));
-        Assert.Equal(8.7m, body.GetProperty("performancePct").GetDecimal());
+        Assert.Equal(9.1m, body.GetProperty("performancePct").GetDecimal());
         var months = body.GetProperty("months");
         Assert.Equal(("2025-01", "2025-10"), (S(months[0], "month"), S(months[months.GetArrayLength() - 1], "month")));
         Assert.Equal(("2000.00", "2025-09"), (S(months[8].GetProperty("performance"), "amount"), S(body, "bestMonth")));
-        Assert.Equal(pea.Value, Assert.Single(body.GetProperty("envelopes").EnumerateArray()).GetProperty("id").GetGuid());
-        var excluded = Assert.Single(body.GetProperty("excluded").EnumerateArray());
-        Assert.Equal((late.Value, "no_start_value"), (excluded.GetProperty("envelopeId").GetGuid(), S(excluded, "code")));
+        var rows = body.GetProperty("envelopes").EnumerateArray().ToList();
+        Assert.Equal([pea.Value, late.Value], rows.Select(r => r.GetProperty("id").GetGuid()));
+        Assert.Equal(("0.00", "100.00", false), (S(rows[1].GetProperty("startValue"), "amount"), S(rows[1].GetProperty("endValue"), "amount"),
+            rows[1].GetProperty("staleStart").GetBoolean()));
+        Assert.False(body.TryGetProperty("excluded", out _));
+    }
+
+    /// <summary>Two PEA valued 1 500 on 15/06; the ETF at 110 (14/10) estimates each at 1 600 today, but one was closed on 01/10.</summary>
+    [Fact]
+    public async Task A_period_to_today_ends_on_the_estimates_of_the_open_envelopes_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (open, _) = await EnvelopeAsync(app, statement: "2025-06-15");
+        var (closed, _) = await EnvelopeAsync(app, statement: "2025-06-15");
+        foreach (var id in new[] { open, closed })
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/flows", new { occurredOn = "2025-01-02", kind = "opening", amount = Eur("1200.00") });
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{closed.Value}/close",
+            new { closedOn = "2025-10-01", finalWithdrawal = Eur("1500.00") })).StatusCode);
+        await PriceAsync(app, EtfIsin, 110m, Day);
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?scope=household&from=2024-12-31&to=2025-10-15"));
+
+        var rows = body.GetProperty("envelopes").EnumerateArray().ToDictionary(r => r.GetProperty("id").GetGuid(), r => S(r.GetProperty("endValue"), "amount"));
+        Assert.Equal(("1600.00", "0.00"), (rows[open.Value], rows[closed.Value]));
+        Assert.Equal("1600.00", S(body.GetProperty("endValue"), "amount"));
     }
 
     [Fact]

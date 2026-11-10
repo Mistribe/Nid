@@ -93,7 +93,7 @@ function Chart({ d }: { d: LoansOverview }) {
   const index = new Map(d.months.map((m, i) => [m.month, i]));
   return (
     <figure aria-label={t('loans_overview.chart_title')}>
-      <ChartContainer config={config} className="h-72 w-full">
+      <ChartContainer config={config} className="h-48 w-full">
         <AreaChart data={rows} accessibilityLayer margin={{ top: 8, right: 8 }}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="i" type="number" domain={[0, Math.max(0, rows.length - 1)]} ticks={ticks.length > 0 ? ticks : [0]}

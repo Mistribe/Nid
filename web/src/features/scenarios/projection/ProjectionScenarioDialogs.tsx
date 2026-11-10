@@ -1,3 +1,6 @@
+import { useRef } from 'react';
+import { useApi } from '@/api/ApiProvider';
+import { PERSONS } from '@/api/persons';
 import { FormProvider, useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '@/components/form/Field';
@@ -8,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import type { ProjectionScenario } from '../api';
 import { AssumptionFields, assumptionPath, assumptionsDraft, HorizonField, overridesOf, type AssumptionsDraft } from './AssumptionFields';
+import { DepartureFields, departurePath, departuresDraft, retirementsOf, useAdults, type DeparturesDraft } from './departures';
+import type { ProjectionDocument } from './api';
 import { bodyOf, useSave } from './save';
 import '@/locales/forms';
 import '@/locales/scenarios';
@@ -47,22 +52,29 @@ function RenameForm({ scenario, done }: { scenario: ProjectionScenario; done: (m
   );
 }
 
-type AssumptionsValues = { horizon: string; assumptions: AssumptionsDraft };
+type AssumptionsValues = { horizon: string; assumptions: AssumptionsDraft; departures: DeparturesDraft };
 
 function AssumptionsForm({ scenario, done }: { scenario: ProjectionScenario; done: (message?: string) => void }) {
   const { t } = useTranslation();
   const doc = scenario.result.document;
-  const form = useForm<AssumptionsValues>({ defaultValues: { horizon: doc.horizon ?? scenario.result.scenario.horizon, assumptions: assumptionsDraft(doc.assumptions) } });
-  const errors = useSubmitErrors(form.setError, (path) => assumptionPath(path) as Path<AssumptionsValues> | undefined);
+  const form = useForm<AssumptionsValues>({ defaultValues: { horizon: doc.horizon ?? scenario.result.scenario.horizon, assumptions: assumptionsDraft(doc.assumptions), departures: departuresDraft(doc.retirements) } });
+  const adults = useAdults();
+  // Saved departures stay as they are while the persons load; the submit waits for them so none is edited blind.
+  const loading = useApi().$api.useQuery('get', PERSONS, {}).isPending;
+  // The retirements last sent: a refusal names them by their index.
+  const sent = useRef<NonNullable<ProjectionDocument['retirements']>>([]);
+  const errors = useSubmitErrors(form.setError, (path) => (departurePath(path, sent.current) ?? assumptionPath(path)) as Path<AssumptionsValues> | undefined);
   const save = useSave(scenario, () => done(t('scenarios.projection.detail.assumptions_saved')), errors.onError);
   return (
     <form noValidate className="space-y-4" onSubmit={(e) => void form.handleSubmit((v) => {
       errors.clear();
       const assumptions = overridesOf(v.assumptions);
+      const retirements = retirementsOf(v.departures);
+      sent.current = retirements;
       // No override at all is no `assumptions`: the household's.
       save.mutate({
         params: { path: { id: scenario.id } },
-        body: bodyOf(scenario, { document: { version: doc.version, horizon: v.horizon, ...(assumptions ? { assumptions } : {}), events: doc.events } }),
+        body: bodyOf(scenario, { document: { version: doc.version, horizon: v.horizon, ...(assumptions ? { assumptions } : {}), events: doc.events, ...(retirements.length > 0 ? { retirements } : {}) } }),
       });
     })(e)}>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
@@ -70,8 +82,9 @@ function AssumptionsForm({ scenario, done }: { scenario: ProjectionScenario; don
       <FormProvider {...form}>
         <HorizonField base={scenario.result.base} />
         <AssumptionFields base={scenario.result.base} />
+        {adults.length > 0 ? <DepartureFields adults={adults} /> : null}
       </FormProvider>
-      <Actions pending={save.isPending} cancel={() => done()} />
+      <Actions pending={save.isPending || loading} cancel={() => done()} />
     </form>
   );
 }

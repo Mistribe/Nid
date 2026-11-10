@@ -71,6 +71,18 @@ public class ProjectionOverridesTests
     }
 
     [Fact]
+    public void Overrides_keep_the_withdrawal_rate_and_living_cost_unless_set() // retirement spec §3
+    {
+        var household = Household with { WithdrawalRate = 0.035m, MonthlyLivingCost = 2000m };
+
+        var kept = new ProjectionOverrides(null, null, null, null, null).Apply(household);
+        var set = new ProjectionOverrides(null, null, null, null, null, WithdrawalRate: 0.03m, MonthlyLivingCost: 0m).Apply(household);
+
+        Assert.Equal((0.035m, 2000m), (kept.WithdrawalRate, kept.MonthlyLivingCost));
+        Assert.Equal((0.03m, 0m), (set.WithdrawalRate, set.MonthlyLivingCost));
+    }
+
+    [Fact]
     public void A_null_class_table_in_an_override_is_absent()
     {
         var household = Household with

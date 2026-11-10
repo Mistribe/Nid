@@ -25,7 +25,7 @@ public static class PropertyMath
         var expenses = past.Where(f => f.Kind == FlowKind.Expense).ToList();
 
         var acquisition = property.PurchasePrice + property.NotaryFees + property.AgencyFees + property.OtherAcquisitionCosts;
-        var costPrice = acquisition + expenses.Where(f => f.Category == PropertyCategories.Works).Sum(f => f.Amount.Amount);
+        var costPrice = CostPrice(property, flows, d);
 
         // A loan whose rate is missing is left out of the balance and of the cost (spec §5); fx_missing names it.
         var counted = loans.Where(l => l.Rate is not null).ToList();
@@ -68,8 +68,13 @@ public static class PropertyMath
         return new PropertyFigures(value, latest?.AsOf, stale, costPrice, value - costPrice, balance, value - balance,
             realCost, lines, realCost - rents,
             loans.Select(l => new LinkedLoanBalance(l.Id, l.Figures.Balance, l.Rate is { } rate ? l.Figures.Balance * rate : null)).ToList(),
-            warnings, Rental(property, flows, tenancies, costPrice, d));
+            warnings, Rental(property, flows, tenancies, costPrice, d.PlusMonths(-12), d));
     }
+
+    /// <summary>Spec 3C1 §5: the acquisition and the works paid up to d.</summary>
+    public static decimal CostPrice(PropertyDetails property, IEnumerable<Flow> flows, LocalDate d)
+        => property.PurchasePrice + property.NotaryFees + property.AgencyFees + property.OtherAcquisitionCosts
+           + flows.Where(f => f.OccurredOn <= d && f.Kind == FlowKind.Expense && f.Category == PropertyCategories.Works).Sum(f => f.Amount.Amount);
 
     /// <summary>
     /// Passive income spec C7: the rent cashed in <paramref name="month"/> (first day), and its costs — expenses but works, less
@@ -150,11 +155,14 @@ public static class PropertyMath
         return (Expected(tenancy, first, last, charges), tenancy.StartsOn > first ? tenancy.StartsOn : first);
     }
 
-    /// <summary>Spec 3C2 §4 over W = (d − 12 months, d]; the arrears over the rent ledger, one account per tenant (<see cref="RentLedger.PropertyArrears"/>).</summary>
-    private static RentalFigures Rental(PropertyDetails property, IReadOnlyList<Flow> flows, IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> linked, decimal costPrice, LocalDate d)
+    /// <summary>
+    /// Spec 3C2 §4 over W = (<paramref name="after"/>, d], d − 12 months for the property's figures; the yields are W's, never annualised.
+    /// The arrears over the rent ledger, one account per tenant (<see cref="RentLedger.PropertyArrears"/>).
+    /// </summary>
+    public static RentalFigures Rental(PropertyDetails property, IReadOnlyList<Flow> flows, IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> linked, decimal costPrice, LocalDate after, LocalDate d)
     {
         var tenancies = linked.Select(t => t.Tenancy).ToList();
-        var first = d.PlusMonths(-12).PlusDays(1);
+        var first = after.PlusDays(1);
         var inWindow = flows.Where(f => f.OccurredOn >= first && f.OccurredOn <= d).ToList();
         var rent = inWindow.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount);
         // Spec 3C2 §1.4: works are in the cost price already; loan costs are never deducted.
@@ -176,7 +184,7 @@ public static class PropertyMath
             vacancyRate = (decimal)vacantDays.Value / days;
         }
 
-        // Significant once let since d − 12 months or before (R before W's first day).
+        // Significant once let since W's start or before (R before W's first day).
         var significant = rentedSince is { } r && r < first;
         return new RentalFigures(rentedSince, expected, rent, RentLedger.PropertyArrears(linked, flows, d), vacantDays, vacancyRate,
             significant ? rent / costPrice : null, significant ? (rent - charges) / costPrice : null);

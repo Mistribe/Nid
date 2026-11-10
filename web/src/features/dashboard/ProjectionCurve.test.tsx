@@ -13,9 +13,9 @@ const BOB = '00000000-0000-7000-8000-0000000000a2';
 const LEA = '00000000-0000-7000-8000-0000000000d1';
 // Every person has a birth date; the server lists Bob's retirement only (Alice retired, Léa a dependent).
 const persons = [
-  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: '1955-01-01', retirementAge: 64 },
-  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62 },
-  { id: LEA, kind: 'dependent', displayName: 'Léa', birthDate: '2015-06-01', retirementAge: 64 },
+  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: '1955-01-01', retirementAge: 64, retirementMonths: 0 },
+  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62, retirementMonths: 0 },
+  { id: LEA, kind: 'dependent', displayName: 'Léa', birthDate: '2015-06-01', retirementAge: 64, retirementMonths: 0 },
 ];
 const retirementHorizons = [{ person: BOB, name: 'Bob', on: '2047-03-31' }];
 
@@ -42,6 +42,12 @@ describe('net worth projection card', () => {
     expect(await within(region).findByRole('radio', { name: '10 ans' })).toBeChecked();
     expect(seen[0]).toContain('scope=me');
     expect(seen[0]).not.toContain('horizon=');
+  });
+
+  it('links to the retirement page', async () => {
+    serve(projection());
+    await renderApp('/dashboard');
+    expect(await within(await card()).findByRole('link', { name: 'Retraite' })).toHaveAttribute('href', '/retirement');
   });
 
   it('keeps the horizon in the URL', async () => {
@@ -105,6 +111,41 @@ describe('net worth projection card', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('asks for the ranges on « Fourchette » and shows the bands, the probability and the assumptions', async () => { // ranges spec §6
+    const seen: string[] = [];
+    const plain = projection();
+    const band = (low: string, median: string, high: string) => ({ low, median, high, lowReal: low, medianReal: median, highReal: high });
+    const ranges = {
+      runs: 1000, success: '87',
+      points: plain.points.map((p, i) => ({ on: p.on, ...(i === 1 ? band('9500.00', '10600.00', '11900.00') : band(p.real, p.real, p.real)) })),
+    };
+    server.use(
+      http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard())),
+      http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
+      http.get('*/api/v1/projection', ({ request }) => {
+        const search = new URL(request.url).search;
+        seen.push(search);
+        return HttpResponse.json(search.includes('ranges=true') ? { ...plain, ranges } : plain);
+      }),
+    );
+    const { router, user, container } = await renderApp('/dashboard');
+
+    const region = await card();
+    await user.click(await within(region).findByRole('button', { name: 'Fourchette' }));
+    expect(router.state.location.search).toEqual({ ranges: 1 });
+    expect(await within(region).findByText('L’épargne disponible tient jusqu’à l’horizon dans 87 % des 1 000 tirages.')).toBeInTheDocument();
+    expect(seen.at(-1)).toContain('ranges=true');
+    expect(within(region).getByText(/volatilité annuelle : Actions 16 %\./)).toBeInTheDocument();
+    expect(within(region).getByRole('list', { name: 'Légende' })).toHaveTextContent('10ᵉ à 90ᵉ centile');
+
+    await user.click(within(region).getByRole('button', { name: 'Afficher en tableau' }));
+    const rows = within(within(region).getByRole('table', { name: 'Projection du patrimoine en tableau' })).getAllByRole('row');
+    expect(rows[0]).toHaveTextContent('10ᵉ centile');
+    expect(rows[1]).toHaveTextContent('9 500,00 €');
+    expect(rows[1]).toHaveTextContent('11 900,00 €');
+    await expectNoAxeViolations(container);
+  });
+
   it('names the assumptions with a link to the settings', async () => {
     serve(projection());
     await renderApp('/dashboard');
@@ -115,10 +156,14 @@ describe('net worth projection card', () => {
   });
 
   it('lists the milestones with their server label and date', async () => {
-    serve(projection({ milestones: [{ on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null }] }));
+    serve(projection({ milestones: [
+      { on: '2027-12-31', kind: 'loan_end', label: 'Prêt résidence', item: null },
+      { on: '2035-06-30', kind: 'financial_independence', label: 'financial_independence', item: null },
+    ] }));
     await renderApp('/dashboard');
     const item = await within(await card()).findByText(/Prêt résidence/);
     expect(item).toHaveTextContent('31/12/2027');
+    expect(within(await card()).getByText(/Indépendance financière/)).toHaveTextContent('30/06/2035');
   });
 
   it('is hidden for an empty household', async () => {

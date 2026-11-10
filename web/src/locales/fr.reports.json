@@ -1,0 +1,114 @@
+{
+  "reports": {
+    "title": "Bilan {{year}}",
+    "title_to_date": "Bilan {{year}} — à ce jour",
+    "loading": "Chargement du bilan",
+    "year": "Année du bilan",
+    "print": "Imprimer",
+    "previous": "{{year}} : {{amount}}",
+    "fx_missing": "Un taux de change manque : le patrimoine de l'année ne peut pas être calculé.",
+    "net_worth": {
+      "title": "Patrimoine net",
+      "at": "Au {{date}}",
+      "change": "Variation",
+      "opening": "Début",
+      "closing": "Fin",
+      "chart": "Passage du patrimoine net du début à la fin de la période",
+      "table": "Composantes de la variation du patrimoine",
+      "part": "Composante",
+      "amount": "Montant",
+      "none": "—"
+    },
+    "parts": {
+      "investments": {
+        "paid_in": "Versements",
+        "value": "Gains des marchés"
+      },
+      "real_estate": {
+        "paid_in": "Capital remboursé",
+        "value": "Réévaluation des biens",
+        "moved": "Achats et ventes"
+      }
+    },
+    "investments": {
+      "title": "Placements",
+      "gain": "Gain",
+      "return": "Rendement",
+      "contributions": "Versements",
+      "withdrawals": "Retraits",
+      "envelopes": "Enveloppes de la période",
+      "col": {
+        "name": "Enveloppe",
+        "start": "Début",
+        "end": "Fin",
+        "net_contributions": "Versé net",
+        "gain": "Gain",
+        "return": "Rendement"
+      },
+      "stale_start": "valeur de départ ancienne",
+      "no_start_value": "sans valeur au début : compté au montant versé",
+      "pct": "{{value}} %",
+      "unknown": "Inconnu"
+    },
+    "income": {
+      "title": "Revenus et marge",
+      "income": "Revenus",
+      "engagements": "Engagements",
+      "margin": "Marge avant dépenses courantes",
+      "sources": "Revenus par source",
+      "engagement_sources": "Engagements par poste",
+      "col": { "source": "Source", "amount": "Montant" },
+      "estimated": "estimé",
+      "unknown": "Inconnu"
+    },
+    "subscriptions": {
+      "title": "Abonnements",
+      "cost": "Coût",
+      "started": "Abonnements commencés",
+      "ended": "Abonnements terminés",
+      "price_changes": "Changements de prix",
+      "col": { "name": "Abonnement", "date": "Date", "price": "Prix" },
+      "price": "{{amount}} pour {{every}}",
+      "price_change": "{{before}} → {{after}}",
+      "promo_ended": "fin de promotion",
+      "unknown": "Inconnu"
+    },
+    "loans": {
+      "title": "Crédits",
+      "start_balance": "Restant dû au début",
+      "end_balance": "Restant dû à la fin",
+      "previous_with_insurance": "{{year}}, assurance comprise : {{amount}}",
+      "table": "Crédits de la période",
+      "col_name": "Crédit",
+      "archived_on": "archivé le {{date}}",
+      "unknown": "Inconnu"
+    },
+    "properties": {
+      "title": "Biens",
+      "costs": "Charges",
+      "rents": "Loyers perçus",
+      "table": "Biens de la période",
+      "by_category": "Charges par catégorie",
+      "col": { "name": "Bien", "category": "Catégorie", "amount": "Montant" },
+      "pct": "{{value}} %",
+      "unknown": "Inconnu"
+    },
+    "goals": {
+      "title": "Objectifs",
+      "table": "Objectifs de la période",
+      "col_name": "Objectif",
+      "col_start": "Atteint au début",
+      "col_end": "Atteint à la fin",
+      "reached_in_period": "atteint cette année",
+      "archived_on": "archivé le {{date}}",
+      "unknown": "Inconnu"
+    },
+    "tax": {
+      "title": "Impôts",
+      "total": "Impôt estimé",
+      "estimate": "Estimation à partir des données saisies",
+      "unknown": "Inconnu"
+    },
+    "empty": "Rien à montrer pour cette année dans ce périmètre."
+  }
+}

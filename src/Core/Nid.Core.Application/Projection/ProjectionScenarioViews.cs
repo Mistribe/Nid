@@ -17,7 +17,8 @@ public sealed record EventDateView(string? On, Guid? Person, int? Age);
 public sealed record ProjectionOverridesView(
     IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,
     IReadOnlyDictionary<string, string>? InflationByYear = null, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? ClassRatesByYear = null,
-    string? IncomeGrowth = null);
+    string? IncomeGrowth = null, IReadOnlyDictionary<string, string>? ClassVolatility = null, string? WithdrawalRate = null,
+    string? MonthlyLivingCost = null);
 
 /// <summary>
 /// Spec §4: one event on the wire, the fields of <see cref="ProjectionEvent"/>; amounts are decimal strings in the reference currency.
@@ -28,12 +29,16 @@ public sealed record ProjectionEventView(
     string? Amount, string? Split, Guid? Loan, string? Effect, string? Penalty,
     Guid? Property, string? Price, string? Costs, Guid? Scenario);
 
+/// <summary>Retirement spec §2: a departure on the wire; <c>MonthlyPension</c> a decimal string.</summary>
+public sealed record ScenarioRetirementView(Guid? Person, int? Years, int? Months, string? MonthlyPension);
+
 /// <summary>
 /// Spec §6 and §7: a projection scenario's document on the wire, read and answered in the same shape. <c>Horizon</c> is the projection
 /// route's form, <c>"10y"</c> or <c>"retire:{personId}"</c>. <see cref="Read"/> is the one wire → document mapping (routes and
 /// assistant); <see cref="From"/> the one document → wire mapping.
 /// </summary>
-public sealed record ProjectionDocumentView(int Version, string? Horizon, ProjectionOverridesView? Assumptions, IReadOnlyList<ProjectionEventView>? Events)
+public sealed record ProjectionDocumentView(int Version, string? Horizon, ProjectionOverridesView? Assumptions, IReadOnlyList<ProjectionEventView>? Events,
+    IReadOnlyList<ScenarioRetirementView>? Retirements = null)
 {
     public static ProjectionDocumentView From(ProjectionScenario doc)
     {
@@ -48,11 +53,14 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
                 o.Inflation is { } inflation ? PropertyPurchaseView.Rate(inflation) : null, Optional(o.MonthlySavings), o.SavingsClass,
                 o.FreedPaymentsToSavings, ProjectionAssumptionsView.Years(o.InflationByYear),
                 o.ClassRatesByYear?.Where(c => c.Value is not null).ToDictionary(c => c.Key, c => (IReadOnlyDictionary<string, string>)ProjectionAssumptionsView.Years(c.Value)!),
-                o.IncomeGrowth is { } growth ? PropertyPurchaseView.Rate(growth) : null),
+                o.IncomeGrowth is { } growth ? PropertyPurchaseView.Rate(growth) : null,
+                o.ClassVolatility?.ToDictionary(v => v.Key, v => PropertyPurchaseView.Rate(v.Value)),
+                o.WithdrawalRate is { } withdrawal ? PropertyPurchaseView.Rate(withdrawal) : null, Optional(o.MonthlyLivingCost)),
             doc.Events.Select(e => new ProjectionEventView(
                 e.Id, e.Kind, Date(e.Start), e.Until is { } until ? Date(until) : null, e.Label, Optional(e.MonthlyAmount),
                 Optional(e.Amount), e.Split, e.Loan?.Value, e.Effect, Optional(e.Penalty),
-                e.Property?.Value, Optional(e.Price), Optional(e.Costs), e.Scenario?.Value)).ToList());
+                e.Property?.Value, Optional(e.Price), Optional(e.Costs), e.Scenario?.Value)).ToList(),
+            (doc.Retirements ?? []).Select(r => new ScenarioRetirementView(r.Person.Value, r.Years, r.Months, Optional(r.MonthlyPension))).ToList());
     }
 
     /// <summary>
@@ -99,12 +107,17 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
         foreach (var (@class, text) in a?.ClassRates ?? new Dictionary<string, string>())
             if (Decimal(text, $"assumptions.classRates.{@class}") is { } percent)
                 rates[@class] = percent / 100m;
+        var volatility = new Dictionary<string, decimal>();
+        foreach (var (@class, text) in a?.ClassVolatility ?? new Dictionary<string, string>())
+            if (Decimal(text, $"assumptions.classVolatility.{@class}") is { } percent)
+                volatility[@class] = percent / 100m;
         var overrides = new ProjectionOverrides(
             a?.ClassRates is null ? null : rates, Decimal(a?.Inflation, "assumptions.inflation") / 100m,
             Decimal(a?.MonthlySavings, "assumptions.monthlySavings"), a?.SavingsClass, a?.FreedPaymentsToSavings,
             ProjectionAssumptionsView.Years(a?.InflationByYear, "assumptions.inflationByYear", Decimal, Refuse),
             ProjectionAssumptionsView.ClassYears(a?.ClassRatesByYear, "assumptions.classRatesByYear", Decimal, Refuse),
-            Decimal(a?.IncomeGrowth, "assumptions.incomeGrowth") / 100m);
+            Decimal(a?.IncomeGrowth, "assumptions.incomeGrowth") / 100m, a?.ClassVolatility is null ? null : volatility,
+            Decimal(a?.WithdrawalRate, "assumptions.withdrawalRate") / 100m, Decimal(a?.MonthlyLivingCost, "assumptions.monthlyLivingCost"));
 
         var events = new List<ProjectionEvent>();
         for (var i = 0; i < (view.Events?.Count ?? 0); i++)
@@ -124,9 +137,27 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
                 e.Scenario is { } scenario ? new ItemId(scenario) : null));
         }
 
+        var retirements = new List<ScenarioRetirement>();
+        for (var i = 0; i < (view.Retirements?.Count ?? 0); i++)
+        {
+            var r = view.Retirements![i];
+            var at = $"retirements[{i}]";
+            if (r is null)
+            {
+                Refuse(at, "A departure is required.");
+                continue;
+            }
+            if (r.Person is not { } person)
+            {
+                Refuse($"{at}.person", "A person is required.");
+                continue;
+            }
+            retirements.Add(new ScenarioRetirement(new PersonId(person), r.Years, r.Months, Decimal(r.MonthlyPension, $"{at}.monthlyPension")));
+        }
+
         return errors.Count > 0
             ? Failed()
-            : Result.Success(new ProjectionScenario(view.Version, horizon!, overrides, events));
+            : Result.Success(new ProjectionScenario(view.Version, horizon!, overrides, events) { Retirements = retirements });
 
         Result<ProjectionScenario> Failed() => Result.Failure<ProjectionScenario>(
             FieldErrors.Many(ProjectionCodes.InvalidField, errors.Count == 1 ? errors[0].Message : "Some fields are not valid.", errors));
@@ -162,11 +193,12 @@ public sealed record ProjectionComparisonView(
 {
     public IEnumerable<ItemId> ExposedItems() => Base.ExposedItems().Concat(Scenario.ExposedItems()).Concat(Document.Targets()).Distinct();
 
-    internal static ProjectionComparisonView From(ProjectionScenarioReading reading)
-        => TryFrom(reading) ?? throw new InvalidOperationException("The scenario's grid differs from the base's, or is empty.");
+    /// <summary><paramref name="ranges"/>: the scenario's bands (ranges spec §4), the base's never.</summary>
+    internal static ProjectionComparisonView From(ProjectionScenarioReading reading, bool ranges = false)
+        => TryFrom(reading, ranges) ?? throw new InvalidOperationException("The scenario's grid differs from the base's, or is empty.");
 
     /// <summary>Null when the grids diverged or are empty, for a reader that answers without the comparison.</summary>
-    public static ProjectionComparisonView? TryFrom(ProjectionScenarioReading reading)
+    public static ProjectionComparisonView? TryFrom(ProjectionScenarioReading reading, bool ranges = false)
     {
         var horizon = ProjectionHorizon.From(reading.VisibleDocument.Horizon);
         var based = HouseholdProjection.Project(reading.Base.Inputs);
@@ -182,7 +214,7 @@ public sealed record ProjectionComparisonView(
             ProjectionView.From(horizon, reading.Base with
             {
                 Inputs = reading.Scenario, SavingsOrigin = reading.SavingsOrigin, ObservedInflation = reading.ObservedInflation,
-            }, scenario, reading.ExtraWarnings),
+            }, scenario, reading.ExtraWarnings, ranges ? ProjectionRanges.Simulate(reading.Scenario) : null),
             gaps, gaps[^1].Nominal, gaps[^1].Real,
             ProjectionDocumentView.From(reading.VisibleDocument));
     }

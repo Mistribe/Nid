@@ -76,7 +76,11 @@ export function PeriodPerformance({ envelopeId }: { envelopeId: string }) {
           // #376: the value on its line, its date under it.
           data.startValue && data.startAsOf
             ? { label: t('envelope.period.start'), value: <Money value={data.startValue} tabular />, hint: <LocalDate value={data.startAsOf} /> }
-            : { label: t('envelope.period.start'), value: missing(t('envelope.period.no_start')) },
+            // Opened during the period: the server counts it from 0; with older flows, from the amount paid in by then.
+            : data.startValue
+              ? { label: t('envelope.period.start'), value: <Money value={data.startValue} tabular />,
+                  hint: t(data.noStartValue ? 'envelope.period.no_start_value' : 'envelope.period.opened') }
+              : { label: t('envelope.period.start'), value: missing(t('envelope.period.no_start')) },
           data.endValue && data.endAsOf
             ? { label: t('envelope.period.end'), value: <Money value={data.endValue} tabular />, hint: <LocalDate value={data.endAsOf} /> }
             : { label: t('envelope.period.end'), value: missing(t('envelope.period.no_end')) },

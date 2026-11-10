@@ -20,10 +20,10 @@ namespace Nid.Host.Api;
 
 public static class PersonEndpoints
 {
-    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email, string? BirthDate, int RetirementAge);
+    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email, string? BirthDate, int RetirementAge, int RetirementMonths);
 
     /// <summary>A null <c>birthDate</c> clears it.</summary>
-    public sealed record RetirementBody(string? BirthDate, int RetirementAge);
+    public sealed record RetirementBody(string? BirthDate, int RetirementAge, int? RetirementMonths);
 
     public sealed record CreateDependentBody(string DisplayName);
 
@@ -52,7 +52,7 @@ public static class PersonEndpoints
                 var birthDate = body.BirthDate is null ? null : reader.Date(body.BirthDate, "birthDate");
                 if (!reader.Ok)
                     return reader.Problem();
-                return (await invoker.InvokeAsync(new SetRetirementCommand(new PersonId(id), birthDate, body.RetirementAge), ct)).ToHttp(ToDto);
+                return (await invoker.InvokeAsync(new SetRetirementCommand(new PersonId(id), birthDate, body.RetirementAge, body.RetirementMonths ?? 0), ct)).ToHttp(ToDto);
             })
             .Returns<PersonDto>();
 
@@ -110,7 +110,7 @@ public static class PersonEndpoints
     }
 
     internal static PersonDto ToDto(PersonInfo p) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email,
-        p.BirthDate is { } birth ? LocalDatePattern.Iso.Format(birth) : null, p.RetirementAge);
+        p.BirthDate is { } birth ? LocalDatePattern.Iso.Format(birth) : null, p.RetirementAge, p.RetirementMonths);
 }
 
 /// <summary>
@@ -220,7 +220,8 @@ public static class ResultHttp
             _ when failure.Code is InvestmentsCodes.InvalidPeriod or InvestmentsCodes.InvalidIncomeCategory or InvestmentsCodes.TransferLeg
                 or BreakdownCodes.Not100 or BreakdownCodes.NotMarket => StatusCodes.Status400BadRequest,
             _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
-            _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
+            _ when failure.Code is IncomeCodes.InvalidPeriod or IncomeCodes.InvalidYear => StatusCodes.Status400BadRequest,
+            _ when failure.Code == ReportCodes.InvalidYear => StatusCodes.Status400BadRequest,
             _ when failure.Code is Nid.Childcare.Contracts.ChildcareCodes.Closed or Nid.Childcare.Contracts.ChildcareCodes.Open
                 or Nid.Childcare.Contracts.ChildcareCodes.Conflict or Nid.Childcare.Contracts.ChildcareCodes.StatementValidated
                 or Nid.Childcare.Contracts.ChildcareCodes.StatementIncomplete or Nid.Childcare.Contracts.ChildcareCodes.NextValidated or Nid.Childcare.Contracts.ChildcareCodes.PreviousNotValidated
@@ -230,6 +231,7 @@ public static class ResultHttp
                 or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == TaxAssessmentCodes.Conflict => StatusCodes.Status409Conflict,
             _ when failure.Code is ProposalCodes.Conflict or ProposalCodes.Decided => StatusCodes.Status409Conflict,
+            _ when failure.Code is ItemCodes.InUse or ItemCodes.Changed => StatusCodes.Status409Conflict,
             _ when failure.Code == DocumentsCodes.TooLarge => StatusCodes.Status413PayloadTooLarge,
             _ when failure.Code == DocumentsCodes.UnsupportedType => StatusCodes.Status415UnsupportedMediaType,
             _ when failure.Code is DocumentsCodes.InvalidField or DocumentsCodes.InvalidRole or DocumentsCodes.UnknownTargetKind => StatusCodes.Status400BadRequest,

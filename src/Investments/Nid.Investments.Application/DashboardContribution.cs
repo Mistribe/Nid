@@ -51,14 +51,14 @@ public sealed class EnvelopesNetWorth(
             if (!facts.TryGetValue(envelope.ItemId, out var f))
             {
                 withoutValue++;
-                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners));
+                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners, UnlocksAtRetirement: envelope.Kind == EnvelopeKind.Per));
                 continue;
             }
             var figures = EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             if (figures.Value is null)
             {
                 withoutValue++;
-                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners));
+                holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners, UnlocksAtRetirement: f.Envelope.Kind == EnvelopeKind.Per));
                 continue;
             }
             var (value, asOf, estimated, lines) = TodayValue.Pick(figures, estimates.GetValueOrDefault(envelope.ItemId));
@@ -68,7 +68,7 @@ public sealed class EnvelopesNetWorth(
             if (figures.StaleDays is not null) stale++;
             holdings.Add(new Holding(envelope.ItemId, "investments", name, value, asOf, figures.StaleDays is not null, owners,
                 EnvelopeAllocation.Of(f.Envelope.Kind, value.Amount, EnvelopeAllocation.Latest(export.Snapshots, envelope.ItemId, today), holdingsOf, lines),
-                estimated, figures.AsOf));
+                estimated, figures.AsOf, f.Envelope.Kind == EnvelopeKind.Per));
 
             if (SinceJanuary(f, today) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
             {
@@ -101,7 +101,9 @@ public sealed class EnvelopesNetWorth(
     /// <summary>
     /// 2D2b spec §4: at each date, each envelope's last reading on or before it, with the net contributions up to that
     /// reading (as <see cref="EnvelopeMath.Series"/>, its valuations only), so the gap between the two lines stays the gain. A closed
-    /// envelope counts strictly before its closing; one whose facts cannot be read counts as having no reading.
+    /// envelope counts strictly before its closing; from its closing on it is worth 0 and keeps its net contributions up to the closing
+    /// (the closing withdrawal included), out of the count, so a change across the closing splits into its flows and its gain. One whose
+    /// facts cannot be read counts as having no reading.
     /// Holding prices spec §5.4: at today's date only, the reading's value is the estimate when <see cref="TodayValue"/> picks it.
     /// </summary>
     public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
@@ -114,14 +116,18 @@ public sealed class EnvelopesNetWorth(
         IReadOnlyDictionary<ItemId, Prices.EnvelopeEstimate> estimates = dates.Contains(today)
             ? await estimator.EstimateAsync(found.Where(e => e.ClosedOn is not { } closed || today < closed).Select(e => e.ItemId).ToList(), ct)
             : new Dictionary<ItemId, Prices.EnvelopeEstimate>();
-        var series = new List<(LocalDate? ClosedOn, IReadOnlyList<SeriesPointFigures> Readings, Money? Estimate)>();
+        var series = new List<(LocalDate? ClosedOn, Money? PaidIn, IReadOnlyList<SeriesPointFigures> Readings, Money? Estimate)>();
         foreach (var envelope in found)
             if (facts.TryGetValue(envelope.ItemId, out var f))
             {
                 Money? estimate = estimates.GetValueOrDefault(envelope.ItemId) is { Value: not null } e
                     && EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today) is { Value: not null } figures
                     && TodayValue.Pick(figures, e) is { Estimated: true } picked ? picked.Value : null;
-                series.Add((f.Envelope.ClosedOn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency).Where(p => !p.PaidIn).ToList(), estimate));
+                var readings = EnvelopeMath.Series(f.Values, f.Flows, f.Currency).Where(p => !p.PaidIn).ToList();
+                // Frozen only when it was valued before its closing: one never valued stayed out of the count and stays out.
+                var paidIn = f.Envelope.ClosedOn is { } closedOn && readings.Any(r => r.AsOf < closedOn)
+                    ? EnvelopeMath.NetContributionsBy(f.Flows, f.Currency, closedOn) : (Money?)null;
+                series.Add((f.Envelope.ClosedOn, paidIn, readings, estimate));
             }
 
         var points = new List<NetWorthPoint>();
@@ -130,9 +136,13 @@ public sealed class EnvelopesNetWorth(
             var values = new Dictionary<Currency, decimal>();
             var nets = new Dictionary<Currency, decimal>();
             var count = 0;
-            foreach (var (closedOn, readings, estimate) in series)
+            foreach (var (closedOn, paidIn, readings, estimate) in series)
             {
-                if (closedOn is { } closed && date >= closed) continue;
+                if (closedOn is { } closed && date >= closed)
+                {
+                    if (paidIn is { Amount: not 0m } frozen) Add(nets, frozen.Currency, frozen.Amount);
+                    continue;
+                }
                 var reading = readings.LastOrDefault(r => r.AsOf <= date); // Series is ordered by date
                 if (reading is null) continue;
                 count++;

@@ -1,0 +1,4 @@
+{
+  "en": "A page left before it finished loading no longer raises a false « response blocked by the access guard » alert.",
+  "fr": "Quitter une page avant la fin de son chargement ne déclenche plus d’alerte « Une réponse a été bloquée par la garde d’accès » à tort."
+}

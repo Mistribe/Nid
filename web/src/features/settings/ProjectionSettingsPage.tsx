@@ -54,7 +54,10 @@ export function ProjectionSettingsPage() {
             <ul className="space-y-1 text-sm">
               {ASSET_CLASSES.map((c) => <li key={c}>{t(`settings.projection.class.${c}`)} : {withYears(assumptions.data.classRates[c] ?? '', assumptions.data.classRatesByYear[c], t('settings.projection.then'))}</li>)}
               <li>{t('settings.projection.inflation')} : {withYears(assumptions.data.inflation, assumptions.data.inflationByYear, t('settings.projection.then'))}</li>
+              <li>{t('settings.projection.volatility_summary')} : {ASSET_CLASSES.map((c) => `${t(`settings.projection.class.${c}`)} ${percent(assumptions.data.classVolatility[c] ?? '0')}`).join(', ')}</li>
               <li>{t('settings.projection.income_growth_summary')} : {t('settings.projection.income_growth_value', { percent: percent(assumptions.data.incomeGrowth) })}</li>
+              <li>{t('settings.projection.withdrawal_rate')} : {percent(assumptions.data.withdrawalRate)}</li>
+              <li>{t('settings.projection.living_cost_summary')} : {Number(assumptions.data.monthlyLivingCost) > 0 ? formatCurrency(assumptions.data.monthlyLivingCost, assumptions.data.currency) : t('settings.projection.living_cost_unset')}</li>
               <li>{t('settings.projection.monthly_savings')} : {assumptions.data.monthlySavings ? formatCurrency(assumptions.data.monthlySavings, assumptions.data.currency) : t('settings.projection.savings_auto_summary')}</li>
               <li>{t('settings.projection.savings_class')} : {t(`settings.projection.class.${assumptions.data.savingsClass as (typeof ASSET_CLASSES)[number]}`)}</li>
               <li>{t('settings.projection.freed')} : {t(assumptions.data.freedPaymentsToSavings ? 'settings.projection.yes' : 'settings.projection.no')}</li>
@@ -99,7 +102,7 @@ export function ProjectionSettingsPage() {
             <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="font-medium">{p.displayName}</span>
               <span>{p.birthDate ? dayFirst(p.birthDate) : t('settings.projection.no_birth_date')}</span>
-              <span>{t('settings.projection.age_years', { count: p.retirementAge })}</span>
+              <span>{p.retirementMonths > 0 ? t('settings.projection.age_years_months', { years: p.retirementAge, months: p.retirementMonths }) : t('settings.projection.age_years', { count: p.retirementAge })}</span>
               <Button variant="outline" size="sm" aria-label={t('settings.projection.edit_retirement', { name: p.displayName })} onClick={() => open(p.id)}>{t('settings.projection.edit')}</Button>
             </li>
           ))}

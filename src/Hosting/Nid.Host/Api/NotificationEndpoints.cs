@@ -21,12 +21,13 @@ public static class NotificationEndpoints
                     "todo" => NotificationList.Todo,
                     "snoozed" => NotificationList.Snoozed,
                     "history" => NotificationList.History,
+                    "critical" => NotificationList.Critical,
                     _ => null,
                 };
                 if (which is null)
                 {
                     var reader = new FieldReader();
-                    reader.Add("list", "request.invalid", "todo, snoozed or history.");
+                    reader.Add("list", "request.invalid", "todo, snoozed, history or critical.");
                     return reader.Problem();
                 }
                 return (await invoker.InvokeAsync(new ListNotificationsQuery(which.Value, before, limit), ct)).ToHttp(p => p);

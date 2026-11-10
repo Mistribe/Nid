@@ -66,6 +66,7 @@
     "income": "Revenus",
     "tax": "Impôts",
     "scenarios": "Simulations",
+    "retirement": "Retraite",
     "properties": "Biens",
     "loans": "Crédits",
     "routine": "Routine",
@@ -90,8 +91,8 @@
     "bell": "Notifications",
     "bell_count_one": "Notifications, {{count}} non lue",
     "bell_count_other": "Notifications, {{count}} non lues",
-    "critical_banner": "Une notification importante attend votre lecture.",
-    "see": "Voir"
+    "bell_critical_one": "dont {{count}} importante",
+    "bell_critical_other": "dont {{count}} importantes"
   },
   "command": {
     "open": "Rechercher ou aller à…",
@@ -103,6 +104,7 @@
     "list": "Autres sections"
   },
   "dashboard": {
+    "year_review": "Bilan annuel",
     "projection": {
       "title": "Projection du patrimoine",
       "horizon": "Horizon de la projection",
@@ -122,11 +124,23 @@
       "assumptions": "Hypothèses : actions {{equity}} %, inflation {{inflation}} %, épargne {{savings}}/mois",
       "edit_assumptions": "Modifier les hypothèses",
       "disclaimer": "Chiffres indicatifs : rendements supposés, pas d’impôt futur ni de pension.",
+      "ranges": "Fourchette",
+      "ranges_loading": "Calcul de la fourchette…",
+      "ranges_legend": "Légende",
+      "ranges_band": "10ᵉ à 90ᵉ centile",
+      "ranges_low": "10ᵉ centile",
+      "ranges_median": "Médiane des tirages",
+      "ranges_high": "90ᵉ centile",
+      "ranges_success": "L’épargne disponible tient jusqu’à l’horizon dans {{percent}} % des {{runs}} tirages.",
+      "ranges_model": "Fourchette sur {{runs}} tirages de rendements annuels, un même aléa de marché pour toutes les classes ; volatilité annuelle : {{volatility}}. L’inflation, les revenus, les prêts et la valeur des biens ne varient pas. La médiane passe sous la courbe : la volatilité coûte du rendement.",
+      "ranges_class": "{{name}} {{percent}} %",
+      "ranges_none": "aucune",
       "milestones": "Jalons",
       "milestone_loan_end": "Fin du prêt « {{label}} »",
       "milestone_property_free": "« {{label}} » libre de prêt",
       "milestone_retirement": "Retraite de {{label}}",
       "milestone_savings_exhausted": "Épargne épuisée",
+      "milestone_financial_independence": "Indépendance financière",
       "milestone_line": "{{date}} : {{what}}",
       "warning_income_end_extended": "Le revenu « {{name}} » est supposé continuer après sa fin.",
       "warning_savings_exhausted": "L’épargne disponible serait épuisée en {{month}}.",
@@ -346,7 +360,7 @@
       "cause_line": "{{amount}} {{cause}}",
       "cause": {
         "investments": { "paid_in": "de versements sur les placements", "value": "sur la valeur des placements" },
-        "real_estate": { "paid_in": "de capital remboursé", "value": "sur l’immobilier" },
+        "real_estate": { "paid_in": "de capital remboursé", "moved": "d’achats et ventes immobiliers", "value": "sur l’immobilier" },
         "subscriptions": "d’abonnements",
         "loans": "de crédits",
         "property_costs": "de charges des biens",
@@ -413,6 +427,7 @@
     "loading": "Chargement des abonnements",
     "list_label": "Liste des abonnements",
     "tab_overview": "Vue d’ensemble",
+    "tab_analysis": "Analyse",
     "tab_list": "Liste",
     "tab_calendar": "Calendrier",
     "group_by": "Grouper par",
@@ -471,6 +486,9 @@
       "assumptions_title": "Hypothèses de projection",
       "assumptions_saved": "Hypothèses enregistrées.",
       "rates": "Rendement annuel par classe d’actifs (en %)",
+      "volatility": "Volatilité annuelle par classe d’actifs (en %), pour la fourchette",
+      "volatility_summary": "Volatilité annuelle",
+      "volatility_label": "Volatilité {{name}}",
       "class": {
         "cash": "Liquidités", "money_market": "Monétaire", "bond": "Obligations", "equity": "Actions",
         "mixed": "Diversifié", "capital_guaranteed": "Fonds en euros et garantis", "real_estate": "Immobilier", "other": "Autre"
@@ -485,6 +503,12 @@
       "income_growth": "Évolution des revenus : inflation + x %",
       "income_growth_summary": "Évolution des revenus",
       "income_growth_value": "inflation + {{percent}}",
+      "withdrawal_rate": "Taux de retrait",
+      "withdrawal_rate_hint": "Part du capital retirée chaque année pour vivre (4 % est un usage courant).",
+      "living_cost": "Coût de la vie mensuel ({{currency}})",
+      "living_cost_summary": "Coût de la vie mensuel",
+      "living_cost_unset": "non renseigné",
+      "living_cost_hint": "Dépenses mensuelles hors engagements suivis (abonnements, crédits, impôts…), en euros d'aujourd'hui.",
       "monthly_savings": "Épargne mensuelle",
       "monthly_savings_in": "Épargne mensuelle ({{currency}})",
       "savings_mode": "Épargne mensuelle du foyer",
@@ -506,7 +530,9 @@
       "birth_date": "Date de naissance",
       "no_birth_date": "Non renseignée",
       "retirement_age": "Âge de départ à la retraite",
-      "age_years": "{{count}} ans"
+      "retirement_months": "Mois",
+      "age_years": "{{count}} ans",
+      "age_years_months": "{{years}} ans et {{months}} mois"
     }
   },
   "investments": {
@@ -554,6 +580,8 @@
       "next_line": "{{date}} · {{amount}}", "gap_on": "{{date}} sans suite"
     },
     "title": "Revenus",
+    "tab_overview": "Vue d’ensemble",
+    "tab_sources": "Sources",
     "list": "Liste des revenus",
     "loading": "Chargement des revenus",
     "smoothed": "Revenus en net versé, après prélèvement à la source ; loyers hors charges, avant impôt. Montants mensuels lissés sur l’année.",
@@ -813,7 +841,7 @@
       "never_used": "Jamais",
       "status_label": "État",
       "status": { "active": "Actif", "expired": "Expiré", "revoked": "Révoqué" },
-      "preset": { "read": "Lecture seule", "propose": "Lecture + propositions", "direct": "Écriture directe" },
+      "preset": { "read": "Lecture seule", "propose": "Lecture + propositions", "direct": "Écriture directe", "calendar": "Abonnement de calendrier" },
       "preset_hint": {
         "read": "L’assistant consulte vos données, sans rien modifier.",
         "propose": "L’assistant consulte et propose des saisies, que vous validez.",

@@ -160,6 +160,7 @@ public static class NotificationTemplates
         ["investments.value"] = "valeur des placements",
         ["real_estate.paid_in"] = "capital remboursé",
         ["real_estate.value"] = "valeur de l'immobilier",
+        ["real_estate.moved"] = "achats et ventes immobiliers",
         ["subscriptions"] = "abonnements",
         ["loans"] = "crédits",
         ["property_costs"] = "charges des biens",

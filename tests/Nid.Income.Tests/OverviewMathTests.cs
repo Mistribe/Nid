@@ -132,6 +132,41 @@ public class OverviewMathTests
     }
 
     [Fact]
+    public void BySource_lists_every_source_and_merges_one_offs()
+    {
+        var inputs = Enumerable.Range(1, 8).Select(n => In($"S{n}", [Dd(D(2026, 1, 1), n * 100m), Dd(D(2025, 12, 31), 5m)])).ToList();
+        inputs[0] = inputs[0] with { OneOffs = [Dd(D(2026, 3, 1), 150m)] };
+        inputs[1] = inputs[1] with { OneOffs = [Dd(D(2026, 4, 1), 100m), Dd(D(2027, 1, 1), 1m)] };
+        inputs.Add(In("Fini", [Dd(D(2024, 1, 1), 500m)]));
+
+        var rows = OverviewMath.BySource(inputs, D(2026, 1, 1), D(2026, 12, 31));
+
+        Assert.Equal(9, rows.Count);
+        Assert.Equal([800m, 700m, 600m, 500m, 400m, 300m, 250m, 200m, 100m], rows.Select(r => r.Amount));
+        var oneOff = Assert.Single(rows, r => r.Kind == "one_off");
+        Assert.Equal((null, 250m), (oneOff.Item, oneOff.Amount));
+        Assert.Equal(("S8", "salary", inputs[7].Item), (rows[0].Name, rows[0].Kind, rows[0].Item));
+    }
+
+    [Fact]
+    public void BySource_leaves_an_unconvertible_source_without_amount_last()
+    {
+        var rows = OverviewMath.BySource([In("A", [Dd(D(2026, 1, 1), 100m), Dd(D(2026, 2, 1), null)]), In("B", [Dd(D(2026, 1, 1), 50m)])],
+            D(2026, 1, 1), D(2026, 12, 31));
+
+        Assert.Equal([("B", (decimal?)50m), ("A", null)], rows.Select(r => (r.Name, r.Amount)));
+    }
+
+    [Fact]
+    public void BySource_breaks_ties_by_name()
+    {
+        var rows = OverviewMath.BySource([In("b", [Dd(D(2026, 1, 1), 50m)]), In("Élan", [Dd(D(2026, 1, 1), 50m)]), In("A", [Dd(D(2026, 1, 1), 50m)])],
+            D(2026, 1, 1), D(2026, 12, 31));
+
+        Assert.Equal(["A", "b", "Élan"], rows.Select(r => r.Name));
+    }
+
+    [Fact]
     public void Now_split_keeps_six_running_inputs_largest_first_and_merges_the_rest_into_other()
     {
         var inputs = Enumerable.Range(1, 8).Select(n => In($"S{n}", now: n * 100m)).Append(In("Fini", now: 0m)).ToList();

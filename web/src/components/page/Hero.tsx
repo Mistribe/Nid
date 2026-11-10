@@ -52,15 +52,20 @@ export function HeroChange({ amount, pct, children }: { amount: MoneyValue; pct?
   );
 }
 
-/** An overview's lead figure; `values` are plotting numbers (`toPlot`) that only shape the curve. */
-export function Hero({ label, figure, change, note, values }: {
-  label: string; figure: ReactNode; change?: ReactNode; note?: ReactNode; values?: number[];
+/**
+ * An overview's lead figure, with the other figures (`aside`) on its right from `lg` up and under it below (issue #20: one card
+ * instead of two, so the simple view fits a laptop screen). No curve here: the overview's chart draws it just below.
+ */
+export function Hero({ label, figure, change, note, aside }: {
+  label: string; figure: ReactNode; change?: ReactNode; note?: ReactNode; aside?: ReactNode;
 }) {
   const labelId = useId();
   return (
     <section aria-labelledby={labelId} className="material rounded-[22px] border p-5 shadow-card">
-      <HeroBody label={label} labelId={labelId} figure={figure} change={change} note={note}
-        curve={values ? <HeroCurve values={values} /> : null} />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+        <div className="min-w-0 shrink-0"><HeroBody label={label} labelId={labelId} figure={figure} change={change} note={note} /></div>
+        {aside ? <div className="min-w-0 lg:max-w-2xl lg:flex-1">{aside}</div> : null}
+      </div>
     </section>
   );
 }

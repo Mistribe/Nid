@@ -20,7 +20,7 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
+    expect(links).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
   });
 
   it('each sidebar entry shows its tile, also on the rail', async () => {
@@ -108,7 +108,7 @@ describe('the shell', () => {
     const nav = within(sidebar());
     expect(nav.getAllByRole('heading').map((h) => h.textContent)).toEqual(['Suivi', 'Patrimoine', 'Budget']);
     const groups = nav.getAllByRole('list').map((l) => within(l).getAllByRole('link').map((a) => a.textContent));
-    expect(groups).toEqual([['Accueil', 'Routine', 'À valider', 'Documents'], ['Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations'], ['Revenus', 'Impôts', 'Abonnements', 'Garde']]);
+    expect(groups).toEqual([['Accueil', 'Routine', 'À valider', 'Documents'], ['Placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations'], ['Revenus', 'Impôts', 'Abonnements', 'Garde']]);
   });
 
   it('shows the API version beside the web version, in the person menu', async () => {
@@ -234,7 +234,7 @@ describe('the shell', () => {
       http.get('*/api/v1/income/overview', () => HttpResponse.json(overview({ sources: [sourceRow()] }))),
       http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail())),
     );
-    const { router, user } = await renderApp('/income?scope=me');
+    const { router, user } = await renderApp('/income?scope=me&tab=sources');
 
     await user.click((await screen.findAllByRole('link', { name: /Salaire Alice/ }))[0]!);
     expect(router.state.location.pathname).toBe(`/income/${SALARY}`);
@@ -356,7 +356,7 @@ describe('the shell', () => {
   it('lists the other sections on /more, Administration for an admin only', async () => {
     const { container } = await renderApp('/more');
     const list = await screen.findByRole('list', { name: 'Autres sections' });
-    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['À valider', 'Documents', 'Objectifs', 'Biens', 'Crédits', 'Revenus', 'Impôts', 'Simulations', 'Garde', 'Import', 'Export', 'Sécurité', 'Réglages', 'Nouveautés']);
+    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['À valider', 'Documents', 'Objectifs', 'Biens', 'Crédits', 'Revenus', 'Impôts', 'Retraite', 'Simulations', 'Garde', 'Import', 'Export', 'Sécurité', 'Réglages', 'Nouveautés']);
     await expectNoAxeViolations(container);
   });
 
@@ -405,7 +405,7 @@ describe('the shell', () => {
       expect(sidebar()).toHaveAttribute('data-rail');
       expect(localStorage.getItem('nid.sidebar')).toBe('rail');
       // The names stay for screen readers, and the groups keep their headings.
-      expect(within(sidebar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
+      expect(within(sidebar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
       expect(within(sidebar()).getAllByRole('heading').map((h) => h.textContent)).toEqual(['Suivi', 'Patrimoine', 'Budget']);
       await user.click(toggle('Déplier le menu'));
       expect(sidebar()).not.toHaveAttribute('data-rail');

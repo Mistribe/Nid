@@ -27,12 +27,12 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
     }
     private sealed class Commitments(CommitmentsPart part) : ICommitmentsContribution
     {
-        public Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct) => Task.FromResult(Result.Success(part));
+        public Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool includeArchived = false) => Task.FromResult(Result.Success(part));
     }
     private sealed class Income(IncomePart part) : IIncomeContribution
     {
         public Task<Result<IncomePart>> IncomeAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct) => Task.FromResult(Result.Success(part));
-        public Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, CancellationToken ct)
+        public Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, IReadOnlyDictionary<PersonId, int> switches, CancellationToken ct)
             => Task.FromResult(Result.Success(new IncomeTimeline([], [])));
     }
     private sealed class Rates(RateTable table, List<Currency> asked) : IFxRates

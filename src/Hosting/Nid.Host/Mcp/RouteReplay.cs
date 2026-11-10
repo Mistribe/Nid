@@ -40,8 +40,8 @@ public sealed class RouteReplay(EndpointDataSource endpoints, IHttpContextAccess
         await using var rolledBack = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(ct);
         var user = actor.Current?.Via == ActorOrigin.Job ? null : http.HttpContext?.User;
         if (user is null && actor.Current is { } job)
-            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = job with { Scopes = new HashSet<string>(job.Scopes) { ScopeNames.WriteDirect } };
-        return await SendAsync(scope.ServiceProvider, user is null ? null : TokenClaims.WithScope(user, ScopeNames.WriteDirect), action, call, ct);
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = job with { Scopes = new HashSet<string>(job.Scopes) { ScopeNames.WriteDirect, ScopeNames.DryRun } };
+        return await SendAsync(scope.ServiceProvider, user is null ? null : TokenClaims.WithScope(TokenClaims.WithScope(user, ScopeNames.WriteDirect), ScopeNames.DryRun), action, call, ct);
     }
 
     private async Task<Result<JsonElement>> SendAsync(

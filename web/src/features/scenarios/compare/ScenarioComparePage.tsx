@@ -20,6 +20,7 @@ import type { HouseholdPoint } from '@/api/dashboard';
 import { monthLabel } from '@/lib/format';
 import { SCENARIO_COMPARE, SCENARIOS, type ScenarioCompare } from '../api';
 import type { ChartSeries } from '../projection/chartSeries';
+import { Independence } from '../projection/Independence';
 import { ProjectionComparisonChart } from '../projection/ProjectionComparisonChart';
 import { ProjectionWarnings } from '../projection/ProjectionWarnings';
 import { MAX_COMPARED, type CompareSearch } from './compareSearch';
@@ -154,6 +155,7 @@ function HorizonTable({ data, real }: { data: ScenarioCompare; real: boolean }) 
           <TableHead scope="col">{t('scenarios.compare.line')}</TableHead>
           <TableHead scope="col" className="text-right">{t('scenarios.compare.value')}</TableHead>
           <TableHead scope="col" className="text-right">{t('scenarios.compare.gap')}</TableHead>
+          <TableHead scope="col" className="text-right">{t('scenarios.projection.independence.label')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -161,6 +163,7 @@ function HorizonTable({ data, real }: { data: ScenarioCompare; real: boolean }) 
           <TableHead scope="row" className="font-normal">{t('scenarios.compare.base')}</TableHead>
           <TableCell className="text-right tabular-nums">{at(data.base.points)}</TableCell>
           <TableCell className="text-right">—</TableCell>
+          <TableCell className="text-right"><Independence projection={data.base} /></TableCell>
         </TableRow>
         {data.scenarios.map((s) => (
           <TableRow key={s.id}>
@@ -173,6 +176,7 @@ function HorizonTable({ data, real }: { data: ScenarioCompare; real: boolean }) 
             </TableHead>
             <TableCell className="text-right tabular-nums">{at(s.result.points)}</TableCell>
             <TableCell className="text-right tabular-nums">{money(real ? s.gapReal : s.gapNominal)}</TableCell>
+            <TableCell className="text-right"><Independence projection={s.result} /></TableCell>
           </TableRow>
         ))}
       </TableBody>

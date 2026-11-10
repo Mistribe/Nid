@@ -24,6 +24,15 @@ public sealed record AddHoldingCommand(ItemId ItemId, HoldingDraft Holding) : IC
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>
+/// Several holdings of one envelope as one write (a statement's new lines): what <see cref="AddHoldingCommand"/> checks, each
+/// against the holdings before it; a refusal names its holding by index (<see cref="Batch.Index"/>).
+/// </summary>
+public sealed record AddHoldingsCommand(ItemId ItemId, IReadOnlyList<HoldingDraft> Holdings) : ICommand<IReadOnlyList<Guid>>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 /// <summary>A replacement in place; <paramref name="Version"/> is the holding's as the client read it.</summary>
 public sealed record EditHoldingCommand(ItemId ItemId, Guid Holding, HoldingDraft Values, uint Version) : ICommand<Guid>, IItemScoped
 {
@@ -158,6 +167,33 @@ internal static class HoldingCheck
     /// <summary>The envelope's valuation dated exactly <paramref name="on"/>, if any.</summary>
     public static async Task<decimal?> ValuationOnAsync(IValuations valuations, ItemId id, LocalDate on, CancellationToken ct)
         => (await valuations.LatestAsync(id, on, ct)).TryGetValue(out var latest) && latest!.Value is { } v && v.AsOf == on ? v.Value.Amount : null;
+}
+
+[RequestHandler<AddHoldingsCommand, IReadOnlyList<Guid>>]
+public sealed class AddHoldingsHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IUnitOfWork unitOfWork)
+    : IRequestHandler<AddHoldingsCommand, IReadOnlyList<Guid>>
+{
+    public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(AddHoldingsCommand command, CancellationToken ct = default)
+    {
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        if ((await HoldingCheck.OpenAsync(envelopes, items, command.ItemId, ct)).TryGetFailure(out var failure))
+            return Result.Failure<IReadOnlyList<Guid>>(failure!);
+        // Each against the envelope's holdings and the ones added before it, as added one by one (an ISIN held once).
+        var all = (await holdings.HoldingsAsync(command.ItemId, ct)).ToList();
+        var added = new List<EnvelopeHolding>(command.Holdings.Count);
+        for (var i = 0; i < command.Holdings.Count; i++)
+        {
+            var checkedHolding = HoldingRules.Check(Guid.CreateVersion7(), command.ItemId, command.Holdings[i], all);
+            if (!checkedHolding.TryGetValue(out var holding))
+                return Result.Failure<IReadOnlyList<Guid>>(Batch.At(checkedHolding.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException(), i));
+            all.Add(new StoredHolding(holding!, 0));
+            added.Add(holding!);
+        }
+
+        await holdings.AddManyAsync(added, ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success<IReadOnlyList<Guid>>(added.Select(h => h.Id).ToList());
+    }
 }
 
 [RequestHandler<AddHoldingCommand, Guid>]

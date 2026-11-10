@@ -14,7 +14,9 @@ const BOB = '22222222-2222-4222-8222-222222222222';
 
 const assumptions = (over: Body = {}) => ({
   classRates: { cash: '1.5', money_market: '2', bond: '3', equity: '6', mixed: '4', capital_guaranteed: '2.5', real_estate: '2', other: '0' },
-  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0', observedInflation: null, ...over,
+  inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR', inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0', withdrawalRate: '4', monthlyLivingCost: '0.00',
+  classVolatility: { cash: '0', money_market: '0', bond: '6', equity: '16', mixed: '10', capital_guaranteed: '0', real_estate: '10', other: '0' },
+  observedInflation: null, ...over,
 });
 
 const observed = {
@@ -26,8 +28,8 @@ const YEAR = new Date().getFullYear();
 const NEXT = YEAR + 1;
 
 const persons = [
-  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: null, retirementAge: 64 },
-  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62 },
+  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: null, retirementAge: 64, retirementMonths: 0 },
+  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62, retirementMonths: 9 },
 ];
 
 function serve(initial: Body = assumptions(), inflation: Body = observed) {
@@ -61,7 +63,7 @@ describe('the projection settings page', () => {
     expect(screen.getByText(/Automatique \(moyenne des 12 derniers mois\)/)).toBeInTheDocument();
     expect(screen.getByText('Mensualités terminées versées à l’épargne : oui')).toBeInTheDocument();
     expect(await screen.findByText('20/05/1984')).toBeInTheDocument();
-    expect(screen.getByText('62 ans')).toBeInTheDocument();
+    expect(screen.getByText('62 ans et 9 mois')).toBeInTheDocument();
     expect(screen.getByText('Non renseignée')).toBeInTheDocument();
   });
 
@@ -85,6 +87,22 @@ describe('the projection settings page', () => {
     expect(puts[0]).toMatchObject({ inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true });
   });
 
+  it('lists and sends the volatility of each class', async () => { // ranges spec §2
+    const { puts } = serve();
+    const { user } = await renderApp('/settings/projection');
+
+    expect(await screen.findByText(/Volatilité annuelle : Liquidités 0 %, .*Actions 16 %/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
+    const equity = await screen.findByLabelText('Volatilité Actions');
+    expect(equity).toHaveValue('16');
+    await user.clear(equity);
+    await user.type(equity, '18,5');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]!.classVolatility).toMatchObject({ equity: '18.5', bond: '6', cash: '0' });
+  });
+
   it('shows the fixed savings in the household currency', async () => {
     serve(assumptions({ monthlySavings: '500.00', currency: 'CHF' }));
     const { user } = await renderApp('/settings/projection');
@@ -92,6 +110,32 @@ describe('the projection settings page', () => {
     expect(await screen.findByText(/Épargne mensuelle : 500,00\s*CHF/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
     expect(await screen.findByLabelText('Épargne mensuelle (CHF)')).toHaveValue('500,00');
+  });
+
+  it('shows and sends the withdrawal rate and the living cost', async () => { // retirement spec §3
+    const { puts } = serve(assumptions({ withdrawalRate: '3.5', monthlyLivingCost: '2500.00' }));
+    const { user } = await renderApp('/settings/projection');
+
+    expect(await screen.findByText(/Taux de retrait : 3,5 %/)).toBeInTheDocument();
+    expect(screen.getByText(/Coût de la vie mensuel : 2\s?500,00\s*€/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
+    const rate = await screen.findByLabelText('Taux de retrait');
+    await user.clear(rate);
+    await user.type(rate, '3,5');
+    const cost = screen.getByLabelText('Coût de la vie mensuel (EUR)');
+    await user.clear(cost);
+    await user.type(cost, '2500');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ withdrawalRate: '3.5', monthlyLivingCost: '2500' });
+  });
+
+  it('shows an unset living cost as not filled in', async () => {
+    serve();
+    await renderApp('/settings/projection');
+
+    expect(await screen.findByText('Coût de la vie mensuel : non renseigné')).toBeInTheDocument();
   });
 
   it('sends a fixed monthly amount', async () => {
@@ -135,8 +179,45 @@ describe('the projection settings page', () => {
     await user.type(age, '64');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: '1984-05-20', retirementAge: 64 } }]));
+    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: '1984-05-20', retirementAge: 64, retirementMonths: 0 } }]));
     await waitFor(() => expect(queryClient.getQueryState(['get', SERIES_POINTS])?.isInvalidated).toBe(true));
+  });
+
+  it('reads the departure in years and months and sends the typed months', async () => {
+    const { retirements } = serve();
+    const { user } = await renderApp('/settings/projection');
+
+    expect(await screen.findByText('62 ans et 9 mois')).toBeInTheDocument();
+    expect(screen.getByText('64 ans')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier la retraite de Alice' }));
+    const dialog = await screen.findByRole('dialog');
+    const age = within(dialog).getByLabelText('Âge de départ à la retraite');
+    await user.clear(age);
+    await user.type(age, '62');
+    const months = within(dialog).getByLabelText('Mois');
+    await user.clear(months);
+    await user.type(months, '9');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: null, retirementAge: 62, retirementMonths: 9 } }]));
+  });
+
+  it('sends zero for empty months and shows a server error on the months field', async () => {
+    serve();
+    const sent: Body[] = [];
+    server.use(http.put('*/api/v1/core/persons/:id/retirement', async ({ request }) => { sent.push((await request.json()) as Body); return HttpResponse.json(
+      { status: 422, code: 'core.invalid_retirement_age', errors: [{ path: 'retirementMonths', code: 'core.invalid_retirement_age', message: 'Mois hors limites.' }] },
+      { status: 422, headers: { 'content-type': 'application/problem+json' } }); }));
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier la retraite de Alice' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.clear(within(dialog).getByLabelText('Mois'));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    const months = within(dialog).getByLabelText('Mois');
+    await waitFor(() => expect(months).toHaveAccessibleDescription('Mois hors limites.'));
+    expect(sent[0]!.retirementMonths).toBe(0);
   });
 
   it('sends only the typed years and the income growth', async () => {

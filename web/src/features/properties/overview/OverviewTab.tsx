@@ -23,7 +23,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { seeAllClass } from '@/components/page/seeAll';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { toPlot } from '@/lib/plot';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PERSONS } from '@/api/persons';
 import { PROPERTIES_OVERVIEW, type PropertiesOverview, type PropertyOverviewRow, type PropertyWatch } from '@/api/properties';
@@ -37,8 +36,42 @@ import { OverviewSkeleton } from '@/components/page/skeletons';
 type Scope = 'household' | 'me';
 type Span = '12m' | '3y' | 'all';
 
-/** Properties dashboard §3.3: the server's figures, then the curve, the split, what to watch and the properties; nothing computed here. */
+/** Issue #20: the simple view — the net value, the figures, then the curve with what to watch beside it; nothing computed here. */
 export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <NetHero d={d} aside={<Figures d={d} />} />
+          <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+            <div className={d.watch.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}><NetValueChart d={d} span={span} /></div>
+            <WatchCard d={d} />
+          </div>
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Issue #20: « Analyse », what the simple view leaves out — the split, each person's part and the properties. */
+export function AnalysisTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <Types d={d} />
+            <Persons d={d} />
+          </div>
+          <Properties d={d} />
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Properties dashboard §3.3: the server's answer both tabs read (one request), or what to show instead. */
+function Overview({ scope, span, children }: { scope: Scope; span: Span; children: (d: PropertiesOverview) => ReactNode }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', PROPERTIES_OVERVIEW, { params: { query: { scope, span } } });
@@ -52,20 +85,9 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
         action={<Link to="/properties/new" className={buttonVariants({ variant: 'outline' })}>{t('properties.add')}</Link>} />
     );
 
-  // DOM order is the phone's (figures, curve, watch, split, persons, properties).
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-6">
-        <NetHero d={d} />
-        <Figures d={d} />
-        <NetValueChart d={d} span={span} />
-        <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
-          <div className="md:order-last"><WatchCard d={d} /></div>
-          <Types d={d} />
-          <Persons d={d} />
-        </div>
-        <Properties d={d} />
-      </div>
+      <div className="flex flex-col gap-4">{children(d)}</div>
     </TooltipProvider>
   );
 }
@@ -89,19 +111,19 @@ const share = (t: TFunction, value: number) =>
 
 const known = (value?: number | null): value is number => value !== null && value !== undefined;
 
-/** The net value leads, with the latent gain and the server's points as its curve. */
-function NetHero({ d }: { d: PropertiesOverview }) {
+/** The net value leads, with the latent gain and the other figures beside it. */
+function NetHero({ d, aside }: { d: PropertiesOverview; aside?: ReactNode }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
   return (
-    <Hero label={t('properties_overview.net')} figure={d.netValue ? figure(d.netValue) : <HeroUnknown>{figure(d.netValue)}</HeroUnknown>}
+    <Hero aside={aside} label={t('properties_overview.net')} figure={d.netValue ? figure(d.netValue) : <HeroUnknown>{figure(d.netValue)}</HeroUnknown>}
       change={d.latentGain ? (
         <HeroChange amount={d.latentGain} pct={known(d.latentGainPct) ? share(t, d.latentGainPct) : null}>
           {t(known(d.latentGainPct) ? 'properties_overview.hero_gain' : 'properties_overview.hero_gain_plain')}
         </HeroChange>
       ) : <span className="flex flex-wrap gap-x-1"><span className="text-muted-foreground">{t('properties_overview.gain')}</span>{figure(d.latentGain)}</span>}
       note={known(d.netValuePct) ? t('properties_overview.net_note', { pct: share(t, d.netValuePct) }) : null}
-      values={d.points.flatMap((p) => (p.netValue ? [toPlot(p.netValue.amount)] : []))} />
+    />
   );
 }
 
@@ -194,7 +216,7 @@ function Persons({ d }: { d: PropertiesOverview }) {
   );
 }
 
-const WATCH_SHOWN = 4;
+const WATCH_SHOWN = 3;
 const WATCH_CODES = [
   'no_valuation', 'valuation_stale', 'rental_without_tenancy', 'visibility_mismatch', 'fx_missing', 'rent_arrears', 'property_cost_due', 'tenancy_end',
   'revision_due', 'revision_lost', 'irl_missing', 'revision_forbidden_dpe',

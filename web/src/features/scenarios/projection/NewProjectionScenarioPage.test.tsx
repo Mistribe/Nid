@@ -7,7 +7,7 @@ import { server } from '@/test/server';
 import { ALICE, comparison, loans, persons, properties, scenarioList } from './testData';
 
 const CREATED = '0192f0aa-0000-7000-8000-0000000000d9';
-type Body = { scope: string; document: { horizon: string; assumptions?: Record<string, unknown> | null; events?: Record<string, unknown>[] } };
+type Body = { scope: string; document: { horizon: string; assumptions?: Record<string, unknown> | null; events?: Record<string, unknown>[]; retirements?: Record<string, unknown>[] } };
 
 function serve(observedInflation: string | null = null) {
   const simulated: Body[] = [];
@@ -92,6 +92,31 @@ describe('NewProjectionScenarioPage', () => {
     }]);
   });
 
+  it('sends a departure for the adults who filled one, the age left empty being the household\'s', async () => {
+    const { simulated } = serve();
+    const { user } = await renderApp('/scenarios/new?kind=projection');
+
+    await general(user);
+    await next(user);
+    expect(screen.getByLabelText('Âge de départ de Alice (années)')).toHaveAccessibleDescription('Foyer : 64 ans');
+    expect(simulated.at(-1)?.document).not.toHaveProperty('retirements');
+    await user.type(screen.getByLabelText('Pension mensuelle de Alice'), '1 800,5');
+    await waitFor(() => expect(simulated.at(-1)?.document.retirements).toEqual([{ person: ALICE, monthlyPension: '1800.5' }]));
+    await user.type(screen.getByLabelText('Âge de départ de Alice (années)'), '60');
+    await user.type(screen.getByLabelText('Âge de départ de Alice (mois)'), '6');
+    await waitFor(() => expect(simulated.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6, monthlyPension: '1800.5' }]));
+  });
+
+  it('refuses a decimal age with a message about whole numbers', async () => {
+    serve();
+    const { user } = await renderApp('/scenarios/new?kind=projection');
+    await general(user);
+    await next(user);
+    await user.type(screen.getByLabelText('Âge de départ de Alice (années)'), '60,5');
+    await user.click(screen.getByRole('button', { name: 'Créer le scénario' }));
+    expect(await screen.findByText('Saisissez un nombre entier.')).toBeInTheDocument();
+  });
+
   it('hints the observed inflation on the current year', async () => {
     serve('3.1');
     const { user } = await renderApp('/scenarios/new?kind=projection');
@@ -116,9 +141,25 @@ describe('NewProjectionScenarioPage', () => {
     await user.type(screen.getByLabelText(`Inflation ${year} (%)`), '2,5');
     await user.type(screen.getByLabelText(`Liquidités ${year + 1} (%)`), '3');
     await user.type(screen.getByLabelText('Évolution des revenus : inflation + x %'), '0,5');
+    await user.type(screen.getByLabelText('Volatilité Actions (%)'), '20');
     await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({
-      inflationByYear: { [year]: '2.5' }, classRatesByYear: { cash: { [year + 1]: '3' } }, incomeGrowth: '0.5',
+      inflationByYear: { [year]: '2.5' }, classRatesByYear: { cash: { [year + 1]: '3' } }, incomeGrowth: '0.5', classVolatility: { equity: '20' },
     }));
+  });
+
+  it('sends the withdrawal rate and living cost typed, and omits them when empty', async () => {
+    const { simulated } = serve();
+    const { user } = await renderApp('/scenarios/new?kind=projection');
+
+    await general(user);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: 'Changer les hypothèses du foyer' }));
+    await user.type(screen.getByLabelText('Taux de retrait (%)'), '3,5');
+    await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({ withdrawalRate: '3.5' }));
+    await user.type(screen.getByLabelText('Coût de la vie mensuel'), '2500');
+    await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({ withdrawalRate: '3.5', monthlyLivingCost: '2500' }));
+    await user.clear(screen.getByLabelText('Taux de retrait (%)'));
+    await waitFor(() => expect(simulated.at(-1)?.document.assumptions).toEqual({ monthlyLivingCost: '2500' }));
   });
 
   it('sends no simulation while a typed assumption cannot be read', async () => {

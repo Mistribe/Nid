@@ -1,4 +1,4 @@
-import { Baby, Bell, Building2, Calculator, CalendarCheck, FileText, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Target, Upload, Wallet } from 'lucide-react';
+import { Baby, Bell, Building2, Calculator, CalendarCheck, FileText, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Sunset, Target, Upload, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { components } from '@/api/schema';
 import type { Tile } from '@/components/ModuleTile';
@@ -20,6 +20,7 @@ export const NAV = [
   { group: 'estate', module: 'realestate', admin: false, mobile: 'more', to: '/loans', icon: Landmark, tile: 2, label: 'nav.loans' },
   { group: 'budget', module: 'income', admin: false, mobile: 'more', to: '/income', icon: Wallet, tile: 6, label: 'nav.income' },
   { group: 'budget', module: 'income', admin: false, mobile: 'more', to: '/tax', icon: Calculator, tile: 'neutral', label: 'nav.tax' },
+  { group: 'estate', module: 'core', admin: false, mobile: 'more', to: '/retirement', icon: Sunset, tile: 'neutral', label: 'nav.retirement' },
   { group: 'estate', module: 'core', admin: false, mobile: 'more', to: '/scenarios', icon: FlaskConical, tile: 7, label: 'nav.scenarios' },
   { group: 'budget', module: 'subscriptions', admin: false, mobile: 'tab', to: '/subscriptions', icon: Repeat, tile: 8, label: 'nav.subscriptions' },
   { group: 'budget', module: 'childcare', admin: false, mobile: 'more', to: '/childcare', icon: Baby, tile: 5, label: 'nav.childcare' },

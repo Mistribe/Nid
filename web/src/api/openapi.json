@@ -155,6 +155,38 @@
         }
       }
     },
+    "/api/v1/calendar/{secret}.ics": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "secret",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/v1/core/persons": {
       "get": {
         "tags": [
@@ -2014,7 +2046,186 @@
         }
       }
     },
+    "/api/v1/subscriptions/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/subscriptions/{id}": {
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "Nid.Host"
@@ -4087,6 +4298,95 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/investments/envelopes/{id}/valuations": {
@@ -4895,6 +5195,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/envelopes/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
                 }
               }
             }
@@ -7224,6 +7614,13 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7587,6 +7984,95 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/income/sources/{id}/phases": {
@@ -7622,6 +8108,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/income/sources/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
                 }
               }
             }
@@ -8247,6 +8823,14 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
             }
           }
         ],
@@ -9219,6 +9803,185 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
                 }
               }
             }
@@ -11873,6 +12636,95 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/childcare/{id}/revisions": {
@@ -12306,6 +13158,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/childcare/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
                 }
               }
             }
@@ -15367,6 +16309,95 @@
           }
         }
       },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "Nid.Host"
@@ -15399,6 +16430,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/realestate/loans/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
                 }
               }
             }
@@ -17498,6 +18619,95 @@
           }
         }
       },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "uint32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "Nid.Host"
@@ -17530,6 +18740,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/realestate/properties/{id}/deletion": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDeletionPreview"
                 }
               }
             }
@@ -20101,6 +21401,102 @@
         }
       }
     },
+    "/api/v1/reports/year": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/YearReviewView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/core/projection-assumptions": {
       "get": {
         "tags": [
@@ -20286,6 +21682,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "ranges",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -20295,6 +21698,94 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/retirement": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetirementView"
                 }
               }
             }
@@ -23343,6 +24834,13 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "ranges",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -25617,6 +27115,259 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/core/me/calendar": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCalendarView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarFeedBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCalendarFeedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarFeedBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedView"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -28516,6 +30267,27 @@
               "null",
               "string"
             ]
+          },
+          "classVolatility": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "withdrawalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyLivingCost": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -29139,6 +30911,42 @@
               "number"
             ],
             "format": "double"
+          }
+        }
+      },
+      "CalendarFeedBody": {
+        "required": [
+          "amounts"
+        ],
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amounts": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CalendarFeedView": {
+        "required": [
+          "token",
+          "scope",
+          "amounts"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/TokenView"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "amounts": {
+            "type": "boolean"
           }
         }
       },
@@ -31368,6 +33176,21 @@
           }
         }
       },
+      "CreatedCalendarFeedResponse": {
+        "required": [
+          "feed",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "feed": {
+            "$ref": "#/components/schemas/CalendarFeedView"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "CreateDependentBody": {
         "required": [
           "displayName"
@@ -32596,6 +34419,112 @@
           }
         }
       },
+      "DeletionBlocker": {
+        "required": [
+          "key",
+          "count",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletionBlockerItem"
+            }
+          }
+        }
+      },
+      "DeletionBlockerItem": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "DeletionCount": {
+        "required": [
+          "key",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "DepartureView": {
+        "required": [
+          "person",
+          "name",
+          "years",
+          "months",
+          "sources"
+        ],
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "birthDate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "years": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "departure": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pension": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PensionSourceView"
+            }
+          }
+        }
+      },
       "DiscordWebhookBody": {
         "type": "object",
         "properties": {
@@ -33625,6 +35554,31 @@
           }
         }
       },
+      "EngagementSourceView": {
+        "required": [
+          "source",
+          "estimated"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "estimated": {
+            "type": "boolean"
+          }
+        }
+      },
       "EnvelopeDetail": {
         "required": [
           "id",
@@ -34009,7 +35963,9 @@
           "id",
           "name",
           "kind",
-          "currency"
+          "currency",
+          "staleStart",
+          "noStartValue"
         ],
         "type": "object",
         "properties": {
@@ -34048,6 +36004,49 @@
               "number"
             ],
             "format": "double"
+          },
+          "startValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "endValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "netContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "staleStart": {
+            "type": "boolean"
+          },
+          "noStartValue": {
+            "type": "boolean"
           }
         }
       },
@@ -35432,6 +37431,99 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "GoalReviewRowView": {
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "reachedInPeriod",
+          "partial"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startReached": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endReached": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startProgressPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "endProgressPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "reachedInPeriod": {
+            "type": "boolean"
+          },
+          "archivedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "partial": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GoalsReviewView": {
+        "required": [
+          "goals"
+        ],
+        "type": "object",
+        "properties": {
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalReviewRowView"
+            }
           }
         }
       },
@@ -37943,6 +40035,87 @@
           }
         }
       },
+      "IncomeReviewView": {
+        "required": [
+          "sources",
+          "engagementSources"
+        ],
+        "type": "object",
+        "properties": {
+          "income": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeSourceView"
+            }
+          },
+          "engagements": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "engagementSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementSourceView"
+            }
+          },
+          "margin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousIncome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousEngagements": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousMargin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "IncomeRowView": {
         "required": [
           "source",
@@ -38347,6 +40520,46 @@
           }
         }
       },
+      "IncomeSourceView": {
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "IncomeWithholdingView": {
         "required": [
           "person",
@@ -38374,6 +40587,30 @@
           },
           "monthlyGap": {
             "$ref": "#/components/schemas/IncomeMoneyView"
+          }
+        }
+      },
+      "IndependencePointView": {
+        "required": [
+          "on",
+          "capital",
+          "covered",
+          "expenses"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "capital": {
+            "type": "string"
+          },
+          "covered": {
+            "type": "string"
+          },
+          "expenses": {
+            "type": "string"
           }
         }
       },
@@ -39014,7 +41251,6 @@
           "to",
           "months",
           "envelopes",
-          "excluded",
           "findings"
         ],
         "type": "object",
@@ -39097,6 +41333,13 @@
             ],
             "format": "double"
           },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "months": {
             "type": "array",
             "items": {
@@ -39121,12 +41364,6 @@
               "$ref": "#/components/schemas/EnvelopePeriodRow"
             }
           },
-          "excluded": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ExcludedEnvelopeView"
-            }
-          },
           "reference": {
             "oneOf": [
               {
@@ -39141,6 +41378,176 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/OverviewFindingView"
+            }
+          }
+        }
+      },
+      "InvestmentsReviewRowView": {
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "staleStart",
+          "noStartValue"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "startValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "netContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "gain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "staleStart": {
+            "type": "boolean"
+          },
+          "noStartValue": {
+            "type": "boolean"
+          }
+        }
+      },
+      "InvestmentsReviewView": {
+        "required": [
+          "envelopes",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "startValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "contributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "withdrawals": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "gain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "periodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "previousGain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousPeriodReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "envelopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvestmentsReviewRowView"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -39285,6 +41692,40 @@
           "error",
           "warning"
         ]
+      },
+      "ItemDeletionPreview": {
+        "required": [
+          "name",
+          "version",
+          "imported",
+          "removes",
+          "blockers"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "uint32"
+          },
+          "imported": {
+            "type": "boolean"
+          },
+          "removes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletionCount"
+            }
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletionBlocker"
+            }
+          }
+        }
       },
       "ItemHistoryEntry": {
         "required": [
@@ -41075,6 +43516,89 @@
           }
         }
       },
+      "LoanReviewRowView": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "interest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "insurance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "fees": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "capitalRepaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "archivedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
       "LoanScheduleRowView": {
         "required": [
           "number",
@@ -41458,6 +43982,100 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanPhaseSpanView"
+            }
+          }
+        }
+      },
+      "LoansReviewView": {
+        "required": [
+          "loans"
+        ],
+        "type": "object",
+        "properties": {
+          "interest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "insurance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "fees": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "capitalRepaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "startBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "endBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousInterestAndInsurance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousCapitalRepaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanReviewRowView"
             }
           }
         }
@@ -42085,6 +44703,21 @@
           }
         }
       },
+      "MyCalendarView": {
+        "type": "object",
+        "properties": {
+          "feed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarFeedView"
+              }
+            ]
+          }
+        }
+      },
       "NetValueTurn": {
         "required": [
           "negativeSince"
@@ -42193,6 +44826,49 @@
                 "$ref": "#/components/schemas/DashboardMoneyView"
               }
             ]
+          }
+        }
+      },
+      "NetWorthReviewView": {
+        "required": [
+          "start",
+          "end",
+          "change",
+          "parts",
+          "previousParts"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "end": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "change": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewPartView"
+            }
+          },
+          "previousChange": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousParts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewPartView"
+            }
           }
         }
       },
@@ -42629,10 +45305,39 @@
           }
         }
       },
+      "PensionSourceView": {
+        "required": [
+          "source",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "monthly": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PeriodView": {
         "required": [
           "from",
-          "to"
+          "to",
+          "noStartValue"
         ],
         "type": "object",
         "properties": {
@@ -42697,6 +45402,9 @@
                 "$ref": "#/components/schemas/AmountView"
               }
             ]
+          },
+          "noStartValue": {
+            "type": "boolean"
           }
         }
       },
@@ -42705,7 +45413,8 @@
           "id",
           "kind",
           "displayName",
-          "retirementAge"
+          "retirementAge",
+          "retirementMonths"
         ],
         "type": "object",
         "properties": {
@@ -42732,6 +45441,10 @@
             ]
           },
           "retirementAge": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "retirementMonths": {
             "type": "integer",
             "format": "int32"
           }
@@ -43591,7 +46304,10 @@
           "currency",
           "inflationByYear",
           "classRatesByYear",
-          "incomeGrowth"
+          "incomeGrowth",
+          "classVolatility",
+          "withdrawalRate",
+          "monthlyLivingCost"
         ],
         "type": "object",
         "properties": {
@@ -43635,6 +46351,18 @@
             }
           },
           "incomeGrowth": {
+            "type": "string"
+          },
+          "classVolatility": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "withdrawalRate": {
+            "type": "string"
+          },
+          "monthlyLivingCost": {
             "type": "string"
           },
           "observedInflation": {
@@ -43734,6 +46462,15 @@
             ],
             "items": {
               "$ref": "#/components/schemas/ProjectionEventView"
+            }
+          },
+          "retirements": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScenarioRetirementView"
             }
           }
         }
@@ -43954,6 +46691,27 @@
               "null",
               "string"
             ]
+          },
+          "classVolatility": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "withdrawalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyLivingCost": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -43974,6 +46732,29 @@
           },
           "with": {
             "$ref": "#/components/schemas/DashboardMoneyView"
+          }
+        }
+      },
+      "ProjectionRangesView": {
+        "required": [
+          "runs",
+          "success",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "success": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RangePointView"
+            }
           }
         }
       },
@@ -44113,6 +46894,22 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "financialIndependence": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ranges": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectionRangesView"
+              }
             ]
           }
         }
@@ -44561,6 +47358,60 @@
           }
         }
       },
+      "PropertiesReviewView": {
+        "required": [
+          "properties"
+        ],
+        "type": "object",
+        "properties": {
+          "costs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "rents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousCosts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousRents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyReviewRowView"
+            }
+          }
+        }
+      },
       "PropertiesValuation": {
         "required": [
           "currency",
@@ -44704,6 +47555,27 @@
               },
               {
                 "$ref": "#/components/schemas/ArrearsLetterView"
+              }
+            ]
+          }
+        }
+      },
+      "PropertyCostCategoryView": {
+        "required": [
+          "category"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
               }
             ]
           }
@@ -45593,6 +48465,63 @@
             "items": {
               "$ref": "#/components/schemas/PropertyWarning"
             }
+          }
+        }
+      },
+      "PropertyReviewRowView": {
+        "required": [
+          "id",
+          "name",
+          "byCategory"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "costs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyCostCategoryView"
+            }
+          },
+          "rents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "grossYieldPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "netYieldPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
@@ -46850,6 +49779,42 @@
           }
         }
       },
+      "RangePointView": {
+        "required": [
+          "on",
+          "low",
+          "median",
+          "high",
+          "lowReal",
+          "medianReal",
+          "highReal"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "low": {
+            "type": "string"
+          },
+          "median": {
+            "type": "string"
+          },
+          "high": {
+            "type": "string"
+          },
+          "lowReal": {
+            "type": "string"
+          },
+          "medianReal": {
+            "type": "string"
+          },
+          "highReal": {
+            "type": "string"
+          }
+        }
+      },
       "ReaderView": {
         "required": [
           "id",
@@ -47412,6 +50377,44 @@
           "retirementAge": {
             "type": "integer",
             "format": "int32"
+          },
+          "retirementMonths": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "RetirementFiguresView": {
+        "required": [
+          "month",
+          "incomeNow",
+          "incomeAtRetirement",
+          "gap",
+          "capitalNeeded",
+          "capitalAtRetirement"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "incomeNow": {
+            "type": "string"
+          },
+          "incomeAtRetirement": {
+            "type": "string"
+          },
+          "gap": {
+            "type": "string"
+          },
+          "capitalNeeded": {
+            "type": "string"
+          },
+          "capitalAtRetirement": {
+            "type": "string"
           }
         }
       },
@@ -47433,6 +50436,63 @@
           "on": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "RetirementView": {
+        "required": [
+          "currency",
+          "horizonOn",
+          "departures",
+          "independence",
+          "assumptions",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "horizonOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "departures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepartureView"
+            }
+          },
+          "figures": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RetirementFiguresView"
+              }
+            ]
+          },
+          "financialIndependence": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "independence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndependencePointView"
+            }
+          },
+          "assumptions": {
+            "$ref": "#/components/schemas/ProjectionAssumptionsView"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectionWarningView"
+            }
           }
         }
       },
@@ -47576,6 +50636,45 @@
             "items": {
               "$ref": "#/components/schemas/ReturnBreakdownLineView"
             }
+          }
+        }
+      },
+      "ReviewDurationView": {
+        "required": [
+          "count",
+          "unit"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "ReviewPartView": {
+        "required": [
+          "key",
+          "amount",
+          "low",
+          "high"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "low": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "high": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
           }
         }
       },
@@ -48811,6 +51910,38 @@
             "items": {
               "$ref": "#/components/schemas/ScenarioWarningView"
             }
+          }
+        }
+      },
+      "ScenarioRetirementView": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "years": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "months": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "monthlyPension": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -50545,6 +53676,74 @@
           }
         }
       },
+      "SubscriptionPriceChangeView": {
+        "required": [
+          "id",
+          "name",
+          "on",
+          "before",
+          "beforeEvery",
+          "after",
+          "afterEvery",
+          "promoEnded"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "before": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "beforeEvery": {
+            "$ref": "#/components/schemas/ReviewDurationView"
+          },
+          "after": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "afterEvery": {
+            "$ref": "#/components/schemas/ReviewDurationView"
+          },
+          "promoEnded": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SubscriptionReviewItemView": {
+        "required": [
+          "id",
+          "name",
+          "on"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "on": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "SubscriptionsOverview": {
         "required": [
           "currency",
@@ -50671,6 +53870,54 @@
           },
           "priceRises": {
             "$ref": "#/components/schemas/PriceRisesView"
+          }
+        }
+      },
+      "SubscriptionsReviewView": {
+        "required": [
+          "started",
+          "ended",
+          "priceChanges"
+        ],
+        "type": "object",
+        "properties": {
+          "cost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "started": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionReviewItemView"
+            }
+          },
+          "ended": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionReviewItemView"
+            }
+          },
+          "priceChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPriceChangeView"
+            }
           }
         }
       },
@@ -52706,6 +55953,61 @@
           }
         }
       },
+      "TaxReviewView": {
+        "type": "object",
+        "properties": {
+          "totalTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "incomeTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "socialLevies": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "capitalFlatTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "previousTotalTax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "TaxSalaryDetailView": {
         "required": [
           "person",
@@ -53677,6 +56979,127 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          }
+        }
+      },
+      "YearReviewView": {
+        "required": [
+          "year",
+          "start",
+          "end",
+          "toDate",
+          "years",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "end": {
+            "type": "string",
+            "format": "date"
+          },
+          "toDate": {
+            "type": "boolean"
+          },
+          "years": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "netWorth": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NetWorthReviewView"
+              }
+            ]
+          },
+          "investments": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InvestmentsReviewView"
+              }
+            ]
+          },
+          "income": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeReviewView"
+              }
+            ]
+          },
+          "subscriptions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SubscriptionsReviewView"
+              }
+            ]
+          },
+          "loans": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoansReviewView"
+              }
+            ]
+          },
+          "properties": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertiesReviewView"
+              }
+            ]
+          },
+          "goals": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GoalsReviewView"
+              }
+            ]
+          },
+          "tax": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxReviewView"
+              }
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

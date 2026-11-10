@@ -30,6 +30,9 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
     /// <summary>2B1a: set when the item is archived (a closed envelope); null while it is active.</summary>
     public Instant? ArchivedAt { get; init; }
 
+    /// <summary>Issue #12: when the item was created (imported items: when they were imported).</summary>
+    public Instant CreatedAt { get; init; }
+
     /// <summary>2B1b: the item's currency (ISO code), null when it has none.</summary>
     public string? Currency { get; init; }
 
@@ -37,6 +40,9 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
     public string? Module { get; init; }
 
     public string? Kind { get; init; }
+
+    /// <summary>The <c>core.item</c> xmin, what an item delete compares (<see cref="IItemRegistry.DeleteAsync"/>).</summary>
+    public uint Version { get; init; }
 }
 
 /// <summary>
@@ -46,7 +52,7 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
 /// </summary>
 public sealed record PersonInfo(
     PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch,
-    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64);
+    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64, int RetirementMonths = 0);
 
 /// <summary>1F4 design §3: what a rebinding did; <c>Changed</c> is false when the adult already had that subject.</summary>
 public sealed record RebindOutcome(PersonInfo Person, string? PreviousSubject, bool Changed);
@@ -83,7 +89,7 @@ public interface IPersonRegistry
     Task<Result<PersonInfo>> CreateDependentAsync(string displayName, CancellationToken ct);
 
     /// <summary>Stores the person's birth date (<c>null</c> clears it) and retirement age. The ranges are the caller's to check; the table refuses what is outside them.</summary>
-    Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, CancellationToken ct);
+    Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, int retirementMonths, CancellationToken ct);
 
     Task<PersonInfo?> FindAsync(PersonId id, CancellationToken ct);
 
@@ -149,6 +155,12 @@ public interface IItemRegistry
 
     /// <summary>2B1a: clears the archive (an envelope reopened).</summary>
     Task<Result> UnarchiveAsync(ItemId id, CancellationToken ct);
+
+    /// <summary>
+    /// #23: removes the item and its owners (tracked removes) if its xmin is still <paramref name="version"/>,
+    /// <see cref="ItemCodes.Changed"/> otherwise. Checks no access; the item's other rows are the deletion parts' (<see cref="IItemDeletions"/>).
+    /// </summary>
+    Task<Result> DeleteAsync(ItemId id, uint version, CancellationToken ct);
 }
 
 public static class ItemCodes
@@ -161,6 +173,12 @@ public static class ItemCodes
 
     /// <summary>#25: an edit hides the item from an adult other than the actor who reads it today (<see cref="IItemRules.TakesReadAway"/>). HTTP 422.</summary>
     public const string TakesReadAway = "core.takes_read_away";
+
+    /// <summary>#23: something still refers to the item being deleted (<see cref="IItemDeletionPart.BlockersAsync"/>). HTTP 409.</summary>
+    public const string InUse = "core.item_in_use";
+
+    /// <summary>#23: the item changed since its deletion preview was read. HTTP 409.</summary>
+    public const string Changed = "core.item_changed";
 }
 
 public interface IAccessPolicy

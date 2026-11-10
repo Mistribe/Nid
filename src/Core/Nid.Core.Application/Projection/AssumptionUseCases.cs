@@ -31,6 +31,12 @@ public static class ProjectionRules
     public const decimal MinIncomeGrowth = -0.05m;
     public const decimal MaxIncomeGrowth = 0.1m;
 
+    /// <summary>Ranges spec §2: a class's annual volatility, from 0 to 50 %.</summary>
+    public const decimal MaxVolatility = 0.5m;
+
+    /// <summary>Retirement spec §3: the withdrawal rate, above 0 and at most 10 %.</summary>
+    public const decimal MaxWithdrawalRate = 0.1m;
+
     /// <summary>Inflation spec C15: the years a yearly rate may be set for, from the current year on.</summary>
     public const int YearsAhead = 4;
 
@@ -77,6 +83,17 @@ public static class ProjectionRules
         }
         if (a.IncomeGrowth is < MinIncomeGrowth or > MaxIncomeGrowth)
             errors.Add(("incomeGrowth", "Income growth over inflation is from -5 % to 10 %."));
+        foreach (var (@class, sigma) in a.ClassVolatility ?? new Dictionary<string, decimal>())
+        {
+            if (!AllocationClasses.All.Contains(@class))
+                errors.Add(($"classVolatility.{@class}", $"Not an asset class: use {string.Join(", ", AllocationClasses.All)}."));
+            else if (sigma is < 0m or > MaxVolatility)
+                errors.Add(($"classVolatility.{@class}", "A volatility is from 0 % to 50 %."));
+        }
+        if (a.WithdrawalRate is <= 0m or > MaxWithdrawalRate)
+            errors.Add(("withdrawalRate", "The withdrawal rate is above 0 % and at most 10 %."));
+        if (a.MonthlyLivingCost < 0m)
+            errors.Add(("monthlyLivingCost", "The living cost is not negative."));
         return errors;
     }
 
@@ -113,10 +130,13 @@ public static class ProjectionRules
 /// Percent strings for the rates (<c>"6"</c>), the savings in the reference currency (<c>"500.00"</c>, <c>null</c>: automatic); <c>Currency</c> is the
 /// household reference currency code the savings are in. Inflation spec C15: the yearly tables are keyed by calendar year (<c>"2026"</c>);
 /// <c>ObservedInflation</c> is the rate the current year follows when it has no value, for the form's hint (null elsewhere than in the settings).
+/// Ranges spec §2: <c>ClassVolatility</c> holds every class's annual volatility in percent, the defaults included.
+/// Retirement spec §3: <c>WithdrawalRate</c> in percent, <c>MonthlyLivingCost</c> an amount in the reference currency.
 /// </summary>
 public sealed record ProjectionAssumptionsView(
     IReadOnlyDictionary<string, string> ClassRates, string Inflation, string? MonthlySavings, string SavingsClass, bool FreedPaymentsToSavings, string Currency,
     IReadOnlyDictionary<string, string> InflationByYear, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ClassRatesByYear, string IncomeGrowth,
+    IReadOnlyDictionary<string, string> ClassVolatility, string WithdrawalRate, string MonthlyLivingCost,
     InflationTwelveMonthsView? ObservedInflation = null)
 {
     public static ProjectionAssumptionsView From(ProjectionAssumptions a, string currency, InflationTwelveMonthsView? observed = null) => new(
@@ -125,7 +145,8 @@ public sealed record ProjectionAssumptionsView(
         Years(a.InflationByYear) ?? new Dictionary<string, string>(),
         (a.ClassRatesByYear ?? new Dictionary<string, IReadOnlyDictionary<int, decimal>>()).Where(c => c.Value is not null)
             .ToDictionary(c => c.Key, c => (IReadOnlyDictionary<string, string>)Years(c.Value)!),
-        Percent(a.IncomeGrowth), observed);
+        Percent(a.IncomeGrowth), AllocationClasses.All.ToDictionary(c => c, c => Percent(a.VolatilityOf(c))),
+        Percent(a.WithdrawalRate), Scenarios.PropertyPurchaseView.Amount(a.MonthlyLivingCost), observed);
 
     /// <summary>A yearly table on the wire, years as text and rates in percent; null for a null table.</summary>
     public static Dictionary<string, string>? Years(IReadOnlyDictionary<int, decimal>? table)

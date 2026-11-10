@@ -105,6 +105,10 @@ public static class RouteActions
             "The monthly property routine (get_property_routine): estimates and flows of several properties on one date. " + Ids + Amounts),
         new("undo_property_routine", "POST", "/api/v1/realestate/routine/undo", typeof(PropertyRoutineUndoBody),
             "Undo the facts a property routine recorded. " + Ids, Destructive: true),
+        new("delete_property", "DELETE", "/api/v1/realestate/properties/{id:guid}", null,
+            "Propose deleting a property created by mistake. The household confirms it by typing its name; a loan or a subscription insurance "
+            + "linked to it refuses it. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/realestate/properties/{id:guid}/deletion"),
 
         // Real estate: loans.
         new("create_loan", "POST", "/api/v1/realestate/loans", typeof(CreateLoanBody),
@@ -128,6 +132,9 @@ public static class RouteActions
             "Remove an early repayment. " + Ids + Versioned, Destructive: true, Query: ["version"]),
         new("delete_bank_schedule", "DELETE", "/api/v1/realestate/loans/{id:guid}/bank-schedule", null,
             "Remove the bank's amortisation table stored for a loan. " + Ids + Versioned, Destructive: true, Query: ["version"]),
+        new("delete_loan", "DELETE", "/api/v1/realestate/loans/{id:guid}", null,
+            "Propose deleting a loan created by mistake. The household confirms it by typing its name. version is the one the deletion "
+            + "preview returned. " + Ids, Destructive: true, Query: ["version"], Current: "/api/v1/realestate/loans/{id:guid}/deletion"),
 
         // Investments.
         new("create_envelope", "POST", "/api/v1/investments/envelopes", typeof(CreateEnvelopeBody),
@@ -156,6 +163,10 @@ public static class RouteActions
             "Close an envelope on a date, with its final withdrawal when known. " + Ids + Amounts, Destructive: true),
         new("reopen_envelope", "POST", "/api/v1/investments/envelopes/{id:guid}/reopen", null,
             "Reopen a closed envelope. " + Ids),
+        new("delete_envelope", "DELETE", "/api/v1/investments/envelopes/{id:guid}", null,
+            "Propose deleting an envelope created by mistake (to close an account that ended, use close_envelope). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/investments/envelopes/{id:guid}/deletion"),
         new("add_holding", "POST", "/api/v1/investments/envelopes/{id:guid}/holdings", typeof(HoldingBody),
             "Add a holding (support) to an envelope: a fund, ETF, share, the euro fund, a structured product or cash; kind 'euro_fund', 'fund', "
             + "'etf', 'equity', 'bond', 'structured', 'cash' or 'other'. Copy the name and ISIN as printed. " + Ids + Amounts),
@@ -189,7 +200,14 @@ public static class RouteActions
         // Income.
         new("create_income_source", "POST", "/api/v1/income/sources", typeof(CreateIncomeSourceBody),
             "Create an income source (a salary, a pension, an allowance) with its first period. Once approved, propose_payslip and "
-            + "the other income tools work on it. " + Owners + Amounts),
+            + "the other income tools work on it. If the person already has a pension source (list_income_sources, get_income_source), do not create another: "
+            + "a pension not started yet -> propose_correct_income_phase (its startsOn and netAmount, with the version from get_income_source); a pension already "
+            + "paid -> propose_change_income_phase from its next payment date. A retirement pension from the official statement: kind 'pension', the statement's monthly net amount "
+            + "in today's money, one monthly period starting on the first day of the month after the departure (the projection moves a pension that "
+            + "has not started to the departure anyway), owned by that person; ask whether it is shared or private (shared lets the other adult see it "
+            + "in the household's figures). Once approved, if the statement is stored in Nid (list_documents), link it to the period (its id from get_income_source) "
+            + "with propose_link_document (targetKind 'income.phase', role 'statement'); a statement read from the conversation has nothing to link, and this action takes no documentId. "
+            + Owners + Amounts),
         new("edit_income_source", "PATCH", "/api/v1/income/sources/{id:guid}", typeof(EditIncomeSourceBody),
             "Edit an income source's details; only the fields given change. " + Ids),
         new("add_income_phase", "POST", "/api/v1/income/sources/{id:guid}/phases", typeof(IncomePhaseBody),
@@ -212,6 +230,10 @@ public static class RouteActions
             "End an income source on a date. " + Ids + Amounts, Destructive: true),
         new("reopen_income_source", "POST", "/api/v1/income/sources/{id:guid}/reopen", null,
             "Reopen an ended income source. " + Ids),
+        new("delete_income_source", "DELETE", "/api/v1/income/sources/{id:guid}", null,
+            "Propose deleting an income source created by mistake (to end one that stopped, use close_income_source). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/income/sources/{id:guid}/deletion"),
 
         // Childcare (childminder, Pajemploi).
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
@@ -233,9 +255,13 @@ public static class RouteActions
             "End an arrangement on its last day (on). " + Ids + Amounts),
         new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,
             "Reopen an ended arrangement. " + Ids),
+        new("delete_childcare", "DELETE", "/api/v1/childcare/{id:guid}", null,
+            "Propose deleting an arrangement created by mistake, with its statements (to end one that ended, use close_childcare). A validated month "
+            + "refuses it until reopened. The household confirms it by typing its name. version is the one the deletion preview returned. " + Ids,
+            Destructive: true, Query: ["version"], Current: "/api/v1/childcare/{id:guid}/deletion"),
         new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
             "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
-            + "changed (present with arrival and departure HH:mm, lunch and snack, or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
+            + "changed (present with arrival and departure HH:mm, lunch, snack and, for a planned day cut short, an optional reason; or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
             + "holiday, paid_leave), the mileage, the CMG and the contributions left to the household (contributions, absent when all are covered) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
             + "left over) replaces the days, and declared gives the declaration fields entered by hand (normalHours, activityDays, paidLeaveDays, complementaryHours, overtimeHours, netPay, upkeep, meals). Validating it stays the person's gesture in the web app. "
             + Ids + Versioned + Amounts),
@@ -255,6 +281,10 @@ public static class RouteActions
             "Record the amount a goal without envelopes has reached on a date (on, not in the future); it replaces that date's entry. " + Ids + Amounts),
         new("delete_goal_progress", "DELETE", "/api/v1/goals/{id:guid}/progress/{on}", null,
             "Remove a goal's progress entry of a date. " + Ids, Destructive: true),
+        new("delete_goal", "DELETE", "/api/v1/goals/{id:guid}", null,
+            "Propose deleting a goal created by mistake (to close a goal that ended, use close_goal). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/goals/{id:guid}/deletion"),
 
         // Subscriptions.
         new("create_subscription", "POST", "/api/v1/subscriptions/", typeof(CreateSubscriptionBody),
@@ -282,6 +312,9 @@ public static class RouteActions
             "Record a one-off purchase linked to a subscription. " + Ids + Amounts),
         new("delete_purchase", "DELETE", "/api/v1/subscriptions/{id:guid}/purchases/{purchaseId:guid}", null,
             "Remove a purchase. " + Ids, Destructive: true),
+        new("delete_subscription", "DELETE", "/api/v1/subscriptions/{id:guid}", null,
+            "Propose deleting a subscription created by mistake, with its phases, insurance and grants. The household confirms it by typing its name. "
+            + "version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"], Current: "/api/v1/subscriptions/{id:guid}/deletion"),
         new("create_provider", "POST", "/api/v1/subscriptions/providers", typeof(CreateProviderBody),
             "Add a provider to the subscriptions catalog when the household's is not listed."),
 
@@ -331,8 +364,10 @@ public static class RouteActions
         new("create_dependent", "POST", "/api/v1/core/persons/dependents", typeof(CreateDependentBody),
             "Add a dependent (a child) to the household, so items can be owned in their name."),
         new("set_retirement", "PUT", "/api/v1/core/persons/{id:guid}/retirement", typeof(RetirementBody),
-            "Set a person's birth date and retirement age (50 to 75), which get_projection's 'retire:<personId>' needs. id is the person's id, from "
-            + "list_persons. The route replaces both: resend the one that does not change, as list_persons gives it; without a birthDate, the date is cleared. "
+            "Set a person's birth date, retirement age (50 to 75) and retirementMonths (0 to 11, months on top of the age), which get_projection's 'retire:<personId>' needs. "
+            + "From the official retirement statement (info-retraite.fr, relevé de situation individuelle or estimation indicative globale), take the departure age the "
+            + "household chose among the statement's ages, as years and months (e.g. 62 years 9 months → retirementAge 62, retirementMonths 9). id is the person's id, from "
+            + "list_persons. The route replaces all three: resend what does not change, as list_persons gives it; without a birthDate, the date is cleared. "
             + Amounts, Destructive: true, OnItem: false),
     ];
 }

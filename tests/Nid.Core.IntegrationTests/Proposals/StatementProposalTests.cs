@@ -137,6 +137,31 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Single(flows, f => f.GetProperty("externalRef").GetString() == "R-9");
     }
 
+    // Written as one write: a livret's deposits are still held against its ceiling each with the ones before it.
+    [Fact]
+    public async Task A_livret_statement_whose_deposits_cross_the_ceiling_is_refused_at_the_one_that_crosses_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "LEP", kind = "savings", currency = "EUR", visibility = "shared", regulated = "lep",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        var lep = (await JsonOf(created)).GetProperty("id").GetGuid();
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{lep}/valuations",
+            new { asOf = "2025-08-31", amount = new { amount = "9900.00", currency = "EUR" } })).EnsureSuccessStatusCode(); // 100 € of room
+
+        var proposal = await SubmitAsync(app, Statement(lep,
+            [Movement(on: "2025-09-05", amount: "60.00"), Movement(on: "2025-09-12", kind: "withdrawal", amount: "10.00"),
+             Movement(on: "2025-09-20", amount: "60.00")], value: null));
+        var refused = await ApproveAsync(app, proposal);
+
+        var error = (await JsonOf(refused)).GetProperty("errors")[0];
+        Assert.Equal(("payload.movements[2].amount", "investments.above_ceiling"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Empty((await EnvelopeAsync(app, lep)).GetProperty("flows").EnumerateArray()); // none of the statement kept
+        Assert.Equal("pending", (await ReadAsync(app, proposal)).GetProperty("proposal").GetProperty("status").GetString());
+    }
+
     // Review Focus 3.
     [Fact]
     public async Task Statements_the_envelope_refuses_answer_at_their_path()

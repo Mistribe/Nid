@@ -141,7 +141,9 @@ public sealed partial class StatementProposal(
             return Result.Failure<IReadOnlyList<Guid>>(FailureOf(marked));
         var currency = (await items.FindAsync(target, ct))?.Currency;
 
-        var applied = new List<Guid>();
+        // The movements to write, as one write: a statement of a few hundred lines is not a few hundred round trips.
+        var written = new List<int>();
+        var drafts = new List<FlowDraft>();
         for (var i = 0; i < p.Movements.Count; i++)
         {
             if (!Writes(p, marks!, i))
@@ -151,10 +153,21 @@ public sealed partial class StatementProposal(
                 return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(
                     new Failure(CoreFactCodes.CurrencyMismatch, "The envelope has no currency.", null), $"payload.movements[{i}].amount"));
             // The line's text is the flow's note; the bank's reference its external reference (deduplication).
-            var flow = await invoker.InvokeAsync(new RecordFlowCommand(target, new FlowDraft(m.On, m.Kind, amount, m.Category, m.Ref, m.Label)), ct);
-            if (!flow.TryGetValue(out var flowId))
-                return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(FailureOf(flow), CoreField(FailureOf(flow), $"payload.movements[{i}]")));
-            applied.Add(flowId);
+            written.Add(i);
+            drafts.Add(new FlowDraft(m.On, m.Kind, amount, m.Category, m.Ref, m.Label));
+        }
+        var applied = new List<Guid>();
+        if (drafts.Count > 0)
+        {
+            var recorded = await invoker.InvokeAsync(new RecordFlowsCommand(target, drafts), ct);
+            if (!recorded.TryGetValue(out var ids))
+            {
+                // The refused movement, by the index the write names; a refusal of the envelope itself, at the first one written.
+                var failure = FailureOf(recorded);
+                var at = Batch.IndexOf(failure) is { } index ? written[index] : written[0];
+                return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(failure, CoreField(failure, $"payload.movements[{at}]")));
+            }
+            applied.AddRange(ids!);
         }
         if (p.Value is { } value)
         {

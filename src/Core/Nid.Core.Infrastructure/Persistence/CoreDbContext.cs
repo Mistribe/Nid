@@ -103,12 +103,14 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
                     "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
                 t.HasCheckConstraint("ck_person_admin", "kind = 'adult' or not is_admin");
                 t.HasCheckConstraint("ck_person_retirement_age", "retirement_age between 50 and 75");
+                t.HasCheckConstraint("ck_person_retirement_months", "retirement_months between 0 and 11");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Preferences).HasColumnType("jsonb");
             e.Property(x => x.IsAdmin).HasDefaultValue(false);
             e.Property(x => x.RetirementAge).HasDefaultValue(64);
+            e.Property(x => x.RetirementMonths).HasDefaultValue(0);
             e.HasIndex(x => x.OidcSubject).IsUnique().HasFilter("oidc_subject is not null");
             // ix_person_adult_email (unique on lower(email) among adults) is an expression index: created by the
             // AdminArea migration in SQL, EF Core has no model for it.
@@ -121,7 +123,10 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             {
                 t.HasCheckConstraint("ck_personal_access_token_expiry", "expires_at > created_at");
                 t.HasCheckConstraint("ck_personal_access_token_scopes",
-                    "scopes = '{read}'::text[] or scopes = '{read,write}'::text[] or scopes = '{read,write,write:direct}'::text[]");
+                    "scopes = '{read}'::text[] or scopes = '{read,write}'::text[] or scopes = '{read,write,write:direct}'::text[] or scopes = '{calendar}'::text[]");
+                // Issue #80: a calendar feed, and only one, has its options.
+                t.HasCheckConstraint("ck_personal_access_token_calendar",
+                    "(scopes = '{calendar}'::text[]) = (calendar_scope is not null and calendar_amounts is not null) and (calendar_scope is null or calendar_scope in ('household','me'))");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -148,7 +153,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.Fingerprint).IsUnique().HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.Kind, x.TargetItemId, x.SubjectKey }).HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.TargetItemId, x.Status });
-            e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.TargetItemId).OnDelete(DeleteBehavior.Restrict);
+            // #23: no foreign key to the target item: a proposal is history and outlives the item it targeted.
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.ForPersonId).OnDelete(DeleteBehavior.Restrict);
             MapXmin(e.Property(x => x.Version));
         });

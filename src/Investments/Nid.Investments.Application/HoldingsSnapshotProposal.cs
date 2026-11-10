@@ -172,18 +172,24 @@ public sealed partial class HoldingsSnapshotProposal(
             return Result.Failure<IReadOnlyList<Guid>>(FailureOf(planned));
         var currency = plan!.Facts.Currency;
 
+        // The new holdings, then the movements, each as one write: a statement of a hundred lines is not a hundred round trips.
         var applied = new List<Guid>();
         var created = new Dictionary<Guid, Guid>(); // temporary id → the new holding's
+        var newLines = new List<int>();
         for (var i = 0; i < p!.Lines.Count; i++)
+            if (plan.Lines[i] is { IsNew: true } line && newLines.All(n => plan.Lines[n].Id != line.Id))
+                newLines.Add(i);
+        if (newLines.Count > 0)
         {
-            var line = plan.Lines[i];
-            if (!line.IsNew || created.ContainsKey(line.Id))
-                continue;
-            var added = await invoker.InvokeAsync(new AddHoldingCommand(target, Draft(p.Lines[i])), ct);
-            if (!added.TryGetValue(out var id))
-                return Result.Failure<IReadOnlyList<Guid>>(At(FailureOf(added), $"payload.lines[{i}]"));
-            created[line.Id] = id;
-            applied.Add(id);
+            var added = await invoker.InvokeAsync(new AddHoldingsCommand(target, newLines.Select(i => Draft(p.Lines[i])).ToList()), ct);
+            if (!added.TryGetValue(out var ids))
+            {
+                var failure = FailureOf(added);
+                return Result.Failure<IReadOnlyList<Guid>>(At(failure, $"payload.lines[{newLines[Batch.IndexOf(failure) ?? 0]}]"));
+            }
+            for (var k = 0; k < newLines.Count; k++)
+                created[plan.Lines[newLines[k]].Id] = ids![k];
+            applied.AddRange(ids!);
         }
         Guid Real(Guid id) => created.GetValueOrDefault(id, id);
 
@@ -195,6 +201,8 @@ public sealed partial class HoldingsSnapshotProposal(
         if (snapshot.ValuationId is { } valuation)
             applied.Add(valuation); // so an approval stamps its source on the value (tranche 3 §4.1)
 
+        var moved = new List<int>();
+        var lines = new List<HoldingMovementLine>();
         for (var i = 0; i < p.Movements.Count; i++)
         {
             if (plan.Recorded[i])
@@ -203,11 +211,19 @@ public sealed partial class HoldingsSnapshotProposal(
             if (plan.MovementHolding[i] is not { } holding)
                 return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(
                     new Failure(InvestmentsCodes.InvalidMovement, "No line nor holding of this envelope has this ISIN or name.", null), $"payload.movements[{i}].holding"));
-            var movement = await invoker.InvokeAsync(new AddHoldingMovementCommand(target, Real(holding),
-                new MovementDraft(m.On, m.Kind, m.Units, m.UnitPrice, Amounts.Of(m.Amount, currency), null, m.Label, m.Ref)), ct);
-            if (!movement.TryGetValue(out var written))
-                return Result.Failure<IReadOnlyList<Guid>>(At(FailureOf(movement), $"payload.movements[{i}]"));
-            applied.Add(written!.Id);
+            moved.Add(i);
+            lines.Add(new HoldingMovementLine(Real(holding),
+                new MovementDraft(m.On, m.Kind, m.Units, m.UnitPrice, Amounts.Of(m.Amount, currency), null, m.Label, m.Ref)));
+        }
+        if (lines.Count > 0)
+        {
+            var movements = await invoker.InvokeAsync(new AddHoldingMovementsCommand(target, lines), ct);
+            if (!movements.TryGetValue(out var written))
+            {
+                var failure = FailureOf(movements);
+                return Result.Failure<IReadOnlyList<Guid>>(At(failure, $"payload.movements[{moved[Batch.IndexOf(failure) ?? 0]}]"));
+            }
+            applied.AddRange(written!);
         }
         return Result.Success<IReadOnlyList<Guid>>(applied);
     }

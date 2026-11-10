@@ -416,4 +416,53 @@ describe('EnvelopeDetailPage', () => {
     await waitFor(() => expect(queryClient.isFetching()).toBe(0));
     expect(screen.queryByRole('tab', { name: 'Opérations' })).toBeNull();
   });
+
+  describe('deletion', () => {
+    const preview = (over: object = {}) => ({ name: 'PEA', version: 4, imported: false, removes: [], blockers: [], ...over });
+    const openMenu = async (body: EnvelopeDetail) => {
+      serve(body);
+      const { user, router } = await renderApp(`/investments/${PEA}`);
+      await screen.findByRole('heading', { name: 'PEA', level: 1 });
+      await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+      return { user, router };
+    };
+
+    it.each([['open', {}], ['closed', { closed: true }]])('Supprimer… is the last menu item of a %s envelope', async (_state, over) => {
+      await openMenu(detail(over));
+      expect(screen.getAllByRole('menuitem').at(-1)).toHaveTextContent('Supprimer…');
+    });
+
+    it('a reader has no Supprimer…', async () => {
+      serve(detail({ canWrite: false }));
+      await renderApp(`/investments/${PEA}`);
+      await screen.findByRole('heading', { name: 'PEA', level: 1 });
+      expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+    });
+
+    it('deletes after the name is typed, then leaves for the list', async () => {
+      server.use(
+        http.get('*/api/v1/investments/envelopes/:id/deletion', () => HttpResponse.json(preview({ removes: [{ key: 'holdings', count: 2 }] }))),
+        http.delete('*/api/v1/investments/envelopes/:id', () => new HttpResponse(null, { status: 204 })),
+      );
+      const { user, router } = await openMenu(detail());
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer PEA' });
+      expect(await within(dialog).findByText(/2 supports/)).toBeInTheDocument();
+      expect(dialog).toHaveTextContent('Clôturer l’enveloppe');
+      await user.type(await within(dialog).findByLabelText(/Tapez/), 'PEA');
+      await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/investments'));
+    });
+
+    it('a goal funded by it blocks: its name is shown and there is no delete button', async () => {
+      server.use(http.get('*/api/v1/investments/envelopes/:id/deletion', () => HttpResponse.json(preview({
+        blockers: [{ key: 'goal_funding', count: 1, items: [{ id: 'g1', name: 'Voyage' }] }],
+      }))));
+      const { user } = await openMenu(detail());
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer PEA' });
+      expect(await within(dialog).findByText(/Voyage/)).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: 'Supprimer définitivement' })).not.toBeInTheDocument();
+    });
+  });
 });

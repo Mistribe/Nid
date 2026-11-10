@@ -85,6 +85,16 @@ public interface IFlows
 {
     Task<Result<Flow>> RecordAsync(NewFlow flow, CancellationToken ct);
 
+    /// <summary>
+    /// <see cref="RecordAsync"/> for several flows of one <paramref name="item"/>, as one write: the access and the item's
+    /// currency are read once, every flow is checked, then all are saved together, in order. One refused flow refuses them
+    /// all; its failure carries its position in <paramref name="flows"/> as the <see cref="RecordManyIndex"/> metadata.
+    /// </summary>
+    Task<Result<IReadOnlyList<Flow>>> RecordManyAsync(ItemId item, IReadOnlyList<NewFlow> flows, CancellationToken ct);
+
+    /// <summary>The metadata key of a <see cref="RecordManyAsync"/> failure that names one flow: its index.</summary>
+    const string RecordManyIndex = "index";
+
     /// <summary>Retires the flow and records its replacement, which must be on the same item, in one transaction.</summary>
     Task<Result<Flow>> SupersedeAsync(ItemId item, Guid id, NewFlow replacement, CancellationToken ct);
 
@@ -106,6 +116,12 @@ public interface IFlows
     /// read with no access check, as <see cref="IItemRegistry.FindManyAsync"/>: callers decide who may see an item.
     /// </summary>
     Task<IReadOnlyList<Flow>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>
+    /// #23: the active flows of other items sharing an external ref with an active flow of <paramref name="item"/> (a transfer's other leg);
+    /// no access check, as <see cref="FindManyAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<Flow>> CounterpartsAsync(ItemId item, CancellationToken ct);
 
     /// <summary>Exact sum in the item's currency; zero in that currency when nothing matches.</summary>
     Task<Result<Money>> SumAsync(ItemId item, IReadOnlySet<FlowKind> kinds, DateRange range, CancellationToken ct);

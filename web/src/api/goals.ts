@@ -18,6 +18,7 @@ export type EmergencyTarget = components['schemas']['EmergencyTargetView'];
 export const GOALS = '/api/v1/goals' as const;
 export const GOAL = '/api/v1/goals/{id}' as const;
 export const CLOSE_GOAL = '/api/v1/goals/{id}/close' as const;
+export const GOAL_DELETION = '/api/v1/goals/{id}/deletion' as const;
 export const REOPEN_GOAL = '/api/v1/goals/{id}/reopen' as const;
 export const PROGRESS = '/api/v1/goals/{id}/progress/{on}' as const;
 export const EMERGENCY_TARGET = '/api/v1/goals/emergency-target' as const;
