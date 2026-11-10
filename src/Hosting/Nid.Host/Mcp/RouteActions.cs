@@ -200,7 +200,12 @@ public static class RouteActions
         // Income.
         new("create_income_source", "POST", "/api/v1/income/sources", typeof(CreateIncomeSourceBody),
             "Create an income source (a salary, a pension, an allowance) with its first period. Once approved, propose_payslip and "
-            + "the other income tools work on it. " + Owners + Amounts),
+            + "the other income tools work on it. A retirement pension from the official statement: kind 'pension', the statement's monthly net amount "
+            + "in today's money, one monthly period starting on the first day of the month after the departure (the projection moves a pension that "
+            + "has not started to the departure anyway), owned by that person; ask whether it is shared or private (shared lets the other adult see it "
+            + "in the household's figures). Once approved, link the statement to its period with propose_link_document (targetKind 'income.phase', "
+            + "role 'statement'); this action takes no documentId. If the person already has a pension source, change its period instead of creating another. "
+            + Owners + Amounts),
         new("edit_income_source", "PATCH", "/api/v1/income/sources/{id:guid}", typeof(EditIncomeSourceBody),
             "Edit an income source's details; only the fields given change. " + Ids),
         new("add_income_phase", "POST", "/api/v1/income/sources/{id:guid}/phases", typeof(IncomePhaseBody),
@@ -211,7 +216,7 @@ public static class RouteActions
         new("delete_income_phase", "DELETE", "/api/v1/income/sources/{id:guid}/phases/{phaseId:guid}", null,
             "Remove an income period. " + Ids + Versioned, Destructive: true, Query: ["version"]),
         new("change_income_phase", "POST", "/api/v1/income/sources/{id:guid}/phase-changes", typeof(IncomePhaseChangeBody),
-            "Change an income source's expected pay from a date (a raise, a new contract): the open period ends the day before. "
+            "Change an income source's expected pay from a date (a raise, a new contract, a pension's new amount from the official statement): the open period ends the day before. "
             + Ids + Amounts),
         new("add_one_off_income", "POST", "/api/v1/income/sources/{id:guid}/one-offs", typeof(IncomeOneOffBody),
             "Record a one-off income of a source (a bonus, a final settlement, an adjustment). " + Ids + Amounts),
@@ -357,7 +362,9 @@ public static class RouteActions
         new("create_dependent", "POST", "/api/v1/core/persons/dependents", typeof(CreateDependentBody),
             "Add a dependent (a child) to the household, so items can be owned in their name."),
         new("set_retirement", "PUT", "/api/v1/core/persons/{id:guid}/retirement", typeof(RetirementBody),
-            "Set a person's birth date, retirement age (50 to 75) and retirementMonths (0 to 11, months on top of the age), which get_projection's 'retire:<personId>' needs. id is the person's id, from "
+            "Set a person's birth date, retirement age (50 to 75) and retirementMonths (0 to 11, months on top of the age), which get_projection's 'retire:<personId>' needs. "
+            + "From the official retirement statement (info-retraite.fr, relevé de situation individuelle or estimation indicative globale), take the departure age the "
+            + "household chose among the statement's ages, as years and months (e.g. 62 years 9 months → retirementAge 62, retirementMonths 9). id is the person's id, from "
             + "list_persons. The route replaces all three: resend what does not change, as list_persons gives it; without a birthDate, the date is cleared. "
             + Amounts, Destructive: true, OnItem: false),
     ];
