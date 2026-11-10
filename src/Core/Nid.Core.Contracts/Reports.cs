@@ -94,3 +94,25 @@ public sealed record LoanReviewRow(ItemId Id, string Name, decimal? Interest, de
 /// <summary>Issue #12: a phase following another at a different price or cycle; <c>PromoEnded</c>: the earlier one had a cycle limit.</summary>
 public sealed record SubscriptionPriceChange(ItemId Id, string Name, LocalDate On, decimal BeforeAmount, string BeforeCurrency, Duration BeforeEvery,
     decimal AfterAmount, string AfterCurrency, Duration AfterEvery, bool PromoEnded);
+
+public interface IPropertiesReview
+{
+    /// <summary>
+    /// Issue #12: the properties of (start, end], every visible one, archived ones for their flows before their archive day. The costs
+    /// and rents convert at <paramref name="end"/>'s rate; the yields are the period's, not annualised.
+    /// </summary>
+    Task<Result<PropertiesReviewPart>> ReviewAsync(PersonId reader, VisibilityScope scope, LocalDate start, LocalDate end, CancellationToken ct);
+}
+
+/// <summary>Issue #12: the period's properties, in the reference currency; a total is null when a figure could not be converted (<c>MissingCurrencies</c>).</summary>
+public sealed record PropertiesReviewPart(decimal? Costs, decimal? Rents, IReadOnlyList<PropertyReviewRow> Properties, IReadOnlyList<string> MissingCurrencies);
+
+/// <summary>
+/// Issue #12: a property held in the period: its expenses paid by category, largest first, its rents received (rent and recoverable
+/// charges), and its gross and net yields in percent over the period, null when it was not let before the period's first day.
+/// </summary>
+public sealed record PropertyReviewRow(ItemId Id, string Name, decimal? Costs, IReadOnlyList<PropertyCostCategory> ByCategory, decimal? Rents,
+    decimal? GrossYieldPct, decimal? NetYieldPct);
+
+/// <summary>Issue #12: an expense category (README §4, <c>other</c> without one) and what it paid in the period.</summary>
+public sealed record PropertyCostCategory(string Category, decimal? Amount);

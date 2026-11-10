@@ -212,6 +212,19 @@ internal static class PropertiesCostsMath
     }
 
     /// <summary>
+    /// Issue #12: the expenses paid in (<paramref name="after"/>, <paramref name="last"/>] per category (README §4, <c>other</c> without one),
+    /// as the costs page counts them, largest first; each category's sum converted once, null when its rate is missing.
+    /// </summary>
+    public static IReadOnlyList<(string Category, decimal? Amount)> PaidByCategory(
+        IEnumerable<Flow> flows, LocalDate after, LocalDate last, Func<decimal, decimal?> convert)
+        => flows.Where(f => f.Kind == FlowKind.Expense && f.OccurredOn > after && f.OccurredOn <= last)
+            .GroupBy(f => f.Category ?? "other")
+            .Select(g => (Category: g.Key, Paid: g.Sum(f => f.Amount.Amount)))
+            .OrderByDescending(c => c.Paid).ThenBy(c => c.Category, StringComparer.Ordinal)
+            .Select(c => (c.Category, convert(c.Paid)))
+            .ToList();
+
+    /// <summary>
     /// As the dashboard's commitments: the payment and insurance of the first row due this month of each linked loan in the scope, in
     /// the property's currency; null when a loan in another currency has no rate.
     /// </summary>
