@@ -1,10 +1,16 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch } from '@tanstack/react-router';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { PERSONS } from '@/api/persons';
+import { useSession } from '@/app/Providers';
 import { present, toProblem } from '@/api/errors';
 import { formatCurrency } from '@/components/Money';
 import { PageHeader } from '@/components/page/PageHeader';
+import { RowMenu } from '@/components/page/RowMenu';
 import { Section } from '@/components/page/Section';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
@@ -12,6 +18,8 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { monthLabel } from '@/lib/format';
 import type { RootSearch } from '@/lib/search';
+import { RetirementDialog } from '@/features/settings/RetirementDialog';
+import { PensionDialog } from './PensionDialog';
 import { RETIREMENT, type Departure, type RetirementView } from './api';
 
 /** A server month (yyyy-MM) as « novembre 2040 ». */
@@ -48,6 +56,22 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
   const livingCostMissing = data.warnings.some((w) => w.code === 'living_cost_missing');
   const settings = <Link to="/settings/projection" className="underline underline-offset-2">{t('retirement.living_cost_missing')}</Link>;
   const a = data.assumptions;
+  const { session } = useSession();
+  const queryClient = useQueryClient();
+  const [dialog, setDialog] = useState<{ kind: 'departure' | 'pension'; d: Departure } | null>(null);
+  const close = () => setDialog(null);
+  const done = (message: string) => {
+    close();
+    toast.success(message);
+    void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
+    void queryClient.invalidateQueries({ queryKey: ['get', PERSONS] });
+  };
+  const actions = (d: Departure) => (
+    <RowMenu label={t('retirement.row_actions', { name: d.name })} items={[
+      { label: t('retirement.edit_departure'), onSelect: () => setDialog({ kind: 'departure', d }) },
+      ...(d.person === session.person.id && d.departure && d.sources.length === 0 ? [{ label: t('retirement.enter_pension'), onSelect: () => setDialog({ kind: 'pension' as const, d }) }] : []),
+    ]} />
+  );
 
   return (
     <>
@@ -65,7 +89,12 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
           ]} />
           <p className="text-sm text-muted-foreground">{t('retirement.note')}</p>
         </>
-      ) : <p className="text-sm text-muted-foreground">{t('retirement.no_figures')}</p>}
+      ) : (
+        <>
+          <p className="text-sm text-muted-foreground">{t('retirement.no_figures')}</p>
+          {livingCostMissing ? <p className="text-sm">{settings}</p> : null}
+        </>
+      )}
       <Warnings data={data} />
 
       <Section title={t('retirement.departures')}>
@@ -78,17 +107,25 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
             { id: 'departure', header: t('retirement.departure'), cell: (d) => (d.departure ? month(d.departure) : '—') },
             { id: 'age', header: t('retirement.age'), cell: (d) => age(d, t) },
             { id: 'pension', header: t('retirement.pension'), align: 'end', cell: (d) => <Pension d={d} money={money} /> },
+            { id: 'actions', header: t('retirement.actions'), align: 'end', cell: actions },
           ]}
           mobile={(d) => (
             <div className="space-y-0.5">
               <div className="font-medium">{d.name}</div>
               <div className="text-sm text-muted-foreground">{d.departure ? month(d.departure) : '—'} · {age(d, t)}</div>
               <div className="text-sm"><Pension d={d} money={money} /></div>
+              <div>{actions(d)}</div>
             </div>
           )}
         />
         {scope === 'household' ? <p className="text-sm text-muted-foreground">{t('retirement.household_pensions')}</p> : null}
       </Section>
+      {dialog?.kind === 'departure' ? (
+        <RetirementDialog person={{ id: dialog.d.person, displayName: dialog.d.name, birthDate: dialog.d.birthDate, retirementAge: dialog.d.years, retirementMonths: dialog.d.months }} onClose={close} onDone={done} />
+      ) : null}
+      {dialog?.kind === 'pension' && dialog.d.departure ? (
+        <PensionDialog personId={dialog.d.person} departure={dialog.d.departure} currency={data.currency} onClose={close} onDone={done} />
+      ) : null}
 
       <Section title={t('retirement.assumptions')}>
         <ul className="space-y-1 text-sm">

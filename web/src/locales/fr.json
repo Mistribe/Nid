@@ -389,7 +389,19 @@
     "age": "Âge",
     "pension": "Pension (euros d'aujourd'hui)",
     "household_pensions": "Pensions visibles du foyer. Une pension privée ne compte que dans « Moi ».",
-    "assumptions": "Hypothèses"
+    "assumptions": "Hypothèses",
+    "actions": "Actions",
+    "row_actions": "Actions pour {{name}}",
+    "edit_departure": "Modifier le départ",
+    "enter_pension": "Saisir la pension",
+    "pension_name": "Pension de retraite",
+    "pension_phase": "Pension",
+    "pension_amount": "Pension mensuelle nette",
+    "pension_hint": "En euros d'aujourd'hui.",
+    "pension_currency": "Devise",
+    "pension_shared": "Visible de l'autre adulte",
+    "pension_save": "Enregistrer",
+    "pension_saved": "Pension enregistrée."
   },
   "shell": { "sign_out": "Se déconnecter", "guide_help": "Guide de cette page" },
   "signed_out": {

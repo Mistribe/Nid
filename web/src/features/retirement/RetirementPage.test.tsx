@@ -1,11 +1,13 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { aliceSession } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { RetirementView } from './api';
 
-const ALICE = '11111111-1111-4111-8111-111111111111';
+const ALICE = aliceSession.person.id;
 const BOB = '22222222-2222-4222-8222-222222222222';
 const SOURCE = '33333333-3333-4333-8333-333333333333';
 
@@ -93,5 +95,103 @@ describe('the retirement page', () => {
 
     expect(await screen.findByText(/Taux de change manquant \(CHF\)/)).toBeInTheDocument();
     expect(seen[0]).toContain('scope=me');
+  });
+
+  it('reads the living cost as not set when it is 0, and still points to the settings with no figure', async () => {
+    serve(view({
+      figures: null, financialIndependence: null, warnings: [{ code: 'living_cost_missing' }],
+      assumptions: { ...view().assumptions, monthlyLivingCost: '0.00' },
+    }));
+    await renderApp('/retirement');
+
+    expect(await screen.findByText(/Coût de la vie mensuel : non renseigné/)).toBeInTheDocument();
+    expect(screen.getByText(/Aucun départ dans les 40 ans/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Renseignez le coût de la vie mensuel/ })).toHaveAttribute('href', '/settings/projection');
+  });
+
+  describe('the row actions', () => {
+    const alone = (over = {}) => view({ departures: [
+      { person: ALICE, name: 'Alice', birthDate: '1970-05-20', years: 60, months: 0, departure: '2030-06', pension: null, sources: [], ...over },
+      { person: BOB, name: 'Bob', birthDate: '1980-01-01', years: 64, months: 0, departure: '2044-01', pension: null, sources: [] },
+    ] });
+    const menuOf = async (name: string) => {
+      const user = userEvent.setup();
+      // Both layouts render under jsdom: the table's button is the first.
+      await user.click((await screen.findAllByRole('button', { name: `Actions pour ${name}` }))[0]!);
+      return user;
+    };
+
+    it('edits the departure and refetches the page', async () => {
+      let reads = 0;
+      let put: unknown;
+      server.use(
+        http.get('*/api/v1/retirement', () => { reads += 1; return HttpResponse.json(alone()); }),
+        http.put('*/api/v1/core/persons/:id/retirement', async ({ request }) => { put = await request.json(); return new HttpResponse(null, { status: 204 }); }),
+      );
+      await renderApp('/retirement');
+      const user = await menuOf('Bob');
+      await user.click(await screen.findByRole('menuitem', { name: 'Modifier le départ' }));
+      expect(await screen.findByLabelText("Âge de départ à la retraite")).toHaveValue(64);
+      await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+      await waitFor(() => expect(reads).toBe(2));
+      expect(put).toMatchObject({ retirementAge: 64, retirementMonths: 0 });
+    });
+
+    it('enters the reader\'s own pension from the month after the departure, shared by default, and refetches', async () => {
+      let reads = 0;
+      const posted: unknown[] = [];
+      server.use(
+        http.get('*/api/v1/retirement', () => { reads += 1; return HttpResponse.json(alone()); }),
+        http.post('*/api/v1/income/sources', async ({ request }) => { posted.push(await request.json()); return HttpResponse.json({ id: SOURCE }, { status: 201 }); }),
+      );
+      await renderApp('/retirement');
+      const user = await menuOf('Alice');
+      await user.click(await screen.findByRole('menuitem', { name: 'Saisir la pension' }));
+      await user.type(await screen.findByLabelText('Pension mensuelle nette'), '1 500,50');
+      await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+      await waitFor(() => expect(reads).toBe(2));
+
+      expect(posted[0]).toEqual({
+        displayName: 'Pension de retraite', kind: 'pension', currency: 'EUR', visibility: 'shared',
+        owners: [{ personId: ALICE, shareBp: 10000 }],
+        phases: [{ label: 'Pension', startsOn: '2030-07-01', netAmount: { amount: '1500.50', currency: 'EUR' }, every: { count: 1, unit: 'month' } }],
+      });
+    });
+
+    it('sends private when the checkbox is cleared, and rolls December over to January', async () => {
+      const posted: { visibility?: string; phases?: { startsOn: string }[] }[] = [];
+      server.use(
+        http.get('*/api/v1/retirement', () => HttpResponse.json(alone({ departure: '2030-12' }))),
+        http.post('*/api/v1/income/sources', async ({ request }) => { posted.push(await request.json() as never); return HttpResponse.json({ id: SOURCE }, { status: 201 }); }),
+      );
+      await renderApp('/retirement');
+      const user = await menuOf('Alice');
+      await user.click(await screen.findByRole('menuitem', { name: 'Saisir la pension' }));
+      await user.type(await screen.findByLabelText('Pension mensuelle nette'), '1000');
+      await user.click(screen.getByRole('checkbox', { name: "Visible de l'autre adulte" }));
+      await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+      await waitFor(() => expect(posted).toHaveLength(1));
+      expect(posted[0]).toMatchObject({ visibility: 'private', phases: [{ startsOn: '2031-01-01' }] });
+    });
+
+    it('offers the pension to nobody else, nor on a row that has a source or no departure', async () => {
+      serve(view());
+      await renderApp('/retirement');
+      const user = await menuOf('Alice');
+      expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      await menuOf('Bob');
+      expect(screen.getByRole('menuitem', { name: 'Modifier le départ' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
+    });
+
+    it('does not offer the pension when the reader has no departure month', async () => {
+      serve(alone({ departure: null, birthDate: null }));
+      await renderApp('/retirement');
+      await menuOf('Alice');
+      expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
+    });
   });
 });
