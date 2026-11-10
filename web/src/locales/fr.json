@@ -66,6 +66,7 @@
     "income": "Revenus",
     "tax": "Impôts",
     "scenarios": "Simulations",
+    "retirement": "Retraite",
     "properties": "Biens",
     "loans": "Crédits",
     "routine": "Routine",
@@ -369,6 +370,26 @@
         "other": "d’autres postes"
       }
     }
+  },
+  "retirement": {
+    "title": "Retraite",
+    "loading": "Chargement de la retraite",
+    "income_now": "Revenu aujourd'hui",
+    "income_at_retirement": "Revenu à la retraite",
+    "gap": "Écart mensuel",
+    "capital_needed": "Capital pour le combler",
+    "independence": "Indépendance financière",
+    "independence_unreached": "Non atteinte avant l'horizon",
+    "living_cost_missing": "Renseignez le coût de la vie mensuel dans Réglages › Projection pour calculer la date d'indépendance financière.",
+    "no_figures": "Aucun départ dans les 40 ans : renseignez une date de naissance dans Réglages › Projection.",
+    "note": "Chiffres indicatifs, en euros d'aujourd'hui, calculés à partir des hypothèses ci-dessous.",
+    "departures": "Départs à la retraite",
+    "adult": "Adulte",
+    "departure": "Départ",
+    "age": "Âge",
+    "pension": "Pension (euros d'aujourd'hui)",
+    "household_pensions": "Pensions visibles du foyer. Une pension privée ne compte que dans « Moi ».",
+    "assumptions": "Hypothèses"
   },
   "shell": { "sign_out": "Se déconnecter", "guide_help": "Guide de cette page" },
   "signed_out": {
