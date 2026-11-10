@@ -11,7 +11,9 @@ import { channelErrorText, discordFieldText, throttledText } from '@/features/no
 import { DiscordWebhookControl } from '@/features/notifications/DiscordWebhookControl';
 import { DISCORD_HOUSEHOLD, useWebhook } from '@/features/notifications/preferences';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
+import { Section } from '@/components/page/Section';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
 import '@/locales/notifications';
@@ -54,13 +56,12 @@ export function NotificationsAdminPage() {
 
   const title = t('admin.notifications.title');
   if (view.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(view.error))} /></AdminFrame>;
-  if (!view.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
+  if (!view.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></AdminFrame>;
   const { smtpConfigured, smtpHost, failures } = view.data;
 
   return (
     <AdminFrame title={title}>
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.notifications.email_title')}</h2>
+      <Section title={t('admin.notifications.email_title')}>
         <p>{smtpConfigured ? t('admin.notifications.configured', { host: smtpHost }) : t('admin.notifications.not_configured')}</p>
         {smtpConfigured ? null : (
           <p className="text-sm text-muted-foreground">
@@ -79,21 +80,19 @@ export function NotificationsAdminPage() {
           </div>
         ) : null}
         {outcome?.kind === 'problem' ? <ProblemMessage problem={outcome.problem} /> : null}
-      </section>
+      </Section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.notifications.discord_title')}</h2>
+      <Section title={t('admin.notifications.discord_title')}>
         <p className="text-sm text-muted-foreground">{t('admin.notifications.discord_hint')}</p>
         <DiscordWebhookControl webhook={view.data.discord ?? null} onSave={async (url) => { await webhook.save(url); clearDiscord(); }}
           onRemove={async () => { await webhook.remove(); clearDiscord(); }} testProblem={discordProblem}
           pending={discordTest.isPending} removeConfirmation={t('discord.remove_household')} testText={discordOutcome}
           onTest={() => { clearDiscord(); discordTest.mutate({ body: { channel: 'discord_household' } }); }} />
-      </section>
+      </Section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('admin.notifications.failures_title')}</h2>
+      <Section title={t('admin.notifications.failures_title')}>
         {failures.length === 0 ? (
-          <EmptyState module="/admin/users" title={t('admin.notifications.no_failures')} body="" level={3} />
+          <EmptyState module="/admin" title={t('admin.notifications.no_failures')} body="" level={3} />
         ) : (
           <SortableTable
             caption={t('admin.notifications.failures_title')}
@@ -115,7 +114,7 @@ export function NotificationsAdminPage() {
             )}
           />
         )}
-      </section>
+      </Section>
     </AdminFrame>
   );
 }

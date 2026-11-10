@@ -11,8 +11,6 @@ import { toasts } from '@/test/toasts';
 type Adult = components['schemas']['AdultView'];
 
 // aliceSession (the default renderApp() session) is this same person: these tests exercise the self rows.
-// The menu is a lazy chunk: its real trigger (aria-expanded) replaces the plain name once loaded.
-const openerReady = () => screen.findByRole('button', { name: 'Alice Dev', expanded: false });
 const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true };
 const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false };
 const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false };
@@ -27,6 +25,14 @@ function serve(adults: Adult[], maxAdults = 3) {
 }
 
 describe('Administration › Utilisateurs', () => {
+  it('has the Administration breadcrumb', async () => {
+    serve([alice]);
+    await renderApp('/admin/users', { capabilities: adminCapabilities });
+    expect(screen.queryByRole('navigation', { name: "Sections de l'administration" })).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Utilisateurs' })).toBeInTheDocument();
+  });
+
   it('lists the adults with their status and their role', async () => {
     serve([alice, carol]);
     const { container } = await renderApp('/admin/users', { capabilities: adminCapabilities });
@@ -121,12 +127,12 @@ describe('Administration › Utilisateurs', () => {
     expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
   });
 
-  it('an admin finds the admin entry in the navigation', async () => {
+  it('an admin finds the users page in the sidebar', async () => {
     serve([alice]);
-    const { user } = await renderApp('/subscriptions', { capabilities: adminCapabilities });
+    await renderApp('/subscriptions', { capabilities: adminCapabilities });
 
-    await user.click(await openerReady());
-    expect(await screen.findByRole('menuitem', { name: 'Administration' })).toBeInTheDocument();
+    const sidebar = screen.getByRole('navigation', { name: 'Navigation principale' });
+    expect(within(sidebar).getByRole('link', { name: 'Utilisateurs' })).toHaveAttribute('href', '/admin/users');
   });
 
   it('warns the admin distinctly before it signs itself out everywhere', async () => {

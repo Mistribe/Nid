@@ -8,7 +8,8 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 import '@/locales/admin';
 
 const HOUSEHOLD = '/api/v1/admin/household';
@@ -33,7 +34,7 @@ export function HouseholdPage() {
 
   const title = t('admin.household.title');
   if (household.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(household.error))} /></AdminFrame>;
-  if (!household.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
+  if (!household.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></AdminFrame>;
   const current = household.data;
 
   const submit = (event: FormEvent<HTMLFormElement>) => {

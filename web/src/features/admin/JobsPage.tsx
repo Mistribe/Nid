@@ -5,7 +5,8 @@ import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
 import { SortableTable } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { AdminFrame } from './AdminFrame';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { formatDuration } from './format';
 import { formatInstant } from '@/lib/format';
 import { JobOutcome } from './JobOutcome';
@@ -23,9 +24,9 @@ export function JobsPage() {
 
   const title = t('admin.jobs.title');
   if (jobs.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(jobs.error))} /></AdminFrame>;
-  if (!jobs.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
+  if (!jobs.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><TableSkeleton columns={4} /></Loading></AdminFrame>;
   if (jobs.data.length === 0)
-    return <AdminFrame title={title}><EmptyState module="/admin/users" title={t('admin.jobs.empty_title')} body={t('admin.jobs.empty_body')} /></AdminFrame>;
+    return <AdminFrame title={title}><EmptyState module="/admin" title={t('admin.jobs.empty_title')} body={t('admin.jobs.empty_body')} /></AdminFrame>;
 
   return (
     <AdminFrame title={title}>

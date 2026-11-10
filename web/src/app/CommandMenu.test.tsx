@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { dashboard } from '@/features/dashboard/testData';
+import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -24,6 +25,15 @@ describe('the ⌘K palette', () => {
     expect(within(again).queryByRole('option', { name: 'Placements' })).toBeNull();
     await user.click(within(again).getByRole('option', { name: 'Abonnements' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/subscriptions'));
+  });
+
+  it('finds every admin section with the keyword admin', async () => {
+    server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard())));
+    const { user } = await renderApp('/dashboard', { capabilities: adminCapabilities });
+    await user.click(await screen.findByRole('button', { name: 'Rechercher ou aller à…' }));
+    const palette = await screen.findByRole('dialog', { name: 'Aller à' });
+    await user.type(within(palette).getByRole('combobox'), 'admin');
+    expect(within(palette).getByRole('option', { name: 'Cours' })).toBeInTheDocument();
   });
 
   it('the « Aller à » entries show their module tile', async () => {

@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { AdminSkeleton } from './AdminFrame';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 import { formatDuration } from './format';
 import { formatInstant } from '@/lib/format';
 import { JobOutcome } from './JobOutcome';
@@ -27,7 +27,7 @@ export function JobRunPage() {
   ];
 
   if (run.error) return <div className="space-y-6"><PageHeader crumbs={crumbs} title={name} /><ProblemMessage problem={present(toProblem(run.error))} /></div>;
-  if (!run.data) return <div className="space-y-6"><PageHeader crumbs={crumbs} title={name} /><AdminSkeleton /></div>;
+  if (!run.data) return <div className="space-y-6"><PageHeader crumbs={crumbs} title={name} /><Loading label={t('admin.loading')}><SectionSkeleton /></Loading></div>;
   const r = run.data;
 
   return (

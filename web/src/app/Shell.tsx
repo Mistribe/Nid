@@ -66,23 +66,24 @@ export function Shell() {
   }, [toggle]);
   const items = visibleNav(capabilities);
   const side = items.filter((item) => item.group !== 'account');
-  const groups = (['follow', 'estate', 'budget'] as const).map((group) => ({ group, entries: side.filter((item) => item.group === group) })).filter((g) => g.entries.length > 0);
+  const groups = (['follow', 'estate', 'budget', 'admin'] as const).map((group) => ({ group, entries: side.filter((item) => item.group === group) })).filter((g) => g.entries.length > 0);
   const more = items.filter((item) => item.mobile === 'more');
   const inMore = pathname === '/more' || pathname === '/changelog'
     || more.some((item) => pathname === section(item.to) || pathname.startsWith(`${section(item.to)}/`));
 
   const sideLink = (item: NavItem) => {
+    const label = t('sideLabel' in item ? item.sideLabel : item.label);
     const anchor = (
-      <Link to={item.to} className={rail ? RAIL : LINK} activeProps={{ 'aria-current': 'page', className: ACTIVE }}>
+      <Link to={item.to} activeOptions={{ exact: item.to === '/admin' }} className={rail ? RAIL : LINK} activeProps={{ 'aria-current': 'page', className: ACTIVE }}>
         <ModuleTile icon={item.icon} tile={item.tile} />
-        <span className={rail ? 'sr-only' : 'truncate'}>{t(item.label)}</span>
+        <span className={rail ? 'sr-only' : 'truncate'}>{label}</span>
         {badge(item, rail)}
       </Link>
     );
     if (!rail) return anchor;
     return (
       <Suspense fallback={anchor}>
-        <RailTip content={<>{t(item.label)}{badge(item)}</>}>{anchor}</RailTip>
+        <RailTip content={<>{label}{badge(item)}</>}>{anchor}</RailTip>
       </Suspense>
     );
   };
@@ -114,8 +115,8 @@ export function Shell() {
           <div className={`flex-1 overflow-x-hidden overflow-y-auto ${rail ? 'p-1' : 'p-3'}`}>
             {groups.map(({ group, entries }, index) => (
               <div key={group} className={index === 0 ? undefined : rail ? 'mt-2 border-t pt-2' : 'mt-5'}>
-                <h2 className={rail ? 'sr-only' : 'px-3 pb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground'}>{t(`nav.group_${group}`)}</h2>
-                <ul className="space-y-0.5">{entries.map((item) => <li key={item.to}>{sideLink(item)}</li>)}</ul>
+                <h2 id={`nav-group-${group}`} className={rail ? 'sr-only' : 'px-3 pb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground'}>{t(`nav.group_${group}`)}</h2>
+                <ul aria-labelledby={`nav-group-${group}`} className="space-y-0.5">{entries.map((item) => <li key={item.to}>{sideLink(item)}</li>)}</ul>
               </div>
             ))}
           </div>
