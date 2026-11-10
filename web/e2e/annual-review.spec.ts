@@ -40,7 +40,8 @@ test('alice reviews her year and prints it on A4, light even on a dark screen', 
   await expect.poll(() => alice.evaluate<string>(BACKGROUND)).toBe(light);
   // Nothing wider than the page, which would be cut on paper: the header, the sections this journey fills and each table in them
   // (whose container no longer scrolls). Only those: alice's other sections hold what other journeys left on her shared account.
-  const fits = `((boxes) => boxes.some((b) => b.matches('[data-slot=table-container]')) && boxes.every((b) => b.scrollWidth <= b.clientWidth))(
+  // One pixel of slack: both widths are rounded integers, so sub-pixel rounding alone could tip one over.
+  const fits = `((boxes) => boxes.some((b) => b.matches('[data-slot=table-container]')) && boxes.every((b) => b.scrollWidth <= b.clientWidth + 1))(
     [...document.querySelectorAll('section')].filter((s) => ['Patrimoine net', 'Placements'].includes(s.querySelector('h2')?.textContent ?? ''))
       .flatMap((s) => [s, ...s.querySelectorAll('[data-slot=table-container]')]).concat([...document.querySelectorAll('[data-page-header]')]))`;
   await expect.poll(() => alice.evaluate<boolean>(fits)).toBe(true);
