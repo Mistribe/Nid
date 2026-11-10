@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.Core.Application.Reports;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Tax;
 using NodaTime;
 
 namespace Nid.Core.Tests;
@@ -210,5 +211,34 @@ public class YearReviewMathTests
         // The previous cost of credit is the sum of the figures shown, each to the cent.
         Assert.Equal("130.00", YearReviewMath.Loans(loan, loan, Currency.Eur)!.PreviousInterestAndInsurance!.Amount);
         Assert.Null(YearReviewMath.Properties(noProperty, noProperty, Currency.Eur));
+    }
+
+    private static TaxResult Estimate(int year, decimal salary, bool hasData = true) => TaxCalculator.Compute(new TaxInputs(
+        year, [new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: salary)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m,
+        0m, 0m, 0m, 0m)) with { HasData = hasData };
+
+    [Fact]
+    public void The_tax_section_converts_at_the_end_and_needs_data()
+    {
+        var now = Estimate(2025, 50_000m);
+        Assert.True(now.TotalTax > 0m);
+        // 0.8 € per $ on the end: a household in dollars reads each euro as 1.25 $.
+        var rates = new RateTable([new FxRate(End, Currency.Eur, 0.8m, FxRateSource.Ecb)], End, maxGapDays: 7);
+
+        static decimal InDollars(decimal eur) => Math.Round(eur * 1.25m, 2, MidpointRounding.AwayFromZero);
+        var tax = YearReviewMath.Tax(now, Estimate(2025, 40_000m), Currency.Usd, rates, End, out var missing)!;
+
+        Assert.Null(missing);
+        Assert.Equal((InDollars(now.TotalTax), InDollars(now.IncomeTax), InDollars(now.SocialLevies)),
+            (D(tax.TotalTax!.Amount), D(tax.IncomeTax!.Amount), D(tax.SocialLevies!.Amount)));
+        Assert.Equal("USD", tax.TotalTax.Currency);
+        Assert.NotNull(tax.PreviousTotalTax);
+        Assert.Null(YearReviewMath.Tax(now, Estimate(2025, 40_000m, hasData: false), Currency.Eur, rates, End, out _)!.PreviousTotalTax);
+        Assert.Null(YearReviewMath.Tax(now, null, Currency.Eur, rates, End, out _)!.PreviousTotalTax);
+        Assert.Null(YearReviewMath.Tax(Estimate(2025, 0m, hasData: false), null, Currency.Eur, rates, End, out _));
+        Assert.Null(YearReviewMath.Tax(null, null, Currency.Eur, rates, End, out _));
+
+        var unconverted = YearReviewMath.Tax(now, null, Currency.Usd, RateTable.Empty(End, 7), End, out missing)!;
+        Assert.Equal((null, "EUR"), (unconverted.TotalTax, missing));
     }
 }

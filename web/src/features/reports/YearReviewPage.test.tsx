@@ -12,7 +12,7 @@ const part = (key: string, amount: string, low: string, high: string) => ({ key,
 
 function review(over: Partial<YearReview> = {}): YearReview {
   return {
-    year: 2025, start: '2024-12-31', end: '2025-12-31', toDate: false, years: [2024, 2025, 2026], findings: [],
+    year: 2025, start: '2024-12-31', end: '2025-12-31', toDate: false, years: [2024, 2025, 2026], findings: [], goals: null, tax: null,
     netWorth: {
       start: eur('100000.00'), end: eur('112000.00'), change: eur('12000.00'),
       parts: [

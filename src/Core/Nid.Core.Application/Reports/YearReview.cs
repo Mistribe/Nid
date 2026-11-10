@@ -171,6 +171,34 @@ public static class YearReviewMath
                 p.GrossYieldPct, p.NetYieldPct)).ToList());
     }
 
+    /// <summary>The goals section: null without a goal in the year.</summary>
+    public static GoalsReviewView? Goals(GoalsReviewPart part, Currency reference)
+        => part.Goals.Count == 0 ? null
+            : new GoalsReviewView(part.Goals.Select(g => new GoalReviewRowView(g.Id, g.Name, g.Kind, M(g.Target, reference), M(g.StartReached, reference),
+                M(g.EndReached, reference), g.StartProgressPct, g.EndProgressPct, g.ReachedInPeriod, g.ArchivedOn)).ToList());
+
+    /// <summary>
+    /// The tax section: null when the year has no estimate (before the rules) or nothing to estimate from; the previous total null
+    /// likewise. Every figure is in euros, converted at <paramref name="on"/>'s rate; <paramref name="missing"/> names a currency without one.
+    /// </summary>
+    public static TaxReviewView? Tax(TaxResult? now, TaxResult? before, Currency reference, RateTable rates, LocalDate on, out string? missing)
+    {
+        string? miss = null;
+        DashboardMoneyView? Eur(decimal amount)
+        {
+            var sum = DashboardMath.Sum.Of(new Dictionary<Currency, decimal> { [Currency.Eur] = amount }, reference, rates, on);
+            miss ??= sum.Missing;
+            return sum.Missing is null ? DashboardMath.Money(sum.Total ?? 0m, reference) : null;
+        }
+
+        var view = now is { HasData: true }
+            ? new TaxReviewView(Eur(now.TotalTax), Eur(now.IncomeTax), Eur(now.SocialLevies), Eur(now.CapitalFlatTax),
+                before is { HasData: true } ? Eur(before.TotalTax) : null)
+            : null;
+        missing = miss;
+        return view;
+    }
+
     private static DashboardMoneyView? M(decimal? amount, Currency reference) => amount is { } a ? DashboardMath.Money(a, reference) : null;
 }
 
@@ -178,7 +206,8 @@ public static class YearReviewMath
 public sealed class GetYearReviewHandler(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<IInvestmentsReview> investments, IActorAccessor actor, IHouseholdCalendar calendar,
     IHouseholdSettings household, IFxRates fx, IEnumerable<IIncomeReview> incomes, IEnumerable<ICommitmentsContribution> commitments,
-    TaxEstimates taxes, IEnumerable<ISubscriptionsReview> subscriptions, IEnumerable<ILoansReview> loans, IEnumerable<IPropertiesReview> properties)
+    TaxEstimates taxes, IEnumerable<ISubscriptionsReview> subscriptions, IEnumerable<ILoansReview> loans, IEnumerable<IPropertiesReview> properties,
+    IEnumerable<IGoalsReview> goals)
     : IRequestHandler<GetYearReviewQuery, YearReviewView>
 {
     public async ValueTask<Result<YearReviewView>> HandleAsync(GetYearReviewQuery query, CancellationToken ct = default)
@@ -278,9 +307,50 @@ public sealed class GetYearReviewHandler(
         subscribed.TryGetValue(out var s);
         borrowed.TryGetValue(out var l);
         held.TryGetValue(out var h);
-        if ((missing || s.Missing || l.Missing || h.Missing) && !findings.Contains(FxCodes.RateMissing)) findings.Add(FxCodes.RateMissing);
 
-        return Result.Success(new YearReviewView(year, start, end, toDate, years, worth, invested, income, s.View, l.View, h.View, findings));
+        // The goals have no previous period: read once.
+        GoalsReviewView? aimed = null;
+        if (goals.FirstOrDefault() is { } goalsReview)
+        {
+            var read = await goalsReview.ReviewAsync(reader, query.Scope, start, end, ct);
+            if (read.TryGetFailure(out failure)) return Result.Failure<YearReviewView>(failure!);
+            read.TryGetValue(out var g);
+            aimed = YearReviewMath.Goals(g!, reference);
+            missing |= aimed is not null && g!.MissingCurrencies.Count > 0;
+        }
+
+        var taxed = await TaxAsync(year, query.Scope, start, end, today, reference, ct);
+        if (taxed.TryGetFailure(out failure)) return Result.Failure<YearReviewView>(failure!);
+        taxed.TryGetValue(out var t);
+
+        if ((missing || s.Missing || l.Missing || h.Missing || t.Missing) && !findings.Contains(FxCodes.RateMissing)) findings.Add(FxCodes.RateMissing);
+
+        return Result.Success(new YearReviewView(year, start, end, toDate, years, worth, invested, income, s.View, l.View, h.View, aimed, t.View, findings));
+    }
+
+    /// <summary>
+    /// The year's tax estimate and the year before's total as the tax page computes them today (the engagements' own estimates, kept
+    /// for the request), none before the rules, converted at <paramref name="end"/>'s rate.
+    /// </summary>
+    private async Task<Result<(TaxReviewView? View, bool Missing)>> TaxAsync(
+        int year, VisibilityScope scope, LocalDate start, LocalDate end, LocalDate today, Currency reference, CancellationToken ct)
+    {
+        if (year < TaxRules.FirstYear) return Result.Success<(TaxReviewView?, bool)>((null, false));
+        var now = await taxes.ComputeAsync(year, scope, today, ct);
+        if (now.TryGetFailure(out var failure)) return Result.Failure<(TaxReviewView?, bool)>(failure!);
+        now.TryGetValue(out var n);
+        if (!n!.HasData) return Result.Success<(TaxReviewView?, bool)>((null, false));
+        TaxResult? b = null;
+        if (year - 1 >= TaxRules.FirstYear)
+        {
+            var before = await taxes.ComputeAsync(year - 1, scope, today, ct);
+            if (before.TryGetFailure(out failure)) return Result.Failure<(TaxReviewView?, bool)>(failure!);
+            before.TryGetValue(out b);
+        }
+        // The reference's own quote too: rates are per USD.
+        var rates = reference == Currency.Eur ? RateTable.Empty(today, 0) : await fx.LoadAsync([Currency.Eur, reference], start, end, ct);
+        var view = YearReviewMath.Tax(n, b, reference, rates, end, out var missing);
+        return Result.Success<(TaxReviewView?, bool)>((view, view is not null && missing is not null));
     }
 
     /// <summary>

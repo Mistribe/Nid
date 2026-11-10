@@ -197,7 +197,7 @@ public sealed class TaxEstimates(
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxResult>(failure!);
         read.TryGetValue(out var r);
         var (inputs, _, _) = Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome);
-        return Result.Success(computed[key] = TaxCalculator.Compute(inputs));
+        return Result.Success(computed[key] = TaxCalculator.Compute(inputs) with { HasData = r.Lines.Count > 0 || r.Stored is not null });
     }
 
     private readonly Dictionary<(PersonId Reader, int Year, VisibilityScope Scope, NodaTime.LocalDate Today), TaxResult> computed = [];

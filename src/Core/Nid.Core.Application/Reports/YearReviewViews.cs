@@ -34,13 +34,35 @@ public sealed record InvestmentsReviewView(
 public sealed record YearReviewView(
     int Year, LocalDate Start, LocalDate End, bool ToDate, IReadOnlyList<int> Years,
     NetWorthReviewView? NetWorth, InvestmentsReviewView? Investments, IncomeReviewView? Income,
-    SubscriptionsReviewView? Subscriptions, LoansReviewView? Loans, PropertiesReviewView? Properties, IReadOnlyList<string> Findings) : IExposesItems
+    SubscriptionsReviewView? Subscriptions, LoansReviewView? Loans, PropertiesReviewView? Properties, GoalsReviewView? Goals, TaxReviewView? Tax,
+    IReadOnlyList<string> Findings) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
         => (Investments?.Envelopes.Select(e => e.Id) ?? []).Concat(Income?.Sources.Where(s => s.Id is not null).Select(s => s.Id!.Value) ?? [])
             .Concat(Subscriptions is { } s ? s.Started.Select(i => i.Id).Concat(s.Ended.Select(i => i.Id)).Concat(s.PriceChanges.Select(c => c.Id)) : [])
-            .Concat(Loans?.Loans.Select(l => l.Id) ?? []).Concat(Properties?.Properties.Select(p => p.Id) ?? []);
+            .Concat(Loans?.Loans.Select(l => l.Id) ?? []).Concat(Properties?.Properties.Select(p => p.Id) ?? [])
+            .Concat(Goals?.Goals.Select(g => g.Id) ?? []);
 }
+
+/// <summary>Issue #12: the goals that existed in the year, archived ones included, read on <c>Start</c> and <c>End</c>; no previous period.</summary>
+public sealed record GoalsReviewView(IReadOnlyList<GoalReviewRowView> Goals);
+
+/// <summary>
+/// Issue #12: a goal of the year in the household currency, its target today's. <c>StartReached</c> is null for a goal created in the
+/// year, an amount null when a rate is missing, a progress null without a target. <c>ReachedInPeriod</c>: not reached at the start,
+/// reached at the end. <c>ArchivedOn</c>: archived in the year.
+/// </summary>
+public sealed record GoalReviewRowView(
+    ItemId Id, string Name, string Kind, DashboardMoneyView? Target, DashboardMoneyView? StartReached, DashboardMoneyView? EndReached,
+    decimal? StartProgressPct, decimal? EndProgressPct, bool ReachedInPeriod, LocalDate? ArchivedOn);
+
+/// <summary>
+/// Issue #12: the year's tax estimate as the tax page computes it, and the year before's total (null before the rules), in the household
+/// currency at <c>End</c>'s rate; an amount is null when that rate is missing.
+/// </summary>
+public sealed record TaxReviewView(
+    DashboardMoneyView? TotalTax, DashboardMoneyView? IncomeTax, DashboardMoneyView? SocialLevies, DashboardMoneyView? CapitalFlatTax,
+    DashboardMoneyView? PreviousTotalTax);
 
 /// <summary>Issue #12: the year's subscriptions: the cost of its charges, those started, ended and repriced, and the previous period's cost.</summary>
 public sealed record SubscriptionsReviewView(
