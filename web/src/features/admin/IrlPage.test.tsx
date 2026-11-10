@@ -30,8 +30,35 @@ describe('Administration › IRL', () => {
     expect(quarter).toHaveTextContent('148.37');
     expect(quarter).toHaveTextContent('INSEE');
     expect(screen.getByRole('row', { name: /2026-T1/ })).toHaveTextContent('Saisi à la main');
-    expect(screen.getByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(view.runs[0]!.startedAt));
     await expectNoAxeViolations(container);
+  });
+
+  it('draws the series above its values', async () => {
+    serve();
+    server.use(http.get('*/api/v1/series/points', () => HttpResponse.json({ baseDate: null, series: [
+      { key: 'irl', kind: 'irl', name: 'x', unit: 'index', frequency: 'quarterly', item: null, points: [{ date: '2026-01-01', value: '146.80' }] }] })));
+    await renderApp('/admin/irl', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('tab', { name: 'Série', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Afficher en tableau' })).toBeInTheDocument();
+    expect(await screen.findByRole('row', { name: /^(2026-T2|septembre 2026)/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Voir la série' })).toBeInTheDocument();
+  });
+
+  it('shows the collection log on the Journal tab', async () => {
+    serve();
+    const { user, router } = await renderApp('/admin/irl', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('tab', { name: 'Journal' }));
+    expect(await screen.findByRole('row', { name: /réussi/ })).toHaveTextContent(formatInstant(view.runs[0]!.startedAt));
+    expect(router.state.location.search).toMatchObject({ tab: 'journal' });
+  });
+
+  it('opens the Journal tab from the URL', async () => {
+    serve();
+    await renderApp('/admin/irl?tab=journal', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('row', { name: /réussi/ })).toBeInTheDocument();
   });
 
   it('opens the IRL series', async () => {

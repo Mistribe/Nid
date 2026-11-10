@@ -1,6 +1,8 @@
 {
   "admin": {
     "loading": "Chargement",
+    "tab_series": "Série",
+    "tab_journal": "Journal",
     "overview": {
       "group_reference": "Données de référence",
       "group_operations": "Opérations",
