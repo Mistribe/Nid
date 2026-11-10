@@ -32474,9 +32474,9 @@ export interface components {
             /** Format: uuid */
             person?: null | string;
             /** Format: int32 */
-            years: number;
+            years?: null | number;
             /** Format: int32 */
-            months: number;
+            months?: null | number;
             monthlyPension?: null | string;
         };
         ScenarioScheduleRowView: {

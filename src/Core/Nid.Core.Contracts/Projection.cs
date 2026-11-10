@@ -156,4 +156,4 @@ public sealed record ProjectionScenario(int Version, ScenarioHorizon Horizon, Pr
 }
 
 /// <summary>Retirement spec §2: a person's departure in a scenario, at <c>Years</c> and <c>Months</c> of age, and optionally their monthly pension (today's money).</summary>
-public sealed record ScenarioRetirement(PersonId Person, int Years, int Months, decimal? MonthlyPension);
+public sealed record ScenarioRetirement(PersonId Person, int? Years, int? Months, decimal? MonthlyPension);

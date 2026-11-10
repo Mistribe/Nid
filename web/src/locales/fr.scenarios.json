@@ -221,7 +221,8 @@
         "freed_household": "Comme le foyer",
         "freed_yes": "Ajoutées à l’épargne",
         "freed_no": "Non épargnées",
-        "invalid_number": "Saisissez un nombre comme 3,5."
+        "invalid_number": "Saisissez un nombre comme 3,5.",
+        "invalid_integer": "Saisissez un nombre entier."
       },
       "events": {
         "title": "Événements du scénario",
@@ -337,7 +338,7 @@
         "months": "Âge de départ de {{name}} (mois)",
         "pension": "Pension mensuelle de {{name}}",
         "pension_hint": "Vide : les pensions du foyer.",
-        "age": "{{years}} ans {{months}} mois",
+        "household_age": "âge du foyer",
         "none": "Aucun départ déplacé : ceux du foyer s’appliquent.",
         "line": "{{name}} : départ à {{age}}",
         "pension_line": "pension {{amount}} par mois"
@@ -362,6 +363,8 @@
         "event_in_past_one": "Un événement daté dans le passé est pris aujourd’hui.",
         "event_in_past_other": "{{count}} événements datés dans le passé sont pris aujourd’hui.",
         "purchase_in_past": "Date d’achat passée : l’achat est pris aujourd’hui.",
+        "retirement_undated_one": "{{count}} départ porte sur un adulte sans date de naissance : il est ignoré.",
+        "retirement_undated_other": "{{count}} départs portent sur des adultes sans date de naissance : ils sont ignorés.",
         "event_undated_one": "{{count}} événement daté par un âge n’a plus de date de naissance : il est ignoré.",
         "event_undated_other": "{{count}} événements datés par un âge n’ont plus de date de naissance : ils sont ignorés.",
         "tax_estimate_unavailable": "Estimation d’impôt indisponible : hausse d’impôt comptée à 0.",

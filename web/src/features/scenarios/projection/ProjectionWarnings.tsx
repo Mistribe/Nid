@@ -23,7 +23,8 @@ export function ProjectionWarnings({ warnings }: { warnings: Warning[] }) {
       case 'fx_missing': return t('dashboard.projection.warning_fx_missing', { code: w.detail });
       case 'hidden_targets':
       case 'event_in_past':
-      case 'event_undated': return t(`scenarios.projection.warning.${w.code}`, { count: count(w) });
+      case 'event_undated':
+      case 'retirement_undated': return t(`scenarios.projection.warning.${w.code}`, { count: count(w) });
       case 'purchase_in_past':
       case 'tax_estimate_unavailable': return t(`scenarios.projection.warning.${w.code}`);
       default: return t('scenarios.projection.warning.unknown', { code: w.code });

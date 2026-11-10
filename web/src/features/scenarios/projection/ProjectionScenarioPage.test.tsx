@@ -93,13 +93,41 @@ describe('ProjectionScenarioPage', () => {
     const { puts } = serve(view({ result: { ...view().result, document: { ...DOCUMENT, retirements: [{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }] } } }));
     const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
 
-    expect(await screen.findByText('Alice : départ à 60 ans 6 mois · pension 1 500,00 € par mois')).toBeInTheDocument();
+    expect(await screen.findByText('Alice : départ à 60 ans et 6 mois · pension 1 500,00 € par mois')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
     const dialog = await screen.findByRole('dialog');
     await user.clear(within(dialog).getByLabelText('Pension mensuelle de Alice'));
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(puts.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6 }]));
+  });
+
+  it('keeps the saved departures when the persons did not load', async () => {
+    const retirements = [{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }];
+    const { puts } = serve(view({ result: { ...view().result, document: { ...DOCUMENT, retirements } } }));
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json({ status: 500, code: null, title: 'Boom' }, { status: 500 })));
+    const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }]));
+  });
+
+  it('warns of the departures on an adult without a birth date', async () => {
+    const v = view();
+    v.result.scenario.warnings = [{ code: 'retirement_undated', detail: '2' }];
+    serve(v);
+    await renderApp(`/scenarios/projection/${ID}`);
+
+    expect(await screen.findByText('2 départs portent sur des adultes sans date de naissance : ils sont ignorés.')).toBeInTheDocument();
+  });
+
+  it('shows « âge du foyer » for a pension-only departure', async () => {
+    serve(view({ result: { ...view().result, document: { ...DOCUMENT, retirements: [{ person: ALICE, monthlyPension: '1500.00' }] } } }));
+    await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
+
+    expect(await screen.findByText('Alice : départ à âge du foyer · pension 1 500,00 € par mois')).toBeInTheDocument();
   });
 
   it('« Comparer » opens the compare page with this scenario, also for a reader who cannot write', async () => {

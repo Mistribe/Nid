@@ -52,7 +52,7 @@ const horizonTable = () => screen.findByRole('table', { name: 'Patrimoine à l�
 describe('ScenarioComparePage', () => {
   beforeAll(async () => { await import('./ScenarioComparePage'); }, 30_000);
 
-  it('shows the independence date of the base and of each scenario, or a dash without a living cost', async () => {
+  it('shows the independence date of the base and of each scenario, or « Non atteinte » past the horizon', async () => {
     const cost = { monthlyLivingCost: '2500.00' };
     const dated = (p: ReturnType<typeof projection>, financialIndependence: string | null) => ({ ...p, financialIndependence, assumptions: { ...p.assumptions, ...cost } });
     serve([], (url) => {

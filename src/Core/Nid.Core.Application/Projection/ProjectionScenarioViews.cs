@@ -30,7 +30,7 @@ public sealed record ProjectionEventView(
     Guid? Property, string? Price, string? Costs, Guid? Scenario);
 
 /// <summary>Retirement spec §2: a departure on the wire; <c>MonthlyPension</c> a decimal string.</summary>
-public sealed record ScenarioRetirementView(Guid? Person, int Years, int Months, string? MonthlyPension);
+public sealed record ScenarioRetirementView(Guid? Person, int? Years, int? Months, string? MonthlyPension);
 
 /// <summary>
 /// Spec §6 and §7: a projection scenario's document on the wire, read and answered in the same shape. <c>Horizon</c> is the projection

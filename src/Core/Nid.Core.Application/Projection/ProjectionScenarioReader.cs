@@ -194,7 +194,7 @@ public sealed class ProjectionScenarioReader(
         var all = (await persons.ListAsync(ct)).ToDictionary(p => p.Id);
         var kept = (doc.Retirements ?? []).Where(r => all.TryGetValue(r.Person, out var p) && p.Kind == PersonKind.Adult).ToList();
         var dated = kept.Where(r => all[r.Person].BirthDate is not null).ToList();
-        var ages = dated.ToDictionary(r => r.Person, r => (r.Years, r.Months));
+        var ages = dated.Where(r => r.Years is not null).ToDictionary(r => r.Person, r => (r.Years!.Value, r.Months ?? 0));
         var people = ProjectionFactsReader.Overridden([.. all.Values], ages);
         return (ages, people, kept.Count - dated.Count, kept);
     }

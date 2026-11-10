@@ -27,7 +27,7 @@ import { PROJECTION_SCENARIO, SCENARIO, SCENARIOS, type ProjectionScenario } fro
 import type { ProjectionEvent } from './api';
 import { comma } from './AssumptionFields';
 import { Independence } from './Independence';
-import { useAdults } from './departures';
+import { ageText, useAdults } from './departures';
 import type { EventFieldError } from './EventDialog';
 import { EventList } from './EventList';
 import type { ScenarioDialog } from './ProjectionScenarioDialogs';
@@ -273,14 +273,18 @@ function Departures({ scenario }: { scenario: ProjectionScenario }) {
     <section aria-label={t('scenarios.projection.departures.title')} className="space-y-1">
       <h3 className="font-medium">{t('scenarios.projection.departures.title')}</h3>
       <ul className="space-y-0.5 text-sm">
-        {entries.map((r) => (
+        {entries.map((r) => {
+          const adult = adults.find((a) => a.id === r.person);
+          return adult && (
           <li key={r.person}>
             {t('scenarios.projection.departures.line', {
-              name: adults.find((a) => a.id === r.person)?.displayName ?? t('scenarios.dash'), age: t('scenarios.projection.departures.age', { years: r.years, months: r.months }),
+              name: adult.displayName,
+              age: r.years == null ? t('scenarios.projection.departures.household_age') : ageText(t, r.years, r.months),
             })}
             {r.monthlyPension == null ? null : ` · ${t('scenarios.projection.departures.pension_line', { amount: formatCurrency(r.monthlyPension, base.currency) })}`}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   );

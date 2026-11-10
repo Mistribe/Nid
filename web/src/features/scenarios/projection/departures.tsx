@@ -1,5 +1,6 @@
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useApi } from '@/api/ApiProvider';
 import { PERSONS } from '@/api/persons';
 import { Field } from '@/components/form/Field';
@@ -27,19 +28,24 @@ export function useAdults(): Adult[] {
 /** The draft of saved departures (each pension with a French comma). */
 export const departuresDraft = (retirements?: Retirements | null): DeparturesDraft =>
   Object.fromEntries((retirements ?? []).flatMap((r) => (r.person ? [[r.person, {
-    years: String(r.years), months: String(r.months), pension: r.monthlyPension == null ? '' : r.monthlyPension.replace('.', ','),
+    years: r.years == null ? '' : String(r.years), months: r.months == null ? '' : String(r.months), pension: r.monthlyPension == null ? '' : r.monthlyPension.replace('.', ','),
   }]] : [])));
 
-/** Only the adults who typed something; the age they left empty is the household's. */
-export function retirementsOf(draft: DeparturesDraft | undefined, adults: Adult[]): Retirements {
-  return adults.flatMap((a) => {
-    const d = draft?.[a.id];
-    if (!d || (!bare(d.years) && !bare(d.months) && !bare(d.pension))) return [];
-    const years = bare(d.years) ? Number(bare(d.years)) : a.retirementAge;
-    const months = bare(d.months) ? Number(bare(d.months)) : bare(d.years) ? 0 : a.retirementMonths;
-    return [{ person: a.id, years, months, ...(bare(d.pension) ? { monthlyPension: toWireAmount(d.pension) } : {}) }];
+/** The entries the draft holds (a saved one stays when its adult is not loaded): an age only when typed, months only with it. */
+export function retirementsOf(draft: DeparturesDraft | undefined): Retirements {
+  return Object.entries(draft ?? {}).flatMap(([person, d]) => {
+    const years = bare(d.years), months = bare(d.months), pension = bare(d.pension);
+    if (!years && !pension) return [];
+    return [{
+      person, ...(years ? { years: Number(years), ...(months ? { months: Number(months) } : {}) } : {}),
+      ...(pension ? { monthlyPension: toWireAmount(d.pension) } : {}),
+    }];
   });
 }
+
+/** « 64 ans » or « 64 ans et 3 mois ». */
+export const ageText = (t: TFunction, years: number, months: number | null | undefined) =>
+  months ? t('settings.projection.age_years_months', { years, months }) : t('settings.projection.age_years', { count: years });
 
 /** Every typed figure reads as a number. */
 export const departuresComplete = (draft: DeparturesDraft | undefined) =>
@@ -58,9 +64,10 @@ export function departurePath(path: string, sent: Retirements): `departures.${st
 export function DepartureFields({ adults }: { adults: Adult[] }) {
   const { t } = useTranslation();
   const form = useFormContext<{ departures: DeparturesDraft }>();
-  const input = (name: `departures.${string}`, pattern: RegExp) => form.register(name, {
-    validate: (v) => { const typed = bare(typeof v === 'string' ? v : ''); return !typed || pattern.test(typed) || t('scenarios.projection.form.invalid_number'); },
+  const input = (name: `departures.${string}`, pattern: RegExp, message: string) => form.register(name, {
+    validate: (v) => { const typed = bare(typeof v === 'string' ? v : ''); return !typed || pattern.test(typed) || message; },
   });
+  const integer = t('scenarios.projection.form.invalid_integer');
   const error = (name: `departures.${string}`) => { const e = form.getFieldState(name, form.formState).error?.message; return typeof e === 'string' ? e : undefined; };
   return (
     <div className="space-y-3">
@@ -70,15 +77,15 @@ export function DepartureFields({ adults }: { adults: Adult[] }) {
         <fieldset key={a.id} className="grid gap-3 sm:grid-cols-3">
           <legend className="mb-1 text-sm font-medium">{a.displayName}</legend>
           <Field label={t('scenarios.projection.departures.years', { name: a.displayName })} error={error(`departures.${a.id}.years`)}
-            hint={t('scenarios.projection.form.household_value', { value: t('scenarios.projection.departures.age', { years: a.retirementAge, months: a.retirementMonths }) })}>
-            {(c) => <Input inputMode="numeric" {...c} {...input(`departures.${a.id}.years`, INTEGER)} />}
+            hint={t('scenarios.projection.form.household_value', { value: ageText(t, a.retirementAge, a.retirementMonths) })}>
+            {(c) => <Input inputMode="numeric" {...c} {...input(`departures.${a.id}.years`, INTEGER, integer)} />}
           </Field>
           <Field label={t('scenarios.projection.departures.months', { name: a.displayName })} error={error(`departures.${a.id}.months`)}>
-            {(c) => <Input inputMode="numeric" {...c} {...input(`departures.${a.id}.months`, INTEGER)} />}
+            {(c) => <Input inputMode="numeric" {...c} {...input(`departures.${a.id}.months`, INTEGER, integer)} />}
           </Field>
           <Field label={t('scenarios.projection.departures.pension', { name: a.displayName })} error={error(`departures.${a.id}.pension`)}
             hint={t('scenarios.projection.departures.pension_hint')}>
-            {(c) => <Input inputMode="decimal" {...c} {...input(`departures.${a.id}.pension`, AMOUNT)} />}
+            {(c) => <Input inputMode="decimal" {...c} {...input(`departures.${a.id}.pension`, AMOUNT, t('scenarios.projection.form.invalid_number'))} />}
           </Field>
         </fieldset>
       ))}

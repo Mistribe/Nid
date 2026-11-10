@@ -50603,10 +50603,6 @@
         }
       },
       "ScenarioRetirementView": {
-        "required": [
-          "years",
-          "months"
-        ],
         "type": "object",
         "properties": {
           "person": {
@@ -50617,11 +50613,17 @@
             "format": "uuid"
           },
           "years": {
-            "type": "integer",
+            "type": [
+              "null",
+              "integer"
+            ],
             "format": "int32"
           },
           "months": {
-            "type": "integer",
+            "type": [
+              "null",
+              "integer"
+            ],
             "format": "int32"
           },
           "monthlyPension": {

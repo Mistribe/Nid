@@ -45,9 +45,9 @@ type ProjectionDraft = {
 
 const STEP_FIELDS: Record<Step, string[]> = { general: ['name', 'visibility', 'scope', 'horizon'], events: [], assumptions: ['assumptions', 'departures'] };
 
-const toDocument = (d: ProjectionDraft, events: ProjectionEvent[], adults: Adult[]): ProjectionDocument => {
+const toDocument = (d: ProjectionDraft, events: ProjectionEvent[]): ProjectionDocument => {
   const assumptions = overridesOf(d.assumptions);
-  const retirements = retirementsOf(d.departures, adults);
+  const retirements = retirementsOf(d.departures);
   return { version: 1, horizon: d.horizon, ...(assumptions ? { assumptions } : {}), events, ...(retirements.length > 0 ? { retirements } : {}) };
 };
 
@@ -99,7 +99,7 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
 
   // The side panel follows the typing, 400 ms after the last change, and only once every typed figure reads as one.
   const values = useWatch({ control: form.control }) as ProjectionDraft;
-  const typed = JSON.stringify({ scope: values.scope, document: toDocument(values, events, adults) });
+  const typed = JSON.stringify({ scope: values.scope, document: toDocument(values, events) });
   const complete = isComplete(values.assumptions) && departuresComplete(values.departures);
   const [sent, setSent] = useState(typed);
   useEffect(() => {
@@ -107,13 +107,13 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
     const timer = setTimeout(() => setSent(typed), 400);
     return () => clearTimeout(timer);
   }, [typed, complete]);
-  const simulation = $api.useQuery('post', PROJECTION_SIMULATE, { body: JSON.parse(sent) as { scope: string; document: ProjectionDocument } },
+  const sentBody = JSON.parse(sent) as { scope: string; document: ProjectionDocument };
+  const simulation = $api.useQuery('post', PROJECTION_SIMULATE, { body: sentBody },
     { placeholderData: keepPreviousData, retry: false });
 
   /** The server's refusals on their fields: an event's under it (and in its dialog), the others on the form; the rest above it. */
-  const place = (error: unknown): FieldError[] => {
+  const place = (error: unknown, sentRetirements: ProjectionDocument['retirements']): FieldError[] => {
     const fields = fieldErrorsOf(error);
-    const sentRetirements = retirementsOf(form.getValues('departures'), adults);
     const byEvent: Record<number, EventFieldError[]> = {};
     for (const f of fields) {
       const message = messageFor(t, f);
@@ -134,7 +134,7 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
   // The document a save refused: a simulation of that same document, answering late, must not wipe the refusals off it.
   const refused = useRef<string | null>(null);
   useEffect(() => {
-    if (simulateError) place(simulateError);
+    if (simulateError) place(simulateError, sentBody.document.retirements);
     else if (simulated && sent !== refused.current) { setEventErrors({}); setProblem(null); }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- an answer is the event; `place` changes every render.
   }, [simulated, simulateError]);
@@ -146,8 +146,8 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
     },
     onError: (error) => {
       refused.current = typed;
-      const fields = place(error);
-      const sentRetirements = retirementsOf(form.getValues('departures'), adults);
+      const sentRetirements = retirementsOf(form.getValues('departures'));
+      const fields = place(error, sentRetirements);
       // The refusal lands on the last step: go back to the first step holding a field it names.
       const step = STEPS.find((s) => fields.some((f) => s === 'events' ? EVENT_PATH.test(f.path)
         : STEP_FIELDS[s].some((root) => draftPath(f.path, sentRetirements)?.split('.')[0] === root)));
@@ -188,7 +188,7 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
               setProblem(null);
               create.mutate({ body: {
                 name: v.name.trim(), visibility: v.visibility, scope: v.scope, owners: [{ personId: session.person.id, shareBp: 10000 }],
-                document: toDocument(v, events, adults),
+                document: toDocument(v, events),
               } });
             })()}
             submitLabel={t('scenarios.projection.form.submit')} pending={create.isPending} reveal={reveal}

@@ -471,11 +471,11 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
             freedPaymentsToSavings = true, incomeGrowth = "0", withdrawalRate = "4", monthlyLivingCost = livingCost ?? "0",
         })).EnsureSuccessStatusCode();
 
-    private static object Departing(NidApp app, string horizon, int years, string? pension = null)
+    private static object Departing(NidApp app, string horizon, int? years, string? pension = null)
         => new
         {
             version = 1, horizon, assumptions = new { }, events = Array.Empty<object>(),
-            retirements = new[] { new { person = app.AdultA.Value, years, months = 0, monthlyPension = pension } },
+            retirements = new[] { new { person = app.AdultA.Value, years, months = years is null ? (int?)null : 0, monthlyPension = pension } },
         };
 
     [Fact]
@@ -552,6 +552,20 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
         // Flat money: 300 less a month from the switch month 25 to 240 is 216 months of savings.
         Assert.Equal(-64_800m, Dec(Points(view, "scenario")[^1], "nominal") - Dec(Points(view, "base")[^1], "nominal"));
         Assert.True(string.CompareOrdinal(Str(view.GetProperty("scenario"), "financialIndependence"), "2027-11") > 0);
+    }
+
+    [Fact]
+    public async Task A_pension_only_departure_keeps_the_households_age() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await DepartureAsync(app, "1963-10-10"); // leaves in 2027-10: the switch month is 25
+        await ValuedEnvelopeAsync(app, "100000.00");
+        await AssumptionsAsync(app, "0", "2000");
+        await PensionAsync(app, "1800");
+
+        var view = await SimulateAsync(app, Departing(app, "20y", null, "1500")); // no age: the household's switch month, 1 500 in place of the 1 800
+
+        Assert.Equal(-64_800m, Dec(Points(view, "scenario")[^1], "nominal") - Dec(Points(view, "base")[^1], "nominal"));
     }
 
     [Fact]

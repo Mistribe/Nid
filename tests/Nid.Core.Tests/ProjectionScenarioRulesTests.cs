@@ -58,6 +58,19 @@ public class ProjectionScenarioRulesTests
             Assert.Single(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, years, months, pension)))));
 
     [Fact]
+    public void A_pension_only_departure_is_accepted_and_an_empty_one_refused()
+    {
+        Assert.Empty(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, null, null, 1500m))));
+        Assert.Equal(("retirements[0]", "A departure sets an age or a pension."),
+            Assert.Single(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, null, null, null)))));
+    }
+
+    [Fact]
+    public void Months_without_an_age_are_refused()
+        => Assert.Equal(("retirements[0].months", "The months need an age."),
+            Assert.Single(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, null, 3, 1500m)))));
+
+    [Fact]
     public void Two_departures_of_one_person_are_refused()
         => Assert.Equal(("retirements[1].person", "A person has one departure per scenario."),
             Assert.Single(ProjectionScenarioRules.Check(WithDepartures(new ScenarioRetirement(Alice, 60, 0, null), new ScenarioRetirement(Alice, 62, 0, null)))));
