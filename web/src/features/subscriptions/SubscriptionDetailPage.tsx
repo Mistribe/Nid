@@ -79,8 +79,8 @@ export function SubscriptionDetailPage() {
   const people = $api.useQuery('get', PERSONS);
   const [tab, setTab] = useDetailTab(TABS);
   const [dialog, setDialog] = useState<'price' | 'purchase' | 'terms' | 'insurance' | null>(null);
-  // Which subscription shows all its payments: another one opened on the same page starts folded.
   const [deleting, setDeleting] = useState(false);
+  // Which subscription shows all its payments: another one opened on the same page starts folded.
   const [expandedFor, setExpandedFor] = useState<string | null>(null);
   const priceRef = useRef<HTMLButtonElement>(null);
   const purchaseRef = useRef<HTMLButtonElement>(null);
@@ -176,7 +176,7 @@ export function SubscriptionDetailPage() {
           ))}
         </ul>
       ) : null}
-      {detail.canWrite && deleting ? <Suspense fallback={null}><DeleteItemFlow kind="subscriptions.delete_subscription" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
+      {detail.canWrite && deleting ? <Suspense fallback={null}><DeleteItemFlow kind="subscriptions.delete_subscription" id={id} closed={!!detail.cancelledAt} onClose={() => setDeleting(false)} /></Suspense> : null}
       {dialog === 'price' ? (
         <FormDialog title={t('edit.price_title')} onClose={() => close()} onDone={close}>
           {({ titleId, done }) => <PriceChangeForm detail={detail} titleId={titleId} onDone={done} />}

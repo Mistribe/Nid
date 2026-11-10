@@ -20,7 +20,8 @@
     "close_hint": {
       "goals.delete_goal": "Clôturer",
       "income.delete_income_source": "Terminer cette source",
-      "investments.delete_envelope": "Clôturer l’enveloppe"
+      "investments.delete_envelope": "Clôturer l’enveloppe",
+      "subscriptions.delete_subscription": "Indiquer une date de résiliation (onglet Réglages)"
     },
     "done": "Élément supprimé : « {{name}} »",
     "keys": {
@@ -70,6 +71,10 @@
       "billing_phases_other": "{{count}} phases de facturation",
       "coverage_grants_one": "{{count}} période de couverture",
       "coverage_grants_other": "{{count}} périodes de couverture",
+      "purchases_one": "{{count}} achat",
+      "purchases_other": "{{count}} achats",
+      "subscription_insurance_one": "{{count}} assurance et ses garanties",
+      "subscription_insurance_other": "{{count}} assurances et leurs garanties",
       "subscription_users_one": "{{count}} utilisateur du service",
       "subscription_users_other": "{{count}} utilisateurs du service",
       "progress_entries_one": "{{count}} versement suivi",

@@ -437,7 +437,7 @@ describe('Abonnements › détail', () => {
       expect(screen.queryByText('Supprimer…')).not.toBeInTheDocument();
     });
 
-    it('deletes after the name is typed, then leaves for the list, with no close hint', async () => {
+    it('deletes after the name is typed, then leaves for the list, with the close hint', async () => {
       serveDetail(detail());
       server.use(
         http.get('*/api/v1/subscriptions/:id/deletion', () => HttpResponse.json(preview({ removes: [{ key: 'billing_phases', count: 2 }] }))),
@@ -449,7 +449,7 @@ describe('Abonnements › détail', () => {
       await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
       const dialog = await screen.findByRole('dialog', { name: 'Supprimer Spotify Premium Duo' });
       expect(await within(dialog).findByText(/2 phases de facturation/)).toBeInTheDocument();
-      expect(dialog).not.toHaveTextContent('utilisez plutôt');
+      expect(dialog).toHaveTextContent('Indiquer une date de résiliation (onglet Réglages)');
       await user.type(await within(dialog).findByLabelText(/Tapez/), 'Spotify Premium Duo');
       await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
       await waitFor(() => expect(router.state.location.pathname).toBe('/subscriptions'));
