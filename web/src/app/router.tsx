@@ -85,11 +85,7 @@ const isIsoDate = (value: unknown): value is string => typeof value === 'string'
 export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
   ((typeof search.tab === 'string' && search.tab !== '') || typeof search.tab === 'number' ? { tab: String(search.tab) } : {});
 
-/** The list `page` of the URL: a whole number from 2 (page 1 is the default and stays out of it), else dropped. */
-export const pageOf = (search: Record<string, unknown>): number | undefined => {
-  const page = Number(search.page);
-  return Number.isInteger(page) && page >= 2 ? page : undefined;
-};
+export { pageOf } from '@/lib/search';
 
 /** Administration › Taux de change: the tab, and the currency drawn (EUR is the default, USD the base: neither is a choice). */
 const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: string } => {

@@ -1,6 +1,7 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { pageOf } from '@/lib/search';
 import { Button } from '@/components/ui/button';
 
 export const PAGE_SIZE = 50;
@@ -23,16 +24,21 @@ export function Pager({ page, total, pageSize = PAGE_SIZE, onPage, label }: {
 
 /** The `page` of the URL (absent is 1, so it stays out of the URL there), and how to change it. */
 export function useListPage(): [page: number, toPage: (n: number) => void] {
-  const { page }: { page?: number } = useSearch({ strict: false });
+  const search: Record<string, unknown> = useSearch({ strict: false });
   const navigate = useNavigate();
   const toPage = (n: number) => void navigate({ to: '.', replace: true, resetScroll: false,
     search: ((prev: Record<string, unknown>) => ({ ...prev, page: n > 1 ? n : undefined })) as never });
-  return [page ?? 1, toPage];
+  return [pageOf(search) ?? 1, toPage];
 }
 
 /** A page past the end (the last rows went away) steps back to the last one. */
 export function useStepBack(page: number, answer: { items: unknown[]; total: number } | undefined, toPage: (n: number) => void) {
+  const empty = answer !== undefined && answer.items.length === 0;
+  const total = answer?.total ?? 0;
+  const last = Math.ceil(total / PAGE_SIZE);
+  // Only when the last page is before this one: the same page again would loop.
   useEffect(() => {
-    if (answer && answer.items.length === 0 && page > 1 && answer.total > 0) toPage(Math.ceil(answer.total / PAGE_SIZE));
-  });
+    if (empty && total > 0 && last < page) toPage(last);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toPage is a new function each render
+  }, [empty, total, last, page]);
 }
