@@ -10,6 +10,10 @@
     "type": "Tapez {{name}} pour confirmer",
     "confirm": "Supprimer définitivement",
     "menu": "Supprimer…",
+    "close_hint": {
+      "goals.delete_goal": "Clôturer",
+      "income.delete_income_source": "Terminer cette source"
+    },
     "done": "« {{name}} » supprimé",
     "keys": {
       "flows_one": "{{count}} flux",

@@ -1,18 +1,17 @@
 import { useApi } from './ApiProvider';
-import { GOAL, GOAL_DELETION } from './goals';
+import type { paths } from './schema';
 
-/** One entry per item that can be deleted when created by mistake (#23): its preview and delete routes, the list to land on, and the « end it instead » hint. */
+/** One entry per item that can be deleted when created by mistake (#23): its preview and delete routes, and the list to land on. The « end it instead » hint is `deletion.close_hint.<kind>`. */
 export const DELETABLE = {
-  'goals.delete_goal': { preview: GOAL_DELETION, remove: GOAL, list: '/goals', closeHint: 'goals_list.close' },
-  'income.delete_income_source': {
-    preview: '/api/v1/income/sources/{id}/deletion', remove: '/api/v1/income/sources/{id}', list: '/income', closeHint: 'income_detail.ending.open',
-  },
-} as const;
+  'goals.delete_goal': { preview: '/api/v1/goals/{id}/deletion', remove: '/api/v1/goals/{id}', list: '/goals' },
+  'income.delete_income_source': { preview: '/api/v1/income/sources/{id}/deletion', remove: '/api/v1/income/sources/{id}', list: '/income' },
+} as const satisfies Record<string, { preview: keyof paths; remove: keyof paths; list: string }>;
 export type DeletableKind = keyof typeof DELETABLE;
 
-// Every kind shares the same shape (`{id}` path, `version` query, ItemDeletionPreview), so the routes are typed once, as the goal's.
-type PreviewPath = typeof GOAL_DELETION;
-type RemovePath = typeof GOAL;
+// Every kind shares the same shape (`{id}` path, `version` query, ItemDeletionPreview), so the hooks type the routes once, as the goal's:
+// the `satisfies` above is what checks a new entry's paths against the API.
+type PreviewPath = '/api/v1/goals/{id}/deletion';
+type RemovePath = '/api/v1/goals/{id}';
 
 /** What deleting the item removes and what blocks it, read only while the dialog is open. */
 export function useItemDeletionPreview(kind: DeletableKind, id: string, enabled: boolean) {

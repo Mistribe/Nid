@@ -7,8 +7,6 @@ import { APPROVE, invalidateProposals } from '@/api/proposals';
 import { DeleteItemDialog } from '@/components/DeleteItemDialog';
 import { useItemDeleted } from '@/components/useItemDeleted';
 import '@/locales/deletion';
-import '@/locales/goals';
-import '@/locales/income';
 
 /**
  * Deleting an item created by mistake (#23): the shared dialog over the item's preview; the module's list is where the household lands.
@@ -20,7 +18,7 @@ export default function DeleteItemFlow({ kind, id, onClose, approve }: {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const { list, closeHint } = DELETABLE[kind];
+  const { list } = DELETABLE[kind];
   const deleted = useItemDeleted(list);
   const preview = useItemDeletionPreview(kind, id, true);
   const remove = useDeleteItem(kind);
@@ -38,6 +36,6 @@ export default function DeleteItemFlow({ kind, id, onClose, approve }: {
     ? approval.mutate({ params: { path: { id: approve.proposalId } }, body: { version: approve.proposalVersion, editedPayload: { id, version } } }, outcome)
     : remove.mutate({ id, version }, outcome);
   const active = approve ? approval : remove;
-  return <DeleteItemDialog preview={preview.data} previewError={preview.error} closeHint={t(closeHint)} pending={active.isPending}
+  return <DeleteItemDialog preview={preview.data} previewError={preview.error} closeHint={t(`deletion.close_hint.${kind}`)} pending={active.isPending}
     error={active.error} onConfirm={confirm} onClose={onClose} />;
 }

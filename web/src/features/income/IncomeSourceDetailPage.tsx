@@ -42,10 +42,11 @@ import { SettingsForm } from './settings/SettingsForm';
 import '@/locales/income';
 import '@/locales/deletion';
 
-const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { PageSkeleton } from '@/components/page/skeletons';
+
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 
 const TABS = ['overview', 'history', 'oneoffs', 'documents', 'settings'] as const;
 
