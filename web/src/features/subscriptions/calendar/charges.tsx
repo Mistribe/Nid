@@ -45,3 +45,24 @@ export function DayMore({ lines, label, more, moreLabel, className }: {
     </Popover>
   );
 }
+
+/** The charges grouped by day, in the server's order. */
+export function byDay(lines: Line[]): Map<string, Line[]> {
+  const days = new Map<string, Line[]>();
+  for (const c of lines) days.set(c.date, [...(days.get(c.date) ?? []), c]);
+  return days;
+}
+
+/** Charges day by day: each day's heading, its charges under it. */
+export function DayList({ lines, label, className }: { lines: Line[]; label: string; className?: string }) {
+  return (
+    <ul aria-label={label} className={className}>
+      {[...byDay(lines)].map(([date, day]) => (
+        <li key={date} className="space-y-1">
+          <h3 className="text-sm font-semibold">{formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' })}</h3>
+          {day.map((c, i) => <ChargeLink key={`${c.itemId}/${i}`} c={c} />)}
+        </li>
+      ))}
+    </ul>
+  );
+}

@@ -65,6 +65,7 @@
     "legend": "Légende",
     "legend_paid": "Prélevé",
     "legend_projected": "Prévu",
+    "legend_weight": "Total du mois",
     "marker": "{{name}}, {{amount}}, {{state}} le {{date}}",
     "paid": "prélevé",
     "projected": "prévu",
@@ -72,7 +73,9 @@
     "summary_one": "{{total}} · {{count}} prélèvement",
     "summary_other": "{{total}} · {{count}} prélèvements",
     "start": "Début de l’historique",
-    "end": "Fin de la prévision affichée"
+    "end": "Fin de la prévision affichée",
+    "several_one": "{{count}} prélèvement de {{name}}, {{date}}",
+    "several_other": "{{count}} prélèvements de {{name}}, {{date}}"
   },
   "partial": "partiel",
   "years": {
