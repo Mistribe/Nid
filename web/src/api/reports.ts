@@ -8,3 +8,6 @@ export type NetWorthReview = components['schemas']['NetWorthReviewView'];
 export type InvestmentsReview = components['schemas']['InvestmentsReviewView'];
 export type InvestmentsReviewRow = components['schemas']['InvestmentsReviewRowView'];
 export type ReviewPart = components['schemas']['ReviewPartView'];
+export type IncomeReview = components['schemas']['IncomeReviewView'];
+export type IncomeReviewSource = components['schemas']['IncomeSourceView'];
+export type EngagementReviewSource = components['schemas']['EngagementSourceView'];
