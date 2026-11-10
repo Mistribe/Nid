@@ -57,10 +57,44 @@ describe('Placements › vue d’ensemble', () => {
     expect(within(gain as HTMLElement).getByText('en hausse')).toBeInTheDocument();
   });
 
+  it('keeps the simple view to the figures, the curve and what to watch; « Analyse » has the rest (issue #20)', async () => {
+    const seen: string[] = [];
+    serve(household(), seen);
+    const { user, container } = await renderApp('/investments');
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Vue d’ensemble', 'Analyse', 'Performance', 'Revenus', 'Liste']);
+    await region('À surveiller');
+    expect(screen.getByRole('region', { name: 'Valeur et versements' })).toBeInTheDocument();
+    for (const name of ['Répartition par type', 'Part de chacun', 'Enveloppes'])
+      expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
+    for (const name of ['Répartition par type', 'Part de chacun', 'Enveloppes']) expect(await region(name)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'À surveiller' })).not.toBeInTheDocument();
+    // Both tabs read the one answer.
+    expect(seen).toEqual(['?scope=household&span=12m']);
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows three lines to watch, the others on demand', async () => {
+    serve({ ...household(), watch: [
+      { code: 'stale_value', envelopeId: LIVRET, holdingId: null, on: '2025-08-31' },
+      { code: 'ceiling_reached', envelopeId: LIVRET, holdingId: null, on: null },
+      { code: 'ceiling_room', envelopeId: PEA, holdingId: null, on: null, amount: eur('3600.0000') },
+      { code: 'tax_milestone', envelopeId: PEA, holdingId: null, on: '2025-12-01', milestone: 'pea_5y' },
+    ] });
+    const { user } = await renderApp('/investments');
+
+    const watch = await region('À surveiller');
+    expect(within(watch).getAllByRole('listitem')).toHaveLength(3);
+    await user.click(within(watch).getByRole('button', { name: 'Tout voir (4)' }));
+    expect(within(watch).getAllByRole('listitem')).toHaveLength(4);
+  });
+
   it('splits by kind and by person, and lists the envelopes with a total', async () => {
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ALICE, kind: 'adult', displayName: 'Alice', email: null }])));
     serve(household());
-    await renderApp('/investments');
+    await renderApp('/investments?tab=analysis');
 
     const kinds = await region('Répartition par type');
     const [pea0, livret0] = within(kinds).getAllByRole('row');
@@ -162,9 +196,10 @@ describe('Placements › vue d’ensemble', () => {
     body.estimatedCount = 1;
     body.envelopes = [{ ...body.envelopes[0]!, estimated: true, estimatedOn: '2025-10-12' }, body.envelopes[1]!];
     serve(body);
-    const { container } = await renderApp('/investments');
+    const { user, container } = await renderApp('/investments');
 
     expect(await region('Valeur des placements')).toHaveTextContent('1 valeur estimée');
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
     const envelopes = await region('Enveloppes');
     expect(envelopes).toHaveTextContent('Total · 2 enveloppes35 000,00 € estimé · +3 200,00 €');
     const [pea, livret] = within(envelopes).getAllByRole('row').slice(1);
@@ -177,8 +212,11 @@ describe('Placements › vue d’ensemble', () => {
 
   it('says nothing about estimates when none is counted', async () => {
     serve(household());
-    await renderApp('/investments');
+    const { user } = await renderApp('/investments');
 
+    await region('Valeur des placements');
+    expect(document.body).not.toHaveTextContent(/estimée?\b/);
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
     await region('Enveloppes');
     expect(document.body).not.toHaveTextContent(/estimée?\b/);
   });
@@ -188,7 +226,7 @@ describe('Placements › vue d’ensemble', () => {
     const body = household();
     body.envelopes = [{ ...body.envelopes[0]!, currency: 'USD', figures: { ...body.envelopes[0]!.figures, value: usd }, valueConverted: eur('1080.00') }];
     serve(body);
-    await renderApp('/investments');
+    await renderApp('/investments?tab=analysis');
 
     const table = await screen.findByRole('table', { name: 'Enveloppes ouvertes' });
     expect(within(table).getAllByRole('row')[1]).toHaveTextContent('1 200,00 $US');

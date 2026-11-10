@@ -38,8 +38,43 @@ import { OverviewSkeleton } from '@/components/page/skeletons';
 type Scope = 'household' | 'me';
 type Span = '12m' | '3y' | 'all';
 
-/** Investments dashboard §3.3: the server's figures, then the curve, the split, what to watch and the envelopes; nothing computed here. */
+/** Issue #20: the simple view — the value, the figures, then the curve with what to watch beside it; nothing computed here. */
 export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <ValueHero d={d} />
+          <Figures d={d} />
+          <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+            <div className={d.watch.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}><ValueChart d={d} span={span} /></div>
+            <WatchCard d={d} />
+          </div>
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Issue #20: « Analyse », what the simple view leaves out — the split, each person's part and the envelopes. */
+export function AnalysisTab({ scope, span }: { scope: Scope; span: Span }) {
+  return (
+    <Overview scope={scope} span={span}>
+      {(d) => (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <Kinds d={d} />
+            <Persons d={d} />
+          </div>
+          <Envelopes d={d} />
+        </>
+      )}
+    </Overview>
+  );
+}
+
+/** Investments dashboard §3.3: the server's answer both tabs read (one request), or what to show instead. */
+function Overview({ scope, span, children }: { scope: Scope; span: Span; children: (d: InvestmentsOverview) => ReactNode }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', OVERVIEW, { params: { query: { scope, span } } });
@@ -61,20 +96,9 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
         )} />
     );
 
-  // DOM order is the phone's (figures, curve, watch, split, persons, envelopes).
   return (
     <TooltipProvider>
-      <div className="flex flex-col gap-6">
-        <ValueHero d={d} />
-        <Figures d={d} />
-        <ValueChart d={d} span={span} />
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:order-last"><WatchCard d={d} /></div>
-          <Kinds d={d} />
-          <Persons d={d} />
-        </div>
-        <Envelopes d={d} />
-      </div>
+      <div className="flex flex-col gap-6">{children(d)}</div>
     </TooltipProvider>
   );
 }
@@ -212,7 +236,7 @@ function Persons({ d }: { d: InvestmentsOverview }) {
   );
 }
 
-const WATCH_SHOWN = 4;
+const WATCH_SHOWN = 3;
 const WATCH_CODES = ['stale_value', 'no_value', 'missing_opening', 'holding_maturity', 'uc_share_below_floor'] as const;
 
 function WatchCard({ d }: { d: InvestmentsOverview }) {

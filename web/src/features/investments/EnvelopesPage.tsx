@@ -31,18 +31,21 @@ function useEnvelopes(scope: 'me' | 'household', closed: boolean) {
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 
+const AnalysisTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.AnalysisTab })));
+
 const PerformanceTab = lazy(() => import('./overview/PerformanceTab').then((m) => ({ default: m.PerformanceTab })));
 
 const IncomeTab = lazy(() => import('./overview/IncomeTab'));
 
 const HoldingsTab = lazy(() => import('./overview/HoldingsTab').then((m) => ({ default: m.HoldingsTab })));
 
-const WITH_HOLDINGS = ['overview', 'performance', 'income', 'holdings', 'list'] as const;
-const WITHOUT_HOLDINGS = ['overview', 'performance', 'income', 'list'] as const;
+const WITH_HOLDINGS = ['overview', 'analysis', 'performance', 'income', 'holdings', 'list'] as const;
+const WITHOUT_HOLDINGS = ['overview', 'analysis', 'performance', 'income', 'list'] as const;
 
 /**
- * Investments dashboard §3.1, §4.3 and §5.3: the overview opens first, then « Performance », « Supports et frais » while an envelope has a
- * snapshot; the list keeps its switch of the closed envelopes under `?tab=list`.
+ * Investments dashboard §3.1, §4.3 and §5.3: the overview opens first (the simple view, issue #20), then « Analyse » (the rest of the
+ * overview), « Performance », « Supports et frais » while an envelope has a snapshot; the list keeps its switch of the closed envelopes
+ * under `?tab=list`.
  */
 export function EnvelopesPage() {
   const { t } = useTranslation();
@@ -60,6 +63,8 @@ export function EnvelopesPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('investments_overview.tab_overview'),
           content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
+        { id: 'analysis', label: t('investments_overview.tab_analysis'),
+          content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><AnalysisTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
         { id: 'performance', label: t('investments_overview.tab_performance'),
           content: <Suspense fallback={<OverviewSkeleton label={t('page.loading')} />}><PerformanceTab scope={scope} /></Suspense> },
         { id: 'income', label: t('investments_overview.tab_income'),
