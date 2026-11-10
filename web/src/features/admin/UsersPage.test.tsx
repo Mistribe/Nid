@@ -11,8 +11,6 @@ import { toasts } from '@/test/toasts';
 type Adult = components['schemas']['AdultView'];
 
 // aliceSession (the default renderApp() session) is this same person: these tests exercise the self rows.
-// The menu is a lazy chunk: its real trigger (aria-expanded) replaces the plain name once loaded.
-const openerReady = () => screen.findByRole('button', { name: 'Alice Dev', expanded: false });
 const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true };
 const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false };
 const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false };
