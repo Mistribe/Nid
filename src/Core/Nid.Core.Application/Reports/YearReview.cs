@@ -181,7 +181,7 @@ public static class YearReviewMath
     /// The tax section: null when the year has no estimate (before the rules) or nothing to estimate from; the previous total null
     /// likewise. Every figure is in euros, converted at <paramref name="on"/>'s rate; <paramref name="missing"/> names a currency without one.
     /// </summary>
-    public static TaxReviewView? Tax(TaxResult? now, TaxResult? before, Currency reference, RateTable rates, LocalDate on, out string? missing)
+    public static TaxReviewView? Tax(TaxComputation? now, TaxComputation? before, Currency reference, RateTable rates, LocalDate on, out string? missing)
     {
         string? miss = null;
         DashboardMoneyView? Eur(decimal amount)
@@ -192,8 +192,8 @@ public static class YearReviewMath
         }
 
         var view = now is { HasData: true }
-            ? new TaxReviewView(Eur(now.TotalTax), Eur(now.IncomeTax), Eur(now.SocialLevies), Eur(now.CapitalFlatTax),
-                before is { HasData: true } ? Eur(before.TotalTax) : null)
+            ? new TaxReviewView(Eur(now.Result.TotalTax), Eur(now.Result.IncomeTax), Eur(now.Result.SocialLevies), Eur(now.Result.CapitalFlatTax),
+                before is { HasData: true } ? Eur(before.Result.TotalTax) : null)
             : null;
         missing = miss;
         return view;
@@ -336,14 +336,14 @@ public sealed class GetYearReviewHandler(
         int year, VisibilityScope scope, LocalDate start, LocalDate end, LocalDate today, Currency reference, CancellationToken ct)
     {
         if (year < TaxRules.FirstYear) return Result.Success<(TaxReviewView?, bool)>((null, false));
-        var now = await taxes.ComputeAsync(year, scope, today, ct);
+        var now = await taxes.ComputeWithDataAsync(year, scope, today, ct);
         if (now.TryGetFailure(out var failure)) return Result.Failure<(TaxReviewView?, bool)>(failure!);
         now.TryGetValue(out var n);
         if (!n!.HasData) return Result.Success<(TaxReviewView?, bool)>((null, false));
-        TaxResult? b = null;
+        TaxComputation? b = null;
         if (year - 1 >= TaxRules.FirstYear)
         {
-            var before = await taxes.ComputeAsync(year - 1, scope, today, ct);
+            var before = await taxes.ComputeWithDataAsync(year - 1, scope, today, ct);
             if (before.TryGetFailure(out failure)) return Result.Failure<(TaxReviewView?, bool)>(failure!);
             before.TryGetValue(out b);
         }

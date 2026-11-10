@@ -1,5 +1,6 @@
 using System.Globalization;
 using Nid.Core.Application.Reports;
+using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Core.Domain.Tax;
 using NodaTime;
@@ -213,15 +214,15 @@ public class YearReviewMathTests
         Assert.Null(YearReviewMath.Properties(noProperty, noProperty, Currency.Eur));
     }
 
-    private static TaxResult Estimate(int year, decimal salary, bool hasData = true) => TaxCalculator.Compute(new TaxInputs(
+    private static TaxComputation Estimate(int year, decimal salary, bool hasData = true) => new(TaxCalculator.Compute(new TaxInputs(
         year, [new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: salary)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m,
-        0m, 0m, 0m, 0m)) with { HasData = hasData };
+        0m, 0m, 0m, 0m)), hasData);
 
     [Fact]
     public void The_tax_section_converts_at_the_end_and_needs_data()
     {
         var now = Estimate(2025, 50_000m);
-        Assert.True(now.TotalTax > 0m);
+        Assert.True(now.Result.TotalTax > 0m);
         // 0.8 € per $ on the end: a household in dollars reads each euro as 1.25 $.
         var rates = new RateTable([new FxRate(End, Currency.Eur, 0.8m, FxRateSource.Ecb)], End, maxGapDays: 7);
 
@@ -229,7 +230,7 @@ public class YearReviewMathTests
         var tax = YearReviewMath.Tax(now, Estimate(2025, 40_000m), Currency.Usd, rates, End, out var missing)!;
 
         Assert.Null(missing);
-        Assert.Equal((InDollars(now.TotalTax), InDollars(now.IncomeTax), InDollars(now.SocialLevies)),
+        Assert.Equal((InDollars(now.Result.TotalTax), InDollars(now.Result.IncomeTax), InDollars(now.Result.SocialLevies)),
             (D(tax.TotalTax!.Amount), D(tax.IncomeTax!.Amount), D(tax.SocialLevies!.Amount)));
         Assert.Equal("USD", tax.TotalTax.Currency);
         Assert.NotNull(tax.PreviousTotalTax);

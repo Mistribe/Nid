@@ -214,16 +214,16 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal("6000.00", next.GetProperty("profile").GetProperty("childcareOutsideHome").GetString());
     }
 
-    /// <summary>Issue #12: an estimate has data from a tax line or a profile, its own year's or an earlier one standing in.</summary>
+    /// <summary>Issue #12: an estimate has data from a tax line or a profile stored for its year; an earlier profile standing in is not enough.</summary>
     [Fact]
-    public async Task An_estimate_has_data_from_a_line_or_a_profile()
+    public async Task An_estimate_has_data_from_a_line_or_its_years_profile()
     {
         static async Task<bool> HasDataAsync(NidApp app, int year)
         {
             await using var scope = app.Services.CreateAsyncScope();
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
             var read = await scope.ServiceProvider.GetRequiredService<TaxEstimates>()
-                .ComputeAsync(year, VisibilityScope.Me, NidApp.GoldenCaseToday, TestContext.Current.CancellationToken);
+                .ComputeWithDataAsync(year, VisibilityScope.Me, NidApp.GoldenCaseToday, TestContext.Current.CancellationToken);
             Assert.True(read.TryGetValue(out var result));
             return result!.HasData;
         }
@@ -232,7 +232,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.False(await HasDataAsync(profiled, 2025));
         Assert.Equal(HttpStatusCode.OK, (await profiled.RawAsync(profiled.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025?scope=me",
             new { dependents = 1, pinel = Array.Empty<object>() })).StatusCode);
-        Assert.Equal((true, true), (await HasDataAsync(profiled, 2025), await HasDataAsync(profiled, 2026)));
+        Assert.Equal((true, false), (await HasDataAsync(profiled, 2025), await HasDataAsync(profiled, 2026)));
 
         await using var earning = await NidApp.StartAsync(fixture);
         var source = await earning.NewIncomeSourceAsync("Salaire", earning.AdultA);

@@ -626,6 +626,10 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         await EntryAsync(app, app.AdultA, free, "2025-03-01", "10000");
         var pea = await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
         await app.NewGoalAsync("Apport", app.AdultA, funding: [(pea, 5000)]);
+        // A free goal archived in the year.
+        var archived = await app.NewGoalAsync("Ancien", app.AdultA);
+        await EntryAsync(app, app.AdultA, archived, "2024-06-01", "2000");
+        await ArchiveAsync(app, archived, 2025, 6, 1);
 
         var goals = (await YearAsync(app, "2025")).GetProperty("goals").GetProperty("goals").EnumerateArray().ToList();
         GoalsReviewPart part;
@@ -639,13 +643,16 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         static decimal? Pct(JsonElement row, string name) => row.GetProperty(name).ValueKind == JsonValueKind.Null ? null : row.GetProperty(name).GetDecimal();
         static decimal? N(string? amount) => amount is null ? null : D(amount);
-        Assert.Equal(2, goals.Count);
+        Assert.Equal(3, goals.Count);
         Assert.Equal(
-            part.Goals.Select(g => (g.Id.Value, g.Name, g.Kind, g.Target, g.StartReached, g.EndReached, g.StartProgressPct, g.EndProgressPct, g.ReachedInPeriod)),
+            part.Goals.Select(g => (g.Id.Value, g.Name, g.Kind, g.Target, g.StartReached, g.EndReached, g.StartProgressPct, g.EndProgressPct, g.ReachedInPeriod,
+                g.ArchivedOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))),
             goals.Select(r => (r.GetProperty("id").GetGuid(), r.GetProperty("name").GetString()!, r.GetProperty("kind").GetString()!, N(A(r, "target")),
-                N(A(r, "startReached")), N(A(r, "endReached")), Pct(r, "startProgressPct"), Pct(r, "endProgressPct"), r.GetProperty("reachedInPeriod").GetBoolean())));
+                N(A(r, "startReached")), N(A(r, "endReached")), Pct(r, "startProgressPct"), Pct(r, "endProgressPct"), r.GetProperty("reachedInPeriod").GetBoolean(),
+                r.GetProperty("archivedOn").GetString())));
         var voyage = goals.Single(r => r.GetProperty("id").GetGuid() == free.Value);
         Assert.Equal(("3000.00", "10000.00", true), (A(voyage, "startReached"), A(voyage, "endReached"), voyage.GetProperty("reachedInPeriod").GetBoolean()));
+        Assert.Equal("2025-06-01", goals.Single(r => r.GetProperty("id").GetGuid() == archived.Value).GetProperty("archivedOn").GetString());
     }
 
     [Theory]
