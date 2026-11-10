@@ -64,6 +64,7 @@ export const handlers = [
   http.get('*/api/v1/investments/overview/holdings', () => HttpResponse.json(investmentsHoldings())),
   http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([]))),
   http.get('*/api/v1/realestate/routine', () => HttpResponse.json(estateRoutine())),
+  http.get('*/api/v1/childcare', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/income/overview', () => HttpResponse.json(overview())),
   http.get('*/api/v1/income/sources', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [] })),

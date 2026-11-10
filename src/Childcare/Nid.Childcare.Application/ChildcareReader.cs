@@ -23,9 +23,13 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
         var currency = await household.ReferenceCurrencyAsync(ct);
         var today = await calendar.TodayAsync(ct);
         var estimates = new Dictionary<ItemId, decimal?>();
+        var validated = new Dictionary<ItemId, HashSet<YearMonth>>();
         foreach (var id in ids)
-            estimates[id] = StatementContext.CmgEstimate((await store.StatementsOfAsync(id, ct))
-                .Where(st => st is { Validated: true, Figures: not null }).Select(st => (st.Month, st.Figures!.Cmg)).ToList());
+        {
+            var statements = (await store.StatementsOfAsync(id, ct)).Where(st => st.Validated).ToList();
+            estimates[id] = StatementContext.CmgEstimate(statements.Where(st => st.Figures is not null).Select(st => (st.Month, st.Figures!.Cmg)).ToList());
+            validated[id] = statements.Select(st => st.Month).ToHashSet();
+        }
 
         return found.Select(f =>
         {
@@ -38,7 +42,8 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 arrangement.ItemId.Value, item.DisplayName, arrangement.Child.Value, names.GetValueOrDefault(arrangement.Child, ""), arrangement.CarerName,
                 item.OwnerViews(), item.Visibility == Visibility.Private ? "private" : "shared", item.ArchivedAt is not null,
                 writable.Contains(arrangement.ItemId), revisions[0].From, views[^1].To, current.From, current.MonthlyBasePay,
-                Hours(Mensualisation.AnnualHours(now.WeekTypes) / now.ProgrammedWeeks));
+                Hours(Mensualisation.AnnualHours(now.WeekTypes) / now.ProgrammedWeeks),
+                StatementContext.ToPrepare(revisions[0].From, views[^1].To, today, validated[arrangement.ItemId]).Select(StatementAssembly.Format).ToList());
             var placed = gaps[arrangement.ItemId].ToList();
             var year = ContractCheck.Year(TermsPlan.Of(now, revisions[0].From, overrides[arrangement.ItemId].ToList()), revisions[0].From, placed, today);
             var allocated = ContractCheck.Allocated(year, now.WeekTypes.Count);

@@ -44,7 +44,7 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data)
     return (
-      <Loading label={t('childcare_list.loading')}><TableSkeleton columns={6} /></Loading>
+      <Loading label={t('childcare_list.loading')}><TableSkeleton columns={7} /></Loading>
     );
   // `closed=true` lists the open arrangements too: this tab keeps the closed ones.
   const rows = closed ? answer.data.items.filter((c) => c.closed) : answer.data.items;
@@ -63,6 +63,8 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
         { id: 'carer', header: t('childcare_list.col_carer'), sort: (c) => c.carerName, cell: (c) => c.carerName },
         { id: 'pay', header: t('childcare_list.col_pay'), align: 'end', sort: (c) => amountKey(c.monthlyBasePay.amount), cell: pay },
         { id: 'start', header: t('childcare_list.col_start'), sort: (c) => c.start, cell: (c) => <LocalDate value={c.start} style="short" /> },
+        { id: 'to_prepare', header: t('childcare_list.col_to_prepare'), align: 'end', sort: (c) => c.toPrepare.length,
+          cell: (c) => (c.toPrepare.length > 0 ? t('childcare_list.to_prepare', { count: c.toPrepare.length }) : '—') },
         { id: 'owner', header: t('childcare_list.col_owners'), cell: (c) => <OwnerChips owners={c.owners} /> },
       ]}
       mobile={(c) => (
@@ -71,6 +73,7 @@ function List({ scope, closed, add }: { scope: 'me' | 'household'; closed: boole
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
             <span>{c.childName} · {c.carerName}</span>{pay(c)}
           </div>
+          {c.toPrepare.length > 0 ? <p className="text-sm">{t('childcare_list.to_prepare_mobile', { count: c.toPrepare.length })}</p> : null}
         </div>
       )} />
   );

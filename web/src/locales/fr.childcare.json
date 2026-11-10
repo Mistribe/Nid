@@ -15,7 +15,10 @@
     "col_carer": "Assistante maternelle",
     "col_pay": "Salaire mensualisé",
     "col_start": "Depuis",
-    "col_owners": "Détenteurs"
+    "col_owners": "Détenteurs",
+    "col_to_prepare": "À préparer",
+    "to_prepare": "{{count}} mois",
+    "to_prepare_mobile": "{{count}} mois à préparer"
   },
   "childcare_form": {
     "title": "Nouvelle garde",

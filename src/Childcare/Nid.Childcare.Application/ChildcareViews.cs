@@ -14,10 +14,12 @@ public sealed record ChildcareMoneyView(string Amount, string Currency)
 /// <summary>
 /// Spec §5: an arrangement in a list. <c>MonthlyBasePay</c>, <c>WeeklyHours</c>: the terms in force today, which start on <c>InForceFrom</c>
 /// (the first terms before the contract starts; a revision dated after today waits). <c>End</c>: the last terms' end.
+/// <c>ToPrepare</c> (#19): the months gone by whose statement is not validated, newest first, as <c>yyyy-MM</c>.
 /// </summary>
 public sealed record ChildcareSummary(
     Guid Id, string Name, Guid ChildId, string ChildName, string CarerName, IReadOnlyList<ItemOwnerView> Owners, string Visibility, bool Closed,
-    bool CanWrite, LocalDate Start, LocalDate? End, LocalDate InForceFrom, ChildcareMoneyView MonthlyBasePay, string WeeklyHours);
+    bool CanWrite, LocalDate Start, LocalDate? End, LocalDate InForceFrom, ChildcareMoneyView MonthlyBasePay, string WeeklyHours,
+    IReadOnlyList<string> ToPrepare);
 
 public sealed record ChildcareList(IReadOnlyList<ChildcareSummary> Items) : IExposesItems
 {

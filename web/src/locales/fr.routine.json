@@ -30,5 +30,13 @@
     "col_estimate": "Estimation",
     "col_flows": "Charges et loyers",
     "flow": "{{category}} : {{amount}} au {{date}}"
+  },
+  "routine_childcare": {
+    "title": "Garde",
+    "empty": "Tous les relevés de garde sont prêts.",
+    "due": "Relevé de {{month}} à préparer · {{name}}",
+    "due_vowel": "Relevé d’{{month}} à préparer · {{name}}",
+    "late_one": "{{count}} relevé en retard · {{name}}",
+    "late_other": "{{count}} relevés en retard · {{name}}"
   }
 }

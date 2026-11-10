@@ -15,6 +15,15 @@ public static class StatementContext
         return months;
     }
 
+    /// <summary>
+    /// #19: the months to prepare, newest first: those gone by (the current one from its last day, as decision 18's notice) not validated.
+    /// </summary>
+    public static IReadOnlyList<YearMonth> ToPrepare(LocalDate start, LocalDate? end, LocalDate today, IReadOnlySet<YearMonth> validated)
+    {
+        var due = today.PlusDays(1).Month != today.Month ? today : today.ToYearMonth().OnDayOfMonth(1).PlusDays(-1);
+        return Months(start, end, due).Where(m => !validated.Contains(m)).ToList();
+    }
+
     /// <summary>Decision 12: the revision in force on the month's first day within the arrangement.</summary>
     public static int TermsIndexFor(YearMonth month, LocalDate start, IReadOnlyList<(LocalDate From, LocalDate? To)> terms)
     {

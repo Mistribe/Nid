@@ -35,6 +35,14 @@ describe('ChildcarePage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('counts the months to prepare', async () => {
+    serve(list([summary({ toPrepare: ['2025-10', '2025-09'] }), summary({ id: 'b', name: 'Garde à jour' })]));
+    await renderApp('/childcare');
+    const [due, done] = await rows();
+    expect(due).toHaveTextContent('2 mois');
+    expect(done).toHaveTextContent('—');
+  });
+
   it('keeps closed ones under their tab', async () => {
     const seen: string[] = [];
     serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary({ id: 'b', name: 'Garde actuelle' })]), seen);

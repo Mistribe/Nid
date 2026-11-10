@@ -29925,7 +29925,8 @@
           "start",
           "inForceFrom",
           "monthlyBasePay",
-          "weeklyHours"
+          "weeklyHours",
+          "toPrepare"
         ],
         "type": "object",
         "properties": {
@@ -29981,6 +29982,12 @@
           },
           "weeklyHours": {
             "type": "string"
+          },
+          "toPrepare": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
