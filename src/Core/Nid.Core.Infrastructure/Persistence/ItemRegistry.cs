@@ -155,6 +155,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         {
             ShareLevel = row.ShareLevel == "edit" ? ShareLevel.Edit : ShareLevel.View,
             ArchivedAt = row.ArchivedAt,
+            CreatedAt = row.CreatedAt,
             Currency = row.Currency?.Trim(),
             Module = row.Module,
             Kind = row.Kind,

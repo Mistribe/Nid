@@ -192,6 +192,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
+        services.AddScoped<ISubscriptionsReview, Nid.Subscriptions.Application.SubscriptionsReview>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsOverviewReader>();
@@ -246,6 +247,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IItemDeletionPart, IncomeDeletionPart>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<ISeriesContribution, Nid.Income.Application.IncomeSeries>();
+        services.AddScoped<Nid.Income.Application.IncomeOverviewEntries>();
+        services.AddScoped<IIncomeReview, Nid.Income.Application.IncomeReview>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
@@ -261,6 +264,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
         services.AddScoped<GoalReader>();
+        services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 
         services.AddDbContext<BankingDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -352,6 +356,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IRealEstateProjection, Nid.RealEstate.Application.RealEstateScenarioProjection>();
         services.AddScoped<Nid.RealEstate.Application.PropertyReading>();
         services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
+        services.AddScoped<ILoansReview, Nid.RealEstate.Application.LoansReview>();
+        services.AddScoped<IPropertiesReview, Nid.RealEstate.Application.PropertiesReview>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
         services.AddScoped<IExpectedCharges, Nid.RealEstate.Application.RealEstateExpectedCharges>();

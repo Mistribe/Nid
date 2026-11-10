@@ -1,0 +1,32 @@
+{
+  "calendar_settings": {
+    "title": "Calendrier",
+    "section": "Abonnement de calendrier",
+    "intro": "Ajoutez les échéances de « À venir » à votre application de calendrier (Apple Calendrier, Google Agenda, Thunderbird) : renouvellements, dates limites de résiliation, fins de prêt, impôts… sur les 12 prochains mois. Le calendrier se met à jour tout seul, en lecture seule.",
+    "loading": "Chargement de l’abonnement",
+    "scope_label": "Éléments affichés",
+    "scope": { "household": "Foyer : les éléments partagés", "me": "Moi : les éléments partagés et les miens" },
+    "amounts": "Afficher les montants",
+    "amounts_hint": "Un calendrier abonné est souvent copié chez un service tiers (iCloud, Google) : sans montants, il ne montre que les dates et les noms.",
+    "create": "Créer l’adresse",
+    "save": "Enregistrer",
+    "saved": "Abonnement mis à jour.",
+    "active": "Adresse active",
+    "expires": "Expire le {{date}}",
+    "last_used": "Dernière lecture : {{date}}",
+    "never_used": "Jamais lue pour l’instant",
+    "regenerate": "Régénérer l’adresse",
+    "regenerate_confirm": "Une nouvelle adresse remplace l’actuelle, qui cessera aussitôt de fonctionner : il faudra la remplacer dans votre calendrier.",
+    "revoke": "Supprimer l’abonnement",
+    "revoke_confirm": "L’adresse cessera aussitôt de fonctionner. Votre calendrier gardera peut-être les derniers événements lus jusqu’à ce que vous retiriez l’abonnement.",
+    "revoked": "Abonnement supprimé.",
+    "url_title": "Adresse de l’abonnement",
+    "url_once": "Copiez-la maintenant : elle ne sera plus affichée. Si vous la perdez, régénérez-la.",
+    "url_secret": "Quiconque a cette adresse voit ces échéances : ne la partagez pas.",
+    "copy": "Copier l’adresse",
+    "copied": "Adresse copiée.",
+    "open": "Ouvrir dans le calendrier",
+    "done": "Terminé",
+    "limit_reached": "Vous avez déjà 10 jetons actifs : révoquez-en un dans Sécurité pour créer l’abonnement."
+  }
+}

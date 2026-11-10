@@ -1,7 +1,10 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Core.IntegrationTests.TaxEstimate;
@@ -209,6 +212,32 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var next = await EstimateAsync(app, app.AdultB, 2026, "household");
         Assert.Equal(2025, next.GetProperty("profileFrom").GetInt32());
         Assert.Equal("6000.00", next.GetProperty("profile").GetProperty("childcareOutsideHome").GetString());
+    }
+
+    /// <summary>Issue #12: an estimate has data from a tax line or a profile stored for its year; an earlier profile standing in is not enough.</summary>
+    [Fact]
+    public async Task An_estimate_has_data_from_a_line_or_its_years_profile()
+    {
+        static async Task<bool> HasDataAsync(NidApp app, int year)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+            var read = await scope.ServiceProvider.GetRequiredService<TaxEstimates>()
+                .ComputeWithDataAsync(year, VisibilityScope.Me, NidApp.GoldenCaseToday, TestContext.Current.CancellationToken);
+            Assert.True(read.TryGetValue(out var result));
+            return result!.HasData;
+        }
+
+        await using var profiled = await NidApp.StartAsync(fixture);
+        Assert.False(await HasDataAsync(profiled, 2025));
+        Assert.Equal(HttpStatusCode.OK, (await profiled.RawAsync(profiled.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025?scope=me",
+            new { dependents = 1, pinel = Array.Empty<object>() })).StatusCode);
+        Assert.Equal((true, false), (await HasDataAsync(profiled, 2025), await HasDataAsync(profiled, 2026)));
+
+        await using var earning = await NidApp.StartAsync(fixture);
+        var source = await earning.NewIncomeSourceAsync("Salaire", earning.AdultA);
+        await AddPhaseAsync(earning, earning.AdultA, source, "39000", "50000");
+        Assert.True(await HasDataAsync(earning, 2025));
     }
 
     [Fact]

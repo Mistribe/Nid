@@ -17,6 +17,9 @@ public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
 
+    /// <summary>Issue #80: the calendar feed route (Nid.Host CalendarEndpoints.FeedPath); its last segment is a secret.</summary>
+    public const string CalendarFeedPath = "/api/v1/calendar";
+
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
@@ -62,9 +65,10 @@ public static class Extensions
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(tracing =>
-                        // Exclude health check requests from tracing
+                        // Exclude health check requests from tracing, and the calendar feed: its secret is in url.path (issue #80).
                         tracing.Filter = context =>
                             !context.Request.Path.StartsWithSegments(HealthEndpointPath)
+                            && !context.Request.Path.StartsWithSegments(CalendarFeedPath)
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()

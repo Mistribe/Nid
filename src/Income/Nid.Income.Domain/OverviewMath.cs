@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using NodaTime;
 
@@ -24,6 +25,9 @@ public sealed record OverviewShare(ItemId? Item, string Name, string Kind, decim
 
 /// <summary>A share of today's monthly income; <c>other</c> gathers the smallest inputs and carries no item.</summary>
 public sealed record NowShare(ItemId? Item, string Name, string Kind, decimal PerMonth, decimal Percent);
+
+/// <summary>An input's income over a period; <c>one_off</c> gathers every one-off and carries no item; null when a due cannot be converted.</summary>
+public sealed record SourceTotal(ItemId? Item, string Name, string Kind, decimal? Amount);
 
 public sealed record OverviewFigures(decimal? MonthlyNow, decimal? MonthlyChange1y, decimal? Total, decimal? Elapsed,
     decimal? PreviousTotal, decimal? ChangeVsPrevious, decimal? ChangeVsPreviousPct, decimal? Change3y, decimal? Change3yYearly);
@@ -91,6 +95,20 @@ public static class OverviewMath
                 grand == 0m ? 0m : Percent(s.Total / grand)))
             .ToList();
     }
+
+    /// <summary>
+    /// Issue #12: each input's recurring income in [<paramref name="from"/>, <paramref name="to"/>], the one-offs merged into
+    /// <c>one_off</c>, largest first, an unconvertible one last, ties by name then item; those without income in the period left out.
+    /// </summary>
+    public static IReadOnlyList<SourceTotal> BySource(IReadOnlyList<OverviewInput> inputs, LocalDate from, LocalDate to)
+        => inputs.Select(i => new SourceTotal(i.Item, i.Name, i.Kind, Sum(i.Recurring, from, to)))
+            .Append(new SourceTotal(null, "one_off", "one_off", Sum(inputs.SelectMany(i => i.OneOffs), from, to)))
+            .Where(s => s.Amount is not 0m)
+            .OrderBy(s => s.Amount is null).ThenByDescending(s => s.Amount)
+            .ThenBy(s => s.Name, French).ThenBy(s => s.Item?.Value)
+            .ToList();
+
+    private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
     /// <summary>
     /// Today's monthly equivalent of each input above 0, largest first, those past <see cref="MaxShares"/> merged into

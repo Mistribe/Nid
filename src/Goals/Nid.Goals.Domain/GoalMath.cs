@@ -14,7 +14,8 @@ public static class GoalMath
 {
     private const decimal DaysPerMonth = 30.4375m;
 
-    private static decimal R2(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);
+    /// <summary>Spec §3: an amount rounded to the cent, as every goal figure.</summary>
+    public static decimal R2(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>Spec §3.4. Null when there is no target to measure against.</summary>
     public static GoalProgress? Evaluate(decimal target, decimal reached, decimal? monthlyPace, LocalDate? targetDate, LocalDate today)

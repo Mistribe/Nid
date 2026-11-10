@@ -13,7 +13,7 @@ export type Selection<R> = {
   selected: ReadonlySet<string>; onChange: (next: ReadonlySet<string>) => void; label: (r: R) => string; allLabel: string; disabled?: (r: R) => boolean;
 };
 
-/** A table from `md:` up, a list of `mobile(r)` rows below. Sorting is a view on the rows the server returned. */
+/** A table from `md:` up and on paper, a list of `mobile(r)` rows below. Sorting is a view on the rows the server returned. */
 export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobile, initialSort, subRows, expandLabel, rowClassName, selection }: {
   caption: string; rows: R[]; rowKey: (r: R) => string; columns: Column<R>[]; rowLink?: (r: R) => LinkProps;
   mobile: (r: R) => ReactNode; initialSort?: { id: string; desc: boolean }; rowClassName?: (r: R) => string | undefined; selection?: Selection<R>;
@@ -82,7 +82,7 @@ export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobi
 
   return (
     <>
-      <Table className="hidden md:table">
+      <Table className="hidden md:table print:table">
         <TableCaption className="sr-only">{caption}</TableCaption>
         <TableHeader>
           <TableRow>
@@ -125,12 +125,12 @@ export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobi
         </TableBody>
       </Table>
       {selection ? (
-        <label className="flex items-center gap-3 px-3 text-sm md:hidden">
+        <label className="flex items-center gap-3 px-3 text-sm md:hidden print:hidden">
           <Checkbox checked={all} disabled={selectable.length === 0} onCheckedChange={(on) => selectAll(on === true)} />
           {selection.allLabel}
         </label>
       ) : null}
-      <ul aria-label={caption} className="divide-y rounded-lg border md:hidden">
+      <ul aria-label={caption} className="divide-y rounded-lg border md:hidden print:hidden">
         {lines.map(({ row: r, depth, expandable, unfolded }) => (
           <li key={rowKey(r)} className={cn(depth > 0 && 'pl-5', rowClassName?.(r))}>
             {expandable

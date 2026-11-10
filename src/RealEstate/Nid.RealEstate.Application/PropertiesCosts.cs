@@ -9,6 +9,7 @@ using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
 
@@ -130,9 +131,8 @@ internal static class PropertiesCostsMath
 
         var read = set.Select(p => (Source: p, Currency: LoanViews.CurrencyOf(p.Item), Figures: PropertiesOverviewMath.FiguresOf(p, rates, today))).ToList();
         // D14: paid is the flows of the period; planned, each running cost's occurrences in the next 12 months.
-        var paid = read.SelectMany(r => r.Source.Flows
-            .Where(f => f.Kind == FlowKind.Expense && f.OccurredOn >= first && f.OccurredOn <= today)
-            .Select(f => (Category: f.Category ?? "other", Amount: Convert(f.Amount.Amount, r.Currency)))).ToList();
+        var paid = read.SelectMany(r => Expenses(r.Source.Flows, first.PlusDays(-1), today)
+            .Select(e => (e.Category, Amount: Convert(e.Flow.Amount.Amount, r.Currency)))).ToList();
         var due = read.SelectMany(r => r.Source.Property.Costs.Select(c => c.Cost)
                 .SelectMany(c => PropertyMath.DueBetween(c, today, until).Select(on => (On: on, r.Source, r.Currency, Cost: c, Converted: Convert(c.Amount, r.Currency)))))
             .OrderBy(d => d.On).ThenBy(d => d.Source.Item.DisplayName, French).ThenBy(d => d.Cost.Category, StringComparer.Ordinal)
@@ -195,9 +195,8 @@ internal static class PropertiesCostsMath
             .Select(y => new CostYear(y, y < today.Year && set.All(p => p.Property.Details.PurchaseDate <= new LocalDate(y, 1, 1))
                 && !archived.Any(a => a.Bought.Year <= y && a.Archived.Year >= y)))
             .ToList();
-        var paid = set.SelectMany(p => p.Flows
-                .Where(f => f.Kind == FlowKind.Expense && f.OccurredOn.Year >= years[0].Year && f.OccurredOn <= today)
-                .Select(f => (Category: f.Category ?? "other", f.OccurredOn.Year, Amount: convert(f.Amount.Amount, LoanViews.CurrencyOf(p.Item)))))
+        var paid = set.SelectMany(p => Expenses(p.Flows, new LocalDate(years[0].Year - 1, 12, 31), today)
+                .Select(e => (e.Category, e.Flow.OccurredOn.Year, Amount: convert(e.Flow.Amount.Amount, LoanViews.CurrencyOf(p.Item)))))
             .ToList();
         var categories = paid.GroupBy(p => p.Category)
             .Select(g => (Category: g.Key, Sums: years.Select(y => SumOrNull(g.Where(p => p.Year == y.Year).Select(p => p.Amount))).ToList(),
@@ -210,6 +209,23 @@ internal static class PropertiesCostsMath
             .ToList();
         return new CostYears(years, categories);
     }
+
+    /// <summary>
+    /// Issue #12: the expenses paid in (<paramref name="after"/>, <paramref name="last"/>] per category (README §4, <c>other</c> without one),
+    /// as the costs page counts them, largest first; each category's sum converted once, null when its rate is missing.
+    /// </summary>
+    public static IReadOnlyList<(string Category, decimal? Amount)> PaidByCategory(
+        IEnumerable<Flow> flows, LocalDate after, LocalDate last, Func<decimal, decimal?> convert)
+        => Expenses(flows, after, last)
+            .GroupBy(e => e.Category)
+            .Select(g => (Category: g.Key, Paid: g.Sum(e => e.Flow.Amount.Amount)))
+            .OrderByDescending(c => c.Paid).ThenBy(c => c.Category, StringComparer.Ordinal)
+            .Select(c => (c.Category, convert(c.Paid)))
+            .ToList();
+
+    /// <summary>The expenses paid in (<paramref name="after"/>, <paramref name="last"/>], each with its category (README §4, <c>other</c> without one).</summary>
+    private static IEnumerable<(string Category, Flow Flow)> Expenses(IEnumerable<Flow> flows, LocalDate after, LocalDate last)
+        => flows.Where(f => f.Kind == FlowKind.Expense && f.OccurredOn > after && f.OccurredOn <= last).Select(f => (f.Category ?? "other", f));
 
     /// <summary>
     /// As the dashboard's commitments: the payment and insurance of the first row due this month of each linked loan in the scope, in
@@ -229,18 +245,6 @@ internal static class PropertiesCostsMath
             else if (rates.TryConvert(due, loanCurrency, currency, today, projected: false, out var converted, out _))
                 total += Math.Round(converted, 2, MidpointRounding.AwayFromZero);
             else return null;
-        }
-        return total;
-    }
-
-    /// <summary>Null with nothing to sum, or when one amount is unknown.</summary>
-    private static decimal? SumOrNull(IEnumerable<decimal?> amounts)
-    {
-        decimal? total = null;
-        foreach (var a in amounts)
-        {
-            if (a is not { } value) return null;
-            total = (total ?? 0m) + value;
         }
         return total;
     }
