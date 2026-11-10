@@ -222,4 +222,41 @@ public class PropertyRentalMathTests
         Assert.True(PropertyMath.Covers(Lease(new LocalDate(2025, 1, 1)), D));
         Assert.False(PropertyMath.Covers(Lease(D.PlusDays(1)), D));
     }
+
+    /// <summary>Issue #12: 200 000 all in, without fees nor works.</summary>
+    private static PropertyDetails BoughtFor200k(LocalDate on)
+        => new(PropertyType.Rental, on, 200_000m, 0m, 0m, 0m, null, null, PropertyCadence.Yearly, null, null, null);
+
+    private static RentalFigures Over(PropertyDetails property, LocalDate after, LocalDate d, IReadOnlyList<Flow> flows, params Tenancy[] tenancies)
+        => PropertyMath.Rental(property, flows, Loans.Chain(tenancies), PropertyMath.CostPrice(property, flows, d), after, d);
+
+    [Fact]
+    public void The_yield_over_a_period_is_not_annualised()
+    {
+        var property = BoughtFor200k(new LocalDate(2020, 6, 15));
+        var lease = Lease(new LocalDate(2023, 6, 1), rent: 1_000m);
+        // A rent of 1 000 on the 5th of each month from January 2024 to September 2025, then a half rent on 2025-10-05.
+        List<Flow> flows = [.. Enumerable.Range(0, 21).Select(m => Rent(new LocalDate(2024, 1, 5).PlusMonths(m), 1_000m)),
+            Rent(new LocalDate(2025, 10, 5), 500m), Expense(new LocalDate(2024, 9, 20), "property_tax", 1_000m)];
+
+        var year = Over(property, new LocalDate(2023, 12, 31), new LocalDate(2024, 12, 31), flows, lease);
+        Assert.Equal((12_000m, 0.06m, 0.055m), (year.RentReceived, year.GrossYield, year.NetYieldBeforeTax)); // 12 000 ÷ 200 000; less the tax
+
+        // 2025 to the 15th of October: 9.5 months of rent over the cost price, not scaled to a year.
+        var toDate = Over(property, new LocalDate(2024, 12, 31), D, flows, lease);
+        Assert.Equal((9_500m, 0.0475m, 0.0475m), (toDate.RentReceived, toDate.GrossYield, toDate.NetYieldBeforeTax));
+    }
+
+    [Fact]
+    public void A_property_bought_in_the_year_has_no_yield()
+    {
+        var property = BoughtFor200k(new LocalDate(2024, 3, 1));
+        var flows = Enumerable.Range(0, 9).Select(m => Rent(new LocalDate(2024, 4, 5).PlusMonths(m), 1_000m)).ToList();
+
+        var r = Over(property, new LocalDate(2023, 12, 31), new LocalDate(2024, 12, 31), flows, Lease(new LocalDate(2024, 4, 1), rent: 1_000m));
+
+        Assert.Equal(9_000m, r.RentReceived);
+        Assert.Null(r.GrossYield); // let since April: not before the period's first day
+        Assert.Null(r.NetYieldBeforeTax);
+    }
 }

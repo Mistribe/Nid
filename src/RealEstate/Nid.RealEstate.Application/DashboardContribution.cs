@@ -125,17 +125,16 @@ public sealed class RealEstateNetWorth(
         var accesses = await items.FindManyAsync([.. found.Select(p => p.ItemId), .. owing.Select(l => l.ItemId)], ct);
         var estimates = await DashboardParts.EstimatesAsync(valuations, found, accesses, ct);
         var zone = await calendar.ZoneAsync(ct);
-        LocalDate? ArchivedOn(ItemAccess item) => item.ArchivedAt?.InZone(zone).Date;
         var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series, PropertyDetails Details, LocalDate? Archived)>();
         foreach (var property in found)
             if (accesses.TryGetValue(property.ItemId, out var item) && estimates?.GetValueOrDefault(property.ItemId) is { Count: > 0 } series)
-                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details, ArchivedOn(item)));
+                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details, DashboardParts.ArchiveDay(item, zone)));
         var owed = new List<(LoanTerms Terms, LoanSchedule Schedule, LocalDate? Archived)>();
         foreach (var loan in owing)
             if (accesses.TryGetValue(loan.ItemId, out var item))
             {
                 var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-                owed.Add((terms, LoanReading.Schedule(terms, loan), ArchivedOn(item)));
+                owed.Add((terms, LoanReading.Schedule(terms, loan), DashboardParts.ArchiveDay(item, zone)));
             }
 
         var points = new List<NetWorthPoint>();
@@ -198,6 +197,9 @@ internal static class DashboardParts
         => sums[currency] = sums.GetValueOrDefault(currency) + amount;
 
     public static IReadOnlyList<OwnerShare> OwnersOf(ItemAccess item) => item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
+
+    /// <summary>Issue #12: the household's day an item was archived on; it counts strictly before it.</summary>
+    public static LocalDate? ArchiveDay(ItemAccess item, DateTimeZone zone) => item.ArchivedAt?.InZone(zone).Date;
 
     /// <summary>
     /// The current estimates by date of the properties the registry knows, read as the ambient actor in one block (batched reads

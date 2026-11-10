@@ -101,8 +101,7 @@ public static class SpendingHistory
         if (sub.Timeline.Charges.LastOrDefault(c => c.Origin is ChargeOrigin.FromPhase && !c.IsProjected) is not { } last
             || last.Price.Amount <= 0m || ChargeCycles.PhaseOf(sub.Input, last) is not { } phase)
             return null;
-        if (sub.Provider is { } provider && others.Any(o => o.Input.Subscription.Id != sub.Input.Subscription.Id
-                && o.Provider?.Key == provider.Key && o.Timeline.ExpiresOn() is { } until && until > end))
+        if (Replaced(sub, others, end))
             return null;
 
         var pieces = new List<CostPiece>();
@@ -110,6 +109,11 @@ public static class SpendingHistory
             pieces.Add(new CostPiece(on, last.Price.Currency, last.Price.Amount, false));
         return (end, last, phase, pieces);
     }
+
+    /// <summary>Another subscription of the same provider still covered after <paramref name="end"/>: the ended one has a successor.</summary>
+    public static bool Replaced(BuiltSubscription sub, IEnumerable<BuiltSubscription> others, LocalDate end)
+        => sub.Provider is { } provider && others.Any(o => o.Input.Subscription.Id != sub.Input.Subscription.Id
+            && o.Provider?.Key == provider.Key && o.Timeline.ExpiresOn() is { } until && until > end);
 
     public static SavedView? Saved(BuiltSubscription sub, IEnumerable<BuiltSubscription> others, Currency reference, RateTable rates, LocalDate today)
     {
