@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toProblem } from '@/api/errors';
-import { DELETABLE, useDeleteItem, useItemDeletionPreview, type DeletableKind } from '@/api/deletion';
+import { DELETABLE, isClosable, useDeleteItem, useItemDeletionPreview, type DeletableKind } from '@/api/deletion';
 import { useApi } from '@/api/ApiProvider';
 import { APPROVE, invalidateProposals } from '@/api/proposals';
 import { DeleteItemDialog } from '@/components/DeleteItemDialog';
@@ -15,12 +15,10 @@ import '@/locales/deletion';
 export default function DeleteItemFlow({ kind, id, onClose, approve, closed }: {
   kind: DeletableKind; id: string; onClose: () => void; closed?: boolean; approve?: { proposalId: string; proposalVersion: number };
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const { list } = DELETABLE[kind];
-  // Typed as a key of the strings: the real-estate kinds have none, so the lookup is checked at run time.
-  const hintKey = `deletion.close_hint.${kind}` as 'deletion.close_hint.goals.delete_goal';
   const deleted = useItemDeleted(list);
   const preview = useItemDeletionPreview(kind, id, true);
   const remove = useDeleteItem(kind);
@@ -38,6 +36,6 @@ export default function DeleteItemFlow({ kind, id, onClose, approve, closed }: {
     ? approval.mutate({ params: { path: { id: approve.proposalId } }, body: { version: approve.proposalVersion, editedPayload: { id, version } } }, outcome)
     : remove.mutate({ id, version }, outcome);
   const active = approve ? approval : remove;
-  return <DeleteItemDialog preview={preview.data} previewError={preview.error} closeHint={closed || !i18n.exists(hintKey) ? undefined : t(hintKey) as string} pending={active.isPending}
+  return <DeleteItemDialog preview={preview.data} previewError={preview.error} closeHint={closed || !isClosable(kind) ? undefined : t(`deletion.close_hint.${kind}`)} pending={active.isPending}
     error={active.error} onConfirm={confirm} onClose={onClose} />;
 }

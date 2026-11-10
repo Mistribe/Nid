@@ -96,6 +96,24 @@ public class PropertyDeleteTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_chain_of_three_tenancies_is_removed_without_a_key_error()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var property = await NewPropertyAsync(app, Home(app, "Studio"));
+        var url = $"{Properties}/{property}";
+        var current = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/tenancies",
+            new { label = "T1", startsOn = "2022-01-01", rentMonthly = "600", chargesMonthly = "40" }));
+        foreach (var on in new[] { "2023-01-01", "2024-01-01" })
+            current = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/tenancies/{current}/revision", new { effectiveOn = on, newRent = "650" }));
+
+        var deleted = await DeleteAsync(app, property, await DeletionVersionAsync(app, property));
+
+        Assert.True(deleted.StatusCode == HttpStatusCode.NoContent, await deleted.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using var realestate = PostgresFixture.NewRealEstateContext(app.ConnectionString);
+        Assert.Empty(realestate.Tenancies.Where(t => t.PropertyItemId == property));
+    }
+
+    [Fact]
     public async Task A_loan_financing_it_blocks_and_is_named()
     {
         await using var app = await NidApp.StartAsync(fixture);

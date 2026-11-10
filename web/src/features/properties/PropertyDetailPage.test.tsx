@@ -367,7 +367,7 @@ describe('PropertyDetailPage', () => {
       await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
       const dialog = await screen.findByRole('dialog', { name: 'Supprimer Maison de Nantes' });
       expect(await within(dialog).findByText(/Prêt maison/)).toBeInTheDocument();
-      expect(within(dialog).getByText('Supprimez d’abord le prêt.')).toBeInTheDocument();
+      expect(within(dialog).getByText('Rattachez ces crédits à un autre bien, ou supprimez-les s’ils ont eux aussi été créés par erreur.')).toBeInTheDocument();
       expect(within(dialog).queryByRole('button', { name: 'Supprimer définitivement' })).not.toBeInTheDocument();
     });
   });

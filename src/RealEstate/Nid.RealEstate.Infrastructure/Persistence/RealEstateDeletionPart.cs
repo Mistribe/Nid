@@ -26,6 +26,7 @@ public sealed class RealEstateDeletionPart(RealEstateDbContext db, IItemRegistry
         :
         [
             new("loan_phases", await db.Phases.CountAsync(p => p.LoanItemId == id, ct)),
+            new("loan_insurances", await db.Insurances.CountAsync(i => i.LoanItemId == id, ct)),
             new("loan_fees", await db.Fees.CountAsync(f => f.LoanItemId == id, ct)),
             new("loan_repayments", await db.Events.CountAsync(e => e.LoanItemId == id, ct)),
             new("bank_schedule_rows", await db.BankSchedule.CountAsync(r => r.LoanItemId == id, ct)),
