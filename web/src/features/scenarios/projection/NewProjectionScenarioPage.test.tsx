@@ -7,7 +7,7 @@ import { server } from '@/test/server';
 import { ALICE, comparison, loans, persons, properties, scenarioList } from './testData';
 
 const CREATED = '0192f0aa-0000-7000-8000-0000000000d9';
-type Body = { scope: string; document: { horizon: string; assumptions?: Record<string, unknown> | null; events?: Record<string, unknown>[] } };
+type Body = { scope: string; document: { horizon: string; assumptions?: Record<string, unknown> | null; events?: Record<string, unknown>[]; retirements?: Record<string, unknown>[] } };
 
 function serve(observedInflation: string | null = null) {
   const simulated: Body[] = [];
@@ -90,6 +90,21 @@ describe('NewProjectionScenarioPage', () => {
       name: 'Retraite anticipée', visibility: 'shared', scope: 'household', owners: [{ personId: ALICE, shareBp: 10000 }],
       document: { version: 1, horizon: `retire:${ALICE}`, assumptions: { inflation: '3.5' }, events: [REPAYMENT] },
     }]);
+  });
+
+  it('sends a departure for the adults who filled one, the age left empty being the household\'s', async () => {
+    const { simulated } = serve();
+    const { user } = await renderApp('/scenarios/new?kind=projection');
+
+    await general(user);
+    await next(user);
+    expect(screen.getByLabelText('Âge de départ de Alice (années)')).toHaveAccessibleDescription('Foyer : 64 ans 0 mois');
+    expect(simulated.at(-1)?.document).not.toHaveProperty('retirements');
+    await user.type(screen.getByLabelText('Pension mensuelle de Alice'), '1 800,5');
+    await waitFor(() => expect(simulated.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 64, months: 0, monthlyPension: '1800.5' }]));
+    await user.type(screen.getByLabelText('Âge de départ de Alice (années)'), '60');
+    await user.type(screen.getByLabelText('Âge de départ de Alice (mois)'), '6');
+    await waitFor(() => expect(simulated.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6, monthlyPension: '1800.5' }]));
   });
 
   it('hints the observed inflation on the current year', async () => {

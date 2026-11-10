@@ -52,6 +52,23 @@ const horizonTable = () => screen.findByRole('table', { name: 'Patrimoine à l�
 describe('ScenarioComparePage', () => {
   beforeAll(async () => { await import('./ScenarioComparePage'); }, 30_000);
 
+  it('shows the independence date of the base and of each scenario, or a dash without a living cost', async () => {
+    const cost = { monthlyLivingCost: '2500.00' };
+    const dated = (p: ReturnType<typeof projection>, financialIndependence: string | null) => ({ ...p, financialIndependence, assumptions: { ...p.assumptions, ...cost } });
+    serve([], (url) => {
+      const c = compared(url.searchParams.get('ids')!.split(','));
+      return HttpResponse.json({
+        ...c, base: dated(c.base, '2043-09'),
+        scenarios: c.scenarios.map((s, i) => ({ ...s, result: dated(s.result, i === 0 ? '2039-01' : null) })),
+      });
+    });
+    await renderApp(`/scenarios/compare?ids=${HALF},${PURCHASE}`);
+
+    const rows = within(await horizonTable()).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').at(-1)?.textContent);
+    expect(rows).toEqual(['septembre 2043', 'janvier 2039', 'Non atteinte avant l\'horizon']);
+    expect(within(await horizonTable()).getByRole('columnheader', { name: 'Indépendance financière' })).toBeInTheDocument();
+  });
+
   it('asks nothing and invites a choice without ids', async () => {
     const seen = serve();
     const { container } = await renderApp('/scenarios/compare');

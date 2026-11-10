@@ -22,6 +22,7 @@ import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { PROJECTION_SCENARIOS, PROJECTION_SIMULATE, SCENARIOS } from '../api';
 import type { ProjectionComparison, ProjectionDocument, ProjectionEvent } from './api';
 import { AssumptionFields, assumptionPath, assumptionsDraft, HorizonField, isComplete, overridesOf, type AssumptionsDraft } from './AssumptionFields';
+import { DepartureFields, departurePath, departuresComplete, retirementsOf, useAdults, type Adult, type DeparturesDraft } from './departures';
 import type { EventFieldError } from './EventDialog';
 import { EventList } from './EventList';
 import { ProjectionWarnings } from './ProjectionWarnings';
@@ -39,20 +40,21 @@ type Step = (typeof STEPS)[number];
 /** The scenario as typed (spec §4 and §6): its name, visibility, scope and horizon, then the assumptions it changes (empty: the household's). */
 type ProjectionDraft = {
   name: string; visibility: string; scope: 'household' | 'me'; horizon: string;
-  assumptions: AssumptionsDraft;
+  assumptions: AssumptionsDraft; departures: DeparturesDraft;
 };
 
-const STEP_FIELDS: Record<Step, string[]> = { general: ['name', 'visibility', 'scope', 'horizon'], events: [], assumptions: ['assumptions'] };
+const STEP_FIELDS: Record<Step, string[]> = { general: ['name', 'visibility', 'scope', 'horizon'], events: [], assumptions: ['assumptions', 'departures'] };
 
-const toDocument = (d: ProjectionDraft, events: ProjectionEvent[]): ProjectionDocument => {
+const toDocument = (d: ProjectionDraft, events: ProjectionEvent[], adults: Adult[]): ProjectionDocument => {
   const assumptions = overridesOf(d.assumptions);
-  return { version: 1, horizon: d.horizon, ...(assumptions ? { assumptions } : {}), events };
+  const retirements = retirementsOf(d.departures, adults);
+  return { version: 1, horizon: d.horizon, ...(assumptions ? { assumptions } : {}), events, ...(retirements.length > 0 ? { retirements } : {}) };
 };
 
 /** A server path outside the events (`horizon`, `assumptions.classRates.equity`) as the draft's field. */
-function draftPath(path: string): Path<ProjectionDraft> | undefined {
+function draftPath(path: string, sent: ProjectionDocument['retirements'] = []): Path<ProjectionDraft> | undefined {
   if (path === 'name' || path === 'visibility' || path === 'scope') return path;
-  return assumptionPath(path) as Path<ProjectionDraft> | undefined;
+  return (departurePath(path, sent ?? []) ?? assumptionPath(path)) as Path<ProjectionDraft> | undefined;
 }
 
 const EVENT_PATH = /^events\[(\d+)\](?:\.(.+))?$/;
@@ -86,9 +88,10 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
     mode: 'onChange',
     defaultValues: {
       name: '', visibility: 'shared', scope, horizon: '10y',
-      assumptions: assumptionsDraft(),
+      assumptions: assumptionsDraft(), departures: {},
     },
   });
+  const adults = useAdults();
   const [events, setEvents] = useState<ProjectionEvent[]>([]);
   const [eventErrors, setEventErrors] = useState<Record<number, EventFieldError[]>>({});
   const [problem, setProblem] = useState<Presentation | null>(null);
@@ -96,8 +99,8 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
 
   // The side panel follows the typing, 400 ms after the last change, and only once every typed figure reads as one.
   const values = useWatch({ control: form.control }) as ProjectionDraft;
-  const typed = JSON.stringify({ scope: values.scope, document: toDocument(values, events) });
-  const complete = isComplete(values.assumptions);
+  const typed = JSON.stringify({ scope: values.scope, document: toDocument(values, events, adults) });
+  const complete = isComplete(values.assumptions) && departuresComplete(values.departures);
   const [sent, setSent] = useState(typed);
   useEffect(() => {
     if (!complete) return;
@@ -110,18 +113,19 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
   /** The server's refusals on their fields: an event's under it (and in its dialog), the others on the form; the rest above it. */
   const place = (error: unknown): FieldError[] => {
     const fields = fieldErrorsOf(error);
+    const sentRetirements = retirementsOf(form.getValues('departures'), adults);
     const byEvent: Record<number, EventFieldError[]> = {};
     for (const f of fields) {
       const message = messageFor(t, f);
       const at = EVENT_PATH.exec(f.path);
       if (at) (byEvent[Number(at[1])] ??= []).push({ path: at[2] ?? '', message });
       else {
-        const name = draftPath(f.path);
+        const name = draftPath(f.path, sentRetirements);
         if (name) form.setError(name, { type: 'server', message });
       }
     }
     setEventErrors(byEvent);
-    const placed = fields.length > 0 && fields.every((f) => EVENT_PATH.test(f.path) || draftPath(f.path));
+    const placed = fields.length > 0 && fields.every((f) => EVENT_PATH.test(f.path) || draftPath(f.path, sentRetirements));
     setProblem(placed ? null : present(toProblem(error)));
     return fields;
   };
@@ -143,9 +147,10 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
     onError: (error) => {
       refused.current = typed;
       const fields = place(error);
+      const sentRetirements = retirementsOf(form.getValues('departures'), adults);
       // The refusal lands on the last step: go back to the first step holding a field it names.
       const step = STEPS.find((s) => fields.some((f) => s === 'events' ? EVENT_PATH.test(f.path)
-        : STEP_FIELDS[s].some((root) => draftPath(f.path)?.split('.')[0] === root)));
+        : STEP_FIELDS[s].some((root) => draftPath(f.path, sentRetirements)?.split('.')[0] === root)));
       setReveal(step ? { step } : null);
     },
   });
@@ -169,7 +174,7 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
         onEdit={(i, e) => edit(events.map((x, j) => (j === i ? e : x)), { at: i, removed: false })}
         onRemove={(i) => edit(events.filter((_, j) => j !== i), { at: i, removed: true })} />
     ),
-    assumptions: <AssumptionsStep base={base} />,
+    assumptions: <AssumptionsStep base={base} adults={adults} />,
   };
 
   return (
@@ -183,7 +188,7 @@ function ProjectionForm({ base, scope }: { base: Projection; scope: 'me' | 'hous
               setProblem(null);
               create.mutate({ body: {
                 name: v.name.trim(), visibility: v.visibility, scope: v.scope, owners: [{ personId: session.person.id, shareBp: 10000 }],
-                document: toDocument(v, events),
+                document: toDocument(v, events, adults),
               } });
             })()}
             submitLabel={t('scenarios.projection.form.submit')} pending={create.isPending} reveal={reveal}
@@ -245,12 +250,13 @@ function GeneralStep({ base }: { base: Projection }) {
   );
 }
 
-function AssumptionsStep({ base }: { base: Projection }) {
+function AssumptionsStep({ base, adults }: { base: Projection; adults: Adult[] }) {
   const { t } = useTranslation();
   const form = useFormContext<ProjectionDraft>();
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('scenarios.projection.form.assumptions_intro')}</p>
+      {adults.length > 0 ? <DepartureFields adults={adults} /> : null}
       <Folded label={t('scenarios.projection.form.assumptions_more')} hasError={Boolean(form.formState.errors.assumptions)}>
         <AssumptionFields base={base} />
       </Folded>

@@ -325,6 +325,23 @@
         "invalid_age": "Un âge entier, de 18 à 100 ans.",
         "invalid_amount": "Saisissez un montant comme 1 200,50, signé si besoin."
       },
+      "independence": {
+        "label": "Indépendance financière",
+        "unreached": "Non atteinte avant l'horizon",
+        "living_cost_missing": "Renseignez le coût de la vie mensuel dans Réglages › Projection."
+      },
+      "departures": {
+        "title": "Départs",
+        "intro": "L’âge de départ et la pension d’un adulte dans ce scénario ; un champ vide garde ceux du foyer.",
+        "years": "Âge de départ de {{name}} (années)",
+        "months": "Âge de départ de {{name}} (mois)",
+        "pension": "Pension mensuelle de {{name}}",
+        "pension_hint": "Vide : les pensions du foyer.",
+        "age": "{{years}} ans {{months}} mois",
+        "none": "Aucun départ déplacé : ceux du foyer s’appliquent.",
+        "line": "{{name}} : départ à {{age}}",
+        "pension_line": "pension {{amount}} par mois"
+      },
       "result": {
         "title": "Résultat",
         "pending": "Le résultat s’affiche dès que le scénario se calcule.",
