@@ -4,11 +4,13 @@ import type { paths } from './schema';
 /** The routes that define an operation: openapi-typescript types an absent one as `?: never`. */
 type WithOperation<M extends 'get' | 'delete'> = { [P in keyof paths]: paths[P][M] extends undefined ? never : P }[keyof paths];
 
-/** One entry per item that can be deleted when created by mistake (#23): its preview and delete routes, and the list to land on. The « end it instead » hint is the close_hint entry of fr.deletion.json for the kind. */
+/** One entry per item that can be deleted when created by mistake (#23): its preview and delete routes, and the list to land on. The « end it instead » hint is `deletion.close_hint.<kind>`, absent for a kind that has no close action. */
 export const DELETABLE = {
   'goals.delete_goal': { preview: '/api/v1/goals/{id}/deletion', remove: '/api/v1/goals/{id}', list: '/goals' },
   'investments.delete_envelope': { preview: '/api/v1/investments/envelopes/{id}/deletion', remove: '/api/v1/investments/envelopes/{id}', list: '/investments' },
   'income.delete_income_source': { preview: '/api/v1/income/sources/{id}/deletion', remove: '/api/v1/income/sources/{id}', list: '/income' },
+  'realestate.delete_property': { preview: '/api/v1/realestate/properties/{id}/deletion', remove: '/api/v1/realestate/properties/{id}', list: '/properties' },
+  'realestate.delete_loan': { preview: '/api/v1/realestate/loans/{id}/deletion', remove: '/api/v1/realestate/loans/{id}', list: '/loans' },
 } as const satisfies Record<string, { preview: WithOperation<'get'>; remove: WithOperation<'delete'>; list: string }>;
 export type DeletableKind = keyof typeof DELETABLE;
 

@@ -403,4 +403,41 @@ describe('LoanDetailPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Documents' }));
     expect((await screen.findAllByText('Pièce du dossier')).length).toBeGreaterThan(0);
   });
+  describe('deletion', () => {
+    const preview = (over: object = {}) => ({ name: 'Prêt maison', version: 4, imported: false, removes: [], blockers: [], ...over });
+    const openMenu = async (body: LoanDetail) => {
+      serve(body);
+      const { user, router } = await renderApp(`/loans/${LOAN}`);
+      await heading();
+      await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+      return { user, router };
+    };
+
+    it('Supprimer… is the last menu item', async () => {
+      await openMenu(loanDetail());
+      expect(screen.getAllByRole('menuitem').at(-1)).toHaveTextContent('Supprimer…');
+    });
+
+    it('a reader has no Supprimer…', async () => {
+      serve(loanDetail({ canWrite: false, visibility: 'private' }));
+      await renderApp(`/loans/${LOAN}`);
+      await heading();
+      expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+    });
+
+    it('deletes after the name is typed, then leaves for the list, with no close hint', async () => {
+      server.use(
+        http.get('*/api/v1/realestate/loans/:id/deletion', () => HttpResponse.json(preview({ removes: [{ key: 'loan_phases', count: 2 }] }))),
+        http.delete('*/api/v1/realestate/loans/:id', () => new HttpResponse(null, { status: 204 })),
+      );
+      const { user, router } = await openMenu(loanDetail());
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer Prêt maison' });
+      expect(await within(dialog).findByText(/2 phases/)).toBeInTheDocument();
+      expect(dialog).not.toHaveTextContent('utilisez plutôt');
+      await user.type(await within(dialog).findByLabelText(/Tapez/), 'Prêt maison');
+      await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/loans'));
+    });
+  });
 });

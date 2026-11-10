@@ -33,6 +33,7 @@ import { SimulationSection } from './simulation/SimulationSection';
 import { InsuranceQuoteSection } from './simulation/InsuranceQuoteSection';
 import { RenegotiationSection } from './simulation/RenegotiationSection';
 import '@/locales/loans';
+import '@/locales/deletion';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { PageSkeleton } from '@/components/page/skeletons';
@@ -42,6 +43,7 @@ const ScheduleChart = lazy(() => import('./chart/ScheduleChart').then((m) => ({ 
 // 3F2: the bank's table, its own chunk too: the paste form and its preview load with the section only.
 const BankScheduleSection = lazy(() => import('./bank/BankScheduleSection').then((m) => ({ default: m.BankScheduleSection })));
 
+const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 const TABS = ['overview', 'schedule', 'operations', 'contract', 'documents'] as const;
 
 /**
@@ -65,6 +67,7 @@ export function LoanDetailPage() {
   const record = (p: Omit<RepaymentPrefill, 'seq'>) => setPrefill((prev) => ({ ...p, seq: (prev?.seq ?? 0) + 1 }));
   // The header's « Simuler » switches to the operations; the simulation, once there, takes the focus (`landing`).
   const [landOnSimulation, setLandOnSimulation] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const loan = answer.data;
   // Loans dashboard §5.3: the household's simulation hands this loan its part; opening « Opérations » replaces the history
   // entry without that state, so it is consumed once.
@@ -92,7 +95,8 @@ export function LoanDetailPage() {
       {loan.ended ? null : (
         <Button type="button" data-guide="loans.simulation" onClick={() => { setLandOnSimulation(true); setTab('operations'); }}>{t('loan_detail.simulate')}</Button>
       )}
-      <SharingMenu item={id} onAnnounce={toast.success} shared={loan.canWrite && loan.visibility === 'shared'} />
+      <SharingMenu item={id} onAnnounce={toast.success} shared={loan.canWrite && loan.visibility === 'shared'} label={t('page.more_actions')}
+        trailing={loan.canWrite ? [{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }] : []} />
     </>
   );
 
@@ -164,6 +168,7 @@ export function LoanDetailPage() {
         },
         { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={loan.id} canWrite={loan.canWrite} defaultRole="loan_offer" /> },
       ]} />
+      {loan.canWrite && deleting ? <Suspense fallback={null}><DeleteItemFlow kind="realestate.delete_loan" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
     </article>
   );
 }

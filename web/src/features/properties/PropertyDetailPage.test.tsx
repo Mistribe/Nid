@@ -322,4 +322,53 @@ describe('PropertyDetailPage', () => {
     expect(await screen.findByText('Aucun document.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Déposer' })).not.toBeInTheDocument();
   });
+  describe('deletion', () => {
+    const preview = (over: object = {}) => ({ name: 'Maison de Nantes', version: 4, imported: false, removes: [], blockers: [], ...over });
+    const openMenu = async (body: PropertyDetail) => {
+      serve(body);
+      const { user, router } = await renderApp(`/properties/${PROPERTY}`);
+      await heading();
+      await user.click(screen.getByRole('button', { name: 'Autres actions' }));
+      return { user, router };
+    };
+
+    it('Supprimer… is the last menu item', async () => {
+      await openMenu(propertyDetail());
+      expect(screen.getAllByRole('menuitem').at(-1)).toHaveTextContent('Supprimer…');
+    });
+
+    it('a reader has no Supprimer…', async () => {
+      serve(propertyDetail({ canWrite: false, visibility: 'private' }));
+      await renderApp(`/properties/${PROPERTY}`);
+      await heading();
+      expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+    });
+
+    it('deletes after the name is typed, then leaves for the list, with no close hint', async () => {
+      server.use(
+        http.get('*/api/v1/realestate/properties/:id/deletion', () => HttpResponse.json(preview({ removes: [{ key: 'tenancies', count: 1 }] }))),
+        http.delete('*/api/v1/realestate/properties/:id', () => new HttpResponse(null, { status: 204 })),
+      );
+      const { user, router } = await openMenu(propertyDetail());
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer Maison de Nantes' });
+      expect(await within(dialog).findByText(/1 bail/)).toBeInTheDocument();
+      expect(dialog).not.toHaveTextContent('utilisez plutôt');
+      await user.type(await within(dialog).findByLabelText(/Tapez/), 'Maison de Nantes');
+      await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/properties'));
+    });
+
+    it('a loan blocks: its name and the way out are shown, with no delete button', async () => {
+      server.use(http.get('*/api/v1/realestate/properties/:id/deletion', () => HttpResponse.json(preview({
+        blockers: [{ key: 'loan', count: 1, items: [{ id: 'l1', name: 'Prêt maison' }] }],
+      }))));
+      const { user } = await openMenu(propertyDetail());
+      await user.click(await screen.findByRole('menuitem', { name: 'Supprimer…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Supprimer Maison de Nantes' });
+      expect(await within(dialog).findByText(/Prêt maison/)).toBeInTheDocument();
+      expect(within(dialog).getByText('Supprimez d’abord le prêt.')).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: 'Supprimer définitivement' })).not.toBeInTheDocument();
+    });
+  });
 });
