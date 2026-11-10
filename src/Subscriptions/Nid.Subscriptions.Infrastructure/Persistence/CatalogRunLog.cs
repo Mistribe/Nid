@@ -79,6 +79,13 @@ public sealed partial class CatalogRunLog(SubscriptionsDbContext db, IClock cloc
         => (await db.CatalogSyncRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).Take(count).ToListAsync(ct))
             .Select(ToRun).ToList();
 
+    public async Task<(IReadOnlyList<CatalogSyncRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct)
+    {
+        var rows = await db.CatalogSyncRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).ThenByDescending(r => r.Id)
+            .Skip(skip).Take(take).ToListAsync(ct);
+        return (rows.Select(ToRun).ToList(), await db.CatalogSyncRuns.CountAsync(ct));
+    }
+
     public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
     {
         // The latest succeeded run stays: the startup check (HasSucceededAsync) would otherwise sync again a year later.

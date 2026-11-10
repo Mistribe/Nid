@@ -41,12 +41,12 @@ const failed: Run = {
   report: null,
 };
 
-/** Each GET answers the next list, the last one for ever after. */
+/** Each GET answers the next list, the last one for ever after; `latest` is its first run, `total` its length unless given. */
 function serveRuns(...answers: Run[][]) {
   let call = 0;
   server.use(http.get('*/api/v1/subscriptions/catalog/runs', () => {
-    const runs = answers[Math.min(call++, answers.length - 1)] ?? [];
-    return HttpResponse.json({ pinnedCommit: PINNED, runs });
+    const items = answers[Math.min(call++, answers.length - 1)] ?? [];
+    return HttpResponse.json({ pinnedCommit: PINNED, latest: items[0] ?? null, runs: { items, total: items.length, page: 1 } });
   }));
 }
 
@@ -155,12 +155,25 @@ describe('Administration › Catalogue', () => {
     expect(await screen.findByRole('heading', { name: "Aucune synchronisation pour l'instant" })).toBeInTheDocument();
   });
 
-  it('keeps the ten latest runs in the history', async () => {
-    serveRuns(Array.from({ length: 12 }, (_, i) => ({ ...failed, id: `run-${i}` })));
-    await render();
+  it('pages the history and keeps the newest run in the card and the busy state on page 2', async () => {
+    const running: Run = { ...succeeded, id: 'run-9', status: 'running', finishedAt: null, report: null };
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/subscriptions/catalog/runs', ({ request }) => {
+      seen.push(request.url);
+      const page = Number(new URL(request.url).searchParams.get('page') ?? 1);
+      return HttpResponse.json({ pinnedCommit: PINNED, latest: running, runs: { items: [{ ...failed, id: `old-${page}` }], total: 51, page } });
+    }));
+    const { user, router } = await render('/admin/catalog?page=2');
 
+    expect(within(await lastCard()).getByText('En cours')).toBeInTheDocument();
+    expect(syncButton()).toBeDisabled();
     const history = await screen.findByRole('region', { name: 'Historique' });
-    expect(within(history).getAllByRole('listitem')).toHaveLength(10);
+    expect(within(history).getAllByRole('listitem')).toHaveLength(1);
+    expect(seen[0]).toContain('page=2');
+    const pages = screen.getByRole('navigation', { name: 'Pages' });
+    expect(pages).toHaveTextContent('Page 2 sur 2');
+    await user.click(within(pages).getByRole('button', { name: 'Précédent' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
   });
 
   it('asks for a confirmation, starts a sync, then refreshes every 3 seconds until the new run ends', async () => {
@@ -199,7 +212,7 @@ describe('Administration › Catalogue', () => {
     let gets = 0;
     server.use(http.get('*/api/v1/subscriptions/catalog/runs', () => {
       gets += 1;
-      return HttpResponse.json({ pinnedCommit: PINNED, runs: [failed] }); // the job never creates its run
+      return HttpResponse.json({ pinnedCommit: PINNED, latest: failed, runs: { items: [failed], total: 1, page: 1 } }); // the job never creates its run
     }));
     server.use(http.post('*/api/v1/subscriptions/catalog/sync', () => HttpResponse.json({ requested: true }, { status: 202 })));
     const { user } = await render();

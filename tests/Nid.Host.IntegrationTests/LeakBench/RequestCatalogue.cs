@@ -180,7 +180,7 @@ public static class RequestCatalogue
         new(typeof(Nid.Core.Application.Inflation.GetInflationQuery), false, (_, _) => new Nid.Core.Application.Inflation.GetInflationQuery()),
         new(typeof(SyncCatalogCommand), false, (_, _) => new SyncCatalogCommand()),
         new(typeof(RequestCatalogSyncCommand), false, (_, _) => new RequestCatalogSyncCommand()),
-        new(typeof(GetCatalogRunsQuery), false, (_, _) => new GetCatalogRunsQuery()),
+        new(typeof(GetCatalogRunsQuery), false, (_, _) => new GetCatalogRunsQuery(null)),
         new(typeof(ListProvidersQuery), false, (_, _) => new ListProvidersQuery(null)),
         new(typeof(ListLabelsQuery), false, (_, _) => new ListLabelsQuery()),
         new(typeof(CreateProviderCommand), false,

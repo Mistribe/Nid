@@ -11,6 +11,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame } from './AdminFrame';
 import { Section } from '@/components/page/Section';
 import { Loading, SectionSkeleton } from '@/components/page/skeletons';
+import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from '@/lib/format';
 import '@/locales/admin';
@@ -21,9 +22,6 @@ type Icons = components['schemas']['IconReport'];
 
 /** How often the page refreshes its runs while a sync is under way (design §6). */
 export const REFRESH_MS = 3_000;
-
-/** How many runs the history shows (design §6). */
-export const HISTORY_SIZE = 10;
 
 /**
  * How long, after a 202, the page waits for the job's run to appear before it stops being busy and shows the latest
@@ -110,11 +108,13 @@ export function CatalogPage() {
   const [requestedAfter, setRequestedAfter] = useState<string | null | undefined>(undefined);
   const [problem, setProblem] = useState<Presentation | null>(null);
 
-  const runs = $api.useQuery('get', RUNS, {}, {
-    refetchInterval: (query) => (isBusy(query.state.data?.runs[0], requestedAfter) ? REFRESH_MS : false),
+  const [page, toPage] = useListPage();
+  const runs = $api.useQuery('get', RUNS, { params: { query: { page } } }, {
+    refetchInterval: (query) => (isBusy(query.state.data?.latest ?? undefined, requestedAfter) ? REFRESH_MS : false),
   });
-  const list = runs.data?.runs ?? [];
-  const latest = list[0];
+  useStepBack(page, runs.data?.runs, toPage);
+  // The card and the busy state follow the newest run, whichever page the history is on.
+  const latest = runs.data?.latest ?? undefined;
   const busy = isBusy(latest, requestedAfter);
 
   // Once the requested run has appeared, or after REQUEST_WAIT_MS without it, only the runs say whether a sync runs.
@@ -175,7 +175,7 @@ export function CatalogPage() {
       ) : (
         <>
           <LastSync run={latest} />
-          <History runs={list.slice(0, HISTORY_SIZE)} />
+          <History runs={runs.data.runs.items} total={runs.data.runs.total} page={page} onPage={toPage} />
         </>
       )}
     </AdminFrame>
@@ -324,7 +324,7 @@ function Lines({ title, lines }: { title: string; lines: readonly { id: string; 
   );
 }
 
-function History({ runs }: { runs: readonly Run[] }) {
+function History({ runs, total, page, onPage }: { runs: readonly Run[]; total: number; page: number; onPage: (page: number) => void }) {
   const { t } = useTranslation();
   return (
     <Section title={t('admin.catalog.history')}>
@@ -338,6 +338,7 @@ function History({ runs }: { runs: readonly Run[] }) {
           </li>
         ))}
       </ol>
+      <Pager page={page} total={total} onPage={onPage} />
     </Section>
   );
 }

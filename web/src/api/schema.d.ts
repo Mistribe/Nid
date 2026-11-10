@@ -26299,7 +26299,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -28242,9 +28244,17 @@ export interface components {
             icons: components["schemas"]["IconReport"];
             includesRefused: components["schemas"]["IncludeRefusal"][];
         };
+        CatalogRunPage: {
+            items: components["schemas"]["CatalogSyncRunView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+        };
         CatalogRunsView: {
             pinnedCommit: string;
-            runs: components["schemas"]["CatalogSyncRunView"][];
+            latest?: null | components["schemas"]["CatalogSyncRunView"];
+            runs: components["schemas"]["CatalogRunPage"];
         };
         CatalogSyncRequested: {
             requested: boolean;

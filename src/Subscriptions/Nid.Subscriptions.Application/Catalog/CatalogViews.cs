@@ -16,8 +16,13 @@ public sealed record CatalogSyncRunView(
             filter.Apply(run));
 }
 
-/// <summary>Design §5: the pinned commit beside the runs, so a last success on another commit shows (§6).</summary>
-public sealed record CatalogRunsView(string PinnedCommit, IReadOnlyList<CatalogSyncRunView> Runs);
+/// <summary>Design §5: the pinned commit beside the runs, so a last success on another commit shows (§6). <c>Latest</c> is the newest run whatever the page, null when no run exists.</summary>
+public sealed record CatalogRunsView(string PinnedCommit, CatalogSyncRunView? Latest, CatalogRunPage Runs);
+
+public sealed record CatalogRunPage(IReadOnlyList<CatalogSyncRunView> Items, int Total, int Page)
+{
+    public const int PageSize = 50;
+}
 
 /// <summary>What <c>POST /catalog/sync</c> answers with its 202: the job creates the run a moment later (1C2a design §10).</summary>
 public sealed record CatalogSyncRequested(bool Requested);

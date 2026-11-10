@@ -27999,6 +27999,16 @@
         "tags": [
           "Nid.Host"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -31177,6 +31187,30 @@
           }
         }
       },
+      "CatalogRunPage": {
+        "required": [
+          "items",
+          "total",
+          "page"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogSyncRunView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "CatalogRunsView": {
         "required": [
           "pinnedCommit",
@@ -31187,11 +31221,18 @@
           "pinnedCommit": {
             "type": "string"
           },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CatalogSyncRunView"
+              }
+            ]
+          },
           "runs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CatalogSyncRunView"
-            }
+            "$ref": "#/components/schemas/CatalogRunPage"
           }
         }
       },
