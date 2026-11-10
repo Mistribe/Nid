@@ -459,4 +459,110 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
         Assert.Equal(before, await app.GetRawAsync(app.AdultA, "/api/v1/scenarios"));
         Assert.Single(List(JsonDocument.Parse(before).RootElement, "items"));
     }
+
+    private static async Task DepartureAsync(NidApp app, string? birthDate, int age = 64)
+        => (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{app.AdultA.Value}/retirement", new { birthDate, retirementAge = age, retirementMonths = 0 }))
+            .EnsureSuccessStatusCode();
+
+    private static async Task AssumptionsAsync(NidApp app, string savings, string? livingCost = null)
+        => (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
+        {
+            classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = savings, savingsClass = "cash",
+            freedPaymentsToSavings = true, incomeGrowth = "0", withdrawalRate = "4", monthlyLivingCost = livingCost ?? "0",
+        })).EnsureSuccessStatusCode();
+
+    private static object Departing(NidApp app, string horizon, int years, string? pension = null)
+        => new
+        {
+            version = 1, horizon, assumptions = new { }, events = Array.Empty<object>(),
+            retirements = new[] { new { person = app.AdultA.Value, years, months = 0, monthlyPension = pension } },
+        };
+
+    [Fact]
+    public async Task An_earlier_departure_opens_the_per_and_moves_the_milestone() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await DepartureAsync(app, "1961-11-10", 75); // the household leaves in 2036-11: the PER stays locked in the 5 years
+        await ValuedEnvelopeAsync(app, "1000.00");
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "PER", kind = "per", currency = "EUR", visibility = "shared", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        created.EnsureSuccessStatusCode();
+        var perId = JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
+        await AssumptionsAsync(app, "-500");
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{perId}/valuations",
+            new { asOf = "2025-09-30", amount = new { amount = "50000.00", currency = "EUR" }, note = (string?)null })).EnsureSuccessStatusCode();
+
+        var view = await SimulateAsync(app, Departing(app, "5y", 64)); // 2025-11: the PER opens in month 2
+
+        Assert.Contains(Warnings(view.GetProperty("base")), w => w.Code == "savings_exhausted");
+        Assert.DoesNotContain(Warnings(view.GetProperty("scenario")), w => w.Code == "savings_exhausted");
+        Assert.DoesNotContain(List(view.GetProperty("base"), "milestones"), m => Str(m, "kind") == "retirement");
+        Assert.Equal("2025-11-30", Str(Assert.Single(List(view.GetProperty("scenario"), "milestones"), m => Str(m, "kind") == "retirement"), "on"));
+        var echoed = Assert.Single(List(view.GetProperty("document"), "retirements"));
+        Assert.Equal((app.AdultA.Value, 64), (echoed.GetProperty("person").GetGuid(), echoed.GetProperty("years").GetInt32()));
+    }
+
+    [Fact]
+    public async Task A_retire_horizon_ends_at_the_scenarios_departure() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await DepartureAsync(app, "1990-05-10");
+
+        var view = await SimulateAsync(app, Departing(app, $"retire:{app.AdultA.Value}", 60));
+
+        Assert.Equal("2050-05-31", Str(Points(view, "scenario")[^1], "on"));
+        Assert.Equal("2050-05-31", Str(Points(view, "base")[^1], "on")); // one grid
+    }
+
+    [Fact]
+    public async Task A_departure_without_a_birth_date_is_ignored_and_warned() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ValuedEnvelopeAsync(app, "10000.00");
+
+        var view = await SimulateAsync(app, Departing(app, "10y", 60, "1500"));
+
+        Assert.Equal(Raw(Points(view, "base")), Raw(Points(view, "scenario")));
+        Assert.Equal([("retirement_undated", "1")], Warnings(view.GetProperty("scenario")));
+    }
+
+    private static async Task PensionAsync(NidApp app, string amount)
+        => (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
+        {
+            ["displayName"] = "Retraite", ["kind"] = "pension", ["currency"] = "EUR", ["visibility"] = "shared",
+            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["phases"] = new[] { new { label = "Retraite", startsOn = "2045-01-01", netAmount = new { amount, currency = "EUR" }, every = new { count = 1, unit = "month" } } },
+        })).EnsureSuccessStatusCode();
+
+    [Fact]
+    public async Task A_monthly_pension_replaces_the_persons_own_from_the_departure() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await DepartureAsync(app, "1963-10-10"); // leaves in 2027-10: the switch month is 25
+        await ValuedEnvelopeAsync(app, "100000.00"); // 4 % of it covers 333.33 a month
+        await AssumptionsAsync(app, "0", "2000");
+        await PensionAsync(app, "1800");
+
+        var view = await SimulateAsync(app, Departing(app, "20y", 64, "1500")); // 1 833.33 from 2027-11, in place of the 1 800
+
+        Assert.Equal("2027-11", Str(view.GetProperty("base"), "financialIndependence")); // 2 133.33 from the switch month
+        // Replaced, not added: 1 500 + 333.33 no longer covers 2 000 at the switch month, so the date moves later (it stays 2027-11 if the 1 800 were kept).
+        Assert.True(string.CompareOrdinal(Str(view.GetProperty("scenario"), "financialIndependence"), "2027-11") > 0);
+    }
+
+    [Fact]
+    public async Task A_monthly_pension_is_added_when_the_person_has_none() // retirement spec §2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await DepartureAsync(app, "1963-10-10");
+        await ValuedEnvelopeAsync(app, "100000.00");
+        await AssumptionsAsync(app, "0", "2000");
+
+        var view = await SimulateAsync(app, Departing(app, "10y", 64, "1700")); // 2 033.33 from the switch month 25 (2027-11)
+
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("base").GetProperty("financialIndependence").ValueKind);
+        Assert.Equal("2027-11", Str(view.GetProperty("scenario"), "financialIndependence"));
+    }
 }

@@ -117,7 +117,7 @@ public sealed class ProjectionScenarioReader(
     {
         var today = await calendar.TodayAsync(ct);
         if (ProjectionScenarioRefusals.Of(doc, await household.ProjectionAssumptionsAsync(ct), today) is { } refused) return refused;
-        var span = await facts.MonthsAsync(ProjectionHorizon.From(doc.Horizon), today, ct);
+        var span = await facts.MonthsAsync(ProjectionHorizon.From(doc.Horizon), today, ct, (await DeparturesAsync(doc, ct)).Ages);
         if (span.TryGetFailure(out var failure)) return FieldErrors.At(failure!, "horizon");
 
         // RealEstate projects to the last event's month: a day far in the future would project thousands of months.
@@ -184,10 +184,27 @@ public sealed class ProjectionScenarioReader(
             : FieldErrors.Many(ProjectionCodes.InvalidField, invalid.Count == 1 ? invalid[0].Message : "Some fields are not valid.", invalid);
     }
 
+    /// <summary>
+    /// Retirement spec §2: the document's departures on adults of the household, as ages; <c>Undated</c> counts those on a person
+    /// without a birth date, which the calculation ignores. Persons are household-wide, so none is hidden.
+    /// </summary>
+    private async Task<(IReadOnlyDictionary<PersonId, (int Years, int Months)> Ages, IReadOnlyList<PersonInfo> People, int Undated, IReadOnlyList<ScenarioRetirement> Kept)> DeparturesAsync(
+        ProjectionScenario doc, CancellationToken ct)
+    {
+        var all = (await persons.ListAsync(ct)).ToDictionary(p => p.Id);
+        var kept = (doc.Retirements ?? []).Where(r => all.TryGetValue(r.Person, out var p) && p.Kind == PersonKind.Adult).ToList();
+        var dated = kept.Where(r => all[r.Person].BirthDate is not null).ToList();
+        var ages = dated.ToDictionary(r => r.Person, r => (r.Years, r.Months));
+        var people = all.Values.Select(p => ages.TryGetValue(p.Id, out var a) ? p with { RetirementAge = a.Years, RetirementMonths = a.Months } : p).ToList();
+        return (ages, people, kept.Count - dated.Count, kept);
+    }
+
     public async Task<Result<ProjectionScenarioReading>> ReadAsync(ProjectionScenario doc, VisibilityScope scope, CancellationToken ct)
     {
         var horizon = ProjectionHorizon.From(doc.Horizon);
-        var read = await facts.ReadAsync(scope, horizon, ct);
+        var departed = await DeparturesAsync(doc, ct);
+        // One grid: the base reads the household's departures, on the scenario's horizon.
+        var read = await facts.ReadAsync(scope, horizon, null, RealEstateEvents.None, ct, null, departed.Ages);
         if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionScenarioReading>(failure!);
         read.TryGetValue(out var based);
         var today = based!.Inputs.Today;
@@ -279,7 +296,7 @@ public sealed class ProjectionScenarioReader(
             milestones.Add(Milestone(start, e.Loan ?? e.Property));
         }
 
-        var scenarioRead = await facts.ReadAsync(scope, horizon, assumptions, new RealEstateEvents(repayments, sales), ct);
+        var scenarioRead = await facts.ReadAsync(scope, horizon, assumptions, new RealEstateEvents(repayments, sales), ct, departed.Ages, departed.Ages);
         if (scenarioRead.TryGetFailure(out failure)) return Result.Failure<ProjectionScenarioReading>(failure!);
         scenarioRead.TryGetValue(out var scenario);
         var realEstate = scenario!.RealEstate;
@@ -336,16 +353,34 @@ public sealed class ProjectionScenarioReader(
         Count("event_in_past", past);
         if (purchaseInPast) warnings.Add(new ProjectionWarningView("purchase_in_past", null));
         Count("event_undated", undated);
+        Count("retirement_undated", departed.Undated);
         if (taxUnavailable) warnings.Add(new ProjectionWarningView("tax_estimate_unavailable", null));
+
+        // Retirement spec §2: from the person's switch month the scenario's pension replaces the person's own (added when none).
+        var income = scenario.Inputs.Income.ToArray();
+        var pensions = scenario.Inputs.Pensions?.ToArray();
+        if (scenario.Inputs.Rates is { } rates)
+            foreach (var (person, k0) in Departures.SwitchMonths(departed.People, today))
+                if (departed.Kept.FirstOrDefault(r => r.Person == person) is { MonthlyPension: { } pension })
+                {
+                    var own = scenario.PensionsByHolder.GetValueOrDefault(person);
+                    for (var k = Math.Max(k0, 1); k <= months; k++)
+                    {
+                        var delta = pension * rates.Income[k] - (own?[k] ?? 0m);
+                        income[k] += delta;
+                        if (pensions is not null) pensions[k] += delta;
+                    }
+                }
 
         var inputs = scenario.Inputs with
         {
+            Income = income, Pensions = pensions,
             RealEstate = property, MonthlyAdjustments = adjustments, CashFlows = cashFlows, Withdrawals = withdrawals, Changes = changes,
             PassiveIncome = passive, ExpenseAdjustments = expenseAdjustments,
             Milestones = [.. scenario.Inputs.Milestones, .. milestones],
         };
         return Result.Success(new ProjectionScenarioReading(
-            based, inputs, doc with { Events = kept }, warnings, milestones,
+            based, inputs, doc with { Events = kept, Retirements = departed.Kept }, warnings, milestones,
             doc.Assumptions.MonthlySavings is null ? based.SavingsOrigin : ScenarioSavings)
         {
             Sales = realEstate.Sales, ObservedInflation = scenario.ObservedInflation,
