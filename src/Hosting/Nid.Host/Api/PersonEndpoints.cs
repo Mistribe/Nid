@@ -220,7 +220,7 @@ public static class ResultHttp
             _ when failure.Code is InvestmentsCodes.InvalidPeriod or InvestmentsCodes.InvalidIncomeCategory or InvestmentsCodes.TransferLeg
                 or BreakdownCodes.Not100 or BreakdownCodes.NotMarket => StatusCodes.Status400BadRequest,
             _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
-            _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
+            _ when failure.Code is IncomeCodes.InvalidPeriod or IncomeCodes.InvalidYear => StatusCodes.Status400BadRequest,
             _ when failure.Code == ReportCodes.InvalidYear => StatusCodes.Status400BadRequest,
             _ when failure.Code is Nid.Childcare.Contracts.ChildcareCodes.Closed or Nid.Childcare.Contracts.ChildcareCodes.Open
                 or Nid.Childcare.Contracts.ChildcareCodes.Conflict or Nid.Childcare.Contracts.ChildcareCodes.StatementValidated

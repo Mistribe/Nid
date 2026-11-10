@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using NodaTime;
 
@@ -97,14 +98,17 @@ public static class OverviewMath
 
     /// <summary>
     /// Issue #12: each input's recurring income in [<paramref name="from"/>, <paramref name="to"/>], the one-offs merged into
-    /// <c>one_off</c>, largest first, an unconvertible one last; those without income in the period left out.
+    /// <c>one_off</c>, largest first, an unconvertible one last, ties by name then item; those without income in the period left out.
     /// </summary>
     public static IReadOnlyList<SourceTotal> BySource(IReadOnlyList<OverviewInput> inputs, LocalDate from, LocalDate to)
         => inputs.Select(i => new SourceTotal(i.Item, i.Name, i.Kind, Sum(i.Recurring, from, to)))
             .Append(new SourceTotal(null, "one_off", "one_off", Sum(inputs.SelectMany(i => i.OneOffs), from, to)))
             .Where(s => s.Amount is not 0m)
             .OrderBy(s => s.Amount is null).ThenByDescending(s => s.Amount)
+            .ThenBy(s => s.Name, French).ThenBy(s => s.Item?.Value)
             .ToList();
+
+    private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
     /// <summary>
     /// Today's monthly equivalent of each input above 0, largest first, those past <see cref="MaxShares"/> merged into

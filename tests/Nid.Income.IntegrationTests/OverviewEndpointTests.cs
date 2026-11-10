@@ -344,16 +344,23 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
-    public async Task A_review_without_a_rate_has_no_total_and_names_the_currency()
+    public async Task A_review_names_only_the_currencies_missed_in_its_period()
     {
         await using var app = await NidApp.StartAsync(fixture);
         await SalaryAsync(app, app.AdultA, "Dollars", currency: "USD");
+        var days = Enumerable.Range(0, 400).Select(i => new LocalDate(2025, 1, 1).PlusDays(i)).TakeWhile(d => d <= NidApp.GoldenCaseToday);
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
+                .WriteAsync(days.Select(d => new FxRate(d, Currency.Eur, 0.8m, FxRateSource.Ecb)).ToList(), TestContext.Current.CancellationToken);
 
-        var current = await ReviewAsync(app, 2025);
+        var current = await ReviewAsync(app, 2025); // today - 1 year has no rate, outside the period
+        var past = await ReviewAsync(app, 2024);
 
-        Assert.Null(current.Total);
-        Assert.Null(Assert.Single(current.Sources).Amount);
-        Assert.Equal(["USD"], current.MissingCurrencies);
+        Assert.Equal(16000m, current.Total);
+        Assert.Empty(current.MissingCurrencies);
+        Assert.Null(past.Total);
+        Assert.Null(Assert.Single(past.Sources).Amount);
+        Assert.Equal(["USD"], past.MissingCurrencies);
     }
 
     [Fact]
@@ -365,6 +372,7 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         {
             var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Overview}{query}");
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal("income.invalid_year", (await JsonAsync(response)).GetProperty("code").GetString());
         }
         Assert.Equal("2025-01-01", (await OverviewAsync(app, "?year=2025")).GetProperty("from").GetString());
     }

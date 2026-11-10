@@ -158,6 +158,15 @@ public class OverviewMathTests
     }
 
     [Fact]
+    public void BySource_breaks_ties_by_name()
+    {
+        var rows = OverviewMath.BySource([In("b", [Dd(D(2026, 1, 1), 50m)]), In("Élan", [Dd(D(2026, 1, 1), 50m)]), In("A", [Dd(D(2026, 1, 1), 50m)])],
+            D(2026, 1, 1), D(2026, 12, 31));
+
+        Assert.Equal(["A", "b", "Élan"], rows.Select(r => r.Name));
+    }
+
+    [Fact]
     public void Now_split_keeps_six_running_inputs_largest_first_and_merges_the_rest_into_other()
     {
         var inputs = Enumerable.Range(1, 8).Select(n => In($"S{n}", now: n * 100m)).Append(In("Fini", now: 0m)).ToList();
