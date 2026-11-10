@@ -10,12 +10,17 @@
     "type": "Tapez {{name}} pour confirmer",
     "confirm": "Supprimer définitivement",
     "menu": "Supprimer…",
+    "warning_closed": "La suppression est définitive et ne peut pas être annulée.",
+    "way_out": {
+      "goal_funding": "Retirez l’enveloppe du financement de ces objectifs.",
+      "transfers": "Annulez d’abord les virements avec ces enveloppes."
+    },
     "close_hint": {
       "goals.delete_goal": "Clôturer",
       "income.delete_income_source": "Terminer cette source",
       "investments.delete_envelope": "Clôturer l’enveloppe"
     },
-    "done": "« {{name}} » supprimé",
+    "done": "Élément supprimé : « {{name}} »",
     "keys": {
       "flows_one": "{{count}} flux",
       "flows_other": "{{count}} flux",

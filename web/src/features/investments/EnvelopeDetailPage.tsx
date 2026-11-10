@@ -301,7 +301,7 @@ export function EnvelopeDetailPage() {
       {writable && valueDialog ? <ValueDialog envelope={detail} editing={valueDialog.editing} onClose={cancelValue} onDone={savedValue(!!valueDialog.editing)} /> : null}
       {writable && flowDialog ? <FlowDialog envelope={detail} editing={flowDialog.editing} opening={flowDialog.opening} onClose={cancelFlow} onDone={savedFlow(!!flowDialog.editing)} /> : null}
       {transferOpen ? <TransferDialog source={detail} onClose={() => closeTransfer()} onDone={closeTransfer} /> : null}
-      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="investments.delete_envelope" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="investments.delete_envelope" id={id} closed={detail.closed} onClose={() => setDeleting(false)} /></Suspense> : null}
       {closeOpen ? <CloseDialog envelope={detail} onClose={() => closeClose()} onDone={closeClose} /> : null}
 
       <DetailTabs value={shown} onChange={setTab} guide="investments.history" tabs={[

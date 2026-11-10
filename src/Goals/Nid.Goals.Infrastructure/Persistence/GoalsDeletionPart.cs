@@ -49,8 +49,9 @@ public sealed class GoalsDeletionPart(GoalsDbContext db, IItemRegistry items) : 
         var id = item.Id.Value;
         if (IsEnvelope(item))
         {
-            // Only closed goals' lines are left: an open goal's blocked the delete.
-            db.Funding.RemoveRange(await db.Funding.Where(f => f.EnvelopeId == id).ToListAsync(ct));
+            // Only closed goals' lines: a line an open goal added since the blocker check stays (and blocks the next attempt).
+            var closed = (await FundedAsync(item, ct)).Where(g => g.ArchivedAt is not null).Select(g => g.Id.Value).ToList();
+            db.Funding.RemoveRange(await db.Funding.Where(f => f.EnvelopeId == id && closed.Contains(f.GoalId)).ToListAsync(ct));
             await db.SaveChangesAsync(ct);
             return;
         }

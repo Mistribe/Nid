@@ -168,6 +168,18 @@ public class EnvelopeDeleteTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task Closed_envelope_can_be_deleted()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (envelope, _) = await FilledAsync(app);
+        await SendAsync(app, HttpMethod.Post, $"{Envelopes}/{envelope.Value}/close", new { closedOn = "2025-09-30" }, HttpStatusCode.OK);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await DeleteAsync(app, envelope, await VersionAsync(app, envelope))).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, await EnvelopeStatusAsync(app, envelope));
+    }
+
+    [Fact]
     public async Task Active_transfer_blocks_and_names_the_other_envelope()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -96,7 +96,7 @@ export function GoalDetailPage() {
         </section>
       </PageHeader>
       {goal.canWrite ? null : <p>{t('goals_list.read_only')}</p>}
-      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="goals.delete_goal" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="goals.delete_goal" id={id} closed={goal.closed} onClose={() => setDeleting(false)} /></Suspense> : null}
       {editing ? <EditGoalDialog goalId={id} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); toast.success(message); }} /> : null}
       {error ? <ProblemMessage problem={presentGoalConflict(t, error)} /> : null}
       <ul className="space-y-1 text-sm">

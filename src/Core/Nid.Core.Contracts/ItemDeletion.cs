@@ -8,6 +8,7 @@ public sealed record DeletionCount(string Key, int Count);
 /// <summary>What refuses an item delete while it stands, and the items it comes from when there are some.</summary>
 public sealed record DeletionBlocker(string Key, int Count, IReadOnlyList<DeletionBlockerItem> Items);
 
+/// <summary><paramref name="Id"/> must be a <c>core.item</c> id: the names are filtered by the reader's access to it.</summary>
 public sealed record DeletionBlockerItem(Guid Id, string Name);
 
 /// <summary><paramref name="Version"/> is the <c>core.item</c> xmin the delete must send back.</summary>

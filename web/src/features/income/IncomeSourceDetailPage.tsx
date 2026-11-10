@@ -239,7 +239,7 @@ export function IncomeSourceDetailPage() {
           ),
         }] : []),
       ]} />
-      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="income.delete_income_source" id={id} onClose={() => setDeleting(false)} /></Suspense> : null}
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="income.delete_income_source" id={id} closed={source.ended} onClose={() => setDeleting(false)} /></Suspense> : null}
     </article>
   );
 }
