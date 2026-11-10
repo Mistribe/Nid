@@ -115,10 +115,25 @@ describe('Administration › Taux de change', () => {
     server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
     const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
-    await user.type(await screen.findByLabelText('Devise'), 'gbp');
-    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
+    const quote = await screen.findByLabelText('Devise');
+    await user.clear(quote);
+    await user.type(quote, 'gbp');
+    await user.click(screen.getByRole('button', { name: 'Afficher' }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ quote: 'GBP' }));
     await waitFor(() => expect(asked.some((p) => p.get('s') === 'fx:GBP')).toBe(true));
+  });
+
+  it('drops the default currency from the URL', async () => {
+    const asked: URLSearchParams[] = [];
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])), points(asked));
+    const { user, router } = await renderApp('/admin/fx?quote=CHF', { capabilities: adminCapabilities });
+
+    const field = await screen.findByLabelText('Devise');
+    await user.clear(field);
+    await user.type(field, 'eur');
+    await user.click(screen.getByRole('button', { name: 'Afficher' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('quote'));
+    await waitFor(() => expect(asked.some((p) => p.get('s') === 'fx:EUR')).toBe(true));
   });
 
   it('refuses an invalid code', async () => {
@@ -126,13 +141,14 @@ describe('Administration › Taux de change', () => {
     const { user, router } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
     const field = await screen.findByLabelText('Devise');
+    await user.clear(field);
     await user.type(field, 'USD');
-    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
+    await user.click(screen.getByRole('button', { name: 'Afficher' }));
     expect(await screen.findByText(/Trois lettres, autre que USD/)).toBeInTheDocument();
     await user.clear(field);
     expect(screen.queryByText(/Trois lettres, autre que USD/)).not.toBeInTheDocument();
     await user.type(field, 'EU');
-    await user.click(screen.getByRole('button', { name: 'Voir la série' }));
+    await user.click(screen.getByRole('button', { name: 'Afficher' }));
     expect(screen.getByText(/Trois lettres, autre que USD/)).toBeInTheDocument();
     expect(router.state.location.search).not.toHaveProperty('quote');
   });
@@ -144,7 +160,7 @@ describe('Administration › Taux de change', () => {
 
     await user.click(await screen.findByRole('tab', { name: 'Journal' }));
     await user.click(await screen.findByRole('tab', { name: 'Série' }));
-    expect(await screen.findByLabelText('Devise')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Devise')).toHaveValue('CHF');
     expect(asked.every((p) => p.get('s') === 'fx:CHF')).toBe(true);
     expect(asked.length).toBeGreaterThan(0);
   });

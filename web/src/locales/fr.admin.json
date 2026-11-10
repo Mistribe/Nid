@@ -180,6 +180,7 @@
       "already_running": "Une collecte est déjà en cours : son résultat apparaîtra dans l'onglet Journal.",
       "series_title": "Historique d'une devise",
       "series_quote": "Devise",
+      "series_show": "Afficher",
       "series_invalid": "Trois lettres, autre que USD : les taux sont donnés pour 1 USD.",
       "manual_title": "Saisir un taux",
       "date": "Date",

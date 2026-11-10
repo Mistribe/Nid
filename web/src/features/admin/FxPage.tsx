@@ -85,35 +85,35 @@ export function FxPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'series', label: t('admin.tab_series'), content: <SeriesByCurrency /> },
         { id: 'journal', label: t('admin.tab_journal'), content: (
-        <Section title={t('admin.fx.runs_title')}>
-          {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-          {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
-          {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
-          {runs.data && runs.data.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('admin.fx.started')}</TableHead>
-                  <TableHead>{t('admin.fx.kind')}</TableHead>
-                  <TableHead>{t('admin.fx.status')}</TableHead>
-                  <TableHead>{t('admin.fx.rows')}</TableHead>
-                  <TableHead>{t('admin.fx.failure')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {runs.data.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{formatInstant(r.startedAt)}</TableCell>
-                    <TableCell>{kindLabel(r.kind)}</TableCell>
-                    <TableCell>{statusLabel(r.status)}</TableCell>
-                    <TableCell>{r.rowsWritten}</TableCell>
-                    <TableCell>{r.failureCode}</TableCell>
+          <Section title={t('admin.fx.runs_title')}>
+            {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
+            {!runs.data && !runs.error ? <Loading label={t('admin.loading')}><TableSkeleton columns={5} /></Loading> : null}
+            {runs.data && runs.data.length === 0 ? <EmptyState module="/admin" title={t('admin.fx.no_runs')} body="" level={3} /> : null}
+            {runs.data && runs.data.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('admin.fx.started')}</TableHead>
+                    <TableHead>{t('admin.fx.kind')}</TableHead>
+                    <TableHead>{t('admin.fx.status')}</TableHead>
+                    <TableHead>{t('admin.fx.rows')}</TableHead>
+                    <TableHead>{t('admin.fx.failure')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : null}
-        </Section>
+                </TableHeader>
+                <TableBody>
+                  {runs.data.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{formatInstant(r.startedAt)}</TableCell>
+                      <TableCell>{kindLabel(r.kind)}</TableCell>
+                      <TableCell>{statusLabel(r.status)}</TableCell>
+                      <TableCell>{r.rowsWritten}</TableCell>
+                      <TableCell>{r.failureCode}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : null}
+          </Section>
         ) },
       ]} />
     </AdminFrame>
@@ -133,10 +133,10 @@ function SeriesByCurrency() {
         const code = ((new FormData(event.currentTarget).get('quote') as string | null) ?? '').trim().toUpperCase();
         if (!CURRENCY.test(code) || code === 'USD') { setError(t('admin.fx.series_invalid')); return; }
         setError('');
-        void navigate({ to: '.', replace: true, search: ((prev: Record<string, unknown>) => ({ ...prev, quote: code === 'EUR' ? undefined : code })) as never });
+        void navigate({ to: '.', replace: true, search: (prev) => ({ ...prev, quote: code === 'EUR' ? undefined : code }) });
       }}>
-        <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} name="quote" onChange={() => setError('')} maxLength={3} className="uppercase" />}</Field>
-        <Button type="submit" className="mt-6">{t('series.see')}</Button>
+        <Field label={t('admin.fx.series_quote')} error={error}>{(c) => <Input {...c} key={quote} name="quote" defaultValue={quote} onChange={() => setError('')} maxLength={3} className="uppercase" />}</Field>
+        <Button type="submit" className="mt-6">{t('admin.fx.series_show')}</Button>
       </form>
       <AdminSeries seriesKey={`fx:${quote}`} from={fromOf('1y')} />
     </Section>
