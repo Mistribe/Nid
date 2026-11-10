@@ -1,0 +1,51 @@
+import { expect, test } from '@playwright/test';
+import { pick } from './controls';
+import { signIn } from './session';
+
+// The e2e tsconfig has no DOM lib: the page code goes in as a string, as in the other specs.
+const BACKGROUND = `getComputedStyle(document.body).backgroundColor`;
+
+test('alice reviews her year and prints it on A4, light even on a dark screen', async ({ browser }) => {
+  const name = `Livret bilan ${Date.now()}`;
+  const alice = await browser.newPage();
+  await signIn(alice, 'alice', '/investments/new');
+  await alice.getByLabel('Nom').fill(name);
+  await pick(alice, 'Type', 'Livret');
+  await alice.getByRole('radio', { name: /Partagé/ }).check();
+  await alice.getByRole('button', { name: 'Première valeur' }).click();
+  await alice.getByLabel('Montant de la première valeur').fill('1000');
+  await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
+  await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
+
+  await alice.goto('/reports/year');
+  await expect(alice.getByRole('heading', { name: /^Bilan \d{4}/, level: 1 })).toBeVisible();
+  await expect(alice.getByRole('region', { name: 'Patrimoine net' })).toContainText('€');
+  const printButton = alice.getByRole('button', { name: 'Imprimer' });
+  await expect(printButton).toBeVisible();
+
+  // The app's dark mode is the class on <html> (app/theme.ts); set here, not in alice's preferences, which other journeys share.
+  await alice.emulateMedia({ colorScheme: 'dark' });
+  await alice.evaluate(`document.documentElement.classList.add('dark')`);
+  const dark = await alice.evaluate<string>(BACKGROUND);
+  await alice.evaluate(`document.documentElement.classList.remove('dark')`);
+  const light = await alice.evaluate<string>(BACKGROUND);
+  await alice.evaluate(`document.documentElement.classList.add('dark')`);
+  expect(dark, 'the dark theme changes the background on screen').not.toBe(light);
+
+  // The A4 printable width at 96 dpi: 210 mm less two 15 mm margins.
+  await alice.setViewportSize({ width: 680, height: 960 });
+  await alice.emulateMedia({ media: 'print', colorScheme: 'dark' });
+  expect(await alice.evaluate<boolean>(`document.documentElement.classList.contains('dark')`)).toBe(true);
+  await expect.poll(() => alice.evaluate<string>(BACKGROUND)).toBe(light);
+  await expect.poll(() => alice.evaluate<boolean>(`document.documentElement.scrollWidth <= window.innerWidth`)).toBe(true);
+  await expect(alice.locator('[data-pane="sidebar"]')).toBeHidden();
+  await expect(alice.locator('[data-pane="toolbar"]')).toBeHidden();
+  await expect(alice.locator('[data-pane="tabs"]')).toBeHidden();
+  await expect(printButton).toBeHidden();
+  await expect(alice.getByRole('region', { name: 'Patrimoine net' })).toBeVisible();
+  // At the page's width a list replaces a table on screen; paper keeps the table and its columns.
+  await expect(alice.getByRole('region', { name: 'Placements' }).getByRole('table').first()).toBeVisible();
+
+  const pdf = await alice.pdf({ format: 'A4' });
+  expect(pdf.byteLength).toBeGreaterThan(0);
+});
