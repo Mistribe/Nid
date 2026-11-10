@@ -93,7 +93,7 @@ public sealed class ProjectionFactsReader(
         if (saved.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
         saved.TryGetValue(out var contributions);
 
-        var timelines = await Contributions.CollectAsync(income, c => c.TimelineAsync(Reader, scope, today, months, ct));
+        var timelines = await Contributions.CollectAsync(income, c => c.TimelineAsync(Reader, scope, today, months, new Dictionary<PersonId, int>(), ct));
         if (timelines.TryGetFailure(out failure)) return Result.Failure<ProjectionReading>(failure!);
         timelines.TryGetValue(out var earned);
 

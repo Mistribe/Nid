@@ -117,8 +117,9 @@ public interface IIncomeContribution
     /// <summary>
     /// Projection spec §3.2, §5.1: the monthly equivalent over the next <paramref name="months"/> months, per currency;
     /// <c>Monthly[k]</c> is read on the last day of month (this month + k), <c>Monthly[0]</c> on <paramref name="today"/> (= <see cref="IncomeAsync"/>).
+    /// <paramref name="switches"/>[p] is the first grid month without work income for adult <c>p</c>; a value below 1 is ignored by the income rules.
     /// </summary>
-    Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, CancellationToken ct);
+    Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, IReadOnlyDictionary<PersonId, int> switches, CancellationToken ct);
 }
 
 /// <summary>An open source whose phase ends without a successor: the timeline keeps it running (projection spec §3.2) and names it so the screen can warn.</summary>

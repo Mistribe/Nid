@@ -17,24 +17,27 @@ public class IncomeTimelineEndpointTests(PostgresFixture fixture) : IClassFixtur
         => new { label, startsOn, endsOn, netAmount = new { amount, currency = "EUR" }, every = new { count = 1, unit = "month" } };
 
     private static async Task<Guid> NewSourceAsync(NidApp app, string name, params object[] phases)
+        => await NewKindSourceAsync(app, name, "salary", [new { personId = app.AdultA.Value, shareBp = 10_000 }], phases);
+
+    private static async Task<Guid> NewKindSourceAsync(NidApp app, string name, string kind, object[] owners, params object[] phases)
     {
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Sources, new Dictionary<string, object?>
         {
-            ["displayName"] = name, ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = "shared",
-            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["displayName"] = name, ["kind"] = kind, ["currency"] = "EUR", ["visibility"] = "shared",
+            ["owners"] = owners,
             ["phases"] = phases,
         });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task<(IncomePart Today, IncomeTimeline Timeline)> ReadAsync(NidApp app, int months)
+    private static async Task<(IncomePart Today, IncomeTimeline Timeline)> ReadAsync(NidApp app, int months, IReadOnlyDictionary<PersonId, int>? switches = null)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
         var sources = scope.ServiceProvider.GetServices<IIncomeContribution>().Single(c => c.GetType().Name == "IncomeSourcesIncome");
         var today = await sources.IncomeAsync(app.AdultA, VisibilityScope.Household, NidApp.GoldenCaseToday, default);
-        var timeline = await sources.TimelineAsync(app.AdultA, VisibilityScope.Household, NidApp.GoldenCaseToday, months, default);
+        var timeline = await sources.TimelineAsync(app.AdultA, VisibilityScope.Household, NidApp.GoldenCaseToday, months, switches ?? new Dictionary<PersonId, int>(), default);
         return (today.TryGetValue(out var t) ? t : throw new InvalidOperationException(),
             timeline.TryGetValue(out var l) ? l : throw new InvalidOperationException());
     }
@@ -163,5 +166,73 @@ public class IncomeTimelineEndpointTests(PostgresFixture fixture) : IClassFixtur
 
         Assert.All(timeline.Monthly, m => Assert.Equal(0m, m.Single().Value));
         Assert.Empty(timeline.Parts![0]);
+    }
+
+    private static async Task<(IncomeTimeline Timeline, Currency Eur)> RetiringAsync(NidApp app, int? switchA, bool shared = false)
+    {
+        object[] owners = shared
+            ? [new { personId = app.AdultA.Value, shareBp = 5_000 }, new { personId = app.AdultB.Value, shareBp = 5_000 }]
+            : [new { personId = app.AdultA.Value, shareBp = 10_000 }];
+        await NewKindSourceAsync(app, "Salaire", "salary", owners, Phase("Salaire", "2025-01-01", "2000"));
+        await NewKindSourceAsync(app, "Retraite", "pension", [new { personId = app.AdultA.Value, shareBp = 10_000 }], Phase("Retraite", "2035-11-01", "1000"));
+        var switches = switchA is { } s ? new Dictionary<PersonId, int> { [app.AdultA] = s } : [];
+        var (_, timeline) = await ReadAsync(app, 12, switches);
+        return (timeline, Currency.Eur);
+    }
+
+    [Fact]
+    public async Task Work_income_stops_and_the_pension_starts_at_the_departure()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var (timeline, eur) = await RetiringAsync(app, 3);
+
+        Assert.Equal(2000m, timeline.Monthly[2][eur]);
+        Assert.Equal(1000m, timeline.Monthly[3][eur]);
+        Assert.Equal(1000m, timeline.Monthly[12][eur]);
+        Assert.Empty(timeline.Extended);
+        Assert.All(timeline.Parts![3], p => Assert.Equal(0, p.IndexedFrom));
+    }
+
+    [Fact]
+    public async Task A_departure_next_month_cuts_from_month_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var (timeline, eur) = await RetiringAsync(app, 1);
+
+        Assert.Equal(2000m, timeline.Monthly[0][eur]);
+        Assert.Equal(1000m, timeline.Monthly[1][eur]);
+    }
+
+    [Fact]
+    public async Task A_past_departure_changes_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var (timeline, eur) = await RetiringAsync(app, 0);
+
+        for (var k = 0; k <= 12; k++)
+            Assert.Equal(2000m, timeline.Monthly[k][eur]);
+    }
+
+    [Fact]
+    public async Task Without_switches_the_timeline_is_unchanged()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var (timeline, eur) = await RetiringAsync(app, null);
+
+        Assert.All(timeline.Monthly, m => Assert.Equal(2000m, m[eur]));
+    }
+
+    [Fact]
+    public async Task A_salary_shared_with_a_working_adult_is_never_cut()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var (timeline, eur) = await RetiringAsync(app, 3, shared: true);
+
+        Assert.Equal(3000m, timeline.Monthly[12][eur]); // shared salary 2000 + A's pension 1000
     }
 }
