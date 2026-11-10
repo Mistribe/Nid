@@ -22,7 +22,8 @@ function review(over: Partial<YearReview> = {}): YearReview {
         part('real_estate.value', '-1500.00', '112000.00', '113500.00'),
         part('real_estate.moved', '0.00', '112000.00', '112000.00'),
       ],
-      previousChange: eur('8000.00'), previousParts: [],
+      previousChange: eur('8000.00'),
+      previousParts: [part('investments.paid_in', '2500.00', '92000.00', '94500.00'), part('investments.value', '-1000.00', '93500.00', '94500.00')],
     },
     investments: {
       startValue: eur('40000.00'), endValue: eur('47000.00'), contributions: eur('3000.00'), withdrawals: eur('500.00'),
@@ -70,6 +71,10 @@ describe('YearReviewPage', () => {
     expect(router.state.location.search).toEqual({ scope: 'me', year: 2024 });
     expect(await screen.findByRole('heading', { level: 1, name: 'Bilan 2024' })).toBeInTheDocument();
     await waitFor(() => expect(seen).toContain('?scope=me&year=2024'));
+
+    // The server's current year, the latest it offers, stays out of the address.
+    await pick(user, 'Année du bilan', '2026');
+    expect(router.state.location.search).toEqual({ scope: 'me' });
   });
 
   it('lists the parts of the net worth change and the year before', async () => {
@@ -79,9 +84,10 @@ describe('YearReviewPage', () => {
     const section = await screen.findByRole('region', { name: 'Patrimoine net' });
     expect(within(section).getByText('2024 : +8 000,00 €')).toBeInTheDocument();
     const parts = within(section).getByRole('table', { name: 'Composantes de la variation du patrimoine' });
-    for (const [label, amount] of [['Versements', '+3 000,00 €'], ['Gains des marchés', '+4 500,00 €'], ['Capital remboursé', '+6 000,00 €'],
-      ['Réévaluation des biens', '-1 500,00 €'], ['Achats et ventes', '0,00 €']])
-      expect(within(parts).getByRole('rowheader', { name: label }).closest('tr')).toHaveTextContent(`${label}${amount}`);
+    expect(within(parts).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Composante', '2025', '2024']);
+    for (const [label, amount, before] of [['Versements', '+3 000,00 €', '+2 500,00 €'], ['Gains des marchés', '+4 500,00 €', '-1 000,00 €'],
+      ['Capital remboursé', '+6 000,00 €', '—'], ['Réévaluation des biens', '-1 500,00 €', '—'], ['Achats et ventes', '0,00 €', '—']])
+      expect(within(parts).getByRole('rowheader', { name: label }).closest('tr')).toHaveTextContent(`${label}${amount}${before}`);
   });
 
   it('shows one row per envelope with its return, its old start value marked', async () => {
@@ -95,6 +101,7 @@ describe('YearReviewPage', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent(/^PEA Alice.*\+11,5 %$/);
     expect(rows[1]).toHaveTextContent(/^Assurance-vie Bob valeur de départ ancienne.*\+9,8 %$/);
+    expect(within(rows[0]!).getByRole('link', { name: 'PEA Alice' })).toHaveAttribute('href', '/investments/00000000-0000-0000-0000-000000000001');
   });
 
   it('leaves out a part the server does not give', async () => {
@@ -105,11 +112,19 @@ describe('YearReviewPage', () => {
     expect(screen.queryByRole('region', { name: 'Placements' })).not.toBeInTheDocument();
   });
 
+  it('says when there is nothing to review', async () => {
+    serve(() => review({ netWorth: null, investments: null }));
+    await renderApp('/reports/year?year=2025');
+
+    expect(await screen.findByText('Rien à montrer pour cette année dans ce périmètre.')).toBeInTheDocument();
+  });
+
   it('says a missing rate keeps the net worth from being reviewed', async () => {
     serve(() => review({ netWorth: null, findings: ['core.fx_rate_missing'] }));
     await renderApp('/reports/year?year=2025');
 
     expect(await screen.findByText('Un taux de change manque : le patrimoine de l\'année ne peut pas être calculé.')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Patrimoine net' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Rien à montrer pour cette année dans ce périmètre.')).not.toBeInTheDocument();
   });
 });

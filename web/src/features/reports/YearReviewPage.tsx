@@ -19,7 +19,6 @@ import { StatLine } from '@/components/page/StatLine';
 import { PageTrail } from '@/components/page/trail';
 import { Button } from '@/components/ui/button';
 import type { RootSearch } from '@/lib/search';
-import { todayIso } from '@/lib/today';
 import { InvestmentsReview } from './InvestmentsReview';
 import { NetWorthBridge, signed } from './NetWorthBridge';
 import '@/locales/reports';
@@ -42,9 +41,11 @@ export function YearReviewPage() {
   if (!answer.data) return <><PageTrail crumbs={crumbs} /><PageSkeleton label={t('reports.loading')} actions={2} stats={3} /></>;
 
   const d = answer.data;
-  // The current year is the default: it stays out of the URL. The root keeps Foyer / Moi.
+  // The server's current year (the one it reviews to date, else the latest it offers) is the default: it stays out of the URL.
+  const current = d.toDate ? d.year : Math.max(...d.years);
+  // The root keeps Foyer / Moi.
   const setYear = (next: string) => void navigate({
-    to: '/reports/year', replace: true, resetScroll: false, search: { year: next === todayIso().slice(0, 4) ? undefined : Number(next) },
+    to: '/reports/year', replace: true, resetScroll: false, search: { year: Number(next) === current ? undefined : Number(next) },
   });
   const actions = (
     <>
@@ -59,12 +60,13 @@ export function YearReviewPage() {
     </>
   );
   return (
-    <article className="space-y-6">
+    <div className="space-y-6">
       <PageHeader crumbs={crumbs} title={t(d.toDate ? 'reports.title_to_date' : 'reports.title', { year: d.year })} actions={actions} />
       {d.netWorth ? <NetWorth d={d} review={d.netWorth} />
         : d.findings.includes(FX_MISSING) ? <p className="text-sm text-muted-foreground">{t('reports.fx_missing')}</p> : null}
       {d.investments ? <InvestmentsReview year={d.year} review={d.investments} /> : null}
-    </article>
+      {!d.netWorth && !d.investments && d.findings.length === 0 ? <p className="text-muted-foreground">{t('reports.empty')}</p> : null}
+    </div>
   );
 }
 
@@ -78,7 +80,7 @@ function NetWorth({ d, review }: { d: YearReview; review: NetWorthReview }) {
         { label: t('reports.net_worth.change'), value: <Direction amount={review.change} />,
           hint: review.previousChange ? t('reports.previous', { year: d.year - 1, amount: signed(review.previousChange) }) : null },
       ]} />
-      <NetWorthBridge start={review.start} parts={review.parts} end={review.end} />
+      <NetWorthBridge year={d.year} start={review.start} parts={review.parts} previousParts={review.previousParts} end={review.end} />
     </Section>
   );
 }

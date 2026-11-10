@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSession } from '@/app/Providers';
 import type { InvestmentsReview as Review, InvestmentsReviewRow } from '@/api/reports';
 import { Direction } from '@/components/Direction';
 import { Money, type MoneyValue } from '@/components/Money';
@@ -14,6 +15,7 @@ import '@/locales/reports';
 /** The year's investments: the server's gain, return and flows beside the year before, then one row per envelope. */
 export function InvestmentsReview({ year, review }: { year: number; review: Review }) {
   const { t } = useTranslation();
+  const { capabilities } = useSession();
   const unknown = <span className="text-muted-foreground">{t('reports.investments.unknown')}</span>;
   const money = (value?: MoneyValue | null): ReactNode => (value ? <Money value={value} tabular /> : unknown);
   const percent = (value?: number | null): ReactNode => (value == null ? unknown : t('reports.investments.pct', { value: pct(value) }));
@@ -29,6 +31,7 @@ export function InvestmentsReview({ year, review }: { year: number; review: Revi
         { label: t('reports.investments.withdrawals'), value: money(review.withdrawals) },
       ]} />
       <SortableTable<InvestmentsReviewRow> caption={t('reports.investments.envelopes')} rows={review.envelopes} rowKey={(r) => r.id}
+        rowLink={capabilities.modules.includes('investments') ? (r) => ({ to: '/investments/$id', params: { id: r.id } }) : undefined}
         columns={[
           { id: 'name', header: t('reports.investments.col.name'), sort: (r) => r.name, cell: (r) => <Name row={r} /> },
           { id: 'start', header: t('reports.investments.col.start'), align: 'end', sort: (r) => amountKey(r.startValue?.amount), cell: (r) => money(r.startValue) },

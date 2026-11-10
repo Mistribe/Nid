@@ -16,7 +16,8 @@
       "chart": "Passage du patrimoine net du début à la fin de la période",
       "table": "Composantes de la variation du patrimoine",
       "part": "Composante",
-      "amount": "Montant"
+      "amount": "Montant",
+      "none": "—"
     },
     "parts": {
       "investments": {
@@ -47,6 +48,7 @@
       "stale_start": "valeur de départ ancienne",
       "pct": "{{value}} %",
       "unknown": "Inconnu"
-    }
+    },
+    "empty": "Rien à montrer pour cette année dans ce périmètre."
   }
 }
