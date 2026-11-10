@@ -129,4 +129,20 @@ describe('A proposal to delete a goal', () => {
     await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: ITEM, version: 2 } }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/loans'));
   });
+
+  it('a subscription deletion opens the same dialog and approves with the preview version', async () => {
+    const ITEM = '0192f0aa-0000-7000-8000-00000000f003';
+    const p = proposal({ kind: 'subscriptions.delete_subscription', targetItemId: ITEM, targetName: 'Netflix', subjectKey: null, payload: { id: ITEM, version: 1 } });
+    const sent = serve([p], { preview: {} });
+    server.use(http.get('*/api/v1/subscriptions/:id/deletion', () => HttpResponse.json({ name: 'Netflix', version: 2, imported: false, removes: [], blockers: [] })));
+    const { user, router } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer Netflix' });
+    await user.type(await within(dialog).findByLabelText(/Tapez/), 'Netflix');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: ITEM, version: 2 } }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/subscriptions'));
+  });
 });

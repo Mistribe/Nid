@@ -66,6 +66,12 @@
       "loan_other": "{{count}} crédits le financent",
       "insurance_one": "{{count}} assurance le couvre",
       "insurance_other": "{{count}} assurances le couvrent",
+      "billing_phases_one": "{{count}} phase de facturation",
+      "billing_phases_other": "{{count}} phases de facturation",
+      "coverage_grants_one": "{{count}} période de couverture",
+      "coverage_grants_other": "{{count}} périodes de couverture",
+      "subscription_users_one": "{{count}} utilisateur du service",
+      "subscription_users_other": "{{count}} utilisateurs du service",
       "progress_entries_one": "{{count}} versement suivi",
       "progress_entries_other": "{{count}} versements suivis"
     }
