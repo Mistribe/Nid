@@ -67,9 +67,9 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
     void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
   };
   // A private pension is invisible in « Foyer »: ask for the reader's own sources (scope=me) before offering to enter another.
-  // The list has no kind filter, so the pension is picked out of the reader's own sources.
-  const mine = $api.useQuery('get', SOURCES, { params: { query: { scope: 'me' } } }, { enabled: scope === 'household' });
-  const ownsPension = (mine.data?.items ?? []).some((s) => s.kind === 'pension' && s.owners.some((o) => o.personId === session.person.id));
+  // Her own pension sources, private ones included (scope=me, kind=pension): shared ones of the other adult stay in the list, so the owner is tested.
+  const mine = $api.useQuery('get', SOURCES, { params: { query: { scope: 'me', kind: 'pension' } } }, { enabled: scope === 'household' });
+  const ownsPension = (mine.data?.items ?? []).some((s) => s.owners.some((o) => o.personId === session.person.id));
   const canEnter = scope === 'me' || mine.data !== undefined;
   const actions = (d: Departure) => (
     <RowMenu label={t('retirement.row_actions', { name: d.name })} items={[

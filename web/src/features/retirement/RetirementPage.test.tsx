@@ -201,6 +201,7 @@ describe('the retirement page', () => {
       await menuOf('Alice');
       expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
       expect(seen[0]).toContain('scope=me');
+      expect(seen[0]).toContain('kind=pension');
     });
 
     it('does not offer the pension when the reader has no departure month', async () => {

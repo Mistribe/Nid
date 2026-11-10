@@ -7582,6 +7582,13 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
