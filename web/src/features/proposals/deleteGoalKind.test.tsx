@@ -81,4 +81,20 @@ describe('A proposal to delete a goal', () => {
     await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: SOURCE, version: 2 } }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/income'));
   });
+
+  it('an envelope deletion opens the same dialog and approves with the preview version', async () => {
+    const ENVELOPE = '0192f0aa-0000-7000-8000-00000000e001';
+    const p = proposal({ kind: 'investments.delete_envelope', targetItemId: ENVELOPE, targetName: 'PEA Alice', subjectKey: null, payload: { id: ENVELOPE, version: 1 } });
+    const sent = serve([p], { preview: {} });
+    server.use(http.get('*/api/v1/investments/envelopes/:id/deletion', () => HttpResponse.json({ name: 'PEA Alice', version: 3, imported: false, removes: [], blockers: [] })));
+    const { user, router } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer PEA Alice' });
+    await user.type(await within(dialog).findByLabelText(/Tapez/), 'PEA Alice');
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { id: ENVELOPE, version: 3 } }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/investments'));
+  });
 });

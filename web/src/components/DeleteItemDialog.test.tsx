@@ -83,4 +83,19 @@ describe('DeleteItemDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Fermer' }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('says how to unblock under each blocker that has a way out', () => {
+    show(preview({ blockers: [
+      { key: 'goal_funding', count: 1, items: [{ id: '0192f0aa-0000-7000-8000-00000000a001', name: 'Voyage' }] },
+      { key: 'other', count: 1, items: [] },
+    ] }));
+    expect(screen.getByText('Retirez l’enveloppe du financement de ces objectifs.')).toBeInTheDocument();
+    expect(screen.queryByText(/deletion\.way_out/)).not.toBeInTheDocument();
+  });
+
+  it('gives no « end it instead » hint for an item already ended', () => {
+    render(<DeleteItemDialog preview={preview()} previewError={null} pending={false} error={null} onConfirm={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByText('La suppression est définitive et ne peut pas être annulée.')).toBeInTheDocument();
+    expect(screen.queryByText(/utilisez plutôt/)).not.toBeInTheDocument();
+  });
 });

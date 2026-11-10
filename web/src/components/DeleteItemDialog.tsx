@@ -12,10 +12,10 @@ type DeletionPreview = components['schemas']['ItemDeletionPreview'];
 
 /** Deleting an item created by mistake: what goes with it, then the name typed back (nothing happens on Enter). */
 export function DeleteItemDialog({ preview, previewError, closeHint, pending, error, onConfirm, onClose }: {
-  preview: DeletionPreview | undefined; previewError: unknown; closeHint: string; pending: boolean; error: unknown;
+  preview: DeletionPreview | undefined; previewError: unknown; closeHint?: string; pending: boolean; error: unknown;
   onConfirm: (version: number) => void; onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [typed, setTyped] = useState('');
   const [version, setVersion] = useState(preview?.version);
   // A refetched preview (after a 409) is a new decision: the name is typed again.
@@ -31,7 +31,7 @@ export function DeleteItemDialog({ preview, previewError, closeHint, pending, er
         </div>
       ) : (
         <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
-          <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{t('deletion.warning', { hint: closeHint })}</p>
+          <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{closeHint ? t('deletion.warning', { hint: closeHint }) : t('deletion.warning_closed')}</p>
           {preview.removes.length > 0 ? (
             <div className="space-y-1 text-sm">
               <p>{t('deletion.removes')}</p>
@@ -45,7 +45,10 @@ export function DeleteItemDialog({ preview, previewError, closeHint, pending, er
               <p className="font-medium">{t('deletion.blocked')}</p>
               <ul className="list-disc pl-5">
                 {preview.blockers.map((b) => (
-                  <li key={b.key}>{label(b.key, b.count)}{b.items.length > 0 ? ` : ${b.items.map((i) => i.name).join(', ')}` : null}</li>
+                  <li key={b.key}>
+                    {label(b.key, b.count)}{b.items.length > 0 ? ` : ${b.items.map((i) => i.name).join(', ')}` : null}
+                    {i18n.exists(`deletion.way_out.${b.key}`) ? <span className="block text-muted-foreground">{t(`deletion.way_out.${b.key}`, { defaultValue: '' })}</span> : null}
+                  </li>
                 ))}
               </ul>
             </div>

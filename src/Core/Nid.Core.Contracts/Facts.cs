@@ -107,6 +107,12 @@ public interface IFlows
     /// </summary>
     Task<IReadOnlyList<Flow>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
 
+    /// <summary>
+    /// #23: the active flows of other items sharing an external ref with an active flow of <paramref name="item"/> (a transfer's other leg);
+    /// no access check, as <see cref="FindManyAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<Flow>> CounterpartsAsync(ItemId item, CancellationToken ct);
+
     /// <summary>Exact sum in the item's currency; zero in that currency when nothing matches.</summary>
     Task<Result<Money>> SumAsync(ItemId item, IReadOnlySet<FlowKind> kinds, DateRange range, CancellationToken ct);
 }

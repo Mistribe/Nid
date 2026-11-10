@@ -375,6 +375,8 @@ public static class RequestCatalogue
         },
         new(typeof(CloseEnvelopeCommand), true, (_, item) => new CloseEnvelopeCommand(item, new LocalDate(2025, 1, 1), null)),
         new(typeof(ReopenEnvelopeCommand), true, (_, item) => new ReopenEnvelopeCommand(item)),
+        new(typeof(EnvelopeDeletionQuery), true, (_, item) => new EnvelopeDeletionQuery(item)),
+        new(typeof(DeleteEnvelopeCommand), true, (_, item) => new DeleteEnvelopeCommand(item, 1)),
         new(typeof(GetEnvelopeSeriesQuery), true, (_, item) => new GetEnvelopeSeriesQuery(item)),
         new(typeof(GetPeriodPerformanceQuery), true, (_, item) => new GetPeriodPerformanceQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
         new(typeof(AddHoldingCommand), true, (_, item) => new AddHoldingCommand(item, new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null))),

@@ -121,7 +121,7 @@ function Actions({ goal }: { goal: GoalSummary }) {
         ? { label: t('goals_list.reopen'), onSelect: () => { if (!pending) reopen.mutate({ params: { path: { id: goal.id } } }); } }
         : { label: t('goals_list.close'), onSelect: () => { if (!pending) setAsking(true); } },
         ...(goal.canWrite ? [{ separator: true as const }, { label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }] : [])]} />
-      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="goals.delete_goal" id={goal.id} onClose={() => setDeleting(false)} /></Suspense> : null}
+      {deleting ? <Suspense fallback={null}><DeleteItemFlow kind="goals.delete_goal" id={goal.id} closed={goal.closed} onClose={() => setDeleting(false)} /></Suspense> : null}
       {asking ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={t('goals_list.close')} confirmation={t('goals_list.close_confirmation', { name: goal.name })} pending={close.isPending}

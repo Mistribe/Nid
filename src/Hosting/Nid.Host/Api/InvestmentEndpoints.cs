@@ -120,6 +120,24 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new ReopenEnvelopeCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
+        api.MapGet("/envelopes/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new EnvelopeDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        api.MapDelete("/envelopes/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // A missing version answers 422 at `version`: it would otherwise bind to 0 and pass for a conflict.
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with the preview is required.");
+                    return reader.Problem();
+                }
+                var result = await invoker.InvokeAsync(new DeleteEnvelopeCommand(new ItemId(id), version.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         api.MapGet("/envelopes/{id:guid}/performance", async (Guid id, string from, string to, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetPeriodPerformanceQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
             .Returns<PeriodView>();

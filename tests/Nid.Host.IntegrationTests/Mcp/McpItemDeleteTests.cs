@@ -171,4 +171,21 @@ public class McpItemDeleteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/income/sources/{source.Value}")).StatusCode);
     }
+
+    [Fact]
+    public async Task Approving_deletes_the_envelope()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        async Task<uint> EnvelopeVersionAsync()
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/investments/envelopes/{envelope.Value}/deletion")).RootElement.GetProperty("version").GetUInt32();
+        await using var client = await ClientAsync(app, TokenPresets.Propose);
+        var proposal = await ProposeAsync(client, "propose_delete_envelope", new { id = envelope.Value, version = await EnvelopeVersionAsync() });
+
+        var response = await ApproveAsync(app, proposal, new { id = envelope.Value, version = await EnvelopeVersionAsync() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("approved", await StatusAsync(app, proposal.GetProperty("id").GetGuid()));
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/investments/envelopes/{envelope.Value}")).StatusCode);
+    }
 }

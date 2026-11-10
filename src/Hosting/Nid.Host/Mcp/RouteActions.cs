@@ -156,6 +156,10 @@ public static class RouteActions
             "Close an envelope on a date, with its final withdrawal when known. " + Ids + Amounts, Destructive: true),
         new("reopen_envelope", "POST", "/api/v1/investments/envelopes/{id:guid}/reopen", null,
             "Reopen a closed envelope. " + Ids),
+        new("delete_envelope", "DELETE", "/api/v1/investments/envelopes/{id:guid}", null,
+            "Propose deleting an envelope created by mistake (to close an account that ended, use close_envelope). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/investments/envelopes/{id:guid}/deletion"),
         new("add_holding", "POST", "/api/v1/investments/envelopes/{id:guid}/holdings", typeof(HoldingBody),
             "Add a holding (support) to an envelope: a fund, ETF, share, the euro fund, a structured product or cash; kind 'euro_fund', 'fund', "
             + "'etf', 'equity', 'bond', 'structured', 'cash' or 'other'. Copy the name and ISIN as printed. " + Ids + Amounts),

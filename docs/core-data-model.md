@@ -435,7 +435,7 @@ Toutes les opérations passent par `IAccessPolicy`. Côté application, les écr
 | `IVisibleItems` | `For(person)` : ensemble des éléments lisibles, filtre unique réutilisé par tous les modules ; variantes « foyer » (partagés seulement) et « moi » |
 | `IItems` | `Create`, `Rename` (met à jour `display_name`), `SetOwners`, `SetVisibility`, `Archive` |
 | `IValuations` | `Record` (crée ou remplace la valeur d'une date), `Void`, `Latest(item, on)`, `Series(item, range)` |
-| `IFlows` | `Record`, `Supersede`, `Void`, `List(item, range, kinds?)`, `FindManyAsync(ids)` (flux actifs par id, sans contrôle d'accès : l'appelant décide qui voit), `Sum(item, kinds, range)` (somme déterministe pour les modules) |
+| `IFlows` | `Record`, `Supersede`, `Void`, `List(item, range, kinds?)`, `FindManyAsync(ids)` (flux actifs par id, sans contrôle d'accès : l'appelant décide qui voit), `CounterpartsAsync(item)` (flux actifs d'autres éléments partageant un `external_ref` avec un flux actif de l'élément, même règle : l'autre côté d'un virement, #23), `Sum(item, kinds, range)` (somme déterministe pour les modules) |
 | `IDocuments` | Retiré de Core : `IDocumentTargets` et `IDocumentLinks` sont dans `Documents.Contracts` (`documents-data-model.md` §5) |
 | `IProposalStore` | Livré en 4C1 : `Submit`, `Find`, `List`, `Decide`, `AddWarning`. Pas d’`Edit` séparé avant 4C2 : la modification se fait à l’approbation (`editedPayload`) |
 | `IProposalHandler` | Non générique, implémenté par chaque module : `Validate`, `Preview`, `Apply` |
