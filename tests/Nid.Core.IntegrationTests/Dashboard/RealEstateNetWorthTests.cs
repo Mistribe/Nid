@@ -230,6 +230,24 @@ public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task An_estimate_before_the_purchase_moves_the_price_from_that_estimate()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var studio = Home(app, "Studio");
+        studio["purchaseDate"] = "2025-04-01";
+        studio["purchasePrice"] = "90000";
+        await EstimateAsync(app, await NewPropertyAsync(app, studio), "2025-02-28", "92000"); // estimated before it was bought
+
+        var points = await HistoryAsync(app, "2024-12-31", "2025-03-31", "2025-04-01", "2025-09-30");
+
+        var parts = Parts(points[0], points[3]);
+        Assert.Equal(Eur(points[3].Values) - Eur(points[0].Values), parts.Values.Sum());
+        Assert.Equal(new Dictionary<string, decimal> { ["real_estate.paid_in"] = 0m, ["real_estate.moved"] = 90_000m, ["real_estate.value"] = 2_000m }, parts);
+        // Nothing happens on the purchase day: the price already entered with the estimate.
+        Assert.All(Parts(points[1], points[2]).Values, change => Assert.Equal(0m, change));
+    }
+
+    [Fact]
     public async Task An_archived_loan_moves_its_balance_and_keeps_its_capital_repaid()
     {
         await using var app = await NidApp.StartAsync(fixture);

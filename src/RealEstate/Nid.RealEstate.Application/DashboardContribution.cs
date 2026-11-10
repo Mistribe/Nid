@@ -113,8 +113,8 @@ public sealed class RealEstateNetWorth(
     /// its purchase price: counting its loan alone drew a net worth deep below zero, then a jump on the day it was first
     /// estimated. A property never estimated stays out, as in today's net worth.
     /// Issue #12: an archived (sold) property or loan counts strictly before its archive day, as a closed envelope. <c>Moved</c>
-    /// holds the purchases and sales, so that neither the paid-in nor the value part jumps: a property's price from its purchase
-    /// on, − a loan's principal from its disbursement on; from its archive day on, − what a property was last counted at, and
+    /// holds the purchases and sales, so that neither the paid-in nor the value part jumps: a property's price from the first day
+    /// it is counted (its purchase, or an earlier first estimate), − a loan's principal from its disbursement on; from its archive day on, − what a property was last counted at, and
     /// + a loan's balance owed, its principal repaid frozen at its last counted day.
     /// </summary>
     public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
@@ -147,7 +147,9 @@ public sealed class RealEstateNetWorth(
             var count = 0;
             foreach (var (currency, series, details, archived) in estimated)
             {
-                if (details.PurchaseDate <= date && (archived is not { } a || details.PurchaseDate < a))
+                // Its price enters on the first day it is counted: an estimate dated before its purchase counts it from then.
+                var counted = LocalDate.Min(series[0].AsOf, details.PurchaseDate);
+                if (counted <= date && (archived is not { } a || counted < a))
                     DashboardParts.Add(moved, currency, details.PurchasePrice);
                 if (archived is { } sold && date >= sold)
                 {
@@ -162,7 +164,7 @@ public sealed class RealEstateNetWorth(
             }
             foreach (var (terms, schedule, archived) in owed)
             {
-                if (date < terms.DisbursedOn || archived <= terms.DisbursedOn)
+                if (date < terms.DisbursedOn || archived is { } a && a <= terms.DisbursedOn)
                     continue; // not yet disbursed, or never counted
                 DashboardParts.Add(moved, terms.Currency, -terms.Principal);
                 if (archived is { } closed && date >= closed)
