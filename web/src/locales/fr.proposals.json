@@ -170,6 +170,7 @@
       "set_childcare_week_override": "Semaine type d’une semaine de garde",
       "close_childcare": "Fin d’une garde",
       "reopen_childcare": "Réouverture d’une garde",
+      "delete_childcare": "Suppression d’une garde créée par erreur",
       "save_childcare_statement": "Écarts d’un relevé de garde",
       "close_goal": "Clôture d’un objectif d’épargne",
       "reopen_goal": "Réouverture d’un objectif d’épargne",
