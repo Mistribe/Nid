@@ -6,13 +6,20 @@ namespace Nid.Core.Contracts;
 /// Net worth projection spec §2.1: the household's assumptions. Rates and inflation are annual fractions (<c>0.06</c> is 6 %);
 /// <c>MonthlySavings</c> is in the reference currency, <c>null</c> meaning automatic. Inflation spec C15: <c>Inflation</c> and
 /// <c>ClassRates</c> are the long-term rates; <c>InflationByYear</c> and <c>ClassRatesByYear</c> (cash and money market only) set a
-/// calendar year's rate; incomes grow by inflation plus <c>IncomeGrowth</c> (D6).
+/// calendar year's rate; incomes grow by inflation plus <c>IncomeGrowth</c> (D6). Ranges spec §2: <c>ClassVolatility</c> is each class's
+/// annual volatility (a fraction), a class absent (or the whole table null) taking <see cref="ProjectionDefaults.ClassVolatility"/>.
 /// </summary>
 public sealed record ProjectionAssumptions(
     IReadOnlyDictionary<string, decimal> ClassRates, decimal Inflation, decimal? MonthlySavings, string SavingsClass, bool FreedPaymentsToSavings,
     IReadOnlyDictionary<int, decimal>? InflationByYear = null,
     IReadOnlyDictionary<string, IReadOnlyDictionary<int, decimal>>? ClassRatesByYear = null,
-    decimal IncomeGrowth = 0m);
+    decimal IncomeGrowth = 0m,
+    IReadOnlyDictionary<string, decimal>? ClassVolatility = null)
+{
+    /// <summary>The class's annual volatility: its own, else the default (0 for a class with none).</summary>
+    public decimal VolatilityOf(string @class)
+        => ClassVolatility is { } table && table.TryGetValue(@class, out var own) ? own : ProjectionDefaults.ClassVolatility.GetValueOrDefault(@class);
+}
 
 /// <summary>What a household that never chose assumptions gets; the property purchase scenario starts from the same rates.</summary>
 public static class ProjectionDefaults
@@ -27,6 +34,22 @@ public static class ProjectionDefaults
         [AllocationClasses.Mixed] = 0.04m,
         [AllocationClasses.CapitalGuaranteed] = 0.025m,
         [AllocationClasses.RealEstate] = 0.02m,
+        [AllocationClasses.Other] = 0m,
+    };
+
+    /// <summary>
+    /// Ranges spec §2: the pre-filled annual volatility per class, as fractions. Cash, money market and capital-guaranteed funds do not
+    /// fall; « other » is unknown, so left flat.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, decimal> ClassVolatility = new Dictionary<string, decimal>
+    {
+        [AllocationClasses.Cash] = 0m,
+        [AllocationClasses.MoneyMarket] = 0m,
+        [AllocationClasses.Bond] = 0.06m,
+        [AllocationClasses.Equity] = 0.16m,
+        [AllocationClasses.Mixed] = 0.1m,
+        [AllocationClasses.CapitalGuaranteed] = 0m,
+        [AllocationClasses.RealEstate] = 0.1m,
         [AllocationClasses.Other] = 0m,
     };
 
@@ -80,10 +103,11 @@ public sealed record ProjectionOverrides(
     IReadOnlyDictionary<string, decimal>? ClassRates, decimal? Inflation, decimal? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,
     IReadOnlyDictionary<int, decimal>? InflationByYear = null,
     IReadOnlyDictionary<string, IReadOnlyDictionary<int, decimal>>? ClassRatesByYear = null,
-    decimal? IncomeGrowth = null)
+    decimal? IncomeGrowth = null,
+    IReadOnlyDictionary<string, decimal>? ClassVolatility = null)
 {
     /// <summary>
-    /// Class rates merged key by key, the yearly class tables class by class; the inflation table replaced whole (C18); every other
+    /// Class rates and volatilities merged key by key, the yearly class tables class by class; the inflation table replaced whole (C18); every other
     /// field replaced when set.
     /// </summary>
     public ProjectionAssumptions Apply(ProjectionAssumptions household)
@@ -100,10 +124,17 @@ public sealed record ProjectionOverrides(
                 if (table is not null) merged[@class] = table;
             yearly = merged;
         }
+        var volatility = household.ClassVolatility;
+        if (ClassVolatility is not null)
+        {
+            var merged = (household.ClassVolatility ?? new Dictionary<string, decimal>()).ToDictionary(v => v.Key, v => v.Value);
+            foreach (var (@class, sigma) in ClassVolatility) merged[@class] = sigma;
+            volatility = merged;
+        }
         return new ProjectionAssumptions(
             rates, Inflation ?? household.Inflation, MonthlySavings ?? household.MonthlySavings,
             SavingsClass ?? household.SavingsClass, FreedPaymentsToSavings ?? household.FreedPaymentsToSavings,
-            InflationByYear ?? household.InflationByYear, yearly, IncomeGrowth ?? household.IncomeGrowth);
+            InflationByYear ?? household.InflationByYear, yearly, IncomeGrowth ?? household.IncomeGrowth, volatility);
     }
 }
 

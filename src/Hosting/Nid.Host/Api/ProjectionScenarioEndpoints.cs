@@ -37,8 +37,9 @@ public static class ProjectionScenarioEndpoints
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
-        api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetProjectionScenarioQuery(new ItemId(id)), ct)).ToHttp(view => view))
+        // Ranges spec §4: the scenario's bands on demand.
+        api.MapGet("/{id:guid}", async (Guid id, bool? ranges, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetProjectionScenarioQuery(new ItemId(id), ranges == true), ct)).ToHttp(view => view))
             .Returns<ProjectionScenarioView>();
 
         api.MapPut("/{id:guid}", async (Guid id, ProjectionScenarioBody body, IInvoker invoker, CancellationToken ct) =>

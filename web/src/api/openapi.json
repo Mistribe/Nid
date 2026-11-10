@@ -20286,6 +20286,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "ranges",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -23342,6 +23349,13 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "ranges",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -28516,6 +28530,15 @@
               "null",
               "string"
             ]
+          },
+          "classVolatility": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -43584,7 +43607,8 @@
           "currency",
           "inflationByYear",
           "classRatesByYear",
-          "incomeGrowth"
+          "incomeGrowth",
+          "classVolatility"
         ],
         "type": "object",
         "properties": {
@@ -43629,6 +43653,12 @@
           },
           "incomeGrowth": {
             "type": "string"
+          },
+          "classVolatility": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "observedInflation": {
             "oneOf": [
@@ -43947,6 +43977,15 @@
               "null",
               "string"
             ]
+          },
+          "classVolatility": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -43967,6 +44006,29 @@
           },
           "with": {
             "$ref": "#/components/schemas/DashboardMoneyView"
+          }
+        }
+      },
+      "ProjectionRangesView": {
+        "required": [
+          "runs",
+          "success",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "success": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RangePointView"
+            }
           }
         }
       },
@@ -44106,6 +44168,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "ranges": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectionRangesView"
+              }
             ]
           }
         }
@@ -46840,6 +46912,42 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "RangePointView": {
+        "required": [
+          "on",
+          "low",
+          "median",
+          "high",
+          "lowReal",
+          "medianReal",
+          "highReal"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "low": {
+            "type": "string"
+          },
+          "median": {
+            "type": "string"
+          },
+          "high": {
+            "type": "string"
+          },
+          "lowReal": {
+            "type": "string"
+          },
+          "medianReal": {
+            "type": "string"
+          },
+          "highReal": {
+            "type": "string"
           }
         }
       },
