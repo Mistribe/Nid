@@ -17,7 +17,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { monthLabel } from '@/lib/format';
+import { yyyyMmLabel as month } from '@/lib/format';
 import type { RootSearch } from '@/lib/search';
 import { RetirementDialog } from '@/features/settings/RetirementDialog';
 import { PensionDialog } from './PensionDialog';
@@ -25,11 +25,6 @@ import { RETIREMENT, type Departure, type RetirementView } from './api';
 
 const IndependenceChart = lazy(() => import('./IndependenceChart'));
 
-/** A server month (yyyy-MM) as « novembre 2040 ». */
-const month = (yyyyMm: string) => {
-  const [year, m] = yyyyMm.split('-').map(Number);
-  return monthLabel(year ?? 0, m ?? 1, 'long');
-};
 /** A server percent as a French one: « 4.0 » reads « 4,0 % » (a string swap, nothing computed). */
 const percent = (value: string) => `${value.replace('.', ',')} %`;
 const age = (d: Departure, t: TFunction) => (d.months > 0 ? t('settings.projection.age_years_months', { years: d.years, months: d.months }) : t('settings.projection.age_years', { count: d.years }));
@@ -102,7 +97,7 @@ function Body({ data, scope }: { data: RetirementView; scope: 'household' | 'me'
 
       {data.independence.length > 0 ? (
         <Section title={t('retirement.independence_curve')}>
-          <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}><IndependenceChart data={data} /></Suspense>
+          <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}><IndependenceChart data={data} livingCostMissing={livingCostMissing} /></Suspense>
         </Section>
       ) : null}
 

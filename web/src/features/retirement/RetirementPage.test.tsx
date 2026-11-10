@@ -206,6 +206,19 @@ describe('the independence curve', () => {
     expect(screen.getByText('Revenus couverts')).toBeInTheDocument();
   });
 
+  it('does not say unreached when the living cost is missing', async () => {
+    serve(view({ independence: points, financialIndependence: null, warnings: [{ code: 'living_cost_missing', detail: null }] }));
+    await renderApp('/retirement');
+    expect(await screen.findByRole('img', { name: /non calculée \(coût de la vie non renseigné\)/ })).toBeInTheDocument();
+  });
+
+  it('offers the year-end table', async () => {
+    serve(view({ independence: points }));
+    const { user } = await renderApp('/retirement');
+    await user.click(await screen.findByRole('button', { name: 'Afficher en tableau' }));
+    expect(within(await screen.findByRole('table', { name: /en tableau/ })).getByText('juin 2040')).toBeInTheDocument();
+  });
+
   it('says when it is not reached', async () => {
     serve(view({ independence: points, financialIndependence: null }));
     await renderApp('/retirement');

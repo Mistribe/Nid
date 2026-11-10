@@ -405,6 +405,10 @@
     "covered": "Revenus couverts",
     "expenses": "Dépenses",
     "legend": "Légende",
+    "independence_not_computed": "non calculée (coût de la vie non renseigné)",
+    "table": "Courbe d'indépendance financière en tableau",
+    "date": "Date",
+    "capital": "Capital",
     "chart_summary": "Revenus couverts par le capital et dépenses, mois par mois. Indépendance financière : {{date}}."
   },
   "shell": { "sign_out": "Se déconnecter", "guide_help": "Guide de cette page" },
