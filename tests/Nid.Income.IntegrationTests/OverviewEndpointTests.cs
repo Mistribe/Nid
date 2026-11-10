@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Nid.Core.Contracts;
@@ -316,8 +317,8 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         var past = await ReviewAsync(app, 2024);
         var current = await ReviewAsync(app, 2025);
 
-        Assert.Equal(Amount((await OverviewAsync(app, "?period=year&year=2024")).GetProperty("figures").GetProperty("total")), $"{past.Total:0.00}");
-        Assert.Equal(Amount((await OverviewAsync(app)).GetProperty("figures").GetProperty("elapsed")), $"{current.Total:0.00}");
+        Assert.Equal(Amount((await OverviewAsync(app, "?period=year&year=2024")).GetProperty("figures").GetProperty("total")), string.Create(CultureInfo.InvariantCulture, $"{past.Total:0.00}"));
+        Assert.Equal(Amount((await OverviewAsync(app)).GetProperty("figures").GetProperty("elapsed")), string.Create(CultureInfo.InvariantCulture, $"{current.Total:0.00}"));
         Assert.Equal([(salary.ToString(), "Salaire", "salary", 24000m), (property.ToString(), "Studio", "rent", 9600m), ("one_off", null, null, 500m)],
             past.Sources.Select(s => (s.Key, s.Name, s.Kind, s.Amount!.Value)));
         Assert.Equal(new ItemId(salary), past.Sources[0].Id);
@@ -339,8 +340,8 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         var current = await ReviewAsync(app, 2025);
 
         Assert.Equal((21600m, 16000m), (past.Total, current.Total));
-        Assert.Equal(Amount((await OverviewAsync(app, "?period=year&year=2024")).GetProperty("figures").GetProperty("total")), $"{past.Total:0.00}");
-        Assert.Equal(Amount((await OverviewAsync(app)).GetProperty("figures").GetProperty("elapsed")), $"{current.Total:0.00}");
+        Assert.Equal(Amount((await OverviewAsync(app, "?period=year&year=2024")).GetProperty("figures").GetProperty("total")), string.Create(CultureInfo.InvariantCulture, $"{past.Total:0.00}"));
+        Assert.Equal(Amount((await OverviewAsync(app)).GetProperty("figures").GetProperty("elapsed")), string.Create(CultureInfo.InvariantCulture, $"{current.Total:0.00}"));
     }
 
     [Fact]
