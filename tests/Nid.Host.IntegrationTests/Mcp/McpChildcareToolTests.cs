@@ -9,7 +9,7 @@ namespace Nid.Host.IntegrationTests.Mcp;
 /// <summary>Childcare decision 27: the assistant reads arrangements and statements as their routes answer them.</summary>
 public class McpChildcareToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    private static async Task<string> CreateAsync(NidApp app)
+    internal static async Task<string> CreateAsync(NidApp app)
     {
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/childcare", new
         {

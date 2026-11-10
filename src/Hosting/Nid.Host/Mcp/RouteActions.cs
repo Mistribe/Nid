@@ -248,6 +248,10 @@ public static class RouteActions
             "End an arrangement on its last day (on). " + Ids + Amounts),
         new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,
             "Reopen an ended arrangement. " + Ids),
+        new("delete_childcare", "DELETE", "/api/v1/childcare/{id:guid}", null,
+            "Propose deleting an arrangement created by mistake, with its statements (to end one that ended, use close_childcare). A validated month "
+            + "refuses it until reopened. The household confirms it by typing its name. version is the one the deletion preview returned. " + Ids,
+            Destructive: true, Query: ["version"], Current: "/api/v1/childcare/{id:guid}/deletion"),
         new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
             "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
             + "changed (present with arrival and departure HH:mm, lunch, snack and, for a planned day cut short, an optional reason; or absent with a reason: family, parent_rtt, child_sick, carer_absent, "
