@@ -6,6 +6,15 @@ test('alice sets her departure and a living cost, then enters her pension on the
   const alice = await browser.newPage();
   await signIn(alice, 'alice', '/settings/projection');
 
+  // Re-runnable: « Saisir la pension » only shows while Alice has no pension source, so remove those a previous run left.
+  const { csrf } = (await (await alice.request.get('/auth/session')).json()) as { csrf: string };
+  const headers = { 'X-Nid-Csrf': csrf };
+  const sources = (await (await alice.request.get('/api/v1/income/sources?scope=me')).json()) as { items: { id: string; kind: string; canWrite: boolean }[] };
+  for (const source of sources.items.filter((i) => i.kind === 'pension' && i.canWrite)) {
+    const { version } = (await (await alice.request.get(`/api/v1/income/sources/${source.id}/deletion`)).json()) as { version: number };
+    expect((await alice.request.delete(`/api/v1/income/sources/${source.id}?version=${version}`, { headers })).ok()).toBe(true);
+  }
+
   await alice.getByRole('button', { name: /Modifier la retraite de Alice/ }).click();
   const departure = alice.getByRole('dialog');
   await fillDate(departure, 'Date de naissance', '1970-03-15');
@@ -38,5 +47,6 @@ test('alice sets her departure and a living cost, then enters her pension on the
 
   // With a living cost set, independence is either a month or "not reached": never the missing-cost warning.
   await expect(alice.getByText('Indépendance financière').first()).toBeVisible();
+  await expect(alice.getByText(/^(\p{L}+\.? \d{4}|Non atteinte avant l'horizon)$/u).first()).toBeVisible();
   await expect(alice.getByText(/Renseignez le coût de la vie mensuel/)).toHaveCount(0);
 });
