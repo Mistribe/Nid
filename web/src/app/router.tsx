@@ -58,9 +58,9 @@ export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'
 
 /**
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
- * default and stays out of the URL), person, kind and isolated source; anything invalid is dropped.
+ * default and stays out of the URL), person, kind and isolated source; the tab (issue #20); anything invalid is dropped.
  */
-export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string };
+export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string; tab?: string };
 
 /**
  * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue
@@ -312,6 +312,7 @@ const incomeRoute = createRoute({
     ...(typeof search.person === 'string' && search.person ? { person: search.person } : {}),
     ...(typeof search.kind === 'string' && search.kind ? { kind: search.kind } : {}),
     ...(typeof search.source === 'string' && search.source ? { source: search.source } : {}),
+    ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourcesPage'), 'IncomeSourcesPage'),
 });
