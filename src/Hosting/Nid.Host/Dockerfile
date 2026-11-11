@@ -26,8 +26,10 @@ RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets /volumes/var/
 # The web app: its build and the security headers file the host answers the SPA with (frontend/architecture.md §9: one source).
 FROM node:26-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS web
 WORKDIR /web
-# Node 25+ no longer ships corepack: install it, it then runs the pnpm of package.json's packageManager.
-RUN npm install --global corepack@0.36.0 && corepack enable
+# Node 25+ no longer ships corepack: install it, it then runs the pnpm of package.json's packageManager. npm ci from a lockfile
+# pins its tarball by hash (corepack/package-lock.json, kept current by Renovate).
+COPY src/Hosting/Nid.Host/corepack/ /opt/corepack/
+RUN npm ci --prefix /opt/corepack --ignore-scripts && /opt/corepack/node_modules/.bin/corepack enable --install-directory /usr/local/bin
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.npmrc ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm pnpm install --frozen-lockfile
 COPY web/ ./

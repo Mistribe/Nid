@@ -47,4 +47,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup>
+    <!-- The Dockerfile's corepack lockfile, not a file the host serves or reads. -->
+    <Content Remove="corepack/**" />
+    <None Remove="corepack/**" />
+  </ItemGroup>
 </Project>
