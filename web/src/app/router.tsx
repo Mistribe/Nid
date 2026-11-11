@@ -379,6 +379,7 @@ const retirementRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/retirement',
   beforeLoad: requireModule('core'),
+  validateSearch: detailSearch,
   component: lazyRouteComponent(() => import('@/features/retirement/RetirementPage'), 'RetirementPage'),
 });
 

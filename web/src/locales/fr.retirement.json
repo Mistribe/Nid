@@ -10,7 +10,7 @@
     "independence_unreached": "Non atteinte avant l'horizon",
     "living_cost_missing": "Renseignez le coût de la vie mensuel dans Réglages › Projection pour calculer la date d'indépendance financière.",
     "no_figures": "Aucun départ dans les 40 ans : renseignez une date de naissance dans Réglages › Projection.",
-    "note": "Chiffres indicatifs, en euros d'aujourd'hui, calculés à partir des hypothèses ci-dessous.",
+    "note": "Chiffres indicatifs, en euros d'aujourd'hui, calculés à partir des hypothèses de l'onglet « Analyse ».",
     "departures": "Départs à la retraite",
     "adult": "Adulte",
     "departure": "Départ",
@@ -38,6 +38,17 @@
     "date": "Date",
     "capital": "Capital",
     "chart_summary": "Revenus couverts par le capital et dépenses, mois par mois. Indépendance financière : {{date}}.",
-    "private_pension": "Votre pension est privée : elle ne compte que dans « Moi »."
+    "private_pension": "Votre pension est privée : elle ne compte que dans « Moi ».",
+    "tab_overview": "Vue d’ensemble",
+    "tab_analysis": "Analyse",
+    "tab_departures": "Départs",
+    "gap_note": "Au départ, {{month}}",
+    "independence_not_set": "Non calculée",
+    "no_figures_title": "Aucun départ à la retraite à calculer",
+    "open_settings": "Ouvrir Réglages › Projection",
+    "capital_title": "Capital au départ",
+    "capital_at_retirement": "Capital projeté",
+    "capital_needed_hint": "au taux de retrait de {{rate}}",
+    "horizon": "Horizon de la projection"
   }
 }
