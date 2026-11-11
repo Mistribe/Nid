@@ -218,9 +218,9 @@ describe('ProjectionScenarioPage', () => {
     const { user } = await renderApp(`/scenarios/projection/${ID}`);
 
     await user.click(await screen.findByRole('button', { name: 'Fourchette' }));
-    expect(await screen.findByText('L’épargne disponible tient jusqu’à l’horizon dans 64 % des 1 000 tirages.')).toBeInTheDocument();
+    expect(await screen.findByText('Dans 64 % des cas, l’épargne disponible tient jusqu’au bout de la projection.')).toBeInTheDocument();
     expect(seen.filter((s) => s.includes('ranges=true'))).toHaveLength(1);
-    expect(screen.getByRole('list', { name: 'Légende' })).toHaveTextContent('Médiane des tirages');
+    expect(screen.getByRole('list', { name: 'Légende' })).toHaveTextContent('Cas médian');
   });
 
   it('keeps the open tab in the URL', async () => {

@@ -18,7 +18,7 @@ export function InsuranceFields({ form, index }: { form: UseFormReturn<ContractV
     <>
       <div className="grid gap-3 sm:grid-cols-2">
         <Controller control={form.control} name={`insurances.${index}.mode`} render={({ field }) => (
-          <Field label={t('loan_form.insurance_mode')} error={e?.mode?.message}>
+          <Field label={t('loan_form.insurance_mode')} tip={t('loan_form.insurance_mode_tip')} error={e?.mode?.message}>
             {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
               options={INSURANCE_MODES.map((m) => ({ value: m, label: t(`loan_form.insurance_mode_option.${m}`) }))} />}
           </Field>
