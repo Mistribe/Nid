@@ -1,0 +1,8 @@
+{
+  "name": "nid-image-corepack",
+  "private": true,
+  "description": "Corepack for the web stage of the image, installed with npm ci so its tarball is pinned by hash (OpenSSF Scorecard, Pinned-Dependencies).",
+  "dependencies": {
+    "corepack": "0.36.0"
+  }
+}
