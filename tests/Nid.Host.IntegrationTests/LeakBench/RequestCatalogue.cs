@@ -564,6 +564,7 @@ public static class RequestCatalogue
         new(typeof(EditChildcareCommand), true, (_, item) => new EditChildcareCommand(item, "bench", new CarerInput("bench", null, null),
             BenchChildcareTerms(new LocalDate(2025, 9, 1)), 1)),
         new(typeof(ReviseChildcareCommand), true, (_, item) => new ReviseChildcareCommand(item, BenchChildcareTerms(new LocalDate(2026, 1, 1)))),
+        new(typeof(SetUnpaidAbsencesCommand), true, (_, item) => new SetUnpaidAbsencesCommand(item, new LocalDate(2025, 9, 1), AbsenceCodes.DefaultUnpaid)),
         new(typeof(ReplaceGapsCommand), true, (_, item) => new ReplaceGapsCommand(item, [])),
         new(typeof(SetWeekOverrideCommand), true, (_, item) => new SetWeekOverrideCommand(item, new LocalDate(2025, 9, 1), 0)),
         new(typeof(CloseChildcareCommand), true, (_, item) => new CloseChildcareCommand(item, new LocalDate(2030, 1, 1))),
