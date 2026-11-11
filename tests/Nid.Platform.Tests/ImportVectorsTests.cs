@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 
 namespace Nid.Platform.Tests;
 
@@ -39,7 +39,7 @@ public class ImportVectorsTests
             {
                 var slice = entities.Skip(index * BatchSize).Take(BatchSize).ToList();
                 using var batch = JsonDocument.Parse("[" + string.Join(",", slice.Select(e => e.GetRawText())) + "]");
-                batches.Add(new Batch(file, section.Name, index, slice.Count, Rfc8785.Hash(batch.RootElement)));
+                batches.Add(new Batch(file, section.Name, index, slice.Count, JsonCanonicalizer.Hash(batch.RootElement)));
             }
         }
         return batches;

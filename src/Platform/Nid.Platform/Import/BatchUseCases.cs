@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -62,8 +62,8 @@ public sealed class PutBatchHandler(
         string hash, canonical;
         try
         {
-            canonical = Rfc8785.Canonicalize(command.Entities);
-            hash = Rfc8785.Hash(command.Entities);
+            canonical = JsonCanonicalizer.Canonicalize(command.Entities);
+            hash = JsonCanonicalizer.Hash(command.Entities);
         }
         catch (FormatException e)
         {

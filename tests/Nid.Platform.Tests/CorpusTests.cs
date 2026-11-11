@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 
 namespace Nid.Platform.Tests;
 
@@ -15,7 +15,7 @@ public class CorpusTests
         => CorpusGenerator.Inputs().Select(input =>
         {
             using var doc = JsonDocument.Parse(input);
-            return new Entry(input, Rfc8785.Canonicalize(doc.RootElement), Rfc8785.Hash(doc.RootElement));
+            return new Entry(input, JsonCanonicalizer.Canonicalize(doc.RootElement), JsonCanonicalizer.Hash(doc.RootElement));
         }).ToList();
 
     /// <summary>
@@ -44,7 +44,7 @@ public class CorpusTests
         foreach (var entry in Generate())
         {
             using var doc = JsonDocument.Parse(entry.Canonical);
-            Assert.Equal(entry.Canonical, Rfc8785.Canonicalize(doc.RootElement));
+            Assert.Equal(entry.Canonical, JsonCanonicalizer.Canonicalize(doc.RootElement));
         }
     }
 

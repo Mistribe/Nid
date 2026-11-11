@@ -6,7 +6,7 @@ using Nid.Banking.Application;
 using Nid.Banking.Contracts;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
@@ -78,7 +78,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         {
             using var parsed = JsonDocument.Parse(entities);
             var put = await app.RawTextAsync(actor, HttpMethod.Put, $"{Imports}/{session}/batches/{section}/0",
-                $$"""{"hash":"{{Rfc8785.Hash(parsed.RootElement)}}","entities":{{entities}}}""");
+                $$"""{"hash":"{{JsonCanonicalizer.Hash(parsed.RootElement)}}","entities":{{entities}}}""");
             Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
             batchIssues.AddRange((await BankingApi.JsonAsync(put)).GetProperty("issues").EnumerateArray());
         }
