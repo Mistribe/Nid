@@ -61,14 +61,14 @@ public class ChildcareMonthTests
         Assert.Equal(436.58m, figures.TaxBase);
     }
 
-    /// <summary>Half an hour extra: paid as worked, declared as a whole hour, taken back out of the 145.67 normal hours.</summary>
+    /// <summary>Half an hour extra: paid as worked, declared as a whole hour, the 145.67 mensualised normal hours untouched.</summary>
     [Fact]
-    public void A_started_extra_hour_is_declared_whole_and_lowers_the_normal_hours()
+    public void A_started_extra_hour_is_declared_whole_and_keeps_the_normal_hours()
     {
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), days => [.. days.Select(d => d.Date.Day == 3 ? d with { Departure = d.Departure!.Value.PlusMinutes(30) } : d)]));
         Assert.Equal(628.52m, figures.Declaration.NetPay); // 626.37 + 0.5 × 4.30
         Assert.Equal(1m, figures.Declaration.ComplementaryHours);
-        Assert.Equal(145, figures.Declaration.NormalHours); // (628.52 − 4.30) ÷ 4.30 = 145.17
+        Assert.Equal(146, figures.Declaration.NormalHours); // 626.37 ÷ 4.30 = 145.67
     }
 
     [Fact]
