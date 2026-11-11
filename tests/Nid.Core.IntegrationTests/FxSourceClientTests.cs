@@ -1,8 +1,9 @@
+using Nid.Platform;
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Fx;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using NodaTime;
 
 namespace Nid.Core.IntegrationTests;
@@ -17,7 +18,7 @@ public class FxSourceClientTests
     }
 
     private static FxSourceClient Client(HttpStatusCode status)
-        => new(new SafeHttpClient(new HttpMessageInvoker(new StubHandler(status)), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance),
+        => new(new SafeHttpClient(new HttpMessageInvoker(new StubHandler(status)), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance),
             new FxOptions());
 
     [Fact]

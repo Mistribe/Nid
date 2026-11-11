@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Net;
 using Nid.Core.Contracts;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -33,7 +33,7 @@ public sealed class FxSourceClient(SafeHttpClient http, FxOptions options) : IFx
                 return Fail(FxCodes.SourceUnavailable, $"{url.Host} answered HTTP {(int)response.Status}.");
             return Result.Success(new FxFetch(response.Body));
         }
-        catch (OutboundRefusedException refused) when (refused.Reason == "too_large")
+        catch (OutboundRefusedException refused) when (refused.Reason == RefusalReasons.TooLarge)
         {
             return Fail(FxCodes.SourceMalformed, $"{url.Host} sent more than {maxBytes} bytes.");
         }

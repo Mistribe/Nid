@@ -1,8 +1,9 @@
+using Nid.Platform;
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Prices;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 
 namespace Nid.Core.IntegrationTests;
 
@@ -20,8 +21,8 @@ public class PriceSourceClientTests
         }
     }
 
-    private static PriceSourceClient Client(HttpMessageHandler handler, PriceOptions? options = null, OutboundOptions? outbound = null)
-        => new(new SafeHttpClient(new HttpMessageInvoker(handler), outbound ?? new OutboundOptions(), NullLogger<SafeHttpClient>.Instance),
+    private static PriceSourceClient Client(HttpMessageHandler handler, PriceOptions? options = null, MyelinOptions? outbound = null)
+        => new(new SafeHttpClient(new HttpMessageInvoker(handler), outbound ?? NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance),
             options ?? new PriceOptions());
 
     [Fact]
@@ -70,7 +71,7 @@ public class PriceSourceClientTests
     public async Task A_host_outside_the_list_is_refused_without_a_request()
     {
         var handler = new StubHandler(HttpStatusCode.OK);
-        var result = await Client(handler, outbound: new OutboundOptions { AllowedHosts = ["www.ecb.europa.eu"] }).BoursoramaSearchAsync("FR0010148981", TestContext.Current.CancellationToken);
+        var result = await Client(handler, outbound: new MyelinOptions { AllowedHosts = ["www.ecb.europa.eu"] }).BoursoramaSearchAsync("FR0010148981", TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(PriceCodes.SourceRefused, failure!.Code);

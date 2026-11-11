@@ -1,4 +1,4 @@
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -37,7 +37,7 @@ public sealed class CatalogSourceClient(SafeHttpClient http, CatalogOptions opti
                 return Fail(CatalogCodes.SourceUnavailable, $"{url.Host} answered HTTP {(int)response.Status} for {file}.");
             return Result.Success(response.Body);
         }
-        catch (OutboundRefusedException refused) when (refused.Reason == "too_large")
+        catch (OutboundRefusedException refused) when (refused.Reason == RefusalReasons.TooLarge)
         {
             return Fail(CatalogCodes.SourceMalformed, $"{file} is larger than {CatalogLimits.MaxFileBytes} bytes.");
         }

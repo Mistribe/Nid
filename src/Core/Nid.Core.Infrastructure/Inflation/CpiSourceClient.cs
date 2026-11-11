@@ -1,4 +1,4 @@
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.Core.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -20,7 +20,7 @@ public sealed class CpiSourceClient(SafeHttpClient http, InflationOptions option
                 ? Fail(InflationCodes.SourceUnavailable, $"{url.Host} answered HTTP {(int)response.Status}.")
                 : Result.Success(response.Body);
         }
-        catch (OutboundRefusedException refused) when (refused.Reason == "too_large")
+        catch (OutboundRefusedException refused) when (refused.Reason == RefusalReasons.TooLarge)
         {
             return Fail(InflationCodes.SourceMalformed, $"{url.Host} sent more than {MaxBytes} bytes.");
         }

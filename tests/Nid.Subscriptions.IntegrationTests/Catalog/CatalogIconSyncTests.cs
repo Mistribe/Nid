@@ -1,9 +1,10 @@
+using Nid.Platform;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Assets;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Catalog;
@@ -134,7 +135,7 @@ public class CatalogIconSyncTests(PostgresFixture fixture) : IClassFixture<Postg
     {
         var handler = new RecordingHandler();
         await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<ICatalogIconSource>(new CatalogIconSource(
-            new SafeHttpClient(new HttpMessageInvoker(handler), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance))));
+            new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance))));
         ServeCatalog(app, netflixIcon: "https://cdn.example.com/netflix.png", spotifyIcon: null);
 
         var icons = await SyncAsync(app);
