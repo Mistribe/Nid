@@ -1,6 +1,7 @@
+using Nid.Platform;
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Irl;
 
@@ -26,8 +27,8 @@ public class IrlSourceClientTests
             => throw new HttpRequestException("down");
     }
 
-    private static IrlSourceClient Client(HttpMessageHandler handler, OutboundOptions? outbound = null)
-        => new(new SafeHttpClient(new HttpMessageInvoker(handler), outbound ?? new OutboundOptions(), NullLogger<SafeHttpClient>.Instance),
+    private static IrlSourceClient Client(HttpMessageHandler handler, MyelinOptions? outbound = null)
+        => new(new SafeHttpClient(new HttpMessageInvoker(handler), outbound ?? NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance),
             new IrlOptions());
 
     [Fact]
@@ -66,7 +67,7 @@ public class IrlSourceClientTests
     public async Task A_host_outside_the_list_is_refused_without_a_request()
     {
         var handler = new StubHandler(HttpStatusCode.OK);
-        var result = await Client(handler, new OutboundOptions { AllowedHosts = ["www.ecb.europa.eu"] }).FetchAsync(TestContext.Current.CancellationToken);
+        var result = await Client(handler, new MyelinOptions { AllowedHosts = ["www.ecb.europa.eu"] }).FetchAsync(TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(IrlCodes.SourceRefused, failure!.Code);

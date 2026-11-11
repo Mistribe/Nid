@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Nid.Banking.Contracts;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;

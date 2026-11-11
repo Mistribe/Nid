@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 
 namespace Nid.Host.Notifications;
 

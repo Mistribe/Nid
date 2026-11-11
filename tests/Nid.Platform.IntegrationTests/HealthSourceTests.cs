@@ -1,3 +1,4 @@
+using Nid.Platform;
 using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Notifications;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.TestSupport;
 using NodaTime;
 
@@ -143,7 +144,7 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var h = await StartAsync(overrides: s =>
         {
             s.RemoveAll<SafeHttpClient>();
-            s.AddSingleton(new SafeHttpClient(new HttpMessageInvoker(new Ok()), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance));
+            s.AddSingleton(new SafeHttpClient(new HttpMessageInvoker(new Ok()), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance));
         });
         Assert.True((await h.App.RawAsync(h.App.AdultA, HttpMethod.Put, "/api/v1/admin/notifications/discord", new { url = Hook })).IsSuccessStatusCode);
         await h.WriteAsync(Failed(success: Yesterday));

@@ -1,7 +1,8 @@
+using Nid.Platform;
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Catalog;
 using Nid.TestSupport;
@@ -27,7 +28,7 @@ public class CatalogSourceClientTests
     private static (CatalogSourceClient Client, StubHandler Handler) Client(Func<Uri, HttpResponseMessage> answer, CatalogOptions? options = null)
     {
         var handler = new StubHandler(answer);
-        var http = new SafeHttpClient(new HttpMessageInvoker(handler), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance);
+        var http = new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance);
         return (new CatalogSourceClient(http, options ?? new CatalogOptions()), handler);
     }
 

@@ -1,6 +1,7 @@
+using Nid.Platform;
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Catalog;
 using Nid.TestSupport;
@@ -32,7 +33,7 @@ public class CatalogIconSourceTests
 
     private static CatalogIconSource Source(HttpMessageHandler handler, TimeSpan? timeout = null)
     {
-        var http = new SafeHttpClient(new HttpMessageInvoker(handler), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance);
+        var http = new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance);
         return timeout is { } limit ? new CatalogIconSource(http, limit) : new CatalogIconSource(http);
     }
 
@@ -117,7 +118,7 @@ public class CatalogIconSourceTests
     public async Task A_private_address_is_refused()
     {
         var http = new SafeHttpClient(
-            new HttpMessageInvoker(OutboundHandler.Create(new FixedResolver("10.0.0.1"))), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance);
+            new HttpMessageInvoker(MyelinHandler.Create(new FixedResolver("10.0.0.1"))), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance);
 
         Assert.Equal(IconCodes.AddressRefused, (await new CatalogIconSource(http).FetchAsync(Logo, TestContext.Current.CancellationToken)).FailureCode());
     }

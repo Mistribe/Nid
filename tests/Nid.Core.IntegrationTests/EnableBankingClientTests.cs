@@ -1,3 +1,4 @@
+using Nid.Platform;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -6,7 +7,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Nid.Banking.Contracts;
 using Nid.Banking.Infrastructure.EnableBanking;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using NodaTime;
 
 namespace Nid.Core.IntegrationTests;
@@ -36,7 +37,7 @@ public class EnableBankingClientTests
     {
         var handler = new StubHandler(status, second is null ? [body] : [body, second]);
         using var rsa = RSA.Create(2048);
-        var http = new SafeHttpClient(new HttpMessageInvoker(handler), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance);
+        var http = new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance);
         return (new EnableBankingClient(http, new BankingOptions { PrivateKey = key ?? rsa.ExportPkcs8PrivateKeyPem() }, new FixedClock(Now)), handler);
     }
 
@@ -250,7 +251,7 @@ public class EnableBankingClientTests
         Assert.Equal(BankingCodes.ProviderError, FailureOf(await client.AspspsAsync("app", "FR", TestContext.Current.CancellationToken)));
 
         var none = new EnableBankingClient(
-            new SafeHttpClient(new HttpMessageInvoker(handler), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance), new BankingOptions(), new FixedClock(Now));
+            new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance), new BankingOptions(), new FixedClock(Now));
         Assert.Equal(BankingCodes.NotConfigured, FailureOf(await none.AspspsAsync("app", "FR", TestContext.Current.CancellationToken)));
         Assert.Empty(handler.Requests);
     }

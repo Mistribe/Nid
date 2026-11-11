@@ -1,3 +1,4 @@
+using Nid.Platform;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -9,7 +10,7 @@ using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Notifications;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.TestSupport;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -77,7 +78,7 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
                 services.RemoveAll<INotificationSource>();
                 services.AddSingleton<INotificationSource>(source);
                 services.RemoveAll<SafeHttpClient>();
-                services.AddSingleton(new SafeHttpClient(new HttpMessageInvoker(discord), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance));
+                services.AddSingleton(new SafeHttpClient(new HttpMessageInvoker(discord), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance));
             });
         if (webhook)
             Assert.True((await app.RawAsync(app.AdultA, HttpMethod.Put, AdminRoute + "/discord", new { url = Hook })).IsSuccessStatusCode);

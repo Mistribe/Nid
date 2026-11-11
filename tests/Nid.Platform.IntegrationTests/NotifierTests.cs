@@ -10,7 +10,7 @@ using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Notifications;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.TestSupport;
 using NodaTime;
 
@@ -66,7 +66,7 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             services =>
             {
                 services.RemoveAll<SafeHttpClient>();
-                services.AddSingleton(new SafeHttpClient(new HttpMessageInvoker(new Quiet()), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance));
+                services.AddSingleton(new SafeHttpClient(new HttpMessageInvoker(new Quiet()), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance));
                 more?.Invoke(services);
             },
             email ? Smtp : null);

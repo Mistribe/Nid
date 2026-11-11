@@ -1,6 +1,6 @@
 using System.Net;
 using Nid.Investments.Contracts;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -43,7 +43,7 @@ public sealed class PriceSourceClient(SafeHttpClient http, PriceOptions options)
                 return Fail(PriceCodes.SourceUnavailable, $"{url.Host} answered HTTP {(int)response.Status}.");
             return Result.Success(new PriceFetch(response.Body));
         }
-        catch (OutboundRefusedException refused) when (refused.Reason == "too_large")
+        catch (OutboundRefusedException refused) when (refused.Reason == RefusalReasons.TooLarge)
         {
             return Fail(PriceCodes.SourceMalformed, $"{url.Host} sent more than {MaxBytes} bytes.");
         }

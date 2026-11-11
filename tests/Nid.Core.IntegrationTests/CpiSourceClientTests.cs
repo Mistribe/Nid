@@ -1,6 +1,7 @@
+using Nid.Platform;
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Inflation;
 
@@ -26,8 +27,8 @@ public class CpiSourceClientTests
             => throw new HttpRequestException("down");
     }
 
-    private static CpiSourceClient Client(HttpMessageHandler handler, OutboundOptions? outbound = null)
-        => new(new SafeHttpClient(new HttpMessageInvoker(handler), outbound ?? new OutboundOptions(), NullLogger<SafeHttpClient>.Instance),
+    private static CpiSourceClient Client(HttpMessageHandler handler, MyelinOptions? outbound = null)
+        => new(new SafeHttpClient(new HttpMessageInvoker(handler), outbound ?? NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance),
             new InflationOptions());
 
     [Fact]
@@ -66,7 +67,7 @@ public class CpiSourceClientTests
     public async Task A_host_outside_the_list_is_refused_without_a_request()
     {
         var handler = new StubHandler(HttpStatusCode.OK);
-        var result = await Client(handler, new OutboundOptions { AllowedHosts = ["www.ecb.europa.eu"] }).FetchAsync(TestContext.Current.CancellationToken);
+        var result = await Client(handler, new MyelinOptions { AllowedHosts = ["www.ecb.europa.eu"] }).FetchAsync(TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(InflationCodes.SourceRefused, failure!.Code);

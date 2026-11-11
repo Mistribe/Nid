@@ -32,7 +32,7 @@ using Nid.Platform.Infrastructure.Assets;
 using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Notifications;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Application.Catalog;
@@ -129,12 +129,7 @@ public static class NidServiceCollectionExtensions
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
         services.TryAddSingleton(new FxOptions());
-        services.TryAddSingleton(new OutboundOptions());
-        services.TryAddSingleton<IHostResolver, DnsHostResolver>();
-        services.TryAddSingleton(sp => new SafeHttpClient(
-            new HttpMessageInvoker(OutboundHandler.Create(sp.GetRequiredService<IHostResolver>())),
-            sp.GetRequiredService<OutboundOptions>(),
-            sp.GetRequiredService<ILogger<SafeHttpClient>>()));
+        services.AddMyelin(NidOutbound.Apply);
         services.TryAddSingleton<IFxSourceClient, FxSourceClient>();
         services.TryAddSingleton(new PriceOptions());
         services.TryAddSingleton<IPriceSourceClient, Nid.Investments.Infrastructure.Prices.PriceSourceClient>();

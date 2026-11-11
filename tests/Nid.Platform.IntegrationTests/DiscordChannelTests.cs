@@ -1,3 +1,4 @@
+using Nid.Platform;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -11,7 +12,7 @@ using Nid.Host.Notifications;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Notifications;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.TestSupport;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -77,7 +78,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     private static SafeHttpClient Http(Recorder handler)
-        => new(new HttpMessageInvoker(handler), new OutboundOptions(), NullLogger<SafeHttpClient>.Instance);
+        => new(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance);
 
     private async Task<Harness> StartAsync(bool email = false, bool webhook = true)
     {
@@ -225,7 +226,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         var channel = new DiscordChannel(
             "discord_person",
-            new SafeHttpClient(new HttpMessageInvoker(new Recorder()), new OutboundOptions { AllowedHosts = [] }, NullLogger<SafeHttpClient>.Instance));
+            new SafeHttpClient(new HttpMessageInvoker(new Recorder()), new MyelinOptions { AllowedHosts = ["www.ecb.europa.eu"] }, NullLogger<SafeHttpClient>.Instance));
 
         var result = await channel.SendAsync(new RenderedMessage("t", "d", ""), new ChannelTarget(new PersonId(Guid.NewGuid()), Hook), TestContext.Current.CancellationToken);
 

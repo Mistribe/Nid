@@ -1,4 +1,4 @@
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -53,10 +53,10 @@ public sealed class CatalogIconSource(SafeHttpClient http, TimeSpan timeout) : I
     /// </summary>
     private static string ReasonOf(string refusal) => refusal switch
     {
-        "not_https" => IconCodes.NotHttps,
-        "host_not_allowed" => IconCodes.HostNotAllowed,
-        "address_refused" => IconCodes.AddressRefused,
-        "too_large" => IconCodes.TooLarge,
+        RefusalReasons.NotHttps => IconCodes.NotHttps,
+        RefusalReasons.HostNotAllowed => IconCodes.HostNotAllowed,
+        RefusalReasons.AddressRefused => IconCodes.AddressRefused,
+        RefusalReasons.TooLarge => IconCodes.TooLarge,
         _ => IconCodes.Unreachable,
     };
 

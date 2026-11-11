@@ -52,7 +52,7 @@ Hors périmètre :
 | D18 | **Thèmes** : quatre jeux de couleurs curés, préférence par personne côté serveur (`frontend/design-system.md` §7) | Décidé |
 | D19 | Sources d'ingestion : **dépôt manuel seulement en v1** ; emails et banque à l'étape 4 ou 5, avec revue de risque préalable (`security/`) | Décidé |
 | D20 | Extraction **sans outils** ; workers d'extraction **sans Internet ni clés d'API** | Décidé |
-| D21 | **Client HTTP sortant unique** (`SafeHttpClient`) avec garde SSRF et liste d'hôtes (`security/application.md` §3) | Décidé |
+| D21 | **Client HTTP sortant unique** (`SafeHttpClient` de `UnambitiousFx.Myelin`, réglé par `NidOutbound`) avec garde SSRF et liste d'hôtes (`security/application.md` §3) | Décidé |
 | D22 | Emails **sans montants** par défaut | Décidé |
 | D23 | Fournisseurs LLM multiples : offres gratuites éligibles, puis local, puis payant **avec accord** ; local par défaut ; consentement à chaque dépôt ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`) | Décidé |
 | D24 | **Passerelle LLM** dans `nid` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |

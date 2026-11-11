@@ -24,7 +24,7 @@ using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
-using Nid.Platform.Outbound;
+using UnambitiousFx.Myelin;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Contracts;
@@ -77,7 +77,15 @@ var irlOptions = builder.Configuration.GetSection("Irl").Get<IrlOptions>() ?? ne
 builder.Services.AddSingleton(irlOptions);
 var inflationOptions = builder.Configuration.GetSection("Inflation").Get<InflationOptions>() ?? new InflationOptions();
 builder.Services.AddSingleton(inflationOptions);
-builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
+// Post-configured, so the section overrides Nid's defaults (NidOutbound.Apply in AddNid) whatever the order.
+var outboundSection = builder.Configuration.GetSection("Outbound");
+builder.Services.PostConfigure<MyelinOptions>(o =>
+{
+    outboundSection.Bind(o);
+    // The setting Nid had before Myelin (Outbound:TimeoutSeconds) keeps working next to Outbound:Timeout.
+    if (outboundSection.GetValue<int?>("TimeoutSeconds") is { } seconds)
+        o.Timeout = TimeSpan.FromSeconds(seconds);
+});
 builder.Services.AddSingleton(builder.Configuration.GetSection("Catalog").Get<CatalogOptions>() ?? new CatalogOptions());
 builder.Services.AddSingleton(builder.Configuration.GetSection("Nid:Backup").Get<Nid.Platform.Notifications.BackupOptions>() ?? new Nid.Platform.Notifications.BackupOptions());
 // Parsed here so a bad setting stops the host at startup (spec 4D1 D6).
