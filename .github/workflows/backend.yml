@@ -58,7 +58,9 @@ jobs:
           global-json-file: global.json
       # A run takes under 10 minutes; a test still running after 10 is stuck. The hang dump then stops the run, so the job fails
       # with the test's name instead of being cancelled by the timeout above with no log at all.
-      - run: dotnet test --project "tests/${{ matrix.project }}" --configuration Release --hangdump --hangdump-timeout 10m --hangdump-type Mini
+      - run: dotnet test --project "tests/$PROJECT" --configuration Release --hangdump --hangdump-timeout 10m --hangdump-type Mini
+        env:
+          PROJECT: ${{ matrix.project }}
       - name: Hung tests
         if: failure()
         run: cat TestResults/*_hang.log 2>/dev/null || true

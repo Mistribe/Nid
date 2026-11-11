@@ -1,0 +1,4 @@
+rules:
+  # `./.github/workflows/…` is the documented way to call a reusable workflow of this repository.
+  self-repository:
+    disable: true
