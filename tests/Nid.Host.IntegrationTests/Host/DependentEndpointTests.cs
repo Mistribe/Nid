@@ -177,6 +177,32 @@ public class DependentEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task A_child_with_a_document_filed_under_them_is_not_removed()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var documents = PostgresFixture.NewDocumentsContext(app.ConnectionString))
+        {
+            var id = Guid.NewGuid();
+            var now = NodaTime.SystemClock.Instance.GetCurrentInstant();
+            documents.Documents.Add(new Nid.Documents.Infrastructure.Persistence.DocumentRow
+            {
+                Id = id, Sha256 = new string('a', 64), SizeBytes = 1, MediaType = "application/pdf", OriginalFilename = "carnet.pdf", Title = "Carnet de santé",
+                UploadedByPersonId = app.AdultA.Value, UploadedAt = now,
+            });
+            documents.Links.Add(new Nid.Documents.Infrastructure.Persistence.DocumentLinkRow
+            {
+                DocumentId = id, TargetKind = "core.person", TargetId = app.Dependent.Value, Role = "other", LinkedByPersonId = app.AdultA.Value, LinkedAt = now,
+            });
+            await documents.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var response = await app.RawAsync(app.AdultB, HttpMethod.Delete, $"{Dependents}/{app.Dependent.Value}");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(["documents"], (await ProblemAsync(response)).GetProperty("uses").EnumerateArray().Select(u => u.GetString()).ToArray());
+    }
+
+    [Fact]
     public async Task A_child_named_by_a_projection_scenario_is_not_removed()
     {
         await using var app = await NidApp.StartAsync(fixture);
