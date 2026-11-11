@@ -20,6 +20,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(IReadOnlyList<ImportSessionView>))]
 [JsonSerializable(typeof(ProblemDetails))]
 [JsonSerializable(typeof(List<ProblemFieldError>))]
+[JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(ImportEndpoints.ImportRunBody))]
 [JsonSerializable(typeof(ImportEndpoints.StartImportBody))]
 [JsonSerializable(typeof(VersionView))]

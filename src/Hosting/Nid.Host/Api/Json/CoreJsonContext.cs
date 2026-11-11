@@ -72,6 +72,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(FxEndpoints.ManualRateBody))]
 [JsonSerializable(typeof(NewTokenBody))]
 [JsonSerializable(typeof(PersonEndpoints.CreateDependentBody))]
+[JsonSerializable(typeof(PersonEndpoints.DependentNameBody))]
 [JsonSerializable(typeof(PersonEndpoints.PersonDto))]
 [JsonSerializable(typeof(PersonEndpoints.PreferencesBody))]
 [JsonSerializable(typeof(PersonEndpoints.RetirementBody))]

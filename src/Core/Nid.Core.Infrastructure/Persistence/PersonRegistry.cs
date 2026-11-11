@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -237,6 +238,29 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         db.Persons.Remove(row);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result<PersonInfo>> RenameDependentAsync(PersonId id, string displayName, CancellationToken ct)
+    {
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value && p.Kind == "dependent", ct);
+        if (row is null)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
+        if (string.IsNullOrWhiteSpace(displayName))
+            return Result.Failure<PersonInfo>(FieldErrors.At(new Failure(PersonCodes.NameRequired, "A name is required.", null), "displayName"));
+
+        row.DisplayName = displayName.Trim();
+        await db.SaveChangesAsync(ct);
+        return Result.Success(ToInfo(row));
+    }
+
+    public async Task<Result> DeleteDependentAsync(PersonId id, CancellationToken ct)
+    {
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value && p.Kind == "dependent", ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("person", id.ToString()));
+        db.Persons.Remove(row);
+        await db.SaveChangesAsync(ct);
         return Result.Success();
     }
 

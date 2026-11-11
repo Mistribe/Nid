@@ -17,4 +17,7 @@ public static class PersonCodes
     public const string InvalidBirthDate = "core.invalid_birth_date";
     public const string InvalidBankRetention = "core.invalid_bank_retention";
     public const string InvalidRetirementAge = "core.invalid_retirement_age";
+
+    /// <summary>#156: a dependent something still names (an item's owner, a childcare contract…) is not removed.</summary>
+    public const string PersonInUse = "core.person_in_use";
 }

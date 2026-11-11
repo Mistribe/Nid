@@ -148,6 +148,8 @@ public static class RequestCatalogue
     [
         new(typeof(ListPersonsQuery), false, (_, _) => new ListPersonsQuery()),
         new(typeof(CreateDependentCommand), false, (_, _) => new CreateDependentCommand("bench-dependent")),
+        new(typeof(RenameDependentCommand), false, (_, _) => new RenameDependentCommand(PersonId.New(), "bench-dependent")),
+        new(typeof(DeleteDependentCommand), false, (_, _) => new DeleteDependentCommand(PersonId.New())),
         new(typeof(SetRetirementCommand), false,
             (_, _) => new SetRetirementCommand(PersonId.New(), null, 64)),
         new(typeof(ProvisionAdultCommand), false, (_, _) => new ProvisionAdultCommand("bench-subject", "bench", null)),

@@ -9,6 +9,10 @@ public static class Departures
     public static YearMonth? MonthOf(PersonInfo person)
         => person.BirthDate?.PlusYears(person.RetirementAge).PlusMonths(person.RetirementMonths).ToYearMonth();
 
+    /// <summary>Whole years lived on <paramref name="today"/>; null without a birth date or with one after today.</summary>
+    public static int? AgeOn(PersonInfo person, LocalDate today)
+        => person.BirthDate is { } birth && birth <= today ? Period.Between(birth, today, PeriodUnits.Years).Years : null;
+
     /// <summary>
     /// Per adult with a birth date, the first projection month after the departure (k + 1, k being the months from today's month
     /// to the departure month). Not above one when the departure is past; no upper bound.
