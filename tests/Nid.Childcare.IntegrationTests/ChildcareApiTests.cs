@@ -127,6 +127,35 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
             ("terms.from", "childcare.revision_not_after"));
     }
 
+    /// <summary>#192: a past revision's absences stay correctable; the later one keeps its own.</summary>
+    [Fact]
+    public async Task A_past_revision_takes_new_unpaid_absences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url}/{id.Value}/revisions", new { terms = Terms("2025-10-01") })).StatusCode);
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id.Value}/revisions/2025-09-01", new { unpaidAbsences = new[] { "family", "child_sick" } });
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        var terms = (await GetAsync(app, app.AdultA, $"{Url}/{id.Value}?scope=household")).GetProperty("terms").EnumerateArray()
+            .Select(t => t.GetProperty("unpaidAbsences").EnumerateArray().Select(a => a.GetString()).ToList()).ToList();
+        Assert.Equal(["family", "child_sick"], terms[0]);
+        Assert.Equal(["parent_rtt", "child_sick", "carer_absent"], terms[1]);
+    }
+
+    [Fact]
+    public async Task Unpaid_absences_of_an_unknown_revision_or_reason_are_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app);
+        var url = $"{Url}/{id.Value}/revisions";
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{url}/2025-09-02", new { unpaidAbsences = Array.Empty<string>() })).StatusCode);
+        await AssertFieldAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{url}/2025-09-01", new { unpaidAbsences = new[] { "nap" } }), ("unpaidAbsences", "request.invalid"));
+        await AssertFieldAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{url}/2025-09-01", new { }), ("unpaidAbsences", "request.required"));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url}/{id.Value}/close", new { on = "2025-10-31" })).StatusCode);
+        await AssertCodeAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{url}/2025-09-01", new { unpaidAbsences = Array.Empty<string>() }),
+            HttpStatusCode.Conflict, "childcare.closed");
+    }
+
     [Fact]
     public async Task Stale_version_conflicts()
     {

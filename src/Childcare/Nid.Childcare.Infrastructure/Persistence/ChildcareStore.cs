@@ -84,6 +84,14 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task SetUnpaidAbsencesAsync(ItemId id, LocalDate from, IReadOnlyList<AbsenceReason> reasons, CancellationToken ct)
+    {
+        var row = await db.Terms.SingleAsync(t => t.ItemId == id.Value && t.From == from, ct);
+        row.UnpaidAbsences = [.. reasons.Select(AbsenceCodes.Of)];
+        await TouchAsync(id, ct);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<IReadOnlyList<(ItemId Item, CareGap Gap)>> GapsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
     {
         var wanted = ids.Select(i => i.Value).ToList();

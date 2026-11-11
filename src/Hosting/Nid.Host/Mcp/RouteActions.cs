@@ -246,6 +246,10 @@ public static class RouteActions
             + Ids + Versioned + Amounts),
         new("revise_childcare", "POST", "/api/v1/childcare/{id:guid}/revisions", typeof(ReviseChildcareBody),
             "Revise an arrangement from a date after its current terms' start: the current terms end the day before. " + Ids + Amounts),
+        new("set_childcare_unpaid_absences", "PUT", "/api/v1/childcare/{id:guid}/revisions/{from}", typeof(UnpaidAbsencesBody),
+            "Correct which absence reasons are deducted from the salary under one revision of the terms (from yyyy-MM-dd, its start in get_childcare's terms), "
+            + "a past one included: unpaidAbsences among family, parent_rtt, child_sick, carer_absent, holiday and paid_leave, [] for none, all of them sent. "
+            + "Draft months recompute; validated ones keep their figures until reopened. " + Ids),
         new("replace_childcare_gaps", "PUT", "/api/v1/childcare/{id:guid}/gaps", typeof(GapsBody),
             "Replace an arrangement's weeks without care (each from a Monday, 1 to 52 weeks; send them all). " + Ids + Amounts),
         new("set_childcare_week_override", "PUT", "/api/v1/childcare/{id:guid}/week-overrides/{monday}", typeof(WeekOverrideBody),

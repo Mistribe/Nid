@@ -41,7 +41,7 @@ export const termsDefaults = (terms?: ChildcareTerms): TermsValues => ({
   lunchProvider: (terms?.lunchProvider ?? 'nanny') as MealProvider, snackProvider: (terms?.snackProvider ?? 'nanny') as MealProvider, weekTypes: terms
     ? terms.weekTypes.map((w) => ({ name: w.name, weeks: String(w.weeks), days: daysOf(w.schedule) }))
     : [{ name: DEFAULT_WEEK_TYPE, weeks: '46', days: daysOf() }],
-  unpaid: terms?.unpaidAbsences ?? ['child_sick', 'carer_absent'],
+  unpaid: terms?.unpaidAbsences ?? ['parent_rtt', 'child_sick', 'carer_absent'],
 });
 
 export const gapsDefaults = (detail?: ChildcareDetail): GapRow[] => (detail?.gaps ?? []).map((g) => ({ monday: g.monday, weeks: String(g.weeks) }));

@@ -60,7 +60,7 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.Property(x => x.SnackPrice).HasColumnType("numeric(19,4)");
             e.Property(x => x.LunchProvider).HasMaxLength(8).HasDefaultValue("nanny");
             e.Property(x => x.SnackProvider).HasMaxLength(8).HasDefaultValue("nanny");
-            e.Property(x => x.UnpaidAbsences).HasColumnType("text[]").HasDefaultValueSql("'{child_sick,carer_absent}'");
+            e.Property(x => x.UnpaidAbsences).HasColumnType("text[]").HasDefaultValueSql("'{parent_rtt,child_sick,carer_absent}'");
             e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -53,22 +53,29 @@ export function RateFields<T extends WithTerms>({ form, withFrom, fromLabel }: {
         </Field>
       ) : null}
       <Controller control={form.control} name={'unpaid' as Path<T>} render={({ field }) => (
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">{t('childcare_form.unpaid_absences')}</legend>
-          <p className="text-sm text-muted-foreground">{t('childcare_form.unpaid_absences_hint')}</p>
-          {ABSENCE_REASONS.map((reason) => (
-            <label key={reason} className="flex items-center gap-2 text-sm">
-              <Checkbox checked={(field.value as string[]).includes(reason)}
-                onCheckedChange={(on) => field.onChange(on === true ? [...(field.value as string[]), reason] : (field.value as string[]).filter((r) => r !== reason))} />
-              {reasonLabel(t, reason)}
-            </label>
-          ))}
-        </fieldset>
+        <UnpaidAbsencesField value={field.value as string[]} onChange={field.onChange} />
       )} />
       <Folded label={t('childcare_form.rates_more')} hasError={Boolean(e.gross ?? e.overtimePct)}>
         {text('overtimePct', t('childcare_form.overtime'))}
         {text('gross', t('childcare_form.gross'))}
       </Folded>
     </>
+  );
+}
+
+/** The absence reasons deducted from the salary, one checkbox each; also the past-revision correction (#192). */
+export function UnpaidAbsencesField({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+  const { t } = useTranslation();
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">{t('childcare_form.unpaid_absences')}</legend>
+      <p className="text-sm text-muted-foreground">{t('childcare_form.unpaid_absences_hint')}</p>
+      {ABSENCE_REASONS.map((reason) => (
+        <label key={reason} className="flex items-center gap-2 text-sm">
+          <Checkbox checked={value.includes(reason)} onCheckedChange={(on) => onChange(on === true ? [...value, reason] : value.filter((r) => r !== reason))} />
+          {reasonLabel(t, reason)}
+        </label>
+      ))}
+    </fieldset>
   );
 }

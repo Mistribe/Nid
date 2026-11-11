@@ -166,6 +166,7 @@
       "create_childcare": "Nouvelle garde",
       "edit_childcare": "Correction d’une garde",
       "revise_childcare": "Révision d’une garde",
+      "set_childcare_unpaid_absences": "Absences retenues d’une période de garde",
       "replace_childcare_gaps": "Semaines sans accueil d’une garde",
       "set_childcare_week_override": "Semaine type d’une semaine de garde",
       "close_childcare": "Fin d’une garde",

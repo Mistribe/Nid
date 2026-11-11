@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { PageTrail } from '@/components/page/trail';
 import { SeriesLink } from '@/components/page/SeriesLink';
 import { Section } from '@/components/page/Section';
+import { RowMenu } from '@/components/page/RowMenu';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ErrorPage } from '@/components/ErrorPage';
@@ -27,7 +28,7 @@ import { useAnchoredDocuments } from '@/features/documents/api';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import type { RootSearch } from '@/lib/search';
 import { useChildcare, useChildcareList, useOverrideWeek, useReopenChildcare, useStatements, type ChildcareDetail, type ChildcareTerms, type StatementRow } from './api';
-import { EditChildcareDialog, EndDialog, GapsDialog, ReviseDialog } from './ChildcareDialogs';
+import { EditChildcareDialog, EndDialog, GapsDialog, ReviseDialog, UnpaidAbsencesDialog } from './ChildcareDialogs';
 import { dayName } from './childcareSchema';
 import { stateLabel } from './statementText';
 import { YearSummary } from './YearSummary';
@@ -152,7 +153,7 @@ function Tabs({ detail, terms, onGaps }: { detail: ChildcareDetail; terms: Child
     { id: 'summary', label: t('childcare_detail.tab_summary'), content: <YearSummary id={detail.summary.id} /> },
     { id: 'planning', label: t('childcare_detail.tab_planning'), content: <Planning detail={detail} terms={terms} /> },
     { id: 'gaps', label: t('childcare_form.step_gaps'), content: <Gaps detail={detail} onEdit={onGaps} /> },
-    { id: 'revisions', label: t('childcare_detail.tab_revisions'), content: <Revisions terms={detail.terms} inForceFrom={detail.summary.inForceFrom} /> },
+    { id: 'revisions', label: t('childcare_detail.tab_revisions'), content: <Revisions detail={detail} /> },
     { id: 'documents', label: t('childcare_detail.tab_documents'), content: <ItemDocuments itemId={detail.summary.id} canWrite={detail.summary.canWrite} defaultRole="payslip" /> },
   ];
   const [tab, setTab] = useDetailTab(tabs.map((x) => x.id));
@@ -246,24 +247,38 @@ function Gaps({ detail, onEdit }: { detail: ChildcareDetail; onEdit: (() => void
   );
 }
 
-function Revisions({ terms, inForceFrom }: { terms: ChildcareTerms[]; inForceFrom: string }) {
+function Revisions({ detail }: { detail: ChildcareDetail }) {
   const { t } = useTranslation();
+  const [editing, setEditing] = useState<ChildcareTerms | null>(null);
+  const editable = detail.summary.canWrite && !detail.summary.closed;
   // Only the last terms are open-ended: in force, or a revision that has not started yet.
-  const end = (r: ChildcareTerms) => r.to ? <LocalDate value={r.to} style="short" /> : t(r.from > inForceFrom ? 'childcare_detail.upcoming' : 'childcare_detail.current');
+  const end = (r: ChildcareTerms) => r.to ? <LocalDate value={r.to} style="short" /> : t(r.from > detail.summary.inForceFrom ? 'childcare_detail.upcoming' : 'childcare_detail.current');
+  // #192: a past revision's absences stay correctable, the current terms' too.
+  const menu = (r: ChildcareTerms) => editable
+    ? <RowMenu label={t('childcare_detail.revision_menu', { from: formatLocalDate(r.from, 'short') })} items={[{ label: t('childcare_detail.unpaid_edit'), onSelect: () => setEditing(r) }]} />
+    : null;
+  const absences = (r: ChildcareTerms) => r.unpaidAbsences.map((a) => reasonLabel(t, a)).join(', ') || t('childcare_detail.dash');
   return (
-    <SortableTable<ChildcareTerms> caption={t('childcare_detail.tab_revisions')} rows={[...terms].reverse()} rowKey={(r) => r.from}
-      columns={[
-        { id: 'from', header: t('childcare_detail.col_from'), sort: (r) => r.from, cell: (r) => <LocalDate value={r.from} style="short" /> },
-        { id: 'to', header: t('childcare_detail.col_to'), sort: (r) => r.to ?? '', cell: end },
-        { id: 'rate', header: t('childcare_form.net'), align: 'end', cell: (r) => r.netHourlyRate.replace('.', ',') },
-        { id: 'pay', header: t('childcare_list.col_pay'), align: 'end', cell: (r) => <Money value={r.monthlyBasePay} tabular /> },
-      ]}
-      mobile={(r) => (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span><LocalDate value={r.from} style="short" /> → {end(r)}</span>
-          <Money value={r.monthlyBasePay} tabular />
-        </div>
-      )} />
+    <>
+      <SortableTable<ChildcareTerms> caption={t('childcare_detail.tab_revisions')} rows={[...detail.terms].reverse()} rowKey={(r) => r.from}
+        columns={[
+          { id: 'from', header: t('childcare_detail.col_from'), sort: (r) => r.from, cell: (r) => <LocalDate value={r.from} style="short" /> },
+          { id: 'to', header: t('childcare_detail.col_to'), sort: (r) => r.to ?? '', cell: end },
+          { id: 'rate', header: t('childcare_form.net'), align: 'end', cell: (r) => r.netHourlyRate.replace('.', ',') },
+          { id: 'pay', header: t('childcare_list.col_pay'), align: 'end', cell: (r) => <Money value={r.monthlyBasePay} tabular /> },
+          { id: 'unpaid', header: t('childcare_form.unpaid_absences'), wrap: true, cell: absences },
+          ...(editable ? [{ id: 'menu', header: t('childcare_detail.col_actions'), align: 'end' as const, cell: menu }] : []),
+        ]}
+        mobile={(r) => (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span><LocalDate value={r.from} style="short" /> → {end(r)}</span>
+            <span className="flex items-center gap-2"><Money value={r.monthlyBasePay} tabular />{menu(r)}</span>
+            <span className="w-full text-muted-foreground">{absences(r)}</span>
+          </div>
+        )} />
+      {editing ? <UnpaidAbsencesDialog detail={detail} revision={editing} onClose={() => setEditing(null)}
+        onDone={(message) => { setEditing(null); toast.success(message); }} /> : null}
+    </>
   );
 }
 
