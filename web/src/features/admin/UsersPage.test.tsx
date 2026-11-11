@@ -129,9 +129,11 @@ describe('Administration › Utilisateurs', () => {
 
   it('an admin finds the users page in the sidebar', async () => {
     serve([alice]);
-    await renderApp('/subscriptions', { capabilities: adminCapabilities });
+    const { user } = await renderApp('/subscriptions', { capabilities: adminCapabilities });
 
     const sidebar = screen.getByRole('navigation', { name: 'Navigation principale' });
+    // The Administration group starts folded off an admin page (issue 142).
+    await user.click(within(sidebar).getByRole('button', { name: 'Administration' }));
     expect(within(sidebar).getByRole('link', { name: 'Utilisateurs' })).toHaveAttribute('href', '/admin/users');
   });
 
