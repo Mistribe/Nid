@@ -38,6 +38,34 @@ export function useSidebar() {
   return { rail, toggle };
 }
 
+const ADMIN_KEY = 'nid.sidebar.admin';
+
+/** Whether the Administration group is unfolded: the choice on this device, folded by default, unfolded on landing on an admin page. */
+export function useAdminGroup(onAdmin: boolean) {
+  const [open, setOpen] = useState(() => {
+    try {
+      return onAdmin || localStorage.getItem(ADMIN_KEY) === 'open';
+    } catch {
+      return onAdmin;
+    }
+  });
+  // A link, the command menu or the back button landing under /admin unfolds it, so the current entry shows.
+  const [wasOnAdmin, setWasOnAdmin] = useState(onAdmin);
+  if (onAdmin !== wasOnAdmin) {
+    setWasOnAdmin(onAdmin);
+    if (onAdmin) setOpen(true);
+  }
+  const change = useCallback((next: boolean) => {
+    setOpen(next);
+    try {
+      localStorage.setItem(ADMIN_KEY, next ? 'open' : 'closed');
+    } catch {
+      // Storage refused (private browsing): the choice lasts until the page reloads.
+    }
+  }, []);
+  return [open, change] as const;
+}
+
 /** « Alice Dev » → « AD »: the top bar's stand-in for the signed-in person's name. */
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
 

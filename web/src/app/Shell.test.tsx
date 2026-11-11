@@ -160,9 +160,51 @@ describe('the shell', () => {
   });
 
   it('shows the Administration group in the sidebar for an admin', async () => {
-    await renderApp('/subscriptions', { capabilities: adminCapabilities });
+    await renderApp('/admin', { capabilities: adminCapabilities });
     const links = within(within(sidebar()).getByRole('list', { name: 'Administration' })).getAllByRole('link').map((l) => l.textContent);
     expect(links).toEqual(['Vue d\'ensemble', 'Taux de change', 'Cours', 'IRL', 'Inflation', 'Tâches', 'Banque', 'Catalogue', 'Utilisateurs', 'Foyer', 'Journal de sécurité', 'Système', 'Notifications']);
+  });
+
+  describe('the Administration group', () => {
+    const heading = () => within(sidebar()).getByRole('button', { name: 'Administration' });
+
+    it('is folded by default and folds with a click or the keyboard, remembered on this device', async () => {
+      const { user, container } = await renderApp('/subscriptions', { capabilities: adminCapabilities });
+      expect(heading()).toHaveAttribute('aria-expanded', 'false');
+      expect(within(sidebar()).queryByRole('link', { name: 'Taux de change' })).not.toBeInTheDocument();
+      await expectNoAxeViolations(container);
+      await user.click(heading());
+      expect(heading()).toHaveAttribute('aria-expanded', 'true');
+      expect(document.getElementById(heading().getAttribute('aria-controls')!)).toBe(within(sidebar()).getByRole('list', { name: 'Administration' }));
+      expect(within(sidebar()).getByRole('link', { name: 'Taux de change' })).toBeInTheDocument();
+      expect(localStorage.getItem('nid.sidebar.admin')).toBe('open');
+      heading().focus();
+      await user.keyboard('{Enter}');
+      expect(heading()).toHaveAttribute('aria-expanded', 'false');
+      await user.keyboard(' ');
+      expect(heading()).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('opens as it was left', async () => {
+      localStorage.setItem('nid.sidebar.admin', 'open');
+      await renderApp('/subscriptions', { capabilities: adminCapabilities });
+      expect(heading()).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('unfolds on landing on an admin page, even when left folded', async () => {
+      localStorage.setItem('nid.sidebar.admin', 'closed');
+      const { router } = await renderApp('/subscriptions', { capabilities: adminCapabilities });
+      expect(heading()).toHaveAttribute('aria-expanded', 'false');
+      await router.navigate({ to: '/admin/fx' });
+      await waitFor(() => expect(heading()).toHaveAttribute('aria-expanded', 'true'));
+      expect(within(sidebar()).getByRole('link', { name: 'Taux de change' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('is not foldable on the rail', async () => {
+      localStorage.setItem('nid.sidebar', 'rail');
+      await renderApp('/subscriptions', { capabilities: adminCapabilities });
+      expect(within(sidebar()).queryByRole('button', { name: 'Administration' })).not.toBeInTheDocument();
+    });
   });
 
   it('shows no Administration group to a non-admin', async () => {
