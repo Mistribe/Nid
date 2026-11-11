@@ -73,8 +73,8 @@ describe('the retirement page', () => {
     const { user } = await renderApp('/retirement');
 
     expect(await screen.findByRole('heading', { name: 'Aucun départ à la retraite à calculer' })).toBeInTheDocument();
-    expect(screen.getByText('Aucun départ dans les 40 ans : renseignez une date de naissance dans Réglages › Projection.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ouvrir Réglages › Projection' })).toHaveAttribute('href', '/settings/projection');
+    expect(screen.getByText('Aucun départ dans les 40 ans : renseignez une date de naissance dans Réglages › Personnes.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ouvrir Réglages › Personnes' })).toHaveAttribute('href', '/settings/persons');
     expect(screen.queryByRole('region', { name: 'Écart mensuel' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Départs' }));

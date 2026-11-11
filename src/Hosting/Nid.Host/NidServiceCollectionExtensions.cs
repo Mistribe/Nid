@@ -88,6 +88,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IItemDeletions, Nid.Core.Application.ItemDeletions>();
         services.AddScoped<IApprovingProposal, Nid.Core.Application.ApprovingProposal>();
         services.AddScoped<IItemDeletionPart, CoreDeletionPart>();
+        services.AddScoped<IPersonUsePart, Nid.Core.Infrastructure.Persistence.CorePersonUsePart>();
 
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -184,6 +185,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
         services.AddScoped<IItemDeletionPart, SubscriptionsDeletionPart>();
+        services.AddScoped<IPersonUsePart, Nid.Subscriptions.Infrastructure.Persistence.SubscriptionsPersonUsePart>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
@@ -297,6 +299,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<ChildcareDbContext>>();
         services.AddScoped<Nid.Childcare.Application.IChildcareStore, ChildcareStore>();
         services.AddScoped<IItemDeletionPart, ChildcareDeletionPart>();
+        services.AddScoped<IPersonUsePart, Nid.Childcare.Infrastructure.Persistence.ChildcarePersonUsePart>();
         services.AddScoped<Nid.Childcare.Application.ChildcareReader>();
         services.AddScoped<Nid.Childcare.Application.StatementAssembly>();
         services.AddScoped<ISeriesContribution, Nid.Childcare.Application.ChildcareSeries>();
@@ -313,6 +316,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<DocumentsDbContext>>();
         services.AddScoped<IItemDeletionPart, Nid.Documents.Infrastructure.Persistence.DocumentsDeletionPart>();
+        services.AddScoped<IPersonUsePart, Nid.Documents.Infrastructure.Persistence.DocumentsPersonUsePart>();
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();

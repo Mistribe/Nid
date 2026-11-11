@@ -50,7 +50,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
               </>
             ) : (
               <EmptyState module="/retirement" title={t('retirement.no_figures_title')} body={t('retirement.no_figures')}
-                action={<Link to="/settings/projection" className={buttonVariants({ variant: 'outline' })}>{t('retirement.open_settings')}</Link>} />
+                action={<Link to="/settings/persons" className={buttonVariants({ variant: 'outline' })}>{t('retirement.open_settings')}</Link>} />
             )}
             {missing ? <p className="text-sm"><Link to="/settings/projection" className="underline underline-offset-2">{t('retirement.living_cost_missing')}</Link></p> : null}
             <Warnings data={data} />

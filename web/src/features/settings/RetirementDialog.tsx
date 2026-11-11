@@ -20,9 +20,13 @@ import { PERSON_RETIREMENT, PROJECTION } from './api';
 /** A whole number as the server checks it: anything else goes as -1, which it refuses on that field. */
 const ageOf = (text: string) => (/^\d+$/.test(text.trim()) ? Number(text) : -1);
 
-/** A person's birth date and retirement age (« Modifier » of the Retraite section). */
-export function RetirementDialog({ person, onClose, onDone }: {
-  person: { id: string; displayName: string; birthDate?: string | null; retirementAge: number; retirementMonths: number }; onClose: () => void; onDone: (message: string) => void;
+/**
+ * A person's birth date and retirement age (Réglages › Personnes). `birthOnly`: a child's birth date alone, the stored
+ * retirement sent back as it is (the route replaces all three).
+ */
+export function RetirementDialog({ person, birthOnly = false, onClose, onDone }: {
+  person: { id: string; displayName: string; birthDate?: string | null; retirementAge: number; retirementMonths: number }; birthOnly?: boolean;
+  onClose: () => void; onDone: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -37,7 +41,7 @@ export function RetirementDialog({ person, onClose, onDone }: {
   const unplaced = save.error && !(fields.length > 0 && fields.every((f) => f.path === 'birthDate' || f.path === 'retirementAge' || f.path === 'retirementMonths'));
 
   return (
-    <FormDialog title={t('settings.projection.retirement_of', { name: person.displayName })} onClose={onClose} onDone={onDone}>
+    <FormDialog title={t(birthOnly ? 'settings.persons.birth_date_of' : 'settings.projection.retirement_of', { name: person.displayName })} onClose={onClose} onDone={onDone}>
       {({ titleId, done }) => (
         <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
           event.preventDefault();
@@ -48,22 +52,22 @@ export function RetirementDialog({ person, onClose, onDone }: {
               void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
               void queryClient.invalidateQueries({ queryKey: ['get', RETIREMENT] });
               void queryClient.invalidateQueries({ queryKey: ['get', SERIES_POINTS] });
-              done(t('settings.projection.retirement_saved', { name: person.displayName }));
+              done(t(birthOnly ? 'settings.persons.birth_date_saved' : 'settings.projection.retirement_saved', { name: person.displayName }));
             },
           });
         }}>
           {unplaced ? <ProblemMessage problem={present(toProblem(save.error))} /> : null}
-          <Field label={t('settings.projection.birth_date')} tip={<InfoTip label={t('settings.projection.birth_date')}>{t('settings.projection.tip.birth_date')}</InfoTip>} error={errorOf('birthDate')}>
+          <Field label={t('settings.projection.birth_date')} tip={<InfoTip label={t('settings.projection.birth_date')}>{t(birthOnly ? 'settings.persons.tip.child_birth_date' : 'settings.projection.tip.birth_date')}</InfoTip>} error={errorOf('birthDate')}>
             {(c) => <DateField {...c} value={birthDate} onChange={setBirthDate} max={todayIso()} />}
           </Field>
-          <div className="flex max-w-96 gap-3">
+          {birthOnly ? null : <div className="flex max-w-96 gap-3">
             <Field label={t('settings.projection.retirement_age')} tip={<InfoTip label={t('settings.projection.retirement_age')}>{t('settings.projection.tip.retirement_age')}</InfoTip>} error={errorOf('retirementAge')}>
               {(c) => <Input {...c} type="number" inputMode="numeric" min={50} max={75} step={1} value={age} onChange={(e) => setAge(e.target.value)} />}
             </Field>
             <Field label={t('settings.projection.retirement_months')} error={errorOf('retirementMonths')}>
               {(c) => <Input {...c} type="number" inputMode="numeric" min={0} max={11} step={1} value={months} onChange={(e) => setMonths(e.target.value)} />}
             </Field>
-          </div>
+          </div>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={save.isPending}>{t('settings.projection.save')}</Button>

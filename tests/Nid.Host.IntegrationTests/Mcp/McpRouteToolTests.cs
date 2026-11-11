@@ -48,6 +48,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/realestate/properties/{id:guid}/return-assumptions",
         // #414: « Pas disponible » on an expected document is the person's own answer, a click in the web app.
         "POST /api/v1/documents/expected/dismissals",
+        // #156: renaming or removing a child is done in Réglages › Personnes (a follow-up may give the assistant a tool).
+        "/api/v1/core/persons/dependents/{id:guid}",
     ];
 
     /// <summary>A route that is a prefix of covered ones: the web's upload form.</summary>

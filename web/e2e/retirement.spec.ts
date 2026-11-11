@@ -4,7 +4,7 @@ import { signIn } from './session';
 
 test('alice sets her departure and a living cost, then enters her pension on the Retraite page', async ({ browser }) => {
   const alice = await browser.newPage();
-  await signIn(alice, 'alice', '/settings/projection');
+  await signIn(alice, 'alice', '/settings/persons');
 
   // Re-runnable: « Saisir la pension » only shows while Alice has no pension source, so remove those a previous run left.
   const { csrf } = (await (await alice.request.get('/auth/session')).json()) as { csrf: string };
@@ -15,7 +15,9 @@ test('alice sets her departure and a living cost, then enters her pension on the
     expect((await alice.request.delete(`/api/v1/income/sources/${source.id}?version=${version}`, { headers })).ok()).toBe(true);
   }
 
-  await alice.getByRole('button', { name: /Modifier la retraite de Alice/ }).click();
+  // #156: a person's birth date and retirement are set in Réglages › Personnes, from the row's ⋯.
+  await alice.getByRole('button', { name: /^Actions pour Alice/ }).click();
+  await alice.getByRole('menuitem', { name: 'Date de naissance et retraite' }).click();
   const departure = alice.getByRole('dialog');
   await fillDate(departure, 'Date de naissance', '1970-03-15');
   await departure.getByLabel('Âge de départ à la retraite', { exact: true }).fill('64');
@@ -23,6 +25,7 @@ test('alice sets her departure and a living cost, then enters her pension on the
   await departure.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(departure).toBeHidden();
 
+  await alice.goto('/settings/projection');
   await alice.getByRole('button', { name: 'Modifier les hypothèses' }).click();
   const assumptions = alice.getByRole('dialog');
   await assumptions.getByLabel(/^Coût de la vie mensuel \(/).fill('2500');

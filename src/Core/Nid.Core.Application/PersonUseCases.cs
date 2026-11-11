@@ -10,7 +10,14 @@ namespace Nid.Core.Application;
 /// <summary><paramref name="IsAdmin"/>: whether the identity provider put this adult in the admin group.</summary>
 public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayName, string? Email, bool IsAdmin = false) : ICommand<PersonInfo>;
 
-public sealed record CreateDependentCommand(string DisplayName) : ICommand<PersonInfo>;
+/// <summary>#156: <paramref name="BirthDate"/> is optional, checked as <see cref="SetRetirementCommand"/>'s.</summary>
+public sealed record CreateDependentCommand(string DisplayName, LocalDate? BirthDate = null) : ICommand<PersonInfo>;
+
+/// <summary>#156: any adult renames a child, as they add one; an adult's name comes from the identity provider.</summary>
+public sealed record RenameDependentCommand(PersonId Person, string DisplayName) : ICommand<PersonInfo>;
+
+/// <summary>#156: any adult removes a child that nothing names any more (<see cref="IPersonUsePart"/>).</summary>
+public sealed record DeleteDependentCommand(PersonId Person) : ICommand<PersonId>;
 
 /// <summary>A null birth date clears it. Any adult sets any person's, a dependent's included: the household plans together.</summary>
 public sealed record SetRetirementCommand(PersonId Person, LocalDate? BirthDate, int RetirementAge, int RetirementMonths = 0) : ICommand<PersonInfo>;
@@ -25,10 +32,61 @@ public sealed class ProvisionAdultHandler(IPersonRegistry persons) : IRequestHan
 }
 
 [RequestHandler<CreateDependentCommand, PersonInfo>]
-public sealed class CreateDependentHandler(IPersonRegistry persons) : IRequestHandler<CreateDependentCommand, PersonInfo>
+public sealed class CreateDependentHandler(IPersonRegistry persons, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    : IRequestHandler<CreateDependentCommand, PersonInfo>
 {
     public async ValueTask<Result<PersonInfo>> HandleAsync(CreateDependentCommand command, CancellationToken ct = default)
-        => await persons.CreateDependentAsync(command.DisplayName, ct);
+    {
+        if (command.BirthDate is not { } birth)
+            return await persons.CreateDependentAsync(command.DisplayName, ct);
+        if (await SetRetirementHandler.BirthDateRefusalAsync(birth, calendar, ct) is { } refused)
+            return Result.Failure<PersonInfo>(refused);
+
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        var created = await persons.CreateDependentAsync(command.DisplayName, ct);
+        if (!created.TryGetValue(out var child))
+            return created;
+        var dated = await persons.SetRetirementAsync(child.Id, birth, child.RetirementAge, child.RetirementMonths, ct);
+        if (dated.IsSuccess)
+            await transaction.CommitAsync(ct);
+        return dated;
+    }
+}
+
+[RequestHandler<RenameDependentCommand, PersonInfo>]
+public sealed class RenameDependentHandler(IPersonRegistry persons) : IRequestHandler<RenameDependentCommand, PersonInfo>
+{
+    public async ValueTask<Result<PersonInfo>> HandleAsync(RenameDependentCommand command, CancellationToken ct = default)
+        => await persons.RenameDependentAsync(command.Person, command.DisplayName, ct);
+}
+
+[RequestHandler<DeleteDependentCommand, PersonId>]
+public sealed class DeleteDependentHandler(IPersonRegistry persons, IEnumerable<IPersonUsePart> parts, IUnitOfWork unitOfWork)
+    : IRequestHandler<DeleteDependentCommand, PersonId>
+{
+    public async ValueTask<Result<PersonId>> HandleAsync(DeleteDependentCommand command, CancellationToken ct = default)
+    {
+        if (await persons.FindAsync(command.Person, ct) is not { Kind: PersonKind.Dependent } child)
+            return Result.Failure<PersonId>(new NotFoundFailure("person", command.Person.ToString()));
+
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        // ponytail: count then delete, no lock — a contract or link naming the child committed in between dangles (other modules have no FK
+        // to core.person). Acceptable for a household; lock the person row here and FOR SHARE in those writers if it ever bites.
+        var uses = new List<string>();
+        foreach (var part in parts)
+            uses.AddRange((await part.UsesAsync(child.Id, ct)).Where(u => u.Count > 0).Select(u => u.Key));
+        // The kinds only, never an item's name or a count: the refusal reveals nothing of another adult's private items.
+        if (uses.Count > 0)
+            return Result.Failure<PersonId>(new Failure(PersonCodes.PersonInUse,
+                $"{child.DisplayName} is still named elsewhere: {string.Join(", ", uses)}.",
+                new Dictionary<string, object?> { ["uses"] = uses }));
+
+        var deleted = await persons.DeleteDependentAsync(child.Id, ct);
+        if (deleted.TryGetFailure(out var failure))
+            return Result.Failure<PersonId>(failure!);
+        await transaction.CommitAsync(ct);
+        return Result.Success(child.Id);
+    }
 }
 
 [RequestHandler<SetRetirementCommand, PersonInfo>]
@@ -47,12 +105,17 @@ public sealed class SetRetirementHandler(IPersonRegistry persons, IHouseholdCale
             errors.Add(new("retirementMonths", PersonCodes.InvalidRetirementAge, "The months are between 0 and 11."));
         if (errors.Count > 0)
             return Result.Failure<PersonInfo>(FieldErrors.Many(PersonCodes.InvalidRetirementAge, errors[0].Message, errors));
-        if (command.BirthDate is { } birth && (birth < Earliest || birth > await calendar.TodayAsync(ct)))
-            return Result.Failure<PersonInfo>(FieldErrors.At(
-                new Failure(PersonCodes.InvalidBirthDate, "The birth date is between 1900-01-01 and today.", null), "birthDate"));
+        if (command.BirthDate is { } birth && await BirthDateRefusalAsync(birth, calendar, ct) is { } refused)
+            return Result.Failure<PersonInfo>(refused);
 
         return await persons.SetRetirementAsync(command.Person, command.BirthDate, command.RetirementAge, command.RetirementMonths, ct);
     }
+
+    /// <summary>A birth date from 1900-01-01 to today, refused at <c>birthDate</c> otherwise.</summary>
+    internal static async Task<Failure?> BirthDateRefusalAsync(LocalDate birth, IHouseholdCalendar calendar, CancellationToken ct)
+        => birth < Earliest || birth > await calendar.TodayAsync(ct)
+            ? FieldErrors.At(new Failure(PersonCodes.InvalidBirthDate, "The birth date is between 1900-01-01 and today.", null), "birthDate")
+            : null;
 }
 
 /// <summary>Whether the actor owns an active private item or a solo tax notice: without one, « Moi » shows exactly « Foyer » and the selector is hidden.</summary>
