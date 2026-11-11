@@ -316,6 +316,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<DocumentsDbContext>>();
         services.AddScoped<IItemDeletionPart, Nid.Documents.Infrastructure.Persistence.DocumentsDeletionPart>();
+        services.AddScoped<IPersonUsePart, Nid.Documents.Infrastructure.Persistence.DocumentsPersonUsePart>();
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();

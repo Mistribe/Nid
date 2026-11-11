@@ -70,6 +70,8 @@ public sealed class DeleteDependentHandler(IPersonRegistry persons, IEnumerable<
             return Result.Failure<PersonId>(new NotFoundFailure("person", command.Person.ToString()));
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
+        // ponytail: count then delete, no lock — a contract or link naming the child committed in between dangles (other modules have no FK
+        // to core.person). Acceptable for a household; lock the person row here and FOR SHARE in those writers if it ever bites.
         var uses = new List<string>();
         foreach (var part in parts)
             uses.AddRange((await part.UsesAsync(child.Id, ct)).Where(u => u.Count > 0).Select(u => u.Key));
