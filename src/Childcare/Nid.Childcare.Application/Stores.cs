@@ -45,6 +45,9 @@ public interface IChildcareStore
     /// <summary>Corrects the current revision in place: the row with the same <c>From</c>, its week types replaced.</summary>
     Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct);
 
+    /// <summary>#192: the absence reasons deducted under the revision starting on <paramref name="from"/>.</summary>
+    Task SetUnpaidAbsencesAsync(ItemId id, LocalDate from, IReadOnlyList<AbsenceReason> reasons, CancellationToken ct);
+
     /// <summary>A revision: the current one ends the day before <paramref name="terms"/> starts, in the same save.</summary>
     Task AddTermsAsync(Terms terms, CancellationToken ct);
 

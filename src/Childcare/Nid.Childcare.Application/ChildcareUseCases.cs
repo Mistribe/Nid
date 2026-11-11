@@ -38,6 +38,12 @@ public sealed record ReviseChildcareCommand(ItemId ItemId, TermsInput Terms) : I
     public AccessKind Access => AccessKind.Write;
 }
 
+/// <summary>#192: corrects the absence reasons deducted under the revision starting on <paramref name="From"/>, a past one included; validated months keep their figures.</summary>
+public sealed record SetUnpaidAbsencesCommand(ItemId ItemId, LocalDate From, IReadOnlyList<AbsenceReason> Reasons) : ICommand<ItemId>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 /// <summary>The week of <paramref name="Monday"/> follows the week type of this rank; the rank the rotation gives removes the exception.</summary>
 public sealed record SetWeekOverrideCommand(ItemId ItemId, LocalDate Monday, int WeekType) : ICommand<ItemId>, IItemScoped
 {
@@ -162,6 +168,28 @@ public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore 
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.AddTermsAsync(kept.For(command.ItemId), ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(command.ItemId);
+    }
+}
+
+[RequestHandler<SetUnpaidAbsencesCommand, ItemId>]
+public sealed class SetUnpaidAbsencesHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<SetUnpaidAbsencesCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(SetUnpaidAbsencesCommand command, CancellationToken ct = default)
+    {
+        var loaded = await ChildcareCheck.LoadAsync(store, items, command.ItemId, ct);
+        if (loaded.TryGetFailure(out var failure))
+            return Result.Failure<ItemId>(failure!);
+        loaded.TryGetValue(out var found);
+        var (_, item, revisions) = found;
+        if (ChildcareCheck.RequireOpen(item).TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+        if (revisions.All(r => r.From != command.From))
+            return Result.Failure<ItemId>(new NotFoundFailure("childcare.revision", $"{command.From:uuuu-MM-dd}"));
+
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        await store.SetUnpaidAbsencesAsync(command.ItemId, command.From, command.Reasons, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }

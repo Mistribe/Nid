@@ -56,7 +56,7 @@ describe('NewChildcare', () => {
     const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', lunch: true, snack: false });
     expect(bodies).toEqual([{
       name: 'Garde de Léa', childId: CHILD, carer: { name: 'Martine' },
-      terms: { from: '2025-09-01', netHourlyRate: '4.30', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.20', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'],
+      terms: { from: '2025-09-01', netHourlyRate: '4.30', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.20', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['parent_rtt', 'child_sick', 'carer_absent'],
         weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map(slot) }] },
       gaps: [], visibility: 'shared', owners: [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 10000 }],
     }]);

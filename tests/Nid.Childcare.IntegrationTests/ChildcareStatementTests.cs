@@ -101,6 +101,29 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal("none", month.GetProperty("state").GetString());
     }
 
+    /// <summary>#192: correcting a past revision's absences recomputes its draft months.</summary>
+    [Fact]
+    public async Task A_draft_month_follows_its_revision_s_corrected_absences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var arrangement = await CreateAsync(app);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{arrangement}/revisions", new
+        {
+            terms = new
+            {
+                from = "2025-10-01", netHourlyRate = "4.30", overtimePct = "10", upkeepPer9h = "3.80", lunchPrice = "3.20",
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { 1, 2, 4, 5 }.Select(d => new { day = d, arrival = "08:00", departure = "17:30", lunch = true }).ToArray() } },
+            },
+        })).StatusCode);
+        var url = $"{arrangement}/statements/2025-09";
+        Action<Dictionary<string, object?>> family = d => { SickChild(d); d["absence"] = "family"; };
+        Assert.Equal(HttpStatusCode.OK, (await SaveAsync(app, url, new() { ["2025-09-01"] = family })).StatusCode);
+        Assert.Equal("0.00", (await GetAsync(app, url)).GetProperty("figures").GetProperty("deduction").GetProperty("amount").GetString());
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{arrangement}/revisions/2025-09-01", new { unpaidAbsences = new[] { "family" } })).StatusCode);
+        Assert.NotEqual("0.00", (await GetAsync(app, url)).GetProperty("figures").GetProperty("deduction").GetProperty("amount").GetString());
+    }
+
     /// <summary>Decisions 29 and 30: a past month from its totals and Pajemploi's amounts, kept through validation.</summary>
     [Fact]
     public async Task A_past_month_from_its_totals()

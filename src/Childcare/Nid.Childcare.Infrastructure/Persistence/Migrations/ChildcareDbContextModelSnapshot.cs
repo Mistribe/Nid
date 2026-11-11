@@ -357,7 +357,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text[]")
                         .HasColumnName("unpaid_absences")
-                        .HasDefaultValueSql("'{child_sick,carer_absent}'");
+                        .HasDefaultValueSql("'{parent_rtt,child_sick,carer_absent}'");
 
                     b.Property<decimal>("UpkeepPer9h")
                         .HasColumnType("numeric(19,4)")

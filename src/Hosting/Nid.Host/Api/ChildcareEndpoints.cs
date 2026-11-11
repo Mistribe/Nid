@@ -52,6 +52,18 @@ public static class ChildcareEndpoints
             })
             .Returns<IdResponse>();
 
+        api.MapPut("/{id:guid}/revisions/{from}", async (Guid id, string from, UnpaidAbsencesBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var start = reader.Date(from, "from");
+                var reasons = ChildcareBodies.Absences(reader, body.UnpaidAbsences, "unpaidAbsences");
+                if (body.UnpaidAbsences is null) reader.Add("unpaidAbsences", "request.required", "The absence reasons deducted from the salary are required, [] for none.");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new SetUnpaidAbsencesCommand(new ItemId(id), start!.Value, reasons!), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
         api.MapPut("/{id:guid}/gaps", async (Guid id, GapsBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
@@ -275,6 +287,8 @@ public static class ChildcareEndpoints
 
     public sealed record ReviseChildcareBody(TermsBody? Terms);
 
+    public sealed record UnpaidAbsencesBody(IReadOnlyList<string>? UnpaidAbsences);
+
     public sealed record GapsBody(IReadOnlyList<CareGapBody>? Gaps);
 
     public sealed record CloseChildcareBody(string? On);
@@ -341,10 +355,17 @@ public static class ChildcareEndpoints
                 }
                 if (type?.Name is { } name && type.Weeks is { } weeks) types.Add(new WeekType(name, weeks, schedule));
             }
-            var unpaid = body.UnpaidAbsences?.Select(AbsenceCodes.TryParse).ToList();
-            if (unpaid?.Any(u => u is null) == true)
-                reader.Add("terms.unpaidAbsences", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
-            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, lunch, types, snack, lunchProvider, snackProvider, unpaid?.OfType<AbsenceReason>().Distinct().ToList()) : null;
+            var unpaid = Absences(reader, body.UnpaidAbsences, "terms.unpaidAbsences");
+            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, lunch, types, snack, lunchProvider, snackProvider, unpaid) : null;
+        }
+
+        /// <summary>The absence reasons, each once; null when not sent.</summary>
+        public static IReadOnlyList<AbsenceReason>? Absences(FieldReader reader, IReadOnlyList<string>? body, string path)
+        {
+            var reasons = body?.Select(AbsenceCodes.TryParse).ToList();
+            if (reasons?.Any(u => u is null) == true)
+                reader.Add(path, "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, holiday or paid_leave.");
+            return reasons?.OfType<AbsenceReason>().Distinct().ToList();
         }
 
         public static IReadOnlyList<CareGap> Gaps(FieldReader reader, IReadOnlyList<CareGapBody>? body)

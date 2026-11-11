@@ -12,6 +12,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ChildcareEndpoints.CreateChildcareBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.EditChildcareBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.ReviseChildcareBody))]
+[JsonSerializable(typeof(ChildcareEndpoints.UnpaidAbsencesBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.GapsBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.CloseChildcareBody))]
 [JsonSerializable(typeof(ChildcareEndpoints.WeekOverrideBody))]

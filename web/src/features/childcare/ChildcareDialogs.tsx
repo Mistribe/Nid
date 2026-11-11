@@ -4,17 +4,18 @@ import { useForm, type Path, type Resolver } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { FormDialog } from '@/components/FormDialog';
 import { DateField } from '@/components/form/DateField';
+import { formatLocalDate } from '@/components/LocalDate';
 import { Field } from '@/components/form/Field';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useCloseChildcare, useEditChildcare, useReplaceGaps, useReviseChildcare, type ChildcareDetail } from './api';
+import { useCloseChildcare, useEditChildcare, useReplaceGaps, useReviseChildcare, useSetUnpaidAbsences, type ChildcareDetail, type ChildcareTerms } from './api';
 import {
   carerToWire, childcarePath, editSchema, gapsDefaults, gapsSchema, gapsToWire, termsDefaults, termsSchema, termsToWire,
   type EditValues, type GapRow, type TermsValues,
 } from './childcareSchema';
 import { GapFields } from './GapFields';
-import { RateFields } from './RateFields';
+import { RateFields, UnpaidAbsencesField } from './RateFields';
 import { WeekTypesFields } from './WeekTypesFields';
 import { useChildcareErrors } from './useChildcareErrors';
 import '@/locales/childcare';
@@ -166,6 +167,36 @@ export function EndDialog({ detail, onClose, onDone }: DialogProps) {
           <p className="text-sm text-muted-foreground">{t('childcare_detail.end_body', { name: detail.summary.name })}</p>
           <Field label={t('childcare_detail.end_on')} error={error || undefined}>{(c) => <DateField {...c} value={on} onChange={setOn} />}</Field>
           <Actions submit={t('childcare_detail.end_submit')} pending={close.isPending} onCancel={() => done()} />
+        </form>
+      )}
+    </FormDialog>
+  );
+}
+
+/** #192: corrects the absence reasons of one revision, a past one included; draft months recompute, validated ones keep their figures. */
+export function UnpaidAbsencesDialog({ detail, revision, onClose, onDone }: DialogProps & { revision: ChildcareTerms }) {
+  const { t } = useTranslation();
+  const save = useSetUnpaidAbsences();
+  const [unpaid, setUnpaid] = useState<string[]>(revision.unpaidAbsences);
+  const errors = useChildcareErrors<{ unpaid: string }>(() => undefined, () => undefined);
+  const period = revision.to
+    ? t('childcare_detail.unpaid_period', { from: formatLocalDate(revision.from, 'short'), to: formatLocalDate(revision.to, 'short') })
+    : t('childcare_detail.unpaid_period_open', { from: formatLocalDate(revision.from, 'short') });
+  return (
+    <FormDialog title={t('childcare_detail.unpaid_title')} onClose={onClose} onDone={onDone}>
+      {({ titleId, done }) => (
+        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          errors.clear();
+          save.mutate({ params: { path: { id: detail.summary.id, from: revision.from } }, body: { unpaidAbsences: unpaid } },
+            { onSuccess: () => done(t('childcare_detail.saved')), onError: (e) => errors.onError(e) });
+        }}>
+          {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
+          <Unplaced messages={errors.unplaced} />
+          <p className="text-sm text-muted-foreground">{period} {t('childcare_detail.unpaid_body')}</p>
+          <UnpaidAbsencesField value={unpaid} onChange={setUnpaid} />
+          <Actions submit={t('childcare_detail.save')} pending={save.isPending} onCancel={() => done()} />
         </form>
       )}
     </FormDialog>
