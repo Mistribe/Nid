@@ -134,6 +134,16 @@ Cible **WCAG 2.2 AA**, et les règles d'Apple du §8.2 (réglages de la personne
 - **Page d'erreur** (`ErrorPage`) : même construction que l'état vide, avec un `h1` puisqu'elle remplace la page ; une fiche dont la requête échoue l'affiche à la place de l'encadré rouge, qui reste aux erreurs d'un bloc ou d'une action.
 - **Panneau latéral** : un chiffre de l'accueil s'ouvre dans un panneau (`?panel=`), sans quitter la page.
 
+### 6.2 Pour qui on écrit : des foyers, pas des experts
+
+Nid s'adresse à des personnes ordinaires qui tiennent les finances de leur foyer, pas à des conseillers ni à des passionnés de finance. Chaque écran se lit et se remplit sans connaître le vocabulaire du métier.
+
+- **Des questions plutôt que des champs** : on demande « Combien mettez-vous de côté chaque mois ? », pas « Épargne mensuelle (EUR) ». Une valeur que Nid sait calculer est proposée par défaut (« Laisser Nid calculer »).
+- **Pas de mur de champs** : jamais un dialogue avec des dizaines de champs. Une saisie longue se découpe en cartes éditées sur place ou en étapes (`StepForm`) ; un choix d'expert devient un profil ou un choix court (« Prudent / Équilibré / Optimiste ») qui règle plusieurs valeurs d'un coup.
+- **L'avancé est replié** : les réglages fins (taux par classe d'actifs, volatilité, valeurs année par année) sont sous « Personnaliser », chacun avec sa valeur par défaut affichée et un retour au défaut.
+- **Chaque terme technique s'explique** : une infobulle (`InfoTip`) dit ce qu'est la valeur, ce qu'elle change et d'où vient son défaut, en une ou deux phrases sans jargon. Un terme qu'on peut éviter, on l'évite.
+- **L'effet se voit** : quand un réglage change un résultat (projection, impôt, échéance), l'écran montre la conséquence calculée par le serveur, pas seulement le pourcentage.
+
 ## 7. Thèmes
 
 ### 7.1 Principe
