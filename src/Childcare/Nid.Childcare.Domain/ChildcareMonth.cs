@@ -63,10 +63,10 @@ public static class ChildcareMonth
             ?? unplannedDays + (partial ? Math.Max(0, templateDaysInContract - deductedDays)
                 : deductedDays == 0 ? mensualisedDays
                 : (int)Math.Round(mensualisedDays - (decimal)mensualisedDays * deductedDays / templateDays, MidpointRounding.AwayFromZero));
-        // #26: the hours the net pay stands for once the declared extra hours are taken out, so that Pajemploi's own
-        // estimate lands on the net pay: 143.96 h mensualised less the half hour the started hour adds declares 143 h.
+        // #26: the hours the pay at the normal rate stands for, mensualised less deducted, extra hours apart: the hour
+        // a started extra hour rounds up is not taken back out of them (142.5 h and 20 min extra declare 143 h + 1 h).
         var normalHours = input.Declared?.NormalHours
-            ?? Math.Max(0, Mensualisation.NormalHours(netPay - ExtraHours.Pay(complementary, overtime, input.Terms.NetHourlyRate, input.Terms.OvertimeRate), input.Terms.NetHourlyRate));
+            ?? Math.Max(0, Mensualisation.NormalHours(basePay - deduction + leavePay, input.Terms.NetHourlyRate));
         var declaration = new PajemploiDeclaration(normalHours, activityDays, leaveDays,
             complementary, overtime, netPay, upkeep, meals, input.Mileage);
         // #30: the CMG covers the contributions only up to an hourly ceiling; past it the household pays the rest, read from the summary.
