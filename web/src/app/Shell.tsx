@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { Ellipsis, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import { ChevronDown, Ellipsis, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModuleTile } from '@/components/ModuleTile';
 import { Wordmark } from '@/components/Logo';
@@ -14,7 +14,8 @@ import { TopBarTrail } from './TopBarTrail';
 import { TrailProvider } from '@/components/page/trail';
 import { section, TAB_ORDER, visibleNav, type NavItem } from '@/components/nav';
 import { useSession } from './Providers';
-import { AVATAR, initials, useSidebar } from './sidebar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AVATAR, initials, useAdminGroup, useSidebar } from './sidebar';
 
 // The menu's Radix code stays out of the initial bundle (200 kB budget); the initials show meanwhile.
 const PersonMenu = lazy(() => import('./PersonMenu').then((m) => ({ default: m.PersonMenu })));
@@ -33,7 +34,8 @@ const RAIL = 'relative flex h-10 items-center justify-center rounded-md transiti
 // The current page: a pill tinted in the accent colour, the label in the text colour and bold (design-system.md §8.1), the icon in the accent.
 const ACTIVE = 'bg-primary/15 font-semibold text-foreground hover:bg-primary/20 hover:text-foreground [&>svg]:text-primary';
 // A tab colours its icon, not its label.
-const TAB_ACTIVE = 'font-semibold text-foreground [&>svg]:text-primary';
+const GROUP = 'px-3 pb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground';
+const TAB_ACTIVE ='font-semibold text-foreground [&>svg]:text-primary';
 // A phone shares its width among five tabs: icon above a short label, each tab an equal share (2E1 final review). iOS's 10 px
 // labels on a 2 px edge: « Abonnements » in bold fits a fifth of 390 px whole.
 const TAB = 'relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[10px] leading-tight hover:bg-accent hover:text-accent-foreground';
@@ -47,6 +49,7 @@ export function Shell() {
   const { capabilities, session } = useSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { rail, toggle } = useSidebar();
+  const [adminOpen, setAdminOpen] = useAdminGroup(pathname === '/admin' || pathname.startsWith('/admin/'));
   // null until first opened: the palette's code is not fetched before it is wanted.
   const [palette, setPalette] = useState<boolean | null>(null);
   useEffect(() => {
@@ -113,12 +116,28 @@ export function Shell() {
             <Wordmark markOnly={rail} className="h-7" />
           </div>
           <div className={`flex-1 overflow-x-hidden overflow-y-auto ${rail ? 'p-1' : 'p-3'}`}>
-            {groups.map(({ group, entries }, index) => (
-              <div key={group} className={index === 0 ? undefined : rail ? 'mt-2 border-t pt-2' : 'mt-5'}>
-                <h2 id={`nav-group-${group}`} className={rail ? 'sr-only' : 'px-3 pb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground'}>{t(`nav.group_${group}`)}</h2>
-                <ul aria-labelledby={`nav-group-${group}`} className="space-y-0.5">{entries.map((item) => <li key={item.to}>{sideLink(item)}</li>)}</ul>
-              </div>
-            ))}
+            {groups.map(({ group, entries }, index) => {
+              const list = <ul aria-labelledby={`nav-group-${group}`} className="space-y-0.5">{entries.map((item) => <li key={item.to}>{sideLink(item)}</li>)}</ul>;
+              const className = index === 0 ? undefined : rail ? 'mt-2 border-t pt-2' : 'mt-5';
+              // Issue 142: the longest group, rarely opened, folds away; the rail keeps its icons.
+              if (group === 'admin' && !rail) return (
+                <Collapsible key={group} open={adminOpen} onOpenChange={setAdminOpen} className={className}>
+                  <h2 id={`nav-group-${group}`}>
+                    <CollapsibleTrigger className={`${GROUP} group/fold flex w-full items-center justify-between rounded-md pt-1 outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50`}>
+                      {t(`nav.group_${group}`)}
+                      <ChevronDown aria-hidden="true" className="size-3.5 transition-transform group-data-[state=closed]/fold:-rotate-90 motion-reduce:transition-none" />
+                    </CollapsibleTrigger>
+                  </h2>
+                  <CollapsibleContent asChild>{list}</CollapsibleContent>
+                </Collapsible>
+              );
+              return (
+                <div key={group} className={className}>
+                  <h2 id={`nav-group-${group}`} className={rail ? 'sr-only' : GROUP}>{t(`nav.group_${group}`)}</h2>
+                  {list}
+                </div>
+              );
+            })}
           </div>
           {/* Bottom left in both states, 14 px from the window's edge: folding or unfolding leaves it under the pointer (issue 373). */}
           <div className="shrink-0 border-t p-1.5">
