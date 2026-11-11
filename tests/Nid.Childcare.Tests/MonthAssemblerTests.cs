@@ -31,7 +31,7 @@ public class MonthAssemblerTests
         Assert.Equal(598.02m, figures.Declaration.NetPay);
         Assert.Equal(2m, figures.Declaration.ComplementaryHours);
         Assert.Equal(138, figures.Declaration.NormalHours); // (598.02 − 1.5 × 4.30) ÷ 4.30 = 137.57
-        Assert.Equal(15, figures.Declaration.ActivityDays);
+        Assert.Equal(16, figures.Declaration.ActivityDays); // 16 × 17 ÷ 18 = 15.11, rounded up
     }
 
     /// <summary>Friday 2026-05-01 belongs to April's last week: the hours really worked that day are April's extra hours.</summary>

@@ -78,7 +78,7 @@ public class ChildcareMonthTests
             days => AbsenceDeductionTests.Absent(days, (2, AbsenceReason.CarerAbsent), (3, AbsenceReason.CarerAbsent))));
         Assert.Equal(552.68m, figures.Declaration.NetPay);
         Assert.Equal(129, figures.Declaration.NormalHours); // 552.68 / 4.30
-        Assert.Equal(14, figures.Declaration.ActivityDays); // 16 − 16 × 2 ÷ 17
+        Assert.Equal(15, figures.Declaration.ActivityDays); // 16 × 15 ÷ 17 = 14.12, rounded up
         Assert.Equal(61.95m, figures.Declaration.Upkeep);
         Assert.Equal(48.00m, figures.Declaration.Meals);
     }
