@@ -60,6 +60,60 @@ public static class ProjectionDefaults
     public static readonly ProjectionAssumptions Assumptions = new(ClassRates, 0.02m, null, AllocationClasses.Cash, true);
 }
 
+/// <summary>
+/// #155: the market profiles, each setting every class rate at once (balanced is <see cref="ProjectionDefaults.ClassRates"/>). The
+/// volatility is the same in all three, <see cref="ProjectionDefaults.ClassVolatility"/>: it describes risk, not optimism.
+/// </summary>
+public static class ProjectionProfiles
+{
+    public const string Prudent = "prudent";
+    public const string Balanced = "balanced";
+    public const string Optimistic = "optimistic";
+
+    /// <summary>The household's rates match no profile.</summary>
+    public const string Custom = "custom";
+
+    public static readonly IReadOnlyList<string> All = [Prudent, Balanced, Optimistic];
+
+    /// <summary>Every profile's annual rate per class, as fractions.</summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>> ClassRates = new Dictionary<string, IReadOnlyDictionary<string, decimal>>
+    {
+        [Prudent] = new Dictionary<string, decimal>
+        {
+            [AllocationClasses.Cash] = 0.015m,
+            [AllocationClasses.MoneyMarket] = 0.02m,
+            [AllocationClasses.Bond] = 0.02m,
+            [AllocationClasses.Equity] = 0.04m,
+            [AllocationClasses.Mixed] = 0.03m,
+            [AllocationClasses.CapitalGuaranteed] = 0.02m,
+            [AllocationClasses.RealEstate] = 0.01m,
+            [AllocationClasses.Other] = 0m,
+        },
+        [Balanced] = ProjectionDefaults.ClassRates,
+        [Optimistic] = new Dictionary<string, decimal>
+        {
+            [AllocationClasses.Cash] = 0.025m,
+            [AllocationClasses.MoneyMarket] = 0.03m,
+            [AllocationClasses.Bond] = 0.04m,
+            [AllocationClasses.Equity] = 0.08m,
+            [AllocationClasses.Mixed] = 0.055m,
+            [AllocationClasses.CapitalGuaranteed] = 0.03m,
+            [AllocationClasses.RealEstate] = 0.03m,
+            [AllocationClasses.Other] = 0m,
+        },
+    };
+
+    /// <summary>The assumptions with the profile's rates and volatilities (null: every class's default); the yearly tables are kept.</summary>
+    public static ProjectionAssumptions Apply(string profile, ProjectionAssumptions a)
+        => a with { ClassRates = ClassRates[profile], ClassVolatility = null };
+
+    /// <summary>The profile whose rates and volatilities all equal the household's, else <see cref="Custom"/>; derived, never stored.</summary>
+    public static string Of(ProjectionAssumptions a)
+        => All.FirstOrDefault(p => AllocationClasses.All.All(c =>
+            a.ClassRates.TryGetValue(c, out var rate) && rate == ClassRates[p][c]
+            && a.VolatilityOf(c) == ProjectionDefaults.ClassVolatility[c])) ?? Custom;
+}
+
 /// <summary>Net worth projection spec §4: the kinds of event a projection scenario holds.</summary>
 public static class ProjectionEventKinds
 {

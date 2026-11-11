@@ -28,6 +28,19 @@ public static class ProjectionEndpoints
             })
             .Returns<ProjectionAssumptionsView>();
 
+        // #155: one settings card at a time.
+        api.MapPatch("", async (AssumptionsPatchBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(reader);
+                return command is null ? reader.Problem() : (await invoker.InvokeAsync(command, ct)).ToHttp(view => view);
+            })
+            .Returns<ProjectionAssumptionsView>();
+
+        api.MapGet("/profiles", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetProjectionProfilesQuery(), ct)).ToHttp(view => view))
+            .Returns<ProjectionProfilesView>();
+
         // Spec §7: the base projection, in the reader's scope; ranges spec §4: the bands on demand.
         routes.MapGroup("/api/v1/projection").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
@@ -97,6 +110,37 @@ public static class ProjectionEndpoints
                 ? new ProjectionAssumptions(rates, inflation!.Value, savings, savingsClass!, FreedPaymentsToSavings!.Value, byYear, classYears, growth ?? 0m, volatility,
                     withdrawal ?? 0.04m, livingCost ?? 0m)
                 : null;
+        }
+    }
+
+    /// <summary>
+    /// #155: the shapes of <see cref="AssumptionsBody"/>, every member optional, a missing one keeping the stored value. <c>Profile</c> is a
+    /// market profile's key; <c>MonthlySavings</c> is an amount or <c>"auto"</c>; <c>{"cash": {}}</c> clears a class's yearly rates.
+    /// </summary>
+    public sealed record AssumptionsPatchBody(
+        string? Profile = null, IReadOnlyDictionary<string, string>? ClassRates = null, string? Inflation = null, string? MonthlySavings = null,
+        string? SavingsClass = null, bool? FreedPaymentsToSavings = null,
+        IReadOnlyDictionary<string, string>? InflationByYear = null, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? ClassRatesByYear = null,
+        string? IncomeGrowth = null, IReadOnlyDictionary<string, string>? ClassVolatility = null,
+        string? WithdrawalRate = null, string? MonthlyLivingCost = null)
+    {
+        internal PatchProjectionAssumptionsCommand? ToCommand(FieldReader reader)
+        {
+            decimal? Percent(string? text, string path) => reader.Decimal(text, path) / 100m;
+            decimal? Read(string? text, string path) => reader.Decimal(text, path);
+            void Refuse(string path, string message) => reader.Add(path, "request.invalid", message);
+            Dictionary<string, decimal>? Classes(IReadOnlyDictionary<string, string>? wire, string path) => wire?
+                .Select(r => (r.Key, Value: Percent(r.Value, $"{path}.{r.Key}"))).Where(r => r.Value is not null).ToDictionary(r => r.Key, r => r.Value!.Value);
+
+            var automatic = MonthlySavings == "auto";
+            var changes = new ProjectionOverrides(
+                Classes(ClassRates, "classRates"), Percent(Inflation, "inflation"), automatic ? null : Read(MonthlySavings, "monthlySavings"),
+                SavingsClass, FreedPaymentsToSavings,
+                ProjectionAssumptionsView.Years(InflationByYear, "inflationByYear", Read, Refuse),
+                ProjectionAssumptionsView.ClassYears(ClassRatesByYear, "classRatesByYear", Read, Refuse),
+                Percent(IncomeGrowth, "incomeGrowth"), Classes(ClassVolatility, "classVolatility"),
+                Percent(WithdrawalRate, "withdrawalRate"), Read(MonthlyLivingCost, "monthlyLivingCost"));
+            return reader.Ok ? new PatchProjectionAssumptionsCommand(Profile, changes, automatic) : null;
         }
     }
 }

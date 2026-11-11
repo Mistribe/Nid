@@ -432,6 +432,8 @@ public static class RequestCatalogue
         new(typeof(SaveAllocationTargetCommand), false, (_, _) => new SaveAllocationTargetCommand(new Dictionary<string, decimal>())),
         new(typeof(GetProjectionAssumptionsQuery), false, (_, _) => new GetProjectionAssumptionsQuery()),
         new(typeof(SaveProjectionAssumptionsCommand), false, (_, _) => new SaveProjectionAssumptionsCommand(ProjectionDefaults.Assumptions)),
+        new(typeof(PatchProjectionAssumptionsCommand), false, (_, _) => new PatchProjectionAssumptionsCommand(ProjectionProfiles.Prudent, new ProjectionOverrides(null, null, null, null, null))),
+        new(typeof(GetProjectionProfilesQuery), false, (_, _) => new GetProjectionProfilesQuery()),
         new(typeof(GetProjectionQuery), false, (_, _) => new GetProjectionQuery(VisibilityScope.Me, ProjectionHorizon.Default)),
         new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Me)),
         new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Household)),

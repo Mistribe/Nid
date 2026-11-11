@@ -21774,6 +21774,172 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssumptionsPatchBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectionAssumptionsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/core/projection-assumptions/profiles": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectionProfilesView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/projection": {
@@ -30468,6 +30634,98 @@
       "AssumptionsBody": {
         "type": "object",
         "properties": {
+          "classRates": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "inflation": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlySavings": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "savingsClass": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "freedPaymentsToSavings": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "inflationByYear": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "classRatesByYear": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "incomeGrowth": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "classVolatility": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "withdrawalRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyLivingCost": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AssumptionsPatchBody": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "classRates": {
             "type": [
               "null",
@@ -46785,7 +47043,9 @@
           "incomeGrowth",
           "classVolatility",
           "withdrawalRate",
-          "monthlyLivingCost"
+          "monthlyLivingCost",
+          "profile",
+          "defaults"
         ],
         "type": "object",
         "properties": {
@@ -46842,6 +47102,12 @@
           },
           "monthlyLivingCost": {
             "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/ProjectionDefaultsView"
           },
           "observedInflation": {
             "oneOf": [
@@ -46904,6 +47170,39 @@
           },
           "document": {
             "$ref": "#/components/schemas/ProjectionDocumentView"
+          }
+        }
+      },
+      "ProjectionDefaultsView": {
+        "required": [
+          "classRates",
+          "classVolatility",
+          "inflation",
+          "incomeGrowth",
+          "withdrawalRate"
+        ],
+        "type": "object",
+        "properties": {
+          "classRates": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "classVolatility": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "inflation": {
+            "type": "string"
+          },
+          "incomeGrowth": {
+            "type": "string"
+          },
+          "withdrawalRate": {
+            "type": "string"
           }
         }
       },
@@ -47210,6 +47509,53 @@
           },
           "with": {
             "$ref": "#/components/schemas/DashboardMoneyView"
+          }
+        }
+      },
+      "ProjectionProfilesView": {
+        "required": [
+          "currency",
+          "profiles"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectionProfileView"
+            }
+          }
+        }
+      },
+      "ProjectionProfileView": {
+        "required": [
+          "key",
+          "classRates",
+          "classVolatility",
+          "inTenYears"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "classRates": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "classVolatility": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "inTenYears": {
+            "type": "string"
           }
         }
       },

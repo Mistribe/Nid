@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.Core.Application.Inflation;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Projection;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -132,11 +133,13 @@ public static class ProjectionRules
 /// <c>ObservedInflation</c> is the rate the current year follows when it has no value, for the form's hint (null elsewhere than in the settings).
 /// Ranges spec §2: <c>ClassVolatility</c> holds every class's annual volatility in percent, the defaults included.
 /// Retirement spec §3: <c>WithdrawalRate</c> in percent, <c>MonthlyLivingCost</c> an amount in the reference currency.
+/// #155: <c>Profile</c> is the market profile the rates match (<see cref="ProjectionProfiles"/>), <c>custom</c> otherwise;
+/// <c>Defaults</c> the value each customised field resets to.
 /// </summary>
 public sealed record ProjectionAssumptionsView(
     IReadOnlyDictionary<string, string> ClassRates, string Inflation, string? MonthlySavings, string SavingsClass, bool FreedPaymentsToSavings, string Currency,
     IReadOnlyDictionary<string, string> InflationByYear, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ClassRatesByYear, string IncomeGrowth,
-    IReadOnlyDictionary<string, string> ClassVolatility, string WithdrawalRate, string MonthlyLivingCost,
+    IReadOnlyDictionary<string, string> ClassVolatility, string WithdrawalRate, string MonthlyLivingCost, string Profile, ProjectionDefaultsView Defaults,
     InflationTwelveMonthsView? ObservedInflation = null)
 {
     public static ProjectionAssumptionsView From(ProjectionAssumptions a, string currency, InflationTwelveMonthsView? observed = null) => new(
@@ -146,7 +149,10 @@ public sealed record ProjectionAssumptionsView(
         (a.ClassRatesByYear ?? new Dictionary<string, IReadOnlyDictionary<int, decimal>>()).Where(c => c.Value is not null)
             .ToDictionary(c => c.Key, c => (IReadOnlyDictionary<string, string>)Years(c.Value)!),
         Percent(a.IncomeGrowth), AllocationClasses.All.ToDictionary(c => c, c => Percent(a.VolatilityOf(c))),
-        Percent(a.WithdrawalRate), Scenarios.PropertyPurchaseView.Amount(a.MonthlyLivingCost), observed);
+        Percent(a.WithdrawalRate), Scenarios.PropertyPurchaseView.Amount(a.MonthlyLivingCost), ProjectionProfiles.Of(a), ProjectionDefaultsView.Instance, observed);
+
+    /// <summary>A class table in percent strings.</summary>
+    internal static Dictionary<string, string> Percents(IReadOnlyDictionary<string, decimal> table) => table.ToDictionary(r => r.Key, r => Percent(r.Value));
 
     /// <summary>A yearly table on the wire, years as text and rates in percent; null for a null table.</summary>
     public static Dictionary<string, string>? Years(IReadOnlyDictionary<int, decimal>? table)
@@ -187,6 +193,16 @@ public sealed record ProjectionAssumptionsView(
     internal static string Percent(decimal fraction) => Scenarios.PropertyPurchaseView.Rate(fraction);
 }
 
+/// <summary>#155: the default of every value a customised field resets to, in percent: the balanced profile's rates and volatilities.</summary>
+public sealed record ProjectionDefaultsView(
+    IReadOnlyDictionary<string, string> ClassRates, IReadOnlyDictionary<string, string> ClassVolatility, string Inflation, string IncomeGrowth, string WithdrawalRate)
+{
+    public static readonly ProjectionDefaultsView Instance = new(
+        ProjectionAssumptionsView.Percents(ProjectionDefaults.ClassRates), ProjectionAssumptionsView.Percents(ProjectionDefaults.ClassVolatility),
+        ProjectionAssumptionsView.Percent(ProjectionDefaults.Assumptions.Inflation), ProjectionAssumptionsView.Percent(ProjectionDefaults.Assumptions.IncomeGrowth),
+        ProjectionAssumptionsView.Percent(ProjectionDefaults.Assumptions.WithdrawalRate));
+}
+
 public sealed record GetProjectionAssumptionsQuery : IQuery<ProjectionAssumptionsView>;
 
 /// <summary>Spec §2.1: replaces the household's assumptions whole; any adult may.</summary>
@@ -213,6 +229,23 @@ internal static class ProjectionAssumptionsViews
         var last = reference == Currency.Eur && ProjectionRules.ShowsObserved(a, today) ? (await inflation.ReadAsync(ct)).Last12Months : null;
         return ProjectionAssumptionsView.From(a, reference.Code, last is { } l ? new InflationTwelveMonthsView(CpiViews.Month(l.To), CpiViews.Percent(l.Rate)) : null);
     }
+
+    /// <summary>
+    /// Stores <paramref name="assumptions"/> without their past years (a past year sent back is dropped, never refused) once
+    /// <see cref="ProjectionRules.Check"/> passes, and answers the view; every refusal keeps its field path.
+    /// </summary>
+    public static async Task<Result<ProjectionAssumptionsView>> SaveAsync(
+        IHouseholdSettings household, IInflation inflation, ProjectionAssumptions assumptions, LocalDate today, CancellationToken ct)
+    {
+        assumptions = ProjectionRules.WithoutPastYears(assumptions, today);
+        var errors = ProjectionRules.Check(assumptions, today);
+        if (errors.Count > 0)
+            return Result.Failure<ProjectionAssumptionsView>(FieldErrors.Many(ProjectionCodes.InvalidField,
+                errors.Count == 1 ? errors[0].Message : "Some fields are not valid.",
+                errors.Select(e => new FieldError(e.Field, ProjectionCodes.InvalidField, e.Message)).ToList()));
+        await household.SaveProjectionAssumptionsAsync(assumptions, ct);
+        return Result.Success(await ReadAsync(household, inflation, assumptions, today, ct));
+    }
 }
 
 [RequestHandler<SaveProjectionAssumptionsCommand, ProjectionAssumptionsView>]
@@ -220,16 +253,72 @@ public sealed class SaveProjectionAssumptionsHandler(IHouseholdSettings househol
     : IRequestHandler<SaveProjectionAssumptionsCommand, ProjectionAssumptionsView>
 {
     public async ValueTask<Result<ProjectionAssumptionsView>> HandleAsync(SaveProjectionAssumptionsCommand command, CancellationToken ct = default)
+        => await ProjectionAssumptionsViews.SaveAsync(household, inflation, command.Assumptions, await calendar.TodayAsync(ct), ct);
+}
+
+/// <summary>
+/// #155: changes part of the household's assumptions, a null member of <c>Changes</c> keeping the stored value (the merge rules of
+/// <see cref="ProjectionOverrides.Apply"/>). <c>Profile</c> first sets every class rate and volatility to the profile's, so it comes
+/// without rates or volatilities of its own; <c>AutomaticSavings</c> goes back to the automatic savings. Any adult may.
+/// </summary>
+public sealed record PatchProjectionAssumptionsCommand(string? Profile, ProjectionOverrides Changes, bool AutomaticSavings = false)
+    : ICommand<ProjectionAssumptionsView>;
+
+[RequestHandler<PatchProjectionAssumptionsCommand, ProjectionAssumptionsView>]
+public sealed class PatchProjectionAssumptionsHandler(IHouseholdSettings household, IHouseholdCalendar calendar, IInflation inflation)
+    : IRequestHandler<PatchProjectionAssumptionsCommand, ProjectionAssumptionsView>
+{
+    public async ValueTask<Result<ProjectionAssumptionsView>> HandleAsync(PatchProjectionAssumptionsCommand command, CancellationToken ct = default)
     {
-        // A past year the form sends back is dropped, never refused.
-        var today = await calendar.TodayAsync(ct);
-        var assumptions = ProjectionRules.WithoutPastYears(command.Assumptions, today);
-        var errors = ProjectionRules.Check(assumptions, today);
-        if (errors.Count > 0)
-            return Result.Failure<ProjectionAssumptionsView>(FieldErrors.Many(ProjectionCodes.InvalidField,
-                errors.Count == 1 ? errors[0].Message : "Some fields are not valid.",
-                errors.Select(e => new FieldError(e.Field, ProjectionCodes.InvalidField, e.Message)).ToList()));
-        await household.SaveProjectionAssumptionsAsync(assumptions, ct);
-        return Result.Success(await ProjectionAssumptionsViews.ReadAsync(household, inflation, assumptions, today, ct));
+        var refusal = command.Profile is not { } profile ? null
+            : !ProjectionProfiles.All.Contains(profile) ? $"Not a profile: use {string.Join(", ", ProjectionProfiles.All)}."
+            : command.Changes.ClassRates is not null || command.Changes.ClassVolatility is not null
+                ? "A profile sets every class rate and volatility: send it without classRates or classVolatility."
+                : null;
+        if (refusal is not null)
+            return Result.Failure<ProjectionAssumptionsView>(FieldErrors.Many(ProjectionCodes.InvalidField, refusal,
+                [new FieldError("profile", ProjectionCodes.InvalidField, refusal)]));
+
+        var stored = await household.ProjectionAssumptionsAsync(ct);
+        if (command.Profile is not null) stored = ProjectionProfiles.Apply(command.Profile, stored);
+        var merged = command.Changes.Apply(stored);
+        if (command.AutomaticSavings) merged = merged with { MonthlySavings = null };
+        return await ProjectionAssumptionsViews.SaveAsync(household, inflation, merged, await calendar.TodayAsync(ct), ct);
+    }
+}
+
+/// <summary>
+/// #155: a market profile's rates and volatilities in percent, and <c>InTenYears</c>: the household's base projection net worth at 10
+/// years in today's money, with its other assumptions and the profile's rates.
+/// </summary>
+public sealed record ProjectionProfileView(string Key, IReadOnlyDictionary<string, string> ClassRates, IReadOnlyDictionary<string, string> ClassVolatility, string InTenYears);
+
+/// <summary>#155: every market profile, its amounts in the household reference currency.</summary>
+public sealed record ProjectionProfilesView(string Currency, IReadOnlyList<ProjectionProfileView> Profiles);
+
+/// <summary>#155: the market profiles and their effect, in the household scope: three deterministic runs, no bands.</summary>
+public sealed record GetProjectionProfilesQuery : IQuery<ProjectionProfilesView>;
+
+[RequestHandler<GetProjectionProfilesQuery, ProjectionProfilesView>]
+public sealed class GetProjectionProfilesHandler(ProjectionFactsReader facts, IHouseholdSettings household)
+    : IRequestHandler<GetProjectionProfilesQuery, ProjectionProfilesView>
+{
+    public async ValueTask<Result<ProjectionProfilesView>> HandleAsync(GetProjectionProfilesQuery query, CancellationToken ct = default)
+    {
+        var stored = await household.ProjectionAssumptionsAsync(ct);
+        var profiles = new List<ProjectionProfileView>();
+        var currency = (await household.ReferenceCurrencyAsync(ct)).Code;
+        foreach (var profile in ProjectionProfiles.All)
+        {
+            var assumptions = ProjectionProfiles.Apply(profile, stored);
+            var read = await facts.ReadAsync(VisibilityScope.Household, ProjectionHorizon.Default, assumptions, RealEstateEvents.None, null, null, ct);
+            if (read.TryGetFailure(out var failure)) return Result.Failure<ProjectionProfilesView>(failure!);
+            read.TryGetValue(out var reading);
+            var end = HouseholdProjection.Project(reading!.Inputs).Points[^1];
+            profiles.Add(new ProjectionProfileView(profile, ProjectionAssumptionsView.Percents(assumptions.ClassRates),
+                AllocationClasses.All.ToDictionary(c => c, c => ProjectionAssumptionsView.Percent(assumptions.VolatilityOf(c))),
+                Scenarios.PropertyPurchaseView.Amount(end.Real)));
+        }
+        return Result.Success(new ProjectionProfilesView(currency, profiles));
     }
 }
