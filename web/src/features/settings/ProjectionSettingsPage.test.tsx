@@ -43,7 +43,6 @@ function serve(initial: Body = assumptions(), refuse?: { path: string; message: 
         : HttpResponse.json({ ...initial, ...body });
     }),
     http.get(`${ASSUMPTIONS}/profiles`, () => HttpResponse.json(profiles)),
-    http.get('*/api/v1/core/inflation', () => HttpResponse.json({ lastPublished: '2026-09', last12Months: { to: '2026-09', percent: '3.1' }, years: [] })),
     http.get('*/api/v1/projection', () => HttpResponse.json({ monthlySavings: '450.00', savingsOrigin: 'auto' })),
   );
   return patches;
@@ -167,7 +166,7 @@ describe('the projection settings page', () => {
   });
 
   it('gives the prices in one line, one link to the series, and the way to the persons', async () => {
-    serve();
+    serve(assumptions({ observedInflation: { to: '2026-09', percent: '3.1' } }));
     const { user, router } = await renderApp('/settings/projection');
     const prices = await card('Et les prix ?');
 
@@ -177,6 +176,64 @@ describe('the projection settings page', () => {
 
     await user.click(within(prices).getByRole('link', { name: 'Voir la série' }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ s: 'projection:inflation,cpi:yoy' }));
+  });
+
+  it('names neither the ECB nor an observed rate for a household outside the euro', async () => {
+    serve(assumptions({ currency: 'CHF' }));
+    await renderApp('/settings/projection');
+
+    expect(await within(await card('Et les prix ?')).findByText('Les prix augmentent de 2 % par an dans la projection.')).toBeInTheDocument();
+  });
+
+  it('shows the stored amount again when going back to automatic is refused', async () => {
+    const patches = serve(assumptions({ monthlySavings: '500.00' }), { path: 'monthlySavings', message: 'Refused.' });
+    const { user } = await renderApp('/settings/projection');
+    const savings = await card(SAVINGS);
+
+    await user.click(within(savings).getByRole('radio', { name: 'Laisser Nid calculer' }));
+
+    await waitFor(() => expect(patches).toHaveLength(1));
+    await waitFor(() => expect(within(savings).getByRole('radio', { name: 'Un montant' })).toBeChecked());
+    expect(within(savings).getByText('Refused.')).toBeInTheDocument();
+  });
+
+  it('offers no reset on rates that are the chosen profile’s', async () => {
+    const prudent = { ...RATES, equity: '4', bond: '2' };
+    serve(assumptions({ classRates: prudent, profile: 'prudent' }));
+    server.use(http.get(`${ASSUMPTIONS}/profiles`, () => HttpResponse.json({ ...profiles, profiles: [{ ...profiles.profiles[0]!, classRates: prudent }, profiles.profiles[1], profiles.profiles[2]] })));
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Personnaliser' }));
+    const table = await card('Rendement et volatilité par classe');
+    const equity = within(table).getByLabelText('Rendement Actions');
+    await user.clear(equity);
+    await user.type(equity, '5');
+
+    expect(await within(table).findByRole('button', { name: 'Rendement Actions : revenir à la valeur par défaut, 4 %' })).toBeInTheDocument();
+    expect(within(table).getAllByText(/^par défaut/)).toHaveLength(1);
+  });
+
+  it('ties a class refusal to its field', async () => {
+    serve(assumptions(), { path: 'classRates.equity', message: 'A rate is from -50 % to 50 %.' });
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Personnaliser' }));
+    const table = await card('Rendement et volatilité par classe');
+    await user.click(within(table).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(within(table).getByLabelText('Rendement Actions')).toHaveAccessibleDescription('A rate is from -50 % to 50 %.'));
+    expect(within(table).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows a refusal on a year it does not list at the top of its card', async () => {
+    serve(assumptions(), { path: `inflationByYear.${YEAR - 1}`, message: 'A year is from now on.' });
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Personnaliser' }));
+    const years = await card('Année par année');
+    await user.click(within(years).getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await within(years).findByRole('alert')).toBeInTheDocument();
   });
 
   it('shows each customised rate with its default, resets it and saves the table', async () => {

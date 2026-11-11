@@ -1,6 +1,7 @@
 import { RotateCcw } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
 import { InfoTip } from '@/components/InfoTip';
 import { Field } from '@/components/form/Field';
 import { monthText } from '@/components/LocalDate';
@@ -9,7 +10,7 @@ import { SectionCard } from '@/components/page/SectionCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toFieldAmount } from '@/lib/amount';
-import { ASSET_CLASSES, YEARLY_CLASSES, percent, projectionYears, wire, type Assumptions } from './api';
+import { ASSET_CLASSES, PROJECTION_PROFILES, YEARLY_CLASSES, percent, projectionYears, wire, type Assumptions } from './api';
 import { useAssumptionsPatch } from './useAssumptionsPatch';
 
 type Table = Record<string, string>;
@@ -32,8 +33,9 @@ function Reset({ value, fallback, name, onReset }: { value: string; fallback: st
   );
 }
 
+/** A column header and its InfoTip, wrapping under the label in a narrow column rather than spilling into the next. */
 const Tipped = ({ label, tip }: { label: string; tip: string }) => (
-  <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">{label}<InfoTip label={label}>{tip}</InfoTip></span>
+  <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm break-words text-muted-foreground">{label}<InfoTip label={label}>{tip}</InfoTip></span>
 );
 
 function SaveRow({ pending }: { pending: boolean }) {
@@ -41,20 +43,34 @@ function SaveRow({ pending }: { pending: boolean }) {
   return <div className="flex justify-end"><Button type="submit" variant="outline" disabled={pending}>{t('settings.projection.save')}</Button></div>;
 }
 
-/** Every class's rate and volatility, one « Enregistrer » for the table. */
+/** The paths a card shows its refusals at; any other one shows at the top of the card. */
+const PLACED_CLASSES = ['classRates', 'classVolatility'].flatMap((table) => ASSET_CLASSES.map((c) => `${table}.${c}`));
+
+/**
+ * Every class's rate and volatility, one « Enregistrer » for the table. A value resets to the chosen profile's (from the server),
+ * to the balanced one once the rates are custom; the volatility is the same in every profile.
+ */
 function ClassTable({ a }: { a: Assumptions }) {
   const { t } = useTranslation();
-  const { save, pending, errorOf, problem } = useAssumptionsPatch(['classRates', 'classVolatility']);
+  const { $api } = useApi();
+  const profiles = $api.useQuery('get', PROJECTION_PROFILES, undefined, { enabled: a.profile !== 'custom' });
+  const { save, pending, errorOf, problem } = useAssumptionsPatch(PLACED_CLASSES);
   const [rates, setRates] = useState(() => fields(a.classRates));
   const [volatility, setVolatility] = useState(() => fields(a.classVolatility));
-  const cell = (values: Table, set: (f: (all: Table) => Table) => void, defaults: Table, c: string, label: string, path: string): ReactNode => (
-    <div className="min-w-0 space-y-1">
-      <Input aria-label={label} inputMode="decimal" autoComplete="off" value={values[c] ?? ''} aria-invalid={errorOf(path) ? true : undefined}
-        onChange={(e) => set((all) => ({ ...all, [c]: e.target.value }))} />
-      <Reset value={values[c] ?? ''} fallback={defaults[c] ?? '0'} name={label} onReset={(v) => set((all) => ({ ...all, [c]: v }))} />
-      {errorOf(path) ? <p className="text-xs text-destructive">{errorOf(path)}</p> : null}
-    </div>
-  );
+  const errorId = useId();
+  const profileRates = a.profile === 'custom' ? a.defaults.classRates : profiles.data?.profiles.find((p) => p.key === a.profile)?.classRates ?? a.classRates;
+  const cell = (values: Table, set: (f: (all: Table) => Table) => void, defaults: Table, c: string, label: string, path: string): ReactNode => {
+    const error = errorOf(path);
+    const id = `${errorId}-${path}`;
+    return (
+      <div className="min-w-0 space-y-1">
+        <Input aria-label={label} inputMode="decimal" autoComplete="off" value={values[c] ?? ''} aria-invalid={error ? true : undefined}
+          aria-describedby={error ? id : undefined} onChange={(e) => set((all) => ({ ...all, [c]: e.target.value }))} />
+        <Reset value={values[c] ?? ''} fallback={defaults[c] ?? '0'} name={label} onReset={(v) => set((all) => ({ ...all, [c]: v }))} />
+        {error ? <p id={id} className="text-xs text-destructive">{error}</p> : null}
+      </div>
+    );
+  };
 
   return (
     <SectionCard level={3} title={t('settings.projection.guided.classes_title')} className="space-y-3">
@@ -66,7 +82,7 @@ function ClassTable({ a }: { a: Assumptions }) {
           classVolatility: Object.fromEntries(ASSET_CLASSES.map((c) => [c, wire(volatility[c] ?? '')])),
         });
       }}>
-        <div className="grid grid-cols-[minmax(0,1fr)_5rem_5rem] items-start gap-x-3 gap-y-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
+        <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem] items-start gap-x-3 gap-y-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
           <span className="text-sm text-muted-foreground">{t('settings.projection.class_column')}</span>
           <Tipped label={t('settings.projection.guided.rate_column')} tip={t('settings.projection.tip.rate')} />
           <Tipped label={t('settings.projection.volatility_column')} tip={t('settings.projection.tip.volatility')} />
@@ -74,7 +90,7 @@ function ClassTable({ a }: { a: Assumptions }) {
             const name = t(`settings.projection.class.${c}`);
             return [
               <span key={`${c}-name`} className="pt-2 text-sm">{name}</span>,
-              <div key={`${c}-rate`}>{cell(rates, setRates, a.defaults.classRates, c, t('settings.projection.guided.rate_of', { name }), `classRates.${c}`)}</div>,
+              <div key={`${c}-rate`}>{cell(rates, setRates, profileRates, c, t('settings.projection.guided.rate_of', { name }), `classRates.${c}`)}</div>,
               <div key={`${c}-volatility`}>{cell(volatility, setVolatility, a.defaults.classVolatility, c, t('settings.projection.volatility_label', { name }), `classVolatility.${c}`)}</div>,
             ];
           })}
@@ -88,8 +104,10 @@ function ClassTable({ a }: { a: Assumptions }) {
 /** Inflation and the cash and money market rates for this year and the next four, then the long-term inflation. */
 function YearByYear({ a }: { a: Assumptions }) {
   const { t } = useTranslation();
-  const { save, pending, errorOf, problem } = useAssumptionsPatch(['inflation', 'inflationByYear', 'classRatesByYear']);
   const [years] = useState(projectionYears);
+  // A refusal on a year this browser does not list (its clock and the server's disagree) shows at the top of the card.
+  const { save, pending, errorOf, problem } = useAssumptionsPatch(['inflation',
+    ...years.map((y) => `inflationByYear.${y}`), ...YEARLY_CLASSES.flatMap((c) => years.map((y) => `classRatesByYear.${c}.${y}`))]);
   const [inflation, setInflation] = useState(toFieldAmount(a.inflation));
   const [inflationYears, setInflationYears] = useState<Table>(() => Object.fromEntries(years.map((y) => [y, toFieldAmount(a.inflationByYear[y] ?? '')])));
   const [classYears, setClassYears] = useState<Record<string, Table>>(() =>

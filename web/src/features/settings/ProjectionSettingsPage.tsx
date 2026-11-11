@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toFieldAmount, toWireAmount } from '@/lib/amount';
 import { ProjectionCustomize } from './ProjectionCustomize';
 import { SettingsFrame } from './SettingsFrame';
-import { INFLATION, PROJECTION, PROJECTION_ASSUMPTIONS, PROJECTION_PROFILES, percent, type Assumptions } from './api';
+import { PROJECTION, PROJECTION_ASSUMPTIONS, PROJECTION_PROFILES, percent, type Assumptions } from './api';
 import { useAssumptionsPatch } from './useAssumptionsPatch';
 
 /** The places the savings go, as a household names them (#155); another stored class shows by its name. */
@@ -39,7 +39,8 @@ function SavingsCard({ a }: { a: Assumptions }) {
   const places: string[] = (SAVINGS_PLACES as readonly string[]).includes(a.savingsClass) ? [...SAVINGS_PLACES] : [...SAVINGS_PLACES, a.savingsClass];
   const chooseMode = (next: string) => {
     setMode(next as 'auto' | 'amount');
-    if (next === 'auto' && a.monthlySavings) save({ monthlySavings: 'auto' });
+    // A refused return to automatic leaves the stored amount: the choice shows it again.
+    if (next === 'auto' && a.monthlySavings) save({ monthlySavings: 'auto' }, () => setMode('amount'));
   };
   const automatic = projection.data?.savingsOrigin === 'auto' ? projection.data.monthlySavings : null;
 
@@ -169,17 +170,15 @@ function IncomeGrowthCard({ a }: { a: Assumptions }) {
   );
 }
 
-/** The prices: the projection's rate and the observed one, one line and one link to the series. */
+/** The prices: the projection's rate and, for a EUR household, the observed one (the server's rule); one link to the series. */
 function PricesCard({ a }: { a: Assumptions }) {
   const { t } = useTranslation();
-  const { $api } = useApi();
-  const observed = $api.useQuery('get', INFLATION);
-  const last = observed.data?.last12Months;
+  const ecb = a.currency === 'EUR' && a.inflation === a.defaults.inflation;
   return (
     <SectionCard title={t('settings.projection.guided.prices_title')} actions={<SeriesLink keys={['projection:inflation', 'cpi:yoy']} />}>
       <p className="text-sm">
-        {t(a.inflation === a.defaults.inflation ? 'settings.projection.guided.prices_line_ecb' : 'settings.projection.guided.prices_line', { percent: percent(a.inflation) })}
-        {last ? ` ${t('settings.projection.guided.prices_observed', { percent: percent(last.percent) })}` : null}
+        {t(ecb ? 'settings.projection.guided.prices_line_ecb' : 'settings.projection.guided.prices_line', { percent: percent(a.inflation) })}
+        {a.observedInflation ? ` ${t('settings.projection.guided.prices_observed', { percent: percent(a.observedInflation.percent) })}` : null}
       </p>
     </SectionCard>
   );

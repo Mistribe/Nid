@@ -18,6 +18,8 @@ export function useAssumptionsPatch(placed: readonly string[]) {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const mutation = $api.useMutation('patch', PROJECTION_ASSUMPTIONS, {
+    // One card's save waits for another's: each PATCH answers the whole document, read after the previous one.
+    scope: { id: PROJECTION_ASSUMPTIONS },
     onSuccess: () => {
       for (const key of [PROJECTION_ASSUMPTIONS, PROJECTION_PROFILES, PROJECTION, RETIREMENT, SERIES_POINTS])
         void queryClient.invalidateQueries({ queryKey: ['get', key] });
@@ -29,6 +31,6 @@ export function useAssumptionsPatch(placed: readonly string[]) {
   const isPlaced = (path: string) => placed.some((p) => path === p || path.startsWith(`${p}.`));
   const problem = mutation.error && (fields.length === 0 || !fields.every((f) => isPlaced(f.path)))
     ? <ProblemMessage problem={present(toProblem(mutation.error))} /> : null;
-  const save = (body: AssumptionsPatch) => mutation.mutate({ body });
+  const save = (body: AssumptionsPatch, onError?: () => void) => mutation.mutate({ body }, { onError });
   return { save, pending: mutation.isPending, errorOf, problem };
 }
