@@ -9,8 +9,6 @@ import { server } from '@/test/server';
 type Body = Record<string, unknown>;
 
 const ASSUMPTIONS = '*/api/v1/core/projection-assumptions';
-const ALICE = '11111111-1111-4111-8111-111111111111';
-const BOB = '22222222-2222-4222-8222-222222222222';
 
 const assumptions = (over: Body = {}) => ({
   classRates: { cash: '1.5', money_market: '2', bond: '3', equity: '6', mixed: '4', capital_guaranteed: '2.5', real_estate: '2', other: '0' },
@@ -27,26 +25,14 @@ const observed = {
 const YEAR = new Date().getFullYear();
 const NEXT = YEAR + 1;
 
-const persons = [
-  { id: ALICE, kind: 'member', displayName: 'Alice', birthDate: null, retirementAge: 64, retirementMonths: 0 },
-  { id: BOB, kind: 'member', displayName: 'Bob', birthDate: '1984-05-20', retirementAge: 62, retirementMonths: 9 },
-];
-
 function serve(initial: Body = assumptions(), inflation: Body = observed) {
   const puts: Body[] = [];
-  const retirements: { id: string; body: Body }[] = [];
   server.use(
     http.get(ASSUMPTIONS, () => HttpResponse.json(initial)),
     http.put(ASSUMPTIONS, async ({ request }) => { const body = (await request.json()) as Body; puts.push(body); return HttpResponse.json(body); }),
     http.get('*/api/v1/core/inflation', () => HttpResponse.json(inflation)),
-    http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
-    http.put('*/api/v1/core/persons/:id/retirement', async ({ request, params }) => {
-      const body = (await request.json()) as Body;
-      retirements.push({ id: params.id as string, body });
-      return HttpResponse.json({ ...persons[0], ...body });
-    }),
   );
-  return { puts, retirements };
+  return { puts };
 }
 
 /** A class's cells in the returns table: class, rate, volatility. */
@@ -57,7 +43,7 @@ const figure = async (label: string) => (await screen.findByText(label, { select
 beforeAll(async () => { await import('./ProjectionSettingsPage'); }, 30_000);
 
 describe('the projection settings page', () => {
-  it('shows the household assumptions and the retirement of each person', async () => {
+  it('shows the household assumptions and links to the persons for retirement', async () => {
     serve();
     await renderApp('/settings/projection');
 
@@ -67,9 +53,9 @@ describe('the projection settings page', () => {
     expect(await classRow('Liquidités')).toEqual(['Liquidités', '1,5 %', '0 %']);
     expect(screen.getByText(/Automatique \(moyenne des 12 derniers mois\)/)).toBeInTheDocument();
     expect(await figure('Mensualités terminées versées à l’épargne')).toBe('oui');
-    expect(await screen.findByText('20/05/1984')).toBeInTheDocument();
-    expect(screen.getByText('62 ans et 9 mois')).toBeInTheDocument();
-    expect(screen.getByText('Non renseignée')).toBeInTheDocument();
+    // #156: birth dates and retirement ages moved to Réglages › Personnes.
+    expect(screen.queryByRole('region', { name: 'Retraite' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ouvrir Réglages › Personnes' })).toHaveAttribute('href', '/settings/persons');
   });
 
   it('saves new rates and sends percent strings', async () => {
@@ -171,60 +157,6 @@ describe('the projection settings page', () => {
     expect(field).toBeInvalid();
   });
 
-  it('sets a birth date', async () => {
-    const { retirements } = serve();
-    const { user, queryClient } = await renderApp('/settings/projection');
-    queryClient.setQueryData(['get', SERIES_POINTS], {});
-
-    await user.click(await screen.findByRole('button', { name: 'Modifier la retraite de Alice' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Date de naissance'), '20/05/1984');
-    const age = within(dialog).getByLabelText('Âge de départ à la retraite');
-    await user.clear(age);
-    await user.type(age, '64');
-    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
-
-    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: '1984-05-20', retirementAge: 64, retirementMonths: 0 } }]));
-    await waitFor(() => expect(queryClient.getQueryState(['get', SERIES_POINTS])?.isInvalidated).toBe(true));
-  });
-
-  it('reads the departure in years and months and sends the typed months', async () => {
-    const { retirements } = serve();
-    const { user } = await renderApp('/settings/projection');
-
-    expect(await screen.findByText('62 ans et 9 mois')).toBeInTheDocument();
-    expect(screen.getByText('64 ans')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Modifier la retraite de Alice' }));
-    const dialog = await screen.findByRole('dialog');
-    const age = within(dialog).getByLabelText('Âge de départ à la retraite');
-    await user.clear(age);
-    await user.type(age, '62');
-    const months = within(dialog).getByLabelText('Mois');
-    await user.clear(months);
-    await user.type(months, '9');
-    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
-
-    await waitFor(() => expect(retirements).toEqual([{ id: ALICE, body: { birthDate: null, retirementAge: 62, retirementMonths: 9 } }]));
-  });
-
-  it('sends zero for empty months and shows a server error on the months field', async () => {
-    serve();
-    const sent: Body[] = [];
-    server.use(http.put('*/api/v1/core/persons/:id/retirement', async ({ request }) => { sent.push((await request.json()) as Body); return HttpResponse.json(
-      { status: 422, code: 'core.invalid_retirement_age', errors: [{ path: 'retirementMonths', code: 'core.invalid_retirement_age', message: 'Mois hors limites.' }] },
-      { status: 422, headers: { 'content-type': 'application/problem+json' } }); }));
-    const { user } = await renderApp('/settings/projection');
-
-    await user.click(await screen.findByRole('button', { name: 'Modifier la retraite de Alice' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.clear(within(dialog).getByLabelText('Mois'));
-    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
-
-    const months = within(dialog).getByLabelText('Mois');
-    await waitFor(() => expect(months).toHaveAccessibleDescription('Mois hors limites.'));
-    expect(sent[0]!.retirementMonths).toBe(0);
-  });
-
   it('sends only the typed years and the income growth', async () => {
     const { puts } = serve(assumptions({ observedInflation: { percent: '3.1', to: '2026-09' } }));
     const { user } = await renderApp('/settings/projection');
@@ -291,8 +223,6 @@ describe('the projection settings page', () => {
     const tips = within(section).getAllByRole('button', { name: /^À propos : / }).map((b) => b.getAttribute('aria-label'));
     expect(tips).toEqual(['Rendement annuel', 'Volatilité', 'Inflation', 'Évolution des revenus', 'Épargne mensuelle', 'Classe d’actifs de l’épargne',
       'Mensualités terminées versées à l’épargne', 'Taux de retrait', 'Coût de la vie mensuel'].map((n) => `À propos : ${n}`));
-    const retirement = screen.getByRole('region', { name: 'Retraite' });
-    expect(within(retirement).getAllByRole('button', { name: /^À propos : / })).toHaveLength(2);
 
     const rate = within(section).getByRole('button', { name: 'À propos : Taux de retrait' });
     await user.hover(rate);
@@ -305,20 +235,13 @@ describe('the projection settings page', () => {
     expect(within(section).getByRole('button', { name: 'À propos : Inflation' })).toHaveAccessibleDescription(/Hausse annuelle des prix/);
   });
 
-  it('explains the fields of both dialogs', async () => {
+  it('explains the fields of the assumptions dialog', async () => {
     serve();
     const { user } = await renderApp('/settings/projection');
 
     await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getAllByRole('button', { name: /^À propos : / })).toHaveLength(5 + 6); // the five rate legends, the six other assumptions
-    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: 'Modifier la retraite de Bob' }));
-    const retirement = await screen.findByRole('dialog');
-    expect(within(retirement).getAllByRole('button', { name: /^À propos : / }).map((b) => b.getAttribute('aria-label')))
-      .toEqual(['À propos : Date de naissance', 'À propos : Âge de départ à la retraite']);
   });
 
   it('shows the observed series', async () => {

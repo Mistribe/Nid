@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -12,9 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthText } from '@/components/LocalDate';
-import { PERSONS } from '@/api/persons';
 import { AssumptionsDialog } from './AssumptionsDialog';
-import { RetirementDialog } from './RetirementDialog';
 import { SettingsFrame } from './SettingsFrame';
 import { ASSET_CLASSES, INFLATION, PROJECTION_ASSUMPTIONS } from './api';
 
@@ -26,9 +25,6 @@ const withYears = (longTerm: string, byYear: Record<string, string> | undefined,
   const years = Object.entries(byYear ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([y, v]) => `${y} ${percent(v)}`);
   return years.length > 0 ? `${years.join(', ')}, ${then} ${percent(longTerm)}` : percent(longTerm);
 };
-
-/** yyyy-mm-dd as jj/mm/aaaa, the way the date fields read it. */
-const dayFirst = (iso: string) => iso.split('-').reverse().join('/');
 
 const ASSUMPTIONS = 'assumptions';
 
@@ -52,17 +48,13 @@ const Row = ({ label, tip, children }: { label: string; tip: string; children: R
   </div>
 );
 
-/** Réglages › Projection: the household's assumptions and each person's retirement, both read by the net worth projection. */
+/** Réglages › Projection: the household's assumptions, read by the net worth projection; each person's retirement is set in Réglages › Personnes. */
 export function ProjectionSettingsPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const assumptions = $api.useQuery('get', PROJECTION_ASSUMPTIONS);
-  const persons = $api.useQuery('get', PERSONS);
   const observed = $api.useQuery('get', INFLATION);
-  // Which dialog is open: the assumptions', or a person's id.
   const [editing, setEditing] = useState<string | null>(null);
-  const adults = persons.data?.filter((p) => p.kind !== 'dependent') ?? [];
-  const person = adults.find((p) => p.id === editing);
   const close = () => setEditing(null);
   const done = (message: string) => { setEditing(null); toast.success(message); };
   const open = (what: string) => setEditing(what);
@@ -143,35 +135,11 @@ export function ProjectionSettingsPage() {
           : observed.data ? <p className="text-sm">{t('settings.projection.observed_unavailable')}</p>
             : <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('settings.projection.observed_loading')}</span></Skeleton>}
       </Section>
-      <Section title={t('settings.projection.retirement')}>
-        {persons.error ? <ProblemMessage problem={present(toProblem(persons.error))} /> : null}
-        {adults.length > 0 ? (
-          <Table className="max-w-2xl">
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('settings.projection.person_column')}</TableHead>
-                <TableHead><Tipped label={t('settings.projection.birth_date')} tip={t('settings.projection.tip.birth_date')} /></TableHead>
-                <TableHead><Tipped label={t('settings.projection.departure_column')} tip={t('settings.projection.tip.retirement_age')} /></TableHead>
-                <TableHead className="text-right"><span className="sr-only">{t('settings.projection.edit')}</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {adults.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.displayName}</TableCell>
-                  <TableCell className="tabular-nums">{p.birthDate ? dayFirst(p.birthDate) : t('settings.projection.no_birth_date')}</TableCell>
-                  <TableCell>{p.retirementMonths > 0 ? t('settings.projection.age_years_months', { years: p.retirementAge, months: p.retirementMonths }) : t('settings.projection.age_years', { count: p.retirementAge })}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" aria-label={t('settings.projection.edit_retirement', { name: p.displayName })} onClick={() => open(p.id)}>{t('settings.projection.edit')}</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : null}
-      </Section>
+      <p className="text-sm">
+        {t('settings.projection.retirement_moved')}{' '}
+        <Link to="/settings/persons" className="underline underline-offset-2">{t('settings.projection.retirement_link')}</Link>
+      </p>
       {editing === ASSUMPTIONS && assumptions.data ? <AssumptionsDialog current={assumptions.data} onClose={close} onDone={done} /> : null}
-      {person ? <RetirementDialog person={person} onClose={close} onDone={done} /> : null}
     </SettingsFrame>
   );
 }
