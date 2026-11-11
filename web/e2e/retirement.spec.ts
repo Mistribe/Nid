@@ -15,24 +15,23 @@ test('alice sets her departure and a living cost, then enters her pension on the
     expect((await alice.request.delete(`/api/v1/income/sources/${source.id}?version=${version}`, { headers })).ok()).toBe(true);
   }
 
-  await alice.getByRole('button', { name: /Modifier la retraite de Alice/ }).click();
+  const living = alice.getByRole('region', { name: 'De combien aurez-vous besoin par mois une fois à la retraite ?' });
+  await living.getByLabel(/^Montant par mois \(/).fill('2500');
+  await living.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(alice.getByText('Hypothèses enregistrées.')).toBeVisible();
+
+  await alice.getByRole('link', { name: 'Retraite', exact: true }).first().click();
+  await expect(alice.getByRole('heading', { name: 'Retraite', level: 1 })).toBeVisible();
+  await alice.getByRole('tab', { name: 'Départs' }).click();
+  await expect(alice).toHaveURL(/tab=departures/);
+  await alice.getByRole('button', { name: /Actions pour Alice/ }).click();
+  await alice.getByRole('menuitem', { name: 'Modifier le départ' }).click();
   const departure = alice.getByRole('dialog');
   await fillDate(departure, 'Date de naissance', '1970-03-15');
   await departure.getByLabel('Âge de départ à la retraite', { exact: true }).fill('64');
   await departure.getByLabel('Mois').fill('6');
   await departure.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(departure).toBeHidden();
-
-  await alice.getByRole('button', { name: 'Modifier les hypothèses' }).click();
-  const assumptions = alice.getByRole('dialog');
-  await assumptions.getByLabel(/^Coût de la vie mensuel \(/).fill('2500');
-  await assumptions.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(assumptions).toBeHidden();
-
-  await alice.getByRole('link', { name: 'Retraite', exact: true }).first().click();
-  await expect(alice.getByRole('heading', { name: 'Retraite', level: 1 })).toBeVisible();
-  await alice.getByRole('tab', { name: 'Départs' }).click();
-  await expect(alice).toHaveURL(/tab=departures/);
   // 1970-03 + 64 years 6 months: September 2034.
   const row = alice.getByRole('row', { name: /Alice/ });
   await expect(row).toContainText('2034');
