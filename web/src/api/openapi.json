@@ -42975,6 +42975,12 @@
               "null",
               "string"
             ]
+          },
+          "reading": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

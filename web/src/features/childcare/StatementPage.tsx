@@ -140,7 +140,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
                 hint: view.declared?.netPay == null ? null : t('childcare_statement.entered_by_hand') },
               { label: t('childcare_statement.cost'), value: <Money value={view.figures.cost} tabular />,
                 hint: view.figures.costBeforeCmg ? t('childcare_statement.before_cmg') : null },
-              { label: t('childcare_statement.cmg'), value: view.cmg == null ? '—' : formatCurrency(view.cmg, 'EUR') },
+              { label: t('childcare_statement.cmg'), tip: t('childcare_detail.cmg_tip'), value: view.cmg == null ? '—' : formatCurrency(view.cmg, 'EUR') },
               ...(view.contributions == null ? [] : [{ label: t('childcare_statement.contributions'), value: formatCurrency(view.contributions, 'EUR') }]),
             ]} />
           ) : <p className="text-sm text-muted-foreground">{t('childcare_statement.declaration_withheld')}</p>}
@@ -174,7 +174,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
         <Section title={t('childcare_statement.costs')}>
           <form noValidate className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); send(days); }}>
             <Field label={t('childcare_statement.mileage')}>{(c) => <Input {...c} inputMode="decimal" className="w-36" value={mileage} onChange={(e) => setMileage(e.target.value)} />}</Field>
-            <Field label={t('childcare_statement.cmg_field')}
+            <Field label={t('childcare_statement.cmg_field')} tip={t('childcare_detail.cmg_tip')}
               hint={cmg.trim() === '' && view.cmgEstimate ? t('childcare_statement.cmg_estimate', { amount: frenchNumber(view.cmgEstimate) }) : undefined}>
               {(c) => <Input {...c} inputMode="decimal" className="w-36" value={cmg} onChange={(e) => setCmg(e.target.value)} />}
             </Field>

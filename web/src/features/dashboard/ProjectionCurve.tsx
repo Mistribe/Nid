@@ -101,7 +101,7 @@ function Body({ data, error, real, asTable, computing }: { data?: Projection; er
     <div className="space-y-3">
       {asTable ? <ProjectionTable data={data} real={real} /> : <ProjectionChart data={data} real={real} />}
       {computing ? <p role="status" className="text-sm text-muted-foreground">{t('dashboard.projection.ranges_loading')}</p> : null}
-      {data.ranges ? <RangesSummary ranges={data.ranges} assumptions={data.assumptions} /> : null}
+      {data.ranges ? <RangesSummary ranges={data.ranges} assumptions={data.assumptions} real={real} currency={data.currency} /> : null}
       <Milestones milestones={data.milestones} />
       <Warnings data={data} />
       <Assumptions data={data} />

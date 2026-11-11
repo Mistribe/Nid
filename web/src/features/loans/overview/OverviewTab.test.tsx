@@ -121,13 +121,25 @@ describe('Crédits › vue d’ensemble', () => {
     expect(screen.queryByRole('table', { name: 'Capital restant dû, mois par mois' })).not.toBeInTheDocument();
   });
 
-  it('shows the household debt ratio against the 35 % ceiling, with the room left', async () => {
+  it('reads the household debt ratio against the 35 % ceiling in plain words, with the room left and what it is', async () => {
     serve(household({ debtRatio: { ratio: '0.2783', ceiling: '0.3500', payments: { amount: '2159.92', currency: 'EUR' },
-      income: { amount: '7761.00', currency: 'EUR' }, room: { amount: '556.43', currency: 'EUR' }, unknown: null } }));
+      income: { amount: '7761.00', currency: 'EUR' }, room: { amount: '556.43', currency: 'EUR' }, unknown: null, reading: 'under_ceiling' } }));
+    const { user } = await renderApp('/loans');
+
+    const figures = (await screen.findByText('Taux d’endettement', { selector: 'dt' })).closest('div')!;
+    expect(figures).toHaveTextContent('Taux d’endettement27,83 %raisonnable : sous les 35 % des banquesencore 556,43 € / mois de mensualités possibles');
+    await user.hover(within(figures).getByRole('button', { name: /Taux d’endettement/ }));
+    expect((await screen.findAllByText(/au-delà de 35 % \(règle du HCSF\)/))[0]).toBeInTheDocument();
+  });
+
+  it('says a debt ratio over the ceiling is high, without a negative room', async () => {
+    serve(household({ debtRatio: { ratio: '0.3900', ceiling: '0.3500', payments: { amount: '2340.00', currency: 'EUR' },
+      income: { amount: '6000.00', currency: 'EUR' }, room: { amount: '-240.00', currency: 'EUR' }, unknown: null, reading: 'over_ceiling' } }));
     await renderApp('/loans');
 
     const figures = (await screen.findByText('Taux d’endettement', { selector: 'dt' })).closest('div')!;
-    expect(figures).toHaveTextContent('Taux d’endettement27,83 %seuil courant 35 %marge : 556,43 € / mois');
+    expect(figures).toHaveTextContent('Taux d’endettement39 %élevé : au-dessus des 35 % des banques, un nouveau prêt serait sans doute refusé');
+    expect(figures).not.toHaveTextContent('-240');
   });
 
   it('says the debt ratio is unknown without a declared income', async () => {

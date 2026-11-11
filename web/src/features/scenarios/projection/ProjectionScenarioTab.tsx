@@ -43,7 +43,7 @@ export default function ProjectionScenarioTab({ id, comparison, real, ranges }: 
           className="h-72" band={bands?.points} />
         {ranges && ranged.isFetching && !bands ? <p role="status" className="text-sm text-muted-foreground">{t('dashboard.projection.ranges_loading')}</p> : null}
         {ranges && ranged.error ? <ProblemMessage problem={present(toProblem(ranged.error))} /> : null}
-        {bands ? <RangesSummary ranges={bands} assumptions={comparison.scenario.assumptions} /> : null}
+        {bands ? <RangesSummary ranges={bands} assumptions={comparison.scenario.assumptions} real={real} currency={currency} /> : null}
         {milestones.length > 0 ? (
           <ul aria-label={t('scenarios.projection.detail.milestones')} className="space-y-0.5 text-sm text-muted-foreground">
             {milestones.map((m) => (
