@@ -35,6 +35,22 @@ public sealed class RentRevisionTests
         Assert.False(due.DpeUnknown);
     }
 
+    [Theory]
+    [InlineData(1, 4)]
+    [InlineData(3, 4)]
+    [InlineData(4, 1)]
+    [InlineData(6, 1)]
+    [InlineData(7, 2)]
+    [InlineData(10, 3)]
+    [InlineData(12, 3)]
+    public void An_indexed_lease_without_a_quarter_takes_the_last_one_over_at_its_start(int month, int quarter)
+    {
+        var lease = new Tenancy("Bail", new LocalDate(2026, month, 15), null, 800m, 50m, null, null, Indexed: true);
+        Assert.Equal(quarter, RentRevision.WithDefaultQuarter(lease).IrlReferenceQuarter);
+        Assert.Equal(2, RentRevision.WithDefaultQuarter(lease with { IrlReferenceQuarter = 2 }).IrlReferenceQuarter);
+        Assert.Null(RentRevision.WithDefaultQuarter(lease with { Indexed = false }).IrlReferenceQuarter);
+    }
+
     [Fact]
     public void Before_publication_the_previous_years_quarter_is_used()
     {

@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -98,11 +99,12 @@ public sealed class AddPropertyTenancyHandler(IItemRegistry items, IPropertyStor
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
         loaded.TryGetValue(out var found);
-        if (TenancyCheck.Fits(found.Property, command.Tenancy, null) is { } refused)
+        var tenancy = RentRevision.WithDefaultQuarter(command.Tenancy);
+        if (TenancyCheck.Fits(found.Property, tenancy, null) is { } refused)
             return Result.Failure<Guid>(refused);
 
         var id = Guid.CreateVersion7();
-        await properties.AddTenancyAsync(command.ItemId, id, command.Tenancy, ct);
+        await properties.AddTenancyAsync(command.ItemId, id, tenancy, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
@@ -125,13 +127,13 @@ public sealed class EditPropertyTenancyHandler(IItemRegistry items, IPropertySto
         // Indexation and the identity fields are tri-state on a PUT: absent keeps what is stored, present overrides ("" clears, the
         // store maps it to null); the rules see the merged values.
         var stored = found.Property.Tenancies.First(t => t.Id == command.TenancyId).Tenancy;
-        var values = command.Values with
+        var values = RentRevision.WithDefaultQuarter(command.Values with
         {
             Indexed = command.Indexed ?? stored.Indexed, IrlReferenceQuarter = command.IrlReferenceQuarter ?? stored.IrlReferenceQuarter,
             TenantNames = command.Values.TenantNames ?? stored.TenantNames, LandlordName = command.Values.LandlordName ?? stored.LandlordName,
             LandlordAddress = command.Values.LandlordAddress ?? stored.LandlordAddress,
             RentsTrackedFrom = command.ClearRentsTrackedFrom ? null : command.Values.RentsTrackedFrom ?? stored.RentsTrackedFrom,
-        };
+        });
         if ((TenancyCheck.Revised(found.Property, command.TenancyId, values)
              ?? TenancyCheck.Fits(found.Property, values, command.TenancyId)) is { } refused)
             return Result.Failure<Guid>(refused);

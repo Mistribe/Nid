@@ -191,6 +191,7 @@ describe('tenancies', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Ajouter un bail' }));
     const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    await user.click(form.getByRole('button', { name: /^Plus d’options/ }));
     await waitFor(() => expect(form.getByLabelText('Bailleur')).toHaveValue('Alice Dev et Bob Dev'));
     await user.type(form.getByLabelText('Libellé'), 'T2');
     await user.clear(form.getByLabelText('Début'));
@@ -205,6 +206,7 @@ describe('tenancies', () => {
     // A correction shows the stored identity, never the owners, and sends an emptied field as "" to clear it.
     await rowAction(user, (await rows())[0]!, '1 janvier 2021', 'Corriger');
     const edit = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await user.click(edit.getByRole('button', { name: /^Plus d’options/ }));
     expect(edit.getByLabelText('Bailleur')).toHaveValue('Alice Dev et Bob Dev');
     await user.clear(edit.getByLabelText('Bailleur'));
     await user.click(edit.getByRole('button', { name: 'Enregistrer' }));
@@ -217,6 +219,7 @@ describe('tenancies', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Ajouter un bail' }));
     const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    await user.click(form.getByRole('button', { name: /^Plus d’options/ }));
     expect(form.getByText('Mois du premier loyer suivi dans Nid ; laissez vide pour le calcul automatique')).toBeInTheDocument();
     expect(form.getByRole('combobox', { name: 'Loyers suivis depuis' })).toHaveTextContent('Automatique');
     await user.type(form.getByLabelText('Libellé'), 'T2');
@@ -235,6 +238,7 @@ describe('tenancies', () => {
     // A creation left on automatic sends nothing; a correction back to automatic sends "" to clear it.
     await rowAction(user, (await rows())[0]!, '15 janvier 2021', 'Corriger');
     const edit = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await user.click(edit.getByRole('button', { name: /^Plus d’options/ }));
     expect(edit.getByRole('combobox', { name: 'Loyers suivis depuis' })).toHaveTextContent('janvier 2021');
     await pick(user, 'Loyers suivis depuis', 'Automatique');
     await user.click(edit.getByRole('button', { name: 'Enregistrer' }));
@@ -247,6 +251,7 @@ describe('tenancies', () => {
 
     await rowAction(user, (await rows())[0]!, '1 janvier 2023', 'Corriger');
     const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await user.click(form.getByRole('button', { name: /^Plus d’options/ }));
     expect(form.getByLabelText('Bailleur')).toHaveValue('');
   });
 
@@ -335,22 +340,33 @@ describe('tenancies', () => {
     expect(within(section).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
   });
 
-  it('indexes a tenancy on the IRL: the switch asks for its reference quarter, both go out', async () => {
+  it('revises the rent each year: the reference quarter is the server\'s default unless picked under « personnaliser »', async () => {
     const { sent } = serve(propertyDetail());
     const { user } = await renderApp(PAGE);
 
     await user.click(await screen.findByRole('button', { name: 'Ajouter un bail' }));
     const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
-    expect(form.queryByRole('radio', { name: 'T2' })).not.toBeInTheDocument();
     await user.type(form.getByLabelText('Libellé'), 'T2 meublé');
+    await user.clear(form.getByLabelText('Début'));
+    await user.type(form.getByLabelText('Début'), '01/01/2021');
     await user.type(form.getByLabelText('Loyer mensuel'), '900');
-    await user.click(form.getByRole('switch', { name: 'Indexé sur l\u2019IRL' }));
-    await user.click(form.getByRole('button', { name: 'Ajouter' }));
-    expect(await form.findByText('Ce champ est obligatoire.')).toBeInTheDocument();
-    await user.click(form.getByRole('radio', { name: 'T2' }));
+    expect(form.getByRole('button', { name: 'À propos : IRL' })).toBeInTheDocument();
+    await user.click(form.getByRole('switch', { name: 'Le loyer est-il révisé chaque année ?' }));
+    expect(form.getByRole('button', { name: /^Trimestre de référence : par défaut, le dernier publié au début du bail/ })).toBeInTheDocument();
+    expect(form.queryByRole('radio', { name: 'T2' })).not.toBeInTheDocument();
     await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(() => expect(sent[0]!.body).toMatchObject({ indexed: true, irlReferenceQuarter: 2 }));
+    await waitFor(() => expect(sent[0]!.body).toMatchObject({ indexed: true }));
+    expect(sent[0]!.body).not.toHaveProperty('irlReferenceQuarter');
+
+    await rowAction(user, (await rows())[0]!, '1 janvier 2021', 'Corriger');
+    const edit = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await user.click(edit.getByRole('button', { name: /^Trimestre de référence : par défaut/ }));
+    expect(edit.getByRole('button', { name: 'À propos : Trimestre de référence' })).toBeInTheDocument();
+    await user.click(edit.getByRole('radio', { name: 'T2' }));
+    expect(edit.getByRole('button', { name: 'Trimestre de référence : T2 · personnaliser' })).toBeInTheDocument();
+    await user.click(edit.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent[1]!.body).toMatchObject({ indexed: true, irlReferenceQuarter: 2 }));
   });
 
   it('shows a revised lease as one row, its history unfolding, and undoes the last revision', async () => {
@@ -423,6 +439,7 @@ describe('tenancies', () => {
     await user.click(within((await rows())[0]!).getByRole('button', { name: /^Actions pour le 1 janvier 2024/ }));
     await user.click(await screen.findByRole('menuitem', { name: 'Corriger' }));
     const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await user.click(form.getByRole('button', { name: /^Plus d’options/ }));
     await pick(user, 'Loyers suivis depuis', 'mars 2023');
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 

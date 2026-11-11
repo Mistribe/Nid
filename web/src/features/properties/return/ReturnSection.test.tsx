@@ -33,6 +33,9 @@ describe('ReturnSection', () => {
 
     expect(await screen.findByText(/Revente en 2033 à 214\s000,00\s€/)).toBeInTheDocument();
     expect(screen.getByText('3,4 %')).toBeInTheDocument();
+    // The TRI said in words, and the acronyms explained.
+    expect(screen.getByText(/^En clair : ce bien vous rapporte environ \d+,\d %\spar an, tout compris\.$/)).toBeInTheDocument();
+    for (const term of ['TRI', 'TRI à date', 'TMI']) expect(screen.getByRole('button', { name: `À propos : ${term}` })).toBeInTheDocument();
     const rows = within(screen.getByRole('table', { name: 'Rentabilité selon l’année de revente' })).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(16);
     expect(rows[7]).toHaveAttribute('aria-current', 'true');

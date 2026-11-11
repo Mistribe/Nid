@@ -27,7 +27,7 @@ export function tenancySchema(t: TFunction) {
     deposit: z.string().refine(optionalAmount, t('loan_form.amount_format')),
     note: z.string().max(2000, t('investments_form.note_too_long')),
     indexed: z.boolean(),
-    // « 1 » to « 4 », or empty while the tenancy is not indexed.
+    // « 1 » to « 4 », or empty: not indexed, or the server's default (the last quarter over at the lease's start).
     irlQuarter: z.string(),
     // Rental receipts spec §2: optional, for receipts and letters; 200 characters, addresses 400.
     tenantNames: z.string().max(200, t('property_rental.identity_max')),
@@ -36,7 +36,6 @@ export function tenancySchema(t: TFunction) {
     // `yyyy-mm`, or empty: the server finds the first rent tracked.
     rentsTrackedFrom: z.string(),
   }).superRefine((v, ctx) => {
-    if (v.indexed && v.irlQuarter === '') ctx.addIssue({ code: 'custom', path: ['irlQuarter'], message: t('edit.required') });
     if (v.endsOn && v.endsOn <= v.startsOn) ctx.addIssue({ code: 'custom', path: ['endsOn'], message: t('field_error.subscriptions_phase_range') });
   });
 }
@@ -77,7 +76,7 @@ export function toTenancyBody(v: TenancyValues, version?: number): components['s
     ...(v.deposit.trim() ? { deposit: toWireAmount(v.deposit) } : {}),
     ...(v.note.trim() ? { note: v.note } : {}),
     indexed: v.indexed,
-    ...(v.indexed ? { irlReferenceQuarter: Number(v.irlQuarter) } : {}),
+    ...(v.indexed && v.irlQuarter ? { irlReferenceQuarter: Number(v.irlQuarter) } : {}),
     ...identity(v, version !== undefined),
     ...(v.rentsTrackedFrom || version !== undefined ? { rentsTrackedFrom: v.rentsTrackedFrom } : {}),
     ...(version === undefined ? {} : { version }),

@@ -5,6 +5,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
+import { InfoTip } from '@/components/InfoTip';
 import { LocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
@@ -41,11 +42,13 @@ export function ReturnSection({ property }: { property: PropertyDetail }) {
         <>
           <p>{t('property_return.scenario', { year: scenario.outcome.resaleOn.slice(0, 4), price: money(property.currency, scenario.outcome.resalePrice) })}</p>
           <StatLine items={[
-            { label: t('property_return.irr'), value: irrText(t, scenario.outcome.irr) },
+            { label: t('property_return.irr'), value: irrText(t, scenario.outcome.irr), tip: t('property_return.irr_tip') },
             { label: t('property_return.net_gain'), value: signedMoney(property.currency, scenario.outcome.netGain) },
             { label: t('property_return.savings_effort'), value: money(property.currency, scenario.savingsEffort) },
-            { label: t('property_return.irr_today'), value: irrText(t, r.sensitivity[0]?.irr) },
+            { label: t('property_return.irr_today'), value: irrText(t, r.sensitivity[0]?.irr),
+              tip: t('property_return.irr_today_tip') },
           ]} />
+          {scenario.outcome.irr ? <p>{t('property_return.irr_sentence', { rate: irrText(t, scenario.outcome.irr) })}</p> : null}
         </>
       ) : null}
       {property.canWrite ? <Button variant="outline" onClick={() => setEditing(true)}>{t('property_return.edit')}</Button> : null}
@@ -72,6 +75,7 @@ function Assumptions({ r }: { r: PropertyReturn }) {
         value: percent(t, a.valueGrowth), rent: percent(t, a.rentGrowth), charges: percent(t, a.chargesGrowth), vacancy: a.vacancyMonths,
         marginal: percent(t, a.marginalRate), fees: percent(t, a.resaleFees),
       })}
+      <span className="ml-1.5 inline-flex align-middle"><InfoTip label={t('property_return.tmi')}>{t('property_return.tmi_tip')}</InfoTip></span>
     </p>
   );
 }

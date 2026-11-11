@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { ComboboxField } from '@/components/form/ComboboxField';
 import { DateField } from '@/components/form/DateField';
+import { Folded } from '@/components/form/Folded';
+import { InfoTip } from '@/components/InfoTip';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -114,41 +116,49 @@ function TenancyForm({ property, editing, titleId, onDone }: { property: Propert
         {amount('chargesMonthly', t('property_rental.charges'))}
         {amount('deposit', t('property_rental.deposit'), t('loan_form.optional'))}
       </div>
-      <Controller control={form.control} name="indexed" render={({ field }) => (
-        <SwitchField label={t('property_rental.indexed')} checked={field.value} onCheckedChange={(on) => { field.onChange(on); if (!on) form.setValue('irlQuarter', ''); }} />
-      )} />
-      {form.watch('indexed') ? (
-        <Controller control={form.control} name="irlQuarter" render={({ field }) => (
-          <Field label={t('property_rental.irl_quarter')} hint={t('property_rental.irl_quarter_help')} error={e.irlQuarter?.message}>
-            {(c) => <Segmented {...c} aria-label={t('property_rental.irl_quarter')} value={field.value} onValueChange={field.onChange}
-              options={[1, 2, 3, 4].map((q) => ({ value: String(q), label: `T${q}` }))} />}
-          </Field>
-        )} />
-      ) : null}
       <Field label={t('property_rental.tenant_names')} hint={t('property_rental.identity_help')} error={e.tenantNames?.message}>
         {(c) => <Input {...c} {...form.register('tenantNames')} />}
       </Field>
-      <Field label={t('property_rental.landlord_name')} error={e.landlordName?.message}>
-        {(c) => <Input {...c} {...form.register('landlordName')} />}
-      </Field>
-      <Field label={t('property_rental.landlord_address')} error={e.landlordAddress?.message}>
-        {(c) => <Textarea {...c} {...form.register('landlordAddress')} />}
-      </Field>
-      <Controller control={form.control} name="rentsTrackedFrom" render={({ field }) => {
-        // From the lease's month — a revised link's chain's first one: the server sets it on every link — to the current one.
-        const months = trackedMonths(revised && editing ? chainStart(property.tenancies, editing) : form.watch('startsOn'), todayIso());
-        if (field.value && !months.includes(field.value)) months.push(field.value);
-        return (
-          <Field label={t('property_rental.rents_tracked_from')} hint={t('property_rental.rents_tracked_from_help')} error={e.rentsTrackedFrom?.message}>
-            {(c) => <ComboboxField {...c} value={field.value} onValueChange={field.onChange}
-              searchPlaceholder={t('property_rental.rents_tracked_search')} empty={t('property_rental.rents_tracked_empty')}
-              options={[{ value: '', label: t('property_rental.rents_tracked_auto') }, ...months.map((m) => ({ value: m, label: monthText(m) }))]} />}
-          </Field>
-        );
-      }} />
-      <Field label={t('property_rental.note')} error={e.note?.message}>
-        {(c) => <Textarea {...c} {...form.register('note')} />}
-      </Field>
+      <Controller control={form.control} name="indexed" render={({ field }) => (
+        <SwitchField label={t('property_rental.indexed')} tip={<InfoTip label={t('property_rental.irl')}>{t('property_rental.irl_tip')}</InfoTip>}
+          checked={field.value} onCheckedChange={(on) => { field.onChange(on); if (!on) form.setValue('irlQuarter', ''); }} />
+      )} />
+      {form.watch('indexed') ? (
+        // Left empty, the server takes the last quarter over at the lease's start (rental spec §3.2).
+        <Controller control={form.control} name="irlQuarter" render={({ field }) => (
+          <Folded label={t('property_rental.irl_quarter_fold', { value: field.value ? `T${field.value}` : t('property_rental.irl_quarter_default') })} hasError={!!e.irlQuarter}>
+            <Field label={t('property_rental.irl_quarter')} hint={t('property_rental.irl_quarter_help')} error={e.irlQuarter?.message}
+              tip={<InfoTip label={t('property_rental.irl_quarter')}>{t('property_rental.irl_quarter_tip')}</InfoTip>}>
+              {(c) => <Segmented {...c} aria-label={t('property_rental.irl_quarter')} value={field.value} onValueChange={field.onChange}
+                options={[1, 2, 3, 4].map((q) => ({ value: String(q), label: `T${q}` }))} />}
+            </Field>
+          </Folded>
+        )} />
+      ) : null}
+      {/* Only the receipts, the letters and the rent ledger need these: folded (design-system §6.2). */}
+      <Folded label={t('property_rental.more')} hasError={!!(e.landlordName || e.landlordAddress || e.rentsTrackedFrom || e.note)}>
+        <Field label={t('property_rental.landlord_name')} error={e.landlordName?.message}>
+          {(c) => <Input {...c} {...form.register('landlordName')} />}
+        </Field>
+        <Field label={t('property_rental.landlord_address')} error={e.landlordAddress?.message}>
+          {(c) => <Textarea {...c} {...form.register('landlordAddress')} />}
+        </Field>
+        <Controller control={form.control} name="rentsTrackedFrom" render={({ field }) => {
+          // From the lease's month — a revised link's chain's first one: the server sets it on every link — to the current one.
+          const months = trackedMonths(revised && editing ? chainStart(property.tenancies, editing) : form.watch('startsOn'), todayIso());
+          if (field.value && !months.includes(field.value)) months.push(field.value);
+          return (
+            <Field label={t('property_rental.rents_tracked_from')} hint={t('property_rental.rents_tracked_from_help')} error={e.rentsTrackedFrom?.message}>
+              {(c) => <ComboboxField {...c} value={field.value} onValueChange={field.onChange}
+                searchPlaceholder={t('property_rental.rents_tracked_search')} empty={t('property_rental.rents_tracked_empty')}
+                options={[{ value: '', label: t('property_rental.rents_tracked_auto') }, ...months.map((m) => ({ value: m, label: monthText(m) }))]} />}
+            </Field>
+          );
+        }} />
+        <Field label={t('property_rental.note')} error={e.note?.message}>
+          {(c) => <Textarea {...c} {...form.register('note')} />}
+        </Field>
+      </Folded>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => onDone()}>{t('loan_detail.cancel')}</Button>
         <Button type="submit" disabled={add.isPending || correct.isPending}>{editing ? t('loan_detail.save') : t('property_rental.submit')}</Button>
