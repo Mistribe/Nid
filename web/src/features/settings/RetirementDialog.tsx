@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
+import { InfoTip } from '@/components/InfoTip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PERSONS } from '@/api/persons';
@@ -52,11 +53,11 @@ export function RetirementDialog({ person, onClose, onDone }: {
           });
         }}>
           {unplaced ? <ProblemMessage problem={present(toProblem(save.error))} /> : null}
-          <Field label={t('settings.projection.birth_date')} error={errorOf('birthDate')}>
+          <Field label={t('settings.projection.birth_date')} tip={<InfoTip label={t('settings.projection.birth_date')}>{t('settings.projection.tip.birth_date')}</InfoTip>} error={errorOf('birthDate')}>
             {(c) => <DateField {...c} value={birthDate} onChange={setBirthDate} max={todayIso()} />}
           </Field>
           <div className="flex max-w-96 gap-3">
-            <Field label={t('settings.projection.retirement_age')} error={errorOf('retirementAge')}>
+            <Field label={t('settings.projection.retirement_age')} tip={<InfoTip label={t('settings.projection.retirement_age')}>{t('settings.projection.tip.retirement_age')}</InfoTip>} error={errorOf('retirementAge')}>
               {(c) => <Input {...c} type="number" inputMode="numeric" min={50} max={75} step={1} value={age} onChange={(e) => setAge(e.target.value)} />}
             </Field>
             <Field label={t('settings.projection.retirement_months')} error={errorOf('retirementMonths')}>

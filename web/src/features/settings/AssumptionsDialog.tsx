@@ -8,6 +8,7 @@ import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Field } from '@/components/form/Field';
+import { InfoTip } from '@/components/InfoTip';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,11 @@ const wire = (text: string) => text.trim().replace(',', '.');
 
 /** The typed years only, as the wire reads them: an empty year is not sent. */
 const typed = (byYear: Record<string, string>) => Object.fromEntries(Object.entries(byYear).filter(([, v]) => v.trim()).map(([y, v]) => [y, wire(v)]));
+
+/** A fieldset's legend and the InfoTip that explains it. */
+const Legend = ({ label, tip }: { label: string; tip: string }) => (
+  <legend className="flex items-center gap-1.5 text-sm font-medium"><span>{label}</span><InfoTip label={label}>{tip}</InfoTip></legend>
+);
 
 /** The household's growth rates, inflation and savings (« Modifier » of the Hypothèses section); one PUT replaces the document. */
 export function AssumptionsDialog({ current, onClose, onDone }: { current: Assumptions; onClose: () => void; onDone: (message: string) => void }) {
@@ -101,7 +107,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
         }}>
           {unplaced ? <ProblemMessage problem={present(toProblem(save.error))} /> : null}
           <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">{t('settings.projection.rates')}</legend>
+            <Legend label={t('settings.projection.rates')} tip={t('settings.projection.tip.rate')} />
             <div className="grid grid-cols-2 gap-3">
               {ASSET_CLASSES.map((c) => (
                 <Field key={c} label={t(`settings.projection.class.${c}`)} error={errorOf(`${RATE_PREFIX}${c}`)}>
@@ -111,7 +117,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
             </div>
           </fieldset>
           <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">{t('settings.projection.volatility')}</legend>
+            <Legend label={t('settings.projection.volatility')} tip={t('settings.projection.tip.volatility')} />
             <div className="grid grid-cols-2 gap-3">
               {ASSET_CLASSES.map((c) => (
                 <Field key={c} label={t('settings.projection.volatility_label', { name: t(`settings.projection.class.${c}`) })} error={errorOf(`${VOLATILITY_PREFIX}${c}`)}>
@@ -121,7 +127,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
             </div>
           </fieldset>
           <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">{t('settings.projection.inflation_years')}</legend>
+            <Legend label={t('settings.projection.inflation_years')} tip={t('settings.projection.tip.inflation')} />
             <div className="grid grid-cols-3 gap-3">
               {years.map((y) => (
                 <Field key={y} label={t('settings.projection.year_label', { name: t('settings.projection.inflation'), year: y })} error={errorOf(`inflationByYear.${y}`)}
@@ -136,7 +142,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
           </fieldset>
           {YEARLY_CLASSES.map((c) => (
             <fieldset key={c} className="space-y-3">
-              <legend className="text-sm font-medium">{t('settings.projection.class_years', { name: t(`settings.projection.class.${c}`) })}</legend>
+              <Legend label={t('settings.projection.class_years', { name: t(`settings.projection.class.${c}`) })} tip={t('settings.projection.tip.class_years')} />
               <div className="grid grid-cols-3 gap-3">
                 {years.map((y) => (
                   <Field key={y} label={t('settings.projection.year_label', { name: t(`settings.projection.class.${c}`), year: y })} error={errorOf(`classRatesByYear.${c}.${y}`)}>
@@ -148,20 +154,23 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
             </fieldset>
           ))}
           <div className="max-w-64">
-            <Field label={t('settings.projection.income_growth')} error={errorOf('incomeGrowth')}>
+            <Field label={t('settings.projection.income_growth')} tip={<InfoTip label={t('settings.projection.income_growth')}>{t('settings.projection.tip.income_growth')}</InfoTip>} error={errorOf('incomeGrowth')}>
               {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={growth} onChange={(e) => setGrowth(e.target.value)} />}
             </Field>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label={t('settings.projection.withdrawal_rate')} hint={t('settings.projection.withdrawal_rate_hint')} error={errorOf('withdrawalRate')}>
+            <Field label={t('settings.projection.withdrawal_rate')} tip={<InfoTip label={t('settings.projection.withdrawal_rate')}>{t('settings.projection.tip.withdrawal_rate')}</InfoTip>} hint={t('settings.projection.withdrawal_rate_hint')} error={errorOf('withdrawalRate')}>
               {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={withdrawal} onChange={(e) => setWithdrawal(e.target.value)} />}
             </Field>
-            <Field label={t('settings.projection.living_cost', { currency: current.currency })} hint={t('settings.projection.living_cost_hint')} error={errorOf('monthlyLivingCost')}>
+            <Field label={t('settings.projection.living_cost', { currency: current.currency })} tip={<InfoTip label={t('settings.projection.living_cost_summary')}>{t('settings.projection.tip.living_cost')}</InfoTip>} hint={t('settings.projection.living_cost_hint')} error={errorOf('monthlyLivingCost')}>
               {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={livingCost} onChange={(e) => setLivingCost(e.target.value)} />}
             </Field>
           </div>
           <div className="space-y-1">
-            <p id={modeId} className="text-sm">{t('settings.projection.savings_mode')}</p>
+            <div className="flex items-center gap-1.5">
+              <p id={modeId} className="text-sm">{t('settings.projection.savings_mode')}</p>
+              <InfoTip label={t('settings.projection.savings_mode')}>{t('settings.projection.tip.monthly_savings')}</InfoTip>
+            </div>
             <Segmented aria-labelledby={modeId} value={mode} onValueChange={(v) => setMode(v as 'auto' | 'amount')} options={[
               { value: 'auto', label: t('settings.projection.savings_auto') },
               { value: 'amount', label: t('settings.projection.savings_amount') },
@@ -175,7 +184,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
             </div>
           ) : errorOf('monthlySavings') ? <p className="text-sm text-destructive">{errorOf('monthlySavings')}</p> : null}
           <div className="max-w-64">
-            <Field label={t('settings.projection.savings_class')} error={errorOf('savingsClass')}>
+            <Field label={t('settings.projection.savings_class')} tip={<InfoTip label={t('settings.projection.savings_class')}>{t('settings.projection.tip.savings_class')}</InfoTip>} error={errorOf('savingsClass')}>
               {(ctl) => <SelectField {...ctl} value={savingsClass} onValueChange={setSavingsClass}
                 options={ASSET_CLASSES.map((c) => ({ value: c, label: t(`settings.projection.class.${c}`) }))} />}
             </Field>
@@ -183,6 +192,7 @@ export function AssumptionsDialog({ current, onClose, onDone }: { current: Assum
           <div className="flex items-center gap-2 text-sm">
             <Checkbox id={freedId} checked={freed} onCheckedChange={(checked) => setFreed(checked === true)} />
             <Label htmlFor={freedId}>{t('settings.projection.freed_label')}</Label>
+            <InfoTip label={t('settings.projection.freed')}>{t('settings.projection.tip.freed')}</InfoTip>
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
