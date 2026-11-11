@@ -19,6 +19,7 @@ public sealed class ProjectionRateSeriesTests
         public Task<IReadOnlyDictionary<string, decimal>> AllocationTargetAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task SaveAllocationTargetAsync(IReadOnlyDictionary<string, decimal> target, CancellationToken ct) => throw new NotSupportedException();
         public Task SaveProjectionAssumptionsAsync(ProjectionAssumptions a, CancellationToken ct) => throw new NotSupportedException();
+        public Task<UnambitiousFx.Functional.Result<ProjectionAssumptions>> UpdateProjectionAssumptionsAsync(Func<ProjectionAssumptions, UnambitiousFx.Functional.Result<ProjectionAssumptions>> change, CancellationToken ct) => throw new NotSupportedException();
         public Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task SaveFeeReferencesAsync(FeeReferences references, CancellationToken ct) => throw new NotSupportedException();
     }

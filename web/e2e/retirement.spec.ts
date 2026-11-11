@@ -25,12 +25,12 @@ test('alice sets her departure and a living cost, then enters her pension on the
   await departure.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(departure).toBeHidden();
 
+  // #155: the living cost is its own card on Réglages › Projection, saved alone.
   await alice.goto('/settings/projection');
-  await alice.getByRole('button', { name: 'Modifier les hypothèses' }).click();
-  const assumptions = alice.getByRole('dialog');
-  await assumptions.getByLabel(/^Coût de la vie mensuel \(/).fill('2500');
-  await assumptions.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(assumptions).toBeHidden();
+  const living = alice.getByRole('region', { name: 'De combien aurez-vous besoin par mois une fois à la retraite ?' });
+  await living.getByLabel(/^Montant par mois \(/).fill('2500');
+  await living.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(alice.getByText('Hypothèses enregistrées.')).toBeVisible();
 
   await alice.getByRole('link', { name: 'Retraite', exact: true }).first().click();
   await expect(alice.getByRole('heading', { name: 'Retraite', level: 1 })).toBeVisible();

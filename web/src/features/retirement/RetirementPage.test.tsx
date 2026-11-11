@@ -23,6 +23,7 @@ const view = (over: Partial<RetirementView> = {}): RetirementView => ({
   assumptions: {
     classRates: {}, inflation: '2', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true, currency: 'EUR',
     inflationByYear: {}, classRatesByYear: {}, incomeGrowth: '0', classVolatility: {}, withdrawalRate: '4', monthlyLivingCost: '2500.00',
+    profile: 'balanced', defaults: { classRates: {}, classVolatility: {}, inflation: '2', incomeGrowth: '0', withdrawalRate: '4' },
   },
   warnings: [],
   ...over,

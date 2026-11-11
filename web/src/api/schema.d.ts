@@ -20458,6 +20458,172 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssumptionsPatchBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProjectionAssumptionsView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/core/projection-assumptions/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProjectionProfilesView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -28476,6 +28642,30 @@ export interface components {
             withdrawalRate?: null | string;
             monthlyLivingCost?: null | string;
         };
+        AssumptionsPatchBody: {
+            profile?: null | string;
+            classRates?: null | {
+                [key: string]: string;
+            };
+            inflation?: null | string;
+            monthlySavings?: null | string;
+            savingsClass?: null | string;
+            freedPaymentsToSavings?: null | boolean;
+            inflationByYear?: null | {
+                [key: string]: string;
+            };
+            classRatesByYear?: null | {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            incomeGrowth?: null | string;
+            classVolatility?: null | {
+                [key: string]: string;
+            };
+            withdrawalRate?: null | string;
+            monthlyLivingCost?: null | string;
+        };
         AuditActorView: {
             kind: string;
             /** Format: uuid */
@@ -32215,6 +32405,8 @@ export interface components {
             };
             withdrawalRate: string;
             monthlyLivingCost: string;
+            profile: string;
+            defaults: components["schemas"]["ProjectionDefaultsView"];
             observedInflation?: null | components["schemas"]["InflationTwelveMonthsView"];
         };
         ProjectionCompareView: {
@@ -32228,6 +32420,17 @@ export interface components {
             gapNominal: string;
             gapReal: string;
             document: components["schemas"]["ProjectionDocumentView"];
+        };
+        ProjectionDefaultsView: {
+            classRates: {
+                [key: string]: string;
+            };
+            classVolatility: {
+                [key: string]: string;
+            };
+            inflation: string;
+            incomeGrowth: string;
+            withdrawalRate: string;
         };
         ProjectionDocumentView: {
             /** Format: int32 */
@@ -32300,6 +32503,20 @@ export interface components {
             on: string;
             without: components["schemas"]["DashboardMoneyView"];
             with: components["schemas"]["DashboardMoneyView"];
+        };
+        ProjectionProfilesView: {
+            currency: string;
+            profiles: components["schemas"]["ProjectionProfileView"][];
+        };
+        ProjectionProfileView: {
+            key: string;
+            classRates: {
+                [key: string]: string;
+            };
+            classVolatility: {
+                [key: string]: string;
+            };
+            inTenYears: string;
         };
         ProjectionRangesView: {
             /** Format: int32 */

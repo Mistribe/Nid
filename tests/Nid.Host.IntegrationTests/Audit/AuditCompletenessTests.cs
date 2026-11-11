@@ -60,7 +60,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 3, // transaction: excluded; the account's advisory lock; reconciled_at (the job's mark, données brutes de la banque, ni décision ni réglage)
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
-        ["src/Core/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 1, // advisory lock
+        ["src/Core/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 2, // advisory locks: provisioning, projection assumptions (#155)
         ["src/Core/Nid.Core.Infrastructure/Persistence/PersonalAccessTokenStore.cs"] = 4, // lock; revoked_at (token_revoked, and a calendar feed regenerated: token_created) and last_used_at (not audited)
         ["src/Core/Nid.Core.Infrastructure/Persistence/ProposalStore.cs"] = 3, // the target's (or, without one, the submitter's) row lock; warnings append (not a decision, not in the write log)
         ["src/Core/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)

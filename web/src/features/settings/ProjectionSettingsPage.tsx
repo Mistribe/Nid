@@ -1,145 +1,215 @@
 import { Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
-import { InfoTip } from '@/components/InfoTip';
 import { formatCurrency } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Field } from '@/components/form/Field';
+import { Segmented } from '@/components/form/Segmented';
+import { SectionCard } from '@/components/page/SectionCard';
 import { SeriesLink } from '@/components/page/SeriesLink';
-import { Section } from '@/components/page/Section';
+import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { monthText } from '@/components/LocalDate';
-import { AssumptionsDialog } from './AssumptionsDialog';
+import { toFieldAmount, toWireAmount } from '@/lib/amount';
+import { ProjectionCustomize } from './ProjectionCustomize';
 import { SettingsFrame } from './SettingsFrame';
-import { ASSET_CLASSES, INFLATION, PROJECTION_ASSUMPTIONS } from './api';
+import { PROJECTION, PROJECTION_ASSUMPTIONS, PROJECTION_PROFILES, percent, type Assumptions } from './api';
+import { useAssumptionsPatch } from './useAssumptionsPatch';
 
-/** A server percent as a French one: « 1.5 » reads « 1,5 % » (a string swap, nothing computed). */
-const percent = (value: string) => `${value.replace('.', ',')} %`;
+/** The places the savings go, as a household names them (#155); another stored class shows by its name. */
+const SAVINGS_PLACES = ['cash', 'capital_guaranteed', 'equity', 'mixed'] as const;
+const PROFILES = ['prudent', 'balanced', 'optimistic'] as const;
+/** Income growth over prices, as the server writes it: the three plain choices. */
+const GROWTH = { same: '0', more: '1', less: '-1' } as const;
 
-/** A long-term rate and the typed years before it: « 2026 2,5 %, 2027 2,2 %, puis 2 % » (the server already drops past years). */
-const withYears = (longTerm: string, byYear: Record<string, string> | undefined, then: string) => {
-  const years = Object.entries(byYear ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([y, v]) => `${y} ${percent(v)}`);
-  return years.length > 0 ? `${years.join(', ')}, ${then} ${percent(longTerm)}` : percent(longTerm);
-};
+/** « Combien mettez-vous de côté chaque mois ? »: automatic or an amount, where it goes, and the loans' freed payments. */
+function SavingsCard({ a }: { a: Assumptions }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const { save, pending, errorOf, problem } = useAssumptionsPatch(['monthlySavings', 'savingsClass']);
+  const [mode, setMode] = useState<'auto' | 'amount'>(a.monthlySavings ? 'amount' : 'auto');
+  const [amount, setAmount] = useState(toFieldAmount(a.monthlySavings ?? ''));
+  // The automatic figure is the base projection's, in the household scope.
+  const projection = $api.useQuery('get', PROJECTION, { params: { query: { scope: 'household' } } }, { enabled: mode === 'auto' && !a.monthlySavings });
+  const whereId = useId();
+  const places: string[] = (SAVINGS_PLACES as readonly string[]).includes(a.savingsClass) ? [...SAVINGS_PLACES] : [...SAVINGS_PLACES, a.savingsClass];
+  const chooseMode = (next: string) => {
+    setMode(next as 'auto' | 'amount');
+    // A refused return to automatic leaves the stored amount: the choice shows it again.
+    if (next === 'auto' && a.monthlySavings) save({ monthlySavings: 'auto' }, () => setMode('amount'));
+  };
+  const automatic = projection.data?.savingsOrigin === 'auto' ? projection.data.monthlySavings : null;
 
-const ASSUMPTIONS = 'assumptions';
+  return (
+    <SectionCard title={t('settings.projection.guided.savings_title')} className="space-y-4">
+      {problem}
+      <div className="space-y-2">
+        <Segmented aria-label={t('settings.projection.guided.savings_title')} value={mode} onValueChange={chooseMode} options={[
+          { value: 'auto', label: t('settings.projection.guided.savings_auto') },
+          { value: 'amount', label: t('settings.projection.guided.savings_amount') },
+        ]} />
+        {mode === 'auto' ? (
+          <p className="text-sm text-muted-foreground">{automatic
+            ? t('settings.projection.guided.savings_auto_figure', { amount: formatCurrency(automatic, a.currency, { maximumFractionDigits: 0 }) })
+            : t('settings.projection.guided.savings_auto_hint')}</p>
+        ) : (
+          <form noValidate className="flex flex-wrap items-end gap-2" onSubmit={(event) => { event.preventDefault(); save({ monthlySavings: toWireAmount(amount) }); }}>
+            <div className="w-48">
+              <Field label={t('settings.projection.guided.per_month', { currency: a.currency })} error={errorOf('monthlySavings')}>
+                {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+              </Field>
+            </div>
+            <Button type="submit" variant="outline" disabled={pending}>{t('settings.projection.save')}</Button>
+          </form>
+        )}
+      </div>
+      <div className="space-y-2">
+        <p id={whereId} className="text-sm">{t('settings.projection.guided.savings_where')}</p>
+        <Segmented aria-labelledby={whereId} value={a.savingsClass} onValueChange={(savingsClass) => save({ savingsClass })} disabled={pending}
+          options={places.map((c) => ({
+            value: c,
+            label: (SAVINGS_PLACES as readonly string[]).includes(c) ? t(`settings.projection.guided.where.${c as (typeof SAVINGS_PLACES)[number]}`) : t(`settings.projection.class.${c as 'other'}`),
+          }))} />
+        {errorOf('savingsClass') ? <p className="text-sm text-destructive">{errorOf('savingsClass')}</p> : null}
+      </div>
+      <SwitchField label={t('settings.projection.guided.freed')} hint={t('settings.projection.guided.freed_hint')}
+        checked={a.freedPaymentsToSavings} onCheckedChange={(freedPaymentsToSavings) => save({ freedPaymentsToSavings })} />
+    </SectionCard>
+  );
+}
 
-/** A label and the InfoTip that explains it, for a table header (`end`: a right-aligned column). */
-const Tipped = ({ label, tip, end = false }: { label: string; tip: string; end?: boolean }) => (
-  <span className={`inline-flex items-center gap-1.5 ${end ? 'justify-end' : ''}`}>{label}<InfoTip label={label}>{tip}</InfoTip></span>
-);
+/** « Comment voyez-vous les marchés ? »: the three profiles, each with its effect in ten years, from the server. */
+function MarketCard({ a }: { a: Assumptions }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const profiles = $api.useQuery('get', PROJECTION_PROFILES);
+  const { save, pending, problem } = useAssumptionsPatch([]);
+  const legendId = useId();
+  const effect = (key: string) => profiles.data?.profiles.find((p) => p.key === key);
 
-/** A theme of assumptions: dense label / figure rows under a small heading. */
-const Group = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="space-y-1">
-    <h3 className="text-label text-muted-foreground">{title}</h3>
-    <dl className="divide-y text-sm">{children}</dl>
-  </div>
-);
+  return (
+    <SectionCard title={t('settings.projection.guided.market_title')} className="space-y-3">
+      {problem}
+      <p id={legendId} className="text-sm text-muted-foreground">{t('settings.projection.guided.market_hint')}</p>
+      <RadioGroup aria-labelledby={legendId} value={a.profile === 'custom' ? '' : a.profile} disabled={pending} onValueChange={(profile) => save({ profile })}>
+        {PROFILES.map((key) => {
+          const p = effect(key);
+          return (
+            <label key={key} className="flex items-start gap-3 rounded-md border p-3 has-[[data-state=checked]]:border-primary">
+              <RadioGroupItem value={key} className="mt-0.5" />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="font-medium">{t(`settings.projection.guided.profile.${key}`)}</span>
+                  {p && profiles.data ? (
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      {t('settings.projection.guided.in_ten_years', { amount: formatCurrency(p.inTenYears, profiles.data.currency, { maximumFractionDigits: 0 }) })}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="block text-sm text-muted-foreground">{t(`settings.projection.guided.profile_hint.${key}`)}</span>
+              </span>
+            </label>
+          );
+        })}
+      </RadioGroup>
+      {a.profile === 'custom' ? (
+        <div className="rounded-md border border-dashed p-3">
+          <p className="font-medium">{t('settings.projection.guided.custom')}</p>
+          <p className="text-sm text-muted-foreground">{t('settings.projection.guided.custom_hint')}</p>
+        </div>
+      ) : null}
+      {profiles.error ? <ProblemMessage problem={present(toProblem(profiles.error))} /> : null}
+    </SectionCard>
+  );
+}
 
-const Row = ({ label, tip, children }: { label: string; tip: string; children: ReactNode }) => (
-  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2">
-    <dt className="inline-flex items-center gap-1.5"><span>{label}</span><InfoTip label={label}>{tip}</InfoTip></dt>
-    <dd className="text-right tabular-nums">{children}</dd>
-  </div>
-);
+/** « De combien aurez-vous besoin par mois une fois à la retraite ? »: the living cost in today's money. */
+function LivingCostCard({ a }: { a: Assumptions }) {
+  const { t } = useTranslation();
+  const { save, pending, errorOf, problem } = useAssumptionsPatch(['monthlyLivingCost']);
+  const [amount, setAmount] = useState(toFieldAmount(a.monthlyLivingCost));
+  return (
+    <SectionCard title={t('settings.projection.guided.living_title')} className="space-y-3">
+      {problem}
+      <p className="text-sm text-muted-foreground">{t('settings.projection.guided.living_hint')}</p>
+      <form noValidate className="flex flex-wrap items-end gap-2" onSubmit={(event) => { event.preventDefault(); save({ monthlyLivingCost: toWireAmount(amount) || '0' }); }}>
+        <div className="w-48">
+          <Field label={t('settings.projection.guided.per_month', { currency: a.currency })} error={errorOf('monthlyLivingCost')}>
+            {(ctl) => <Input {...ctl} inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+          </Field>
+        </div>
+        <Button type="submit" variant="outline" disabled={pending}>{t('settings.projection.save')}</Button>
+      </form>
+    </SectionCard>
+  );
+}
 
-/** Réglages › Projection: the household's assumptions, read by the net worth projection; each person's retirement is set in Réglages › Personnes. */
+/** « Vos revenus suivent-ils les prix ? »: the three plain choices; another stored value shows as « Personnalisé ». */
+function IncomeGrowthCard({ a }: { a: Assumptions }) {
+  const { t } = useTranslation();
+  const { save, pending, problem } = useAssumptionsPatch([]);
+  const known = (Object.values(GROWTH) as string[]).includes(a.incomeGrowth);
+  const negative = a.incomeGrowth.startsWith('-');
+  const custom = t(negative ? 'settings.projection.guided.income_custom_below' : 'settings.projection.guided.income_custom_above', { percent: percent(negative ? a.incomeGrowth.slice(1) : a.incomeGrowth) });
+  return (
+    <SectionCard title={t('settings.projection.guided.income_title')} className="space-y-2">
+      {problem}
+      <Segmented aria-label={t('settings.projection.guided.income_title')} value={a.incomeGrowth} disabled={pending} onValueChange={(incomeGrowth) => { if (incomeGrowth !== a.incomeGrowth) save({ incomeGrowth }); }}
+        options={[
+          { value: GROWTH.same, label: t('settings.projection.guided.income.same') },
+          { value: GROWTH.more, label: t('settings.projection.guided.income.more') },
+          { value: GROWTH.less, label: t('settings.projection.guided.income.less') },
+          ...(known ? [] : [{ value: a.incomeGrowth, label: custom }]),
+        ]} />
+      <p className="text-sm text-muted-foreground">{t('settings.projection.guided.income_hint')}</p>
+    </SectionCard>
+  );
+}
+
+/** The prices: the projection's rate and, for a EUR household, the observed one (the server's rule); one link to the series. */
+function PricesCard({ a }: { a: Assumptions }) {
+  const { t } = useTranslation();
+  const ecb = a.currency === 'EUR' && a.inflation === a.defaults.inflation;
+  return (
+    <SectionCard title={t('settings.projection.guided.prices_title')} actions={<SeriesLink keys={['projection:inflation', 'cpi:yoy']} />}>
+      <p className="text-sm">
+        {t(ecb ? 'settings.projection.guided.prices_line_ecb' : 'settings.projection.guided.prices_line', { percent: percent(a.inflation) })}
+        {a.observedInflation ? ` ${t('settings.projection.guided.prices_observed', { percent: percent(a.observedInflation.percent) })}` : null}
+      </p>
+    </SectionCard>
+  );
+}
+
+/** Réglages › Projection: plain questions, one card each, saving on its own; the expert values folded under « Personnaliser ». */
 export function ProjectionSettingsPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const assumptions = $api.useQuery('get', PROJECTION_ASSUMPTIONS);
-  const observed = $api.useQuery('get', INFLATION);
-  const [editing, setEditing] = useState<string | null>(null);
-  const close = () => setEditing(null);
-  const done = (message: string) => { setEditing(null); toast.success(message); };
-  const open = (what: string) => setEditing(what);
+  const a = assumptions.data;
 
   return (
     <SettingsFrame title={t('settings.projection.title')}>
-      <Section title={t('settings.projection.assumptions')} actions={<>
-        <SeriesLink keys={['projection:inflation']} />
-        {assumptions.data ? <Button variant="outline" size="sm" aria-label={t('settings.projection.edit_assumptions')} onClick={() => open(ASSUMPTIONS)}>{t('settings.projection.edit')}</Button> : null}
-      </>}>
-        {assumptions.data ? (
-          <div className="grid gap-x-10 gap-y-6 lg:grid-cols-2">
-            <div className="space-y-1">
-              <h3 className="text-label text-muted-foreground">{t('settings.projection.group_returns')}</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('settings.projection.class_column')}</TableHead>
-                    <TableHead className="text-right"><Tipped label={t('settings.projection.rate_column')} tip={t('settings.projection.tip.rate')} end /></TableHead>
-                    <TableHead className="text-right"><Tipped label={t('settings.projection.volatility_column')} tip={t('settings.projection.tip.volatility')} end /></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ASSET_CLASSES.map((c) => (
-                    <TableRow key={c}>
-                      <TableCell>{t(`settings.projection.class.${c}`)}</TableCell>
-                      <TableCell className="text-right whitespace-normal tabular-nums">{withYears(assumptions.data.classRates[c] ?? '', assumptions.data.classRatesByYear[c], t('settings.projection.then'))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{percent(assumptions.data.classVolatility[c] ?? '0')}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="space-y-6">
-              <Group title={t('settings.projection.group_prices')}>
-                <Row label={t('settings.projection.inflation')} tip={t('settings.projection.tip.inflation')}>{withYears(assumptions.data.inflation, assumptions.data.inflationByYear, t('settings.projection.then'))}</Row>
-                <Row label={t('settings.projection.income_growth_summary')} tip={t('settings.projection.tip.income_growth')}>{t('settings.projection.income_growth_value', { percent: percent(assumptions.data.incomeGrowth) })}</Row>
-              </Group>
-              <Group title={t('settings.projection.group_savings')}>
-                <Row label={t('settings.projection.monthly_savings')} tip={t('settings.projection.tip.monthly_savings')}>{assumptions.data.monthlySavings ? formatCurrency(assumptions.data.monthlySavings, assumptions.data.currency) : t('settings.projection.savings_auto_summary')}</Row>
-                <Row label={t('settings.projection.savings_class')} tip={t('settings.projection.tip.savings_class')}>{t(`settings.projection.class.${assumptions.data.savingsClass as (typeof ASSET_CLASSES)[number]}`)}</Row>
-                <Row label={t('settings.projection.freed')} tip={t('settings.projection.tip.freed')}>{t(assumptions.data.freedPaymentsToSavings ? 'settings.projection.yes' : 'settings.projection.no')}</Row>
-              </Group>
-              <Group title={t('settings.projection.group_independence')}>
-                <Row label={t('settings.projection.withdrawal_rate')} tip={t('settings.projection.tip.withdrawal_rate')}>{percent(assumptions.data.withdrawalRate)}</Row>
-                <Row label={t('settings.projection.living_cost_summary')} tip={t('settings.projection.tip.living_cost')}>{Number(assumptions.data.monthlyLivingCost) > 0 ? formatCurrency(assumptions.data.monthlyLivingCost, assumptions.data.currency) : t('settings.projection.living_cost_unset')}</Row>
-              </Group>
-            </div>
-          </div>
-        ) : assumptions.error ? <ProblemMessage problem={present(toProblem(assumptions.error))} />
-          : <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('settings.projection.loading')}</span></Skeleton>}
-      </Section>
-      <Section title={t('settings.projection.observed')} actions={<SeriesLink keys={['cpi:yoy', 'projection:inflation']} />}>
-        {observed.data?.lastPublished ? (
-          <>
-            {observed.data.last12Months ? (
-              <p className="text-sm">{t('settings.projection.observed_last12', { month: monthText(observed.data.last12Months.to), percent: percent(observed.data.last12Months.percent) })}</p>
-            ) : null}
-            <Table className="max-w-xs">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('settings.projection.observed_year')}</TableHead>
-                  <TableHead className="text-right">{t('settings.projection.observed_percent')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {observed.data.years.map((y) => (
-                  <TableRow key={y.year}>
-                    <TableCell>{y.year}</TableCell>
-                    <TableCell className="text-right tabular-nums">{percent(y.percent)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <p className="text-xs text-muted-foreground">{t('settings.projection.observed_source', { month: monthText(observed.data.lastPublished) })}</p>
-          </>
-        ) : observed.error ? <ProblemMessage problem={present(toProblem(observed.error))} />
-          : observed.data ? <p className="text-sm">{t('settings.projection.observed_unavailable')}</p>
-            : <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('settings.projection.observed_loading')}</span></Skeleton>}
-      </Section>
-      <p className="text-sm">
-        {t('settings.projection.retirement_moved')}{' '}
-        <Link to="/settings/persons" className="underline underline-offset-2">{t('settings.projection.retirement_link')}</Link>
-      </p>
-      {editing === ASSUMPTIONS && assumptions.data ? <AssumptionsDialog current={assumptions.data} onClose={close} onDone={done} /> : null}
+      {a ? (
+        <div className="space-y-4">
+          <SavingsCard a={a} />
+          <MarketCard a={a} />
+          <LivingCostCard a={a} />
+          <IncomeGrowthCard a={a} />
+          <PricesCard a={a} />
+          <SectionCard title={t('settings.projection.guided.retirement_title')}>
+            <p className="text-sm">
+              {t('settings.projection.guided.retirement_line')}{' '}
+              <Link to="/settings/persons" className="underline underline-offset-4">{t('settings.projection.guided.retirement_link')}</Link>
+            </p>
+          </SectionCard>
+          <ProjectionCustomize a={a} />
+        </div>
+      ) : assumptions.error ? <ProblemMessage problem={present(toProblem(assumptions.error))} />
+        : <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('settings.projection.loading')}</span></Skeleton>}
     </SettingsFrame>
   );
 }
