@@ -9,7 +9,7 @@ type Adult = TaxEstimate['adults'][number];
 /** A cell's control: named by its row's label and its adult's column, described by the row's hint and the cell's error. */
 export type GridControl = FieldControl & { 'aria-labelledby': string };
 export type GridRow = {
-  key: string; label: string; hint?: string; error?: (adultId: string) => string | undefined;
+  key: string; label: string; hint?: string; /** An InfoTip beside the label. */ tip?: ReactNode; error?: (adultId: string) => string | undefined;
   cell: (adult: Adult, control: GridControl) => ReactNode;
 };
 
@@ -34,7 +34,9 @@ export function DeclarantGrid({ label, adults, rows }: { label: string; adults: 
             return (
               <TableRow key={row.key} className="hover:bg-transparent">
                 <TableHead scope="row" className="h-auto whitespace-normal py-3 align-top font-normal">
-                  <span id={labelId} className="block font-medium text-foreground">{row.label}</span>
+                  {row.tip ? (
+                    <span className="flex items-center gap-1.5"><span id={labelId} className="font-medium text-foreground">{row.label}</span>{row.tip}</span>
+                  ) : <span id={labelId} className="block font-medium text-foreground">{row.label}</span>}
                   {row.hint ? <span id={hintId} className="block text-sm text-muted-foreground">{row.hint}</span> : null}
                 </TableHead>
                 {adults.map((a) => {

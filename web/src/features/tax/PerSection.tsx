@@ -4,8 +4,8 @@ import { formatCurrency } from '@/components/Money';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import type { TaxResult } from '@/api/tax';
-import { percentText, ZERO } from './format';
-import { eur } from './ResultTable';
+import { percentText, tipText, ZERO } from './format';
+import { eur, Term } from './ResultTable';
 import '@/locales/tax';
 
 /** Whole euros: the room in the bracket is floored by the server. */
@@ -40,14 +40,14 @@ export function PerRows({ result, names }: { result: TaxResult; names: string[] 
   const shown = result.declarants.map((d) => d.per).filter((per) => per !== null && per !== undefined);
   if (!shown.length) return null;
   const source = sharedSource(shown);
-  type Line = { label: string; cell: (per: NonNullable<Declarant['per']>, i: number) => string; note?: (per: NonNullable<Declarant['per']>, i: number) => string | undefined; strong?: boolean };
+  type Line = { label: string; cell: (per: NonNullable<Declarant['per']>, i: number) => string; note?: (per: NonNullable<Declarant['per']>, i: number) => string | undefined; strong?: boolean; tip?: string };
   const lines: Line[] = [
-    { label: ceilingLabel(t, source), cell: (per) => eur(per.ceiling),
+    { label: ceilingLabel(t, source), cell: (per) => eur(per.ceiling), tip: tipText(t, 'per_ceiling'),
       note: (per) => [source === undefined ? t(per.source === 'notice' ? 'tax.per.source_notice' : 'tax.per.source_estimated') : undefined,
         // Once the minimum is paid, nothing is lost any more.
         ZERO.test(per.minimum) ? undefined : t('tax.per.expiring', { amount: eur(per.expiring) })].filter(Boolean).join(' · ') || undefined },
     { label: t('tax.per.contributions'), cell: (per) => eur(per.contributions), note: (_, i) => (names[i] ? t('tax.per.flows', { names: names[i] }) : undefined) },
-    { label: t('tax.per.deducted'), cell: (per) => eur(per.deducted) },
+    { label: t('tax.per.deducted'), cell: (per) => eur(per.deducted), tip: tipText(t, 'per_deduction') },
     ...(shown.every((per) => ZERO.test(per.excess)) ? [] : [{ label: t('tax.per.excess'), cell: (per: NonNullable<Declarant['per']>) => eur(per.excess) }]),
     // While a declarant has a ceiling expiring: the year's own ceiling goes first, then the expiring part.
     ...(shown.every((per) => ZERO.test(per.expiring)) ? [] : [{ label: t('tax.per.minimum'), cell: (per: NonNullable<Declarant['per']>) => eur(per.minimum),
@@ -63,9 +63,9 @@ export function PerRows({ result, names }: { result: TaxResult; names: string[] 
           {t('tax.per.title')} · {t('tax.per.scale', { rulesYear: result.rulesYear })}
         </TableHead>
       </TableRow>
-      {lines.map(({ label, cell, note, strong }) => (
+      {lines.map(({ label, cell, note, strong, tip }) => (
         <TableRow key={label} className={strong ? 'font-semibold' : undefined}>
-          <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}>{label}</TableHead>
+          <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}><Term title={label} tip={tip} /></TableHead>
           {result.declarants.map((d, i) => {
             const text = d.per && note ? note(d.per, i) : undefined;
             return (

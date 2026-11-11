@@ -42,6 +42,32 @@ describe('TaxPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('explains the tax terms and asks micro-foncier or réel with the server’s comparison', async () => {
+    const loaded = estimate();
+    loaded.result = result({ rentalRegimeGap: '-344.00' });
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    const { container, user } = await renderApp('/tax');
+
+    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
+    const rfr = within(table).getByRole('button', { name: 'À propos : Revenu fiscal de référence' });
+    await user.hover(rfr);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/en haut de la première page de votre avis/);
+    expect(screen.getAllByRole('button', { name: 'À propos : Tranche marginale' })).toHaveLength(2);
+    expect(screen.getByText('Micro-foncier ou réel ?')).toBeInTheDocument();
+    expect(screen.getByText(/Vos loyers sont imposés au micro-foncier\. Nid compare les deux : le réel vous ferait payer 344,00 € de moins\./)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Changer de régime dans le Profil fiscal' }));
+    expect(screen.getByRole('tab', { name: 'Profil fiscal', selected: true })).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('asks nothing about the regime when the server has no comparison', async () => {
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+    await renderApp('/tax');
+
+    await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
+    expect(screen.queryByText('Micro-foncier ou réel ?')).not.toBeInTheDocument();
+  });
+
   it('lists what to type on impots.gouv.fr and the rate that should follow', async () => {
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
     const { container } = await renderApp('/tax?tab=withholding');

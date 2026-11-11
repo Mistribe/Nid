@@ -12,6 +12,7 @@ import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
 import { StatLine } from '@/components/page/StatLine';
+import { InfoTip } from '@/components/InfoTip';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -19,16 +20,16 @@ import { toPlot } from '@/lib/plot';
 import { Section } from '@/components/page/Section';
 import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
-import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from '@/api/tax';
+import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate, type TaxResult } from '@/api/tax';
 import { useTaxAssessments, type TaxAssessment } from './assessments/api';
 import { GapTable } from './assessments/GapTable';
 import { AssessmentView } from './assessments/AssessmentView';
-import { noticeAmount, noticeText, partsText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
+import { noticeAmount, noticeText, partsText, percentText, PER_WARNINGS, regimeText, tipText, warningText, ZERO } from './format';
 import { PerRows, PerSummary, perWarningsInBlock } from './PerSection';
 import { ProfileForm } from './profile/ProfileForm';
 import { ProfileSubmit } from './profile/ProfileSubmit';
 import { useProfileDraft } from './profile/useProfileDraft';
-import { DeclarantTable, eur, ResultTable } from './ResultTable';
+import { DeclarantTable, eur, ResultTable, Term } from './ResultTable';
 import { EvolutionSection } from './EvolutionSection';
 import { SaleTotalSection } from './SaleTotalSection';
 import { SimulationForm } from './SimulationForm';
@@ -183,13 +184,13 @@ function MoreFigures({ result: r }: { result: TaxEstimate['result'] }) {
   const { t } = useTranslation();
   return (
     <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-      {[
-        [t('tax.figure.net_taxable'), eur(r.netTaxableIncome)],
-        [t('tax.figure.marginal_rate'), percentText(t, r.marginalRate)],
-        [t('tax.figure.withholding_rate'), percentText(t, r.withholding.rate)],
-        [t('tax.figure.parts'), partsText(r.parts)],
-      ].map(([label, value]) => (
-        <div key={label} className="flex gap-1.5"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium tabular-nums">{value}</dd></div>
+      {([
+        [t('tax.figure.net_taxable'), eur(r.netTaxableIncome), 'net_taxable'],
+        [t('tax.figure.marginal_rate'), percentText(t, r.marginalRate), 'marginal_rate'],
+        [t('tax.figure.withholding_rate'), percentText(t, r.withholding.rate), 'withholding_rate'],
+        [t('tax.figure.parts'), partsText(r.parts), 'parts'],
+      ] as const).map(([label, value, tip]) => (
+        <div key={label} className="flex items-center gap-1.5"><dt className="text-muted-foreground"><Term title={label} tip={tipText(t, tip)} /></dt><dd className="font-medium tabular-nums">{value}</dd></div>
       ))}
     </dl>
   );
@@ -266,7 +267,27 @@ function Detail({ estimate, onProfile }: { estimate: TaxEstimate; onProfile: () 
       </DeclarantTable>
       <PerSummary result={estimate.result} year={estimate.year} onProfile={onProfile} />
       <ResultTable label={t('tax.detail_table')} declarants={false} columns={[{ title: t('tax.estimate'), result: estimate.result }]} />
+      <RegimeChoice result={estimate.result} onProfile={onProfile} />
       <p className="text-sm text-muted-foreground">{t('tax.out_of_scope')}</p>
     </>
+  );
+}
+
+/** Issue #160: the rental regime as a question, with what the other one would cost: the server's gap (negative, it costs less). */
+function RegimeChoice({ result: r, onProfile }: { result: TaxResult; onProfile: () => void }) {
+  const { t } = useTranslation();
+  const gap = r.rentalRegimeGap;
+  if (!gap) return null;
+  const other = regimeText(t, r.rentalRegime === 'micro' ? 'real' : 'micro');
+  const comparison = ZERO.test(gap) ? t('tax.regime_choice.same', { other })
+    : gap.startsWith('-') ? t('tax.regime_choice.less', { other, amount: eur(gap.slice(1)) }) : t('tax.regime_choice.more', { other, amount: eur(gap) });
+  return (
+    <div className="max-w-3xl space-y-1 text-sm">
+      <p className="flex items-center gap-1.5 font-medium">{t('tax.regime_choice.question')}<InfoTip label={t('tax.regime_choice.question')}>{tipText(t, 'regime')}</InfoTip></p>
+      <p>
+        {t('tax.regime_choice.current', { regime: regimeText(t, r.rentalRegime) })} {comparison}{' '}
+        <Button variant="link" className="h-auto p-0 text-sm" onClick={onProfile}>{t('tax.regime_choice.change')}</Button>
+      </p>
+    </div>
   );
 }

@@ -1,18 +1,24 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { InfoTip } from '@/components/InfoTip';
 import { LocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { TaxEstimate, TaxResult } from '@/api/tax';
-import { METHODS, ORIGINS, partsText, percentText, regimeText, ZERO } from './format';
+import { METHODS, ORIGINS, partsText, percentText, regimeText, tipText, ZERO } from './format';
 import '@/locales/tax';
 
 export const eur = (amount: string) => formatMoney({ amount, currency: 'EUR' });
 
-/** A step: its title, the figure shown, a subtotal in bold, and the raw amount when a zero in every column may be folded. */
-type Row = { title: string; cell: (r: TaxResult) => string; strong?: boolean; amount?: (r: TaxResult) => string };
+/** A step: its title, the figure shown, a subtotal in bold, the raw amount when a zero in every column may be folded, and what the term means. */
+type Row = { title: string; cell: (r: TaxResult) => string; strong?: boolean; amount?: (r: TaxResult) => string; tip?: string };
+
+/** A row's title, with the InfoTip that explains it when it has one. */
+export function Term({ title, tip }: { title: string; tip?: string }) {
+  return tip ? <span className="inline-flex items-center gap-1.5">{title}<InfoTip label={title}>{tip}</InfoTip></span> : <>{title}</>;
+}
 
 /**
  * Spec §4, step by step in four groups: one column per result (the estimate, then the simulation), every figure the
@@ -24,43 +30,44 @@ export function ResultTable({ columns, label, declarants = true }: {
   const { t } = useTranslation();
   const [showZeros, setShowZeros] = useState(false);
   const first = columns[0]!.result;
-  const money = (title: string, amount: (r: TaxResult) => string, strong?: boolean): Row => ({ title, cell: (r) => eur(amount(r)), strong, amount });
+  const money = (title: string, amount: (r: TaxResult) => string, strong?: boolean, tip?: string): Row => ({ title, cell: (r) => eur(amount(r)), strong, amount, tip });
+  const tip = (key: Parameters<typeof tipText>[1]) => tipText(t, key);
   const groups: { title: string; rows: Row[] }[] = [
     { title: t('tax.group.income'), rows: [
       ...(declarants ? first.declarants : []).flatMap((d, i) => [
         money(t('tax.row.salary_net', { name: d.name }), (r) => r.declarants[i]?.netTaxableIncome ?? '0'),
-        money(t('tax.row.allowance', { name: d.name }), (r) => r.declarants[i]?.allowance ?? '0'),
-        money(t('tax.row.per', { name: d.name }), (r) => r.declarants[i]?.perDeducted ?? '0'),
+        money(t('tax.row.allowance', { name: d.name }), (r) => r.declarants[i]?.allowance ?? '0', false, tip('allowance')),
+        money(t('tax.row.per', { name: d.name }), (r) => r.declarants[i]?.perDeducted ?? '0', false, tip('per_deduction')),
       ]),
-      money(t('tax.row.deficit_carried'), (r) => r.rentalDeficitCarriedUsed),
-      { title: t('tax.row.rental'), cell: (r) => t('tax.row.rental_value', { amount: eur(r.rentalTaxable), regime: regimeText(t, r.rentalRegime) }), amount: (r) => r.rentalTaxable },
-      money(t('tax.row.deficit'), (r) => r.rentalDeficit),
-      money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true),
-      money(t('tax.row.reference_income'), (r) => r.referenceIncome),
+      money(t('tax.row.deficit_carried'), (r) => r.rentalDeficitCarriedUsed, false, tip('deficit_carried')),
+      { title: t('tax.row.rental'), cell: (r) => t('tax.row.rental_value', { amount: eur(r.rentalTaxable), regime: regimeText(t, r.rentalRegime) }), amount: (r) => r.rentalTaxable, tip: tip('rental') },
+      money(t('tax.row.deficit'), (r) => r.rentalDeficit, false, tip('rental_deficit')),
+      money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true, tip('net_taxable')),
+      money(t('tax.row.reference_income'), (r) => r.referenceIncome, false, tip('reference_income')),
     ] },
     { title: t('tax.group.income_tax'), rows: [
-      { title: t('tax.row.parts'), cell: (r) => partsText(r.parts) },
-      { title: t('tax.row.gross_tax'), cell: (r) => (r.familyCapApplied ? t('tax.row.capped', { amount: eur(r.grossTax) }) : eur(r.grossTax)) },
-      money(t('tax.row.decote'), (r) => r.decote),
-      money(t('tax.row.pinel'), (r) => r.pinelReduction),
-      money(t('tax.row.donations'), (r) => r.donationReduction),
-      money(t('tax.row.childcare'), (r) => r.childcareCredit),
-      money(t('tax.row.home_employment'), (r) => r.homeEmploymentCredit),
-      money(t('tax.row.niche_cap'), (r) => r.nicheCapExcess),
+      { title: t('tax.row.parts'), cell: (r) => partsText(r.parts), tip: tip('parts') },
+      { title: t('tax.row.gross_tax'), cell: (r) => (r.familyCapApplied ? t('tax.row.capped', { amount: eur(r.grossTax) }) : eur(r.grossTax)), tip: tip('gross_tax') },
+      money(t('tax.row.decote'), (r) => r.decote, false, tip('decote')),
+      money(t('tax.row.pinel'), (r) => r.pinelReduction, false, tip('pinel')),
+      money(t('tax.row.donations'), (r) => r.donationReduction, false, tip('donations')),
+      money(t('tax.row.childcare'), (r) => r.childcareCredit, false, tip('childcare')),
+      money(t('tax.row.home_employment'), (r) => r.homeEmploymentCredit, false, tip('home_employment')),
+      money(t('tax.row.niche_cap'), (r) => r.nicheCapExcess, false, tip('niche_cap')),
       money(t('tax.row.income_tax'), (r) => r.incomeTax, true),
     ] },
     { title: t('tax.group.other'), rows: [
-      money(t('tax.row.flat_tax'), (r) => r.capitalFlatTax),
-      money(t('tax.row.social_levies'), (r) => r.socialLevies),
+      money(t('tax.row.flat_tax'), (r) => r.capitalFlatTax, false, tip('flat_tax')),
+      money(t('tax.row.social_levies'), (r) => r.socialLevies, false, tip('social_levies')),
       money(t('tax.row.total_tax'), (r) => r.totalTax, true),
     ] },
     { title: t('tax.group.left'), rows: [
       money(t('tax.row.net_before'), (r) => r.netBeforeTax),
       money(t('tax.row.net_after'), (r) => r.netAfterTax, true),
       money(t('tax.row.net_after_monthly'), (r) => r.netAfterTaxMonthly),
-      { title: t('tax.row.marginal_rate'), cell: (r) => percentText(t, r.marginalRate) },
-      { title: t('tax.row.withholding_rate'), cell: (r) => percentText(t, r.withholding.rate) },
-      { title: t('tax.row.withholding_balance'), cell: (r) => eur(r.withholding.balance) },
+      { title: t('tax.row.marginal_rate'), cell: (r) => percentText(t, r.marginalRate), tip: tip('marginal_rate') },
+      { title: t('tax.row.withholding_rate'), cell: (r) => percentText(t, r.withholding.rate), tip: tip('withholding_rate') },
+      { title: t('tax.row.withholding_balance'), cell: (r) => eur(r.withholding.balance), tip: tip('balance') },
     ] },
   ];
   const zero = (row: Row) => !row.strong && row.amount !== undefined && columns.every((c) => ZERO.test(row.amount!(c.result)));
@@ -81,9 +88,9 @@ export function ResultTable({ columns, label, declarants = true }: {
               <TableRow className="hover:bg-transparent">
                 <TableHead colSpan={columns.length + 1} className="pt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.title}</TableHead>
               </TableRow>
-              {g.rows.filter((row) => showZeros || !zero(row)).map(({ title, cell, strong }) => (
+              {g.rows.filter((row) => showZeros || !zero(row)).map(({ title, cell, strong, tip: about }) => (
                 <TableRow key={title} className={strong ? 'font-semibold' : undefined}>
-                  <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}>{title}</TableHead>
+                  <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}><Term title={title} tip={about} /></TableHead>
                   {columns.map((c) => <TableCell key={c.title} className="text-right tabular-nums">{cell(c.result)}</TableCell>)}
                 </TableRow>
               ))}
@@ -152,10 +159,10 @@ export function DeclarantTable({ result, detail = [], adults = [], children }: {
 }) {
   const { t } = useTranslation();
   // `origin`: the line that says where the salaries come from (the method, the payments behind it).
-  const rows: { title: string; amount: (d: TaxResult['declarants'][number]) => string; strong?: boolean; origin?: boolean }[] = [
+  const rows: { title: string; amount: (d: TaxResult['declarants'][number]) => string; strong?: boolean; origin?: boolean; tip?: string }[] = [
     { title: t('tax.declarant.salary_net'), amount: (d) => d.netTaxableIncome, origin: true },
-    { title: t('tax.declarant.allowance'), amount: (d) => d.allowance },
-    { title: t('tax.declarant.per'), amount: (d) => d.perDeducted },
+    { title: t('tax.declarant.allowance'), amount: (d) => d.allowance, tip: tipText(t, 'allowance') },
+    { title: t('tax.declarant.per'), amount: (d) => d.perDeducted, tip: tipText(t, 'per_deduction') },
     { title: t('tax.declarant.taxable'), amount: (d) => d.taxable, strong: true },
   ];
   // A column is a person by id: two adults may share a display name.
@@ -174,9 +181,9 @@ export function DeclarantTable({ result, detail = [], adults = [], children }: {
           <TableRow className="hover:bg-transparent">
             <TableHead colSpan={result.declarants.length + 1} scope="colgroup" className="pt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('tax.declarant.salaries')}</TableHead>
           </TableRow>
-          {rows.filter(({ amount, strong }) => strong || !result.declarants.every((d) => ZERO.test(amount(d)))).map(({ title, amount, strong, origin }) => (
+          {rows.filter(({ amount, strong }) => strong || !result.declarants.every((d) => ZERO.test(amount(d)))).map(({ title, amount, strong, origin, tip }) => (
             <TableRow key={title} className={strong ? 'font-semibold' : undefined}>
-              <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}>{title}</TableHead>
+              <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}><Term title={title} tip={tip} /></TableHead>
               {result.declarants.map((d, i) => {
                 const payments = origin ? paymentsOf(d) : [];
                 return (

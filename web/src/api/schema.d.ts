@@ -34176,6 +34176,7 @@ export interface components {
             per?: null | components["schemas"]["TaxPerView"];
             /** @default 0.00 */
             referenceIncome: string;
+            rentalRegimeGap?: null | string;
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];

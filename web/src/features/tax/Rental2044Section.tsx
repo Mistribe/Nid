@@ -1,9 +1,11 @@
 import { Link } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
+import { InfoTip } from '@/components/InfoTip';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
@@ -11,9 +13,9 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/lib/download';
 import { TAX_2044, type Rental2044 } from '@/api/tax';
-import { deficitLines, lineNote, lineText, noticeAmount, noticeText } from './format';
+import { deficitLines, lineNote, lineText, noticeAmount, noticeText, tipText } from './format';
 import { rental2044Csv } from './rental2044Csv';
-import { eur } from './ResultTable';
+import { eur, Term } from './ResultTable';
 import '@/locales/tax';
 
 /**
@@ -31,6 +33,7 @@ export function Rental2044Section({ year, scope }: { year: number; scope: 'me' |
   if (real && view.properties.length === 0) return <EmptyState module="/tax" title={t('tax.d2044.empty_title')} body={t('tax.d2044.empty_body')} />;
   return (
     <>
+      <p className="flex items-center gap-1.5 text-sm text-muted-foreground print:hidden">{t('tax.d2044.intro')}<InfoTip label={t('tax.d2044.intro')}>{t('tax.d2044.tip')}</InfoTip></p>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Button type="button" variant="outline" onClick={() => downloadBlob(new Blob([rental2044Csv(view, t)], { type: 'text/csv' }), `declaration-2044-${view.year}.csv`)}>
           {t('tax.d2044.csv')}
@@ -54,6 +57,15 @@ export function Rental2044Section({ year, scope }: { year: number; scope: 'me' |
   );
 }
 
+/** The lines whose tax term needs an explanation: the deficits, the taxable result, the micro-foncier's box. */
+function lineTip(t: TFunction, code: string): string | undefined {
+  if (['435', '440'].includes(code)) return tipText(t, 'rental_deficit');
+  if (['438', '441'].includes(code)) return tipText(t, 'deficit_carried');
+  if (code === '4BA') return tipText(t, 'rental');
+  if (code === '4BE') return t('tax.d2044.micro_tip');
+  return undefined;
+}
+
 function Lines({ lines }: { lines: { code: string; amount: string }[] }) {
   const { t } = useTranslation();
   return (
@@ -63,7 +75,7 @@ function Lines({ lines }: { lines: { code: string; amount: string }[] }) {
           <dt className="contents">
             <span className="font-mono text-muted-foreground">{l.code}</span>
             <span>
-              {lineText(t, l.code)}
+              <Term title={lineText(t, l.code)} tip={lineTip(t, l.code)} />
               {lineNote(t, l.code) ? <span className="block text-xs text-muted-foreground">{lineNote(t, l.code)}</span> : null}
             </span>
           </dt>
@@ -81,7 +93,7 @@ function Totals({ view }: { view: Rental2044 }) {
     return (
       <>
         <Lines lines={[{ code: '4BE', amount: totals.box4BE }]} />
-        <p className="text-sm text-muted-foreground">{t('tax.d2044.micro_note')}</p>
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">{t('tax.d2044.micro_note')}<InfoTip label={t('tax.d2044.micro_note')}>{t('tax.d2044.micro_tip')}</InfoTip></p>
       </>
     );
   }

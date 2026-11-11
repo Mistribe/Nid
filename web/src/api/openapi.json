@@ -56428,6 +56428,12 @@
           "referenceIncome": {
             "type": "string",
             "default": "0.00"
+          },
+          "rentalRegimeGap": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

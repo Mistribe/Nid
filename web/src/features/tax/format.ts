@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import type tax from '@/locales/fr.tax.json';
 import '@/locales/tax';
 
 export const REGIMES = ['auto', 'micro', 'real'] as const;
@@ -12,6 +13,9 @@ export function regimeText(t: TFunction, regime: string): string {
   const known = REGIMES.find((r) => r === regime);
   return known ? t(`tax.regime.${known}`) : regime;
 }
+
+/** What a tax term means, in plain words (design-system §6.2): the InfoTip beside it on every tax screen. */
+export const tipText = (t: TFunction, key: keyof typeof tax.tax.tip) => t(`tax.tip.${key}`);
 
 /** The PER warnings are told by the PER block, from the declarants' own figures. */
 export const PER_WARNINGS: readonly string[] = ['per_over_ceiling', 'per_ceiling_estimated'];

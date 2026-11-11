@@ -73,7 +73,9 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// <c>RentalTaxable</c> is after <c>RentalDeficitCarriedUsed</c>, the part of the earlier deficits the year's rents absorb.
 /// <c>Per</c> is always set by <see cref="TaxCalculator.Compute"/> (nullable only for the record's default). <c>ReferenceIncome</c>:
 /// the revenu fiscal de référence (art. 1417 IV CGI), the net taxable income plus the PER deduction, the flat-taxed capital income
-/// and the exempt income after the 10 % allowance, to the euro below.
+/// and the exempt income after the 10 % allowance, to the euro below. <c>RentalRegimeGap</c>: the total tax under the other rental
+/// regime minus this one (negative: the other costs less); null without rents, or when the micro-foncier is shut (rents over its
+/// ceiling, a Pinel property).
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -82,7 +84,7 @@ public sealed record TaxResult(
     decimal ChildcareCredit, decimal HomeEmploymentCredit, decimal NicheCapExcess,
     decimal IncomeTax, decimal CapitalFlatTax, decimal SocialLevies, decimal TotalTax,
     decimal MarginalRate, decimal? AverageRate, decimal NetBeforeTax, decimal NetAfterTax, decimal NetAfterTaxMonthly,
-    IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m);
+    IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -260,6 +262,10 @@ public static class TaxCalculator
             taxSaved = Math.Max(0m, Compute(withoutPer, withTaxSaved: false).IncomeTax - incomeTax);
         }
         var perHousehold = new PerHousehold(pooled, perRemaining, taxSaved, RoomInBracket(rules, taxable, parts));
+        // The same year under the other regime, when the household may choose: the outer run only, the inner ones need none.
+        decimal? regimeGap = withTaxSaved && inputs.RentalGross > 0m && inputs.RentalGross <= rules.MicroRentalCeiling && !pinelOwner
+            ? Compute(inputs with { RentalRegime = regime == RentalRegime.Micro ? RentalRegime.Real : RentalRegime.Micro }, withTaxSaved: false).TotalTax - total
+            : null;
         var reference = Math.Floor(taxable + declarants.Sum(d => d.PerDeducted) + Math.Max(0m, inputs.CapitalIncome)
             + inputs.Declarants.Sum(d => ExemptNet(d, rules)));
         return new TaxResult(
@@ -269,7 +275,7 @@ public static class TaxCalculator
             taxable == 0m ? null : Math.Round(Math.Max(0m, incomeTax) / taxable, 4, MidpointRounding.AwayFromZero),
             Euros(netBefore), Euros(netAfter), Euros(netAfter / 12), warnings,
             Withhold(rules, declarants, rentalTaxable, grossTax - decote, pinel + donation + childcare + home - excess, incomeTax),
-            perHousehold, reference);
+            perHousehold, reference, regimeGap);
     }
 
     /// <summary>
