@@ -49,6 +49,11 @@ function serve(initial: Body = assumptions(), inflation: Body = observed) {
   return { puts, retirements };
 }
 
+/** A class's cells in the returns table: class, rate, volatility. */
+const classRow = async (name: string) => within(await screen.findByRole('row', { name: new RegExp(`^${name} `) })).getAllByRole('cell').map((c) => c.textContent);
+/** The figure beside an assumption's label. */
+const figure = async (label: string) => (await screen.findByText(label, { selector: 'dt > span' })).closest('div')!.querySelector('dd')!.textContent;
+
 beforeAll(async () => { await import('./ProjectionSettingsPage'); }, 30_000);
 
 describe('the projection settings page', () => {
@@ -58,10 +63,10 @@ describe('the projection settings page', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Réglages' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Projection' })).toHaveAttribute('aria-current', 'page');
-    expect(await screen.findByText('Actions : 6 %')).toBeInTheDocument();
-    expect(screen.getByText('Liquidités : 1,5 %')).toBeInTheDocument();
+    expect(await classRow('Actions')).toEqual(['Actions', '6 %', '16 %']);
+    expect(await classRow('Liquidités')).toEqual(['Liquidités', '1,5 %', '0 %']);
     expect(screen.getByText(/Automatique \(moyenne des 12 derniers mois\)/)).toBeInTheDocument();
-    expect(screen.getByText('Mensualités terminées versées à l’épargne : oui')).toBeInTheDocument();
+    expect(await figure('Mensualités terminées versées à l’épargne')).toBe('oui');
     expect(await screen.findByText('20/05/1984')).toBeInTheDocument();
     expect(screen.getByText('62 ans et 9 mois')).toBeInTheDocument();
     expect(screen.getByText('Non renseignée')).toBeInTheDocument();
@@ -91,7 +96,7 @@ describe('the projection settings page', () => {
     const { puts } = serve();
     const { user } = await renderApp('/settings/projection');
 
-    expect(await screen.findByText(/Volatilité annuelle : Liquidités 0 %, .*Actions 16 %/)).toBeInTheDocument();
+    expect((await classRow('Obligations'))[2]).toBe('6 %');
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
     const equity = await screen.findByLabelText('Volatilité Actions');
     expect(equity).toHaveValue('16');
@@ -107,7 +112,7 @@ describe('the projection settings page', () => {
     serve(assumptions({ monthlySavings: '500.00', currency: 'CHF' }));
     const { user } = await renderApp('/settings/projection');
 
-    expect(await screen.findByText(/Épargne mensuelle : 500,00\s*CHF/)).toBeInTheDocument();
+    expect(await figure('Épargne mensuelle')).toMatch(/^500,00\s*CHF$/);
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
     expect(await screen.findByLabelText('Épargne mensuelle (CHF)')).toHaveValue('500,00');
   });
@@ -116,8 +121,8 @@ describe('the projection settings page', () => {
     const { puts } = serve(assumptions({ withdrawalRate: '3.5', monthlyLivingCost: '2500.00' }));
     const { user } = await renderApp('/settings/projection');
 
-    expect(await screen.findByText(/Taux de retrait : 3,5 %/)).toBeInTheDocument();
-    expect(screen.getByText(/Coût de la vie mensuel : 2\s?500,00\s*€/)).toBeInTheDocument();
+    expect(await figure('Taux de retrait')).toBe('3,5 %');
+    expect(await figure('Coût de la vie mensuel')).toMatch(/^2\s?500,00\s*€$/);
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
     const rate = await screen.findByLabelText('Taux de retrait');
     await user.clear(rate);
@@ -135,7 +140,7 @@ describe('the projection settings page', () => {
     serve();
     await renderApp('/settings/projection');
 
-    expect(await screen.findByText('Coût de la vie mensuel : non renseigné')).toBeInTheDocument();
+    expect(await figure('Coût de la vie mensuel')).toBe('non renseigné');
   });
 
   it('sends a fixed monthly amount', async () => {
@@ -253,9 +258,9 @@ describe('the projection settings page', () => {
     serve(assumptions({ inflationByYear: { [YEAR]: '2.5', [NEXT]: '2.2' }, classRatesByYear: { cash: { [YEAR]: '3' } }, incomeGrowth: '0.5' }));
     await renderApp('/settings/projection');
 
-    expect(await screen.findByText(`Inflation : ${YEAR} 2,5 %, ${NEXT} 2,2 %, puis 2 %`)).toBeInTheDocument();
-    expect(screen.getByText(`Liquidités : ${YEAR} 3 %, puis 1,5 %`)).toBeInTheDocument();
-    expect(screen.getByText('Évolution des revenus : inflation + 0,5 %')).toBeInTheDocument();
+    expect(await figure('Inflation')).toBe(`${YEAR} 2,5 %, ${NEXT} 2,2 %, puis 2 %`);
+    expect((await classRow('Liquidités'))[1]).toBe(`${YEAR} 3 %, puis 1,5 %`);
+    expect(await figure('Évolution des revenus')).toBe('inflation + 0,5 %');
   });
 
   it('shows a yearly field error on its field', async () => {
@@ -273,8 +278,47 @@ describe('the projection settings page', () => {
   it('has no axe violations', async () => {
     serve();
     const { container } = await renderApp('/settings/projection');
-    await screen.findByText('Actions : 6 %');
+    await classRow('Actions');
     await expectNoAxeViolations(container);
+  });
+
+  it('explains each assumption in a tooltip, on hover and on keyboard focus', async () => {
+    serve();
+    const { user } = await renderApp('/settings/projection');
+
+    await classRow('Actions');
+    const section = screen.getByRole('region', { name: 'Hypothèses' });
+    const tips = within(section).getAllByRole('button', { name: /^À propos : / }).map((b) => b.getAttribute('aria-label'));
+    expect(tips).toEqual(['Rendement annuel', 'Volatilité', 'Inflation', 'Évolution des revenus', 'Épargne mensuelle', 'Classe d’actifs de l’épargne',
+      'Mensualités terminées versées à l’épargne', 'Taux de retrait', 'Coût de la vie mensuel'].map((n) => `À propos : ${n}`));
+    const retirement = screen.getByRole('region', { name: 'Retraite' });
+    expect(within(retirement).getAllByRole('button', { name: /^À propos : / })).toHaveLength(2);
+
+    const rate = within(section).getByRole('button', { name: 'À propos : Taux de retrait' });
+    await user.hover(rate);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/date d’indépendance financière/);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
+
+    within(section).getByRole('button', { name: 'À propos : Inflation' }).focus();
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/inflation observée sur 12 mois/);
+    expect(within(section).getByRole('button', { name: 'À propos : Inflation' })).toHaveAccessibleDescription(/Hausse annuelle des prix/);
+  });
+
+  it('explains the fields of both dialogs', async () => {
+    serve();
+    const { user } = await renderApp('/settings/projection');
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getAllByRole('button', { name: /^À propos : / })).toHaveLength(5 + 6); // the five rate legends, the six other assumptions
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Modifier la retraite de Bob' }));
+    const retirement = await screen.findByRole('dialog');
+    expect(within(retirement).getAllByRole('button', { name: /^À propos : / }).map((b) => b.getAttribute('aria-label')))
+      .toEqual(['À propos : Date de naissance', 'À propos : Âge de départ à la retraite']);
   });
 
   it('shows the observed series', async () => {
@@ -306,7 +350,7 @@ describe('the projection settings page', () => {
     await renderApp('/settings/projection');
 
     expect(await screen.findByText('Inflation observée indisponible.')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Inflation observée' })).queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('hides the 12-month line when only the yearly series is known', async () => {

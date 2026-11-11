@@ -18,14 +18,14 @@ test('alice sets her departure and a living cost, then enters her pension on the
   await alice.getByRole('button', { name: /Modifier la retraite de Alice/ }).click();
   const departure = alice.getByRole('dialog');
   await fillDate(departure, 'Date de naissance', '1970-03-15');
-  await departure.getByLabel('Âge de départ à la retraite').fill('64');
+  await departure.getByLabel('Âge de départ à la retraite', { exact: true }).fill('64');
   await departure.getByLabel('Mois').fill('6');
   await departure.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(departure).toBeHidden();
 
   await alice.getByRole('button', { name: 'Modifier les hypothèses' }).click();
   const assumptions = alice.getByRole('dialog');
-  await assumptions.getByLabel(/Coût de la vie mensuel/).fill('2500');
+  await assumptions.getByLabel(/^Coût de la vie mensuel \(/).fill('2500');
   await assumptions.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(assumptions).toBeHidden();
 

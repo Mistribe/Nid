@@ -7,9 +7,9 @@ export const useFieldLabel = () => useContext(FieldLabel);
 export type FieldControl = { id: string; 'aria-invalid'?: true; 'aria-describedby'?: string; 'aria-labelledby'?: string };
 
 /** A label, its control, its hint and its error, tied together for assistive technology (aria-describedby, aria-invalid). */
-/** `badge` sits beside the label, outside it: a form's box number (`7DB`) that the field's name does not carry. */
-export function Field({ label, error, hint, badge, children, inline = false }: {
-  label: string; error?: string; hint?: string; badge?: string; inline?: boolean; children: (control: FieldControl) => ReactNode;
+/** `badge` sits beside the label, outside it: a form's box number (`7DB`) that the field's name does not carry; `tip` too (an InfoTip). */
+export function Field({ label, error, hint, badge, tip, children, inline = false }: {
+  label: string; error?: string; hint?: string; badge?: string; tip?: ReactNode; inline?: boolean; children: (control: FieldControl) => ReactNode;
 }) {
   const id = useId();
   const errorId = useId();
@@ -23,10 +23,11 @@ export function Field({ label, error, hint, badge, children, inline = false }: {
       {/* Spaced from the top: Radix Select's hidden native select after its trigger made `space-y-1` add 4 px under the trigger. */}
       <div className={inline ? 'flex items-center gap-2' : '[&>*+*]:mt-1'}>
         {inline ? children(control) : null}
-        {badge ? (
+        {badge || tip ? (
           <div className="flex items-center gap-1.5">
             <label htmlFor={id} className="block text-sm">{label}</label>
-            <span className="rounded-md bg-muted px-1.5 text-xs text-muted-foreground">{badge}</span>
+            {badge ? <span className="rounded-md bg-muted px-1.5 text-xs text-muted-foreground">{badge}</span> : null}
+            {tip}
           </div>
         ) : <label htmlFor={id} className="block text-sm">{label}</label>}
         {inline ? null : children(control)}

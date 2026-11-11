@@ -419,7 +419,7 @@
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "common": { "confirm": "Confirmer",
     "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "filters": "Filtres", "breadcrumb": "Fil d’Ariane", "back_to": "Retour à {{label}}",
-    "show_table": "Afficher en tableau", "show_chart": "Afficher le graphique" },
+    "show_table": "Afficher en tableau", "show_chart": "Afficher le graphique", "about": "À propos : {{name}}" },
   "form": { "none": "Aucun", "search": "Rechercher", "no_result": "Aucun résultat", "loading": "Chargement…", "currency_option": "{{code}} — {{name}}", "pick_date": "Choisir une date : {{label}}", "date_placeholder": "jj/mm/aaaa" },
   "subscriptions": {
     "title": "Abonnements",
@@ -502,7 +502,6 @@
       "assumptions_saved": "Hypothèses enregistrées.",
       "rates": "Rendement annuel par classe d’actifs (en %)",
       "volatility": "Volatilité annuelle par classe d’actifs (en %), pour la fourchette",
-      "volatility_summary": "Volatilité annuelle",
       "volatility_label": "Volatilité {{name}}",
       "class": {
         "cash": "Liquidités", "money_market": "Monétaire", "bond": "Obligations", "equity": "Actions",
@@ -547,7 +546,30 @@
       "retirement_age": "Âge de départ à la retraite",
       "retirement_months": "Mois",
       "age_years": "{{count}} ans",
-      "age_years_months": "{{years}} ans et {{months}} mois"
+      "age_years_months": "{{years}} ans et {{months}} mois",
+      "group_returns": "Rendements par classe d’actifs",
+      "group_prices": "Inflation et revenus",
+      "group_savings": "Épargne",
+      "group_independence": "Indépendance financière",
+      "class_column": "Classe",
+      "rate_column": "Rendement annuel",
+      "volatility_column": "Volatilité",
+      "person_column": "Personne",
+      "departure_column": "Départ à la retraite",
+      "tip": {
+        "rate": "Rendement annuel supposé de la classe, avant impôts. Chaque mois, vos placements de cette classe grandissent à ce taux : c’est la pente de la courbe du patrimoine projeté.",
+        "volatility": "Ampleur des écarts d’une année à l’autre autour du rendement. Elle ne change pas la courbe : elle dessine la fourchette (10ᵉ à 90ᵉ centile) tirée au hasard autour d’elle. Plus elle est forte, plus la fourchette est large.",
+        "class_years": "Le taux des liquidités et du monétaire suit celui de la BCE : vous pouvez le donner année par année sur cinq ans. Une année laissée vide prend le taux long terme.",
+        "inflation": "Hausse annuelle des prix supposée. Elle fait grandir vos dépenses et votre épargne mensuelle avec le temps, et ramène la projection en valeur d’aujourd’hui. Année par année sur cinq ans, puis le taux long terme ; l’année en cours prend, si vous ne la saisissez pas, l’inflation observée sur 12 mois quand elle est connue.",
+        "income_growth": "Progression annuelle de vos revenus au-delà de l’inflation (0 : ils suivent les prix). Ce que les revenus gagnent en plus s’ajoute à l’épargne mensuelle de la projection.",
+        "monthly_savings": "Ce que le foyer met de côté chaque mois et que la projection place. Automatique : la moyenne des versements nets sur vos enveloppes des 12 derniers mois. Montant fixe : celui que vous saisissez. Dans les deux cas il suit ensuite l’inflation.",
+        "savings_class": "La classe d’actifs où la projection place l’épargne mensuelle : elle grandit au rendement de cette classe.",
+        "freed": "Quand un prêt se termine, sa mensualité s’ajoute à l’épargne mensuelle de la projection. Sinon, elle est supposée dépensée.",
+        "withdrawal_rate": "Part du capital que vous pourriez retirer chaque année pour vivre sans l’épuiser. Elle donne le revenu que le capital couvre, donc la date d’indépendance financière, et le capital nécessaire à la retraite.",
+        "living_cost": "Vos dépenses courantes hors engagements suivis, en euros d’aujourd’hui. Ajoutées aux engagements, elles forment ce que le capital doit couvrir pour atteindre l’indépendance financière ; sans elles, aucune date n’est calculée.",
+        "birth_date": "Avec l’âge de départ, elle donne le mois du départ à la retraite. Sans elle, les revenus d’activité de la personne sont supposés continuer.",
+        "retirement_age": "Âge, en années et mois, du départ à la retraite. À ce mois, les revenus d’activité de la personne cessent d’être comptés, son PER devient disponible et la projection marque sa retraite."
+      }
     }
   },
   "investments": {
