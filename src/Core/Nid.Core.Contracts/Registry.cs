@@ -106,6 +106,12 @@ public interface IPersonRegistry
     /// <summary>Removes an adult who has not signed in and owns nothing (<see cref="PersonCodes.PersonActive"/> otherwise).</summary>
     Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct);
 
+    /// <summary>#156: a dependent's new name (<see cref="PersonCodes.NameRequired"/> when blank); not found for an adult.</summary>
+    Task<Result<PersonInfo>> RenameDependentAsync(PersonId id, string displayName, CancellationToken ct);
+
+    /// <summary>#156: removes a dependent; not found for an adult. What still names them is the caller's to check (<see cref="IPersonUsePart"/>).</summary>
+    Task<Result> DeleteDependentAsync(PersonId id, CancellationToken ct);
+
     /// <summary>
     /// Binds an adult to a new OIDC subject and ends their sessions in the same write (1F4 design §3). A subject held by
     /// another person is <see cref="PersonCodes.SubjectTaken"/>, with that person's id in the metadata's <c>person</c>.

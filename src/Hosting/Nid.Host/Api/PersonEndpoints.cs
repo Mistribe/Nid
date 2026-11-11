@@ -10,6 +10,7 @@ using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Contracts;
+using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
 using IResult = Microsoft.AspNetCore.Http.IResult;
@@ -20,12 +21,19 @@ namespace Nid.Host.Api;
 
 public static class PersonEndpoints
 {
-    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email, string? BirthDate, int RetirementAge, int RetirementMonths);
+    /// <summary>
+    /// #156: <c>age</c> in whole years and <c>retirementOn</c> (<c>yyyy-MM</c>, adults only) on the household's today, null
+    /// without a birth date; <c>signedIn</c>: an adult bound to their account (never a dependent).
+    /// </summary>
+    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email, string? BirthDate, int RetirementAge, int RetirementMonths,
+        int? Age, string? RetirementOn, bool SignedIn);
 
     /// <summary>A null <c>birthDate</c> clears it.</summary>
     public sealed record RetirementBody(string? BirthDate, int RetirementAge, int? RetirementMonths);
 
-    public sealed record CreateDependentBody(string DisplayName);
+    public sealed record CreateDependentBody(string DisplayName, string? BirthDate = null);
+
+    public sealed record DependentNameBody(string DisplayName);
 
     public sealed record SharingBody(string? ShareLevel);
 
@@ -38,21 +46,46 @@ public static class PersonEndpoints
         var api = routes.MapGroup("/api/v1/core").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
-        api.MapGet("/persons", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListPersonsQuery(), ct)).ToHttp(list => list.Select(ToDto)))
+        api.MapGet("/persons", async (IInvoker invoker, IHouseholdCalendar calendar, CancellationToken ct) =>
+            {
+                var today = await calendar.TodayAsync(ct);
+                return (await invoker.InvokeAsync(new ListPersonsQuery(), ct)).ToHttp(list => list.Select(p => ToDto(p, today)));
+            })
             .Returns<IEnumerable<PersonDto>>();
 
-        api.MapPost("/persons/dependents", async (CreateDependentBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CreateDependentCommand(body.DisplayName), ct)).ToHttp(ToDto, StatusCodes.Status201Created))
-            .Returns<PersonDto>(StatusCodes.Status201Created);
-
-        api.MapPut("/persons/{id:guid}/retirement", async (Guid id, RetirementBody body, IInvoker invoker, CancellationToken ct) =>
+        api.MapPost("/persons/dependents", async (CreateDependentBody body, IInvoker invoker, IHouseholdCalendar calendar, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
                 var birthDate = body.BirthDate is null ? null : reader.Date(body.BirthDate, "birthDate");
                 if (!reader.Ok)
                     return reader.Problem();
-                return (await invoker.InvokeAsync(new SetRetirementCommand(new PersonId(id), birthDate, body.RetirementAge, body.RetirementMonths ?? 0), ct)).ToHttp(ToDto);
+                var today = await calendar.TodayAsync(ct);
+                return (await invoker.InvokeAsync(new CreateDependentCommand(body.DisplayName, birthDate), ct)).ToHttp(p => ToDto(p, today), StatusCodes.Status201Created);
+            })
+            .Returns<PersonDto>(StatusCodes.Status201Created);
+
+        api.MapPut("/persons/dependents/{id:guid}/name", async (Guid id, DependentNameBody body, IInvoker invoker, IHouseholdCalendar calendar, CancellationToken ct) =>
+            {
+                var today = await calendar.TodayAsync(ct);
+                return (await invoker.InvokeAsync(new RenameDependentCommand(new PersonId(id), body.DisplayName), ct)).ToHttp(p => ToDto(p, today));
+            })
+            .Returns<PersonDto>();
+
+        // #156: refused (409 core.person_in_use, its `uses` naming the kinds) while something still names the child.
+        api.MapDelete("/persons/dependents/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct) =>
+        {
+            var result = await invoker.InvokeAsync(new DeleteDependentCommand(new PersonId(id)), ct);
+            return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+        }).ReturnsNoContent();
+
+        api.MapPut("/persons/{id:guid}/retirement", async (Guid id, RetirementBody body, IInvoker invoker, IHouseholdCalendar calendar, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var birthDate = body.BirthDate is null ? null : reader.Date(body.BirthDate, "birthDate");
+                if (!reader.Ok)
+                    return reader.Problem();
+                var today = await calendar.TodayAsync(ct);
+                return (await invoker.InvokeAsync(new SetRetirementCommand(new PersonId(id), birthDate, body.RetirementAge, body.RetirementMonths ?? 0), ct)).ToHttp(p => ToDto(p, today));
             })
             .Returns<PersonDto>();
 
@@ -109,8 +142,11 @@ public static class PersonEndpoints
         return routes;
     }
 
-    internal static PersonDto ToDto(PersonInfo p) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email,
-        p.BirthDate is { } birth ? LocalDatePattern.Iso.Format(birth) : null, p.RetirementAge, p.RetirementMonths);
+    internal static PersonDto ToDto(PersonInfo p, LocalDate today) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email,
+        p.BirthDate is { } birth ? LocalDatePattern.Iso.Format(birth) : null, p.RetirementAge, p.RetirementMonths,
+        Departures.AgeOn(p, today),
+        p.Kind == PersonKind.Adult && Departures.MonthOf(p) is { } month ? YearMonthPattern.Iso.Format(month) : null,
+        p.Kind == PersonKind.Adult && !p.IsPending);
 }
 
 /// <summary>
@@ -231,7 +267,7 @@ public static class ResultHttp
                 or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == TaxAssessmentCodes.Conflict => StatusCodes.Status409Conflict,
             _ when failure.Code is ProposalCodes.Conflict or ProposalCodes.Decided => StatusCodes.Status409Conflict,
-            _ when failure.Code is ItemCodes.InUse or ItemCodes.Changed => StatusCodes.Status409Conflict,
+            _ when failure.Code is ItemCodes.InUse or ItemCodes.Changed or PersonCodes.PersonInUse => StatusCodes.Status409Conflict,
             _ when failure.Code == DocumentsCodes.TooLarge => StatusCodes.Status413PayloadTooLarge,
             _ when failure.Code == DocumentsCodes.UnsupportedType => StatusCodes.Status415UnsupportedMediaType,
             _ when failure.Code is DocumentsCodes.InvalidField or DocumentsCodes.InvalidRole or DocumentsCodes.UnknownTargetKind => StatusCodes.Status400BadRequest,
@@ -262,6 +298,9 @@ public static class ResultHttp
         // Series explorer: the key of the selection that is absent or not visible, echoed so the page can drop it.
         if (failure.Metadata is { } series && series.TryGetValue("key", out var key))
             extensions["key"] = key;
+        // #156: what still names a person, by kind (ownerships, childcare…), so the page can say it in the reader's language.
+        if (failure.Metadata is { } person && person.TryGetValue("uses", out var uses))
+            extensions["uses"] = uses;
         return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }
