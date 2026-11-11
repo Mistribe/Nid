@@ -180,6 +180,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
+          package-manager-cache: false # no cache in a job that publishes the images
       - if: matrix.image == 'nid'
         name: Changelog
         run: node web/scripts/changelog.mjs "$VERSION" > web/public/changelog.json
