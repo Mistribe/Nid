@@ -92,8 +92,8 @@ export function ChildcareDetailPage() {
             { label: t('childcare_detail.leave'), value: t('childcare_detail.leave_days', { count: detail.leaveDaysAccrued }) },
             // #385: no estimate (« — ») until a validated month carries a CMG; the server sends none rather than 0.
             detail.cmgEstimate
-              ? { label: t('childcare_detail.cmg_estimate'), value: <Money value={detail.cmgEstimate} tabular /> }
-              : { label: t('childcare_detail.cmg_estimate'), value: t('childcare_detail.dash'), hint: t('childcare_detail.cmg_estimate_none') },
+              ? { label: t('childcare_detail.cmg_estimate'), tip: t('childcare_detail.cmg_tip'), value: <Money value={detail.cmgEstimate} tabular /> }
+              : { label: t('childcare_detail.cmg_estimate'), tip: t('childcare_detail.cmg_tip'), value: t('childcare_detail.dash'), hint: t('childcare_detail.cmg_estimate_none') },
             ...(detail.gapWeeksToPlace > 0
               ? [{ label: t('childcare_form.step_gaps'), value: t('childcare_detail.weeks', { count: detail.gapWeeksToPlace }), hint: t('childcare_detail.to_place') }] : []),
           ]} />
