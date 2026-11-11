@@ -94,6 +94,24 @@ public class AssumptionPatchEndpointTests(PostgresFixture fixture) : IClassFixtu
     }
 
     [Fact]
+    public async Task Patches_at_once_on_different_fields_all_survive() // one card saving while another does
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        await Task.WhenAll(
+            PatchAsync(app, new { savingsClass = "equity" }), PatchAsync(app, new { freedPaymentsToSavings = false }),
+            PatchAsync(app, new { profile = "prudent" }), PatchAsync(app, new { incomeGrowth = "1" }),
+            PatchAsync(app, new { withdrawalRate = "3.5" }), PatchAsync(app, new { monthlyLivingCost = "2000" }),
+            PatchAsync(app, new { inflation = "2.5" }), PatchAsync(app, new { monthlySavings = "300" }));
+
+        var view = await app.GetAsync<JsonElement>(app.AdultA, Url);
+        Assert.Equal(("equity", false, "prudent", "1"), (view.GetProperty("savingsClass").GetString(), view.GetProperty("freedPaymentsToSavings").GetBoolean(),
+            view.GetProperty("profile").GetString(), view.GetProperty("incomeGrowth").GetString()));
+        Assert.Equal(("3.5", "2000.00", "2.5", "300.00"), (view.GetProperty("withdrawalRate").GetString(), view.GetProperty("monthlyLivingCost").GetString(),
+            view.GetProperty("inflation").GetString(), view.GetProperty("monthlySavings").GetString()));
+    }
+
+    [Fact]
     public async Task A_profile_with_rates_is_refused_at_profile()
     {
         await using var app = await NidApp.StartAsync(fixture);

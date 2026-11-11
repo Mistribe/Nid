@@ -107,9 +107,32 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Serialises the partial updates of the assumptions (« NID » + 2); the settings row may not exist yet, so no row lock.</summary>
+    private const long AssumptionsLockKey = 0x4E49_4402;
+
     public async Task<ProjectionAssumptions> ProjectionAssumptionsAsync(CancellationToken ct)
+        => Assumptions(await db.HouseholdSettings.AsNoTracking().Select(s => s.ProjectionAssumptions).FirstOrDefaultAsync(ct));
+
+    public async Task<Result<ProjectionAssumptions>> UpdateProjectionAssumptionsAsync(
+        Func<ProjectionAssumptions, Result<ProjectionAssumptions>> change, CancellationToken ct)
     {
-        var json = await db.HouseholdSettings.AsNoTracking().Select(s => s.ProjectionAssumptions).FirstOrDefaultAsync(ct);
+        // An outer transaction holds the lock to its own end.
+        await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
+        await db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock({AssumptionsLockKey})", ct);
+        // Read past the change tracker: a row it already holds could be older than the lock.
+        var changed = change(await ProjectionAssumptionsAsync(ct));
+        if (!changed.TryGetValue(out var assumptions)) return changed;
+        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
+        if (row is null)
+            db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
+        row.ProjectionAssumptions = JsonSerializer.Serialize(assumptions, HouseholdJson.Default.ProjectionAssumptions);
+        await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
+        return changed;
+    }
+
+    private static ProjectionAssumptions Assumptions(string? json)
+    {
         var saved = json is null ? null : JsonSerializer.Deserialize(json, HouseholdJson.Default.ProjectionAssumptions);
         if (saved is null) return ProjectionDefaults.Assumptions;
         // A class saved before it existed (or left out) takes its default rate, never a silent 0 %.
@@ -118,14 +141,9 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
         return saved with { ClassRates = rates };
     }
 
-    public async Task SaveProjectionAssumptionsAsync(ProjectionAssumptions assumptions, CancellationToken ct)
-    {
-        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
-        if (row is null)
-            db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
-        row.ProjectionAssumptions = JsonSerializer.Serialize(assumptions, HouseholdJson.Default.ProjectionAssumptions);
-        await db.SaveChangesAsync(ct);
-    }
+    // Under the same lock: a whole replace never lands between a partial update's read and its write.
+    public Task SaveProjectionAssumptionsAsync(ProjectionAssumptions assumptions, CancellationToken ct)
+        => UpdateProjectionAssumptionsAsync(_ => Result.Success(assumptions), ct);
 
     public async Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct)
     {

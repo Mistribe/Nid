@@ -46,6 +46,12 @@ public interface IHouseholdSettings
     /// <summary>Replaces the assumptions; checked by the caller (<c>ProjectionRules.Check</c>).</summary>
     Task SaveProjectionAssumptionsAsync(ProjectionAssumptions assumptions, CancellationToken ct);
 
+    /// <summary>
+    /// #155: reads the assumptions, applies <paramref name="change"/> (which checks the result) and stores what it gives, under one lock,
+    /// so two partial updates at once never lose one another; a failure stores nothing.
+    /// </summary>
+    Task<Result<ProjectionAssumptions>> UpdateProjectionAssumptionsAsync(Func<ProjectionAssumptions, Result<ProjectionAssumptions>> change, CancellationToken ct);
+
     /// <summary>Issue #209: the fee references the household saved; null until it saved some (Investments holds the defaults).</summary>
     Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct);
 

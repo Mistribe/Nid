@@ -231,20 +231,26 @@ internal static class ProjectionAssumptionsViews
     }
 
     /// <summary>
-    /// Stores <paramref name="assumptions"/> without their past years (a past year sent back is dropped, never refused) once
-    /// <see cref="ProjectionRules.Check"/> passes, and answers the view; every refusal keeps its field path.
+    /// Stores what <paramref name="change"/> makes of the stored assumptions, without their past years (a past year sent back is dropped,
+    /// never refused), once <see cref="ProjectionRules.Check"/> passes, and answers the view; every refusal keeps its field path. The read,
+    /// the change and the write hold one lock (<see cref="IHouseholdSettings.UpdateProjectionAssumptionsAsync"/>).
     /// </summary>
     public static async Task<Result<ProjectionAssumptionsView>> SaveAsync(
-        IHouseholdSettings household, IInflation inflation, ProjectionAssumptions assumptions, LocalDate today, CancellationToken ct)
+        IHouseholdSettings household, IInflation inflation, Func<ProjectionAssumptions, ProjectionAssumptions> change, LocalDate today, CancellationToken ct)
     {
-        assumptions = ProjectionRules.WithoutPastYears(assumptions, today);
-        var errors = ProjectionRules.Check(assumptions, today);
-        if (errors.Count > 0)
-            return Result.Failure<ProjectionAssumptionsView>(FieldErrors.Many(ProjectionCodes.InvalidField,
-                errors.Count == 1 ? errors[0].Message : "Some fields are not valid.",
-                errors.Select(e => new FieldError(e.Field, ProjectionCodes.InvalidField, e.Message)).ToList()));
-        await household.SaveProjectionAssumptionsAsync(assumptions, ct);
-        return Result.Success(await ReadAsync(household, inflation, assumptions, today, ct));
+        var saved = await household.UpdateProjectionAssumptionsAsync(stored =>
+        {
+            var assumptions = ProjectionRules.WithoutPastYears(change(stored), today);
+            var errors = ProjectionRules.Check(assumptions, today);
+            return errors.Count > 0
+                ? Result.Failure<ProjectionAssumptions>(FieldErrors.Many(ProjectionCodes.InvalidField,
+                    errors.Count == 1 ? errors[0].Message : "Some fields are not valid.",
+                    errors.Select(e => new FieldError(e.Field, ProjectionCodes.InvalidField, e.Message)).ToList()))
+                : Result.Success(assumptions);
+        }, ct);
+        if (saved.TryGetFailure(out var failure)) return Result.Failure<ProjectionAssumptionsView>(failure!);
+        saved.TryGetValue(out var stored);
+        return Result.Success(await ReadAsync(household, inflation, stored!, today, ct));
     }
 }
 
@@ -253,7 +259,7 @@ public sealed class SaveProjectionAssumptionsHandler(IHouseholdSettings househol
     : IRequestHandler<SaveProjectionAssumptionsCommand, ProjectionAssumptionsView>
 {
     public async ValueTask<Result<ProjectionAssumptionsView>> HandleAsync(SaveProjectionAssumptionsCommand command, CancellationToken ct = default)
-        => await ProjectionAssumptionsViews.SaveAsync(household, inflation, command.Assumptions, await calendar.TodayAsync(ct), ct);
+        => await ProjectionAssumptionsViews.SaveAsync(household, inflation, _ => command.Assumptions, await calendar.TodayAsync(ct), ct);
 }
 
 /// <summary>
@@ -279,11 +285,12 @@ public sealed class PatchProjectionAssumptionsHandler(IHouseholdSettings househo
             return Result.Failure<ProjectionAssumptionsView>(FieldErrors.Many(ProjectionCodes.InvalidField, refusal,
                 [new FieldError("profile", ProjectionCodes.InvalidField, refusal)]));
 
-        var stored = await household.ProjectionAssumptionsAsync(ct);
-        if (command.Profile is not null) stored = ProjectionProfiles.Apply(command.Profile, stored);
-        var merged = command.Changes.Apply(stored);
-        if (command.AutomaticSavings) merged = merged with { MonthlySavings = null };
-        return await ProjectionAssumptionsViews.SaveAsync(household, inflation, merged, await calendar.TodayAsync(ct), ct);
+        return await ProjectionAssumptionsViews.SaveAsync(household, inflation, stored =>
+        {
+            if (command.Profile is not null) stored = ProjectionProfiles.Apply(command.Profile, stored);
+            var merged = command.Changes.Apply(stored);
+            return command.AutomaticSavings ? merged with { MonthlySavings = null } : merged;
+        }, await calendar.TodayAsync(ct), ct);
     }
 }
 
