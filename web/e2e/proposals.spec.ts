@@ -9,6 +9,8 @@ test('alice approves a value an assistant proposed', async ({ page, playwright }
   await signIn(page, 'alice', '/investments/new');
   await page.getByLabel('Nom', { exact: true }).fill(name);
   await pick(page, 'Type', 'PEA');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
   const envelope = page.url().split('/').pop()!;
@@ -41,6 +43,8 @@ test('alice approves a statement an assistant proposed, leaving one movement out
   await signIn(page, 'alice', '/investments/new');
   await page.getByLabel('Nom', { exact: true }).fill(name);
   await pick(page, 'Type', 'PEA');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
   const envelope = page.url().split('/').pop()!;

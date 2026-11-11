@@ -17,27 +17,42 @@ function serveCreate(bodies: unknown[], answer: () => Response = () => HttpRespo
   );
 }
 
+type User = Awaited<ReturnType<typeof renderApp>>['user'];
+const next = (user: User) => user.click(screen.getByRole('button', { name: 'Continuer' }));
+const submit = (user: User) => user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+
+/** Names the envelope, then passes « Chez qui ? » as it stands: the last step, « Combien y a-t-il dessus aujourd’hui ? », shows. */
+async function toValueStep(user: User, name = 'PEA') {
+  await user.type(await screen.findByLabelText('Nom'), name);
+  await next(user);
+  await next(user);
+  await screen.findByLabelText('Valeur du compte');
+}
+
 describe('NewEnvelope', () => {
   // The detail page (with Recharts) is a lazy chunk: loaded cold inside the test it raced findByRole's 1 s.
   beforeAll(async () => { await import('./EnvelopeDetailPage'); });
 
-  it('creates a private PEA with its opening and first value, then shows it', async () => {
+  it('creates a private PEA with its opening and first value in three plain steps, then shows it', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);
     const { user, container } = await renderApp('/investments/new');
 
+    expect(await screen.findByText('Quel type de compte ?')).toBeInTheDocument();
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
     await pick(user, 'Type', 'PEA');
-    await user.click(screen.getByRole('radio', { name: 'Privé' }));
+    expect(screen.getByText('Plan d’épargne en actions : des actions et fonds européens, avec moins d’impôt après 5 ans.')).toBeInTheDocument();
+    await next(user);
+    await user.click(await screen.findByRole('radio', { name: 'Privé' }));
+    await next(user);
+    await user.type(await screen.findByLabelText('Valeur du compte'), '21000,50');
+    await user.clear(screen.getByLabelText('À la date du'));
+    await user.type(screen.getByLabelText('À la date du'), '31/12/2024');
     await user.click(screen.getByRole('button', { name: 'Versements antérieurs' }));
     await user.type(screen.getByLabelText('Date des versements antérieurs'), '31/12/2024');
     await user.type(screen.getByLabelText('Montant des versements antérieurs'), '20000,00');
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    await user.clear(screen.getByLabelText('Date de la première valeur'));
-    await user.type(screen.getByLabelText('Date de la première valeur'), '31/12/2024');
-    await user.type(screen.getByLabelText('Montant de la première valeur'), '21000,50');
     await expectNoAxeViolations(container);
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await submit(user);
 
     expect(await screen.findByRole('heading', { name: 'PEA', level: 1 })).toBeInTheDocument();
     expect(bodies).toEqual([expect.objectContaining({
@@ -47,33 +62,36 @@ describe('NewEnvelope', () => {
     })]);
   });
 
-  it('sends no opening and no first value when their boxes are unchecked', async () => {
+  it('sends no opening and no first value when they are left empty', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'Livret A');
     await pick(user, 'Type', 'Livret');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await toValueStep(user, 'Livret A');
+    await submit(user);
 
     await screen.findByRole('heading', { level: 1 });
     expect(bodies[0]).not.toHaveProperty('opening');
     expect(bodies[0]).not.toHaveProperty('firstValuation');
   });
 
-  it('refuses an amount with a space and an account hint of more than four characters before sending', async () => {
+  it('keeps « Chez qui ? » until the account hint fits, and refuses an amount with a space before sending', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);
     const { user } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.type(screen.getByLabelText(/4 derniers caractères/), '12345');
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    await user.type(screen.getByLabelText('Montant de la première valeur'), '1 000');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
-
+    await next(user);
+    await user.type(await screen.findByLabelText(/4 derniers caractères/), '12345');
+    await next(user);
     expect(await screen.findByText('4 caractères au plus : jamais le numéro complet.')).toBeInTheDocument();
-    expect(screen.getByText('Saisissez un montant comme 1234,56.')).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/4 derniers caractères/), '{Backspace}');
+    await next(user);
+    await user.type(await screen.findByLabelText('Valeur du compte'), '1 000');
+    await submit(user);
+
+    expect(await screen.findByText('Saisissez un montant comme 1234,56.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
   });
 
@@ -83,20 +101,31 @@ describe('NewEnvelope', () => {
       { status: 422 }));
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await toValueStep(user);
+    await user.type(screen.getByLabelText('Valeur du compte'), '10');
+    await submit(user);
 
     expect(await screen.findByText('Cette date est dans le futur.')).toBeInTheDocument();
+  });
+
+  it('goes back to the step of the field a server refusal names', async () => {
+    serveCreate([], () => HttpResponse.json(
+      { status: 422, code: 'investments.invalid_envelope', title: 'Invalid', errors: [{ path: 'displayName', code: 'investments.invalid_envelope', message: 'x' }] },
+      { status: 422 }));
+    const { user } = await renderApp('/investments/new');
+
+    await toValueStep(user);
+    await submit(user);
+
+    expect(await screen.findByLabelText('Nom')).toBeInvalid();
   });
 
   it('shows a refusal no field owns above the form', async () => {
     serveCreate([], () => HttpResponse.json({ status: 422, code: 'core.date_in_future', title: 'A value or a flow is not dated after today.' }, { status: 422 }));
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await toValueStep(user);
+    await submit(user);
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
@@ -106,11 +135,11 @@ describe('NewEnvelope', () => {
     serveCreate(bodies);
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'PEA');
+    await toValueStep(user);
     await user.click(screen.getByRole('button', { name: 'Versements antérieurs' }));
     await user.type(screen.getByLabelText('Date des versements antérieurs'), '31/12/2024');
     await user.type(screen.getByLabelText('Montant des versements antérieurs'), zero);
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await submit(user);
 
     expect(await screen.findByText('Saisissez un montant positif comme 1234,56.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
@@ -121,11 +150,10 @@ describe('NewEnvelope', () => {
     serveCreate(bodies);
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'Compte courant');
     await pick(user, 'Type', 'Compte courant');
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    await user.type(screen.getByLabelText('Montant de la première valeur'), '-120,50');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await toValueStep(user, 'Compte courant');
+    await user.type(screen.getByLabelText('Valeur du compte'), '-120,50');
+    await submit(user);
 
     await screen.findByRole('heading', { level: 1 });
     expect(bodies).toEqual([expect.objectContaining({
@@ -138,27 +166,27 @@ describe('NewEnvelope', () => {
     serveCreate(bodies);
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    await user.clear(screen.getByLabelText('Date de la première valeur'));
-    await user.type(screen.getByLabelText('Date de la première valeur'), '01/01/2999');
-    await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await toValueStep(user);
+    await user.clear(screen.getByLabelText('À la date du'));
+    await user.type(screen.getByLabelText('À la date du'), '01/01/2999');
+    await user.type(screen.getByLabelText('Valeur du compte'), '10');
+    await submit(user);
 
     expect(await screen.findByText('Cette date est dans le futur.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Date de la première valeur')).toBeInvalid();
+    expect(screen.getByLabelText('À la date du')).toBeInvalid();
     expect(bodies).toEqual([]);
   });
 
-  it('folds the opening and the currency away until they are asked for', async () => {
+  it('folds the opening, the cadence and the currency away, their defaults shown once open', async () => {
     serveCreate([]);
     const { user } = await renderApp('/investments/new');
 
-    await screen.findByLabelText('Nom');
-    for (const label of ['Date des versements antérieurs', 'Date de la première valeur', 'Devise']) expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
+    await toValueStep(user);
+    for (const label of ['Date des versements antérieurs', 'Mise à jour de la valeur', 'Devise']) expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Versements antérieurs' }));
     expect(screen.getByLabelText('Date des versements antérieurs')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Plus d’options' }));
+    await user.click(screen.getByRole('button', { name: 'Personnaliser' }));
+    expect(screen.getByLabelText('Mise à jour de la valeur')).toHaveTextContent('Chaque mois');
     expect(screen.getByLabelText('Devise')).toHaveTextContent('EUR — euro');
   });
 
@@ -167,12 +195,11 @@ describe('NewEnvelope', () => {
     serveCreate(bodies);
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('button', { name: 'Plus d’options' }));
+    await toValueStep(user);
+    await user.click(screen.getByRole('button', { name: 'Personnaliser' }));
     await pick(user, 'Devise', /^USD/);
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await user.type(screen.getByLabelText('Valeur du compte'), '10');
+    await submit(user);
 
     await screen.findByRole('heading', { level: 1 });
     expect(bodies).toEqual([expect.objectContaining({
@@ -181,32 +208,29 @@ describe('NewEnvelope', () => {
   });
 
   // Task 3 brief: a pathless code (the Core fact codes carry no path, 2A) is placed on the one date/amount
-  // field it can concern when exactly one such field was filled; otherwise (previous test) it stays page-level.
+  // field it can concern when exactly one such field was filled; otherwise (above) it stays page-level.
   it('attributes a pathless refusal to the one field that was filled', async () => {
     serveCreate([], () => HttpResponse.json({ status: 422, code: 'core.date_in_future', title: 'A value or a flow is not dated after today.' }, { status: 422 }));
     const { user } = await renderApp('/investments/new');
 
-    await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
-    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+    await toValueStep(user);
+    await user.type(screen.getByLabelText('Valeur du compte'), '10');
+    await submit(user);
 
     expect(await screen.findByText('Cette date est dans le futur.')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
-  it('lays the visibility out as a segmented control and folds the first value away', async () => {
+
+  it('lays the visibility out as a segmented control on « Chez qui ? »', async () => {
     serveCreate([]);
     const { user } = await renderApp('/investments/new');
 
-    await screen.findByLabelText('Nom');
-    expect(screen.getByRole('radiogroup', { name: 'Visibilité' })).toBeInTheDocument();
+    await user.type(await screen.findByLabelText('Nom'), 'PEA');
+    await next(user);
+    expect(await screen.findByRole('radiogroup', { name: 'Visibilité' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Partagé' })).toBeChecked();
     expect(screen.getByRole('radiogroup', { name: 'Visibilité' })).toHaveAccessibleDescription('L’autre adulte y a accès, et le total du foyer en tient compte.');
     await user.click(screen.getByRole('radio', { name: 'Privé' }));
     expect(screen.getByRole('radiogroup', { name: 'Visibilité' })).toHaveAccessibleDescription('Visible de vous seulement, avec un seul propriétaire.');
-    await user.click(screen.getByRole('radio', { name: 'Partagé' }));
-    expect(screen.queryByLabelText('Montant de la première valeur')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
-    expect(screen.getByLabelText('Montant de la première valeur')).toBeInTheDocument();
   });
 });

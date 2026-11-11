@@ -10,13 +10,14 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await alice.getByLabel('Nom').fill(name);
   await alice.getByLabel('Type').click();
   await alice.getByRole('option', { name: 'PEA' }).click();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: 'Privé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await alice.getByLabel('Valeur du compte').fill('21000');
+  await fillDate(alice, 'À la date du', '2024-12-31');
   await alice.getByRole('button', { name: 'Versements antérieurs' }).click();
   await fillDate(alice, 'Date des versements antérieurs', '2024-12-31');
   await alice.getByLabel('Montant des versements antérieurs').fill('20000');
-  await alice.getByRole('button', { name: 'Première valeur' }).click();
-  await fillDate(alice, 'Date de la première valeur', '2024-12-31');
-  await alice.getByLabel('Montant de la première valeur').fill('21000');
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
 
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
@@ -47,7 +48,9 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await alice.getByLabel('Nom').fill(livret);
   await alice.getByLabel('Type').click();
   await alice.getByRole('option', { name: 'Livret' }).click();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: 'Partagé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name: livret, level: 1 })).toBeVisible();
   const livretUrl = alice.url();
@@ -107,7 +110,9 @@ test('a withdrawal classed as a dividend shows in the Income tab', async ({ brow
   await signIn(alice, 'alice', '/investments/new');
   await alice.getByLabel('Nom').fill(name);
   await pick(alice, 'Type', 'PEA');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: 'Privé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 

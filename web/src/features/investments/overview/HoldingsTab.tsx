@@ -92,7 +92,8 @@ function Figures({ d }: { d: HouseholdHoldings }) {
     <StatLine items={[
       { label: t('investments_holdings.detailed'),
         value: <>{figure(d.detailed)}{d.estimated ? <span className="text-sm font-normal text-muted-foreground"> {t('investments_holdings.estimated')}</span> : null}<Sub>{t('investments_holdings.detailed_note', { count: d.detailedCount, total: d.envelopeCount, pct: percent(d.detailedPct) })}</Sub></> },
-      ...(d.ucSharePct === null || d.ucSharePct === undefined ? [] : [{ label: t('investments_holdings.uc'), value: (
+      ...(d.ucSharePct === null || d.ucSharePct === undefined ? [] : [{ label: t('investments_holdings.uc'),
+        tip: t('investments_tips.uc'), value: (
         <>{percent(d.ucSharePct)}<Sub>{floors.length === 1 ? t('investments_holdings.uc_note', { floor: percent(floors[0]!.floorPct) }) : t('investments_holdings.uc_note_plain')}</Sub></>
       ) }]),
       { label: t('investments_holdings.cost', { year: d.costYear }), value: (

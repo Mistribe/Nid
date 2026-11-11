@@ -101,7 +101,8 @@ describe('an envelope\'s settings', () => {
 
     const form = await openForm();
     await user.clear(form.getByLabelText('Établissement'));
-    await user.type(form.getByLabelText('Seuil de péremption (jours)'), '30');
+    await user.click(form.getByRole('button', { name: 'Personnaliser' }));
+    await user.type(form.getByLabelText('Signaler une valeur ancienne après (jours)'), '30');
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
 
     await screen.findByText('Réglages enregistrés.');
@@ -121,6 +122,24 @@ describe('an envelope\'s settings', () => {
     serve(detail({ kind: 'life_insurance' }));
     await renderApp(`/investments/${PEA}?tab=settings`);
     expect((await openForm()).getByLabelText('Primes versées avant le 27/09/2017')).toHaveValue('');
+  });
+
+  it('folds the rare settings, the units-of-account floor only where such units are held, explained', async () => {
+    serve(detail());
+    const { user, unmount } = await renderApp(`/investments/${PEA}?tab=settings`);
+    const pea = await openForm();
+    expect(pea.queryByLabelText('Signaler une valeur ancienne après (jours)')).not.toBeInTheDocument();
+    await user.click(pea.getByRole('button', { name: 'Personnaliser' }));
+    expect(pea.getByLabelText('Signaler une valeur ancienne après (jours)')).toHaveAccessibleDescription(/Vide \(par défaut\) : selon la fréquence de mise à jour\./);
+    expect(pea.queryByLabelText('Part minimale en unités de compte (%)')).not.toBeInTheDocument();
+    unmount();
+
+    serve(detail({ kind: 'life_insurance' }));
+    const { user: other } = await renderApp(`/investments/${PEA}?tab=settings`);
+    const life = await openForm();
+    await other.click(life.getByRole('button', { name: 'Personnaliser' }));
+    expect(life.getByLabelText('Part minimale en unités de compte (%)')).toBeInTheDocument();
+    expect(life.getByRole('button', { name: 'À propos : Part minimale en unités de compte (%)' })).toBeInTheDocument();
   });
 
   it('sends the premiums before 2017 typed with a comma, then clears them once emptied', async () => {
@@ -161,11 +180,14 @@ describe('an envelope\'s settings', () => {
     const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
-    await user.type(form.getByLabelText('Seuil de péremption (jours)'), days);
+    await user.click(form.getByRole('button', { name: 'Personnaliser' }));
+    await user.type(form.getByLabelText('Signaler une valeur ancienne après (jours)'), days);
+    // Folded again: the refusal opens it by itself.
+    await user.click(form.getByRole('button', { name: 'Personnaliser' }));
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
 
-    expect(await form.findByText('Entre 1 et 3650 jours, ou vide pour suivre la cadence.')).toBeInTheDocument();
-    expect(form.getByLabelText('Seuil de péremption (jours)')).toBeInvalid();
+    expect(await form.findByText('Entre 1 et 3650 jours, ou vide pour suivre la fréquence de mise à jour.')).toBeInTheDocument();
+    expect(form.getByLabelText('Signaler une valeur ancienne après (jours)')).toBeInvalid();
     expect(bodies).toEqual([]);
   });
 

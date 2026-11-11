@@ -98,6 +98,19 @@ describe('the « Supports » tab', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('asks for the ISIN first, then the name and kind, the rest under « Personnaliser », each expert term explained', async () => {
+    serve(view({ holdings: [], warnings: [], ucSharePct: null, explicitFees: null, unallocated: null }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    await user.click(await screen.findByRole('button', { name: 'Détailler les supports' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nouveau support' }));
+    expect(dialog.getAllByRole('textbox').map((box) => box.getAttribute('name'))).toEqual(['isin', 'name']);
+    expect(dialog.getByRole('button', { name: 'À propos : Code ISIN, si vous l’avez' })).toBeInTheDocument();
+    for (const label of ['Classe d’actifs', 'Émetteur', 'Niveau de risque (SRI)', 'Frais d’entrée (%)']) expect(dialog.queryByLabelText(label)).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'Personnaliser' }));
+    for (const term of ['Classe d’actifs', 'Niveau de risque (SRI)', 'Frais d’entrée (%)']) expect(dialog.getByRole('button', { name: `À propos : ${term}` })).toBeInTheDocument();
+  });
+
   it('offers « Cours automatique » once an ISIN is typed, and sends it off when unchecked', async () => {
     const calls = serve(view({ holdings: [], warnings: [], ucSharePct: null, explicitFees: null, unallocated: null }));
     const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
@@ -106,7 +119,7 @@ describe('the « Supports » tab', () => {
     const dialog = within(await screen.findByRole('dialog', { name: 'Nouveau support' }));
     await user.type(dialog.getByLabelText('Support'), 'Monde ESG');
     expect(dialog.queryByRole('switch', { name: 'Cours automatique' })).not.toBeInTheDocument();
-    await user.type(dialog.getByLabelText('ISIN (facultatif)'), 'LU0000000001');
+    await user.type(dialog.getByLabelText('Code ISIN, si vous l’avez'), 'LU0000000001');
     const auto = dialog.getByRole('switch', { name: 'Cours automatique' });
     expect(auto).toBeChecked();
     expect(dialog.getByText('Nid récupère son cours chaque soir de semaine')).toBeInTheDocument();
@@ -132,7 +145,8 @@ describe('the « Supports » tab', () => {
     expect(rows[1]).toHaveTextContent('Fonds en euros');
     expect(screen.getByText('Non réparti').parentElement).toHaveTextContent('20 500,00 €');
     const figures = screen.getByRole('region', { name: 'Valeur et gain' });
-    expect(figures).toHaveTextContent('Part UC55,6 %sous le plancher de 60 %');
+    expect(figures).toHaveTextContent('Part en unités de compte55,6 %sous le plancher de 60 %');
+    expect(within(figures).getByRole('button', { name: 'À propos : Part en unités de compte' })).toBeInTheDocument();
     expect(figures).toHaveTextContent('Frais prélevés12,00 €');
     expect(screen.queryByRole('list', { name: 'Avertissements des supports' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '2 avertissements' }));
@@ -199,7 +213,7 @@ describe('the « Supports » tab', () => {
     await user.click(within(table).getByRole('button', { name: 'Actions pour Monde ESG' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Modifier le support' }));
-    expect(dialog.getByLabelText('ISIN (facultatif)')).toHaveValue('LU0000000001');
+    expect(dialog.getByLabelText('Code ISIN, si vous l’avez')).toHaveValue('LU0000000001');
     expect(dialog.queryByRole('switch', { name: 'Cours automatique' })).not.toBeInTheDocument();
   });
 
@@ -453,6 +467,8 @@ describe('a holding’s page', () => {
     await user.type(dialog.getByLabelText('Rendement brut (%)'), '8');
     await user.type(dialog.getByLabelText('Frais totaux (%)'), '2,5');
     await user.type(dialog.getByLabelText('Rendement net (%)'), '5,5');
+    await user.click(dialog.getByRole('button', { name: 'Détail des frais' }));
+    expect(dialog.getByRole('button', { name: 'À propos : Net annualisé sur 5 ans (%)' })).toBeInTheDocument();
     await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
 
     expect(await screen.findByText('Rapport de frais enregistré.')).toBeInTheDocument();

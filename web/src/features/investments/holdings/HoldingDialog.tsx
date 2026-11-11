@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Folded } from '@/components/form/Folded';
+import { InfoTip } from '@/components/InfoTip';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
@@ -52,8 +53,8 @@ const bodyOf = (v: Values, before?: Holding): HoldingBody => ({
 });
 
 /**
- * A new holding, or the correction of one; its rarer fields are folded (screens.md: rare fields folded). « Cours
- * automatique » shows only with an ISIN and the prices on (D9).
+ * A new holding, or the correction of one: the ISIN first (it lets Nid fetch the price), then the name and kind; the
+ * rest under « Personnaliser » (design-system §6.2). « Cours automatique » shows only with an ISIN and the prices on (D9).
  */
 export function HoldingDialog({ envelope, editing, pricesOn, onClose, onDone }: {
   envelope: EnvelopeDetail; editing?: Holding; pricesOn: boolean; onClose: () => void; onDone: (message: string) => void;
@@ -101,20 +102,10 @@ export function HoldingDialog({ envelope, editing, pricesOn, onClose, onDone }: 
                 {problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
               </>
             ) : null}
-            <Field label={t('holdings.name')} hint={t('holdings.form.name_hint')} error={e.name?.message}>
-              {(c) => <Input {...c} {...form.register('name')} />}
+            <Field label={t('holdings.form.isin')} hint={t('holdings.form.isin_hint')} error={e.isin?.message}
+              tip={<InfoTip label={t('holdings.form.isin')}>{t('investments_tips.isin')}</InfoTip>}>
+              {(c) => <Input {...c} autoCapitalize="characters" {...form.register('isin')} />}
             </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Controller control={form.control} name="kind" render={({ field }) => (
-                <Field label={t('holdings.kind_label')} error={e.kind?.message}>
-                  {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
-                    options={HOLDING_KINDS.map((k) => ({ value: k, label: holdingKindText(t, k) }))} />}
-                </Field>
-              )} />
-              <Field label={t('holdings.form.isin')} error={e.isin?.message}>
-                {(c) => <Input {...c} autoCapitalize="characters" {...form.register('isin')} />}
-              </Field>
-            </div>
             {hasIsin && pricesOn ? (
               <Controller control={form.control} name="autoPrice" render={({ field }) => (
                 <div className="space-y-1">
@@ -123,10 +114,22 @@ export function HoldingDialog({ envelope, editing, pricesOn, onClose, onDone }: 
                 </div>
               )} />
             ) : null}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t('holdings.name')} hint={t('holdings.form.name_hint')} error={e.name?.message}>
+                {(c) => <Input {...c} {...form.register('name')} />}
+              </Field>
+              <Controller control={form.control} name="kind" render={({ field }) => (
+                <Field label={t('holdings.kind_label')} error={e.kind?.message}>
+                  {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+                    options={HOLDING_KINDS.map((k) => ({ value: k, label: holdingKindText(t, k) }))} />}
+                </Field>
+              )} />
+            </div>
             <Folded label={t('holdings.form.more')} hasError={folded}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Controller control={form.control} name="assetClass" render={({ field }) => (
-                  <Field label={t('holdings.form.asset_class')} error={e.assetClass?.message}>
+                  <Field label={t('holdings.form.asset_class')} error={e.assetClass?.message}
+                    tip={<InfoTip label={t('holdings.form.asset_class')}>{t('investments_tips.asset_class')}</InfoTip>}>
                     {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
                       options={[{ value: '', label: t('holdings.form.none') }, ...ASSET_CLASSES.map((k) => ({ value: k, label: t(`holdings.asset_class.${k}`) }))]} />}
                   </Field>
@@ -135,12 +138,14 @@ export function HoldingDialog({ envelope, editing, pricesOn, onClose, onDone }: 
                   {(c) => <Input {...c} {...form.register('issuer')} />}
                 </Field>
                 <Controller control={form.control} name="riskIndicator" render={({ field }) => (
-                  <Field label={t('holdings.form.risk')} error={e.riskIndicator?.message}>
+                  <Field label={t('holdings.form.risk')} error={e.riskIndicator?.message}
+                    tip={<InfoTip label={t('holdings.form.risk')}>{t('investments_tips.sri')}</InfoTip>}>
                     {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
                       options={[{ value: '', label: t('holdings.form.none') }, ...['1', '2', '3', '4', '5', '6', '7'].map((k) => ({ value: k, label: k }))]} />}
                   </Field>
                 )} />
-                <Field label={t('holdings.form.entry_cost')} error={e.entryCostPct?.message}>
+                <Field label={t('holdings.form.entry_cost')} error={e.entryCostPct?.message}
+                  tip={<InfoTip label={t('holdings.form.entry_cost')}>{t('investments_tips.entry_cost')}</InfoTip>}>
                   {(c) => <Input inputMode="decimal" {...c} {...form.register('entryCostPct')} />}
                 </Field>
                 <Controller control={form.control} name="openedOn" render={({ field }) => (

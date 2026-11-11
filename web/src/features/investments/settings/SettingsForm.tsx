@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/form/Field';
+import { Folded } from '@/components/form/Folded';
+import { InfoTip } from '@/components/InfoTip';
 import { AMOUNT, ISO_DATE, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
@@ -34,6 +36,8 @@ const PATHS = {
   valuationCadence: 'valuationCadence', openedOn: 'openedOn', premiumsBefore2017: 'premiumsBefore2017', staleAfterDays: 'staleAfterDays', ucShareFloorPct: 'ucShareFloorPct', note: 'note',
 } as const;
 /** Fields whose value the server can refuse with `investments.invalid_envelope` (the server names the field; `soleChangedField` is the fallback for a refusal without one). */
+/** The kinds that hold units of account (the server's own list), where a floor on their share makes sense. */
+const UNIT_LINKED = ['life_insurance', 'per'];
 const TEXT_FIELDS = ['displayName', 'institution', 'accountHint', 'staleAfterDays', 'ucShareFloorPct', 'note', 'openedOn', 'premiumsBefore2017'] as const;
 
 const schema = (t: TFunction) => z.object({
@@ -186,7 +190,7 @@ export function SettingsForm({ envelope, onDone }: {
           {(c) => <Input {...c} {...form.register('accountHint')} />}
         </Field>
         <Controller control={form.control} name="valuationCadence" render={({ field }) => (
-          <Field label={t('investments_form.cadence')} error={e.valuationCadence?.message}>
+          <Field label={t('investments_form.cadence')} hint={t('investments_form.cadence_help')} error={e.valuationCadence?.message}>
             {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
               options={CADENCES.map((cadence) => ({ value: cadence, label: t(`investments.cadence.${cadence}`) }))} />}
           </Field>
@@ -209,16 +213,24 @@ export function SettingsForm({ envelope, onDone }: {
             {(c) => <Input inputMode="decimal" {...c} {...form.register('premiumsBefore2017')} />}
           </Field>
         ) : null}
-        <Field label={t('envelope.settings.stale_after')} hint={t('envelope.settings.stale_help')} error={e.staleAfterDays?.message}>
-          {(c) => <Input inputMode="numeric" {...c} {...form.register('staleAfterDays')} />}
-        </Field>
-        <Field label={t('envelope.settings.uc_floor')} hint={t('envelope.settings.uc_floor_help')} error={e.ucShareFloorPct?.message}>
-          {(c) => <Input inputMode="decimal" {...c} {...form.register('ucShareFloorPct')} />}
-        </Field>
       </div>
       <Field label={t('envelope.settings.note')} error={e.note?.message}>
         {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
+      {/* Rarely changed (design-system §6.2), each with its default in its hint; the floor only where units of account are held, or already set. */}
+      <Folded label={t('envelope.settings.more')} hasError={!!(e.staleAfterDays || e.ucShareFloorPct)}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('envelope.settings.stale_after')} hint={t('envelope.settings.stale_help')} error={e.staleAfterDays?.message}>
+            {(c) => <Input inputMode="numeric" {...c} {...form.register('staleAfterDays')} />}
+          </Field>
+          {UNIT_LINKED.includes(form.watch('kind')) || envelope.ucShareFloorPct != null ? (
+            <Field label={t('envelope.settings.uc_floor')} hint={t('envelope.settings.uc_floor_help')} error={e.ucShareFloorPct?.message}
+              tip={<InfoTip label={t('envelope.settings.uc_floor')}>{t('investments_tips.uc')}</InfoTip>}>
+              {(c) => <Input inputMode="decimal" {...c} {...form.register('ucShareFloorPct')} />}
+            </Field>
+          ) : null}
+        </div>
+      </Folded>
       {/* Shown only when the defaults hold the ownership: its values are never undefined here. */}
       {envelope.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} /> : null}
       <Button type="submit" disabled={save.isPending}>{t('envelope.settings.submit')}</Button>

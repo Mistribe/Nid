@@ -11,9 +11,10 @@ test('alice lands on the dashboard and finds her net worth there', async ({ brow
   await alice.goto('/investments/new');
   await alice.getByLabel('Nom').fill(name);
   await pick(alice, 'Type', 'Livret');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: /Partagé/ }).check();
-  await alice.getByRole('button', { name: 'Première valeur' }).click();
-  await alice.getByLabel('Montant de la première valeur').fill('1234');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await alice.getByLabel('Valeur du compte').fill('1234');
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
@@ -48,14 +49,15 @@ test('alice shares an envelope 50/50 with bob and finds it in the split, keeping
 
   await alice.getByLabel('Nom').fill(name);
   await pick(alice, 'Type', 'Livret');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: /Partagé/ }).check();
   await alice.getByLabel('Part (%)').first().fill('50');
   await alice.getByRole('button', { name: 'Ajouter un propriétaire' }).click();
   await alice.getByRole('combobox', { name: 'Personne' }).nth(1).click();
   await alice.getByRole('option', { name: 'Bob Dev' }).click();
   await alice.getByLabel('Part (%)').nth(1).fill('50');
-  await alice.getByRole('button', { name: 'Première valeur' }).click();
-  await alice.getByLabel('Montant de la première valeur').fill('1000');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await alice.getByLabel('Valeur du compte').fill('1000');
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
