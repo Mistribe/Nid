@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
+import { InfoTip } from '@/components/InfoTip';
 import { OwnerChips } from '@/components/OwnerChips';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
@@ -75,7 +76,7 @@ export function EnvelopeDetailPage() {
   const answer = $api.useQuery('get', ENVELOPE, { params: { path: { id } } });
   // « Depuis janvier » is the year-to-date performance: the period figure the overview's block asks for too.
   const sinceJanuary = $api.useQuery('get', PERFORMANCE, { params: { path: { id }, query: presetRange('ytd', todayIso()) } });
-  // Read here too for the « Part UC » and « Frais prélevés » figures; the tab shares this query.
+  // Read here too for the « Part en unités de compte » and « Frais prélevés » figures; the tab shares this query.
   const holdings = $api.useQuery('get', HOLDINGS, { params: { path: { id } } });
   // The bank account whose balances become this envelope's values, when bank sync is on.
   const bank = useBankAccounts(id)?.[0];
@@ -232,6 +233,7 @@ export function EnvelopeDetailPage() {
             ...extra(t('envelope.gain_after_fees'), figures.gainAfterFees),
             ...extra(t('envelope.income'), figures.income),
             ...(holdings.data?.ucSharePct != null ? [{ label: t('holdings.uc_share'),
+              tip: <InfoTip label={t('holdings.uc_share')}>{t('investments_tips.uc')}</InfoTip>,
               value: t('investments.pct', { value: percent(holdings.data.ucSharePct) }),
               hint: holdings.data.warnings.some((w) => w.code === 'uc_share_below_floor') ? (
                 <span className="inline-flex items-center gap-1 text-foreground">

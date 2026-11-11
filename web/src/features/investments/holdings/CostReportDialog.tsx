@@ -10,6 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Folded } from '@/components/form/Folded';
+import { InfoTip } from '@/components/InfoTip';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
 import { COST_REPORT, invalidateInvestments, type CostReport, type EnvelopeDetail, type Holding } from '@/api/investments';
@@ -89,7 +90,8 @@ export function CostReportDialog({ envelope, holding, editing, onClose, onDone }
             <Folded label={t('holdings.costs.more')} hasError={DETAIL.some((k) => e[k]) || !!e.sourceLabel}>
               <div className="grid gap-3 sm:grid-cols-2">
                 {DETAIL.map((k) => (
-                  <Field key={k} label={t(`holdings.costs.${k}`)} error={e[k]?.message}>
+                  <Field key={k} label={t(`holdings.costs.${k}`)} error={e[k]?.message}
+                    tip={k === 'netAnnualized5yPct' ? <InfoTip label={t(`holdings.costs.${k}`)}>{t('investments_tips.net_annualized')}</InfoTip> : undefined}>
                     {(c) => <Input inputMode="decimal" {...c} {...form.register(k)} />}
                   </Field>
                 ))}

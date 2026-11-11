@@ -21,7 +21,6 @@ export function newEnvelopeSchema(t: TFunction) {
     withOpening: z.boolean(),
     openingOn: z.string(),
     openingAmount: z.string(),
-    withFirstValue: z.boolean(),
     firstValueOn: z.string(),
     firstValueAmount: z.string(),
   }).superRefine((v, ctx) => {
@@ -35,9 +34,12 @@ export function newEnvelopeSchema(t: TFunction) {
     const openingAmount = (text: string, path: string) => { if (!POSITIVE_AMOUNT.test(text)) ctx.addIssue({ code: 'custom', path: [path], message: t('investments_form.positive_amount_format') }); };
     const valueAmount = (text: string, path: string) => { if (!SIGNED_AMOUNT.test(text)) ctx.addIssue({ code: 'custom', path: [path], message: t('investments_form.amount_format') }); };
     if (v.withOpening) { date(v.openingOn, 'openingOn'); openingAmount(v.openingAmount, 'openingAmount'); }
-    if (v.withFirstValue) { date(v.firstValueOn, 'firstValueOn'); valueAmount(v.firstValueAmount, 'firstValueAmount'); }
+    if (hasFirstValue(v)) { date(v.firstValueOn, 'firstValueOn'); valueAmount(v.firstValueAmount, 'firstValueAmount'); }
   });
 }
+
+/** « Combien y a-t-il dessus aujourd'hui ? » is optional: a first value goes out once its amount is typed. */
+export const hasFirstValue = (v: { firstValueAmount: string }) => v.firstValueAmount.trim() !== '';
 
 export type NewEnvelopeValues = z.infer<ReturnType<typeof newEnvelopeSchema>> & OwnershipValues;
 
@@ -57,6 +59,6 @@ export function toCreateBody(v: NewEnvelopeValues) {
     regulated: v.kind === 'savings' && v.regulated !== 'none' ? v.regulated : undefined,
     ...ownershipToWire(v),
     ...(v.withOpening ? { opening: { occurredOn: v.openingOn, amount: money(v.openingAmount) } } : {}),
-    ...(v.withFirstValue ? { firstValuation: { asOf: v.firstValueOn, amount: money(v.firstValueAmount) } } : {}),
+    ...(hasFirstValue(v) ? { firstValuation: { asOf: v.firstValueOn, amount: money(v.firstValueAmount) } } : {}),
   };
 }

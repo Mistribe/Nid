@@ -11,9 +11,10 @@ test('alice reviews her year and prints it on A4, light even on a dark screen', 
   await signIn(alice, 'alice', '/investments/new');
   await alice.getByLabel('Nom').fill(name);
   await pick(alice, 'Type', 'Livret');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: /Partagé/ }).check();
-  await alice.getByRole('button', { name: 'Première valeur' }).click();
-  await alice.getByLabel('Montant de la première valeur').fill('1000');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await alice.getByLabel('Valeur du compte').fill('1000');
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 

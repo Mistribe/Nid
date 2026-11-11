@@ -8,7 +8,9 @@ test('alice does her routine on a new envelope, reads the gain, then cancels', a
   await signIn(alice, 'alice', '/investments/new');
   await alice.getByLabel('Nom').fill(name);
   await pick(alice, 'Type', 'Livret');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: /Partagé/ }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 

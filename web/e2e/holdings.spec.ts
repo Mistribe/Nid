@@ -9,7 +9,9 @@ test('alice details an assurance-vie by holding, records a snapshot and a cost r
 
   await alice.getByLabel('Nom').fill(name);
   await pick(alice, 'Type', 'Assurance-vie');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: 'Privé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
@@ -42,7 +44,7 @@ test('alice details an assurance-vie by holding, records a snapshot and a cost r
   await expect(table.getByRole('row').filter({ hasText: 'Monde ESG' })).toContainText('60 %');
   await expect(alice.getByText('Non réparti')).toHaveCount(0);
   await expect(alice.getByRole('region', { name: 'Valeur et gain' })).toContainText('2 000,00 €');
-  await expect(alice.getByRole('region', { name: 'Valeur et gain' })).toContainText('Part UC');
+  await expect(alice.getByRole('region', { name: 'Valeur et gain' })).toContainText('Part en unités de compte');
 
   await table.getByRole('link', { name: 'Monde ESG' }).click();
   await expect(alice.getByRole('heading', { name: 'Monde ESG', level: 1 })).toBeVisible();
