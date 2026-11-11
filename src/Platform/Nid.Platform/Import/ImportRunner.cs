@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -187,7 +187,7 @@ public sealed class ImportRunner(
                 {
                     var value = entity.Clone();
                     // jsonb gives the payload back in its own layout; the canonical form, hence the hash, is unchanged.
-                    entities.Add(new StagedEntity(batch.Index * batchSize + position++, value, Rfc8785.Hash(value)));
+                    entities.Add(new StagedEntity(batch.Index * batchSize + position++, value, JsonCanonicalizer.Hash(value)));
                 }
             }
 

@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using Nid.Core.Contracts;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 using Nid.Platform.Contracts;
 
 namespace Nid.Platform.Export;
@@ -87,7 +87,7 @@ public sealed record ExportModel(IReadOnlyList<ExportSection> Sections, string R
             array.Add((JsonNode)new JsonObject { ["section"] = section.Name, ["entities"] = entities });
         }
         using var document = JsonDocument.Parse(array.ToJsonString());
-        return Rfc8785.Hash(document.RootElement);
+        return JsonCanonicalizer.Hash(document.RootElement);
     }
 }
 

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 using Npgsql;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -26,7 +26,7 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
         var fields = new JsonObject { ["kind"] = kind, ["target"] = target?.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()) };
         if (document is { } id)
             fields["document"] = id.ToString();
-        return Rfc8785.Hash(JsonSerializer.SerializeToElement(fields, ProposalJson.Default.JsonObject));
+        return JsonCanonicalizer.Hash(JsonSerializer.SerializeToElement(fields, ProposalJson.Default.JsonObject));
     }
 
     public async Task<SubmitOutcome> SubmitAsync(NewProposal p, CancellationToken ct)

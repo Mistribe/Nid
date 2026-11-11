@@ -91,7 +91,7 @@ public class ExportModelTests
         Assert.Equal(a.Revision, same.Revision);
         Assert.NotEqual(a.Revision, other.Revision);
         Assert.Equal(
-            Canonical.Rfc8785.Hash(Json("""[{"section":"things","entities":[{"id":"a","n":"1"}]}]""")),
+            UnambitiousFx.Engram.JsonCanonicalizer.Hash(Json("""[{"section":"things","entities":[{"id":"a","n":"1"}]}]""")),
             a.Revision);
     }
 
