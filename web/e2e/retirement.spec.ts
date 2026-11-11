@@ -31,6 +31,8 @@ test('alice sets her departure and a living cost, then enters her pension on the
 
   await alice.getByRole('link', { name: 'Retraite', exact: true }).first().click();
   await expect(alice.getByRole('heading', { name: 'Retraite', level: 1 })).toBeVisible();
+  await alice.getByRole('tab', { name: 'Départs' }).click();
+  await expect(alice).toHaveURL(/tab=departures/);
   // 1970-03 + 64 years 6 months: September 2034.
   const row = alice.getByRole('row', { name: /Alice/ });
   await expect(row).toContainText('2034');
@@ -45,6 +47,9 @@ test('alice sets her departure and a living cost, then enters her pension on the
   await expect(alice.getByRole('row', { name: /Alice/ })).toContainText(/1\s500,00\s€/);
   await expect(alice.getByRole('row', { name: /Alice/ }).getByRole('link', { name: 'Pension de retraite' })).toBeVisible();
 
+  await alice.getByRole('tab', { name: 'Vue d’ensemble' }).click();
+  await expect(alice).not.toHaveURL(/tab=/);
+  await expect(alice.getByRole('region', { name: 'Écart mensuel' })).toBeVisible();
   // With a living cost set, independence is either a month or "not reached": never the missing-cost warning.
   const independence = alice.locator('dt', { hasText: /^Indépendance financière$/ }).locator('xpath=following-sibling::dd[1]');
   await expect(independence).toHaveText(/^(\p{L}+\.? \d{4}|Non atteinte avant l'horizon)$/u);

@@ -32,29 +32,37 @@ function serve(body: RetirementView, seen: string[] = []) {
   server.use(http.get('*/api/v1/retirement', ({ request }) => { seen.push(new URL(request.url).search); return HttpResponse.json(body); }));
 }
 
-beforeAll(async () => { await import('./RetirementPage'); }, 30_000);
+beforeAll(async () => { await Promise.all([import('./RetirementPage'), import('./overview/OverviewTab'), import('./IndependenceChart')]); }, 30_000);
 
 describe('the retirement page', () => {
-  it('shows the figures, the departures and the assumptions', async () => {
+  it('opens on the gap, with the other figures beside it, and keeps the analysis and the departures in their tabs', async () => {
     serve(view());
-    await renderApp('/retirement');
+    const { user } = await renderApp('/retirement');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Retraite' })).toBeInTheDocument();
-    const figures = (await screen.findByText("Revenu à la retraite")).closest('dl')!;
-    expect(within(figures).getByText('Écart mensuel')).toBeInTheDocument();
-    expect(within(figures).getByText(/1\s000,00\s€/)).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Vue d’ensemble', 'Analyse', 'Départs']);
+    const hero = await screen.findByRole('region', { name: 'Écart mensuel' });
+    expect(within(hero).getByText('Au départ, février 2033')).toBeInTheDocument();
+    const figures = within(hero).getByText('Revenu à la retraite').closest('dl')!;
+    expect(within(figures).getByText(/300\s000,00\s€/)).toBeInTheDocument();
     expect(within(figures).getByText('juin 2040')).toBeInTheDocument();
     expect(screen.getByText(/Chiffres indicatifs/)).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Départs à la retraite' })).not.toBeInTheDocument();
 
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
+    const capital = await screen.findByRole('region', { name: 'Capital au départ' });
+    expect(within(capital).getByText(/250\s000,00\s€/)).toBeInTheDocument();
+    expect(within(capital).getByText('au taux de retrait de 4 %')).toBeInTheDocument();
+    expect(screen.getByText(/Taux de retrait : 4 %/)).toBeInTheDocument();
+    expect(screen.getByText(/Coût de la vie mensuel : 2\s500,00\s€/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Modifier les hypothèses' })).toHaveAttribute('href', '/settings/projection');
+
+    await user.click(screen.getByRole('tab', { name: 'Départs' }));
     const rows = within(await screen.findByRole('table', { name: 'Départs à la retraite' })).getAllByRole('row');
     expect(within(rows[1]!).getByText('62 ans et 9 mois')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('février 2033')).toBeInTheDocument();
     expect(within(rows[1]!).getByRole('link', { name: 'Pension de retraite' })).toHaveAttribute('href', `/income/${SOURCE}`);
     expect(within(rows[2]!).getByText('64 ans')).toBeInTheDocument();
-
-    expect(screen.getByText(/Taux de retrait : 4 %/)).toBeInTheDocument();
-    expect(screen.getByText(/Coût de la vie mensuel : 2\s500,00\s€/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Modifier les hypothèses' })).toHaveAttribute('href', '/settings/projection');
   });
 
   it('lists the adults without a figure when nobody has a birth date', async () => {
@@ -62,10 +70,15 @@ describe('the retirement page', () => {
       figures: null, financialIndependence: null,
       departures: [{ person: ALICE, name: 'Alice', birthDate: null, years: 64, months: 0, departure: null, pension: null, sources: [] }],
     }));
-    await renderApp('/retirement');
+    const { user } = await renderApp('/retirement');
 
-    expect(await screen.findByText('Aucun départ dans les 40 ans : renseignez une date de naissance dans Réglages › Projection.')).toBeInTheDocument();
-    const row = within(screen.getByRole('table', { name: 'Départs à la retraite' })).getAllByRole('row')[1]!;
+    expect(await screen.findByRole('heading', { name: 'Aucun départ à la retraite à calculer' })).toBeInTheDocument();
+    expect(screen.getByText('Aucun départ dans les 40 ans : renseignez une date de naissance dans Réglages › Projection.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ouvrir Réglages › Projection' })).toHaveAttribute('href', '/settings/projection');
+    expect(screen.queryByRole('region', { name: 'Écart mensuel' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Départs' }));
+    const row = within(await screen.findByRole('table', { name: 'Départs à la retraite' })).getAllByRole('row')[1]!;
     expect(within(row).getAllByText('—')).toHaveLength(2);
   });
 
@@ -78,6 +91,9 @@ describe('the retirement page', () => {
 
     const link = await screen.findByRole('link', { name: /Renseignez le coût de la vie mensuel/ });
     expect(link).toHaveAttribute('href', '/settings/projection');
+    // The link reads under the hero, not squeezed into a figure.
+    expect(link.closest('dl')).toBeNull();
+    expect(within(screen.getByRole('region', { name: 'Écart mensuel' })).getByText('Non calculée')).toBeInTheDocument();
     expect(screen.queryByText("Non atteinte avant l'horizon")).not.toBeInTheDocument();
   });
 
@@ -102,11 +118,14 @@ describe('the retirement page', () => {
       figures: null, financialIndependence: null, warnings: [{ code: 'living_cost_missing' }],
       assumptions: { ...view().assumptions, monthlyLivingCost: '0.00' },
     }));
-    await renderApp('/retirement');
+    const { user } = await renderApp('/retirement');
 
-    expect(await screen.findByText(/Coût de la vie mensuel : non renseigné/)).toBeInTheDocument();
-    expect(screen.getByText(/Aucun départ dans les 40 ans/)).toBeInTheDocument();
+    expect(await screen.findByText(/Aucun départ dans les 40 ans/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Renseignez le coût de la vie mensuel/ })).toHaveAttribute('href', '/settings/projection');
+
+    await user.click(screen.getByRole('tab', { name: 'Analyse' }));
+    expect(await screen.findByText(/Coût de la vie mensuel : non renseigné/)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Capital au départ' })).not.toBeInTheDocument();
   });
 
   describe('the row actions', () => {
@@ -128,7 +147,7 @@ describe('the retirement page', () => {
         http.get('*/api/v1/retirement', () => { reads += 1; return HttpResponse.json(alone()); }),
         http.put('*/api/v1/core/persons/:id/retirement', async ({ request }) => { put = await request.json(); return new HttpResponse(null, { status: 204 }); }),
       );
-      await renderApp('/retirement');
+      await renderApp('/retirement?tab=departures');
       const user = await menuOf('Bob');
       await user.click(await screen.findByRole('menuitem', { name: 'Modifier le départ' }));
       expect(await screen.findByLabelText("Âge de départ à la retraite")).toHaveValue(64);
@@ -145,7 +164,7 @@ describe('the retirement page', () => {
         http.get('*/api/v1/retirement', () => { reads += 1; return HttpResponse.json(alone()); }),
         http.post('*/api/v1/income/sources', async ({ request }) => { posted.push(await request.json()); return HttpResponse.json({ id: SOURCE }, { status: 201 }); }),
       );
-      await renderApp('/retirement');
+      await renderApp('/retirement?tab=departures');
       const user = await menuOf('Alice');
       await user.click(await screen.findByRole('menuitem', { name: 'Saisir la pension' }));
       await user.type(await screen.findByLabelText('Pension mensuelle nette'), '1 500,50');
@@ -165,7 +184,7 @@ describe('the retirement page', () => {
         http.get('*/api/v1/retirement', () => HttpResponse.json(alone({ departure: '2030-12' }))),
         http.post('*/api/v1/income/sources', async ({ request }) => { posted.push(await request.json() as never); return HttpResponse.json({ id: SOURCE }, { status: 201 }); }),
       );
-      await renderApp('/retirement');
+      await renderApp('/retirement?tab=departures');
       const user = await menuOf('Alice');
       await user.click(await screen.findByRole('menuitem', { name: 'Saisir la pension' }));
       await user.type(await screen.findByLabelText('Pension mensuelle nette'), '1000');
@@ -178,7 +197,7 @@ describe('the retirement page', () => {
 
     it('offers the pension to nobody else, nor on a row that has a source or no departure', async () => {
       serve(view());
-      await renderApp('/retirement');
+      await renderApp('/retirement?tab=departures');
       const user = await menuOf('Alice');
       expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
       await user.keyboard('{Escape}');
@@ -196,7 +215,7 @@ describe('the retirement page', () => {
           return HttpResponse.json({ items: [{ id: SOURCE, displayName: 'Pension de retraite', kind: 'pension', currency: 'EUR', visibility: 'private', owners: [{ personId: ALICE, shareBp: 10000 }] }] });
         }),
       );
-      await renderApp('/retirement');
+      await renderApp('/retirement?tab=departures');
       expect((await screen.findAllByText('Votre pension est privée : elle ne compte que dans « Moi ».')).length).toBeGreaterThan(0);
       await menuOf('Alice');
       expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
@@ -206,7 +225,7 @@ describe('the retirement page', () => {
 
     it('does not offer the pension when the reader has no departure month', async () => {
       serve(alone({ departure: null, birthDate: null }));
-      await renderApp('/retirement');
+      await renderApp('/retirement?tab=departures');
       await menuOf('Alice');
       expect(screen.queryByRole('menuitem', { name: 'Saisir la pension' })).not.toBeInTheDocument();
     });
