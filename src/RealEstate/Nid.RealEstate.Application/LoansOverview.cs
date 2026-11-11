@@ -58,8 +58,16 @@ public sealed record PersonLoanShareView(Guid PersonId, LoanMoneyView? Balance, 
 /// Issue #402: the debt ratio (<see cref="DebtRatio"/>, the scenarios' rule) of this month's loan payments, insurance included,
 /// over the net monthly income, and the room left under the ceiling; in « Moi », the reader's shares of both. <c>Unknown</c> says
 /// why the ratio is null: <c>no_income</c> (none declared, or none running) or <c>fx_rate_missing</c> (a finding names the rate).
+/// Issue #161: <c>Reading</c> places a known ratio against the ceiling, for a plain sentence beside the figure.
 /// </summary>
-public sealed record LoanDebtRatioView(string? Ratio, string Ceiling, LoanMoneyView? Payments, LoanMoneyView? Income, LoanMoneyView? Room, string? Unknown);
+public sealed record LoanDebtRatioView(string? Ratio, string Ceiling, LoanMoneyView? Payments, LoanMoneyView? Income, LoanMoneyView? Room, string? Unknown,
+    string? Reading = null);
+
+public static class LoanDebtRatioReadings
+{
+    public const string UnderCeiling = "under_ceiling";
+    public const string OverCeiling = "over_ceiling";
+}
 
 public static class LoanDebtRatioReasons
 {
@@ -287,11 +295,11 @@ internal static partial class LoansOverviewMath
             : payments is null || earned is null ? LoanDebtRatioReasons.RateMissing
             : null;
         var known = unknown is null;
+        var room = known ? Math.Round(DebtRatio.Room(payments!.Value, earned!.Value)!.Value, 2, MidpointRounding.AwayFromZero) : (decimal?)null;
         return new LoanDebtRatioView(
             known ? Fraction(DebtRatio.Of(payments!.Value, earned!.Value)!.Value) : null, Fraction(DebtRatio.Ceiling),
-            convert.View(payments), convert.View(earned),
-            known ? convert.View(Math.Round(DebtRatio.Room(payments!.Value, earned!.Value)!.Value, 2, MidpointRounding.AwayFromZero)) : null,
-            unknown);
+            convert.View(payments), convert.View(earned), convert.View(room), unknown,
+            room switch { null => null, < 0m => LoanDebtRatioReadings.OverCeiling, _ => LoanDebtRatioReadings.UnderCeiling });
     }
 
     /// <summary>Spec §4.1: the loan's phases as its rows run through them; a phase's mode is the contract's (annuity past the last one, the engine's projection).</summary>

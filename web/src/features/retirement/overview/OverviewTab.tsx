@@ -38,9 +38,10 @@ export function OverviewTab({ scope }: { scope: Scope }) {
                   <StatLine className="xl:grid-cols-4" items={[
                     { label: t('retirement.income_now'), value: money(f.incomeNow) },
                     { label: t('retirement.income_at_retirement'), value: money(f.incomeAtRetirement) },
-                    { label: t('retirement.capital_needed'), value: money(f.capitalNeeded) },
+                    { label: t('retirement.capital_needed'), tip: t('retirement.capital_needed_tip'), value: money(f.capitalNeeded) },
                     {
                       label: t('retirement.independence'),
+                      tip: t('retirement.independence_tip'),
                       value: data.financialIndependence ? month(data.financialIndependence) : missing ? t('retirement.independence_not_set') : t('retirement.independence_unreached'),
                     },
                   ]} />

@@ -81,7 +81,7 @@ describe('dashboard lists', () => {
     expect(items[1]).toHaveTextContent('Estimation à refaire');
     expect(items[2]).toHaveTextContent('Dernière échéance');
     expect(within(items[2] as HTMLElement).getByRole('link', { name: 'Dernière échéance Prêt travaux' })).toHaveAttribute('href', '/loans/00000000-0000-7000-8000-0000000000f2');
-    expect(items[3]).toHaveTextContent('Fin de la phase 1 : taux ou différé qui change');
+    expect(items[3]).toHaveTextContent('Fin de la phase 1 : le taux ou la mensualité change');
     expect(items[4]).toHaveTextContent('Fin du bail « T2 meublé »');
     await expectNoAxeViolations(container);
   });
@@ -103,11 +103,11 @@ describe('dashboard lists', () => {
     const { container } = await renderApp('/dashboard');
 
     const items = within(await section('À venir')).getAllByRole('listitem');
-    expect(items[0]).toHaveTextContent('reste à verser avant le 31 décembre');
+    expect(items[0]).toHaveTextContent('encore verser avant le 31 décembre');
     expect(items[0]).toHaveTextContent('2 920,00 €');
     expect(within(items[0] as HTMLElement).getByRole('link', { name: /Foyer \(plafonds mutualisés\)/ })).toHaveAttribute('href', '/tax');
-    expect(items[1]).toHaveTextContent('minimum à verser avant le 31 décembre pour ne rien perdre');
-    expect(within(items[1] as HTMLElement).getByRole('link', { name: 'PER : minimum à verser avant le 31 décembre pour ne rien perdre Alice 1 000,00 €' })).toHaveAttribute('href', '/tax');
+    expect(items[1]).toHaveTextContent('minimum à verser avant le 31 décembre pour ne pas perdre de déduction');
+    expect(within(items[1] as HTMLElement).getByRole('link', { name: 'Épargne retraite (PER) : minimum à verser avant le 31 décembre pour ne pas perdre de déduction Alice 1 000,00 €' })).toHaveAttribute('href', '/tax');
     await expectNoAxeViolations(container);
   });
 

@@ -17,7 +17,7 @@ export function PhaseFields({ form, index, last }: { form: UseFormReturn<Contrac
     <>
       <div className="grid gap-3 sm:grid-cols-2">
         <Controller control={form.control} name={`phases.${index}.mode`} render={({ field }) => (
-          <Field label={t('loan_form.mode')} error={e?.mode?.message}>
+          <Field label={t('loan_form.mode')} tip={t('loan_form.mode_tip')} error={e?.mode?.message}>
             {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
               options={PHASE_MODES.map((m) => ({ value: m, label: t(`loan_form.mode_option.${m}`) }))} />}
           </Field>

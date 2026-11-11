@@ -42,11 +42,11 @@ export function ReturnSection({ property }: { property: PropertyDetail }) {
         <>
           <p>{t('property_return.scenario', { year: scenario.outcome.resaleOn.slice(0, 4), price: money(property.currency, scenario.outcome.resalePrice) })}</p>
           <StatLine items={[
-            { label: t('property_return.irr'), value: irrText(t, scenario.outcome.irr), tip: <InfoTip label={t('property_return.irr')}>{t('property_return.irr_tip')}</InfoTip> },
+            { label: t('property_return.irr'), value: irrText(t, scenario.outcome.irr), tip: t('property_return.irr_tip') },
             { label: t('property_return.net_gain'), value: signedMoney(property.currency, scenario.outcome.netGain) },
             { label: t('property_return.savings_effort'), value: money(property.currency, scenario.savingsEffort) },
             { label: t('property_return.irr_today'), value: irrText(t, r.sensitivity[0]?.irr),
-              tip: <InfoTip label={t('property_return.irr_today')}>{t('property_return.irr_today_tip')}</InfoTip> },
+              tip: t('property_return.irr_today_tip') },
           ]} />
           {scenario.outcome.irr ? <p>{t('property_return.irr_sentence', { rate: irrText(t, scenario.outcome.irr) })}</p> : null}
         </>

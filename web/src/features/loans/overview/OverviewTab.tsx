@@ -135,12 +135,12 @@ function Figures({ d }: { d: LoansOverview }) {
       { label: t('loans_overview.monthly'), value: figure(d.monthlyPayment), hint: t('loans_overview.monthly_note') },
       { label: t('loans_overview.cost'), value: figure(d.costRemaining), hint: d.costPaid ? t('loans_overview.cost_paid', { amount: formatMoney(d.costPaid) }) : null },
       ...(d.freeOn ? [{ label: t('loans_overview.free'), value: monthText(d.freeOn.slice(0, 7)), hint: left > 0 ? t('loans_overview.free_in', { span }) : t('loans_overview.free_this_month') }] : []),
-      ...(d.debtRatio ? [{ label: t('loans_overview.debt_ratio'), value: <DebtRatio d={d} ratio={d.debtRatio} /> }] : []),
+      ...(d.debtRatio ? [{ label: t('loans_overview.debt_ratio'), tip: t('loans_overview.debt_ratio_tip'), value: <DebtRatio d={d} ratio={d.debtRatio} /> }] : []),
     ]} />
   );
 }
 
-/** Issue #402: the server's ratio, the ceiling it is read against and the room left under it; « Inconnu » and why otherwise. */
+/** Issue #402: the server's ratio and the room left under the ceiling; #161: the server's reading of it in plain words. « Inconnu » and why otherwise. */
 function DebtRatio({ d, ratio }: { d: LoansOverview; ratio: NonNullable<LoansOverview['debtRatio']> }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
@@ -151,8 +151,12 @@ function DebtRatio({ d, ratio }: { d: LoansOverview; ratio: NonNullable<LoansOve
   return (
     <>
       {percent(t, ratio.ratio)}
-      <Sub>{t('loans_overview.debt_ratio_ceiling', { ceiling: percent(t, ratio.ceiling) })}</Sub>
-      {ratio.room ? <Sub>{t('loans_overview.debt_ratio_room', { amount: formatMoney(ratio.room) })}</Sub> : null}
+      {ratio.reading === 'over_ceiling'
+        ? <Sub>{t('loans_overview.debt_ratio_over', { ceiling: percent(t, ratio.ceiling) })}</Sub>
+        : <>
+          <Sub>{t('loans_overview.debt_ratio_under', { ceiling: percent(t, ratio.ceiling) })}</Sub>
+          {ratio.room ? <Sub>{t('loans_overview.debt_ratio_room', { amount: formatMoney(ratio.room) })}</Sub> : null}
+        </>}
     </>
   );
 }

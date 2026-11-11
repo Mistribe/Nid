@@ -31134,6 +31134,7 @@ export interface components {
             income?: null | components["schemas"]["LoanMoneyView"];
             room?: null | components["schemas"]["LoanMoneyView"];
             unknown?: null | string;
+            reading?: null | string;
         };
         LoanDetail: {
             /** Format: uuid */

@@ -262,6 +262,16 @@ public class LoansOverviewTests
         // The scenarios' rule, one implementation.
         Assert.Equal(Math.Round(DebtRatio.Of(payments, 5_000m)!.Value, 4).ToString("0.0000", CultureInfo.InvariantCulture), ratio.Ratio);
         Assert.Equal(("0.3500", 1_750m - payments, (string?)null), (ratio.Ceiling, D(ratio.Room), ratio.Unknown));
+        Assert.Equal("under_ceiling", ratio.Reading);
+    }
+
+    [Fact]
+    public void Payments_above_35_percent_of_the_income_read_over_the_ceiling_with_a_negative_room()
+    {
+        // The golden case's 1 159,92 a month over 3 000 is about 39 %.
+        var ratio = WithIncome(VisibilityScope.Household, new IncomePart(1, Eur(3_000m)), Home()).DebtRatio!;
+
+        Assert.Equal((1_050m - 1_159.92m, "over_ceiling"), (D(ratio.Room), ratio.Reading));
     }
 
     [Fact]
@@ -285,7 +295,7 @@ public class LoansOverviewTests
         var overview = WithIncome(VisibilityScope.Household, new IncomePart(sources, sources == 0 ? new Dictionary<Currency, decimal>() : Eur(0m)), Home());
 
         var ratio = overview.DebtRatio!;
-        Assert.Equal((null, null, "no_income"), (ratio.Ratio, ratio.Room, ratio.Unknown));
+        Assert.Equal((null, null, "no_income", null), (ratio.Ratio, ratio.Room, ratio.Unknown, ratio.Reading));
         Assert.Equal(1_159.92m, D(ratio.Payments));
     }
 
