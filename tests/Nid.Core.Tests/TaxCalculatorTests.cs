@@ -165,6 +165,19 @@ public class TaxCalculatorTests
     }
 
     [Fact]
+    public void The_other_rental_regime_is_compared_when_the_household_may_choose()
+    {
+        var rents = Inputs([Other(0m), Other(0m)]) with { RentalGross = 10_000m, RentalCharges = 4_000m, RentalInterest = 1_000m };
+
+        // Micro: 7 000 taxable, 1 204 of levies; real: 5 000, 860. No income tax either way.
+        Assert.Equal(-344m, TaxCalculator.Compute(rents).RentalRegimeGap);
+        Assert.Equal(344m, TaxCalculator.Compute(rents with { RentalRegime = RentalRegime.Real }).RentalRegimeGap);
+        Assert.Null(TaxCalculator.Compute(Inputs([Other(0m), Other(0m)])).RentalRegimeGap);
+        Assert.Null(TaxCalculator.Compute(rents with { RentalGross = 16_000m }).RentalRegimeGap);
+        Assert.Null(TaxCalculator.Compute(rents with { PinelReduction = 3_000m }).RentalRegimeGap);
+    }
+
+    [Fact]
     public void A_pinel_property_shuts_the_micro_regime()
     {
         var chosen = TaxCalculator.Compute(Inputs([Other(0m), Other(0m)]) with

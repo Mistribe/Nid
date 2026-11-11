@@ -8,6 +8,7 @@ import { present, toProblem, type Problem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import { ComboboxField } from '@/components/form/ComboboxField';
 import { Field } from '@/components/form/Field';
+import { InfoTip } from '@/components/InfoTip';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { FormPage } from '@/components/page/FormPage';
@@ -40,13 +41,20 @@ import { PageSkeleton } from '@/components/page/skeletons';
 
 type Form = UseFormReturn<AssessmentValues>;
 type FieldKey = keyof typeof tax.tax.assessment.field;
+type TipKey = keyof typeof tax.tax.assessment_form.tip;
 const errorOf = (form: Form, name: string) => get<typeof form.formState.errors, { message?: string } | undefined>(form.formState.errors, name)?.message;
 const STEP_IDS: StepId[] = ['household', 'declarants', 'income', 'tax', 'source'];
 
-/** One amount (or rate, or share count) as typed: the label is the notice's own. */
-function Amount({ form, name, label, hint }: { form: Form; name: string; label: string; hint?: string }) {
+/** What a notice line is and where the notice prints it (design-system §6.2). */
+function Tip({ name, label }: { name: TipKey; label: string }) {
+  const { t } = useTranslation();
+  return <InfoTip label={label}>{t(`tax.assessment_form.tip.${name}`)}</InfoTip>;
+}
+
+/** One amount (or rate, or share count) as typed: the label is the notice's own, `tip` the line's explanation. */
+function Amount({ form, name, label, hint, tip }: { form: Form; name: string; label: string; hint?: string; tip?: TipKey }) {
   return (
-    <Field label={label} hint={hint} error={errorOf(form, name)}>
+    <Field label={label} hint={hint} error={errorOf(form, name)} tip={tip ? <Tip name={tip} label={label} /> : undefined}>
       {(c) => <Input inputMode="decimal" {...c} {...form.register(name as Path<AssessmentValues>)} />}
     </Field>
   );
@@ -77,10 +85,10 @@ function HouseholdStep({ form, adults }: { form: Form; adults: { value: string; 
           </Field>
         )} />
       ) : null}
-      <Amount form={form} name="shares" label={label('shares')} />
-      <Amount form={form} name="referenceIncome" label={label('referenceIncome')} />
+      <Amount form={form} name="shares" label={label('shares')} tip="shares" />
+      <Amount form={form} name="referenceIncome" label={label('referenceIncome')} tip="referenceIncome" />
       <Folded label={t('tax.assessment_form.rates')} hasError={RATES.some((k) => Boolean(errorOf(form, k)))}>
-        {RATES.map((k) => <Amount key={k} form={form} name={k} label={label(k)} />)}
+        {RATES.map((k) => <Amount key={k} form={form} name={k} label={label(k)} tip={k} />)}
       </Folded>
     </>
   );
@@ -125,40 +133,41 @@ function DeclarantStep({ form, adults }: { form: Form; adults: { value: string; 
     key: name, label: label(k), error: (i) => errorOf(form, at(i, name)),
     cell: (a, c) => <Input inputMode="decimal" {...c} {...form.register(at(a.id, name) as Path<AssessmentValues>)} />,
   });
+  const tipped = (row: GridRow, tip: TipKey): GridRow => ({ ...row, tip: <Tip name={tip} label={row.label} /> });
   return (
     <>
       {columns.map((c) => <SalaryAllowance key={c.id} form={form} index={Number(c.id)} />)}
       <DeclarantGrid label={t('tax.assessment_form.steps.declarants')} adults={columns} rows={[
-        amount('grossSalaries'),
-        { ...amount('overtimeExempt'), hint: t('tax.assessment_form.overtime_hint') },
-        { key: 'deduction', label: label('deduction'),
+        tipped(amount('grossSalaries'), 'grossSalaries'),
+        { ...tipped(amount('overtimeExempt'), 'overtimeExempt'), hint: t('tax.assessment_form.overtime_hint') },
+        tipped({ key: 'deduction', label: label('deduction'),
           cell: (a, c) => <Controller control={form.control} name={at(a.id, 'deduction') as `declarants.${number}.deduction`} render={({ field }) => (
             <Segmented aria-labelledby={c['aria-labelledby']} value={field.value} onValueChange={field.onChange}
               options={[{ value: 'allowance', label: t('tax.assessment.deduction_allowance') }, { value: 'actual', label: t('tax.assessment.deduction_actual') }]} />
-          )} /> },
-        amount('deductionAmount'),
-        { ...amount('withholding'), label: label('withholding_declarant') },
-        amount('creditsAdvance'),
+          )} /> }, 'deduction'),
+        tipped(amount('deductionAmount'), 'deductionAmount'),
+        tipped({ ...amount('withholding'), label: label('withholding_declarant') }, 'withholding_declarant'),
+        tipped(amount('creditsAdvance'), 'creditsAdvance'),
       ]} />
       <Folded label={t('tax.assessment_form.per')} hasError={columns.some((c) => PER_TYPED.some((k) => Boolean(errorOf(form, at(c.id, k)))))}>
-        <DeclarantGrid label={t('tax.assessment_form.per')} adults={columns} rows={PER_TYPED.map((k) => ({
+        <DeclarantGrid label={t('tax.assessment_form.per')} adults={columns} rows={PER_TYPED.map((k) => tipped({
           ...amount(k), label: t(`tax.assessment.field.${k}`, { year: perLineYear(k, year) }),
           hint: k === 'perCeilingYear' ? t('tax.assessment_form.per_year_hint') : undefined,
-        }))} />
+        }, k === 'perCeilingYear' || k === 'perCeilingComputed' ? k : 'perUnused'))} />
       </Folded>
     </>
   );
 }
 
-function AmountsStep({ form, names, folded }: { form: Form; names: readonly FieldKey[]; folded?: readonly FieldKey[] }) {
+function AmountsStep({ form, names, folded }: { form: Form; names: readonly (FieldKey & TipKey)[]; folded?: readonly (FieldKey & TipKey)[] }) {
   const { t } = useTranslation();
   const label = (key: FieldKey) => t(`tax.assessment.field.${key}`);
   return (
     <>
-      {names.map((k) => <Amount key={k} form={form} name={k} label={label(k)} />)}
+      {names.map((k) => <Amount key={k} form={form} name={k} label={label(k)} tip={k} />)}
       {folded ? (
         <Folded label={t('tax.assessment_form.exempt')} hasError={folded.some((k) => Boolean(errorOf(form, k)))}>
-          {folded.map((k) => <Amount key={k} form={form} name={k} label={label(k)} />)}
+          {folded.map((k) => <Amount key={k} form={form} name={k} label={label(k)} tip={k} />)}
         </Folded>
       ) : null}
     </>
@@ -170,10 +179,13 @@ function TaxStep({ form }: { form: Form }) {
   return (
     <>
       <AmountsStep form={form} names={NOTICE_AMOUNTS.tax} />
-      <Amount form={form} name="balance" label={t('tax.assessment_form.field.balance')} />
+      <Amount form={form} name="balance" label={t('tax.assessment_form.field.balance')} tip="balance" />
       <Controller control={form.control} name="balanceSign" render={({ field }) => (
-        <Segmented aria-label={t('tax.assessment_form.field.balance_sign')} value={field.value} onValueChange={field.onChange}
-          options={[{ value: 'due', label: t('tax.assessment_form.balance_due') }, { value: 'refund', label: t('tax.assessment_form.balance_refund') }]} />
+        <div className="flex items-center gap-2">
+          <Segmented aria-label={t('tax.assessment_form.field.balance_sign')} value={field.value} onValueChange={field.onChange}
+            options={[{ value: 'due', label: t('tax.assessment_form.balance_due') }, { value: 'refund', label: t('tax.assessment_form.balance_refund') }]} />
+          <Tip name="balanceSign" label={t('tax.assessment_form.field.balance_sign')} />
+        </div>
       )} />
     </>
   );
@@ -226,7 +238,7 @@ function SourceStep({ form, stored, onUploading }: { form: Form; stored?: string
         {(c) => <UploadZone {...c} multiple={false} pick={t('documents_page.upload.pick_one')} hint={t('documents_page.upload.types')}
           onFiles={([picked]) => void upload(picked)} onRefused={(picked) => { setFile(picked.name); setProblem(UNSUPPORTED); }} />}
       </Field>
-      {NOTICE_AMOUNTS.carried.map((k) => <Amount key={k} form={form} name={k} label={t(`tax.assessment.field.${k}`)} />)}
+      {NOTICE_AMOUNTS.carried.map((k) => <Amount key={k} form={form} name={k} label={t(`tax.assessment.field.${k}`)} tip={k} />)}
       {gained.length > 0 ? <p className="text-sm text-muted-foreground">{t('tax.assessment_form.also_reads', { names: new Intl.ListFormat('fr').format(gained.map((r) => r.name)) })}</p> : null}
     </>
   );
@@ -284,7 +296,13 @@ function AssessmentForm({ view: live, adults }: { view?: TaxAssessment; adults: 
           else add.mutate({ body }, done);
         })()}
         submitLabel={t('tax.assessment_form.submit')} pending={pending || uploading} reveal={reveal}
-        steps={STEP_IDS.map((id) => ({ id, title: t(`tax.assessment_form.steps.${id}`), fields: stepFields(id, declarants), content: content[id] }))}
+        steps={STEP_IDS.map((id) => ({ id, title: t(`tax.assessment_form.steps.${id}`), fields: stepFields(id, declarants), content: (
+          <>
+            {/* Which part of the notice the step copies (issue #160). */}
+            <p className="text-sm text-muted-foreground">{t(`tax.assessment_form.where.${id}`)}</p>
+            {content[id]}
+          </>
+        ) }))}
       />
     </FormPage>
   );

@@ -3,11 +3,16 @@ import { useApi } from '@/api/ApiProvider';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TAX_CHANGES, type TaxEstimate } from '@/api/tax';
-import { partsText, ZERO } from './format';
-import { eur } from './ResultTable';
+import { partsText, tipText, ZERO } from './format';
+import { eur, Term } from './ResultTable';
 import '@/locales/tax';
 
 const LINES = ['salaries', 'rental_income', 'rental_deficit', 'per_deduction', 'shares', 'decote', 'pinel', 'donations', 'childcare', 'home_employment', 'flat_tax'] as const;
+/** The InfoTip that explains a line (the salaries need none). */
+const TIPS: Partial<Record<(typeof LINES)[number], Parameters<typeof tipText>[1]>> = {
+  rental_income: 'rental', rental_deficit: 'rental_deficit', per_deduction: 'per_deduction', shares: 'parts', decote: 'decote', pinel: 'pinel',
+  donations: 'donations', childcare: 'childcare', home_employment: 'home_employment', flat_tax: 'flat_tax',
+};
 
 /** The effect of a line on the tax, signed: a rise reads « +1 200,00 € ». */
 const signed = (amount: string) => (amount.startsWith('-') || ZERO.test(amount) ? eur(amount) : `+${eur(amount)}`);
@@ -25,7 +30,9 @@ export function ChangesSection({ year, scope, adults }: { year: string; scope: '
   const label = (code: string, person?: string | null) => {
     if (code === 'salaries') return t('tax.changes.line.salaries', { name: adults.find((a) => a.id === person)?.displayName ?? '' });
     const known = LINES.find((l) => l === code);
-    return known ? t(`tax.changes.line.${known}`) : code;
+    if (!known) return code;
+    const tip = TIPS[known];
+    return <Term title={t(`tax.changes.line.${known}`)} tip={tip ? tipText(t, tip) : undefined} />;
   };
   const value = (code: string, amount: string) => (code === 'shares' ? partsText(amount) : eur(amount));
   return (

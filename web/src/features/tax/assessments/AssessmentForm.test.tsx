@@ -74,6 +74,23 @@ describe('AssessmentForm', () => {
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Impôts', '/tax'));
   });
+  it('Points_each_step_to_its_part_of_the_notice_and_explains_its_lines', async () => {
+    serve(household);
+    const { user } = await renderApp('/tax/assessments/new');
+
+    expect(await screen.findByText(/^Sur la première page de l’avis/)).toBeInTheDocument();
+    await user.hover(screen.getByRole('button', { name: 'À propos : Nombre de parts' }));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/en première page de l’avis/);
+    await pick(user, 'Déclarant 2', 'Bob Dev');
+    await next(user);
+    expect(screen.getByText(/^Dans la partie « Détail des revenus »/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'À propos : Déduction (10 % / Frais réels)' })).toBeInTheDocument();
+    await next(user);
+    await next(user);
+    expect(screen.getByText(/^Dans la partie « Calcul de l’impôt »/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'À propos : Sens du solde' })).toBeInTheDocument();
+  });
+
   it('Creates_a_joint_notice_in_five_steps', async () => {
     const sent = serve(household);
     const { user, router } = await renderApp('/tax/assessments/new');
