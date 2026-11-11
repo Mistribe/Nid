@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Nid.Core.Contracts;
-using Nid.Platform.Canonical;
+using UnambitiousFx.Engram;
 using Nid.TestSupport;
 
 namespace Nid.Host.IntegrationTests.Import;
@@ -47,7 +47,7 @@ public sealed class ImportClient(NidApp app)
     public async Task<HttpResponseMessage> PutRawAsync(PersonId actor, Guid session, string section, int index, string entitiesJson, string? hash = null)
     {
         using var entities = JsonDocument.Parse(entitiesJson);
-        var sent = hash ?? Rfc8785.Hash(entities.RootElement);
+        var sent = hash ?? JsonCanonicalizer.Hash(entities.RootElement);
         var body = $$"""{"hash":"{{sent}}","entities":{{entitiesJson}}}""";
         if (!sentHashes.TryGetValue(session, out var bySection))
             sentHashes[session] = bySection = new Dictionary<string, SortedDictionary<int, string>>(StringComparer.Ordinal);
