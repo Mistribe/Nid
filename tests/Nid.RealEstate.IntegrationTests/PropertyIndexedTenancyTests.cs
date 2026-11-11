@@ -35,11 +35,12 @@ public class PropertyIndexedTenancyTests(PostgresFixture fixture) : IClassFixtur
 
         Assert.Equal((HttpStatusCode.UnprocessableEntity, Field, "irlReferenceQuarter"),
             await RefusalAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2023-01-01", quarter: 5))));
-        Assert.Equal((HttpStatusCode.UnprocessableEntity, Field, "irlReferenceQuarter"),
-            await RefusalAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2023-01-01", indexed: true))));
         // A quarter without the switch is kept.
-        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2023-01-01", quarter: 3)));
-        Assert.Equal(2, (await PropertyAsync(app, id)).GetProperty("tenancies").GetArrayLength());
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2023-01-01", "2023-12-31", quarter: 3)));
+        // Indexed without a quarter: the last one over at the start (a May start: the first quarter).
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, tenancies, Lease("2024-05-01", indexed: true)));
+        var defaulted = (await PropertyAsync(app, id)).GetProperty("tenancies").EnumerateArray().Single(t => S(t, "startsOn") == "2024-05-01");
+        Assert.Equal(1, defaulted.GetProperty("irlReferenceQuarter").GetInt32());
     }
 
     [Fact]

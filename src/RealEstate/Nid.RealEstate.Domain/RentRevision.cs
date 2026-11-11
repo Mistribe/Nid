@@ -25,6 +25,13 @@ public static class RentRevision
     public static LocalDate Anniversary(LocalDate chainStart, int year)
         => new(year, chainStart.Month, Math.Min(chainStart.Day, CalendarSystem.Iso.GetDaysInMonth(year, chainStart.Month)));
 
+    /// <summary>
+    /// An indexed lease that names no reference quarter takes the last one over at its start (loi du 6 juillet 1989, art. 17-1: the
+    /// last IRL published when the lease is signed), with <see cref="State"/>'s rule that a quarter is known the month after it ends.
+    /// </summary>
+    public static Tenancy WithDefaultQuarter(Tenancy t)
+        => t is { Indexed: true, IrlReferenceQuarter: null } ? t with { IrlReferenceQuarter = t.StartsOn.Month <= 3 ? 4 : (t.StartsOn.Month - 1) / 3 } : t;
+
     /// <summary>The latest anniversary on or before <paramref name="today"/>: the window is [it, it + 1 year).</summary>
     public static LocalDate Current(LocalDate chainStart, LocalDate today)
         => Anniversary(chainStart, today.Year) is var a && a <= today ? a : Anniversary(chainStart, today.Year - 1);
