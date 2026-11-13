@@ -12,10 +12,10 @@ export const aliceSession: Session = {
   demo: false,
 };
 
-export const aliceSessionResponse: SessionResponse = { authenticated: true, ...aliceSession };
+export const aliceSessionResponse: SessionResponse = { authenticated: true, ...aliceSession, methods: ['oidc'], setupRequired: false };
 
 export const signedOutResponse: SessionResponse = {
-  authenticated: false, person: null, csrf: null, sessionEpoch: null, preferences: null, demo: false,
+  authenticated: false, person: null, csrf: null, sessionEpoch: null, preferences: null, demo: false, methods: ['oidc'], setupRequired: false,
 };
 
 export const allCapabilities: components['schemas']['CapabilitiesView'] = { modules: ['core', 'subscriptions', 'import', 'investments', 'income', 'realestate', 'goals', 'documents', 'banking', 'childcare'], admin: false };

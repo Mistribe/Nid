@@ -370,7 +370,13 @@
       "megabytes": "{{size}} Mo",
       "unknown": "inconnue",
       "healthy": "disponible",
-      "unhealthy": "injoignable"
+      "unhealthy": "injoignable",
+      "not_used": "non utilisé",
+      "sign_in": "Connexion",
+      "mode_local": "comptes locaux",
+      "mode_oidc": "fournisseur d'identité",
+      "mode_both": "comptes locaux et fournisseur d'identité",
+      "insecure_http": "Le HTTP sans chiffrement est autorisé (Auth__AllowInsecureHttp) : les mots de passe et le cookie de session peuvent circuler en clair sur le réseau. Placez Nid derrière un proxy HTTPS, sauf sur un réseau de confiance."
     },
     "notifications": {
       "title": "Notifications",
