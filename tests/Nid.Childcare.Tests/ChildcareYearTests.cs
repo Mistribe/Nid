@@ -78,6 +78,15 @@ public class ChildcareYearTests
     }
 
     [Fact]
+    public void Projected_without_a_validated_month_counts_each_month_at_the_estimate()
+    {
+        // September to December, none validated, each at the month computed from the contract.
+        Assert.Equal([(new YearMonth(2026, 9), 80m), (new YearMonth(2026, 10), 80m), (new YearMonth(2026, 11), 80m), (new YearMonth(2026, 12), 80m)],
+            ChildcareYear.Projected(D(2026, 9, 1), null, D(2026, 11, 10), [Draft(2026, 9)], 2026, estimate: 80m));
+        Assert.Empty(ChildcareYear.Projected(D(2026, 9, 1), null, D(2027, 2, 10), [], 2026, estimate: 80m));
+    }
+
+    [Fact]
     public void The_year_just_ended_is_the_default_from_january()
     {
         var years = ChildcareYear.Years(D(2025, 9, 1), null, D(2026, 1, 5));

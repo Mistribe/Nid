@@ -236,20 +236,29 @@ function ContractWeeks({ detail, names }: { detail: ChildcareDetail; names: stri
   );
 }
 
+/** Weeks without care per contract year, the latest first: each year allows 52 − programmed weeks. */
 function Gaps({ detail, onEdit }: { detail: ChildcareDetail; onEdit: (() => void) | null }) {
   const { t } = useTranslation();
   return (
-    <div className="space-y-3">
-      {detail.gaps.length === 0 ? <p className="text-sm text-muted-foreground">{t('childcare_detail.no_gaps')}</p> : (
-        <ul aria-label={t('childcare_form.step_gaps')} className="space-y-1">
-          {detail.gaps.map((g) => (
-            <li key={g.monday}>
-              <LocalDate value={g.monday} style="short" /> → <LocalDate value={g.sunday} style="short" /> · {t('childcare_detail.weeks', { count: g.weeks })}
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="space-y-6">
       {onEdit ? <Button type="button" variant="outline" onClick={onEdit}>{t('childcare_detail.edit_gaps')}</Button> : null}
+      {[...detail.gapYears].reverse().map((y) => (
+        <Section key={y.from} title={t('childcare_detail.gap_year', { from: formatLocalDate(y.from, 'short'), to: formatLocalDate(y.to, 'short') })}>
+          <StatLine items={[
+            { label: t('childcare_detail.gaps_placed'), value: t('childcare_detail.weeks', { count: y.placed }), hint: t('childcare_detail.gaps_allowed', { count: y.allowed }) },
+            { label: t('childcare_detail.gaps_to_place'), value: t('childcare_detail.weeks', { count: y.toPlace }) },
+          ]} />
+          {y.gaps.length === 0 ? <p className="text-sm text-muted-foreground">{t('childcare_detail.no_gaps')}</p> : (
+            <ul aria-label={t('childcare_detail.gap_year', { from: formatLocalDate(y.from, 'short'), to: formatLocalDate(y.to, 'short') })} className="space-y-1">
+              {y.gaps.map((g) => (
+                <li key={g.monday}>
+                  <LocalDate value={g.monday} style="short" /> → <LocalDate value={g.sunday} style="short" /> · {t('childcare_detail.weeks', { count: g.weeks })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      ))}
     </div>
   );
 }

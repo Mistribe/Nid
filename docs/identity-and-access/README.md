@@ -13,11 +13,12 @@
 | `authorization.md` | Acteur, portées, pipeline, règles `Readers` / `Writers`, garde de sortie |
 | `tokens-and-credentials.md` | Jetons d'accès personnels (MCP, API) et identifiants des workers |
 | `administration-and-audit.md` | Rôle admin et zone admin, commandes d'administration, audit et événements de sécurité, frontière de confiance |
+| `local-accounts.md` | Comptes locaux (#215) : identifiant et mot de passe sans fournisseur d'identité, modes `local` / `oidc` / `both`, premier admin, liens à usage unique, verrouillage, TOTP, HTTP sans TLS en option |
 | `access-tests.md` | Banc anti-fuite et tests de propriétés |
 
 ## 2. Principes
 
-1. **Identité déléguée.** Pocket ID authentifie (par passkey) et décide, par ses groupes, qui entre et qui administre ; Nid ne stocke aucun mot de passe.
+1. **Identité déléguée ou locale.** En mode `oidc`, Pocket ID authentifie (par passkey) et décide, par ses groupes, qui entre et qui administre ; Nid ne stocke aucun mot de passe. En mode `local` (défaut d'une installation sans fournisseur d'identité) ou `both`, Nid authentifie lui-même par identifiant et mot de passe, hachés lentement, et le rôle admin se règle dans sa zone admin (`local-accounts.md`).
 2. **Mêmes droits sur les données.** Tous les adultes ont les mêmes droits sur les éléments ; le rôle **admin** est purement technique (utilisateurs, réglages du foyer, taux, tâches, système) et n'élargit jamais `Readers` ni `Writers`. Les `dependent` (enfants) n'agissent jamais.
 3. **Une seule source de vérité pour l'accès** : les fonctions pures `Readers(item)` et `Writers(item)`. L'API, le tableau de bord, le MCP, l'export et les emails s'y réfèrent.
 4. **Défense en profondeur applicative** : contrôle dans le pipeline, garde de sortie, banc anti-fuite en CI. La Row-Level Security PostgreSQL a été écartée : la complexité n'est pas justifiée pour deux utilisateurs, et le banc anti-fuite couvre le risque d'oubli de filtre.
@@ -30,6 +31,7 @@
 | Décision | Choix | Référence |
 |---|---|---|
 | Authentification du navigateur | Pocket ID (OIDC), client confidentiel réservé au groupe `nid-users`, BFF avec cookie | `authentication.md` |
+| Comptes locaux | `Auth:Mode` = `local`, `oidc` ou `both` ; `oidc` déduit quand `Auth:Authority` est renseigné (installations existantes inchangées), `local` sinon ; même cookie de session ; premier admin par jeton de mise en place ou CLI ; HTTP sans TLS seulement par `Auth:AllowInsecureHttp` | `local-accounts.md` |
 | Respect de la visibilité | Filtrage applicatif (pipeline + garde de sortie) et banc anti-fuite, pas de RLS | `authorization.md`, `access-tests.md` |
 | Authentification MCP et automatisations | Jetons d'accès personnels statiques en v1 ; OAuth via le fournisseur d'identité écarté pour l'instant | `tokens-and-credentials.md` |
 | Écritures via un jeton | Proposition par défaut ; écriture directe avec la portée `write:direct` | `authorization.md` §3 |
@@ -48,6 +50,7 @@ Tous configurables.
 | Jeton d'accès personnel | expiration 90 jours (365 au plus), 10 actifs au maximum par personne |
 | Limitation de débit | 60 requêtes/minute par jeton ; 20 échecs d'authentification/10 minutes par IP |
 | Plafond d'adultes | 2, réglable dans la zone admin (`household_settings.max_adults`) |
+| Comptes locaux | mot de passe de 12 caractères au moins ; verrouillage après 5 échecs, 1 minute doublée à chaque fois, 60 au plus ; lien de mot de passe valable 72 heures |
 
 ## 5. Questions ouvertes
 

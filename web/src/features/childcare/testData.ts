@@ -21,7 +21,7 @@ export const terms = (over: Partial<ChildcareTerms> = {}): ChildcareTerms => ({
 });
 
 export const detail = (over: Partial<ChildcareDetail> = {}, head: Partial<ChildcareSummary> = {}): ChildcareDetail => ({
-  summary: summary(head), carerPajemploi: 'P123', carerApproval: null, terms: [terms()], gaps: [], gapWeeksToPlace: 6, leaveDaysAccrued: 3, childSickDaysUsed: 2, childSickQuota: 5, version: 7, weeks: [], allocation: [], ...over,
+  summary: summary(head), carerPajemploi: 'P123', carerApproval: null, terms: [terms()], gaps: [], gapYears: [{ from: '2026-09-01', to: '2027-08-31', allowed: 6, placed: 0, toPlace: 6, gaps: [] }], gapWeeksToPlace: 6, leaveDaysAccrued: 3, childSickDaysUsed: 2, childSickQuota: 5, version: 7, weeks: [], allocation: [], ...over,
 });
 
 /** Two template weeks over three Mondays: the first on A, the second overridden to B, the third without care. */

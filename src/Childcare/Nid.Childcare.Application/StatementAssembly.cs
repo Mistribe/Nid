@@ -87,6 +87,20 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, before, mileage, cmg, declared, contributions, after, exemption);
     }
 
+    /// <summary>
+    /// Decision 20: a month not validated yet from its days, with the CMG and the contributions left to the household entered or estimated
+    /// from the validated months known by then (decision 19, #30).
+    /// </summary>
+    public async Task<MonthEvaluation> EstimateAsync(MonthContext context, CancellationToken ct)
+    {
+        var validated = context.Stored.Where(s => s is { Validated: true, Figures: not null } && s.Month <= context.Month).ToList();
+        var (days, stale) = await DaysAsync(context, ct);
+        var cmg = context.StoredMonth?.Cmg ?? StatementContext.CmgEstimate(validated.Select(s => (s.Month, s.Figures!.Cmg)).ToList()) ?? 0m;
+        var contributions = context.StoredMonth?.Contributions
+            ?? StatementContext.ContributionsEstimate(validated.Select(s => (s.Month, s.Figures!.Contributions)).ToList());
+        return await EvaluateAsync(context, days, stale, context.StoredMonth?.Mileage ?? 0m, cmg, context.StoredMonth?.Declared, contributions, context.StoredMonth?.Exemption, ct);
+    }
+
     public async Task<ChildcareStatementView> ViewAsync(PersonId reader, MonthContext context, CancellationToken ct)
     {
         var stored = context.StoredMonth;

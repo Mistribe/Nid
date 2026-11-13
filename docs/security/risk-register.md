@@ -67,9 +67,24 @@
 | APP-12 | Emails exposant des montants | Faible | Emails sans montants par défaut | 2 | Faible |
 | APP-13 | Données tierces empoisonnées (taux, catalogue) | Moyenne | Bornes, commit épinglé, suggestions seulement | 1 | Faible |
 | APP-14 | Divulgation par erreurs ou journaux | Faible | Problem Details, journaux sans données | 1 | Aucun |
-| APP-15 | Compromission de Pocket ID (accès et rôle admin) | Élevée | Hors application ; passkeys uniquement ; client réservé au groupe `nid-users`, contrôle du groupe aussi côté Nid | 1 | Accepté |
+| APP-15 | Compromission de Pocket ID (accès et rôle admin) | Élevée | Hors application ; passkeys uniquement ; client réservé au groupe `nid-users`, contrôle du groupe aussi côté Nid. Modes `oidc` et `both` seulement ; en `both`, le rôle admin ne vient plus du fournisseur (`../identity-and-access/local-accounts.md` §6) | 1 | Accepté |
 | APP-16 | Revenu visible de l'autre adulte contre le gré du titulaire | Moyenne | Question explicite à la création, visibilité privée possible, revenus dans le banc anti-fuite | 2 | Faible |
-| APP-17 | Retrait d'un accès ou d'un rôle admin sans effet immédiat : pas de révocation poussée | Moyenne | Un rôle admin retiré ne l'est qu'à la prochaine connexion ; « Déconnecter partout » ferme les sessions ; déconnexion par canal arrière possible, non faite | 1 | Accepté |
+| APP-17 | Retrait d'un accès ou d'un rôle admin sans effet immédiat : pas de révocation poussée | Moyenne | Un rôle admin retiré ne l'est qu'à la prochaine connexion ; « Déconnecter partout » ferme les sessions ; déconnexion par canal arrière possible, non faite. Avec la source `nid`, un rôle retiré l'est à la requête suivante | 1 | Accepté |
+
+Comptes locaux (#215, `../identity-and-access/local-accounts.md`) : obligatoires dès que `Auth:Mode` vaut `local` ou `both`.
+
+| ID | Risque | Gravité | Mesures | Étape | Résiduel |
+|---|---|---|---|---|---|
+| LOC-1 | Mot de passe deviné ou réutilisé (force brute, bourrage d'identifiants) | Élevée | 12 caractères au moins, liste de refus locale, verrouillage croissant par compte (5 échecs, 1 à 60 minutes), 20 échecs en 10 minutes par adresse, réponse et durée identiques, TOTP facultatif, notification du verrouillage | #215 | Moyen sans TOTP (mot de passe réutilisé ailleurs) |
+| LOC-2 | Hashes volés (base, sauvegarde) puis cassés hors ligne | Moyenne | PBKDF2-HMAC-SHA512 à 210 000 itérations, sel par mot de passe, recalcul quand les paramètres montent ; sauvegardes chiffrées (INF-2) | #215 | Faible pour un mot de passe long, élevé pour un mot de passe courant que la liste n'a pas vu |
+| LOC-3 | Instance neuve réclamée par un inconnu avant l'hébergeur | Élevée | Mise en place par jeton aléatoire en mémoire, écrit dans le journal seulement, ou par `nid admin create-admin` ; fermée dès qu'un adulte existe ; pas de compte par défaut | #215 | Aucun |
+| LOC-4 | Lien de mot de passe intercepté ou transmis à la mauvaise personne | Moyenne | 256 bits dans le fragment (hors journaux du proxy), 72 heures, un seul usage, un seul vivant, révocable ; n'ouvre aucune session ; le TOTP reste exigé | #215 | Faible : fenêtre de validité |
+| LOC-5 | Un admin prend la main sur le compte d'un autre adulte (lien de réinitialisation) | Moyenne | Dans la frontière de confiance (comme l'administrateur de Pocket ID) ; événement, notification au titulaire, sessions fermées | #215 | Accepté |
+| LOC-6 | Mot de passe et cookie en clair sur le réseau | Élevée si l'option est active | `Auth:AllowInsecureHttp` désactivé par défaut ; sans lui, `PublicUrl` en `http://` arrête le démarrage et une connexion en HTTP est refusée ; avec lui, avertissement à chaque démarrage et bandeau dans la zone admin | #215 | Accepté par l'hébergeur qui active l'option |
+| LOC-7 | CSRF de connexion (session ouverte sur le compte d'un autre) | Faible | Cookie et jeton de pré-session, `Origin` exigé, corps JSON seulement | #215 | Aucun |
+| LOC-8 | Secret TOTP ou codes de secours volés | Moyenne | Secret chiffré par Data Protection, codes de 80 bits hachés et à usage unique, rejeu refusé, jamais montrés à un admin | #215 | Faible |
+| LOC-9 | Déni de service par le coût du hachage | Faible | Limite par adresse avant le hachage, 4 calculs simultanés au plus | #215 | Faible |
+| LOC-10 | Fuite d'un secret dans les journaux, l'audit ou l'export | Moyenne | Corps de `/auth` jamais journalisés, secrets dans le fragment, test d'intégration sur les journaux, l'audit et `nid.data` | #215 | Aucun |
 
 ## 6. Risques d'infrastructure
 
@@ -94,6 +109,7 @@
 | 3. Immobilier et crédits | Écart d'amortissement affiché ; pas de nouvelle surface majeure |
 | **4. Automatisation IA** | Tout `ai-ingestion.md` : extraction sans outils, workers sans Internet, passerelle LLM, profils et consentement, masquage, quotas, corpus de PDF piégés ; **revue de risque avant IMAP ou email** |
 | **5. Banque** | **Lecture seule** (aucune portée d'initiation de paiement) ; jetons chiffrés ; alerte d'expiration du consentement ; conservation des opérations réglable (D3 : toutes gardées par défaut, durée fixée par l'administrateur, purge chaque nuit) ; revue de risque. **5A (connexion et soldes, 2026-10-29)** : lecture seule (accès aux comptes seulement, aucun appel de paiement dans le client), `session_id` chiffré par Data Protection et hors de l'audit, des journaux et des traces, clé privée en secret Docker, rappels avant expiration (14 et 3 jours) et après expiration, révocation ou deux nuits d'échec, synchronisation dans `nid` (D13) par `SafeHttpClient` vers le seul `api.enablebanking.com` ; revue de risque faite : `bank-sync-review.md` (R1 à R5 encore à vérifier contre l'application du foyer). **5B (opérations et fichiers, 2026-10-30)** : D3 remplace l'exigence « conservation minimale » (toutes les opérations gardées, `bank_retention_months` de 1 à 600 mois dans Administration › Banque, purge de nuit des opérations non reliées ou ignorées) ; opérations lues par qui lit leur compte (`BankingAccess`), banc anti-fuite étendu ; relevés OFX et CAMT.053 lus sans DTD ni résolveur (XXE), 5 Mio et 20 000 opérations au plus, profondeur 32, montants bornés à `numeric(19,4)`, gardés en mémoire et jamais stockés ; compte d'un relevé que la personne ne peut pas écrire refusé sans le nommer ; une connexion bancaire reprend un compte que l'autre adulte ne tient que par un relevé ; revue de risque faite : `bank-sync-review.md` §5 |
+| **Comptes locaux (#215)** | LOC-1 à LOC-10 : hachage lent auto-descriptif, règles NIST sans service externe, mise en place par jeton ou CLI, liens à usage unique, verrouillage croissant et limite par adresse, CSRF de connexion, TOTP et codes de secours, HTTP sans TLS seulement sur option explicite ; test d'absence de secrets dans les journaux, l'audit et l'export ; une installation OIDC existante inchangée (`../identity-and-access/local-accounts.md` §18) |
 | 6. Approfondissements | Revue du registre |
 
 ## 8. Revue
