@@ -1,6 +1,6 @@
 # Jetons et identifiants de service
 
-> Statut : brouillon. Jetons d'accès personnels pour le MCP et les automatisations, identifiants des workers d'ingestion.
+> Statut : brouillon. Jetons d'accès personnels pour le MCP et les automatisations, identifiants des workers d'ingestion, secrets des comptes locaux (§6).
 > Références : `README.md`, `authorization.md` (portées), `../architecture.md` §8 (MCP) et §9.3 (jobs).
 
 ---
@@ -129,3 +129,20 @@ Les workers d'ingestion appellent l'API interne (`../architecture.md` §9.3) ave
 - Pocket ID n'annonce **pas d'enregistrement dynamique de clients** (RFC 7591/7592) : chaque client MCP devrait être déclaré à la main dans Pocket ID, avec des jetons d'accès que Nid saurait valider.
 - Le jeton statique fonctionne avec tous les clients MCP, sans configuration côté fournisseur d'identité.
 - **Voie ouverte** si un client refuse le bearer statique : le SDK MCP C# permet de déclarer les métadonnées de ressource protégée et de valider des JWT ; il faudrait un client Pocket ID dédié par client MCP. À revoir à ce moment-là.
+
+## 6. Secrets des comptes locaux (#215)
+
+Détail dans `local-accounts.md` ; ce qui les distingue des jetons ci-dessus :
+
+| Secret | Format | Stockage | Durée, usage |
+|---|---|---|---|
+| Mot de passe | Choisi par l'adulte, 12 à 256 caractères | `local_credential.password_hash` : `PasswordHasher` d'ASP.NET Core Identity (PBKDF2-HMAC-SHA512, 210 000 itérations, sel par mot de passe), recalculé à la connexion quand les paramètres montent | Sans expiration ; changé par l'adulte ou par un lien de réinitialisation |
+| Lien de mot de passe | `nid_link_<secret>`, 256 bits, dans le fragment de `{PUBLIC_URL}/password#…` | `credential_link.token_hash` : SHA-256, comme un jeton personnel | 72 heures, un seul usage, un seul vivant par adulte |
+| Jeton de mise en place | `nid_setup_<secret>`, 256 bits | **En mémoire seulement**, tiré à chaque démarrage tant qu'aucun adulte n'existe, écrit dans le journal | Jusqu'à la fin de la mise en place ou au prochain démarrage |
+| Secret TOTP | 160 bits | `local_credential.totp_secret`, chiffré par Data Protection (il doit être relu) | Jusqu'à sa désactivation |
+| Codes de secours | 10 codes de 80 bits, `xxxx-xxxx-xxxx-xxxx` | `recovery_code.code_hash` : SHA-256 | Un seul usage ; régénérés en bloc |
+
+- Un mot de passe est le seul secret **choisi par un humain** : lui seul a un hachage lent. Les autres sont aléatoires et assez longs pour un SHA-256.
+- Aucun de ces secrets n'est accepté comme `Bearer` : ils n'ouvrent ni `/api` ni `/mcp`. Un jeton d'accès personnel, lui, n'atteint ni les routes de connexion ni la gestion du mot de passe et du TOTP (`IBrowserOnly`).
+- La limite des échecs d'authentification par adresse (§1.5, 20 en 10 minutes) est **partagée** : elle compte aussi les échecs de mot de passe, de code, de lien et de jeton de mise en place.
+- Aucun n'apparaît dans les journaux, les traces, l'audit ni l'export `nid.data`.
