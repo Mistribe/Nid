@@ -32317,6 +32317,8 @@
       "ChildcareDetail": {
         "required": [
           "summary",
+          "childSickQuota",
+          "childSickDaysUsed",
           "terms",
           "gaps",
           "gapWeeksToPlace",
@@ -32387,6 +32389,16 @@
                 "$ref": "#/components/schemas/ChildcareMoneyView"
               }
             ]
+          },
+          "childSickDaysUsed": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "childSickQuota": {
+            "type": "integer",
+            "format": "int32",
+            "default": 5
           }
         }
       },

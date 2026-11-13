@@ -91,6 +91,13 @@ export function ChildcareDetailPage() {
             { label: t('childcare_detail.monthly_hours'), value: t('childcare_detail.hours', { value: hoursText(terms.monthlyHours) }) },
             { label: t('childcare_detail.normal_hours'), value: t('childcare_detail.hours', { value: String(terms.normalHours) }) },
             { label: t('childcare_detail.leave'), value: t('childcare_detail.leave_days', { count: detail.leaveDaysAccrued }) },
+            // Decision 15: the quota only limits sick-child days the contract does not pay.
+            ...(terms.unpaidAbsences.includes('child_sick')
+              ? [{
+                label: t('childcare_detail.child_sick'), tip: t('childcare_detail.child_sick_tip'),
+                value: t('childcare_detail.child_sick_days', { used: detail.childSickDaysUsed, count: detail.childSickQuota }),
+                hint: t('childcare_detail.child_sick_hint'),
+              }] : []),
             // #385: no estimate (« — ») until a validated month carries a CMG; the server sends none rather than 0.
             detail.cmgEstimate
               ? { label: t('childcare_detail.cmg_estimate'), tip: t('childcare_detail.cmg_tip'), value: <Money value={detail.cmgEstimate} tabular /> }

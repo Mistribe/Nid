@@ -1,4 +1,5 @@
 using System.Globalization;
+using Nid.Childcare.Domain;
 using Nid.Core.Contracts;
 using NodaTime;
 
@@ -51,11 +52,12 @@ public sealed record WeekTypeCountView(string Name, int Allocated, int Contract)
 /// <summary>
 /// An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, and the paid-leave days accrued (decision 16).
 /// <c>Weeks</c> and <c>Allocation</c>: the contract year in progress, under the revision in force.
+/// <c>ChildSickDaysUsed</c>: sick-child days deducted this contract year (validated months) out of <c>ChildSickQuota</c> (decision 15).
 /// </summary>
 public sealed record ChildcareDetail(
     ChildcareSummary Summary, string? CarerPajemploi, string? CarerApproval, IReadOnlyList<ChildcareTermsView> Terms, IReadOnlyList<CareGapView> Gaps,
     int GapWeeksToPlace, int LeaveDaysAccrued, uint Version, IReadOnlyList<ContractWeekView> Weeks, IReadOnlyList<WeekTypeCountView> Allocation,
-    ChildcareMoneyView? CmgEstimate = null) : IExposesItems
+    ChildcareMoneyView? CmgEstimate = null, int ChildSickDaysUsed = 0, int ChildSickQuota = ChildcareRules.ChildSickQuotaDays) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Summary.Id)];
 }

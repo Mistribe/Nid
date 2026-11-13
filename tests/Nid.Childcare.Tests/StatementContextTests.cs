@@ -54,6 +54,14 @@ public class StatementContextTests
         Assert.Equal(0, StatementContext.ChildSickUsedBefore(D(2025, 9, 1), M(2026, 9), validated));
     }
 
+    [Fact]
+    public void Sick_days_used_in_the_contract_year_of_today()
+    {
+        IReadOnlyList<(YearMonth, int)> validated = [(M(2025, 7), 4), (M(2025, 10), 2), (M(2026, 1), 1)];
+        Assert.Equal(3, StatementContext.ChildSickUsed(D(2024, 9, 1), D(2026, 3, 10), validated));
+        Assert.Equal(0, StatementContext.ChildSickUsed(D(2024, 9, 1), D(2026, 9, 10), validated));
+    }
+
     private static IReadOnlyList<(YearMonth, decimal)> SeptToMay(params YearMonth[] except)
         => [.. Enumerable.Range(0, 9).Select(i => M(2026, 9).PlusMonths(i)).Where(m => !except.Contains(m)).Select(m => (m, BasePay))];
 
