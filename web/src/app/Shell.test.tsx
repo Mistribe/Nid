@@ -7,7 +7,7 @@ import { detail, overview, SALARY, sourceRow } from '@/features/income/testData'
 import { detail as envelope, PEA } from '@/features/investments/testData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { createAppRouter } from '@/app/router';
-import { adminCapabilities, allCapabilities } from '@/test/fixtures';
+import { adminCapabilities, aliceSession, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -649,5 +649,18 @@ describe('the top bar trail', () => {
     await screen.findByRole('heading', { level: 1, name: 'Placements' });
     expect(bar().querySelector('[data-wordmark]')).not.toBeNull();
     expect(within(bar()).queryByRole('link', { name: /^Retour/ })).toBeNull();
+  });
+});
+
+describe('the demo banner', () => {
+  it('says on every screen that the data is invented, in demo mode only', async () => {
+    await renderApp('/subscriptions', { session: { ...aliceSession, demo: true } });
+    expect(screen.getByRole('note')).toHaveTextContent('Démo : les données sont inventées et réinitialisées chaque nuit.');
+    expect(screen.getByRole('link', { name: 'Voir Nid sur GitHub' })).toHaveAttribute('href', 'https://github.com/Mistribe/Nid');
+  });
+
+  it('shows nothing outside demo mode', async () => {
+    await renderApp('/subscriptions');
+    expect(screen.queryByText(/les données sont inventées/)).toBeNull();
   });
 });

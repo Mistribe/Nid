@@ -53626,7 +53626,8 @@
       },
       "SessionResponse": {
         "required": [
-          "authenticated"
+          "authenticated",
+          "demo"
         ],
         "type": "object",
         "properties": {
@@ -53671,6 +53672,10 @@
               "null",
               "string"
             ]
+          },
+          "demo": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

@@ -410,6 +410,17 @@
     "home": "Accueil",
     "retry": "Réessayer"
   },
+  "demo": {
+    "title": "Découvrir Nid",
+    "body": "Cette démo montre Nid avec un foyer inventé : Alice, Bob et Léa. Entrez sous l'identité de l'un des deux adultes, sans mot de passe.",
+    "enter_alice": "Entrer en tant qu'Alice",
+    "who_alice": "Elle administre Nid : vous voyez aussi les réglages du foyer.",
+    "enter_bob": "Entrer en tant que Bob",
+    "who_bob": "Il voit ce qui est commun et ce qui est à lui, pas ce qu'Alice garde privé.",
+    "reset": "Vous pouvez tout modifier : la démo repart de zéro chaque nuit.",
+    "banner": "Démo : les données sont inventées et réinitialisées chaque nuit.",
+    "banner_link": "Voir Nid sur GitHub"
+  },
   "login_unavailable": {
     "title": "La connexion ne répond pas",
     "body": "Nid n'arrive pas à joindre le fournisseur d'identité : il est peut-être arrêté ou en train de redémarrer. Réessayez dans un instant ; si cela dure, prévenez la personne qui l'administre.",

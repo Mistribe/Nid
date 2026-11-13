@@ -7,6 +7,8 @@ ARG VERSION=0.0.0
 WORKDIR /src
 COPY global.json Directory.Build.props Directory.Packages.props Nid.slnx ./
 COPY src/ src/
+# The demo household, embedded in the host for demo mode (issue 203).
+COPY deploy/local/demo/*.nid.json deploy/local/demo/
 # Publishing for the platform's RID copies libSkiaSharp.so (1C2c); the OpenAPI document is the developer's, not the image's.
 # ReadyToRun: the assemblies ship precompiled for that RID, so the host starts with little left to JIT.
 RUN --mount=type=cache,target=/root/.nuget/packages \

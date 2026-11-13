@@ -8,6 +8,10 @@
     <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Demo mode (issue 203) loads the demo household from these files; the image build copies them in (Dockerfile). -->
+    <EmbeddedResource Include="..\..\..\deploy\local\demo\*.nid.json" LogicalName="demo.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="UnambitiousFx.Synapse" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Quartz" />

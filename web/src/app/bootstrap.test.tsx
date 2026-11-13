@@ -223,6 +223,23 @@ describe('bootstrap', () => {
     act(() => reactRoot?.unmount());
   });
 
+  it('in demo mode, offers to enter as Alice or Bob, back to where the visitor was going', async () => {
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/demo', '?returnUrl=%2Floans%3Ftab%3Dall');
+
+    let reactRoot: Root | null = null;
+    await act(async () => { reactRoot = await bootstrap({ root, location }); });
+
+    expect(location.assign).not.toHaveBeenCalled();
+    expect(await screen.findByRole('heading', { name: 'Découvrir Nid' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: "Entrer en tant qu'Alice" })).toHaveAttribute('href', '/auth/demo/alice?returnUrl=%2Floans%3Ftab%3Dall');
+    expect(screen.getByRole('link', { name: 'Entrer en tant que Bob' })).toHaveAttribute('href', '/auth/demo/bob?returnUrl=%2Floans%3Ftab%3Dall');
+    await expectNoAxeViolations(root);
+
+    act(() => reactRoot?.unmount());
+  });
+
   it('says so when the identity provider sent no email', async () => {
     const root = document.body.appendChild(document.createElement('div'));
     container = root;

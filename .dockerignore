@@ -7,6 +7,8 @@
 !Nid.slnx
 !src/
 !web/
+# The demo household's invented files, embedded in the host for demo mode (issue 203).
+!deploy/local/demo/*.nid.json
 
 # Inside what is allowed: build outputs and local files.
 **/bin/
