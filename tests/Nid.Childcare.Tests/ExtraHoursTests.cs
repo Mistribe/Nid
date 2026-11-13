@@ -73,6 +73,15 @@ public class ExtraHoursTests
         Assert.Equal(36.80m, ExtraHours.Pay(7m, 2m, 4m, 0.10m));
     }
 
+    /// <summary>A training day is always deducted, so it is no longer planned: the Wednesday worked instead stays under 45 h.</summary>
+    [Fact]
+    public void A_training_day_is_not_planned_for_the_45_hours()
+    {
+        var month = new YearMonth(2026, 11);
+        var training = new StatementDay(D(2026, 11, 12), true, false, null, null, false, AbsenceReason.CarerTraining);
+        Assert.Equal((9m, 0m), ExtraHours.Compute(month, With(With(Around(month), ExtraWednesday), training), Plan, Terms with { UnpaidAbsences = [] }));
+    }
+
     /// <summary>Half an hour extra in two weeks: one started hour in the month, not one per week.</summary>
     [Fact]
     public void Started_hour_is_rounded_over_the_month()
