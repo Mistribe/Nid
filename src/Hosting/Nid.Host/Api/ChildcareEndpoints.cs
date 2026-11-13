@@ -208,7 +208,7 @@ public static class ChildcareEndpoints
                 var departure = present ? reader.Time(day!.Departure, $"days[{i}].departure") : null;
                 AbsenceReason? absence = null;
                 if (day?.Absence is { } name && (absence = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, holiday or paid_leave.");
+                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.");
                 if (date is { } d) days.Add(new DayInput(d, present, arrival, departure, day?.Lunch ?? false, absence, day?.Snack ?? false));
             }
             var mileage = reader.Decimal(Mileage, "mileage") ?? 0m;
@@ -223,7 +223,7 @@ public static class ChildcareEndpoints
             {
                 AbsenceReason? reason = null;
                 if (s.Absence is { } name && (reason = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, holiday or paid_leave.");
+                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.");
                 if (s.CareDays is null) reader.Add("summary.careDays", "request.required", "The care days are required.");
                 var hours = reader.Decimal(s.Hours, "summary.hours");
                 if (hours is null) reader.Add("summary.hours", "request.required", "The hours are required.");
@@ -364,7 +364,7 @@ public static class ChildcareEndpoints
         {
             var reasons = body?.Select(AbsenceCodes.TryParse).ToList();
             if (reasons?.Any(u => u is null) == true)
-                reader.Add(path, "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, holiday or paid_leave.");
+                reader.Add(path, "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.");
             return reasons?.OfType<AbsenceReason>().Distinct().ToList();
         }
 

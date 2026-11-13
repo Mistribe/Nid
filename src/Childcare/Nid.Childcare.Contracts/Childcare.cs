@@ -3,7 +3,7 @@ using NodaTime;
 namespace Nid.Childcare.Contracts;
 
 /// <summary>Childcare spec §2: why a planned day was not worked; the contract decides which reasons are not paid.</summary>
-public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday, PaidLeave, CarerTraining }
+public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday, PaidLeave, CarerTraining, FamilyAgreed }
 
 /// <summary>Who provides a meal, set per meal in the contract terms: only the nanny's are paid.</summary>
 public enum MealProvider { Nanny, Employer }
@@ -65,11 +65,17 @@ public static class AbsenceCodes
     /// <summary>The reasons a contract does not pay unless it says otherwise.</summary>
     public static readonly IReadOnlyList<AbsenceReason> DefaultUnpaid = [AbsenceReason.ParentRtt, AbsenceReason.ChildSick, AbsenceReason.CarerAbsent];
 
+    /// <summary>
+    /// The reasons deducted whatever the contract: training on working time (Ipéria pays the carer, Ircem declares those
+    /// hours to Pajemploi) and an absence for the family's convenience the carer agreed to take off the pay.
+    /// </summary>
+    public static readonly IReadOnlyList<AbsenceReason> AlwaysUnpaid = [AbsenceReason.CarerTraining, AbsenceReason.FamilyAgreed];
+
     private static readonly Dictionary<AbsenceReason, string> Names = new()
     {
         [AbsenceReason.Family] = "family", [AbsenceReason.ParentRtt] = "parent_rtt", [AbsenceReason.ChildSick] = "child_sick",
         [AbsenceReason.CarerAbsent] = "carer_absent", [AbsenceReason.Holiday] = "holiday", [AbsenceReason.PaidLeave] = "paid_leave",
-        [AbsenceReason.CarerTraining] = "carer_training",
+        [AbsenceReason.CarerTraining] = "carer_training", [AbsenceReason.FamilyAgreed] = "family_agreed",
     };
 
     public static string Of(AbsenceReason reason) => Names[reason];
