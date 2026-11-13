@@ -37,15 +37,25 @@ public class ExtraHoursTests
         Assert.Equal((1m, 0m), ExtraHours.Compute(month, days, Plan));
     }
 
-    /// <summary>A sick-child day the contract pays stays planned: hours made up that week are no extra hours.</summary>
+    /// <summary>A paid absence is not made up: the hour worked past Tuesday's plan that week is still extra.</summary>
     [Fact]
-    public void A_paid_reason_stays_planned()
+    public void A_paid_absence_does_not_offset_extra_hours()
     {
         var month = new YearMonth(2026, 11);
         var days = AbsenceDeductionTests.Absent(Around(month).Where(d => d.Date.Month == 11).ToList(), (2, AbsenceReason.ChildSick))
             .Select(d => d.Date.Day == 3 ? d with { Departure = d.Departure!.Value.PlusHours(1) } : d).ToList();
 
-        Assert.Equal((0m, 0m), ExtraHours.Compute(month, days, Plan, Terms with { UnpaidAbsences = [] }));
+        Assert.Equal((1m, 0m), ExtraHours.Compute(month, days, Plan, Terms with { UnpaidAbsences = [] }));
+    }
+
+    /// <summary>A day not planned is worked on top of the week, even when a planned day that week ends early for the family.</summary>
+    [Fact]
+    public void An_early_departure_does_not_offset_an_unplanned_day()
+    {
+        var month = new YearMonth(2026, 11);
+        var days = With(Around(month), ExtraWednesday).Select(d => d.Date == D(2026, 11, 10) ? d with { Departure = d.Departure!.Value.PlusHours(-2), Absence = AbsenceReason.Family } : d).ToList();
+
+        Assert.Equal((7m, 2m), ExtraHours.Compute(month, days, Plan, Terms with { UnpaidAbsences = [] }));
     }
 
     private static IReadOnlyList<StatementDay> Around(YearMonth month)

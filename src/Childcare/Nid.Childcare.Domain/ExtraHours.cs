@@ -4,7 +4,8 @@ using NodaTime;
 namespace Nid.Childcare.Domain;
 
 /// <summary>
-/// Childcare spec §3: hours worked beyond a week's planned hours, complementary up to 45 h, overtime beyond. A week
+/// Childcare spec §3: hours worked beyond each day's planned hours, complementary while the week's planned hours and
+/// these stay within 45 h, overtime beyond. A week
 /// belongs to the month of its Thursday, or the contract's first or last month when that Thursday lies outside the contract. Pure.
 /// </summary>
 public static class ExtraHours
@@ -21,8 +22,9 @@ public static class ExtraHours
             var planned = week.Where(d => d.Planned).Sum(d => d.Absence is { } r && reasons.Contains(r)
                 ? d.Present ? Math.Min(plan.HoursOn(d.Date), Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value)) : 0m
                 : plan.HoursOn(d.Date));
-            var actual = week.Where(d => d.Present).Sum(d => Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value));
-            var extra = Math.Max(0m, actual - planned);
+            // Day by day: an hour short on one day (paid, so not made up) does not offset an hour past the plan on another.
+            var extra = week.Where(d => d.Present).Sum(d => Math.Max(0m,
+                Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value) - (d.Planned ? plan.HoursOn(d.Date) : 0m)));
             var under = Math.Min(extra, Math.Max(0m, ChildcareRules.OvertimeThresholdHours - planned));
             complementary += under;
             overtime += extra - under;
