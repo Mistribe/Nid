@@ -42,8 +42,8 @@ public interface IChildcareStore
     /// <summary>Every revision of these arrangements, by item then <c>From</c>.</summary>
     Task<IReadOnlyList<Terms>> TermsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
-    /// <summary>Corrects the current revision in place: the row with the same <c>From</c>, its week types replaced.</summary>
-    Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct);
+    /// <summary>Corrects a revision in place, a past one included: the row with the same <c>From</c>, its week types replaced; its end stays.</summary>
+    Task ReplaceTermsAsync(Terms terms, CancellationToken ct);
 
     /// <summary>#192: the absence reasons deducted under the revision starting on <paramref name="from"/>.</summary>
     Task SetUnpaidAbsencesAsync(ItemId id, LocalDate from, IReadOnlyList<AbsenceReason> reasons, CancellationToken ct);

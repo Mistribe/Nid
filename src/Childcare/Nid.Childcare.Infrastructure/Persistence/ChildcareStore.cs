@@ -65,7 +65,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             r.SnackPrice, MealProviderCodes.Parse(r.LunchProvider), MealProviderCodes.Parse(r.SnackProvider), r.UnpaidAbsences.Select(AbsenceCodes.Parse).ToList())).ToList();
     }
 
-    public async Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct)
+    public async Task ReplaceTermsAsync(Terms terms, CancellationToken ct)
     {
         var row = await db.Terms.SingleAsync(t => t.ItemId == terms.ItemId.Value && t.From == terms.From, ct);
         Apply(row, terms);

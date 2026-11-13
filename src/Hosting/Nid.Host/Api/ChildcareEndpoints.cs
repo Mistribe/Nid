@@ -274,15 +274,18 @@ public static class ChildcareEndpoints
         }
     }
 
-    /// <summary>Corrects the arrangement and its current terms (whose start stays), with the <c>version</c> read.</summary>
-    public sealed record EditChildcareBody(string? Name, CarerBody? Carer, TermsBody? Terms, uint? Version)
+    /// <summary>Corrects the arrangement and one revision's terms (whose start stays), with the <c>version</c> read.</summary>
+    public sealed record EditChildcareBody(
+        string? Name, CarerBody? Carer, TermsBody? Terms, uint? Version,
+        [property: Description("Start (YYYY-MM-DD) of the revision to correct, a past one included; the last revision when omitted.")] string? Revision = null)
     {
         internal EditChildcareCommand? ToCommand(ItemId id, FieldReader reader)
         {
             var carer = ChildcareBodies.Carer(reader, Carer);
             var terms = ChildcareBodies.Terms(reader, Terms);
+            var revision = Revision is null ? null : reader.Date(Revision, "revision");
             if (Version is null) reader.Add("version", "request.required", "The version read with the arrangement is required.");
-            return reader.Ok ? new EditChildcareCommand(id, Name ?? "", carer!, terms!, Version!.Value) : null;
+            return reader.Ok ? new EditChildcareCommand(id, Name ?? "", carer!, terms!, Version!.Value, revision) : null;
         }
     }
 

@@ -26,8 +26,11 @@ public sealed record CreateChildcareCommand(
     string Name, PersonId Child, CarerInput Carer, TermsInput Terms, IReadOnlyList<CareGap> Gaps, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
     ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
 
-/// <summary>Corrects the arrangement and its current revision in place; the revision keeps its start. <paramref name="Version"/>: the one read.</summary>
-public sealed record EditChildcareCommand(ItemId ItemId, string Name, CarerInput Carer, TermsInput Terms, uint Version) : ICommand<ItemId>, IItemScoped
+/// <summary>
+/// Corrects the arrangement and one revision in place — the one starting on <paramref name="Revision"/>, the last when <c>null</c>, a past one included;
+/// the revision keeps its start. <paramref name="Version"/>: the one read.
+/// </summary>
+public sealed record EditChildcareCommand(ItemId ItemId, string Name, CarerInput Carer, TermsInput Terms, uint Version, LocalDate? Revision = null) : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -108,7 +111,11 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         if (arrangement.Version != command.Version)
             return Result.Failure<ItemId>(new Failure(ChildcareCodes.Conflict, "The arrangement changed since it was read.", null));
 
-        var terms = command.Terms with { From = revisions[^1].From, UnpaidAbsences = command.Terms.UnpaidAbsences ?? revisions[^1].UnpaidAbsences }; // a correction keeps the revision's start, and its absences when not given
+        var at = command.Revision is { } start ? revisions.ToList().FindIndex(r => r.From == start) : revisions.Count - 1;
+        if (at < 0)
+            return Result.Failure<ItemId>(new NotFoundFailure("childcare.revision", $"{command.Revision:uuuu-MM-dd}"));
+        var edited = revisions[at];
+        var terms = command.Terms with { From = edited.From, UnpaidAbsences = command.Terms.UnpaidAbsences ?? edited.UnpaidAbsences }; // a correction keeps the revision's start, and its absences when not given
         var errors = ChildcareCheck.Name(command.Name);
         errors.AddRange(ChildcareCheck.Carer(command.Carer));
         errors.AddRange(ChildcareCheck.Terms(terms));
@@ -116,7 +123,7 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         {
             errors.AddRange(ChildcareCheck.Gaps(revisions[0].From, terms.ProgrammedWeeks, (await store.GapsOfAsync([command.ItemId], ct)).Select(g => g.Gap).ToList(), terms.From));
             errors.AddRange(ChildcareCheck.Overrides((await store.OverridesOfAsync([command.ItemId], ct)).Select(o => o.Override).ToList(),
-                [.. revisions.SkipLast(1), terms.For(command.ItemId)]));
+                [.. revisions.Select((r, i) => i == at ? terms.For(command.ItemId) with { To = r.To } : r)]));
         }
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
@@ -135,7 +142,7 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         }, ct);
         if (updated.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        await store.ReplaceCurrentTermsAsync(terms.For(command.ItemId), ct);
+        await store.ReplaceTermsAsync(terms.For(command.ItemId), ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }

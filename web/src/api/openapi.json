@@ -35882,6 +35882,13 @@
               "integer"
             ],
             "format": "uint32"
+          },
+          "revision": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Start (YYYY-MM-DD) of the revision to correct, a past one included; the last revision when omitted."
           }
         }
       },

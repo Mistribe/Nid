@@ -142,6 +142,24 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(["parent_rtt", "child_sick", "carer_absent"], terms[1]);
     }
 
+    /// <summary>A past revision is correctable in full: its start and end stay, the later revision keeps its own terms.</summary>
+    [Fact]
+    public async Task A_past_revision_is_edited_in_place()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url}/{id.Value}/revisions", new { terms = Terms("2025-10-01") })).StatusCode);
+        var version = (await GetAsync(app, app.AdultA, $"{Url}/{id.Value}?scope=household")).GetProperty("version").GetUInt32();
+        object Edit(string revision) => new { name = "Garde de Léa", carer = new { name = "Martine" }, terms = Terms("2025-09-01", "5.00", weeks: 40), version, revision };
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id.Value}", Edit("2025-09-02"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id.Value}", Edit("2025-09-01"))).StatusCode);
+        var terms = (await GetAsync(app, app.AdultA, $"{Url}/{id.Value}?scope=household")).GetProperty("terms").EnumerateArray().ToList();
+        Assert.Equal(2, terms.Count);
+        Assert.Equal(("2025-09-01", "2025-09-30", 5.00m), (terms[0].GetProperty("from").GetString(), terms[0].GetProperty("to").GetString(), decimal.Parse(terms[0].GetProperty("netHourlyRate").GetString()!, System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal(40, terms[0].GetProperty("weekTypes")[0].GetProperty("weeks").GetInt32());
+        Assert.Equal(4.30m, decimal.Parse(terms[1].GetProperty("netHourlyRate").GetString()!, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     [Fact]
     public async Task Unpaid_absences_of_an_unknown_revision_or_reason_are_refused()
     {

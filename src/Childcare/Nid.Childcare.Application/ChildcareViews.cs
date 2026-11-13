@@ -43,6 +43,9 @@ public sealed record ChildcareTermsView(
 
 public sealed record CareGapView(LocalDate Monday, int Weeks, LocalDate Sunday);
 
+/// <summary>A contract year: its weeks without care allowed, placed and still to place, and the gaps that start in it.</summary>
+public sealed record GapYearView(LocalDate From, LocalDate To, int Allowed, int Placed, int ToPlace, IReadOnlyList<CareGapView> Gaps);
+
 /// <summary>A week of the contract year: its Monday, the rank of its week type, whether an exception sets it, whether care is off.</summary>
 public sealed record ContractWeekView(LocalDate Monday, int WeekType, bool Overridden, bool Gap);
 
@@ -50,14 +53,15 @@ public sealed record ContractWeekView(LocalDate Monday, int WeekType, bool Overr
 public sealed record WeekTypeCountView(string Name, int Allocated, int Contract);
 
 /// <summary>
-/// An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, and the paid-leave days accrued (decision 16).
+/// An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, the same per contract year (<c>GapYears</c>), and the paid-leave days accrued (decision 16).
 /// <c>Weeks</c> and <c>Allocation</c>: the contract year in progress, under the revision in force.
 /// <c>ChildSickDaysUsed</c>: sick-child days deducted this contract year (validated months) out of <c>ChildSickQuota</c> (decision 15).
 /// </summary>
 public sealed record ChildcareDetail(
     ChildcareSummary Summary, string? CarerPajemploi, string? CarerApproval, IReadOnlyList<ChildcareTermsView> Terms, IReadOnlyList<CareGapView> Gaps,
     int GapWeeksToPlace, int LeaveDaysAccrued, uint Version, IReadOnlyList<ContractWeekView> Weeks, IReadOnlyList<WeekTypeCountView> Allocation,
-    ChildcareMoneyView? CmgEstimate = null, int ChildSickDaysUsed = 0, int ChildSickQuota = ChildcareRules.ChildSickQuotaDays) : IExposesItems
+    ChildcareMoneyView? CmgEstimate = null, int ChildSickDaysUsed = 0, int ChildSickQuota = ChildcareRules.ChildSickQuotaDays,
+    IReadOnlyList<GapYearView>? GapYears = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Summary.Id)];
 }

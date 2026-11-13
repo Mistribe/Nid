@@ -9,13 +9,13 @@ import { Field } from '@/components/form/Field';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useCloseChildcare, useEditChildcare, useReplaceGaps, useReviseChildcare, useSetUnpaidAbsences, type ChildcareDetail, type ChildcareTerms } from './api';
+import { useCloseChildcare, useEditChildcare, useReplaceGaps, useReviseChildcare, type ChildcareDetail } from './api';
 import {
   carerToWire, childcarePath, editSchema, gapsDefaults, gapsSchema, gapsToWire, termsDefaults, termsSchema, termsToWire,
   type EditValues, type GapRow, type TermsValues,
 } from './childcareSchema';
 import { GapFields } from './GapFields';
-import { RateFields, UnpaidAbsencesField } from './RateFields';
+import { RateFields } from './RateFields';
 import { WeekTypesFields } from './WeekTypesFields';
 import { useChildcareErrors } from './useChildcareErrors';
 import '@/locales/childcare';
@@ -40,12 +40,13 @@ function Unplaced({ messages }: { messages: string[] }) {
 
 const current = (detail: ChildcareDetail) => detail.terms[detail.terms.length - 1]!;
 
-/** Corrects the name, the carer and the current terms in place, with the version read; a conflict reloads the form. */
-export function EditChildcareDialog({ detail, onClose, onDone }: DialogProps) {
+/** Corrects the name, the carer and one revision's terms in place (the last by default, a past one too), with the version read; a conflict reloads the form. */
+export function EditChildcareDialog({ detail, revision, onClose, onDone }: DialogProps & { revision?: string }) {
   const { t } = useTranslation();
   const edit = useEditChildcare();
+  const terms = (d: ChildcareDetail) => d.terms.find((r) => r.from === revision) ?? current(d);
   const defaults = (d: ChildcareDetail): EditValues => ({
-    ...termsDefaults(current(d)), name: d.summary.name, carerName: d.summary.carerName, carerPajemploi: d.carerPajemploi ?? '', carerApproval: d.carerApproval ?? '',
+    ...termsDefaults(terms(d)), name: d.summary.name, carerName: d.summary.carerName, carerPajemploi: d.carerPajemploi ?? '', carerApproval: d.carerApproval ?? '',
   });
   const form = useForm<EditValues>({ resolver: zodResolver(editSchema(t)) as unknown as Resolver<EditValues>, defaultValues: defaults(detail) });
   // `gaps` has no field here: its error falls through to the banner.
@@ -58,6 +59,8 @@ export function EditChildcareDialog({ detail, onClose, onDone }: DialogProps) {
     form.reset(defaults(detail));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the version is the event.
   }, [detail.version]);
+  const from = terms(detail).from;
+  const period = revision ? <p className="text-sm text-muted-foreground">{t('childcare_detail.edit_revision_hint', { from: formatLocalDate(from, 'short') })}</p> : null;
   return (
     <FormDialog title={t('childcare_detail.edit_title')} onClose={onClose} onDone={onDone}>
       {({ titleId, done }) => (
@@ -67,13 +70,14 @@ export function EditChildcareDialog({ detail, onClose, onDone }: DialogProps) {
             errors.clear();
             edit.mutate({
               params: { path: { id: detail.summary.id } },
-              body: { name: v.name.trim(), carer: carerToWire(v), terms: termsToWire(v, current(detail).from), version: detail.version },
+              body: { name: v.name.trim(), carer: carerToWire(v), terms: termsToWire(v, from), version: detail.version, ...(revision ? { revision } : {}) },
             }, { onSuccess: () => done(t('childcare_detail.saved')), onError: (e) => errors.onError(e) });
           })(event);
         }}>
           {errors.stale ? <p role="alert" className="rounded-md border border-destructive p-3">{t('childcare_detail.conflict')}</p> : null}
           {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
           <Unplaced messages={errors.unplaced} />
+          {period}
           <Field label={t('childcare_form.name')} error={form.formState.errors.name?.message}>{(c) => <Input {...c} {...form.register('name')} />}</Field>
           <Field label={t('childcare_form.carer')} error={form.formState.errors.carerName?.message}>{(c) => <Input {...c} {...form.register('carerName')} />}</Field>
           <Field label={t('childcare_form.pajemploi')} error={form.formState.errors.carerPajemploi?.message}>{(c) => <Input {...c} {...form.register('carerPajemploi')} />}</Field>
@@ -167,36 +171,6 @@ export function EndDialog({ detail, onClose, onDone }: DialogProps) {
           <p className="text-sm text-muted-foreground">{t('childcare_detail.end_body', { name: detail.summary.name })}</p>
           <Field label={t('childcare_detail.end_on')} error={error || undefined}>{(c) => <DateField {...c} value={on} onChange={setOn} />}</Field>
           <Actions submit={t('childcare_detail.end_submit')} pending={close.isPending} onCancel={() => done()} />
-        </form>
-      )}
-    </FormDialog>
-  );
-}
-
-/** #192: corrects the absence reasons of one revision, a past one included; draft months recompute, validated ones keep their figures. */
-export function UnpaidAbsencesDialog({ detail, revision, onClose, onDone }: DialogProps & { revision: ChildcareTerms }) {
-  const { t } = useTranslation();
-  const save = useSetUnpaidAbsences();
-  const [unpaid, setUnpaid] = useState<string[]>(revision.unpaidAbsences);
-  const errors = useChildcareErrors<{ unpaid: string }>(() => undefined, () => undefined);
-  const period = revision.to
-    ? t('childcare_detail.unpaid_period', { from: formatLocalDate(revision.from, 'short'), to: formatLocalDate(revision.to, 'short') })
-    : t('childcare_detail.unpaid_period_open', { from: formatLocalDate(revision.from, 'short') });
-  return (
-    <FormDialog title={t('childcare_detail.unpaid_title')} onClose={onClose} onDone={onDone}>
-      {({ titleId, done }) => (
-        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          errors.clear();
-          save.mutate({ params: { path: { id: detail.summary.id, from: revision.from } }, body: { unpaidAbsences: unpaid } },
-            { onSuccess: () => done(t('childcare_detail.saved')), onError: (e) => errors.onError(e) });
-        }}>
-          {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
-          <Unplaced messages={errors.unplaced} />
-          <p className="text-sm text-muted-foreground">{period} {t('childcare_detail.unpaid_body')}</p>
-          <UnpaidAbsencesField value={unpaid} onChange={setUnpaid} />
-          <Actions submit={t('childcare_detail.save')} pending={save.isPending} onCancel={() => done()} />
         </form>
       )}
     </FormDialog>
