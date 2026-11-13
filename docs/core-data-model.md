@@ -104,7 +104,7 @@ Vérifiés à l'écriture par Core, doublés de tests d'intégration :
 - Ajouter un propriétaire à un élément privé le passe en `shared`.
 - Un `item` terminé est clos (archivé). Il n'est supprimé physiquement que par la suppression d'élément (#23), pour un élément qui n'aurait jamais dû exister : avec ses lignes propres, ses faits, ses propriétaires, ses liens de documents et ses références bancaires (liens et règles bancaires, lien d'un compte vers une enveloppe), en une transaction, après un aperçu du serveur. Elle est refusée (`core.item_in_use`) quand quelque chose hors de l'élément en dépend (liste par module dans la doc de chaque module). Un contrat de garde dont des mois sont validés est refusé (`validated_statements`) : les rouvrir du plus récent au plus ancien. La `version` est celle de l'élément. Les chiffres passés sont recalculés. Un ré-import le recrée. Ses lignes d'audit restent, mais ne sont plus lisibles par l'élément. Les propositions en attente sur l'élément passent à `superseded` (pas de blocage).
 - `module` + `kind` appartiennent au module : Core n'interprète pas ces valeurs.
-- Un `adult` actif a un `oidc_subject`, un `adult` en attente et un `dependent` n'en ont pas. Le nombre d'`adult` ne dépasse pas `max_adults`.
+- Un `adult` actif a un `oidc_subject` ou un compte local (`core.local_credential`, `identity-and-access/local-accounts.md` §13), un `adult` en attente et un `dependent` n'en ont aucun. Le nombre d'`adult` ne dépasse pas `max_adults`.
 - Dès qu'un `adult` existe, au moins un `adult` est admin ; un `dependent` ne l'est jamais. Le rôle n'entre pas dans la matrice de droits (§4.3).
 - Seul un `adult` en attente peut être supprimé : un adulte actif a pu posséder des éléments.
 - Un `dependent` **n'agit jamais** : il ne se connecte pas et ne crée rien. Il peut être propriétaire d'un élément ou utilisateur d'un service.
@@ -132,6 +132,7 @@ Appliquée par `IAccessPolicy` (règles de `Project.md` §5.1) à l'API, au tabl
 
 ### 4.4 Amorçage des utilisateurs
 
+- **Comptes locaux** (#215, `identity-and-access/local-accounts.md`) : en mode `local` ou `both`, le premier adulte, admin, est créé par la page de mise en place ou par `nid admin create-admin` ; les suivants sont pré-enregistrés (email facultatif en `local`) puis choisissent leur mot de passe par un lien à usage unique. Les points suivants décrivent le mode `oidc`.
 - Le fournisseur d'identité est la source des identités, de l'accès (groupe `nid-users`) et du rôle admin (groupe `nid-admins`, recalculé à chaque connexion dans `is_admin`). À la première connexion d'un `sub` inconnu, Core rattache l'adulte en attente de même email ou crée la `person` de type `adult` depuis les claims (`sub`, nom, email), dans la limite du plafond du foyer (`identity-and-access/authentication.md` §5).
 - Un admin peut **pré-enregistrer** un adulte (nom, email, `oidc_subject` vide : « en attente »), par exemple pour lui attribuer des éléments avant sa première connexion ; il est rattaché à sa première connexion par l'email. Sans pré-enregistrement, la première connexion crée l'adulte. Un email déjà porté par un autre `sub` est refusé (`../identity-and-access/authentication.md` §5).
 - Le nombre d'adultes, en attente compris, est plafonné par `household_settings.max_adults` (2 par défaut, réglable dans la zone admin).

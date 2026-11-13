@@ -1,7 +1,8 @@
 # Authentification du navigateur
 
 > Statut : brouillon. Connexion des adultes via Pocket ID, session côté serveur (BFF), accès et rôle admin par les groupes du fournisseur d'identité, provisionnement des adultes.
-> Références : `README.md` (principes), `../core-data-model.md` §4.4 (provisionnement), `../architecture.md` §7 (API) et §10.2 (hypothèses envers l'hébergeur), `../spikes.md` §9septies (le flux exécuté).
+> Ce document décrit le mode `oidc` et la partie OIDC du mode `both`. Les **comptes locaux** (identifiant et mot de passe, sans fournisseur d'identité, #215) sont dans `local-accounts.md`, qui réutilise la session du §3.
+> Références : `README.md` (principes), `local-accounts.md`, `../core-data-model.md` §4.4 (provisionnement), `../architecture.md` §7 (API) et §10.2 (hypothèses envers l'hébergeur), `../spikes.md` §9septies (le flux exécuté).
 
 ---
 
@@ -73,6 +74,7 @@ La page `/login-refused` explique ces refus et affiche l'email reçu, pour qu'on
 
 Quand le fournisseur d'identité ne répond pas (son document de découverte est illisible), `/auth/login` envoie vers `/login-unavailable` au lieu d'une erreur 500 vide : la page le dit et propose de réessayer vers la page demandée.
 
+- **Rôle admin hors `oidc`** : avec `Auth:AdminSource=nid` (défaut en `both` et `local`), le groupe admin est ignoré et le rôle se règle dans la zone admin (`local-accounts.md` §6) ; une connexion OIDC n'y touche plus. Le groupe d'accès reste exigé.
 - **Aucun adulte n'est admin d'office.** Le premier administrateur est celui que l'hébergeur met dans le groupe admin ; tant que personne n'y est, personne n'administre Nid, et c'est le fournisseur d'identité qu'il faut corriger. Plusieurs admins sont possibles ; Nid n'édite pas le rôle (la zone admin le montre, `administration-and-audit.md` §2).
 - **Confiance** : qui administre Pocket ID décide de l'accès et du rôle admin, et peut donner à un compte l'email d'un adulte en attente. C'est l'hébergeur, déjà dans la frontière de confiance (`administration-and-audit.md` §1).
 - **Récupération** : la `person` est retrouvée par `oidc_subject`. Si le `sub` change (Pocket ID réinstallé, utilisateur recréé), le nouvel `sub` est refusé (`core.email_taken`). La commande d'administration `rebind-subject` (`administration-and-audit.md` §3) rattache la personne existante au nouvel `sub` et ferme ses sessions dans la même écriture (1F4). Sans elle, l'accès serait perdu.
@@ -90,7 +92,7 @@ Quand le fournisseur d'identité ne répond pas (son document de découverte est
 ## 7. Hypothèses envers l'hébergeur
 
 - **Une seule origine** : le proxy envoie tout le nom d'hôte de Nid à `nid`, qui sert l'interface et l'API sur le même port. Le cookie de session en dépend, et cela évite toute configuration CORS.
-- HTTPS terminé en amont, `X-Forwarded-*` de confiance, `PUBLIC_URL` correct (redirections OIDC, cookie, liens des emails).
+- HTTPS terminé en amont (le HTTP sans TLS n'est possible que par l'option explicite `Auth:AllowInsecureHttp`, désactivée par défaut, `local-accounts.md` §12), `X-Forwarded-*` de confiance, `PUBLIC_URL` correct (redirections OIDC, cookie, liens des emails).
 - Pocket ID joignable depuis `nid` (découverte OIDC au démarrage, `/health/ready`) sur son adresse publique.
 
 ## 8. Points à vérifier à l'intégration
