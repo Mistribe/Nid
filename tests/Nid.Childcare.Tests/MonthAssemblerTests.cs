@@ -34,9 +34,9 @@ public class MonthAssemblerTests
         Assert.Equal(16, figures.Declaration.ActivityDays); // 16 × 17 ÷ 18 = 15.11, rounded up
     }
 
-    /// <summary>Friday 2026-05-01 belongs to April's last week: the hours really worked that day are April's extra hours.</summary>
+    /// <summary>Friday 2026-05-01 shares April's last week, but the hours worked that day are May's, not April's.</summary>
     [Fact]
-    public void Real_days_of_the_next_month_count_in_the_shared_week()
+    public void A_day_of_the_next_month_counts_in_its_own_month()
     {
         var month = new YearMonth(2026, 4);
         var terms = TermsOf(month);
@@ -47,7 +47,7 @@ public class MonthAssemblerTests
         var without = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
         var with = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m, next: new Statement(Item, month.PlusMonths(1), false, 0m, null, [may[0]], null, 1)).Figures!;
 
-        Assert.Equal(2m, with.Declaration.ComplementaryHours - without.Declaration.ComplementaryHours);
+        Assert.Equal(without.Declaration.ComplementaryHours, with.Declaration.ComplementaryHours);
     }
 
     /// <summary>Decision 30.</summary>

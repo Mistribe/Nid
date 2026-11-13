@@ -10,7 +10,7 @@ public class ChildcareRulesTests
     {
         var rules = ChildcareRules.For(new LocalDate(2026, 5, 31));
         Assert.Equal(4.25m, rules.MinimumGuaranteed);
-        Assert.Equal(3.825m, rules.Upkeep9hMinimum);
+        Assert.Equal(3.83m, rules.Upkeep9hMinimum);
     }
 
     [Fact]
