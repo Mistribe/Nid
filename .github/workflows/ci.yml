@@ -7,7 +7,8 @@ name: ci
 #    scanned by Trivy); and reviews its new dependencies;
 #  - `ci-ok` sums them up: it is the one check the `main` ruleset requires (with `changelog`);
 #  - `main` runs only the release (`version`, `build`, `publish`, `release`: the images on ghcr.io, then the tag and its
-#    GitHub release): the pull request already ran its checks on the tree being merged;
+#    GitHub release, and `demo`: the public demo moves to that version): the pull request already ran its checks on the tree
+#    being merged;
 #  - every Monday, every check runs on `main` whatever changed: base images, the identity provider and the browsers move without
 #    a push;
 #  - a push that only touches docs releases nothing; a pull request that only touches docs runs only `changes` and `ci-ok`.
@@ -18,7 +19,8 @@ name: ci
 # `skipped`, which counts as a pass, and `ci-ok` always reports.
 #
 # Pull requests from forks: `pull_request` only, never `pull_request_target`, so their code runs with a read-only token and no
-# secret. No job holds a secret: the release publishes with the workflow's own token, and never runs for a pull request.
+# secret. No job holds a secret: the release publishes with the workflow's own token, `demo` signs in to Azure with a
+# federated token (OIDC), and neither ever runs for a pull request.
 on:
   push:
     branches: [main]
@@ -304,3 +306,47 @@ jobs:
             printf '\n## Images\n\n```sh\ndocker pull ghcr.io/mistribe/nid:%s\ndocker pull ghcr.io/mistribe/nid-backup:%s\n```\n' "$VERSION" "$VERSION"
           } > "$notes"
           gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file "$notes" --generate-notes
+
+  # The public demo (deploy/azure/README.md) moves to the version just published: its Container App gets the new image, then
+  # the demo must answer as one. Skipped until the repository variable DEMO_CONTAINER_APP is set. No secret: Azure trusts this
+  # job through OIDC, federated with the `demo` environment only, whose identity may update that one Container App and nothing
+  # else. The IDs it signs in with are variables, not secrets: they grant nothing without the federated token.
+  demo:
+    needs: [version, publish]
+    if: vars.DEMO_CONTAINER_APP != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: demo
+      url: ${{ vars.DEMO_URL }}
+    permissions:
+      contents: read
+      id-token: write # the token Azure exchanges for its own (federated credential)
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      APP: ${{ vars.DEMO_CONTAINER_APP }}
+      GROUP: ${{ vars.DEMO_RESOURCE_GROUP }}
+      URL: ${{ vars.DEMO_URL }}
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Update the Container App
+        run: |
+          az extension add --name containerapp --upgrade --only-show-errors
+          az containerapp update --name "$APP" --resource-group "$GROUP" \
+            --image "ghcr.io/mistribe/nid:$VERSION" --only-show-errors --output none
+          echo "Demo: ghcr.io/mistribe/nid:$VERSION on $URL" >> "$GITHUB_STEP_SUMMARY"
+      # The new revision starts from zero replicas: the first request wakes it (and Neon behind it), which can take a while
+      # after a reset, when Nid migrates and loads the demo household. Then the demo must say it is one.
+      - name: Check the demo answers
+        if: env.URL != ''
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 20 "$URL/health/ready" > /dev/null; then break; fi
+            [ "$attempt" = 30 ] && { echo "::error::$URL/health/ready did not answer in 10 minutes"; exit 1; }
+            sleep 20
+          done
+          curl -fsS "$URL/auth/session" | jq -e '.demo == true' > /dev/null \
+            || { echo "::error::$URL answers, but not in demo mode"; exit 1; }
