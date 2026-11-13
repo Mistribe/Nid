@@ -47,12 +47,13 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 Hours(Mensualisation.AnnualHours(now.WeekTypes) / now.ProgrammedWeeks),
                 StatementContext.ToPrepare(revisions[0].From, views[^1].To, today, validated[arrangement.ItemId]).Select(StatementAssembly.Format).ToList());
             var placed = gaps[arrangement.ItemId].ToList();
-            var year = ContractCheck.Year(TermsPlan.Of(now, revisions[0].From, overrides[arrangement.ItemId].ToList()), revisions[0].From, placed, today);
+            var plan = TermsPlan.Of(now, revisions[0].From, overrides[arrangement.ItemId].ToList());
+            var year = ContractCheck.Year(plan, revisions[0].From, placed, today);
             var allocated = ContractCheck.Allocated(year, now.WeekTypes.Count);
             return new ChildcareDetail(summary, arrangement.CarerPajemploi, arrangement.CarerApproval, views,
                 placed.Select(g => new CareGapView(g.Monday, g.Weeks, g.Monday.PlusWeeks(g.Weeks).PlusDays(-1))).ToList(),
                 ContractCheck.GapWeeksToPlace(revisions[0].From, revisions[^1].ProgrammedWeeks, placed, today),
-                StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today), arrangement.Version,
+                StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today, plan, placed), arrangement.Version,
                 year.Select(w => new ContractWeekView(w.Monday, w.WeekType, w.Overridden, w.Gap)).ToList(),
                 now.WeekTypes.Select((w, i) => new WeekTypeCountView(w.Name, allocated[i], w.Weeks)).ToList(),
                 GapYears(revisions, views[^1].To, placed, today),

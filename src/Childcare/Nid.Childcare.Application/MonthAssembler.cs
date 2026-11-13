@@ -66,8 +66,8 @@ public static class MonthAssembler
         PaidLeaveInput? june = null;
         IReadOnlyList<YearMonth> missing = [];
         if (terms.Month.Month == 6)
-            (june, missing) = StatementContext.June(terms.Month, terms.Contract.Start, terms.Contract.End,
-                validated.Select(s => (s.Month, s.Figures!.BasePay - s.Figures.Deduction + s.Figures.ExtraPay)).ToList());
+            (june, missing) = StatementContext.June(terms.Month, terms.Contract, terms.Plan, terms.Gaps,
+                validated.Select(s => (s.Month, s.Figures!.BasePay - s.Figures.Deduction + s.Figures.ExtraPay, s.Days)).ToList());
         if (problems.Count > 0 || missing.Count > 0)
             return new MonthEvaluation(null, problems, missing);
 

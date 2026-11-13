@@ -3,8 +3,8 @@ using NodaTime;
 
 namespace Nid.Childcare.Domain;
 
-/// <summary>June only: months of the reference period with care (a month the contract enters or leaves counts for its share), and its net pay (base − deductions + extra pay).</summary>
-public sealed record PaidLeaveInput(decimal MonthsWithCare, decimal ReferenceNetPay);
+/// <summary>June only: the leave days acquired over the reference period (<see cref="PaidLeave.Accrued"/>), and its net pay (base − deductions + extra pay).</summary>
+public sealed record PaidLeaveInput(int AccruedDays, decimal ReferenceNetPay);
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
@@ -46,7 +46,7 @@ public static class ChildcareMonth
         var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
         var meals = input.Declared?.Meals ?? computedMeals;
 
-        var leaveDays = input.Declared?.PaidLeaveDays ?? (input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : null);
+        var leaveDays = input.Declared?.PaidLeaveDays ?? input.June?.AccruedDays;
         // The contract's average week over its template weeks (38,389 h for 23 × 39 h + 22 × 37,75 h).
         var weeklyHours = annualHours / input.Plan.ProgrammedWeeks;
         var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
