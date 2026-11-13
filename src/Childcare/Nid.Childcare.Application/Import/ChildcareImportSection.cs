@@ -28,7 +28,8 @@ public sealed class ChildcareImportSection(
     private enum Mode { Created, Unchanged, Replaced }
 
     private sealed record Parsed(
-        PersonId Child, PersonKind ChildKind, Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, IReadOnlyList<WeekOverride> Overrides, ShareLevel ShareLevel = ShareLevel.View);
+        PersonId Child, PersonKind ChildKind, Visibility Visibility, IReadOnlyList<Owner> Owners, IReadOnlyList<Terms> Revisions, IReadOnlyList<CareGap> Gaps, IReadOnlyList<WeekOverride> Overrides, ShareLevel ShareLevel = ShareLevel.View,
+        ContractEnd? End = null);
 
     private sealed class Plan(StagedEntity entity, ArrangementRecord record, Parsed parsed, string path)
     {
@@ -223,11 +224,17 @@ public sealed class ChildcareImportSection(
                 var previous = known.FirstOrDefault(s => s.Month == month.PlusMonths(-1));
                 if (previous is { Days.Count: 0 })
                     previous = await store.FindStatementAsync(plan.Id, previous.Month, ct);
-                var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, exemption: record.Exemption ?? 0m);
+                var end = plan.Parsed.End;
+                // The last month settles the whole contract: it reads every validated month's days.
+                if (MonthAssembler.IsLast(terms, end))
+                    for (var k = 0; k < known.Count; k++)
+                        if (known[k].Days.Count == 0)
+                            known[k] = (await store.FindStatementAsync(plan.Id, known[k].Month, ct))!;
+                var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, exemption: record.Exemption ?? 0m, end: end);
                 // A month may have been validated before or after the next one's days were corrected: either way its figures stand.
                 var following = group.Where(e => e.Month == month.PlusMonths(1) && possible.Contains(e.Month)).Select(e => new Statement(plan.Id, e.Month, true, 0m, null, e.Days, null, 0)).FirstOrDefault();
                 if (following is not null && evaluation.Figures is { } alone && !Same(alone, record.Figures))
-                    evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, following, record.Exemption ?? 0m);
+                    evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, following, record.Exemption ?? 0m, end);
                 if (evaluation.Figures is not { } figures)
                 {
                     foreach (var (field, code) in evaluation.Problems)
@@ -294,7 +301,7 @@ public sealed class ChildcareImportSection(
                 var full = (await store.FindStatementAsync(plan.Id, month.Month, ct))!;
                 var terms = MonthTerms.For(plan.Parsed.Revisions, plan.Parsed.Gaps, plan.Parsed.Overrides, month.Month);
                 var evaluation = MonthAssembler.Evaluate(terms, MonthAssembler.Replanned(terms, full.Days), [], known,
-                    known.LastOrDefault(s => s.Month == month.Month.PlusMonths(-1)), full.Mileage, full.Cmg, full.Declared, full.Contributions ?? 0m, exemption: full.Exemption ?? 0m);
+                    known.LastOrDefault(s => s.Month == month.Month.PlusMonths(-1)), full.Mileage, full.Cmg, full.Declared, full.Contributions ?? 0m, exemption: full.Exemption ?? 0m, end: plan.Parsed.End);
                 if (evaluation.Figures is not { } figures || !Same(full.Figures!, FiguresOf(figures)))
                 {
                     issues.Add(ImportIssue.Error(ChildcareCodes.FiguresDiffer,
@@ -303,8 +310,8 @@ public sealed class ChildcareImportSection(
                 }
                 known.Add(full);
             }
-            else
-                known.Add(month);
+            else // an ended contract's last month reads every validated month's days
+                known.Add(plan.Parsed.End is null ? month : (await store.FindStatementAsync(plan.Id, month.Month, ct))!);
         }
         return true;
     }
@@ -330,7 +337,7 @@ public sealed class ChildcareImportSection(
                 foreach (var terms in revisions.Skip(1))
                     await store.AddTermsAsync(terms with { To = null }, ct);
                 if (revisions[^1].To is { } end)
-                    await store.SetEndAsync(id, end, ct);
+                    await store.SetEndAsync(id, end, ct, parsed.End);
                 await store.ReplaceGapsAsync(id, parsed.Gaps, ct);
                 foreach (var o in parsed.Overrides)
                     await store.SetOverrideAsync(id, o.Monday, o.WeekType, ct);
@@ -407,6 +414,7 @@ public sealed class ChildcareImportSection(
                 Ownership = head.Owners.Select(w => new ShareRecord { Person = context.PersonRef(w.PersonId), ShareBp = w.ShareBp })
                     .OrderBy(w => w.Person, StringComparer.Ordinal).ToList(),
                 Closed = head.ArchivedAt is not null,
+                End = a.End is { } end ? new EndRecord { Reason = EndReasonCodes.Of(end.Reason), Notified = LocalDatePattern.Iso.Format(end.Notified) } : null,
             });
             foreach (var month in (await store.StatementsOfAsync(a.ItemId, ct)).Where(s => s.Validated).OrderBy(s => s.Month))
             {
@@ -456,12 +464,15 @@ public sealed class ChildcareImportSection(
     private static FiguresRecord FiguresOf(MonthFigures f)
     {
         var d = f.Declaration;
+        var settles = f.Regularisation != 0m || d.LeaveIndemnity != 0m || d.RuptureIndemnity != 0m;
         return new FiguresRecord
         {
             NormalHours = d.NormalHours, ActivityDays = d.ActivityDays, PaidLeaveDays = d.PaidLeaveDays, ComplementaryHours = Exact(d.ComplementaryHours),
             OvertimeHours = Exact(d.OvertimeHours), NetPay = Exact(d.NetPay), Upkeep = Exact(d.Upkeep), Meals = Exact(d.Meals), BasePay = Exact(f.BasePay),
             Deduction = Exact(f.Deduction), ExtraPay = Exact(f.ExtraPay), PaidLeavePay = Exact(f.PaidLeavePay), Cost = Exact(f.Cost), TaxBase = Exact(f.TaxBase),
             ChildSickDeducted = f.ChildSickDeducted,
+            Regularisation = settles ? Exact(f.Regularisation) : null, LeaveIndemnity = settles ? Exact(d.LeaveIndemnity) : null,
+            RuptureIndemnity = settles ? Exact(d.RuptureIndemnity) : null,
         };
     }
 
@@ -473,7 +484,8 @@ public sealed class ChildcareImportSection(
         return d.NormalHours == r.NormalHours && d.ActivityDays == r.ActivityDays && d.PaidLeaveDays == r.PaidLeaveDays && f.ChildSickDeducted == r.ChildSickDeducted
                && Eq(d.ComplementaryHours, r.ComplementaryHours) && Eq(d.OvertimeHours, r.OvertimeHours) && Eq(d.NetPay, r.NetPay) && Eq(d.Upkeep, r.Upkeep)
                && Eq(d.Meals, r.Meals) && Eq(f.BasePay, r.BasePay) && Eq(f.Deduction, r.Deduction) && Eq(f.ExtraPay, r.ExtraPay)
-               && Eq(f.PaidLeavePay, r.PaidLeavePay) && Eq(f.Cost, r.Cost) && Eq(f.TaxBase, r.TaxBase);
+               && Eq(f.PaidLeavePay, r.PaidLeavePay) && Eq(f.Cost, r.Cost) && Eq(f.TaxBase, r.TaxBase)
+               && Eq(f.Regularisation, r.Regularisation ?? 0m) && Eq(d.LeaveIndemnity, r.LeaveIndemnity ?? 0m) && Eq(d.RuptureIndemnity, r.RuptureIndemnity ?? 0m);
     }
 
     /// <summary>A stored figure without its trailing zeros (numeric(19,4) reads back as 4.0000).</summary>
@@ -592,8 +604,17 @@ public sealed class ChildcareImportSection(
             foreach (var (field, code) in ContractCheck.Overrides(overrides, revisions[0].From, revisions[^1].To, [.. revisions.Select(t => (t.From, t.WeekTypes.Count))]))
                 Error(code, StatementAssembly.Message(code), $"{path}.{Snake(field)}");
 
+        ContractEnd? ending = null;
+        if (r.End is { } e)
+        {
+            var reason = EndReasonCodes.TryParse(e.Reason);
+            if (reason is null) Error(ImportCodes.InvalidValue, "A reason is withdrawal, misconduct, approval, child_death, resignation or trial.", path + ".end.reason");
+            if (Date(e.Notified, path + ".end.notified", issues, ref ok) is { } notified && reason is { } why)
+                ending = new ContractEnd(why, notified);
+        }
+
         if (ok)
-            parsed = new Parsed(child!.Id, child.Kind, visibility!.Value, owners, revisions, gaps, overrides, level);
+            parsed = new Parsed(child!.Id, child.Kind, visibility!.Value, owners, revisions, gaps, overrides, level, ending);
         return ok;
     }
 
@@ -656,7 +677,7 @@ public sealed class ChildcareImportSection(
     }
 
     private static Arrangement ArrangementOf(Plan plan, ItemId id, uint version)
-        => new(id, plan.Parsed.Child, plan.Record.Carer.Name.Trim(), Blank(plan.Record.Carer.Pajemploi), Blank(plan.Record.Carer.Approval), version);
+        => new(id, plan.Parsed.Child, plan.Record.Carer.Name.Trim(), Blank(plan.Record.Carer.Pajemploi), Blank(plan.Record.Carer.Approval), version, plan.Parsed.End);
 
     private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

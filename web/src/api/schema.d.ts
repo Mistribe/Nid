@@ -12563,6 +12563,191 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/childcare/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    reason?: string;
+                    notified?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContractEndView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/childcare/{id}/settlement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ChildcareSettlementView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/childcare/{id}/reopen": {
         parameters: {
             query?: never;
@@ -29103,6 +29288,7 @@ export interface components {
              */
             childSickQuota: number;
             belowMinimums?: null | components["schemas"]["LegalMinimumView"][];
+            end?: null | components["schemas"]["ContractEndView"];
         };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
@@ -29110,6 +29296,23 @@ export interface components {
         ChildcareMoneyView: {
             amount: string;
             currency: string;
+        };
+        ChildcareSettlementView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            childName: string;
+            carerName: string;
+            /** Format: date */
+            start: string;
+            /** Format: date */
+            lastDay: string;
+            end: components["schemas"]["ContractEndView"];
+            month: string;
+            validated: boolean;
+            lines?: null | components["schemas"]["SettlementLinesView"];
+            problems: components["schemas"]["FieldProblemView"][];
+            missingMonths: string[];
         };
         ChildcareStatementList: {
             /** Format: uuid */
@@ -29215,6 +29418,9 @@ export interface components {
         };
         CloseChildcareBody: {
             on?: null | string;
+            reason?: null | string;
+            notified?: null | string;
+            grossHourlyRate?: null | string;
         };
         CloseIncomeSourceBody: {
             endedOn?: null | string;
@@ -29258,6 +29464,17 @@ export interface components {
             lastSyncedAt?: null | string;
             lastErrorCode?: null | string;
             accounts: components["schemas"]["BankAccountView"][];
+        };
+        ContractEndView: {
+            reason: string;
+            /** Format: date */
+            notified: string;
+            /** Format: int32 */
+            seniorityMonths: number;
+            /** Format: date */
+            noticeEnd: string;
+            indemnityDue: boolean;
+            grossRateKnown: boolean;
         };
         ContractTermsView: {
             /** Format: date */
@@ -29727,6 +29944,8 @@ export interface components {
             upkeep: string;
             meals: string;
             mileage: string;
+            leaveIndemnity?: null | string;
+            ruptureIndemnity?: null | string;
         };
         DeclaredBody: {
             /** Format: int32 */
@@ -33989,6 +34208,18 @@ export interface components {
         SetLinkRoleBody: {
             role?: null | string;
         };
+        SettlementLinesView: {
+            lastPay: components["schemas"]["ChildcareMoneyView"];
+            regularisation: components["schemas"]["ChildcareMoneyView"];
+            /** Format: int32 */
+            leaveDays?: null | number;
+            leaveIndemnity: components["schemas"]["ChildcareMoneyView"];
+            ruptureIndemnity: components["schemas"]["ChildcareMoneyView"];
+            upkeep: components["schemas"]["ChildcareMoneyView"];
+            meals: components["schemas"]["ChildcareMoneyView"];
+            mileage: components["schemas"]["ChildcareMoneyView"];
+            total: components["schemas"]["ChildcareMoneyView"];
+        };
         SharingBody: {
             shareLevel?: null | string;
         };
@@ -34130,6 +34361,7 @@ export interface components {
             cost: components["schemas"]["ChildcareMoneyView"];
             costBeforeCmg: boolean;
             exemption?: null | components["schemas"]["ChildcareMoneyView"];
+            regularisation?: null | components["schemas"]["ChildcareMoneyView"];
         };
         StatementForm: {
             file: components["schemas"]["IFormFile"];

@@ -55,10 +55,34 @@ public sealed record ReplaceGapsCommand(ItemId ItemId, IReadOnlyList<CareGap> Ga
     public AccessKind Access => AccessKind.Write;
 }
 
-/// <summary>Ends the current revision on <paramref name="On"/> and archives the item.</summary>
-public sealed record CloseChildcareCommand(ItemId ItemId, LocalDate On) : ICommand<ItemId>, IItemScoped
+/// <summary>
+/// Ends the current revision on <paramref name="On"/> and archives the item. <paramref name="End"/>: why and when it was notified, for
+/// the last month's settlement; <paramref name="GrossHourlyRate"/>: the gross rate the breach indemnity needs, kept on the current terms.
+/// </summary>
+public sealed record CloseChildcareCommand(ItemId ItemId, LocalDate On, ContractEnd? End = null, decimal? GrossHourlyRate = null) : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>What ending the contract this way would mean: seniority, notice, breach indemnity.</summary>
+public sealed record ContractEndQuery(ItemId ItemId, ContractEnd End) : IQuery<ContractEndView>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
+
+[RequestHandler<ContractEndQuery, ContractEndView>]
+public sealed class ContractEndHandler(IItemRegistry items, IChildcareStore store) : IRequestHandler<ContractEndQuery, ContractEndView>
+{
+    public async ValueTask<Result<ContractEndView>> HandleAsync(ContractEndQuery query, CancellationToken ct = default)
+    {
+        var loaded = await ChildcareCheck.LoadAsync(store, items, query.ItemId, ct);
+        if (loaded.TryGetFailure(out var failure))
+            return Result.Failure<ContractEndView>(failure!);
+        loaded.TryGetValue(out var found);
+        if (query.End.Notified < found.Terms[0].From)
+            return Result.Failure<ContractEndView>(FieldErrors.Shape([new("notified", ChildcareCodes.NotifiedOutOfContract, "The contract is notified on or after it starts.")]));
+        return Result.Success(ContractEndView.Of(query.End, found.Terms));
+    }
 }
 
 public sealed record ReopenChildcareCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
@@ -264,12 +288,18 @@ public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore s
             return Result.Failure<ItemId>(failure!);
         if (command.On < revisions[^1].From)
             return Result.Failure<ItemId>(FieldErrors.Shape([new("on", ChildcareCodes.EndBeforeTerms, "The end comes on or after the current terms' start.")]));
+        if (command.End is { } end && (end.Notified < revisions[0].From || end.Notified > command.On))
+            return Result.Failure<ItemId>(FieldErrors.Shape([new("notified", ChildcareCodes.NotifiedOutOfContract, "The contract is notified between its start and its last day.")]));
+        if (command.GrossHourlyRate is <= 0)
+            return Result.Failure<ItemId>(FieldErrors.Shape([new("grossHourlyRate", "request.invalid", "The gross hourly rate is above 0.")]));
         // A validated month's declaration is made: the end cannot cut into it.
         if ((await store.StatementsOfAsync(command.ItemId, ct)).Any(st => st.Validated && st.Month.OnDayOfMonth(st.Month.Calendar.GetDaysInMonth(st.Month.Year, st.Month.Month)) > command.On))
             return Result.Failure<ItemId>(FieldErrors.Shape([new("on", ChildcareCodes.EndBeforeValidated, "A validated month ends after this day: reopen it first.")]));
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        await store.SetEndAsync(command.ItemId, command.On, ct);
+        await store.SetEndAsync(command.ItemId, command.On, ct, command.End);
+        if (command.GrossHourlyRate is { } gross && revisions[^1].GrossHourlyRate is null)
+            await store.ReplaceCurrentTermsAsync(revisions[^1] with { GrossHourlyRate = gross }, ct);
         // An exception after the end would be refused on import: it goes with the end.
         foreach (var (_, late) in (await store.OverridesOfAsync([command.ItemId], ct)).Where(x => x.Override.Monday > command.On))
             await store.SetOverrideAsync(command.ItemId, late.Monday, null, ct);

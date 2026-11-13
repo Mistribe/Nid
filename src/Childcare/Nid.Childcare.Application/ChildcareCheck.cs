@@ -86,6 +86,7 @@ public static class ChildcareCheck
         ChildcareCodes.GapWeeksOutOfRange => "1 to 52 weeks.",
         ChildcareCodes.GapOverlap => "These weeks are already without care.",
         ChildcareCodes.GapsTooMany => "More weeks without care in a contract year than 52 less the programmed weeks.",
+        ChildcareCodes.GrossRateRequired => "The breach indemnity is 1/80 of the gross salaries: the terms need the gross hourly rate.",
         _ => code,
     };
 }

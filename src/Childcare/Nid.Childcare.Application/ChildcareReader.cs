@@ -59,7 +59,8 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 GapYears(revisions, views[^1].To, placed, today),
                 estimates[arrangement.ItemId] is { } cmg ? ChildcareMoneyView.Of(cmg, currency) : null,
                 StatementContext.ChildSickUsed(revisions[0].From, today, sickDeducted[arrangement.ItemId]),
-                BelowMinimums: LegalMinimumView.Of(BelowMinimums(revisions, today)));
+                BelowMinimums: LegalMinimumView.Of(BelowMinimums(revisions, today)),
+                End: arrangement.End is { } end ? ContractEndView.Of(end, revisions) : null);
         }).ToList();
     }
 

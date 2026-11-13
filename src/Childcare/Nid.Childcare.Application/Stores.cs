@@ -5,8 +5,8 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Childcare.Application;
 
-/// <summary>Spec §1.8–9: one arrangement per item — the child and the carer — whatever its revisions.</summary>
-public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName, string? CarerPajemploi, string? CarerApproval, uint Version);
+/// <summary>Spec §1.8–9: one arrangement per item — the child and the carer — whatever its revisions. <c>End</c>: how a closed contract ended, when told.</summary>
+public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName, string? CarerPajemploi, string? CarerApproval, uint Version, ContractEnd? End = null);
 
 /// <summary>Spec §1.8, §2: the figures of one revision, in force from <c>From</c> to <c>To</c> (open while current).</summary>
 public sealed record Terms(
@@ -61,8 +61,8 @@ public interface IChildcareStore
     /// <summary>Sets the week type of a Monday; <c>null</c> removes the exception, and does nothing when there is none.</summary>
     Task SetOverrideAsync(ItemId id, LocalDate monday, int? weekType, CancellationToken ct);
 
-    /// <summary>Sets or clears the current revision's end.</summary>
-    Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct);
+    /// <summary>Sets or clears the current revision's end, and how the contract ended.</summary>
+    Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct, ContractEnd? end = null);
 
     /// <summary>Every stored month of the arrangement, with its figures, without its days.</summary>
     Task<IReadOnlyList<Statement>> StatementsOfAsync(ItemId id, CancellationToken ct);

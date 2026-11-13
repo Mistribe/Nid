@@ -1,4 +1,5 @@
 using System.Globalization;
+using Nid.Childcare.Contracts;
 using Nid.Childcare.Domain;
 using Nid.Core.Contracts;
 using NodaTime;
@@ -65,6 +66,21 @@ public sealed record ContractWeekView(LocalDate Monday, int WeekType, bool Overr
 public sealed record WeekTypeCountView(string Name, int Allocated, int Contract);
 
 /// <summary>
+/// How the contract ends (IDCC 3239 art. 119–121): the reason (<c>EndReasonCodes</c>), the day the letter was presented, the seniority
+/// then in whole months, the notice's last day (the default end) and whether the breach indemnity is due; <c>GrossRateKnown</c>: the
+/// terms have the gross hourly rate the indemnity needs.
+/// </summary>
+public sealed record ContractEndView(string Reason, LocalDate Notified, int SeniorityMonths, LocalDate NoticeEnd, bool IndemnityDue, bool GrossRateKnown)
+{
+    public static ContractEndView Of(ContractEnd end, IReadOnlyList<Terms> revisions)
+    {
+        var start = revisions[0].From;
+        return new(EndReasonCodes.Of(end.Reason), end.Notified, EndOfContract.SeniorityMonths(start, end.Notified), EndOfContract.NoticeEnd(end.Reason, start, end.Notified),
+            EndOfContract.IndemnityDue(end.Reason, start, end.Notified), revisions.Any(r => r.GrossHourlyRate is not null));
+    }
+}
+
+/// <summary>
 /// An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, the same per contract year (<c>GapYears</c>), and the paid-leave days accrued (decision 16).
 /// <c>Weeks</c> and <c>Allocation</c>: the contract year in progress, under the revision in force.
 /// <c>ChildSickDaysUsed</c>: sick-child days deducted this contract year (validated months) out of <c>ChildSickQuota</c> (decision 15).
@@ -74,7 +90,8 @@ public sealed record ChildcareDetail(
     ChildcareSummary Summary, string? CarerPajemploi, string? CarerApproval, IReadOnlyList<ChildcareTermsView> Terms, IReadOnlyList<CareGapView> Gaps,
     int GapWeeksToPlace, int LeaveDaysAccrued, uint Version, IReadOnlyList<ContractWeekView> Weeks, IReadOnlyList<WeekTypeCountView> Allocation,
     IReadOnlyList<GapYearView> GapYears, ChildcareMoneyView? CmgEstimate = null, int ChildSickDaysUsed = 0, int ChildSickQuota = ChildcareRules.ChildSickQuotaDays,
-    IReadOnlyList<LegalMinimumView>? BelowMinimums = null) : IExposesItems
+    IReadOnlyList<LegalMinimumView>? BelowMinimums = null,
+    ContractEndView? End = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Summary.Id)];
 }
@@ -96,15 +113,21 @@ public sealed record StatementDayView(
 /// <summary>#18: the declaration's meal line by meal, when it is the sum of the two.</summary>
 public sealed record MealChargesView(string Lunch, string Snack);
 
-/// <summary>Spec §3: the Pajemploi fields, hours as <c>"1.50"</c>, amounts as <c>"612.50"</c>.</summary>
+/// <summary>
+/// Spec §3: the Pajemploi fields, hours as <c>"1.50"</c>, amounts as <c>"612.50"</c>. <c>LeaveIndemnity</c>, <c>RuptureIndemnity</c>: the
+/// last declaration's end-of-contract fields, null on any other month.
+/// </summary>
 public sealed record DeclarationView(
     int NormalHours, int ActivityDays, int? PaidLeaveDays, string ComplementaryHours, string OvertimeHours, string NetPay, string Upkeep, string Meals,
-    string Mileage);
+    string Mileage, string? LeaveIndemnity = null, string? RuptureIndemnity = null);
 
-/// <summary>The declaration with the pay's parts and the month's cost; <c>CostBeforeCmg</c> while the CMG is not entered (decision 17).</summary>
+/// <summary>
+/// The declaration with the pay's parts and the month's cost; <c>CostBeforeCmg</c> while the CMG is not entered (decision 17).
+/// <c>Regularisation</c>: the last month's salary balance of an incomplete year, in the net pay; null on any other month.
+/// </summary>
 public sealed record StatementFiguresView(
     DeclarationView Declaration, ChildcareMoneyView BasePay, ChildcareMoneyView Deduction, ChildcareMoneyView ExtraPay, ChildcareMoneyView PaidLeavePay,
-    ChildcareMoneyView Cost, bool CostBeforeCmg, ChildcareMoneyView? Exemption = null);
+    ChildcareMoneyView Cost, bool CostBeforeCmg, ChildcareMoneyView? Exemption = null, ChildcareMoneyView? Regularisation = null);
 
 public sealed record FieldProblemView(string Field, string Code);
 
@@ -128,6 +151,23 @@ public sealed record ChildcareStatementView(
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }
+
+/// <summary>
+/// The final settlement (« reçu pour solde de tout compte ») of an ended contract: how it ended, then the last month's lines — the
+/// salary (<c>LastPay</c>, the net pay less the regularisation), the incomplete year's <c>Regularisation</c>, the leave indemnity for
+/// <c>LeaveDays</c>, the breach indemnity, upkeep, meals and mileage — and their <c>Total</c>. <c>Lines</c> null while the last month
+/// cannot be computed (<c>Problems</c>, <c>MissingMonths</c> to validate first); <c>Validated</c>: its statement is validated.
+/// </summary>
+public sealed record ChildcareSettlementView(
+    Guid Id, string Name, string ChildName, string CarerName, LocalDate Start, LocalDate LastDay, ContractEndView End, string Month, bool Validated,
+    SettlementLinesView? Lines, IReadOnlyList<FieldProblemView> Problems, IReadOnlyList<string> MissingMonths) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
+}
+
+public sealed record SettlementLinesView(
+    ChildcareMoneyView LastPay, ChildcareMoneyView Regularisation, int? LeaveDays, ChildcareMoneyView LeaveIndemnity, ChildcareMoneyView RuptureIndemnity,
+    ChildcareMoneyView Upkeep, ChildcareMoneyView Meals, ChildcareMoneyView Mileage, ChildcareMoneyView Total);
 
 /// <summary>
 /// #411 « Récapitulatif {année} »: the year's validated months summed, as the tax estimate counts them. <c>Retained</c> is the

@@ -84,7 +84,17 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var following = context.Month.PlusMonths(1);
         var before = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
         var after = context.Stored.Any(s => s.Month == following) ? await store.FindStatementAsync(context.Arrangement.ItemId, following, ct) : null;
-        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, before, mileage, cmg, declared, contributions, after, exemption);
+        var end = context.Arrangement.End;
+        // The last month settles the whole contract: it reads every validated month's days.
+        var stored = context.Stored;
+        if (MonthAssembler.IsLast(context.Terms, end))
+        {
+            var full = new List<Statement>();
+            foreach (var s in context.Stored) // one at a time: the store's context runs one query at once
+                full.Add(s.Validated ? (await store.FindStatementAsync(context.Arrangement.ItemId, s.Month, ct))! : s);
+            stored = full;
+        }
+        return MonthAssembler.Evaluate(context.Terms, days, stale, stored, before, mileage, cmg, declared, contributions, after, exemption, end);
     }
 
     /// <summary>
@@ -187,10 +197,15 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         return new StatementFiguresView(
             DeclarationOf(f.Declaration),
             ChildcareMoneyView.Of(f.BasePay, currency), ChildcareMoneyView.Of(f.Deduction, currency), ChildcareMoneyView.Of(f.ExtraPay, currency),
-            ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg, ChildcareMoneyView.Of(f.Exemption, currency));
+            ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg, ChildcareMoneyView.Of(f.Exemption, currency),
+            Settles(f) ? ChildcareMoneyView.Of(f.Regularisation, currency) : null);
     }
 
     private static DeclarationView DeclarationOf(PajemploiDeclaration d)
         => new(d.NormalHours, d.ActivityDays, d.PaidLeaveDays, Amount(d.ComplementaryHours), Amount(d.OvertimeHours), Amount(d.NetPay),
-            Amount(d.Upkeep), Amount(d.Meals), Amount(d.Mileage));
+            Amount(d.Upkeep), Amount(d.Meals), Amount(d.Mileage), d.LeaveIndemnity != 0m || d.RuptureIndemnity != 0m ? Amount(d.LeaveIndemnity) : null,
+            d.LeaveIndemnity != 0m || d.RuptureIndemnity != 0m ? Amount(d.RuptureIndemnity) : null);
+
+    /// <summary>The month carries the end-of-contract lines.</summary>
+    private static bool Settles(MonthFigures f) => f.Regularisation != 0m || f.Declaration.LeaveIndemnity != 0m || f.Declaration.RuptureIndemnity != 0m;
 }

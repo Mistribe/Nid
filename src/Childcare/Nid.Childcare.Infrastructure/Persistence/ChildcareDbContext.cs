@@ -110,7 +110,8 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.HasKey(x => new { x.ItemId, x.Month });
             foreach (var amount in new[] { nameof(StatementRow.Mileage), nameof(StatementRow.Cmg), nameof(StatementRow.Contributions), nameof(StatementRow.Exemption), nameof(StatementRow.DeclaredNetPay), nameof(StatementRow.DeclaredUpkeep), nameof(StatementRow.DeclaredMeals), nameof(StatementRow.NetPay), nameof(StatementRow.Upkeep),
                          nameof(StatementRow.Meals), nameof(StatementRow.BasePay), nameof(StatementRow.Deduction), nameof(StatementRow.ExtraPay),
-                         nameof(StatementRow.PaidLeavePay), nameof(StatementRow.Cost), nameof(StatementRow.TaxBase) })
+                         nameof(StatementRow.PaidLeavePay), nameof(StatementRow.Cost), nameof(StatementRow.TaxBase), nameof(StatementRow.Regularisation),
+                         nameof(StatementRow.LeaveIndemnity), nameof(StatementRow.RuptureIndemnity) })
                 e.Property(amount).HasColumnType("numeric(19,4)");
             e.Property(x => x.ComplementaryHours).HasColumnType("numeric(9,2)");
             e.Property(x => x.OvertimeHours).HasColumnType("numeric(9,2)");
