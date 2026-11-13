@@ -78,7 +78,7 @@ public class ChildcareMonthTests
             days => AbsenceDeductionTests.Absent(days, (2, AbsenceReason.CarerAbsent), (3, AbsenceReason.CarerAbsent))));
         Assert.Equal(552.68m, figures.Declaration.NetPay);
         Assert.Equal(129, figures.Declaration.NormalHours); // 552.68 / 4.30
-        Assert.Equal(14, figures.Declaration.ActivityDays); // 16 − 16 × 2 ÷ 17
+        Assert.Equal(15, figures.Declaration.ActivityDays); // 16 × 15 ÷ 17 = 14.12, rounded up
         Assert.Equal(61.95m, figures.Declaration.Upkeep);
         Assert.Equal(48.00m, figures.Declaration.Meals);
     }
@@ -216,4 +216,26 @@ public class ChildcareMonthValidationTests
     public void Days_before_the_contract_are_not_planned()
         => Assert.All(StatementPreparation.Prepare(new YearMonth(2026, 11), Plan, Gaps, Terms with { Start = D(2026, 11, 16) })
             .Where(d => d.Date.Day < 16), d => Assert.False(d.Planned));
+}
+
+/// <summary>November 2025 as Pajemploi took it: 15 mensualised days (4 × 45 ÷ 12), 16 template days, one employer RTT unpaid.</summary>
+public class ChildcareMonthActivityDaysTests
+{
+    [Fact]
+    public void One_unpaid_day_out_of_sixteen_still_declares_the_fifteen_mensualised_days()
+    {
+        var terms = new ContractTerms(D(2025, 8, 25), null, 4m, 0.10m, 3.80m, 3m, UnpaidAbsences: AbsenceCodes.DefaultUnpaid);
+        var schedule = new[] { IsoDayOfWeek.Monday, IsoDayOfWeek.Tuesday, IsoDayOfWeek.Thursday, IsoDayOfWeek.Friday }
+            .Select(d => new WeekdaySlot(d, new LocalTime(8, 15), new LocalTime(17, 45), true)).ToList();
+        var plan = WeekPlan.For([new WeekType("Semaine type", 45, schedule)], terms.Start, []);
+        var month = new YearMonth(2025, 11);
+        var days = AbsenceDeductionTests.Absent(StatementPreparation.Prepare(month, plan, [], terms),
+            (10, AbsenceReason.ParentRtt), (11, AbsenceReason.Holiday));
+        IReadOnlyList<StatementDay> neighbours = [.. StatementPreparation.Prepare(month.PlusMonths(-1), plan, [], terms), .. StatementPreparation.Prepare(month.PlusMonths(1), plan, [], terms)];
+
+        var figures = ChildcareMonth.Compute(new MonthInput(month, terms, plan, [], days, neighbours, 0, 0m, 0m, null));
+
+        Assert.Equal(534.37m, figures.Declaration.NetPay); // 570 − 570 × 9.5 ÷ 152
+        Assert.Equal(15, figures.Declaration.ActivityDays); // 15 × 15 ÷ 16 = 14.06, rounded up
+    }
 }

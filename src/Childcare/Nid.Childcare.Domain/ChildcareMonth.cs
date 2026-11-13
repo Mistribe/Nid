@@ -55,14 +55,14 @@ public static class ChildcareMonth
         // Decision 30: the difference goes to the extra pay, so that the parts still add up and June's reference pay follows.
         extraPay += netPay - computedPay;
         // The mensualised days, not the days really worked (spec §9, Pajemploi), less the deducted ones in the deduction's
-        // own ratio: 15 − 15 × 1 ÷ 18 = 14. A partial month declares the template days its pay stands for, gap weeks
-        // included as in the pay, less the deducted ones. A day worked outside the plan comes on top of either.
+        // own ratio, rounded up as the mensualised days are: 15 × 17 ÷ 18 = 14.17, so 15. A partial month declares the
+        // template days its pay stands for, gap weeks included as in the pay, less the deducted ones. A day worked outside the plan comes on top of either.
         var mensualisedDays = Mensualisation.ActivityDays(input.Plan.Types);
         var unplannedDays = inContract.Count(d => d.Present && !d.Planned);
         var activityDays = input.Declared?.ActivityDays
             ?? unplannedDays + (partial ? Math.Max(0, templateDaysInContract - deductedDays)
                 : deductedDays == 0 ? mensualisedDays
-                : (int)Math.Round(mensualisedDays - (decimal)mensualisedDays * deductedDays / templateDays, MidpointRounding.AwayFromZero));
+                : (int)Math.Ceiling((decimal)mensualisedDays * (templateDays - deductedDays) / templateDays));
         // #26: the hours the pay at the normal rate stands for, mensualised less deducted, extra hours apart: the hour
         // a started extra hour rounds up is not taken back out of them (142.5 h and 20 min extra declare 143 h + 1 h).
         var normalHours = input.Declared?.NormalHours
