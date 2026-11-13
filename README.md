@@ -13,10 +13,7 @@ interface is in French.
 **[Try the live demo →](https://demo.nid.mistribe.com)** Enter as Alice or Bob, an invented couple, without an account.
 Change anything you like: the demo starts again every night.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/frontend/screens/overview-dark.png">
-  <img alt="The investments overview: total value, net contributions, gain, annual return and a chart of value and contributions" src="docs/frontend/screens/overview-light.png">
-</picture>
+[![A tour of the demo: the dashboard with net worth and where the month's income goes, the investments, the loans and an early repayment simulated, then the saved scenarios](docs/frontend/screens/demo.gif)](https://demo.nid.mistribe.com)
 
 **No daily bookkeeping.** Bank lines arrive through bank sync and are matched to what Nid expects (subscriptions, loan
 payments, rents, transfers). A few minutes a month keep it current, and it answers the questions banking apps leave
