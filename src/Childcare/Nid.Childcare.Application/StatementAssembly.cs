@@ -115,7 +115,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
             ? evaluation.Figures
             : (await EvaluateAsync(context, stored.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, stored.Exemption, ct)).Figures;
         // Shown only while the parts add up to the line: a figure typed by hand, or frozen under other prices, may not.
-        var (lunch, snack) = Upkeep.MealCharges(days, context.Contract);
+        var (lunch, snack) = Upkeep.MealCharges(days, context.Terms.On);
         var mealCharges = snack > 0m && evaluation.Figures?.Declaration.Meals == lunch + snack ? new MealChargesView(Amount(lunch), Amount(snack)) : null;
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);

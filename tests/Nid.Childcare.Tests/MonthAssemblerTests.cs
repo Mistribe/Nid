@@ -50,6 +50,41 @@ public class MonthAssemblerTests
         Assert.Equal(without.Declaration.ComplementaryHours, with.Declaration.ComplementaryHours);
     }
 
+    private static MonthTerms Revised(LocalDate from, YearMonth month)
+        => MonthTerms.For([
+            new Terms(Item, D(2025, 9, 1), from.PlusDays(-1), 4.30m, null, 0.10m, 4.50m, 3.20m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)]),
+            new Terms(Item, from, null, 4.30m, null, 0.10m, 5.00m, 4.00m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)], 1.00m),
+        ], [], [], month);
+
+    /// <summary>A revision taking effect on Friday 2026-07-31 prices that day's upkeep, lunch and snack, the days before keep the old prices.</summary>
+    [Fact]
+    public void A_revision_taking_effect_mid_month_prices_its_own_days()
+    {
+        var terms = Revised(D(2026, 7, 31), new YearMonth(2026, 7));
+        var days = MonthAssembler.Prepared(terms).Select(d => d.Date.Day == 31 ? d with { Snack = true } : d).ToList();
+        var before = days.Count(d => d.Present) - 1;
+
+        var figures = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+
+        // 9.5 h a day: 4.50 × 9.5 ÷ 9 = 4.75 before, 5.00 × 9.5 ÷ 9 = 5.28 on the 31st.
+        Assert.Equal(before * 4.75m + 5.28m, figures.Declaration.Upkeep);
+        Assert.Equal(before * 3.20m + 4.00m + 1.00m, figures.Declaration.Meals);
+        Assert.Equal((before * 3.20m + 4.00m, 1.00m), Upkeep.MealCharges(days, terms.On));
+    }
+
+    [Fact]
+    public void A_revision_from_the_first_prices_the_whole_month_as_before()
+    {
+        var terms = Revised(D(2026, 7, 1), new YearMonth(2026, 7));
+        var days = MonthAssembler.Prepared(terms);
+        var present = days.Count(d => d.Present);
+
+        var figures = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+
+        Assert.Equal(Upkeep.Month(days, terms.Contract), (figures.Declaration.Upkeep, figures.Declaration.Meals));
+        Assert.Equal((present * 5.28m, present * 4.00m), (figures.Declaration.Upkeep, figures.Declaration.Meals));
+    }
+
     /// <summary>Decision 30.</summary>
     [Fact]
     public void Declared_amounts_replace_the_computed_ones_and_the_parts_still_add_up()
