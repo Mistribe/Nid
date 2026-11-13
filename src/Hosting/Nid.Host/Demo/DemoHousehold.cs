@@ -43,8 +43,10 @@ public static partial class DemoHousehold
     public static DemoAdult? Find(string key) => Adults.FirstOrDefault(a => a.Key == key);
 
     /// <summary>
-    /// Fills an empty database with the demo household; leaves a database that already holds it as it is. Throws when the
-    /// database holds anyone else: demo mode must never run against a real household.
+    /// Fills the database with the demo household, step by step: each step is skipped when it is already done, so a load cut
+    /// short (the container stopped mid-import) is finished on the next start instead of staying half done. A database that
+    /// holds the whole household is left as it is. Throws when the database holds anyone else: demo mode must never run
+    /// against a real household.
     /// </summary>
     public static async Task SeedAsync(IServiceProvider services, ILogger logger, CancellationToken ct)
     {
@@ -54,39 +56,54 @@ public static partial class DemoHousehold
         var accessor = provider.GetRequiredService<IActorAccessor>();
         var invoker = provider.GetRequiredService<IInvoker>();
 
-        var existing = await persons.ListAsync(ct);
-        if (existing.Count > 0)
+        // The demo adults are known by their subject, which nothing in the app changes (an email can be edited).
+        var ids = new Dictionary<string, PersonInfo>();
+        foreach (var adult in Adults)
+            if (await persons.FindBySubjectAsync(adult.Subject, ct) is { } found)
+                ids[adult.Key] = found;
+
+        // An adult who signed in through an identity provider means a real household. A pending adult (no sign-in yet)
+        // is one a visitor added as Alice: still demo data, and no reason to keep the demo down until the next reset.
+        var demoIds = ids.Values.Select(p => p.Id).ToHashSet();
+        var strangers = (await persons.ListAsync(ct)).Count(p => p.Kind == PersonKind.Adult && !p.IsPending && !demoIds.Contains(p.Id));
+        if (strangers > 0)
+            throw new InvalidOperationException(
+                $"Demo mode is on (Nid__Demo__Enabled) but the database holds {strangers} adult(s) outside the demo household: it refuses to start. Demo mode runs on an empty database of its own only.");
+
+        // A file is loaded once its import is committed: the commit writes the data and marks the session in one transaction.
+        var pending = new List<DemoAdult>();
+        foreach (var adult in Adults)
+            if (!ids.TryGetValue(adult.Key, out var person) || !await HasCommittedImportAsync(invoker, accessor, person, ct))
+                pending.Add(adult);
+        if (pending.Count == 0)
         {
-            // An adult who signed in through an identity provider means a real household. A pending adult (no sign-in yet)
-            // is one a visitor added as Alice: still demo data, and no reason to keep the demo down until the next reset.
-            // The demo adults are known by their subject, which nothing in the app changes (an email can be edited).
-            var demoIds = new HashSet<PersonId>();
-            foreach (var adult in Adults)
-                if (await persons.FindBySubjectAsync(adult.Subject, ct) is { } found)
-                    demoIds.Add(found.Id);
-            var strangers = existing.Where(p => p.Kind == PersonKind.Adult && !p.IsPending && !demoIds.Contains(p.Id)).ToList();
-            if (strangers.Count > 0)
-                throw new InvalidOperationException(
-                    $"Demo mode is on (Nid__Demo__Enabled) but the database holds {strangers.Count} adult(s) outside the demo household: it refuses to start. Demo mode runs on an empty database of its own only.");
             logger.LogInformation("Demo mode: the database already holds the demo household, nothing to load.");
             return;
         }
+        if (ids.Count > 0)
+            logger.LogWarning("Demo mode: the demo household is incomplete (a load was cut short), finishing it: {Files}.",
+                string.Join(", ", pending.Select(a => a.File)));
 
         var today = provider.GetRequiredService<IClock>().GetCurrentInstant().InUtc().Date;
         var anchor = new YearMonth(today.Year, today.Month).PlusMonths(-1);
         var shift = (anchor.Year - FilesEnd.Year) * 12 + anchor.Month - FilesEnd.Month;
 
         accessor.Current = Actor.System;
-        var ids = new Dictionary<string, PersonInfo>();
-        foreach (var adult in Adults)
+        foreach (var adult in Adults.Where(a => !ids.ContainsKey(a.Key)))
             ids[adult.Key] = Expect(await invoker.InvokeAsync(new ProvisionAdultCommand(adult.Subject, adult.Name, adult.Email, adult.IsAdmin), ct), $"provision {adult.Name}");
         Expect(await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(null, null, null, BankingEnabled: true), ct), "switch the bank on");
 
+        // adult-1 is the importing adult in each file, adult-2 the other one (generate.mjs). Bob first: Alice's file shares
+        // items with him.
         var alice = ids["alice"].Id;
         var bob = ids["bob"].Id;
-        // adult-1 is the importing adult in each file, adult-2 the other one (generate.mjs).
-        await ImportAsync(invoker, accessor, ids["bob"], "bob.nid.json", new Dictionary<string, PersonId> { ["adult-1"] = bob }, shift, ct);
-        await ImportAsync(invoker, accessor, ids["alice"], "alice.nid.json", new Dictionary<string, PersonId> { ["adult-1"] = alice, ["adult-2"] = bob }, shift, ct);
+        var refs = new Dictionary<string, IReadOnlyDictionary<string, PersonId>>
+        {
+            ["bob"] = new Dictionary<string, PersonId> { ["adult-1"] = bob },
+            ["alice"] = new Dictionary<string, PersonId> { ["adult-1"] = alice, ["adult-2"] = bob },
+        };
+        foreach (var adult in pending)
+            await ImportAsync(invoker, accessor, ids[adult.Key], adult.File, refs[adult.Key], shift, ct);
 
         foreach (var person in ids.Values)
             Expect(await persons.UpdatePreferencesAsync(person.Id, new PreferencesChange(null, null, null, Guides.ToDictionary(g => g, _ => 999)), ct), "mark the guides seen");
@@ -94,10 +111,23 @@ public static partial class DemoHousehold
         logger.LogInformation("Demo mode: the demo household is loaded, its dates up to {Anchor}.", anchor.ToString("yyyy-MM", CultureInfo.InvariantCulture));
     }
 
+    private static async Task<bool> HasCommittedImportAsync(IInvoker invoker, IActorAccessor accessor, PersonInfo person, CancellationToken ct)
+    {
+        accessor.Current = Actor.Browser(person.Id, person.IsAdmin);
+        var sessions = Expect(await invoker.InvokeAsync(new ListImportsQuery(), ct), $"list the imports of {person.DisplayName}");
+        return sessions.Any(s => s.State == ImportStates.Name(ImportState.Committed));
+    }
+
     private static async Task ImportAsync(
         IInvoker invoker, IActorAccessor accessor, PersonInfo actor, string file, IReadOnlyDictionary<string, PersonId> adults, int shift, CancellationToken ct)
     {
         accessor.Current = Actor.Browser(actor.Id, actor.IsAdmin);
+        // A load cut short leaves its session open, validated or invalid, and a person has one active import at a time.
+        var active = ImportStates.Active.Select(ImportStates.Name).ToHashSet();
+        foreach (var stale in Expect(await invoker.InvokeAsync(new ListImportsQuery(), ct), $"list the imports of {actor.DisplayName}")
+                     .Where(s => active.Contains(s.State)))
+            Expect(await invoker.InvokeAsync(new CancelImportCommand(stale.Id), ct), $"cancel the unfinished import of {file}");
+
         var document = Read(file, shift);
         var session = Expect(await invoker.InvokeAsync(
             new StartImportCommand(document["format"]!.GetValue<string>(), document["version"]!.GetValue<int>(), adults), ct), $"start {file}");
