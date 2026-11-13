@@ -41,7 +41,7 @@ public class ChildcareEndTests(PostgresFixture fixture) : IClassFixture<Postgres
         // Every week welcomed since September: more hours than the mensualisation paid.
         Assert.True(Amount(figures.GetProperty("regularisation"), "amount") > 0m);
         var declaration = figures.GetProperty("declaration");
-        Assert.Equal(5, declaration.GetProperty("paidLeaveDays").GetInt32()); // September and October: 2 × 2.5 days
+        Assert.Equal(6, declaration.GetProperty("paidLeaveDays").GetInt32()); // September and October: 9 weeks × 2.5 ÷ 4, rounded up
         Assert.True(Amount(declaration, "leaveIndemnity") > 0m);
         Assert.Equal(0m, Amount(declaration, "ruptureIndemnity")); // a month of care
 

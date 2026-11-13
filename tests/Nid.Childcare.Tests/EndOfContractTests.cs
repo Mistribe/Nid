@@ -97,7 +97,7 @@ public class LastMonthTests
     {
         var (validated, last) = Run(D(2027, 3, 31), new ContractEnd(EndReason.Withdrawal, D(2027, 2, 26)), []);
         var f = last.Figures!;
-        Assert.Equal(25, f.Declaration.PaidLeaveDays); // June 2026 to March 2027: 10 months × 2.5
+        Assert.Equal(28, f.Declaration.PaidLeaveDays); // June 2026 to March 2027: about 43.6 weeks of care × 2.5 ÷ 4, rounded up
         Assert.True(f.Declaration.LeaveIndemnity > 0m);
         var net = validated.Sum(s => s.Figures!.Declaration.NetPay) + f.Declaration.NetPay + f.Declaration.LeaveIndemnity;
         Assert.Equal(Mensualisation.Round(net * (5.50m / 4.30m) / 80m), f.Declaration.RuptureIndemnity);
