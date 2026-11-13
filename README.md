@@ -10,6 +10,9 @@ French tax. With an MCP server, so your AI assistant can read your figures and p
 Made for French households: income tax, PEA, PER, Livret A, life insurance and Pajemploi work out of the box. The
 interface is in French.
 
+**[Try the live demo →](https://demo.nid.mistribe.com)** Enter as Alice or Bob, an invented couple, without an account.
+Change anything you like: the demo starts again every night.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/frontend/screens/overview-dark.png">
   <img alt="The investments overview: total value, net contributions, gain, annual return and a chart of value and contributions" src="docs/frontend/screens/overview-light.png">
@@ -28,7 +31,8 @@ open:
 **Built for couples.** Two adults share one household, with children as dependents. Every item has owners (mine,
 yours, joint) and is either shared or private.
 
-**Try it locally** with an invented household that fills every screen: see [Demo data](#development).
+**Run the demo yourself**: locally with an invented household that fills every screen ([Demo data](#development)), or
+as a public instance ([`deploy/README.md`](deploy/README.md) §14).
 
 > [!NOTE]
 > **Status:** used every day by a real household, released on every merge. The API and data model can still change
