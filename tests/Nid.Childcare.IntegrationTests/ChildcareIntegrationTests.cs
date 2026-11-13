@@ -108,6 +108,26 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(october - 100m + 40m, Amount((await ChildcareSourceAsync(app))!.Value.GetProperty("amortized")));
     }
 
+    /// <summary>The exemption Pajemploi adds on the extra hours: estimated in a draft, the summary's figure once entered, in the cost and the year.</summary>
+    [Fact]
+    public async Task The_exemption_on_extra_hours_counts_in_the_cost()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var arrangement = await CreateAsync(app);
+        static decimal Amount(System.Text.Json.JsonElement e) => decimal.Parse(e.GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+        var draft = (await GetAsync(app, $"{arrangement}/statements/2025-09")).GetProperty("figures");
+        var estimate = Amount(draft.GetProperty("exemption"));
+
+        var september = await ValidateAsync(app, arrangement, "2025-09", cmg: "100", exemption: "6.13");
+        Assert.Equal("6.13", september.GetProperty("exemption").GetString());
+        Assert.Equal(6.13m, Amount(september.GetProperty("figures").GetProperty("exemption")));
+        Assert.Equal(Amount(draft.GetProperty("cost")) - estimate - 100m + 6.13m, Amount(september.GetProperty("figures").GetProperty("cost")));
+
+        var year = await GetAsync(app, $"{arrangement}/summary?year=2025");
+        Assert.Equal(6.13m, Amount(year.GetProperty("exemption")));
+        Assert.Equal(Amount(year.GetProperty("netPay")) + Amount(year.GetProperty("upkeep")) + 6.13m - 100m, Amount(year.GetProperty("retained")));
+    }
+
     [Fact]
     public async Task A_past_month_ignores_later_validated_months()
     {

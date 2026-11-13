@@ -194,6 +194,9 @@
     "before_cmg": "avant CMG",
     "cmg": "CMG",
     "contributions": "Cotisations à charge",
+    "exemption": "Exonération heures en plus",
+    "exemption_tip": "Sur les heures complémentaires et majorées, une partie des cotisations de l’assistante n’est pas prélevée : Pajemploi l’ajoute au salaire qu’il lui verse, en plus du net déclaré. Le montant est sur le récapitulatif Pajemploi.",
+    "estimated": "estimation",
     "validate": "Valider le relevé",
     "validate_confirm": "Le relevé de {{month}} sera figé ; vous pourrez le rouvrir tant que le mois suivant n'est pas validé.",
     "validate_confirm_vowel": "Le relevé d’{{month}} sera figé ; vous pourrez le rouvrir tant que le mois suivant n'est pas validé.",
@@ -229,6 +232,8 @@
     "cmg_field": "CMG du récapitulatif Pajemploi (€)",
     "contributions_field": "Cotisations à votre charge (€)",
     "contributions_hint": "Celles que le récapitulatif Pajemploi laisse au foyer, au-delà du plafond horaire de la CMG ; vide quand tout est pris en charge. Comptées dans le coût.",
+    "exemption_field": "Exonération des heures en plus (€)",
+    "exemption_estimate": "Vide : Nid l’estime à {{amount}} €. Comptée dans le coût.",
     "entry_of": "Saisie : {{field}}",
     "entry_hint": "Saisie manuelle : le chiffre retenu par Pajemploi, à la place de celui de Nid. Vide : le chiffre de Nid.",
     "column": {
@@ -324,6 +329,7 @@
     "contributions": "Cotisations sociales",
     "contributions_value": "Prises en charge",
     "contributions_paid": "À la charge du foyer",
+    "exemption": "Exonération des heures en plus",
     "cmg": "CMG perçu",
     "upkeep": "Indemnités d’entretien",
     "meals": "Indemnités de repas",
@@ -333,10 +339,11 @@
     "hint": {
       "net_pay": "Le salaire déclaré chaque mois sur Pajemploi.",
       "contributions": "Prises en charge par la CMG pour une assistante maternelle agréée, jusqu’au plafond horaire ; au-delà, la part laissée au foyer par le récapitulatif Pajemploi est retenue. Pajemploi les détaille sur son attestation fiscale.",
+      "exemption": "Ajoutée par Pajemploi au salaire versé pour les heures complémentaires et majorées ; retenue avec le salaire.",
       "cmg": "Relevé sur le récapitulatif Pajemploi de chaque mois ; déduit des frais retenus.",
       "upkeep": "Retenues avec le salaire.",
       "meals": "Non retenues pour le crédit d’impôt.",
-      "retained": "Salaire net + entretien + cotisations à la charge du foyer − CMG : le montant que prend l’estimation d’impôt."
+      "retained": "Salaire net + exonération des heures en plus + entretien + cotisations à la charge du foyer − CMG : le montant que prend l’estimation d’impôt."
     },
     "csv_header": {
       "line": "Ligne",

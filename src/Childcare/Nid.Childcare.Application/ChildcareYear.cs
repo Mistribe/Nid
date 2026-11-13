@@ -6,7 +6,7 @@ using NodaTime;
 namespace Nid.Childcare.Application;
 
 /// <summary>#411: a year of an arrangement's validated months, summed field by field.</summary>
-public sealed record YearTotals(decimal NetPay, decimal Cmg, decimal Upkeep, decimal Meals, decimal TaxBase, decimal Contributions = 0m);
+public sealed record YearTotals(decimal NetPay, decimal Cmg, decimal Upkeep, decimal Meals, decimal TaxBase, decimal Contributions = 0m, decimal Exemption = 0m);
 
 /// <summary>#411: an arrangement's year for the tax return, from the validated statements the tax estimate counts. Pure.</summary>
 public static class ChildcareYear
@@ -21,7 +21,7 @@ public static class ChildcareYear
     /// <summary>The validated months summed; <c>TaxBase</c> is the sum of the tax lines (net pay + upkeep + contributions left to the household − CMG), meals and mileage left out.</summary>
     public static YearTotals Totals(IReadOnlyList<Statement> counted)
         => new(counted.Sum(s => s.Figures!.Declaration.NetPay), counted.Sum(s => s.Figures!.Cmg), counted.Sum(s => s.Figures!.Declaration.Upkeep),
-            counted.Sum(s => s.Figures!.Declaration.Meals), counted.Sum(s => s.Figures!.TaxBase), counted.Sum(s => s.Figures!.Contributions));
+            counted.Sum(s => s.Figures!.Declaration.Meals), counted.Sum(s => s.Figures!.TaxBase), counted.Sum(s => s.Figures!.Contributions), counted.Sum(s => s.Figures!.Exemption));
 
     /// <summary>The years the arrangement has months in (decision 13), newest first.</summary>
     public static IReadOnlyList<int> Years(LocalDate start, LocalDate? end, LocalDate today)

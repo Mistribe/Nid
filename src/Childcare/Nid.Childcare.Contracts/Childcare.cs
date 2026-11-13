@@ -43,11 +43,12 @@ public sealed record PajemploiDeclaration(
 
 /// <summary>
 /// Spec §3 and §6: the declaration with the pay's parts, the month's cost and the childcare tax base. <c>Contributions</c>: #30, the
-/// contributions the CMG leaves to the household, as the Pajemploi summary shows them; in the cost and the tax base.
+/// contributions the CMG leaves to the household, as the Pajemploi summary shows them; in the cost and the tax base. <c>Exemption</c>: the
+/// salary contributions Pajemploi waives on the extra hours and adds to what it pays the carer; in the cost and the tax base.
 /// </summary>
 public sealed record MonthFigures(
     PajemploiDeclaration Declaration, decimal BasePay, decimal Deduction, decimal ExtraPay, decimal PaidLeavePay,
-    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted, decimal Contributions = 0m);
+    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted, decimal Contributions = 0m, decimal Exemption = 0m);
 
 /// <summary>The names of <see cref="MealProvider"/>, on the wire and in the database.</summary>
 public static class MealProviderCodes

@@ -174,6 +174,19 @@ describe('StatementPage', () => {
     expect(writes[0]!.body).toMatchObject({ cmg: '100.00', contributions: '30.10' });
   });
 
+  it('the exemption on extra hours shows estimated, then goes with the costs once entered', async () => {
+    const writes: Write[] = [];
+    const base = statement({ cmg: '100.00' });
+    serve({ ...base, figures: { ...base.figures!, exemption: { amount: '6.14', currency: 'EUR' } } }, writes);
+    const { user } = await renderApp(url);
+    expect(await screen.findByRole('region', { name: 'Chiffres du mois' })).toHaveTextContent('Exonération heures en plus6,14 €estimation');
+    expect(screen.getByText('Vide : Nid l’estime à 6,14 €. Comptée dans le coût.')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Exonération des heures en plus (€)'), '6,13');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les frais' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]!.body).toMatchObject({ cmg: '100.00', exemption: '6.13' });
+  });
+
   it('a problem hides the declaration and blocks validation', async () => {
     serve(statement({ figures: null, cmg: '0.00', problems: [{ field: 'days[7].planned', code: 'childcare.day_replanned' }] }));
     await renderApp(url);

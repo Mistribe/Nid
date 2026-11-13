@@ -223,11 +223,11 @@ public sealed class ChildcareImportSection(
                 var previous = known.FirstOrDefault(s => s.Month == month.PlusMonths(-1));
                 if (previous is { Days.Count: 0 })
                     previous = await store.FindStatementAsync(plan.Id, previous.Month, ct);
-                var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m);
+                var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, exemption: record.Exemption ?? 0m);
                 // A month may have been validated before or after the next one's days were corrected: either way its figures stand.
                 var following = group.Where(e => e.Month == month.PlusMonths(1) && possible.Contains(e.Month)).Select(e => new Statement(plan.Id, e.Month, true, 0m, null, e.Days, null, 0)).FirstOrDefault();
                 if (following is not null && evaluation.Figures is { } alone && !Same(alone, record.Figures))
-                    evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, following);
+                    evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, following, record.Exemption ?? 0m);
                 if (evaluation.Figures is not { } figures)
                 {
                     foreach (var (field, code) in evaluation.Problems)
@@ -294,7 +294,7 @@ public sealed class ChildcareImportSection(
                 var full = (await store.FindStatementAsync(plan.Id, month.Month, ct))!;
                 var terms = MonthTerms.For(plan.Parsed.Revisions, plan.Parsed.Gaps, plan.Parsed.Overrides, month.Month);
                 var evaluation = MonthAssembler.Evaluate(terms, MonthAssembler.Replanned(terms, full.Days), [], known,
-                    known.LastOrDefault(s => s.Month == month.Month.PlusMonths(-1)), full.Mileage, full.Cmg, full.Declared, full.Contributions ?? 0m);
+                    known.LastOrDefault(s => s.Month == month.Month.PlusMonths(-1)), full.Mileage, full.Cmg, full.Declared, full.Contributions ?? 0m, exemption: full.Exemption ?? 0m);
                 if (evaluation.Figures is not { } figures || !Same(full.Figures!, FiguresOf(figures)))
                 {
                     issues.Add(ImportIssue.Error(ChildcareCodes.FiguresDiffer,
@@ -429,6 +429,7 @@ public sealed class ChildcareImportSection(
         {
             Arrangement = arrangement, Month = MonthPattern.Format(s.Month), Mileage = Exact(s.Mileage), Cmg = Exact(f.Cmg),
             Contributions = f.Contributions == 0m ? null : Exact(f.Contributions),
+            Exemption = f.Exemption == 0m ? null : Exact(f.Exemption),
             Declared = s.Declared is { } entered && entered != new DeclaredFigures() ? RecordOf(entered) : null,
             Days = s.Days.Select(x => new DayRecord
             {
@@ -602,7 +603,7 @@ public sealed class ChildcareImportSection(
         var parsedMonth = MonthPattern.Parse(r.Month);
         month = parsedMonth.Success ? parsedMonth.Value : default;
         if (!parsedMonth.Success) { issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "A month is written YYYY-MM.", path + ".month")); ok = false; }
-        if (r.Mileage < 0 || r.Cmg < 0 || r.Contributions < 0 || DeclaredOf(r.Declared) is { AnyNegative: true }) { issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "The mileage, the CMG, the contributions and the declared amounts are zero or more.", path)); ok = false; }
+        if (r.Mileage < 0 || r.Cmg < 0 || r.Contributions < 0 || r.Exemption < 0 || DeclaredOf(r.Declared) is { AnyNegative: true }) { issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "The mileage, the CMG, the contributions, the exemption and the declared amounts are zero or more.", path)); ok = false; }
         var list = new List<StatementDay>();
         for (var j = 0; j < r.Days.Count; j++)
         {

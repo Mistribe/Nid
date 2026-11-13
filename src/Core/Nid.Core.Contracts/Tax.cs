@@ -52,7 +52,7 @@ public static class TaxLineCodes
     /// <summary>A rental property: its cost price, purchase date and surface (the 20 € per property, Pinel's base).</summary>
     public const string RentalProperty = "rental_property";
     public const string CapitalIncome = "capital_income";
-    /// <summary>Childcare spec decision 21: a validated childminder statement's tax base (net pay + upkeep + contributions left to the household − CMG), without a person.</summary>
+    /// <summary>Childcare spec decision 21: a validated childminder statement's tax base (net pay + upkeep + contributions left to the household + exemption on the extra hours − CMG), without a person.</summary>
     public const string ChildcareOutsideHome = "childcare_outside_home";
     /// <summary>#14: a month of the current year left to validate, at the mean tax base of the validated months, without a person.</summary>
     public const string ChildcareProjected = "childcare_projected";

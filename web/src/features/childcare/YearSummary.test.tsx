@@ -57,6 +57,13 @@ describe('YearSummary', () => {
     expect(lines).toHaveTextContent('40,00 €');
   });
 
+  it('shows the exemption on extra hours after the pay', async () => {
+    serve(yearSummary({ exemption: { amount: '17.56', currency: 'EUR' } }));
+    await renderApp(url);
+    const lines = await screen.findByRole('region', { name: 'Récapitulatif 2025' });
+    expect(lines).toHaveTextContent(/Salaire net versé.*Exonération des heures en plus.*17,56 €.*Cotisations sociales/);
+  });
+
   it('asks the year picked', async () => {
     const asked = serve();
     const { user } = await renderApp(url);
