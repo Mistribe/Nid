@@ -19,8 +19,8 @@ public static class ExtraHours
         {
             if (Owner(week.Key.PlusDays(3), terms) != month) continue;
             // The week's own plan, not a template's fixed hours: a paid absence stays planned, an unpaid one (or its missing hours) and a gap week do not.
-            // Training is deducted whatever the contract (AbsenceDeduction), so it is never planned either.
-            var planned = week.Where(d => d.Planned).Sum(d => d.Absence is { } r && (reasons.Contains(r) || r == AbsenceReason.CarerTraining)
+            // A reason deducted whatever the contract (AbsenceDeduction) is never planned either.
+            var planned = week.Where(d => d.Planned).Sum(d => d.Absence is { } r && (reasons.Contains(r) || AbsenceCodes.AlwaysUnpaid.Contains(r))
                 ? d.Present ? Math.Min(plan.HoursOn(d.Date), Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value)) : 0m
                 : plan.HoursOn(d.Date));
             // Day by day: an hour short on one day (paid, so not made up) does not offset an hour past the plan on another.

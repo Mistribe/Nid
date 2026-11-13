@@ -80,6 +80,7 @@ public class ExtraHoursTests
         var month = new YearMonth(2026, 11);
         var training = new StatementDay(D(2026, 11, 12), true, false, null, null, false, AbsenceReason.CarerTraining);
         Assert.Equal((9m, 0m), ExtraHours.Compute(month, With(With(Around(month), ExtraWednesday), training), Plan, Terms with { UnpaidAbsences = [] }));
+        Assert.Equal((9m, 0m), ExtraHours.Compute(month, With(With(Around(month), ExtraWednesday), training with { Absence = AbsenceReason.FamilyAgreed }), Plan, Terms with { UnpaidAbsences = [] }));
     }
 
     /// <summary>Half an hour extra in two weeks: one started hour in the month, not one per week.</summary>

@@ -124,7 +124,7 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
         {
             e.ToTable("statement_day", t =>
             {
-                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave', 'carer_training')");
+                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave', 'carer_training', 'family_agreed')");
                 t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
             });
             e.HasKey(x => new { x.ItemId, x.Date });
