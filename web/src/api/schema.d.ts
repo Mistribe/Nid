@@ -29090,6 +29090,7 @@ export interface components {
             version: number;
             weeks: components["schemas"]["ContractWeekView"][];
             allocation: components["schemas"]["WeekTypeCountView"][];
+            gapYears: components["schemas"]["GapYearView"][];
             cmgEstimate?: null | components["schemas"]["ChildcareMoneyView"];
             /**
              * Format: int32
@@ -30421,6 +30422,19 @@ export interface components {
         };
         GapsBody: {
             gaps?: null | components["schemas"]["CareGapBody"][];
+        };
+        GapYearView: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: int32 */
+            allowed: number;
+            /** Format: int32 */
+            placed: number;
+            /** Format: int32 */
+            toPlace: number;
+            gaps: components["schemas"]["CareGapView"][];
         };
         GoalCommitmentView: {
             source: string;

@@ -55,9 +55,19 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today), arrangement.Version,
                 year.Select(w => new ContractWeekView(w.Monday, w.WeekType, w.Overridden, w.Gap)).ToList(),
                 now.WeekTypes.Select((w, i) => new WeekTypeCountView(w.Name, allocated[i], w.Weeks)).ToList(),
+                GapYears(revisions, views[^1].To, placed, today),
                 estimates[arrangement.ItemId] is { } cmg ? ChildcareMoneyView.Of(cmg, currency) : null,
                 StatementContext.ChildSickUsed(revisions[0].From, today, sickDeducted[arrangement.ItemId]));
         }).ToList();
+    }
+
+    private static List<GapYearView> GapYears(List<Terms> revisions, LocalDate? end, List<CareGap> placed, LocalDate today)
+    {
+        var gaps = placed.Select(g => new CareGapView(g.Monday, g.Weeks, g.Monday.PlusWeeks(g.Weeks).PlusDays(-1))).ToList();
+        return ContractCheck.GapYears(revisions[0].From, end, d => revisions.LastOrDefault(t => t.From <= d, revisions[0]).ProgrammedWeeks, placed, today)
+            .Select(y => new GapYearView(y.From, y.To, y.Allowed, y.Placed, Math.Max(0, y.Allowed - y.Placed),
+                gaps.Where(g => g.Monday >= y.From && g.Monday <= y.To).ToList()))
+            .ToList();
     }
 
     /// <summary>The list's order: open first, then by child and name.</summary>
