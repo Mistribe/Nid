@@ -14,18 +14,24 @@ public static class Upkeep
         return Mensualisation.Round(Math.Max(ChildcareRules.UpkeepDailyFloor, Math.Max(upkeepPer9h, rules.Upkeep9hMinimum) * hours / 9m));
     }
 
-    public static (decimal Upkeep, decimal Meals) Month(IReadOnlyList<StatementDay> monthDays, ContractTerms terms)
+    public static (decimal Upkeep, decimal Meals) Month(IReadOnlyList<StatementDay> monthDays, ContractTerms terms) => Month(monthDays, _ => terms);
+
+    /// <summary>Each present day priced with the terms in force on it: a revision taking effect mid-month prices its days only.</summary>
+    public static (decimal Upkeep, decimal Meals) Month(IReadOnlyList<StatementDay> monthDays, Func<LocalDate, ContractTerms> termsOn)
     {
         var present = monthDays.Where(d => d.Present).ToList();
-        var (lunch, snack) = MealCharges(present, terms);
-        return (present.Sum(d => ForDay(d.Date, d.Arrival!.Value, d.Departure!.Value, terms.UpkeepPer9h)), lunch + snack);
+        var (lunch, snack) = MealCharges(present, termsOn);
+        return (present.Sum(d => ForDay(d.Date, d.Arrival!.Value, d.Departure!.Value, termsOn(d.Date).UpkeepPer9h)), lunch + snack);
     }
 
-    /// <summary>Each meal ticked on a present day at its own price; a meal the employer provides stays ticked and costs nothing.</summary>
-    public static (decimal Lunch, decimal Snack) MealCharges(IReadOnlyList<StatementDay> days, ContractTerms terms)
+    public static (decimal Lunch, decimal Snack) MealCharges(IReadOnlyList<StatementDay> days, ContractTerms terms) => MealCharges(days, _ => terms);
+
+    /// <summary>Each meal ticked on a present day at its own day's price; a meal the employer provides stays ticked and costs nothing.</summary>
+    public static (decimal Lunch, decimal Snack) MealCharges(IReadOnlyList<StatementDay> days, Func<LocalDate, ContractTerms> termsOn)
     {
-        decimal Charge(Func<StatementDay, bool> ticked, decimal? price, MealProvider provider)
-            => provider == MealProvider.Nanny ? Mensualisation.Round(days.Count(d => d.Present && ticked(d)) * (price ?? 0m)) : 0m;
-        return (Charge(d => d.Lunch, terms.LunchPrice, terms.LunchProvider), Charge(d => d.Snack, terms.SnackPrice, terms.SnackProvider));
+        decimal Charge(Func<StatementDay, bool> ticked, Func<ContractTerms, decimal?> price, Func<ContractTerms, MealProvider> provider)
+            => Mensualisation.Round(days.Where(d => d.Present && ticked(d)).Select(d => termsOn(d.Date))
+                .Sum(t => provider(t) == MealProvider.Nanny ? price(t) ?? 0m : 0m));
+        return (Charge(d => d.Lunch, t => t.LunchPrice, t => t.LunchProvider), Charge(d => d.Snack, t => t.SnackPrice, t => t.SnackProvider));
     }
 }

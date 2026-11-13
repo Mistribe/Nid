@@ -10,12 +10,14 @@ public sealed record PaidLeaveInput(decimal MonthsWithCare, decimal ReferenceNet
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
 /// share a week with it; <c>Cmg</c>: read from the Pajemploi summary; <c>Declared</c>: decision 30, the fields entered by hand;
 /// <c>Contributions</c>: #30, the contributions left to the household on the Pajemploi summary; <c>Exemption</c>: the contributions
-/// Pajemploi waived on the extra hours, from its summary, estimated while null.
+/// Pajemploi waived on the extra hours, from its summary, estimated while null; <c>TermsOn</c>: the terms in force on a day,
+/// for the upkeep and meals of a month a revision takes effect in (<c>Terms</c> on every day while null).
 /// </summary>
 public sealed record MonthInput(
     YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
-    decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null, decimal Contributions = 0m, decimal? Exemption = null);
+    decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null, decimal Contributions = 0m, decimal? Exemption = null,
+    Func<LocalDate, ContractTerms>? TermsOn = null);
 
 /// <summary>Childcare spec §3 and §6: a month's Pajemploi declaration, its cost and its childcare tax base. Pure.</summary>
 public static class ChildcareMonth
@@ -42,7 +44,7 @@ public static class ChildcareMonth
         var overtime = input.Declared?.OvertimeHours ?? ExtraHours.Whole(computedOvertime);
         var extraPay = ExtraHours.Pay(input.Declared?.ComplementaryHours ?? computedComplementary, input.Declared?.OvertimeHours ?? computedOvertime,
             input.Terms.NetHourlyRate, input.Terms.OvertimeRate) + ExtraHours.HolidayPremium(inContract, input.Terms.NetHourlyRate);
-        var (computedUpkeep, computedMeals) = Upkeep.Month(input.Days, input.Terms);
+        var (computedUpkeep, computedMeals) = Upkeep.Month(input.Days, input.TermsOn ?? (_ => input.Terms));
         var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
         var meals = input.Declared?.Meals ?? computedMeals;
 

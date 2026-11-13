@@ -14,10 +14,19 @@ public sealed record MonthTerms(
     public static MonthTerms For(IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, IReadOnlyList<WeekOverride> overrides, YearMonth month)
     {
         var chosen = revisions[StatementContext.TermsIndexFor(month, revisions[0].From, revisions.Select(r => (r.From, r.To)).ToList())];
-        return new(revisions, gaps, overrides, month, chosen,
-            new ContractTerms(revisions[0].From, revisions[^1].To, chosen.NetHourlyRate, chosen.OvertimeRate, chosen.UpkeepPer9h, chosen.LunchPrice,
-                chosen.SnackPrice, chosen.LunchProvider, chosen.SnackProvider, chosen.UnpaidAbsences));
+        return new(revisions, gaps, overrides, month, chosen, ContractOf(revisions, chosen));
     }
+
+    /// <summary>The contract under the revision in force on this day: a revision taking effect mid-month prices that day's upkeep and meals.</summary>
+    public ContractTerms On(LocalDate day)
+    {
+        var revision = Revisions.LastOrDefault(r => r.From <= day) ?? Revisions[0];
+        return revision.From == Chosen.From ? Contract : ContractOf(Revisions, revision);
+    }
+
+    private static ContractTerms ContractOf(IReadOnlyList<Terms> revisions, Terms r)
+        => new(revisions[0].From, revisions[^1].To, r.NetHourlyRate, r.OvertimeRate, r.UpkeepPer9h, r.LunchPrice,
+            r.SnackPrice, r.LunchProvider, r.SnackProvider, r.UnpaidAbsences);
 }
 
 /// <summary>
@@ -74,7 +83,7 @@ public static class MonthAssembler
         var input = new MonthInput(terms.Month, terms.Contract, terms.Plan, terms.Gaps, days,
             [.. Neighbour(terms, terms.Month.PlusMonths(-1), previous), .. Neighbour(terms, terms.Month.PlusMonths(1), next)], StatementContext.ChildSickUsedBefore(terms.Contract.Start, terms.Month,
                 validated.Select(s => (s.Month, s.Figures!.ChildSickDeducted)).ToList()),
-            mileage, cmg ?? 0m, june, declared, contributions, exemption);
+            mileage, cmg ?? 0m, june, declared, contributions, exemption, terms.On);
         return new MonthEvaluation(ChildcareMonth.Compute(input), problems, missing);
     }
 
