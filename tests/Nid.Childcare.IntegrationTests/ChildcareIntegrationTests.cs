@@ -55,7 +55,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
-    public async Task Reopened_month_leaves_the_tax()
+    public async Task Reopened_month_is_estimated_from_the_contract()
     {
         await using var app = await NidApp.StartAsync(fixture);
         await ProfileAsync(app);
@@ -64,8 +64,12 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         await ReopenAsync(app, arrangement, "2025-09");
 
         var tax = await GetAsync(app, "/api/v1/tax?year=2025&scope=household");
-        Assert.Equal("9999.00", tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
+        Assert.NotEqual("9999.00", tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
         Assert.DoesNotContain(tax.GetProperty("notices").EnumerateArray(), n => n.GetProperty("code").GetString() == "childcare_from_statements");
+        var estimated = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_estimated");
+        Assert.Equal(0, estimated.GetProperty("monthsValidated").GetInt32());
+        Assert.True(estimated.GetProperty("monthsEstimated").GetInt32() > 0);
+        Assert.Equal(estimated.GetProperty("amount").GetString(), tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
     }
 
     private static async Task<System.Text.Json.JsonElement?> ChildcareSourceAsync(NidApp app)

@@ -40,14 +40,16 @@ public static class ChildcareYear
 
     /// <summary>
     /// #14: the current year's months left to validate, up to December or the contract's end, each at the mean tax base of the
-    /// validated months, so the credit is not understated mid-year. None for another year or without a validated month.
+    /// validated months, so the credit is not understated mid-year; without a validated month, at <paramref name="estimate"/> (a month
+    /// computed from the contract). None for another year or without either.
     /// </summary>
-    public static IReadOnlyList<(YearMonth Month, decimal Amount)> Projected(LocalDate start, LocalDate? end, LocalDate today, IReadOnlyList<Statement> statements, int year)
+    public static IReadOnlyList<(YearMonth Month, decimal Amount)> Projected(LocalDate start, LocalDate? end, LocalDate today, IReadOnlyList<Statement> statements, int year,
+        decimal? estimate = null)
     {
         var counted = Counted(statements, year);
-        if (year != today.Year || counted.Count == 0)
+        if (year != today.Year || (counted.Count == 0 && estimate is null))
             return [];
-        var mean = Mensualisation.Round(counted.Average(s => s.Figures!.TaxBase));
+        var mean = counted.Count > 0 ? Mensualisation.Round(counted.Average(s => s.Figures!.TaxBase)) : estimate!.Value;
         return NotValidated(start, end, new LocalDate(year, 12, 31), statements, year).Select(m => (m, mean)).ToList();
     }
 
