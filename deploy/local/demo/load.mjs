@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { household, offset } from './generate.mjs';
-import { seed } from './seed.mjs';
+import { seed, validateChildcare } from './seed.mjs';
 
 const NID = process.env.NID_URL ?? 'https://nid.localtest.me';
 const IDP = process.env.NID_IDP_URL ?? 'https://auth.localtest.me';
@@ -90,23 +90,6 @@ async function importFile({ username, call }, file) {
   console.log(`${username}: imported, ${created} new rows.`);
 }
 
-/** Every month of each arrangement up to last month, saved as the server plans it and validated: the server computes the pay. */
-async function validateChildcare({ call }) {
-  for (const arrangement of (await call('GET', '/api/v1/childcare')).items) {
-    let validated = 0;
-    for (let at = new Date(`${arrangement.start.slice(0, 7)}-01T00:00:00Z`); at <= previous; at.setUTCMonth(at.getUTCMonth() + 1)) {
-      const path = `/api/v1/childcare/${arrangement.id}/statements/${at.toISOString().slice(0, 7)}`;
-      const draft = await call('GET', path);
-      if (draft.state === 'validated') continue;
-      const days = draft.days.map(({ date, present, arrival, departure, lunch, snack, absence }) => ({ date, present, arrival, departure, lunch, snack, absence }));
-      const saved = await call('PUT', path, { days, mileage: '0', cmg: draft.cmgEstimate ?? '0', version: draft.version });
-      await call('POST', `${path}/validate`, { version: saved.version });
-      validated++;
-    }
-    console.log(`${arrangement.name}: ${validated} months validated.`);
-  }
-}
-
 const browser = await chromium.launch();
 try {
   // Bob first: an adult exists in Nid from their first sign-in, and Alice's file shares items with him.
@@ -116,7 +99,7 @@ try {
   console.log(`Demo household, dates up to ${anchor}:`);
   await importFile(alice, files.alice);
   await importFile(bob, files.bob);
-  await validateChildcare(alice);
+  await validateChildcare(alice, previous);
   const seeded = await seed(alice, anchor, offset(anchor));
   console.log(`Through the API: ${seeded.length ? seeded.join(', ') : 'nothing new'}.`);
   console.log(`\nDone: ${NID}. To look around, a sign-in link: node deploy/local/demo/sign-in-link.mjs alice`);

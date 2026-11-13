@@ -2,7 +2,8 @@ name: demo-reset
 
 # The public demo (deploy/azure/README.md) starts again from the demo household every night: its Neon branch is reset from
 # its empty parent, then the Container App restarts, and Nid migrates the empty database and loads the household on start
-# (demo mode). Skipped until the repository variable DEMO_CONTAINER_APP is set.
+# (demo mode), then deploy/local/demo/finish.mjs adds what the import files cannot hold. Skipped until the repository
+# variable DEMO_CONTAINER_APP is set.
 #
 # Credentials: Azure through OIDC, federated with the `demo` environment (as the `demo` job of ci.yml); the Neon API key is a
 # secret of that environment only, readable by no other workflow and by no pull request.
@@ -81,3 +82,19 @@ jobs:
           curl -fsS -b "$jar" "$URL/auth/session" | jq -e '.demo == true' > /dev/null \
             || { echo "::error::$URL answers, but not in demo mode"; exit 1; }
           echo "Demo household back: $count persons" >> "$GITHUB_STEP_SUMMARY"
+      # What the import files cannot hold, as on a local stack: Léa's childcare months, documents, tax notices, scenarios and
+      # the CPI (deploy/local/demo/finish.mjs, through the API, signed in as Alice). Without it those screens stay empty.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.URL != ''
+        with:
+          sparse-checkout: deploy/local/demo
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: env.URL != ''
+        with:
+          node-version: 26
+      - name: Finish the demo household
+        if: env.URL != ''
+        env:
+          NID_URL: ${{ vars.DEMO_URL }}
+        run: node deploy/local/demo/finish.mjs | tee -a "$GITHUB_STEP_SUMMARY"
