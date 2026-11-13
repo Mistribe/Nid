@@ -63,13 +63,21 @@ jobs:
           revision=$(az containerapp show --name "$APP" --resource-group "$GROUP" --query properties.latestRevisionName -o tsv --only-show-errors)
           az containerapp revision restart --name "$APP" --resource-group "$GROUP" --revision "$revision" --only-show-errors --output none
           echo "Restarted $revision" >> "$GITHUB_STEP_SUMMARY"
-      - name: Check the demo answers
+      # During the restart the old replica keeps answering, on a database that is empty or half loaded: health alone proves
+      # nothing. Signed in as Alice, the demo must show its whole household (Alice, Bob, Léa), which the last import adds.
+      # A load cut short (the container stopped mid-import) leaves the adults without Léa for good: this fails after 10
+      # minutes, and another reset fixes it.
+      - name: Check the demo household is back
         if: env.URL != ''
         run: |
+          jar="$RUNNER_TEMP/cookies"
           for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 20 "$URL/health/ready" > /dev/null; then break; fi
-            [ "$attempt" = 30 ] && { echo "::error::$URL/health/ready did not answer in 10 minutes"; exit 1; }
+            count=$( { curl -fsS --max-time 20 -c "$jar" -o /dev/null "$URL/auth/demo/alice?returnUrl=%2F" \
+              && curl -fsS --max-time 20 -b "$jar" "$URL/api/v1/core/persons" | jq length; } 2>/dev/null || echo 0)
+            [ "$count" = 3 ] && break
+            [ "$attempt" = 30 ] && { echo "::error::$URL does not show the whole demo household after 10 minutes ($count persons)"; exit 1; }
             sleep 20
           done
-          curl -fsS "$URL/auth/session" | jq -e '.demo == true' > /dev/null \
+          curl -fsS -b "$jar" "$URL/auth/session" | jq -e '.demo == true' > /dev/null \
             || { echo "::error::$URL answers, but not in demo mode"; exit 1; }
+          echo "Demo household back: $count persons" >> "$GITHUB_STEP_SUMMARY"

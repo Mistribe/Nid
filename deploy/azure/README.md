@@ -45,11 +45,27 @@ az containerapp create --name <app> --resource-group <groupe> --environment <env
 - `Jobs__Enabled=false` : les tâches planifiées (taux de change, cours) garderaient la base de Neon éveillée pour rien.
 - Le domaine : `az containerapp hostname add`, puis `az containerapp hostname bind --validation-method CNAME` pour le
   certificat géré gratuit (un CNAME et un TXT `asuid` chez votre DNS).
+- **Les sondes, sinon la démo reste à moitié chargée.** Nid n'écoute sur le port 8080 qu'une fois le foyer chargé, soit
+  une à deux minutes après une réinitialisation. La sonde de démarrage par défaut de Container Apps abandonne bien avant
+  et arrête le conteneur en plein import ; au redémarrage, Nid trouve Alice et Bob et ne recharge rien. `az containerapp
+  create` n'a pas d'option pour les sondes : réglez-les ensuite dans le portail (**Containers › Health probes**) ou dans
+  le modèle de l'app :
+
+  | Sonde | Test | Période | Échecs tolérés |
+  |---|---|---|---|
+  | Démarrage | TCP sur 8080, après 10 s | 30 s | 10 (5 minutes) |
+  | Vivacité | HTTP `/health/live` | 30 s | 3 |
+  | Disponibilité | HTTP `/health/ready` | 15 s | 3 |
 
 ## 3. L'identité de GitHub Actions (une fois)
 
 GitHub se connecte à Azure par OIDC : pas de mot de passe ni de secret dans le dépôt. L'identité ne peut modifier que ce
 Container App, et seulement depuis l'environnement GitHub `demo`.
+
+Le `subject` doit être exactement celui que GitHub envoie. Ce dépôt utilise les identifiants immuables (le compte et le
+dépôt suivis de leur numéro) : `gh api repos/Mistribe/Nid/actions/oidc/customization/sub` donne le préfixe, à compléter
+par `:environment:demo`. Avec l'ancien format (`repo:Mistribe/Nid:environment:demo`), Azure refuse la connexion
+(`AADSTS700213`).
 
 ```bash
 app=$(az ad app create --display-name nid-demo-deploy --query appId -o tsv)
@@ -57,7 +73,7 @@ az ad sp create --id "$app"
 az ad app federated-credential create --id "$app" --parameters '{
   "name": "github-demo",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:Mistribe/Nid:environment:demo",
+  "subject": "repo:Mistribe@228552819/Nid@1449431807:environment:demo",
   "audiences": ["api://AzureADTokenExchange"]
 }'
 az role assignment create --assignee "$app" --role Contributor \
@@ -99,7 +115,10 @@ Chaque nuit à 3 h UTC (et à la demande : **Actions › demo-reset › Run work
    attend que Neon ait fini ;
 2. redémarre la révision active du Container App : au démarrage, Nid trouve une base vide, applique les migrations et
    recharge le foyer de démo ;
-3. attend que `DEMO_URL/health/ready` réponde, puis vérifie que la démo est en mode démo.
+3. se connecte en Alice et attend que la démo montre tout le foyer (Alice, Bob et Léa), puis vérifie qu'elle est en mode
+   démo. Pendant le redémarrage, l'ancien réplica répond encore, sur une base vide ou à moitié chargée : un simple
+   `/health/ready` ne prouverait rien. Un chargement interrompu fait échouer le job au bout de 10 minutes ; une autre
+   réinitialisation le répare.
 
 Il lui faut, en plus des variables du §4 :
 
