@@ -251,4 +251,52 @@ describe('bootstrap', () => {
 
     act(() => reactRoot?.unmount());
   });
+
+  it('renders the sign-in page of local accounts without going through login (issue 215)', async () => {
+    server.use(http.get('*/auth/session', () => HttpResponse.json({ ...signedOutResponse, csrf: 'pre', methods: ['password'] })));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/login', '?returnUrl=%2Fdashboard&login=alice');
+
+    let reactRoot: Root | null = null;
+    await act(async () => { reactRoot = await bootstrap({ root, location }); });
+
+    expect(await screen.findByLabelText('Identifiant')).toHaveValue('alice');
+    expect(screen.getByRole('heading', { name: 'Se connecter à Nid' })).toBeInTheDocument();
+    expect(location.assign).not.toHaveBeenCalled();
+
+    act(() => reactRoot?.unmount());
+  });
+
+  it('takes a password link out of the address bar once read (issue 215)', async () => {
+    server.use(
+      http.get('*/auth/session', () => HttpResponse.json({ ...signedOutResponse, csrf: 'pre', methods: ['password'] })),
+      http.post('*/auth/link/inspect', () => HttpResponse.json({ purpose: 'enroll', name: 'Bob', login: 'bob' })),
+    );
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    window.history.replaceState(null, '', '/password#nid_link_secret');
+    const location = { ...fakeLocation('/password'), hash: '#nid_link_secret' };
+
+    let reactRoot: Root | null = null;
+    await act(async () => { reactRoot = await bootstrap({ root, location }); });
+
+    expect(await screen.findByLabelText('Identifiant')).toHaveValue('bob');
+    expect(window.location.hash).toBe('');
+
+    act(() => reactRoot?.unmount());
+  });
+
+  it('says nothing of an identity provider on the signed-out page with local accounts alone (issue 215)', async () => {
+    server.use(http.get('*/auth/session', () => HttpResponse.json({ ...signedOutResponse, methods: ['password'] })));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+
+    const reactRoot = await bootstrap({ root, location: fakeLocation('/signed-out') });
+
+    expect(await screen.findByRole('heading', { name: 'Vous êtes déconnecté de Nid' })).toBeInTheDocument();
+    expect(screen.queryByText(/reste ouverte/)).not.toBeInTheDocument();
+
+    act(() => reactRoot?.unmount());
+  });
 });

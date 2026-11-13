@@ -11,6 +11,8 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { RowMenu } from '@/components/page/RowMenu';
 import { Field } from '@/components/form/Field';
 import { FormDialog } from '@/components/FormDialog';
+import { ModalDialog } from '@/components/ModalDialog';
+import { formatInstant } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +38,9 @@ export function UsersPage() {
   const [capNotice, setCapNotice] = useState(false);
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [asking, setAsking] = useState<Adult | null>(null);
+  // Issue 215: a one-time password link just created, shown once.
+  const [link, setLink] = useState<{ adult: Adult; url: string; purpose: string; expiresAt: string } | null>(null);
+  const local = session.methods.includes('password');
   // Each row's ⋯, where the focus goes back when the confirmation closes.
   const menus = useRef<Record<string, HTMLButtonElement | null>>({});
   const adults = $api.useQuery('get', USERS);
@@ -51,6 +56,11 @@ export function UsersPage() {
   };
   const remove = $api.useMutation('delete', '/api/v1/admin/users/{id}', settle);
   const revoke = $api.useMutation('post', '/api/v1/admin/users/{id}/revoke-sessions', settle);
+  const createLink = $api.useMutation('post', '/api/v1/admin/users/{id}/password-link', settle);
+  const unlock = $api.useMutation('post', '/api/v1/admin/users/{id}/unlock', {
+    ...settle,
+    onSuccess: () => { settle.onSuccess(); toast.success(t('admin.users.unlocked')); },
+  });
 
   const title = t('admin.users.title');
   const loadError = adults.error ?? household.error;
@@ -61,15 +71,31 @@ export function UsersPage() {
 
   const row = (adult: Adult) => {
     const pending = adult.status === 'pending';
+    const hasPassword = adult.methods.includes('password');
+    const localItems = local ? [
+      {
+        label: t(hasPassword ? 'admin.users.reset_link' : 'admin.users.enroll_link'),
+        onSelect: () => createLink.mutate({ params: { path: { id: adult.id } }, body: { revokeTokens: false } }, {
+          onSuccess: (created) => setLink({ adult, url: created.url, purpose: created.purpose, expiresAt: created.expiresAt }),
+        }),
+      },
+      ...(adult.lockedUntil ? [{ label: t('admin.users.unlock'), onSelect: () => unlock.mutate({ params: { path: { id: adult.id } } }) }] : []),
+    ] : [];
     return (
       <TableRow key={adult.id}>
         <TableCell>{adult.displayName}</TableCell>
         <TableCell>{adult.email}</TableCell>
-        <TableCell><Badge variant={pending ? 'outline' : 'secondary'}>{t(pending ? 'admin.users.pending' : 'admin.users.active')}</Badge></TableCell>
+        <TableCell>
+          <span className="flex flex-wrap gap-1">
+            <Badge variant={pending ? 'outline' : 'secondary'}>{t(pending ? 'admin.users.pending' : 'admin.users.active')}</Badge>
+            {adult.lockedUntil ? <Badge variant="outline">{t('admin.users.locked')}</Badge> : null}
+            {adult.linkExpiresAt ? <Badge variant="outline">{t('admin.users.link_pending')}</Badge> : null}
+          </span>
+        </TableCell>
         <TableCell>{adult.isAdmin ? <Badge variant="secondary">{t('admin.users.admin')}</Badge> : null}</TableCell>
         <TableCell className="text-right">
           <RowMenu label={t('admin.users.menu', { name: adult.displayName, context: elision(adult.displayName) })} triggerRef={(node) => { menus.current[adult.id] = node; }}
-            items={[{ label: t(pending ? 'admin.users.cancel_invitation' : 'admin.users.revoke'), destructive: pending, onSelect: () => setAsking(adult) }]} />
+            items={[...localItems, { label: t(pending ? 'admin.users.cancel_invitation' : 'admin.users.revoke'), destructive: pending, onSelect: () => setAsking(adult) }]} />
         </TableCell>
       </TableRow>
     );
@@ -90,7 +116,7 @@ export function UsersPage() {
           <Link to="/admin/household" className="font-medium underline underline-offset-4">{t('nav.admin_household')}</Link>
         </p>
       ) : null}
-      {adding ? <AddAdultDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); toast.success(message); }} /> : null}
+      {adding ? <AddAdultDialog emailOptional={local && !session.methods.includes('oidc')} onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); toast.success(message); }} /> : null}
       <Table>
         <TableHeader>
           <TableRow>
@@ -112,13 +138,14 @@ export function UsersPage() {
             if (asking.status === 'pending') remove.mutate(target); else revoke.mutate(target);
           }} />
       ) : null}
-      <p className="max-w-prose text-sm text-muted-foreground">{t('admin.users.managed_hint')}</p>
+      {link ? <PasswordLinkDialog {...link} onClose={() => setLink(null)} /> : null}
+      <p className="max-w-prose text-sm text-muted-foreground">{t(local ? 'admin.users.managed_hint_local' : 'admin.users.managed_hint')}</p>
     </AdminFrame>
   );
 }
 
 /** « Ajouter un adulte »: the pre-registration, in a dialog; the page toasts the outcome. */
-function AddAdultDialog({ onClose, onDone }: { onClose: () => void; onDone: (message: string) => void }) {
+function AddAdultDialog({ emailOptional, onClose, onDone }: { emailOptional: boolean; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -140,10 +167,10 @@ function AddAdultDialog({ onClose, onDone }: { onClose: () => void; onDone: (mes
             },
           });
         }}>
-          <p className="text-sm text-muted-foreground">{t('admin.users.add_hint')}</p>
+          <p className="text-sm text-muted-foreground">{t(emailOptional ? 'admin.users.add_hint_local' : 'admin.users.add_hint')}</p>
           {problem ? <ProblemMessage problem={problem} /> : null}
           <Field label={t('admin.users.name')}>{(c) => <Input {...c} name="displayName" required autoComplete="off" />}</Field>
-          <Field label={t('admin.users.email')}>{(c) => <Input {...c} name="email" type="email" required autoComplete="off" />}</Field>
+          <Field label={t('admin.users.email')}>{(c) => <Input {...c} name="email" type="email" required={!emailOptional} autoComplete="off" />}</Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={add.isPending}>{t('admin.users.add')}</Button>
@@ -151,5 +178,27 @@ function AddAdultDialog({ onClose, onDone }: { onClose: () => void; onDone: (mes
         </form>
       )}
     </FormDialog>
+  );
+}
+
+/** Issue 215 (local-accounts.md §7): the link, once; the admin passes it on by the means of their choice. */
+function PasswordLinkDialog({ adult, url, purpose, expiresAt, onClose }: { adult: Adult; url: string; purpose: string; expiresAt: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <ModalDialog title={t('admin.users.link_title')} onClose={onClose}>
+      {() => (
+        <div className="space-y-3">
+          <p>{t(purpose === 'reset' ? 'admin.users.link_reset_body' : 'admin.users.link_enroll_body', { name: adult.displayName })}</p>
+          <Input readOnly value={url} aria-label={t('admin.users.link_title')} onFocus={(event) => event.currentTarget.select()} className="font-mono text-xs" />
+          <p className="text-sm text-muted-foreground">{t('admin.users.link_expires', { at: formatInstant(expiresAt) })}</p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => {
+              void navigator.clipboard?.writeText(url).then(() => toast.success(t('admin.users.copied')), () => {});
+            }}>{t('admin.users.copy')}</Button>
+            <Button type="button" onClick={onClose}>{t('admin.users.close')}</Button>
+          </div>
+        </div>
+      )}
+    </ModalDialog>
   );
 }

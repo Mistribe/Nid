@@ -103,6 +103,18 @@ public static class PersonEndpoints
             return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
         }).ReturnsNoContent();
 
+        // Issue 215 (local-accounts.md §8, §14.3): the adult's own local account, browser sessions only.
+        if (routes.ServiceProvider.GetRequiredService<Auth.AuthSettings>().Local)
+        {
+            api.MapGet("/me/credential", async (IInvoker invoker, CancellationToken ct)
+                    => (await invoker.InvokeAsync(new Nid.Core.Application.GetMyCredentialQuery(), ct)).ToHttp(v => v))
+                .Returns<Nid.Core.Application.MyCredentialView>();
+
+            api.MapPut("/me/password", (HttpContext http, Auth.ChangePasswordBody body, Auth.LocalSignIn signIn) => signIn.ChangeMyPasswordAsync(http, body))
+                .ReturnsNoContent()
+                .ProducesProblem(StatusCodes.Status400BadRequest);
+        }
+
         // Issue 85: the Foyer / Moi selector only shows once « Moi » can differ from « Foyer ».
         api.MapGet("/me/private-items", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetMyPrivateItemsQuery(), ct)).ToHttp(v => v))
@@ -237,7 +249,7 @@ public static class ResultHttp
             _ when failure.Code == TokenCodes.LimitReached => StatusCodes.Status409Conflict,
             // Issue 215: local accounts (local-accounts.md §14).
             _ when failure.Code is LocalAccountCodes.LoginInvalid or LocalAccountCodes.PasswordTooShort or LocalAccountCodes.PasswordTooLong
-                or LocalAccountCodes.PasswordTooCommon => StatusCodes.Status400BadRequest,
+                or LocalAccountCodes.PasswordTooCommon or Auth.LocalSignIn.CurrentPasswordWrong => StatusCodes.Status400BadRequest,
             _ when failure.Code == LocalAccountCodes.LoginTaken => StatusCodes.Status409Conflict,
             _ when failure.Code == LocalAccountCodes.SetupClosed => StatusCodes.Status404NotFound,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,

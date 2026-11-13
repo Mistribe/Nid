@@ -18,6 +18,15 @@
     "token_auth_failed": "Jeton refusé",
     "mcp_tool_called": "Lecture par l’assistant",
     "bank_statement_imported": "Relevé bancaire importé",
+    "login_failed": "Échec de connexion",
+    "login_locked": "Compte verrouillé après des échecs",
+    "password_changed": "Mot de passe changé",
+    "password_reset": "Mot de passe réinitialisé par lien",
+    "credential_link_issued": "Lien de mot de passe créé",
+    "credential_link_revoked": "Lien de mot de passe révoqué",
+    "account_enrolled": "Accès créé par lien",
+    "account_unlocked": "Compte déverrouillé",
+    "setup_completed": "Mise en place de Nid",
     "unknown": "Événement {{name}}"
   }
 }

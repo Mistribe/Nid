@@ -389,6 +389,57 @@
     }
   },
   "shell": { "sign_out": "Se déconnecter", "guide_help": "Guide de cette page" },
+  "local_auth": {
+    "loading": "Chargement…",
+    "password": "Mot de passe",
+    "new_password": "Nouveau mot de passe",
+    "show_password": "Afficher le mot de passe",
+    "hide_password": "Masquer le mot de passe",
+    "identifier_hint": "Ce que vous taperez pour vous connecter : votre email ou un nom, sans espace.",
+    "password_hint": "Au moins 12 caractères. Une phrase facile à retenir convient très bien ; un gestionnaire de mots de passe aussi.",
+    "login": {
+      "title": "Se connecter à Nid",
+      "identifier": "Identifiant",
+      "submit": "Se connecter",
+      "forgotten": "Mot de passe oublié ? Demandez un lien à un administrateur du foyer.",
+      "with_identity_provider": "Se connecter avec le fournisseur d'identité",
+      "setup_required": "Nid n'a pas encore d'administrateur. Ouvrez l'adresse de mise en place écrite dans le journal du conteneur (docker compose logs nid), ou lancez nid admin create-admin."
+    },
+    "setup": {
+      "title": "Mettre Nid en place",
+      "intro": "Créez le compte de la première personne qui administre Nid. Elle pourra ensuite ajouter les autres adultes du foyer.",
+      "name": "Votre prénom",
+      "submit": "Créer le compte administrateur",
+      "done": "Nid est déjà en place. Connectez-vous avec votre identifiant.",
+      "no_token": "Cette page s'ouvre avec l'adresse complète écrite dans le journal du conteneur au démarrage (docker compose logs nid). Copiez-la en entier, avec ce qui suit le #."
+    },
+    "link": {
+      "enroll_title": "Bienvenue dans Nid",
+      "reset_title": "Choisir un nouveau mot de passe",
+      "enroll_intro": "{{name}}, choisissez l'identifiant et le mot de passe avec lesquels vous vous connecterez.",
+      "reset_intro": "{{name}}, choisissez un nouveau mot de passe. Vos autres sessions ouvertes seront fermées.",
+      "enroll_submit": "Créer mon accès",
+      "reset_submit": "Enregistrer le mot de passe"
+    },
+    "error": {
+      "unknown": "La demande n'a pas abouti. Réessayez dans un instant.",
+      "unreachable": "Nid ne répond pas. Réessayez dans un instant.",
+      "too_many": "Trop de tentatives depuis cet appareil. Réessayez dans quelques minutes.",
+      "forbidden": "La page a expiré. Rechargez-la et recommencez.",
+      "auth_invalid_credentials": "Identifiant ou mot de passe incorrect, ou trop de tentatives : réessayez dans quelques minutes.",
+      "auth_https_required": "Nid n'accepte un mot de passe qu'en HTTPS. La personne qui héberge Nid doit le placer derrière un proxy HTTPS.",
+      "auth_invalid_setup_token": "Cette adresse de mise en place n'est pas celle du journal. Copiez-la à nouveau, en entier.",
+      "auth_setup_closed": "Nid est déjà en place.",
+      "auth_link_unusable": "Ce lien ne fonctionne plus : il a déjà servi, il a expiré ou un autre l'a remplacé. Demandez-en un nouveau à un administrateur.",
+      "auth_login_invalid": "Un identifiant fait de 1 à 254 caractères, sans espace.",
+      "auth_password_too_short": "Le mot de passe doit faire au moins 12 caractères.",
+      "auth_password_too_long": "Le mot de passe ne doit pas dépasser 256 caractères.",
+      "auth_password_too_common": "Ce mot de passe est trop courant, ou contient votre nom ou votre identifiant : choisissez-en un autre.",
+      "auth_current_password_wrong": "Le mot de passe actuel est incorrect, ou le compte est verrouillé quelques minutes.",
+      "core_login_taken": "Un autre adulte se connecte déjà avec cet identifiant.",
+      "core_name_required": "Indiquez un prénom."
+    }
+  },
   "signed_out": {
     "title": "Vous êtes déconnecté de Nid",
     "sso_open": "Votre session auprès du fournisseur d'identité reste ouverte sur cet appareil : se reconnecter à Nid ne demandera pas de mot de passe. Sur un appareil partagé, fermez-la aussi depuis le portail d'identité.",
@@ -933,6 +984,11 @@
     "revoke": "Déconnecter partout",
     "revoke_confirm": "Toutes vos sessions seront fermées, celle-ci comprise : vous devrez vous reconnecter.",
     "sso_reminder": "Se déconnecter de Nid ne ferme pas votre session auprès du fournisseur d'identité : fermez-la depuis son portail sur un appareil partagé.",
+    "password_title": "Mot de passe",
+    "password_state": "Vous vous connectez avec l'identifiant {{login}}. Mot de passe changé le {{at}}.",
+    "password_current": "Mot de passe actuel",
+    "password_others_close": "Vos autres sessions ouvertes seront fermées ; celle-ci reste ouverte.",
+    "password_submit": "Changer le mot de passe",
     "revoke_tokens": "Révoquer aussi mes jetons d’accès",
     "tokens": {
       "title": "Mes jetons",

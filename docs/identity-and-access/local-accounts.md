@@ -83,7 +83,7 @@ Le mode démo (`Nid:Demo:Enabled`, #204) ignore `Auth:Mode` : il ne mappe ni les
 - **Longueur** : 12 caractères au moins (`Auth:Local:MinPasswordLength`, qui ne peut que monter, jusqu'à 64), **256 au plus** (borne le travail du serveur). Les caractères sont comptés après normalisation Unicode (points de code, pas octets).
 - **Tous les caractères** acceptés, espaces et emoji compris. Normalisation **NFKC** avant hachage, pour qu'un même mot de passe tapé sur deux claviers donne le même hash. Pas de `trim`.
 - **Aucune règle de composition** (majuscule, chiffre, symbole), aucune expiration périodique, aucun indice, aucune question secrète.
-- **Liste de refus locale** : le mot de passe est refusé (`auth.password_too_common`) s'il figure dans une liste de mots de passe courants **embarquée dans l'image** (ceux de 12 caractères et plus d'une liste publique de fuites, sous licence compatible, quelques milliers d'entrées), ou s'il contient l'identifiant, l'email, le nom affiché de l'adulte ou `nid`, sans tenir compte de la casse.
+- **Liste de refus locale** : le mot de passe est refusé (`auth.password_too_common`) s'il figure dans une liste de mots de passe courants **embarquée dans l'image** (`src/Hosting/Nid.Host/Auth/common-passwords.txt`, choisie à la main : environ 170 formes connues de 12 caractères et plus ; importer une liste publique de fuites sous licence compatible est une suite), s'il ne fait que répéter peu de caractères ou suivre une rangée du clavier ou l'alphabet, s'il contient l'identifiant, la partie locale de l'email ou un mot de 4 lettres ou plus du nom affiché, ou s'il n'est que `nid` suivi de chiffres et de symboles, sans tenir compte de la casse. Livré en PR 2 (#218) : la règle « contient `nid` » refusait des phrases ordinaires, elle est devenue « `nid` suivi de chiffres ou de symboles ».
 - **Formulaire ami des gestionnaires de mots de passe** : champ identifiant `autocomplete="username"`, mot de passe `autocomplete="current-password"` à la connexion et `new-password` au choix, collage permis, bouton « afficher », une seule saisie du nouveau mot de passe quand il est affiché (deux sinon), aucune limite de saisie côté navigateur en deçà de 256.
 - Les messages d'erreur disent la règle en mots simples (« au moins 12 caractères », « trop courant, choisissez-en un autre ») ; aucune jauge de force.
 
@@ -366,7 +366,7 @@ Mêmes règles que les commandes existantes (`administration-and-audit.md` §3) 
 
 | Commande | Usage |
 |---|---|
-| `create-admin --name <nom> [--email <email>] [--login <identifiant>]` | Crée un adulte admin (dans la limite de `max_adults`) et affiche un lien `enroll` ; refusée avec `Auth:AdminSource=identity_provider` |
+| `create-admin --name <nom> [--email <email>]` | Crée un adulte admin (dans la limite de `max_adults`) et affiche un lien `enroll`, où il choisit son identifiant ; refusée avec `Auth:AdminSource=identity_provider` |
 | `reset-password --person <nom ou id> [--revoke-tokens]` | Affiche un lien `reset` (ou `enroll` si l'adulte n'a pas de compte local), lève le verrouillage |
 | `grant-admin --person`, `revoke-admin --person` | Rôle admin, source `nid` seulement ; `revoke-admin` refuse le dernier admin |
 | `reset-totp --person` | Désactive le TOTP, efface les codes de secours, ferme les sessions |
@@ -447,9 +447,9 @@ Une pile `local` (Nid et PostgreSQL seuls, sans Pocket ID) dans `e2e.yml`, à c�
 
 1. **Modes et transport** (`backend`, `infra`) : `Auth:Mode` et sa déduction, `Auth:AdminSource`, validation au démarrage, `Auth:AllowInsecureHttp` et ses garde-fous, `methods` et `setupRequired` dans `/auth/session`, `authMode` dans `/admin/system`. Aucun changement pour une installation OIDC.
 2. **Comptes et connexion par mot de passe** (`backend`) : tables `local_credential` et `credential_link`, hachage, règles et liste de refus, `POST /auth/login/password`, CSRF de connexion, verrouillage et limite par adresse, événements, liens (`/auth/link/*`, `password-link`, `unlock`), mise en place par jeton, CLI `create-admin`, `reset-password`, `unlock`, invariant « adulte actif ».
-3. **Pages de connexion** (`web`) : `/login`, `/setup`, `/password`, page Sécurité « Mot de passe », zone admin (lien, déverrouillage, pré-enregistrement sans email), parcours Playwright de la pile `local`.
+3. **Pages de connexion** (`web`) : `/login`, `/setup`, `/password`, page Sécurité « Mot de passe » (`GET /me/credential`, `PUT /me/password`), zone admin (lien, déverrouillage, pré-enregistrement sans email). Les parcours Playwright de la pile `local` passent à la PR 6, qui crée la pile sans Pocket ID.
 4. **Rôle admin dans Nid** (`backend`, `web`) : `PUT /admin/users/{id}/admin`, dernier admin, `grant-admin` / `revoke-admin`, `both` qui ignore le groupe admin.
 5. **TOTP et codes de secours** (`backend`, `web`) : table `recovery_code`, routes `me/totp`, étape du code à la connexion, `reset-totp`, notifications.
-6. **Installation sans Pocket ID** (`infra`, docs) : `deploy/standalone/` en `local` sans Pocket ID, `README.md` et `deploy/README.md` qui en font le chemin par défaut et présentent Pocket ID comme option ; puis l'essai d'installation neuve en suivant le guide.
+6. **Installation sans Pocket ID** (`infra`, docs) : `deploy/standalone/` en `local` sans Pocket ID, `README.md` et `deploy/README.md` qui en font le chemin par défaut et présentent Pocket ID comme option ; une pile `local` dans `e2e.yml` avec les parcours Playwright du §18.2 ; puis l'essai d'installation neuve en suivant le guide.
 
 Chaque PR met à jour la documentation de ce dossier pour ce qu'elle livre (« livré en … »), comme les étapes précédentes.

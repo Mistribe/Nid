@@ -6,7 +6,8 @@ import type { components } from '@/api/schema';
 import { SIGNED_OUT_PATH, type Preferences, type Session } from './session';
 
 export type Capabilities = components['schemas']['CapabilitiesView'];
-export type AppLocation = Pick<Location, 'pathname' | 'search' | 'assign' | 'reload'>;
+/** Issue 215: `hash` carries a setup or password link's secret, read once by the bootstrap. */
+export type AppLocation = Pick<Location, 'pathname' | 'search' | 'assign' | 'reload'> & { hash?: string };
 
 type SessionState = {
   session: Session;

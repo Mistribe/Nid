@@ -9,7 +9,7 @@ import { LoginRefusedPage } from './LoginRefusedPage';
 import { LoginUnavailablePage } from './LoginUnavailablePage';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
 import { DemoPage } from './DemoPage';
-import { DEMO_PATH, loadSession, loginUrl, LOGIN_REFUSED_PATH, LOGIN_UNAVAILABLE_PATH, SIGNED_OUT_PATH, type Session } from './session';
+import { DEMO_PATH, loadSession, LOGIN_PATH, loginUrl, LOGIN_REFUSED_PATH, LOGIN_UNAVAILABLE_PATH, PASSWORD_PATH, SETUP_PATH, SIGNED_OUT_PATH, type Session } from './session';
 import { SignedOutPage } from './SignedOutPage';
 import { StartupFailure } from './StartupFailure';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from './theme';
@@ -40,19 +40,30 @@ function renderFailure(root: HTMLElement, location: AppLocation, error: unknown)
 /** The signed-out page reads the session only for the portal's address; without it, it offers no portal link. */
 async function renderSignedOut(root: HTMLElement, api: Api): Promise<Root> {
   let identityProvider: string | null = null;
+  // Issue 215: without an identity provider there is no other session to warn about.
+  let oidc = true;
   try {
     const { data } = await api.fetchClient.GET('/auth/session');
     identityProvider = data?.identityProvider ?? null;
+    if (data) oidc = data.methods.includes('oidc');
   } catch {
     // Unreachable API: the page still says you are signed out, just without the link.
   }
   const reactRoot = createRoot(root);
   reactRoot.render(
     <StrictMode>
-      <SignedOutPage identityProvider={identityProvider} />
+      <SignedOutPage identityProvider={identityProvider} oidc={oidc} />
     </StrictMode>,
   );
   return reactRoot;
+}
+
+/** Issue 215: the secret of a setup or password link, read from the fragment, then taken out of the address bar and history. */
+async function takeFragment(location: AppLocation, prefix: string): Promise<string | null> {
+  const { fragmentToken } = await import('./localAuth');
+  const token = fragmentToken(location.hash ?? '', prefix);
+  if (token && typeof window !== 'undefined') window.history.replaceState(null, '', location.pathname + location.search);
+  return token;
 }
 
 /** A page outside the app, rendered as it is: no session exists, and the login redirect would only come back here. */
@@ -92,6 +103,21 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
   if (location.pathname === LOGIN_REFUSED_PATH) return renderPage(root, <LoginRefusedPage email={new URLSearchParams(location.search).get('email')} />);
   if (location.pathname === LOGIN_UNAVAILABLE_PATH) return renderPage(root, <LoginUnavailablePage returnUrl={new URLSearchParams(location.search).get('returnUrl')} />);
   if (location.pathname === DEMO_PATH) return renderPage(root, <DemoPage returnUrl={new URLSearchParams(location.search).get('returnUrl')} />);
+  // Issue 215: the pages of local accounts, before any session.
+  if (location.pathname === LOGIN_PATH) {
+    const query = new URLSearchParams(location.search);
+    const { LoginPage } = await import('./LoginPage');
+    return renderPage(root, <LoginPage returnUrl={query.get('returnUrl')} login={query.get('login')} location={location} />);
+  }
+  // Loaded on demand: most visits never see these pages (initial JavaScript budget).
+  if (location.pathname === SETUP_PATH) {
+    const [{ SetupPage }, token] = [await import('./SetupPage'), await takeFragment(location, 'nid_setup_')];
+    return renderPage(root, <SetupPage token={token} location={location} />);
+  }
+  if (location.pathname === PASSWORD_PATH) {
+    const [{ PasswordLinkPage }, token] = [await import('./PasswordLinkPage'), await takeFragment(location, 'nid_link_')];
+    return renderPage(root, <PasswordLinkPage token={token} location={location} />);
+  }
 
   let session: Session | null;
   try {

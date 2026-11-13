@@ -8,7 +8,7 @@ namespace Nid.Core.Contracts;
 /// hasher's own self-describing format, and the lock state. Never on the wire, never in a log or an export.
 /// </summary>
 public sealed record LocalCredential(
-    PersonId Person, string Login, string PasswordHash, int FailedCount, int LockLevel, Instant? LockedUntil);
+    PersonId Person, string Login, string PasswordHash, int FailedCount, int LockLevel, Instant? LockedUntil, Instant PasswordChangedAt = default);
 
 /// <summary>What a failed attempt did to the account: still open, or locked until <paramref name="Until"/> at that level.</summary>
 public sealed record FailureOutcome(bool LockedNow, int Level, Instant? Until);
@@ -102,6 +102,12 @@ public interface ILocalAccountStore
     /// (<see cref="LocalAccountCodes.SetupClosed"/>). Under the provisioning lock, so two setups cannot both pass.
     /// </summary>
     Task<Result<PersonInfo>> CreateFirstAdminAsync(string displayName, string login, string passwordHash, CancellationToken ct);
+
+    /// <summary>
+    /// The adult replaces their own password (spec §8): the hash, the change time, and <c>session_epoch</c> + 1 so their
+    /// other sessions close; the caller reissues the current one. Not found without a local account.
+    /// </summary>
+    Task<Result<PersonInfo>> ChangePasswordAsync(PersonId person, string passwordHash, Instant now, CancellationToken ct);
 
     /// <summary>`nid admin create-admin`: a new pending adult who is admin, within the household's cap.</summary>
     Task<Result<PersonInfo>> CreateAdminAdultAsync(string displayName, string? email, CancellationToken ct);

@@ -10,6 +10,7 @@ export const aliceSession: Session = {
   sessionEpoch: 0,
   preferences: { theme: 'sobre', mode: 'system', chartPatterns: false, guidesSeen: allGuidesSeen() },
   demo: false,
+  methods: ['oidc'],
 };
 
 export const aliceSessionResponse: SessionResponse = { authenticated: true, ...aliceSession, methods: ['oidc'], setupRequired: false };

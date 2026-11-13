@@ -1,9 +1,10 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { formatInstant } from '@/lib/format';
 import { expectNoAxeViolations } from '@/test/axe';
 import { expectOnePrimary } from '@/test/headerActions';
+import { aliceSession } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -74,5 +75,47 @@ describe('Sécurité', () => {
 
     await expect.poll(() => location.assign.mock.calls.length).toBe(1);
     expect(body).toEqual({ revokeTokens: true });
+  });
+});
+
+describe('Sécurité, compte local (issue 215)', () => {
+  const local = { ...aliceSession, methods: ['password'] };
+
+  it('changes my password with the current one, then reloads to take the reissued session', async () => {
+    let sent: unknown = null;
+    server.use(
+      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({ login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00' })),
+      http.put('*/api/v1/core/me/password', async ({ request }) => { sent = await request.json(); return new HttpResponse(null, { status: 204 }); }),
+    );
+    const { user, location } = await renderApp('/security', { session: local });
+
+    expect(await screen.findByText(/identifiant alice/)).toBeInTheDocument();
+    expect(screen.queryByText(/fournisseur d'identité/)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Mot de passe actuel'), 'a long walk to the lighthouse');
+    await user.type(screen.getByLabelText('Nouveau mot de passe'), 'another long walk to the sea');
+    await user.click(screen.getByRole('button', { name: 'Changer le mot de passe' }));
+
+    await waitFor(() => expect(location.reload).toHaveBeenCalled());
+    expect(sent).toEqual({ current: 'a long walk to the lighthouse', new: 'another long walk to the sea' });
+  });
+
+  it('says the current password is wrong', async () => {
+    server.use(
+      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({ login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00' })),
+      http.put('*/api/v1/core/me/password', () => HttpResponse.json({ status: 400, code: 'auth.current_password_wrong' }, { status: 400 })),
+    );
+    const { user } = await renderApp('/security', { session: local });
+
+    await user.type(await screen.findByLabelText('Mot de passe actuel'), 'wrong one entirely');
+    await user.type(screen.getByLabelText('Nouveau mot de passe'), 'another long walk to the sea');
+    await user.click(screen.getByRole('button', { name: 'Changer le mot de passe' }));
+
+    expect(await screen.findByText(/mot de passe actuel est incorrect/)).toBeInTheDocument();
+  });
+
+  it('shows no password section to an adult of the identity provider', async () => {
+    await renderApp('/security');
+    expect(await screen.findByRole('heading', { name: 'Sécurité', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Mot de passe' })).not.toBeInTheDocument();
   });
 });

@@ -37,7 +37,7 @@ public sealed record HouseholdSettingsView(
 
 public sealed record ListAdultsQuery : IQuery<IReadOnlyList<AdultView>>, IAdminOnly;
 
-public sealed record PreRegisterAdultCommand(string DisplayName, string Email) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
+public sealed record PreRegisterAdultCommand(string DisplayName, string? Email, bool EmailOptional = false) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
 {
     public SecurityEvent EventFor(object response)
         => SecurityEvent.Of(SecurityEventNames.PersonPreregistered, new PersonId(((AdultView)response).Id));
@@ -99,7 +99,7 @@ public sealed class ListAdultsHandler(IPersonRegistry persons, ILocalAccountStor
 public sealed class PreRegisterAdultHandler(IPersonRegistry persons) : IRequestHandler<PreRegisterAdultCommand, AdultView>
 {
     public async ValueTask<Result<AdultView>> HandleAsync(PreRegisterAdultCommand command, CancellationToken ct = default)
-        => (await persons.PreRegisterAdultAsync(command.DisplayName, command.Email, ct)).Map(p => AdultView.From(p));
+        => (await persons.PreRegisterAdultAsync(command.DisplayName, command.Email, ct, command.EmailOptional)).Map(p => AdultView.From(p));
 }
 
 [RequestHandler<DeletePendingAdultCommand, PersonId>]
