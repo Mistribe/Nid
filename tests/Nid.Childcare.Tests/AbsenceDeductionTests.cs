@@ -31,6 +31,10 @@ public class AbsenceDeductionTests
         => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.PaidLeave)), Plan, 0));
 
     [Fact]
+    public void Carer_training_is_deducted_whatever_the_contract()
+        => Assert.Equal((36.85m, 1, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.CarerTraining)), Plan, 0, []));
+
+    [Fact]
     public void The_contract_decides_which_reasons_are_unpaid()
         => Assert.Equal((36.85m, 1, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.Family), (5, AbsenceReason.ChildSick)), Plan, 0, [AbsenceReason.Family]));
 

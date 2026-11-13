@@ -31,6 +31,7 @@ export const stateLabel = (t: TFunction, state: string) => t(STATES[state as key
 const REASONS = {
   family: 'childcare_statement.reason.family', parent_rtt: 'childcare_statement.reason.parent_rtt', child_sick: 'childcare_statement.reason.child_sick',
   carer_absent: 'childcare_statement.reason.carer_absent', holiday: 'childcare_statement.reason.holiday', paid_leave: 'childcare_statement.reason.paid_leave',
+  carer_training: 'childcare_statement.reason.carer_training',
 } as const;
 
 export const ABSENCE_REASONS = Object.keys(REASONS) as (keyof typeof REASONS)[];

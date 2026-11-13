@@ -3,7 +3,7 @@ using NodaTime;
 namespace Nid.Childcare.Contracts;
 
 /// <summary>Childcare spec §2: why a planned day was not worked; the contract decides which reasons are not paid.</summary>
-public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday, PaidLeave }
+public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday, PaidLeave, CarerTraining }
 
 /// <summary>Who provides a meal, set per meal in the contract terms: only the nanny's are paid.</summary>
 public enum MealProvider { Nanny, Employer }
@@ -69,6 +69,7 @@ public static class AbsenceCodes
     {
         [AbsenceReason.Family] = "family", [AbsenceReason.ParentRtt] = "parent_rtt", [AbsenceReason.ChildSick] = "child_sick",
         [AbsenceReason.CarerAbsent] = "carer_absent", [AbsenceReason.Holiday] = "holiday", [AbsenceReason.PaidLeave] = "paid_leave",
+        [AbsenceReason.CarerTraining] = "carer_training",
     };
 
     public static string Of(AbsenceReason reason) => Names[reason];

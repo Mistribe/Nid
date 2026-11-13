@@ -70,7 +70,8 @@ export function UnpaidAbsencesField({ value, onChange }: { value: string[]; onCh
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium">{t('childcare_form.unpaid_absences')}</legend>
       <p className="text-sm text-muted-foreground">{t('childcare_form.unpaid_absences_hint')}</p>
-      {ABSENCE_REASONS.map((reason) => (
+      {/* carer_training is always deducted (Ipéria pays it), never a contract choice */}
+      {ABSENCE_REASONS.filter((r) => r !== 'carer_training').map((reason) => (
         <label key={reason} className="flex items-center gap-2 text-sm">
           <Checkbox checked={value.includes(reason)} onCheckedChange={(on) => onChange(on === true ? [...value, reason] : value.filter((r) => r !== reason))} />
           {reasonLabel(t, reason)}

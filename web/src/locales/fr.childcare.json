@@ -36,7 +36,7 @@
     "upkeep": "Entretien pour 9 h (€)",
     "upkeep_hint": "Nid applique au moins le minimum légal, au prorata de chaque journée.",
     "unpaid_absences": "Absences non payées",
-    "unpaid_absences_hint": "Nid retire du salaire les jours d'absence pour ces motifs.",
+    "unpaid_absences_hint": "Nid retire du salaire les jours d'absence pour ces motifs. Une formation sur le temps d'accueil est toujours retirée : Ipéria verse le salaire de ces heures et les déclare à Pajemploi.",
     "lunch_price": "Prix du déjeuner (€)",
     "lunch_provider": "Déjeuner fourni par",
     "snack_price": "Prix du goûter (€)",
@@ -285,7 +285,8 @@
       "child_sick": "Enfant malade",
       "carer_absent": "Absence de l'assistante",
       "holiday": "Jour férié",
-      "paid_leave": "Congés payés"
+      "paid_leave": "Congés payés",
+      "carer_training": "Formation de l'assistante"
     },
     "problem": {
       "childcare_days_incomplete": "Le relevé ne compte pas chaque jour du mois une fois.",

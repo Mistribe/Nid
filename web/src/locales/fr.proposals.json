@@ -539,7 +539,7 @@
       "effect": {"reduce_term": "Réduire la durée", "reduce_payment": "Réduire la mensualité"},
       "scheduleSource": {"computed": "Calcul", "bank": "Tableau de la banque"},
       "assetClass": {"equity": "Actions", "bond": "Obligations", "money_market": "Monétaire", "mixed": "Diversifié", "real_estate": "Immobilier", "capital_guaranteed": "Capital garanti", "other": "Autre"},
-      "absence": {"family": "Convenance de la famille", "parent_rtt": "RTT employeur", "child_sick": "Enfant malade", "carer_absent": "Absence de l’assistante", "holiday": "Jour férié", "paid_leave": "Congés payés"},
+      "absence": {"family": "Convenance de la famille", "parent_rtt": "RTT employeur", "child_sick": "Enfant malade", "carer_absent": "Absence de l’assistante", "holiday": "Jour férié", "paid_leave": "Congés payés", "carer_training": "Formation de l’assistante"},
       "role": {"lease": "Bail", "loan_offer": "Offre de prêt", "deed": "Acte", "tax_notice": "Avis d’imposition", "statement": "Relevé", "payslip": "Bulletin de paie", "insurance": "Assurance", "invoice": "Facture", "amortization_table": "Tableau d’amortissement", "copro_call": "Appel de fonds", "copro_minutes": "Assemblée générale", "copro_accounts": "Comptes de copropriété", "contract": "Contrat", "transaction_notice": "Avis d’opération", "request": "Demande", "advice": "Conseil", "product_sheet": "Annexe support", "other": "Autre"},
       "targetKind": {"core.item": "Un élément", "core.person": "Une personne", "core.household": "Le foyer", "income.phase": "Une période de revenu", "income.one_off": "Un revenu exceptionnel"}
     }

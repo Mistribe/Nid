@@ -155,7 +155,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
 
                     b.ToTable("statement_day", "childcare", t =>
                         {
-                            t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave')");
+                            t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave', 'carer_training')");
 
                             t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
                         });

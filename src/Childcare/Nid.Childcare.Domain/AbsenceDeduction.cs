@@ -16,7 +16,8 @@ public static class AbsenceDeduction
         var reasons = unpaid ?? AbsenceCodes.DefaultUnpaid;
         // The sick-child quota only limits a reason the contract does not pay.
         var sick = reasons.Contains(AbsenceReason.ChildSick) ? days.Where(d => d.Absence == AbsenceReason.ChildSick && MissingShare(d, plan) > 0m).OrderBy(d => d.Date).Take(sickLeft).ToList() : [];
-        var deducted = days.Where(d => d.Absence is { } r && r != AbsenceReason.ChildSick && reasons.Contains(r) && MissingShare(d, plan) > 0m).Concat(sick).ToList();
+        // Training on working time is never the parent's to pay, whatever the contract: Ipéria pays the carer and Ircem declares those hours to Pajemploi.
+        var deducted = days.Where(d => d.Absence is { } r && r != AbsenceReason.ChildSick && (reasons.Contains(r) || r == AbsenceReason.CarerTraining) && MissingShare(d, plan) > 0m).Concat(sick).ToList();
         if (deducted.Count == 0) return (0m, 0, 0);
 
         var potential = potentialHours ?? days.Sum(d => plan.HoursOn(d.Date));
