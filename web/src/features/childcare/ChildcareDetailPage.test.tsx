@@ -214,6 +214,16 @@ describe('ChildcareDetailPage', () => {
     expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toHaveTextContent('Congés acquis3 jours');
   });
 
+  it('a full year shows its leave left, accrued and taken, and no weeks without care to edit', async () => {
+    serve(detail({ terms: [terms({ fullYear: true, programmedWeeks: 52 })], gapWeeksToPlace: 0, leave: { accrued: 8, taken: 3, left: 5 } }));
+    const { user } = await renderApp(url);
+    const figures = await screen.findByRole('region', { name: 'Chiffres clés' });
+    expect(figures).toHaveTextContent('Congés restants5 jours');
+    expect(figures).toHaveTextContent('8 acquis, 3 pris');
+    await user.click(screen.getByRole('tab', { name: 'Semaines sans accueil' }));
+    expect(await screen.findByText(/il n’y a pas de semaine sans accueil/)).toBeInTheDocument();
+  });
+
   it('shows the sick-child days used out of the quota while the contract does not pay them', async () => {
     serve(detail());
     await renderApp(url);
@@ -272,7 +282,7 @@ describe('ChildcareDetailPage', () => {
     await waitFor(() => expect(writes).toHaveLength(1));
     const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', lunch: true, snack: false });
     expect(writes[0]).toEqual({ path: `/api/v1/childcare/${ARRANGEMENT_ID}/revisions`, body: { terms: {
-      from: '2026-01-01', netHourlyRate: '4.20', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.2', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'],
+      from: '2026-01-01', netHourlyRate: '4.20', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.2', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'], fullYear: false,
       weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map(slot) }],
     } } });
   });

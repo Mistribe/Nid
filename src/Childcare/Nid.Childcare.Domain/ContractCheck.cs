@@ -44,8 +44,11 @@ public static class ContractCheck
         return problems;
     }
 
-    /// <summary>The template weeks: a name of 1 to 40 characters, unique ignoring case, at least one week, a valid schedule each, 1 to 46 programmed weeks in all.</summary>
-    public static IReadOnlyList<(string Field, string Code)> WeekTypes(IReadOnlyList<WeekType> types)
+    /// <summary>
+    /// The template weeks: a name of 1 to 40 characters, unique ignoring case, at least one week, a valid schedule each; 1 to 46
+    /// programmed weeks in all, or exactly 52 in a full year (art. 97), whose 5 weeks of leave are days of the statements, not weeks without care.
+    /// </summary>
+    public static IReadOnlyList<(string Field, string Code)> WeekTypes(IReadOnlyList<WeekType> types, bool fullYear = false)
     {
         if (types.Count == 0) return [("weekTypes", Codes.WeekTypesEmpty)];
         var problems = new List<(string, string)>();
@@ -58,7 +61,8 @@ public static class ContractCheck
             problems.AddRange(Schedule(types[i].Schedule).Select(p => ($"weekTypes[{i}].{p.Field}", p.Code)));
         }
         // long: a huge Weeks must not overflow the sum.
-        if (types.Sum(t => (long)t.Weeks) is < 1 or > ChildcareRules.MaxProgrammedWeeks) problems.Add(("weekTypes", Codes.WeeksOutOfRange));
+        var weeks = types.Sum(t => (long)t.Weeks);
+        if (fullYear ? weeks != ChildcareRules.FullYearWeeks : weeks is < 1 or > ChildcareRules.MaxProgrammedWeeks) problems.Add(("weekTypes", Codes.WeeksOutOfRange));
         return problems;
     }
 

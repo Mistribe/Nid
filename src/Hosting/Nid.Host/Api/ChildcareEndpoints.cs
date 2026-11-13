@@ -242,10 +242,14 @@ public static class ChildcareEndpoints
     /// <summary>ISO day (1 = Monday), times <c>HH:mm</c>.</summary>
     public sealed record WeekdaySlotBody(int? Day, string? Arrival, string? Departure, bool? Lunch, bool? Snack = null);
 
-    /// <summary>Rates as decimal strings; <c>overtimePct</c> in percent (10 = 10 %).</summary>
+    /// <summary>
+    /// Rates as decimal strings; <c>overtimePct</c> in percent (10 = 10 %). <c>fullYear</c>: care over 52 weeks, leave included
+    /// (année complète); not sent, an incomplete year on creation, the current revision's on an edit or a revision.
+    /// </summary>
     public sealed record TermsBody(
         string? From, string? NetHourlyRate, string? GrossHourlyRate, string? OvertimePct, string? UpkeepPer9h, string? LunchPrice,
-        IReadOnlyList<WeekTypeBody>? WeekTypes, string? SnackPrice = null, string? LunchProvider = null, string? SnackProvider = null, IReadOnlyList<string>? UnpaidAbsences = null);
+        IReadOnlyList<WeekTypeBody>? WeekTypes, string? SnackPrice = null, string? LunchProvider = null, string? SnackProvider = null, IReadOnlyList<string>? UnpaidAbsences = null,
+        bool? FullYear = null);
 
     /// <summary>A named weekly pattern and the number of weeks of the contract year it covers.</summary>
     public sealed record WeekTypeBody(string? Name, int? Weeks, IReadOnlyList<WeekdaySlotBody>? Schedule);
@@ -357,7 +361,7 @@ public static class ChildcareEndpoints
                 if (type?.Name is { } name && type.Weeks is { } weeks) types.Add(new WeekType(name, weeks, schedule));
             }
             var unpaid = Absences(reader, body.UnpaidAbsences, "terms.unpaidAbsences");
-            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, lunch, types, snack, lunchProvider, snackProvider, unpaid) : null;
+            return reader.Ok ? new TermsInput(from!.Value, net!.Value, gross, overtime!.Value, upkeep!.Value, lunch, types, snack, lunchProvider, snackProvider, unpaid, body.FullYear) : null;
         }
 
         /// <summary>The absence reasons, each once; null when not sent.</summary>

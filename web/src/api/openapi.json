@@ -32406,6 +32406,16 @@
             "type": "integer",
             "format": "int32",
             "default": 5
+          },
+          "leave": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LeaveCounterView"
+              }
+            ]
           }
         }
       },
@@ -32694,6 +32704,7 @@
           "netHourlyRate",
           "overtimePct",
           "upkeepPer9h",
+          "fullYear",
           "lunchProvider",
           "snackProvider",
           "weekTypes",
@@ -32774,6 +32785,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "fullYear": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -43233,6 +43248,28 @@
             "format": "int32"
           },
           "defaultDays": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LeaveCounterView": {
+        "required": [
+          "accrued",
+          "taken",
+          "left"
+        ],
+        "type": "object",
+        "properties": {
+          "accrued": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "taken": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "left": {
             "type": "integer",
             "format": "int32"
           }
@@ -57461,6 +57498,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "fullYear": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },

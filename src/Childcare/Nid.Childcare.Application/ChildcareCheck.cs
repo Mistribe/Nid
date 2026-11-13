@@ -56,7 +56,7 @@ public static class ChildcareCheck
         Positive(terms.UpkeepPer9h, "upkeepPer9h", zero: true);
         Positive(terms.LunchPrice, "lunchPrice", zero: true);
         Positive(terms.SnackPrice, "snackPrice", zero: true);
-        errors.AddRange(ContractCheck.WeekTypes(terms.WeekTypes).Select(p => new FieldError($"terms.{p.Field}", p.Code, Message(p.Code))));
+        errors.AddRange(ContractCheck.WeekTypes(terms.WeekTypes, terms.FullYear ?? false).Select(p => new FieldError($"terms.{p.Field}", p.Code, Message(p.Code))));
         return errors;
     }
 
@@ -75,7 +75,7 @@ public static class ChildcareCheck
         ChildcareCodes.ScheduleEmpty => "At least one day of care a week.",
         ChildcareCodes.ScheduleDuplicateDay => "One slot per day.",
         ChildcareCodes.DepartureBeforeArrival => "The departure comes after the arrival.",
-        ChildcareCodes.WeeksOutOfRange => "1 to 46 programmed weeks: beyond, the year is complete.",
+        ChildcareCodes.WeeksOutOfRange => "1 to 46 programmed weeks in an incomplete year, 52 in a full year.",
         ChildcareCodes.WeekTypesEmpty => "At least one week type.",
         ChildcareCodes.WeekTypeWeeksOutOfRange => "At least one week.",
         ChildcareCodes.WeekTypeNameInvalid => "A name of 1 to 40 characters, different from the other week types'.",

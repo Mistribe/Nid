@@ -17,7 +17,7 @@ export const list = (items: ChildcareSummary[]): ChildcareList => ({ items });
 export const terms = (over: Partial<ChildcareTerms> = {}): ChildcareTerms => ({
   from: '2025-09-01', to: null, netHourlyRate: '4.30', grossHourlyRate: null, overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.2', snackPrice: null, lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'],
   weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map((d) => slot(d)), weeklyHours: '38.00' }], programmedWeeks: 46,
-  monthlyBasePay: eur('626.37'), monthlyHours: '151.67', normalHours: 146, ...over,
+  monthlyBasePay: eur('626.37'), monthlyHours: '151.67', normalHours: 146, fullYear: false, ...over,
 });
 
 export const detail = (over: Partial<ChildcareDetail> = {}, head: Partial<ChildcareSummary> = {}): ChildcareDetail => ({

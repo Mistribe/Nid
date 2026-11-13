@@ -394,6 +394,7 @@ public sealed class ChildcareImportSection(
                     UpkeepPer9h = Exact(t.UpkeepPer9h), LunchPrice = t.LunchPrice is { } m ? Exact(m) : null, SnackPrice = t.SnackPrice is { } sn ? Exact(sn) : null,
                     LunchProvider = MealProviderCodes.Of(t.LunchProvider), SnackProvider = MealProviderCodes.Of(t.SnackProvider),
                     UnpaidAbsences = t.UnpaidAbsences is { } u && !u.Order().SequenceEqual(AbsenceCodes.DefaultUnpaid.Order()) ? u.Select(AbsenceCodes.Of).ToList() : null,
+                    FullYear = t.FullYear ? true : null,
                     WeekTypes = t.WeekTypes.Select(w => new WeekTypeRecord
                     {
                         Name = w.Name, Weeks = w.Weeks,
@@ -461,7 +462,7 @@ public sealed class ChildcareImportSection(
             NormalHours = d.NormalHours, ActivityDays = d.ActivityDays, PaidLeaveDays = d.PaidLeaveDays, ComplementaryHours = Exact(d.ComplementaryHours),
             OvertimeHours = Exact(d.OvertimeHours), NetPay = Exact(d.NetPay), Upkeep = Exact(d.Upkeep), Meals = Exact(d.Meals), BasePay = Exact(f.BasePay),
             Deduction = Exact(f.Deduction), ExtraPay = Exact(f.ExtraPay), PaidLeavePay = Exact(f.PaidLeavePay), Cost = Exact(f.Cost), TaxBase = Exact(f.TaxBase),
-            ChildSickDeducted = f.ChildSickDeducted,
+            ChildSickDeducted = f.ChildSickDeducted, PaidLeaveTaken = f.PaidLeaveTaken == 0 ? null : f.PaidLeaveTaken,
         };
     }
 
@@ -471,6 +472,7 @@ public sealed class ChildcareImportSection(
         var d = f.Declaration;
         static bool Eq(decimal a, decimal b) => decimal.Round(a, 2) == decimal.Round(b, 2);
         return d.NormalHours == r.NormalHours && d.ActivityDays == r.ActivityDays && d.PaidLeaveDays == r.PaidLeaveDays && f.ChildSickDeducted == r.ChildSickDeducted
+               && f.PaidLeaveTaken == (r.PaidLeaveTaken ?? 0)
                && Eq(d.ComplementaryHours, r.ComplementaryHours) && Eq(d.OvertimeHours, r.OvertimeHours) && Eq(d.NetPay, r.NetPay) && Eq(d.Upkeep, r.Upkeep)
                && Eq(d.Meals, r.Meals) && Eq(f.BasePay, r.BasePay) && Eq(f.Deduction, r.Deduction) && Eq(f.ExtraPay, r.ExtraPay)
                && Eq(f.PaidLeavePay, r.PaidLeavePay) && Eq(f.Cost, r.Cost) && Eq(f.TaxBase, r.TaxBase);
@@ -549,7 +551,7 @@ public sealed class ChildcareImportSection(
                 for (var k = 0; k < t.WeekTypes.Count; k++)
                     types.Add(new WeekType(t.WeekTypes[k].Name?.Trim() ?? "", t.WeekTypes[k].Weeks, Slots(t.WeekTypes[k].Schedule, $"{at}.week_types[{k}].schedule", Error)));
             if (types.Count > 0 || t.WeekTypes is { Count: 0 })
-                foreach (var (field, code) in ContractCheck.WeekTypes(types))
+                foreach (var (field, code) in ContractCheck.WeekTypes(types, t.FullYear == true))
                     Error(code, StatementAssembly.Message(code), $"{at}.{Snake(field)}");
             if (t.NetHourlyRate <= 0 || t.OvertimePct < 0 || t.UpkeepPer9h < 0 || (t.LunchPrice ?? t.MealPrice) < 0 || t.SnackPrice < 0 || t.GrossHourlyRate <= 0)
                 Error(ImportCodes.InvalidValue, "Rates are positive, the upkeep and the meals zero or more.", at);
@@ -569,7 +571,8 @@ public sealed class ChildcareImportSection(
                     Error(ImportCodes.InvalidValue, "Each revision ends the day before the next one starts.", $"{path}.terms[{j - 1}].to");
                 if (to is { } end && end < f) Error(ImportCodes.InvalidValue, "A revision ends on or after its start.", at + ".to");
                 revisions.Add(new Terms(new ItemId(Guid.Empty), f, to, t.NetHourlyRate, t.GrossHourlyRate, t.OvertimePct / 100m, t.UpkeepPer9h, t.LunchPrice ?? t.MealPrice,
-                    types, t.SnackPrice, lunchProvider, snackProvider, UnpaidAbsences: unpaid?.OfType<AbsenceReason>().Distinct().ToList() ?? AbsenceCodes.DefaultUnpaid));
+                    types, t.SnackPrice, lunchProvider, snackProvider, UnpaidAbsences: unpaid?.OfType<AbsenceReason>().Distinct().ToList() ?? AbsenceCodes.DefaultUnpaid,
+                    FullYear: t.FullYear == true));
             }
         }
         if (revisions.Count > 0 && revisions.Take(revisions.Count - 1).Any(t => t.To is null))

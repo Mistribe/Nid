@@ -10,12 +10,14 @@ public sealed record PaidLeaveInput(decimal MonthsWithCare, decimal ReferenceNet
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
 /// share a week with it; <c>Cmg</c>: read from the Pajemploi summary; <c>Declared</c>: decision 30, the fields entered by hand;
 /// <c>Contributions</c>: #30, the contributions left to the household on the Pajemploi summary; <c>Exemption</c>: the contributions
-/// Pajemploi waived on the extra hours, from its summary, estimated while null.
+/// Pajemploi waived on the extra hours, from its summary, estimated while null. <c>LeaveLeft</c>: a full year's leave days accrued
+/// and not yet taken before this month (<see cref="StatementContext.LeaveLeft"/>); null leaves its leave days unlimited.
 /// </summary>
 public sealed record MonthInput(
     YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
-    decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null, decimal Contributions = 0m, decimal? Exemption = null);
+    decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null, decimal Contributions = 0m, decimal? Exemption = null,
+    int? LeaveLeft = null);
 
 /// <summary>Childcare spec §3 and §6: a month's Pajemploi declaration, its cost and its childcare tax base. Pure.</summary>
 public static class ChildcareMonth
@@ -36,7 +38,9 @@ public static class ChildcareMonth
         var outsideHours = potentialHours - inContract.Sum(d => input.Plan.HoursOn(d.Date));
         var basePay = partial ? fullPay - Mensualisation.Round(fullPay * outsideHours / potentialHours) : fullPay;
 
-        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(fullPay, inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences, potentialHours);
+        var fullYear = input.Terms.FullYear;
+        var (deduction, deductedDays, childSick, leaveTaken) = AbsenceDeduction.Compute(fullPay, inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences, potentialHours,
+            fullYear ? input.LeaveLeft ?? int.MaxValue : null);
         var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan, input.Terms);
         var complementary = input.Declared?.ComplementaryHours ?? ExtraHours.Whole(computedComplementary);
         var overtime = input.Declared?.OvertimeHours ?? ExtraHours.Whole(computedOvertime);
@@ -46,10 +50,15 @@ public static class ChildcareMonth
         var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
         var meals = input.Declared?.Meals ?? computedMeals;
 
-        var leaveDays = input.Declared?.PaidLeaveDays ?? (input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : null);
+        var accrued = input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : (int?)null;
+        // A full year leaves the leave days field empty: the leave is paid in the monthly pay (Urssaf, Pajemploi FAQ « Comment
+        // déclarer les jours de congés payés », except for a mensualisation over 52 weeks).
+        var leaveDays = input.Declared?.PaidLeaveDays ?? (fullYear ? null : accrued);
         // The contract's average week over its template weeks (38,389 h for 23 × 39 h + 22 × 37,75 h).
         var weeklyHours = annualHours / input.Plan.ProgrammedWeeks;
-        var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
+        var leavePay = input.June is not { } j ? 0m
+            : fullYear ? PaidLeave.JuneDifference(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, accrued!.Value)
+            : PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value);
 
         var computedPay = basePay - deduction + extraPay + leavePay;
         var netPay = input.Declared?.NetPay ?? computedPay;
@@ -75,7 +84,7 @@ public static class ChildcareMonth
         // #30: the CMG covers the contributions only up to an hourly ceiling; past it the household pays the rest, read from the summary.
         var paid = input.Contributions + exemption;
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
-            netPay + upkeep + meals + input.Mileage + paid - input.Cmg, netPay + upkeep + paid - input.Cmg, childSick, input.Contributions, exemption);
+            netPay + upkeep + meals + input.Mileage + paid - input.Cmg, netPay + upkeep + paid - input.Cmg, childSick, input.Contributions, exemption, leaveTaken);
     }
 
     /// <summary>

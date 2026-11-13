@@ -271,6 +271,10 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("paid_leave_pay");
 
+                    b.Property<int?>("PaidLeaveTaken")
+                        .HasColumnType("integer")
+                        .HasColumnName("paid_leave_taken");
+
                     b.Property<decimal?>("TaxBase")
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("tax_base");
@@ -315,6 +319,10 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate>("From")
                         .HasColumnType("date")
                         .HasColumnName("from");
+
+                    b.Property<bool>("FullYear")
+                        .HasColumnType("boolean")
+                        .HasColumnName("full_year");
 
                     b.Property<decimal?>("GrossHourlyRate")
                         .HasColumnType("numeric(19,4)")
