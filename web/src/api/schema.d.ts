@@ -29091,6 +29091,16 @@ export interface components {
             weeks: components["schemas"]["ContractWeekView"][];
             allocation: components["schemas"]["WeekTypeCountView"][];
             cmgEstimate?: null | components["schemas"]["ChildcareMoneyView"];
+            /**
+             * Format: int32
+             * @default 0
+             */
+            childSickDaysUsed: number;
+            /**
+             * Format: int32
+             * @default 5
+             */
+            childSickQuota: number;
         };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];

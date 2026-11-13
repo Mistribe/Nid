@@ -197,6 +197,17 @@ describe('ChildcareDetailPage', () => {
     expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toHaveTextContent('Congés acquis3 jours');
   });
 
+  it('shows the sick-child days used out of the quota while the contract does not pay them', async () => {
+    serve(detail());
+    await renderApp(url);
+    expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toHaveTextContent('Enfant malade2 / 5 joursdéduits cette année de contrat');
+    cleanup();
+
+    serve(detail({ terms: [terms({ unpaidAbsences: ['carer_absent'] })] }));
+    await renderApp(url);
+    expect(await screen.findByRole('region', { name: 'Chiffres clés' })).not.toHaveTextContent('Enfant malade');
+  });
+
   it('a revision dated after today waits: the terms in force show, the revision reads « À venir »', async () => {
     serve(detail({ terms: [terms({ to: '2025-12-31' }), terms({ from: '2026-01-01', programmedWeeks: 44, monthlyBasePay: eur('655.50') })] }));
     await renderApp(url);

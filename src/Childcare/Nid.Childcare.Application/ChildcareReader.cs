@@ -24,11 +24,13 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
         var today = await calendar.TodayAsync(ct);
         var estimates = new Dictionary<ItemId, decimal?>();
         var validated = new Dictionary<ItemId, HashSet<YearMonth>>();
+        var sickDeducted = new Dictionary<ItemId, IReadOnlyList<(YearMonth Month, int Deducted)>>();
         foreach (var id in ids)
         {
             var statements = (await store.StatementsOfAsync(id, ct)).Where(st => st.Validated).ToList();
             estimates[id] = StatementContext.CmgEstimate(statements.Where(st => st.Figures is not null).Select(st => (st.Month, st.Figures!.Cmg)).ToList());
             validated[id] = statements.Select(st => st.Month).ToHashSet();
+            sickDeducted[id] = statements.Where(st => st.Figures is not null).Select(st => (st.Month, st.Figures!.ChildSickDeducted)).ToList();
         }
 
         return found.Select(f =>
@@ -53,7 +55,8 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today), arrangement.Version,
                 year.Select(w => new ContractWeekView(w.Monday, w.WeekType, w.Overridden, w.Gap)).ToList(),
                 now.WeekTypes.Select((w, i) => new WeekTypeCountView(w.Name, allocated[i], w.Weeks)).ToList(),
-                estimates[arrangement.ItemId] is { } cmg ? ChildcareMoneyView.Of(cmg, currency) : null);
+                estimates[arrangement.ItemId] is { } cmg ? ChildcareMoneyView.Of(cmg, currency) : null,
+                StatementContext.ChildSickUsed(revisions[0].From, today, sickDeducted[arrangement.ItemId]));
         }).ToList();
     }
 

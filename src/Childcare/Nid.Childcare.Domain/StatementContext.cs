@@ -41,6 +41,13 @@ public static class StatementContext
         return validated.Where(v => v.Month.CompareTo(month) < 0 && ContractCheck.YearStart(start, v.Month.OnDayOfMonth(1)) == year).Sum(v => v.Deducted);
     }
 
+    /// <summary>Decision 15: sick-child days deducted by the validated months of the contract year containing <paramref name="today"/>.</summary>
+    public static int ChildSickUsed(LocalDate start, LocalDate today, IReadOnlyList<(YearMonth Month, int Deducted)> validated)
+    {
+        var year = ContractCheck.YearStart(start, today);
+        return validated.Where(v => ContractCheck.YearStart(start, v.Month.OnDayOfMonth(1)) == year).Sum(v => v.Deducted);
+    }
+
     /// <summary>
     /// Decision 16: the reference period June N−1 … May N within the arrangement's dates, with the validated months' pay
     /// (base − deductions + extra hours). No input while a month of it is not validated.
