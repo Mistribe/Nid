@@ -25,8 +25,10 @@ public sealed record ChildcareRules(LocalDate From, decimal MinimumGuaranteed)
     public const int ChildSickQuotaDays = 5;
     public const decimal LeaveDaysPerMonth = 2.5m;
     public const int LeaveDaysCap = 30;
-    /// <summary>Beyond this, the contract is a full year, which Nid does not model.</summary>
+    /// <summary>An incomplete year's most programmed weeks (IDCC 3239 art. 97.1: 46 weeks or fewer over twelve months).</summary>
     public const int MaxProgrammedWeeks = 46;
+    /// <summary>A full year's weeks (art. 97: 52 weeks, the carer's 5 weeks of paid leave included).</summary>
+    public const int FullYearWeeks = 52;
 
     /// <summary>The period in force on <paramref name="day"/>; the latest one runs on until a newer one is added.</summary>
     public static ChildcareRules For(LocalDate day)

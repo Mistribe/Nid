@@ -35,11 +35,18 @@ public sealed record WeekTypeView(string Name, int Weeks, IReadOnlyList<WeekdayS
 
 /// <summary>
 /// One revision with its figures; rates as entered (decimal strings), <c>OvertimePct</c> in percent, the base pay and
-/// <c>MonthlyHours</c> (annual hours over 12, <c>"143.96"</c>) computed.
+/// <c>MonthlyHours</c> (annual hours over 12, <c>"143.96"</c>) computed. <c>FullYear</c>: care over 52 weeks, leave included (année complète).
 /// </summary>
 public sealed record ChildcareTermsView(
     LocalDate From, LocalDate? To, string NetHourlyRate, string? GrossHourlyRate, string OvertimePct, string UpkeepPer9h, string? LunchPrice, string? SnackPrice, string LunchProvider, string SnackProvider,
-    IReadOnlyList<WeekTypeView> WeekTypes, int ProgrammedWeeks, ChildcareMoneyView MonthlyBasePay, string MonthlyHours, int NormalHours, IReadOnlyList<string> UnpaidAbsences);
+    IReadOnlyList<WeekTypeView> WeekTypes, int ProgrammedWeeks, ChildcareMoneyView MonthlyBasePay, string MonthlyHours, int NormalHours, IReadOnlyList<string> UnpaidAbsences,
+    bool FullYear = false);
+
+/// <summary>
+/// A full year's leave days to this month: accrued since the start up to last month, taken and paid by the validated months, and
+/// those left, which a leave day past them is deducted for.
+/// </summary>
+public sealed record LeaveCounterView(int Accrued, int Taken, int Left);
 
 public sealed record CareGapView(LocalDate Monday, int Weeks, LocalDate Sunday);
 
@@ -56,11 +63,12 @@ public sealed record WeekTypeCountView(string Name, int Allocated, int Contract)
 /// An arrangement in full: every revision, oldest first, its weeks without care, those still to place this contract year, the same per contract year (<c>GapYears</c>), and the paid-leave days accrued (decision 16).
 /// <c>Weeks</c> and <c>Allocation</c>: the contract year in progress, under the revision in force.
 /// <c>ChildSickDaysUsed</c>: sick-child days deducted this contract year (validated months) out of <c>ChildSickQuota</c> (decision 15).
+/// <c>Leave</c>: the leave counter of a full year in force, null in an incomplete year.
 /// </summary>
 public sealed record ChildcareDetail(
     ChildcareSummary Summary, string? CarerPajemploi, string? CarerApproval, IReadOnlyList<ChildcareTermsView> Terms, IReadOnlyList<CareGapView> Gaps,
     int GapWeeksToPlace, int LeaveDaysAccrued, uint Version, IReadOnlyList<ContractWeekView> Weeks, IReadOnlyList<WeekTypeCountView> Allocation,
-    IReadOnlyList<GapYearView> GapYears, ChildcareMoneyView? CmgEstimate = null, int ChildSickDaysUsed = 0, int ChildSickQuota = ChildcareRules.ChildSickQuotaDays) : IExposesItems
+    IReadOnlyList<GapYearView> GapYears, ChildcareMoneyView? CmgEstimate = null, int ChildSickDaysUsed = 0, int ChildSickQuota = ChildcareRules.ChildSickQuotaDays, LeaveCounterView? Leave = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Summary.Id)];
 }

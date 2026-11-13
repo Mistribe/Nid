@@ -20,10 +20,14 @@ public sealed record WeekOverride(LocalDate Monday, int WeekType);
 /// <summary>Whole weeks without care, from a Monday.</summary>
 public sealed record CareGap(LocalDate Monday, int Weeks);
 
-/// <summary>The contract's figures the month needs (spec §2), all in net.</summary>
+/// <summary>
+/// The contract's figures the month needs (spec §2), all in net. <c>FullYear</c>: the one switch between the two kinds of contract
+/// (IDCC 3239, socle spécifique assistant maternel art. 97): false, care over 46 weeks or fewer (année incomplète, leave settled in
+/// June); true, care over 52 weeks, the carer's 5 weeks of leave included (année complète, leave paid within the monthly pay).
+/// </summary>
 public sealed record ContractTerms(LocalDate Start, LocalDate? End, decimal NetHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? LunchPrice,
     decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny,
-    IReadOnlyList<AbsenceReason>? UnpaidAbsences = null);
+    IReadOnlyList<AbsenceReason>? UnpaidAbsences = null, bool FullYear = false);
 
 /// <summary>One calendar day of a statement. <c>Planned</c>: in the template and not in a gap.</summary>
 public sealed record StatementDay(LocalDate Date, bool Planned, bool Present, LocalTime? Arrival, LocalTime? Departure, bool Lunch, AbsenceReason? Absence, bool Snack = false);
@@ -45,10 +49,11 @@ public sealed record PajemploiDeclaration(
 /// Spec §3 and §6: the declaration with the pay's parts, the month's cost and the childcare tax base. <c>Contributions</c>: #30, the
 /// contributions the CMG leaves to the household, as the Pajemploi summary shows them; in the cost and the tax base. <c>Exemption</c>: the
 /// salary contributions Pajemploi waives on the extra hours and adds to what it pays the carer; in the cost and the tax base.
+/// <c>PaidLeaveTaken</c>: a full year's leave days the carer took this month within those accrued, paid in the monthly pay; 0 in an incomplete year.
 /// </summary>
 public sealed record MonthFigures(
     PajemploiDeclaration Declaration, decimal BasePay, decimal Deduction, decimal ExtraPay, decimal PaidLeavePay,
-    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted, decimal Contributions = 0m, decimal Exemption = 0m);
+    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted, decimal Contributions = 0m, decimal Exemption = 0m, int PaidLeaveTaken = 0);
 
 /// <summary>The names of <see cref="MealProvider"/>, on the wire and in the database.</summary>
 public static class MealProviderCodes

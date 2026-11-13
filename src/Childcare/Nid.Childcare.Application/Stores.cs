@@ -8,11 +8,12 @@ namespace Nid.Childcare.Application;
 /// <summary>Spec §1.8–9: one arrangement per item — the child and the carer — whatever its revisions.</summary>
 public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName, string? CarerPajemploi, string? CarerApproval, uint Version);
 
-/// <summary>Spec §1.8, §2: the figures of one revision, in force from <c>From</c> to <c>To</c> (open while current).</summary>
+/// <summary>Spec §1.8, §2: the figures of one revision, in force from <c>From</c> to <c>To</c> (open while current). <c>FullYear</c>: see <see cref="ContractTerms"/>.</summary>
 public sealed record Terms(
     ItemId ItemId, LocalDate From, LocalDate? To, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h,
     decimal? LunchPrice, IReadOnlyList<WeekType> WeekTypes,
-    decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny, IReadOnlyList<AbsenceReason>? UnpaidAbsences = null)
+    decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny, IReadOnlyList<AbsenceReason>? UnpaidAbsences = null,
+    bool FullYear = false)
 {
     public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
 }

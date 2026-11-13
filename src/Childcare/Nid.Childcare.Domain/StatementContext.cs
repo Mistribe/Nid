@@ -75,6 +75,31 @@ public static class StatementContext
     }
 
     /// <summary>
+    /// A full year: the leave days accrued from the contract's start to the end of the month before <paramref name="month"/>,
+    /// 2,5 a month with care per reference period, 30 at most each (IDCC 3239 socle commun art. 48.1.1). Leave may be taken
+    /// as soon as it is accrued (Code du travail L3141-12).
+    /// </summary>
+    public static int LeaveAccruedBefore(LocalDate start, LocalDate? end, YearMonth month)
+    {
+        var accrued = 0;
+        for (var from = new YearMonth(start.Month >= 6 ? start.Year : start.Year - 1, 6); from.CompareTo(month) < 0; from = from.PlusMonths(12))
+        {
+            var months = 0m;
+            for (var m = from; m.CompareTo(from.PlusMonths(12)) < 0 && m.CompareTo(month) < 0; m = m.PlusMonths(1))
+                months += CareShare(m, start, end);
+            accrued += PaidLeave.Accrued(months);
+        }
+        return accrued;
+    }
+
+    /// <summary>
+    /// A full year: the leave days still accrued before <paramref name="month"/>, less those the validated months before it paid.
+    /// shortcut: leave not taken by the end of the next period is not dropped (it should be, by 31 May); upgrade when a household reports it.
+    /// </summary>
+    public static int LeaveLeft(LocalDate start, LocalDate? end, YearMonth month, IReadOnlyList<(YearMonth Month, int Taken)> validated)
+        => Math.Max(0, LeaveAccruedBefore(start, end, month) - validated.Where(v => v.Month.CompareTo(month) < 0).Sum(v => v.Taken));
+
+    /// <summary>
     /// Decision 19: the mean of the three latest validated months' CMG, to the cent; none until a validated month carries a
     /// CMG (#385: a 0 built from months without one would read « no CMG » rather than « not known yet »).
     /// </summary>

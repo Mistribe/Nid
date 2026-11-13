@@ -25,12 +25,14 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
         var estimates = new Dictionary<ItemId, decimal?>();
         var validated = new Dictionary<ItemId, HashSet<YearMonth>>();
         var sickDeducted = new Dictionary<ItemId, IReadOnlyList<(YearMonth Month, int Deducted)>>();
+        var leaveTaken = new Dictionary<ItemId, IReadOnlyList<(YearMonth Month, int Taken)>>();
         foreach (var id in ids)
         {
             var statements = (await store.StatementsOfAsync(id, ct)).Where(st => st.Validated).ToList();
             estimates[id] = StatementContext.CmgEstimate(statements.Where(st => st.Figures is not null).Select(st => (st.Month, st.Figures!.Cmg)).ToList());
             validated[id] = statements.Select(st => st.Month).ToHashSet();
             sickDeducted[id] = statements.Where(st => st.Figures is not null).Select(st => (st.Month, st.Figures!.ChildSickDeducted)).ToList();
+            leaveTaken[id] = statements.Where(st => st.Figures is not null).Select(st => (st.Month, st.Figures!.PaidLeaveTaken)).ToList();
         }
 
         return found.Select(f =>
@@ -57,7 +59,8 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 now.WeekTypes.Select((w, i) => new WeekTypeCountView(w.Name, allocated[i], w.Weeks)).ToList(),
                 GapYears(revisions, views[^1].To, placed, today),
                 estimates[arrangement.ItemId] is { } cmg ? ChildcareMoneyView.Of(cmg, currency) : null,
-                StatementContext.ChildSickUsed(revisions[0].From, today, sickDeducted[arrangement.ItemId]));
+                StatementContext.ChildSickUsed(revisions[0].From, today, sickDeducted[arrangement.ItemId]),
+                Leave: now.FullYear ? Leave(revisions[0].From, views[^1].To, today.ToYearMonth(), leaveTaken[arrangement.ItemId]) : null);
         }).ToList();
     }
 
@@ -75,6 +78,12 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
         => items.OrderBy(i => i.Closed).ThenBy(i => i.ChildName, StringComparer.Create(new CultureInfo("fr-FR"), true))
             .ThenBy(i => i.Name, StringComparer.Create(new CultureInfo("fr-FR"), true)).ToList();
 
+    private static LeaveCounterView Leave(LocalDate start, LocalDate? end, YearMonth month, IReadOnlyList<(YearMonth Month, int Taken)> taken)
+    {
+        var left = StatementContext.LeaveLeft(start, end, month, taken);
+        return new LeaveCounterView(StatementContext.LeaveAccruedBefore(start, end, month), taken.Where(t => t.Month.CompareTo(month) < 0).Sum(t => t.Taken), left);
+    }
+
     private static ChildcareTermsView TermsView(Terms t, Currency currency)
     {
         var annual = Mensualisation.AnnualHours(t.WeekTypes);
@@ -85,7 +94,7 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 w.Schedule.Select(s => new WeekdaySlotView((int)s.Day, Time.Format(s.Arrival), Time.Format(s.Departure), s.Lunch, s.Snack)).ToList(),
                 Hours(Mensualisation.WeeklyHours(w.Schedule)))).ToList(),
             t.ProgrammedWeeks, ChildcareMoneyView.Of(Mensualisation.BasePay(t.NetHourlyRate, annual), currency), Hours(annual / 12m), Mensualisation.NormalHours(annual),
-            (t.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid).Select(AbsenceCodes.Of).ToList());
+            (t.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid).Select(AbsenceCodes.Of).ToList(), t.FullYear);
     }
 
     private static string Hours(decimal hours) => hours.ToString("0.00", CultureInfo.InvariantCulture);

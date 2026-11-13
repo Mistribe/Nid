@@ -62,7 +62,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             r.LunchPrice,
             types[(r.ItemId, r.From)].Select(w => new WeekType(w.Name, w.Weeks,
                 days[(r.ItemId, r.From, w.Rank)].OrderBy(d => d.Day).Select(d => new WeekdaySlot((IsoDayOfWeek)d.Day, d.Arrival, d.Departure, d.Lunch, d.Snack)).ToList())).ToList(),
-            r.SnackPrice, MealProviderCodes.Parse(r.LunchProvider), MealProviderCodes.Parse(r.SnackProvider), r.UnpaidAbsences.Select(AbsenceCodes.Parse).ToList())).ToList();
+            r.SnackPrice, MealProviderCodes.Parse(r.LunchProvider), MealProviderCodes.Parse(r.SnackProvider), r.UnpaidAbsences.Select(AbsenceCodes.Parse).ToList(), r.FullYear)).ToList();
     }
 
     public async Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct)
@@ -214,6 +214,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.Cost = figures.Cost;
         row.TaxBase = figures.TaxBase;
         row.ChildSickDeducted = figures.ChildSickDeducted;
+        row.PaidLeaveTaken = figures.PaidLeaveTaken;
         ReplaceDays(id, first, days, await db.StatementDays.Where(d => d.ItemId == id.Value && d.Month == first).ToListAsync(ct));
         return await SaveStatementAsync(ct);
     }
@@ -224,7 +225,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         var row = await db.Statements.SingleAsync(st => st.ItemId == id.Value && st.Month == first, ct);
         row.Validated = false;
         row.ValidatedAt = null;
-        row.NormalHours = row.ActivityDays = row.PaidLeaveDays = row.ChildSickDeducted = null;
+        row.NormalHours = row.ActivityDays = row.PaidLeaveDays = row.ChildSickDeducted = row.PaidLeaveTaken = null;
         row.ComplementaryHours = row.OvertimeHours = row.NetPay = row.Upkeep = row.Meals = null;
         row.BasePay = row.Deduction = row.ExtraPay = row.PaidLeavePay = row.Cost = row.TaxBase = null;
         await db.SaveChangesAsync(ct);
@@ -274,7 +275,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
                     new PajemploiDeclaration(r.NormalHours!.Value, r.ActivityDays!.Value, r.PaidLeaveDays, r.ComplementaryHours!.Value, r.OvertimeHours!.Value,
                         r.NetPay!.Value, r.Upkeep!.Value, r.Meals!.Value, r.Mileage),
                     r.BasePay!.Value, r.Deduction!.Value, r.ExtraPay!.Value, r.PaidLeavePay!.Value, r.Cmg!.Value, r.Cost!.Value, r.TaxBase!.Value,
-                    r.ChildSickDeducted!.Value, r.Contributions ?? 0m, r.Exemption ?? 0m)
+                    r.ChildSickDeducted!.Value, r.Contributions ?? 0m, r.Exemption ?? 0m, r.PaidLeaveTaken ?? 0)
                 : null,
             r.Version, r.ValidatedAt,
             new DeclaredFigures(r.DeclaredNetPay, r.DeclaredUpkeep, r.DeclaredMeals, r.DeclaredNormalHours, r.DeclaredActivityDays, r.DeclaredPaidLeaveDays,
@@ -342,7 +343,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             (d.NormalHours, d.ActivityDays, d.PaidLeaveDays, d.ComplementaryHours, d.OvertimeHours);
         (row.NetPay, row.Upkeep, row.Meals, row.BasePay, row.Deduction, row.ExtraPay) =
             (d.NetPay, d.Upkeep, d.Meals, figures.BasePay, figures.Deduction, figures.ExtraPay);
-        (row.PaidLeavePay, row.Cost, row.TaxBase, row.ChildSickDeducted) = (figures.PaidLeavePay, figures.Cost, figures.TaxBase, figures.ChildSickDeducted);
+        (row.PaidLeavePay, row.Cost, row.TaxBase, row.ChildSickDeducted, row.PaidLeaveTaken) = (figures.PaidLeavePay, figures.Cost, figures.TaxBase, figures.ChildSickDeducted, figures.PaidLeaveTaken);
         ReplaceDays(statement.ItemId, first, statement.Days, await db.StatementDays.Where(x => x.ItemId == statement.ItemId.Value && x.Month == first).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
     }
@@ -397,6 +398,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.LunchProvider = MealProviderCodes.Of(t.LunchProvider);
         row.SnackProvider = MealProviderCodes.Of(t.SnackProvider);
         row.UnpaidAbsences = [.. (t.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid).Select(AbsenceCodes.Of)];
+        row.FullYear = t.FullYear;
     }
 
     private static Arrangement ToArrangement(ArrangementRow r)

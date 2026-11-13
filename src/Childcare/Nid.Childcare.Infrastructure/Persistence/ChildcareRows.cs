@@ -29,6 +29,7 @@ public sealed class TermsRow
     public string LunchProvider { get; set; } = "nanny";
     public string SnackProvider { get; set; } = "nanny";
     public string[] UnpaidAbsences { get; set; } = [];
+    public bool FullYear { get; set; }
 }
 
 public sealed class WeekTypeRow
@@ -102,6 +103,7 @@ public sealed class StatementRow
     public decimal? Cost { get; set; }
     public decimal? TaxBase { get; set; }
     public int? ChildSickDeducted { get; set; }
+    public int? PaidLeaveTaken { get; set; }
     public uint Version { get; set; }
 }
 

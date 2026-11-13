@@ -3,25 +3,34 @@ using Nid.Childcare.Contracts;
 namespace Nid.Childcare.Domain;
 
 /// <summary>
-/// Childcare spec §3 (46 weeks or fewer, the only contracts Nid takes): the monthly pay × hours not worked ÷ hours the
+/// Childcare spec §3 (46 weeks or fewer, or 52 with the leave inside; IDCC 3239 art. 111 and DREETS fiches): the monthly pay × hours not worked ÷ hours the
 /// template plans over the whole month, gap weeks and holidays included (Cour de cassation, 11 February 1982). Pure.
 /// </summary>
 public static class AbsenceDeduction
 {
-    public static (decimal Deduction, int DeductedDays, int ChildSickDeducted) Compute(
+    /// <param name="leaveLeft">
+    /// A full year only: the leave days still accrued before this month. Leave days are paid up to it and deducted beyond, as
+    /// leave without pay (DREETS Occitanie, fiche « Accueil sur 52 semaines »: 5 weeks « rémunérés ou pris sans solde en fonction
+    /// des droits acquis »); the contract's unpaid reasons do not apply to them. Null: leave days follow the unpaid reasons.
+    /// </param>
+    public static (decimal Deduction, int DeductedDays, int ChildSickDeducted, int PaidLeaveTaken) Compute(
         decimal monthlyPay, IReadOnlyList<StatementDay> days, WeekPlan plan, int childSickUsedBefore, IReadOnlyList<AbsenceReason>? unpaid = null,
-        decimal? potentialHours = null)
+        decimal? potentialHours = null, int? leaveLeft = null)
     {
         var sickLeft = Math.Max(0, ChildcareRules.ChildSickQuotaDays - childSickUsedBefore);
         var reasons = unpaid ?? AbsenceCodes.DefaultUnpaid;
         // The sick-child quota only limits a reason the contract does not pay.
         var sick = reasons.Contains(AbsenceReason.ChildSick) ? days.Where(d => d.Absence == AbsenceReason.ChildSick && MissingShare(d, plan) > 0m).OrderBy(d => d.Date).Take(sickLeft).ToList() : [];
-        var deducted = days.Where(d => d.Absence is { } r && r != AbsenceReason.ChildSick && (reasons.Contains(r) || AbsenceCodes.AlwaysUnpaid.Contains(r)) && MissingShare(d, plan) > 0m).Concat(sick).ToList();
-        if (deducted.Count == 0) return (0m, 0, 0);
+        var leave = leaveLeft is null ? [] : days.Where(d => d.Absence == AbsenceReason.PaidLeave && MissingShare(d, plan) > 0m).OrderBy(d => d.Date).ToList();
+        var paidLeave = Math.Min(leave.Count, Math.Max(0, leaveLeft ?? 0));
+        var deducted = days.Where(d => d.Absence is { } r && r != AbsenceReason.ChildSick && !(leaveLeft is not null && r == AbsenceReason.PaidLeave)
+                && (reasons.Contains(r) || AbsenceCodes.AlwaysUnpaid.Contains(r)) && MissingShare(d, plan) > 0m)
+            .Concat(sick).Concat(leave.Skip(paidLeave)).ToList();
+        if (deducted.Count == 0) return (0m, 0, 0, paidLeave);
 
         var potential = potentialHours ?? days.Sum(d => plan.HoursOn(d.Date));
         // A shortened day counts for its hours not worked; a sick-child one still takes a whole day of the quota.
-        return (Mensualisation.Round(monthlyPay * deducted.Sum(d => MissingShare(d, plan)) / potential), deducted.Count(d => !d.Present), sick.Count);
+        return (Mensualisation.Round(monthlyPay * deducted.Sum(d => MissingShare(d, plan)) / potential), deducted.Count(d => !d.Present), sick.Count, paidLeave);
     }
 
     /// <summary>The planned hours not worked: all of them for an absent day, the missing ones of a shortened day, never below zero.</summary>

@@ -4,7 +4,8 @@ namespace Nid.Childcare.Domain;
 
 /// <summary>
 /// Childcare spec §3 (IDCC 3239 art. 102, DREETS fiches 4 and 6): paid leave of an incomplete year, settled once in June,
-/// the higher of the tenth and maintained pay. Pure.
+/// the higher of the tenth and maintained pay; of a full year, paid as maintained pay within the monthly pay, June adding
+/// the tenth's excess (DREETS Occitanie, fiche « Accueil sur 52 semaines », January 2023, §5.3). Pure.
 /// </summary>
 public static class PaidLeave
 {
@@ -20,5 +21,16 @@ public static class PaidLeave
     /// hourly rate (Pajemploi, art. 48.1.1.5; spec §9).
     /// </summary>
     public static decimal JuneIndemnity(decimal referenceNetPay, decimal netHourlyRate, decimal weeklyHours, int days)
-        => Math.Max(Mensualisation.Round(referenceNetPay / 10m), Mensualisation.Round(days * weeklyHours * netHourlyRate / 6m));
+        => Math.Max(Tenth(referenceNetPay), Maintained(netHourlyRate, weeklyHours, days));
+
+    /// <summary>
+    /// A full year: the maintained pay is already in the monthly pay, so June pays only what the tenth of the reference period
+    /// (leave pay included, Code du travail L3141-24) adds over it for the days accrued, never less than nothing.
+    /// </summary>
+    public static decimal JuneDifference(decimal referenceNetPay, decimal netHourlyRate, decimal weeklyHours, int days)
+        => Math.Max(0m, Tenth(referenceNetPay) - Maintained(netHourlyRate, weeklyHours, days));
+
+    private static decimal Tenth(decimal referenceNetPay) => Mensualisation.Round(referenceNetPay / 10m);
+
+    private static decimal Maintained(decimal netHourlyRate, decimal weeklyHours, int days) => Mensualisation.Round(days * weeklyHours * netHourlyRate / 6m);
 }

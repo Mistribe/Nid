@@ -90,7 +90,14 @@ export function ChildcareDetailPage() {
             { label: t('childcare_form.weeks'), value: String(terms.programmedWeeks) },
             { label: t('childcare_detail.monthly_hours'), value: t('childcare_detail.hours', { value: hoursText(terms.monthlyHours) }) },
             { label: t('childcare_detail.normal_hours'), value: t('childcare_detail.hours', { value: String(terms.normalHours) }) },
-            { label: t('childcare_detail.leave'), value: t('childcare_detail.leave_days', { count: detail.leaveDaysAccrued }) },
+            // A full year counts its leave as it is taken: the days left, those accrued and taken beside them.
+            detail.leave
+              ? {
+                label: t('childcare_detail.leave_left'), tip: t('childcare_detail.leave_left_tip'),
+                value: t('childcare_detail.leave_days', { count: detail.leave.left }),
+                hint: t('childcare_detail.leave_counter', { accrued: detail.leave.accrued, taken: detail.leave.taken }),
+              }
+              : { label: t('childcare_detail.leave'), value: t('childcare_detail.leave_days', { count: detail.leaveDaysAccrued }) },
             // Decision 15: the quota only limits sick-child days the contract does not pay.
             ...(terms.unpaidAbsences.includes('child_sick')
               ? [{
@@ -115,7 +122,8 @@ export function ChildcareDetailPage() {
       {open === 'end' ? <EndDialog {...dialog} /> : null}
       {summary.canWrite && open === 'delete'
         ? <Suspense fallback={null}><DeleteItemFlow kind="childcare.delete_childcare" id={id} closed={summary.closed} onClose={() => setOpen(null)} /></Suspense> : null}
-      <Tabs detail={detail} terms={terms} onGaps={summary.canWrite && !summary.closed ? show('gaps') : null} />
+      {/* A full year has no weeks without care: the carer's leave is entered in the months' days. */}
+      <Tabs detail={detail} terms={terms} onGaps={summary.canWrite && !summary.closed && !terms.fullYear ? show('gaps') : null} />
     </article>
   );
 }
@@ -159,7 +167,8 @@ function Tabs({ detail, terms, onGaps }: { detail: ChildcareDetail; terms: Child
     { id: 'statements', label: t('childcare_detail.tab_statements'), content: <Statements id={detail.summary.id} /> },
     { id: 'summary', label: t('childcare_detail.tab_summary'), content: <YearSummary id={detail.summary.id} /> },
     { id: 'planning', label: t('childcare_detail.tab_planning'), content: <Planning detail={detail} terms={terms} /> },
-    { id: 'gaps', label: t('childcare_form.step_gaps'), content: <Gaps detail={detail} onEdit={onGaps} /> },
+    { id: 'gaps', label: t('childcare_form.step_gaps'), content: terms.fullYear
+      ? <p className="text-sm text-muted-foreground">{t('childcare_form.gaps_full_year')}</p> : <Gaps detail={detail} onEdit={onGaps} /> },
     { id: 'revisions', label: t('childcare_detail.tab_revisions'), content: <Revisions detail={detail} /> },
     { id: 'documents', label: t('childcare_detail.tab_documents'), content: <ItemDocuments itemId={detail.summary.id} canWrite={detail.summary.canWrite} defaultRole="payslip" /> },
   ];
