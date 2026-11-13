@@ -46,13 +46,18 @@ public static class AdminCli
             }
             provider.GetRequiredService<IActorAccessor>().Current = Actor.Cli;
             run = new Session(parsed, console, provider.GetRequiredService<IInvoker>(), provider.GetRequiredService<ISecurityEvents>(),
-                provider.GetRequiredService<Nid.Platform.Audit.AuditRequest>(), ct);
+                provider.GetRequiredService<Nid.Platform.Audit.AuditRequest>(), ct,
+                provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<Nid.Host.Auth.NidAuthOptions>>().Value,
+                provider.GetRequiredService<Nid.Host.Auth.AuthSettings>());
             return parsed.Command switch
             {
                 "list-persons" => await run.ListAsync(),
                 "revoke-sessions" => await run.RevokeSessionsAsync(),
                 "revoke-tokens" => await run.RevokeTokensAsync(),
                 "rebind-subject" => await run.RebindAsync(),
+                "create-admin" => await run.CreateAdminAsync(),
+                "reset-password" => await run.ResetPasswordAsync(),
+                "unlock" => await run.UnlockAsync(),
                 _ => 2,
             };
         }
@@ -81,10 +86,96 @@ public static class AdminCli
     }
 
     private sealed class Session(
-        ParsedArgs args, CliConsole console, IInvoker invoker, ISecurityEvents events, Nid.Platform.Audit.AuditRequest audit, CancellationToken ct)
+        ParsedArgs args, CliConsole console, IInvoker invoker, ISecurityEvents events, Nid.Platform.Audit.AuditRequest audit, CancellationToken ct,
+        Nid.Host.Auth.NidAuthOptions auth, Nid.Host.Auth.AuthSettings settings)
     {
         private string Command => args.Command!;
         private bool recorded;
+
+        /// <summary>Issue 215: `create-admin` creates a pending adult who is admin, then prints their enrolment link.</summary>
+        public async Task<int> CreateAdminAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (settings.AdminSource == Nid.Host.Auth.AdminSource.IdentityProvider)
+            {
+                await console.Error.WriteLineAsync("Le rôle admin vient du fournisseur d'identité (Auth__AdminSource=identity_provider) : ajoutez la personne au groupe admin.");
+                await RecordAsync("refused", "admin_cli.admin_source_identity_provider", null);
+                return 1;
+            }
+            args.Options.TryGetValue("email", out var email);
+            var created = await SendAsync(new CreateAdminAdultCommand(args.Options["name"], email));
+            if (created.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure!.Code switch
+                {
+                    PersonCodes.AdultCap => "Le foyer a déjà son nombre maximal d'adultes (Administration › Foyer).",
+                    PersonCodes.EmailTaken => "Un autre adulte a déjà cet email.",
+                    PersonCodes.NameRequired => "Un nom est obligatoire.",
+                    _ => $"Refusé ({failure.Code}).",
+                });
+                await RecordAsync("refused", failure.Code, null);
+                return 1;
+            }
+            created.TryGetValue(out var adult);
+            var person = new PersonView(adult!.Id, "adult", adult.DisplayName, adult.Email, adult.Status, adult.IsAdmin, false);
+            return await PrintLinkAsync(person, revokeTokens: false, $"{Describe(person)} est créé, administrateur.");
+        }
+
+        /// <summary>Issue 215: `reset-password` prints a reset link (an enrolment link for an adult without a local account).</summary>
+        public async Task<int> ResetPasswordAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (await ResolveAsync() is not { } person) return 1;
+            if (person.Kind != "adult")
+            {
+                await console.Error.WriteLineAsync("Seul un adulte se connecte.");
+                await RecordAsync("refused", PersonCodes.NotAnAdult, person);
+                return 1;
+            }
+            return await PrintLinkAsync(person, args.RevokeTokens, null);
+        }
+
+        /// <summary>Issue 215: `unlock` clears the lock of a local account.</summary>
+        public async Task<int> UnlockAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (await ResolveAsync() is not { } person) return 1;
+            var result = await SendAsync(new UnlockAccountCommand(new PersonId(person.Id)));
+            if (result.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure is NotFoundFailure ? $"{Describe(person)} n'a pas de compte local." : $"Refusé ({failure!.Code}).");
+                await RecordAsync("refused", failure!.Code, person);
+                return 1;
+            }
+            await console.Out.WriteLineAsync($"Le compte de {Describe(person)} est déverrouillé.");
+            await RecordAsync("ok", null, person);
+            return 0;
+        }
+
+        private async Task<int> PrintLinkAsync(PersonView person, bool revokeTokens, string? before)
+        {
+            var lifetime = auth.Local.Bounded().LinkLifetimeHours;
+            var result = await SendAsync(new CreatePasswordLinkCommand(new PersonId(person.Id), NodaTime.Duration.FromHours(lifetime), revokeTokens));
+            if (result.TryGetFailure(out var failure))
+                return await RefuseAsync(failure!, person, null);
+            result.TryGetValue(out var link);
+            if (before is not null) await console.Out.WriteLineAsync(before);
+            var what = link!.Purpose == CredentialLinkPurposes.Enroll ? "choisir son identifiant et son mot de passe" : "choisir un nouveau mot de passe";
+            // Standard output only: the link is a secret, never written to the audit or the log.
+            await console.Out.WriteLineAsync($"Lien à usage unique pour {what}, valable {lifetime} h :");
+            await console.Out.WriteLineAsync(Nid.Host.Auth.LocalAuthEndpoints.LinkUrl(auth.PublicUrl, link.Token));
+            if (revokeTokens) await console.Out.WriteLineAsync("Ses jetons d'accès sont révoqués.");
+            await RecordAsync("ok", null, person);
+            return 0;
+        }
+
+        private async Task<bool> LocalAccountsOnAsync()
+        {
+            if (settings.Local) return true;
+            await console.Error.WriteLineAsync("Les comptes locaux ne sont pas activés : réglez Auth__Mode=local ou both.");
+            await RecordAsync("refused", "admin_cli.local_accounts_off", null);
+            return false;
+        }
 
         /// <summary>
         /// Every request of the run shares one scope: the audit's request name is reset before each, or every row would

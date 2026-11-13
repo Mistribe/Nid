@@ -32,14 +32,16 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
                 existing.Email = address;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            return Result.Success(ToInfo(existing));
+            return Result.Success(await InfoAsync(existing, ct));
         }
 
         var normalized = address?.ToLowerInvariant();
         var pending = normalized is null
             ? null
             : await db.Persons.SingleOrDefaultAsync(
-                p => p.Kind == "adult" && p.OidcSubject == null && p.Email != null && p.Email.ToLower() == normalized, ct);
+                p => p.Kind == "adult" && p.OidcSubject == null && p.Email != null && p.Email.ToLower() == normalized
+                     // Issue 215: never an adult with a local account (spec §2.3): rebind-subject decides, not an email.
+                     && !db.LocalCredentials.Any(c => c.PersonId == p.Id), ct);
         if (pending is not null)
         {
             pending.OidcSubject = oidcSubject;
@@ -48,7 +50,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
             pending.IsAdmin = isAdmin;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            return Result.Success(ToInfo(pending));
+            return Result.Success(await InfoAsync(pending, ct));
         }
 
         // Another adult already has this email under another subject: the same person whose subject changed, or someone
@@ -66,13 +68,13 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
             db.HouseholdSettings.Add(new HouseholdSettingsRow());
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        return Result.Success(ToInfo(created));
+        return Result.Success(await InfoAsync(created, ct));
     }
 
     public async Task<PersonInfo?> FindBySubjectAsync(string oidcSubject, CancellationToken ct)
     {
         var row = await db.Persons.AsNoTracking().SingleOrDefaultAsync(p => p.OidcSubject == oidcSubject, ct);
-        return row is null ? null : ToInfo(row);
+        return row is null ? null : await InfoAsync(row, ct);
     }
 
     private async Task<int> CapAsync(CancellationToken ct)
@@ -99,7 +101,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         db.Persons.Add(row);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        return Result.Success(ToInfo(row));
+        return Result.Success(await InfoAsync(row, ct));
     }
 
     private Task LockAsync(CancellationToken ct)
@@ -147,7 +149,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         };
         db.Persons.Add(row);
         await db.SaveChangesAsync(ct);
-        return Result.Success(ToInfo(row));
+        return Result.Success(await InfoAsync(row, ct));
     }
 
     public async Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, int retirementMonths, CancellationToken ct)
@@ -160,20 +162,27 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         row.RetirementAge = retirementAge;
         row.RetirementMonths = retirementMonths;
         await db.SaveChangesAsync(ct);
-        return Result.Success(ToInfo(row));
+        return Result.Success(await InfoAsync(row, ct));
     }
 
     public async Task<PersonInfo?> FindAsync(PersonId id, CancellationToken ct)
     {
-        var row = await db.Persons.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id.Value, ct);
-        return row is null ? null : ToInfo(row);
+        // Read at every request (the session's validator, ActorFilter): one query, the account's existence as a subquery.
+        var found = await db.Persons.AsNoTracking().Where(p => p.Id == id.Value)
+            .Select(p => new { Row = p, Local = db.LocalCredentials.Any(c => c.PersonId == p.Id) })
+            .SingleOrDefaultAsync(ct);
+        return found is null ? null : ToInfo(found.Row, found.Local);
     }
 
     public async Task<IReadOnlyList<PersonId>> AdultIdsAsync(CancellationToken ct)
         => await db.Persons.AsNoTracking().Where(p => p.Kind == "adult").Select(p => new PersonId(p.Id)).ToListAsync(ct);
 
     public async Task<IReadOnlyList<PersonInfo>> ListAsync(CancellationToken ct)
-        => (await db.Persons.AsNoTracking().OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).ToListAsync(ct)).Select(ToInfo).ToList();
+    {
+        var rows = await db.Persons.AsNoTracking().OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).ToListAsync(ct);
+        var local = (await db.LocalCredentials.AsNoTracking().Select(c => c.PersonId).ToListAsync(ct)).ToHashSet();
+        return rows.Select(r => ToInfo(r, local.Contains(r.Id))).ToList();
+    }
 
     public async Task<Preferences?> PreferencesAsync(PersonId id, CancellationToken ct)
     {
@@ -226,7 +235,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value && p.Kind == "adult", ct);
         if (row is null)
             return Result.Failure(new NotFoundFailure("person", id.ToString()));
-        if (row.OidcSubject is not null)
+        if (row.OidcSubject is not null || await db.LocalCredentials.AnyAsync(c => c.PersonId == row.Id, ct))
             return Result.Failure(new Failure(PersonCodes.PersonActive, "Only an adult who has not signed in yet can be removed.", null));
         // The import resolves adults by email, pending ones included (import-format.md §5.1).
         if (await db.Ownerships.AnyAsync(o => o.PersonId == row.Id, ct))
@@ -251,7 +260,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
         row.DisplayName = displayName.Trim();
         await db.SaveChangesAsync(ct);
-        return Result.Success(ToInfo(row));
+        return Result.Success(await InfoAsync(row, ct));
     }
 
     public async Task<Result> DeleteDependentAsync(PersonId id, CancellationToken ct)
@@ -272,7 +281,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
             return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
 
         var row = await db.Persons.AsNoTracking().SingleAsync(p => p.Id == id.Value, ct);
-        return Result.Success(ToInfo(row));
+        return Result.Success(await InfoAsync(row, ct));
     }
 
     public async Task<Result<RebindOutcome>> RebindSubjectAsync(PersonId id, string subject, CancellationToken ct)
@@ -288,7 +297,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         if (row.Kind != "adult")
             return Result.Failure<RebindOutcome>(new Failure(PersonCodes.NotAnAdult, "Only an adult signs in."));
         if (row.OidcSubject == subject)
-            return Result.Success(new RebindOutcome(ToInfo(row), row.OidcSubject, false));
+            return Result.Success(new RebindOutcome(await InfoAsync(row, ct), row.OidcSubject, false));
 
         var holder = await db.Persons.AsNoTracking().Where(p => p.OidcSubject == subject && p.Id != id.Value).Select(p => p.Id).FirstOrDefaultAsync(ct);
         if (holder != Guid.Empty)
@@ -308,21 +317,27 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
             var winner = await db.Persons.AsNoTracking().Where(p => p.OidcSubject == subject).Select(p => p.Id).FirstAsync(ct);
             return Result.Failure<RebindOutcome>(Taken(winner));
         }
-        return Result.Success(new RebindOutcome(ToInfo(row), previous, true));
+        return Result.Success(new RebindOutcome(await InfoAsync(row, ct), previous, true));
     }
 
     private static Failure Taken(Guid holder) => new(PersonCodes.SubjectTaken, "Another person holds this subject.",
         new Dictionary<string, object?> { ["person"] = holder.ToString() });
 
-    private static PersonInfo ToInfo(PersonRow row) => new(
+    /// <summary>Issue 215: an adult is active with a subject or a local account, so the account is looked up for an adult without a subject.</summary>
+    private async Task<PersonInfo> InfoAsync(PersonRow row, CancellationToken ct)
+        => ToInfo(row, row.Kind == "adult" && await db.LocalCredentials.AnyAsync(c => c.PersonId == row.Id, ct));
+
+    internal static PersonInfo ToInfo(PersonRow row, bool local) => new(
         new PersonId(row.Id),
         row.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent,
         row.DisplayName,
         row.Email,
         row.SessionEpoch,
         row.IsAdmin,
-        row.Kind == "adult" && row.OidcSubject is null,
+        row.Kind == "adult" && row.OidcSubject is null && !local,
         row.BirthDate,
         row.RetirementAge,
-        row.RetirementMonths);
+        row.RetirementMonths,
+        row.OidcSubject is not null,
+        local);
 }

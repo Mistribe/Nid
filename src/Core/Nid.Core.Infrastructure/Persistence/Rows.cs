@@ -189,6 +189,36 @@ public sealed class PersonalAccessTokenRow
     public bool? CalendarAmounts { get; set; }
 }
 
+/// <summary>Issue 215, local-accounts.md §13.1: an adult's local account. <c>Login</c> is stored normalised (trimmed, NFKC, lower case).</summary>
+public sealed class LocalCredentialRow
+{
+    public Guid PersonId { get; set; }
+    public string Login { get; set; } = "";
+    public string PasswordHash { get; set; } = "";
+    public Instant PasswordChangedAt { get; set; }
+    public int FailedCount { get; set; }
+    public Instant? LastFailedAt { get; set; }
+    public int LockLevel { get; set; }
+    public Instant? LockedUntil { get; set; }
+    public Instant? LastLoginAt { get; set; }
+    public Instant CreatedAt { get; set; }
+}
+
+/// <summary>Issue 215, local-accounts.md §13.2: a one-time password link, kept by the SHA-256 of its secret.</summary>
+public sealed class CredentialLinkRow
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public string Purpose { get; set; } = "";
+    public string TokenHash { get; set; } = "";
+    public Guid? CreatedBy { get; set; }
+    public string Via { get; set; } = "";
+    public Instant CreatedAt { get; set; }
+    public Instant ExpiresAt { get; set; }
+    public Instant? UsedAt { get; set; }
+    public Instant? RevokedAt { get; set; }
+}
+
 public sealed class ProposalRow
 {
     public Guid Id { get; set; }

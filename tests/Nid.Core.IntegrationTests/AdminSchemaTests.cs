@@ -36,16 +36,22 @@ public class AdminSchemaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task A_pending_adult_needs_an_email_and_a_dependent_is_never_admin()
+    public async Task An_adult_may_have_no_email_but_a_dependent_never_has_a_subject_nor_is_admin()
     {
         await using var db = await postgres.NewDatabaseAsync();
 
+        // Issue 215: a local account needs no email, nor does a pending adult who will choose a password by link.
         // session_epoch and preferences have no database default, so every raw insert lists them.
-        var noSubjectNoEmail = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync("""
+        await db.Database.ExecuteSqlRawAsync("""
             insert into core.person (id, kind, display_name, session_epoch, preferences, created_at) values
-              ('01920000-0000-7000-8000-000000000010', 'adult', 'Nobody', 0, '{{}}', now());
+              ('01920000-0000-7000-8000-000000000010', 'adult', 'No email', 0, '{{}}', now());
+            """, cancellationToken: TestContext.Current.CancellationToken);
+
+        var kidWithSubject = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync("""
+            insert into core.person (id, kind, display_name, oidc_subject, session_epoch, preferences, created_at) values
+              ('01920000-0000-7000-8000-000000000012', 'dependent', 'Kid', 'sub-kid', 0, '{{}}', now());
             """, cancellationToken: TestContext.Current.CancellationToken));
-        Assert.Equal("ck_person_subject", noSubjectNoEmail.ConstraintName);
+        Assert.Equal("ck_person_subject", kidWithSubject.ConstraintName);
 
         var adminKid = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync("""
             insert into core.person (id, kind, display_name, is_admin, session_epoch, preferences, created_at) values

@@ -126,6 +126,7 @@ if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Ena
 
 builder.Services.AddNidAuthentication(builder.Configuration, demo.Enabled);
 builder.Services.AddTokenRateLimiter();
+builder.Services.AddLocalAccounts();
 builder.Services.AddNidMcp();
 builder.Services.AddNidDataProtection(builder.Configuration);
 builder.Services.AddNidHealth();
@@ -180,6 +181,9 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
 // Issue 215: plain HTTP is the hoster's explicit choice, said again at every start (local-accounts spec §12).
 if (!generatingOpenApi && app.Services.GetRequiredService<AuthSettings>().AllowInsecureHttp)
     app.Logger.LogWarning("Plain HTTP is allowed (Auth__AllowInsecureHttp): passwords and the session cookie can travel unencrypted. Put Nid behind an HTTPS reverse proxy unless this network is trusted.");
+// Issue 215: a fresh instance with local accounts waits for its first administrator; the log gives the setup address.
+if (!generatingOpenApi && !demo.Enabled && app.Services.GetRequiredService<AuthSettings>().Local)
+    await SetupToken.AnnounceAsync(app.Services, app.Logger, CancellationToken.None);
 if (!generatingOpenApi && demo.Enabled)
 {
     app.Logger.LogWarning("Demo mode is on (Nid__Demo__Enabled): anyone can sign in as the demo household, without a password.");
@@ -199,6 +203,8 @@ app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 app.MapAuth(demo.Enabled);
 if (demo.Enabled) app.MapDemo();
+// Issue 215: the password sign-in, the setup and the password links, with local accounts only.
+if (!demo.Enabled && app.Services.GetRequiredService<AuthSettings>().Local) app.MapLocalAuth();
 app.MapPersonEndpoints();
 app.MapProposalEndpoints();
 app.MapSubscriptionEndpoints();

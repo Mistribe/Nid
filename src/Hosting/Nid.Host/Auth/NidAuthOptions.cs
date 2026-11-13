@@ -47,4 +47,29 @@ public sealed class NidAuthOptions
 
     /// <summary>Development only: accept the local TLS proxy's certificate for calls to the identity provider.</summary>
     public bool TrustAnyIdentityProviderCertificate { get; set; }
+
+    /// <summary>Issue 215: local accounts (<c>Auth:Local:*</c>, local-accounts.md §17).</summary>
+    public LocalAccountOptions Local { get; set; } = new();
+}
+
+/// <summary>
+/// <c>Auth:Local:*</c>. Out-of-range values are brought back within their bounds (<see cref="Bounded"/>) rather than
+/// refused: a minimum length can only go up from 12, a lock never lasts more than a day.
+/// </summary>
+public sealed class LocalAccountOptions
+{
+    public int MinPasswordLength { get; set; } = 12;
+    public int LinkLifetimeHours { get; set; } = 72;
+    public int LockThreshold { get; set; } = 5;
+    public int LockMaxMinutes { get; set; } = 60;
+    public int MaxConcurrentHashes { get; set; } = 4;
+
+    public LocalAccountOptions Bounded() => new()
+    {
+        MinPasswordLength = Math.Clamp(MinPasswordLength, 12, 64),
+        LinkLifetimeHours = Math.Clamp(LinkLifetimeHours, 1, 168),
+        LockThreshold = Math.Clamp(LockThreshold, 3, 20),
+        LockMaxMinutes = Math.Clamp(LockMaxMinutes, 1, 1440),
+        MaxConcurrentHashes = Math.Clamp(MaxConcurrentHashes, 1, 64),
+    };
 }

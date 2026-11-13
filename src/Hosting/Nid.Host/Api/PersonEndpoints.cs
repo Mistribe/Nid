@@ -222,6 +222,9 @@ public static class ResultHttp
         }
     }
 
+    /// <summary>The Problem Details of a failure, as <see cref="ToHttp{T, TOut}"/> answers it.</summary>
+    public static IResult Problem(Failure failure) => ProblemFor(failure);
+
     private static IResult ProblemFor(Failure failure)
     {
         var status = failure switch
@@ -232,6 +235,11 @@ public static class ResultHttp
             _ when failure.Code == AdminCodes.Required => StatusCodes.Status403Forbidden,
             _ when failure.Code == BrowserOnlyCodes.Required => StatusCodes.Status403Forbidden,
             _ when failure.Code == TokenCodes.LimitReached => StatusCodes.Status409Conflict,
+            // Issue 215: local accounts (local-accounts.md §14).
+            _ when failure.Code is LocalAccountCodes.LoginInvalid or LocalAccountCodes.PasswordTooShort or LocalAccountCodes.PasswordTooLong
+                or LocalAccountCodes.PasswordTooCommon => StatusCodes.Status400BadRequest,
+            _ when failure.Code == LocalAccountCodes.LoginTaken => StatusCodes.Status409Conflict,
+            _ when failure.Code == LocalAccountCodes.SetupClosed => StatusCodes.Status404NotFound,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == FxCodes.SyncRunning => StatusCodes.Status409Conflict,
