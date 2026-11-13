@@ -65,6 +65,15 @@ public class ContractCheckTests
         Assert.Equal(3, ContractCheck.GapWeeksToPlace(Start, 46, gaps, D(2027, 10, 1)));
         Assert.Contains(("gaps", "childcare.gaps_too_many"), ContractCheck.Gaps(Start, 46, [.. gaps, new CareGap(D(2027, 6, 7), 3)]));
     }
+
+    [Fact]
+    public void Gap_years_split_by_anniversary()
+    {
+        IReadOnlyList<CareGap> gaps = [new(D(2027, 2, 15), 2), new(D(2027, 8, 23), 5)];
+        var years = ContractCheck.GapYears(Start, null, d => d < D(2027, 9, 1) ? 46 : 47, gaps, D(2027, 1, 10));
+        Assert.Equal([(D(2026, 9, 1), D(2027, 8, 31), 6, 4), (D(2027, 9, 1), D(2028, 8, 31), 5, 3)], years);
+        Assert.Single(ContractCheck.GapYears(Start, D(2027, 3, 31), _ => 46, [], D(2027, 1, 10)), (D(2026, 9, 1), D(2027, 3, 31), 6, 0));
+    }
 }
 
 public class ChildcareCodesTests

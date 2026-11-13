@@ -47,6 +47,23 @@ describe('ChildcareDetailPage', () => {
     await waitFor(() => expectTrailBack('Garde', '/childcare'));
   });
 
+  it('splits the weeks without care by contract year, the latest first', async () => {
+    const gap = { monday: '2026-12-21', weeks: 2, sunday: '2027-01-03' };
+    serve(detail({ gaps: [gap], gapYears: [
+      { from: '2025-09-01', to: '2026-08-31', allowed: 6, placed: 6, toPlace: 0, gaps: [] },
+      { from: '2026-09-01', to: '2027-08-31', allowed: 6, placed: 2, toPlace: 4, gaps: [gap] },
+    ] }));
+    const { user } = await renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Semaines sans accueil' }));
+    const years = screen.getAllByRole('region', { name: /^Année de contrat/ });
+    expect(years.map((y) => within(y).getByRole('heading').textContent)).toEqual([
+      'Année de contrat du 1 sept. 2026 au 31 août 2027', 'Année de contrat du 1 sept. 2025 au 31 août 2026',
+    ]);
+    expect(years[0]).toHaveTextContent('Posées2 semainessur 6 possiblesÀ placer4 semaines');
+    expect(within(years[0]!).getAllByRole('listitem')[0]).toHaveTextContent('21 déc. 2026 → 3 janv. 2027 · 2 semaines');
+    expect(years[1]).toHaveTextContent('Aucune semaine sans accueil placée.');
+  });
+
   it('shows the server figures inline and the template', async () => {
     serve(detail());
     const { user } = await renderApp(url);

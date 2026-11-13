@@ -32325,7 +32325,8 @@
           "leaveDaysAccrued",
           "version",
           "weeks",
-          "allocation"
+          "allocation",
+          "gapYears"
         ],
         "type": "object",
         "properties": {
@@ -32378,6 +32379,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/WeekTypeCountView"
+            }
+          },
+          "gapYears": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GapYearView"
             }
           },
           "cmgEstimate": {
@@ -38194,6 +38201,45 @@
             ],
             "items": {
               "$ref": "#/components/schemas/CareGapBody"
+            }
+          }
+        }
+      },
+      "GapYearView": {
+        "required": [
+          "from",
+          "to",
+          "allowed",
+          "placed",
+          "toPlace",
+          "gaps"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "allowed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "placed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "toPlace": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CareGapView"
             }
           }
         }

@@ -127,12 +127,32 @@ public static class ContractCheck
         return Math.Max(0, 52 - programmedWeeks - placed);
     }
 
+    /// <summary>
+    /// The contract years from <paramref name="start"/> to the one holding <paramref name="today"/> or the last gap, cut at <paramref name="end"/>:
+    /// each with its weeks without care allowed (52 − programmed weeks under the terms of its first day) and placed (counted by Monday).
+    /// </summary>
+    public static IReadOnlyList<(LocalDate From, LocalDate To, int Allowed, int Placed)> GapYears(
+        LocalDate start, LocalDate? end, Func<LocalDate, int> programmedWeeks, IReadOnlyList<CareGap> gaps, LocalDate today)
+    {
+        var mondays = gaps.Where(g => g.Weeks is > 0 and <= 52).SelectMany(Mondays).ToList();
+        var last = mondays.Append(today).Max();
+        if (end is { } e && e < last) last = e;
+        var years = new List<(LocalDate, LocalDate, int, int)>();
+        for (var k = 0; Anniversary(start, start.Year + k) <= last || k == 0; k++)
+        {
+            var (from, next) = (Anniversary(start, start.Year + k), Anniversary(start, start.Year + k + 1));
+            var to = end is { } x && x < next ? x : next.PlusDays(-1);
+            years.Add((from, to, Math.Max(0, 52 - programmedWeeks(from)), mondays.Count(m => m >= from && m < next)));
+        }
+        return years;
+    }
+
     private static IEnumerable<LocalDate> Mondays(CareGap gap) => Enumerable.Range(0, gap.Weeks).Select(gap.Monday.PlusWeeks);
 
     /// <summary>The latest anniversary of <paramref name="start"/> on or before <paramref name="day"/>; 29 February falls on 28 February.</summary>
     public static LocalDate YearStart(LocalDate start, LocalDate day)
-    {
-        LocalDate On(int year) => new(year, start.Month, Math.Min(start.Day, CalendarSystem.Iso.GetDaysInMonth(year, start.Month)));
-        return On(day.Year) <= day ? On(day.Year) : On(day.Year - 1);
-    }
+        => Anniversary(start, day.Year) <= day ? Anniversary(start, day.Year) : Anniversary(start, day.Year - 1);
+
+    private static LocalDate Anniversary(LocalDate start, int year)
+        => new(year, start.Month, Math.Min(start.Day, CalendarSystem.Iso.GetDaysInMonth(year, start.Month)));
 }
