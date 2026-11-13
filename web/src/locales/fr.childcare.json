@@ -186,7 +186,14 @@
     "tab_summary": "Récapitulatif",
     "contracts": "Contrats",
     "other_contracts": "Changer de contrat",
-    "statements_year": "Relevés {{year}}"
+    "statements_year": "Relevés {{year}}",
+    "minimums": {
+      "title": "Le contrat est sous un minimum légal",
+      "gross_rate": "Le salaire horaire brut ({{value}} €) est sous le minimum conventionnel de {{minimum}} € par heure, à compter du {{since}}.",
+      "net_rate": "Le salaire horaire net ({{value}} €) est sous le minimum conventionnel de {{minimum}} € net par heure, à compter du {{since}}.",
+      "upkeep": "L'indemnité d'entretien ({{value}} € pour 9 h) est sous le minimum légal de {{minimum}} €, à compter du {{since}}.",
+      "hint": "Révisez les conditions du contrat à cette date. Les mois déjà validés ne changent pas ; l'indemnité d'entretien des relevés est déjà portée au minimum."
+    }
   },
   "childcare_statement": {
     "loading": "Chargement du relevé",
@@ -317,7 +324,8 @@
       "amount_format": "Saisissez un montant, par exemple 12,50.",
       "childcare_previous_not_validated": "Validez d'abord le mois précédent : le quota enfant malade et la première semaine de ce mois en dépendent."
     },
-    "cmg_estimate": "Estimé d’après les derniers mois : {{amount}}"
+    "cmg_estimate": "Estimé d’après les derniers mois : {{amount}}",
+    "minimums_open": "Ouvrir le contrat pour le réviser"
   },
   "childcare_year": {
     "title": "Récapitulatif {{year}}",

@@ -32406,6 +32406,15 @@
             "type": "integer",
             "format": "int32",
             "default": 5
+          },
+          "belowMinimums": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LegalMinimumView"
+            }
           }
         }
       },
@@ -32605,6 +32614,15 @@
               "null",
               "string"
             ]
+          },
+          "belowMinimums": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LegalMinimumView"
+            }
           }
         }
       },
@@ -43235,6 +43253,30 @@
           "defaultDays": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "LegalMinimumView": {
+        "required": [
+          "code",
+          "since",
+          "minimum",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date"
+          },
+          "minimum": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
           }
         }
       },

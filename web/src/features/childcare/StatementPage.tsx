@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { elision } from '@/lib/elision';
@@ -23,6 +23,7 @@ import {
   type StatementDayBody,
 } from './api';
 import { DayDialog } from './DayDialog';
+import { BelowMinimums } from './BelowMinimums';
 import { Declaration, type DeclarationEntry } from './Declaration';
 import { MonthSummaryDialog, type MonthSummary } from './MonthSummaryDialog';
 import { dayTitle, frenchNumber, monthTitle, problemText, reasonLabel, stateLabel, statementError } from './statementText';
@@ -153,6 +154,8 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
       </PageHeader>
       {error && editing === null && !summarising ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {view.state === 'validated' ? <p>{t('childcare_statement.read_only')}</p> : null}
+      <BelowMinimums items={view.belowMinimums}
+        action={<Link to="/childcare/$id" params={{ id }} className="font-medium underline underline-offset-4">{t('childcare_statement.minimums_open')}</Link>} />
       {editable && view.cmg == null ? <p className="text-sm text-muted-foreground">{t('childcare_statement.validate_needs_cmg')}</p> : null}
 
       <Section title={t('childcare_statement.days')}

@@ -7,6 +7,7 @@ import { CHILDCARE } from '@/api/childcare';
 export { CHILDCARE, useChildcareList, type ChildcareList, type ChildcareSummary, type Scope } from '@/api/childcare';
 export type ChildcareDetail = components['schemas']['ChildcareDetail'];
 export type ChildcareTerms = components['schemas']['ChildcareTermsView'];
+export type LegalMinimum = components['schemas']['LegalMinimumView'];
 export type WeekdaySlot = components['schemas']['WeekdaySlotView'];
 export type CareGap = components['schemas']['CareGapView'];
 export type CreateChildcareBody = components['schemas']['CreateChildcareBody'];

@@ -36,6 +36,7 @@ public static class NotificationTemplates
         ["income_phase_end"] = "Une phase de revenu se termine",
         ["income_gap_soon"] = "Un trou de revenus approche",
         ["childcare_statement_due"] = "Un relevé de garde est à valider",
+        ["childcare_below_minimum"] = "Un contrat de garde est sous un minimum légal",
         ["fx_rate_missing"] = "Un taux de change manque",
         ["routine_due"] = "La routine du mois est à faire",
         ["month_changes"] = "Ce qui a changé depuis le mois dernier",
@@ -189,6 +190,7 @@ public static class NotificationTemplates
     {
         "rent_arrears" when KeyDate(n.Key, "yyyy-MM") is { } month => $" — depuis {month.ToString("MMMM yyyy", French)}",
         "childcare_statement_due" when KeyDate(n.Key, "yyyy-MM") is { } month => $" — relevé de {month.ToString("MMMM yyyy", French)}",
+        "childcare_below_minimum" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — minimum en vigueur depuis le {Day(on)}",
         "valuation_stale" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — estimée le {Day(on)}",
         "stale_value" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — valeur du {Day(on)}",
         "uc_share_below_floor" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — relevé du {Day(on)}",

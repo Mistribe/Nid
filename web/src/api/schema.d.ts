@@ -29102,6 +29102,7 @@ export interface components {
              * @default 5
              */
             childSickQuota: number;
+            belowMinimums?: null | components["schemas"]["LegalMinimumView"][];
         };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
@@ -29142,6 +29143,7 @@ export interface components {
             contributions?: null | string;
             mealCharges?: null | components["schemas"]["MealChargesView"];
             exemption?: null | string;
+            belowMinimums?: null | components["schemas"]["LegalMinimumView"][];
         };
         ChildcareSummary: {
             /** Format: uuid */
@@ -31550,6 +31552,13 @@ export interface components {
             days: number;
             /** Format: int32 */
             defaultDays: number;
+        };
+        LegalMinimumView: {
+            code: string;
+            /** Format: date */
+            since: string;
+            minimum: string;
+            value: string;
         };
         LineView: {
             units?: null | string;

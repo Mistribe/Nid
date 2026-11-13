@@ -21,7 +21,7 @@ public class NotificationTemplatesTests
         ("loan_phase_end", "loans"), ("loan_end", "loans"),
         ("holding_maturity", "investments"), ("stale_value", "investments"), ("uc_share_below_floor", "investments"),
         ("income_phase_end", "income"), ("income_gap_soon", "income"),
-        ("childcare_statement_due", "childcare"),
+        ("childcare_statement_due", "childcare"), ("childcare_below_minimum", "childcare"),
     ];
 
     private static NotificationRecord Record(string kind, LocalDate? dueOn = null, string key = "k")
