@@ -38,8 +38,8 @@ public static class ChildcareMonth
 
         var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(fullPay, inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences, potentialHours);
         var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan, input.Terms);
-        var complementary = input.Declared?.ComplementaryHours ?? ExtraHours.Started(computedComplementary);
-        var overtime = input.Declared?.OvertimeHours ?? ExtraHours.Started(computedOvertime);
+        var complementary = input.Declared?.ComplementaryHours ?? ExtraHours.Whole(computedComplementary);
+        var overtime = input.Declared?.OvertimeHours ?? ExtraHours.Whole(computedOvertime);
         var extraPay = ExtraHours.Pay(input.Declared?.ComplementaryHours ?? computedComplementary, input.Declared?.OvertimeHours ?? computedOvertime,
             input.Terms.NetHourlyRate, input.Terms.OvertimeRate) + ExtraHours.HolidayPremium(inContract, input.Terms.NetHourlyRate);
         var (computedUpkeep, computedMeals) = Upkeep.Month(input.Days, input.Terms);
@@ -65,7 +65,7 @@ public static class ChildcareMonth
                 : deductedDays == 0 ? mensualisedDays
                 : (int)Math.Ceiling((decimal)mensualisedDays * (templateDays - deductedDays) / templateDays));
         // #26: the hours the pay at the normal rate stands for, mensualised less deducted, extra hours apart: the hour
-        // a started extra hour rounds up is not taken back out of them (142.5 h and 20 min extra declare 143 h + 1 h).
+        // the extra minutes round up to is not taken back out of them (142.5 h and 40 min extra declare 143 h + 1 h).
         var normalHours = input.Declared?.NormalHours
             ?? Math.Max(0, Mensualisation.NormalHours(basePay - deduction + leavePay, input.Terms.NetHourlyRate));
         var declaration = new PajemploiDeclaration(normalHours, activityDays, leaveDays,

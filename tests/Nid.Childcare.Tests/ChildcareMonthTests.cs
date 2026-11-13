@@ -45,9 +45,9 @@ public class ChildcareMonthTests
     public void November_all_present()
     {
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11)));
-        Assert.Equal(new PajemploiDeclaration(146, 16, null, 0m, 0m, 626.37m, 70.21m, 54.40m, 0m), figures.Declaration);
-        Assert.Equal(450.98m, figures.Cost);
-        Assert.Equal(396.58m, figures.TaxBase);
+        Assert.Equal(new PajemploiDeclaration(146, 16, null, 0m, 0m, 626.37m, 70.38m, 54.40m, 0m), figures.Declaration);
+        Assert.Equal(451.15m, figures.Cost);
+        Assert.Equal(396.75m, figures.TaxBase);
     }
 
     /// <summary>#30, #31: the contributions the CMG leaves to the household (a month past the hourly ceiling) count in the cost and the tax base.</summary>
@@ -57,8 +57,8 @@ public class ChildcareMonthTests
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11)) with { Contributions = 40m });
         Assert.Equal(626.37m, figures.Declaration.NetPay);
         Assert.Equal(40m, figures.Contributions);
-        Assert.Equal(490.98m, figures.Cost);
-        Assert.Equal(436.58m, figures.TaxBase);
+        Assert.Equal(491.15m, figures.Cost);
+        Assert.Equal(436.75m, figures.TaxBase);
     }
 
     /// <summary>Half an hour extra: paid as worked, declared as a whole hour, the 145.67 mensualised normal hours untouched.</summary>
@@ -96,7 +96,7 @@ public class ChildcareMonthTests
         Assert.Equal(552.68m, figures.Declaration.NetPay);
         Assert.Equal(129, figures.Declaration.NormalHours); // 552.68 / 4.30
         Assert.Equal(15, figures.Declaration.ActivityDays); // 16 × 15 ÷ 17 = 14.12, rounded up
-        Assert.Equal(61.95m, figures.Declaration.Upkeep);
+        Assert.Equal(62.10m, figures.Declaration.Upkeep);
         Assert.Equal(48.00m, figures.Declaration.Meals);
     }
 
@@ -177,7 +177,7 @@ public class ChildcareMonthValidationTests
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps, d => d, terms: terms));
         Assert.Equal(331.61m, figures.BasePay);
         Assert.Equal(9, figures.Declaration.ActivityDays);
-        Assert.Equal(9 * 4.13m, figures.Declaration.Upkeep);
+        Assert.Equal(9 * 4.14m, figures.Declaration.Upkeep);
         Assert.Equal(77, figures.Declaration.NormalHours); // 331.61 / 4.30
     }
 

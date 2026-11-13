@@ -10,7 +10,7 @@ public class UpkeepTests
     public void Day_of_9h30_uses_the_contract() => Assert.Equal(4.43m, Upkeep.ForDay(D(2026, 11, 2), Arrival, Departure, 4.20m));
 
     [Fact]
-    public void Legal_minimum_beats_a_low_contract() => Assert.Equal(4.13m, Upkeep.ForDay(D(2026, 11, 2), Arrival, Departure, 3.50m));
+    public void Legal_minimum_beats_a_low_contract() => Assert.Equal(4.14m, Upkeep.ForDay(D(2026, 11, 2), Arrival, Departure, 3.50m));
 
     [Fact]
     public void Short_day_gets_the_floor() => Assert.Equal(2.65m, Upkeep.ForDay(D(2026, 11, 2), new LocalTime(8, 0), new LocalTime(11, 0), 4m));
@@ -24,5 +24,5 @@ public class UpkeepTests
 
     [Fact]
     public void November_month()
-        => Assert.Equal((70.21m, 54.40m), Upkeep.Month(StatementPreparation.Prepare(new YearMonth(2026, 11), Plan, Gaps), Terms));
+        => Assert.Equal((70.38m, 54.40m), Upkeep.Month(StatementPreparation.Prepare(new YearMonth(2026, 11), Plan, Gaps), Terms));
 }

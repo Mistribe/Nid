@@ -83,16 +83,17 @@ public class ExtraHoursTests
         Assert.Equal((9m, 0m), ExtraHours.Compute(month, With(With(Around(month), ExtraWednesday), training with { Absence = AbsenceReason.FamilyAgreed }), Plan, Terms with { UnpaidAbsences = [] }));
     }
 
-    /// <summary>Half an hour extra in two weeks: one started hour in the month, not one per week.</summary>
+    /// <summary>Twenty minutes extra in two weeks: 40 minutes in the month, declared as one hour; half an hour goes up, a quarter down.</summary>
     [Fact]
-    public void Started_hour_is_rounded_over_the_month()
+    public void Extra_hours_are_rounded_over_the_month()
     {
         var month = new YearMonth(2026, 11);
         var days = Around(month).Select(d => d.Date == D(2026, 11, 3) || d.Date == D(2026, 11, 10) ? d with { Departure = d.Departure!.Value.PlusMinutes(20) } : d).ToList();
         var (complementary, _) = ExtraHours.Compute(month, days, Plan);
-        Assert.Equal(1m, ExtraHours.Started(complementary));
-        Assert.Equal(3m, ExtraHours.Started(2.5m));
-        Assert.Equal(0m, ExtraHours.Started(0m));
+        Assert.Equal(1m, ExtraHours.Whole(complementary));
+        Assert.Equal(3m, ExtraHours.Whole(2.5m));
+        Assert.Equal(19m, ExtraHours.Whole(19.25m));
+        Assert.Equal(0m, ExtraHours.Whole(0m));
     }
 
     [Fact]
@@ -103,14 +104,27 @@ public class ExtraHoursTests
         Assert.Equal((0m, 0m), ExtraHours.Compute(month, With(Around(month), absent), Plan));
     }
 
+    /// <summary>An extra day counts in its own month, whichever month the week's Thursday is in.</summary>
     [Fact]
-    public void Week_spanning_months_goes_to_its_thursday()
+    public void Week_spanning_months_splits_by_day()
     {
         var extra = ExtraWednesday with { Date = D(2026, 12, 2) };
         var nov = new YearMonth(2026, 11);
         var dec = new YearMonth(2026, 12);
         Assert.Equal((0m, 0m), ExtraHours.Compute(nov, With(Around(nov), extra), Plan));
         Assert.Equal((7m, 2m), ExtraHours.Compute(dec, With(Around(dec), extra), Plan));
+    }
+
+    /// <summary>Monday 2026-11-30 is in a week whose Thursday is in December: its extra hours are November's.</summary>
+    [Fact]
+    public void A_last_day_of_the_month_keeps_its_extra_hours()
+    {
+        var monday = D(2026, 11, 30);
+        var nov = new YearMonth(2026, 11);
+        var dec = new YearMonth(2026, 12);
+        var late = Around(nov).Select(d => d.Date == monday ? d with { Departure = d.Departure!.Value.PlusHours(1) } : d).ToList();
+        Assert.Equal((1m, 0m), ExtraHours.Compute(nov, late, Plan));
+        Assert.Equal((0m, 0m), ExtraHours.Compute(dec, [.. late.Where(d => d.Date >= D(2026, 11, 30)), .. StatementPreparation.Prepare(dec, Plan, Gaps)], Plan));
     }
 }
 

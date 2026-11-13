@@ -15,8 +15,8 @@ public sealed record ChildcareRules(LocalDate From, decimal MinimumGuaranteed)
     /// <summary>The first day the table covers; months before it cannot be computed.</summary>
     public static LocalDate FirstDay => Periods[0].From;
 
-    /// <summary>The legal upkeep minimum for a 9-hour day: 90 % of the MG, unrounded.</summary>
-    public decimal Upkeep9hMinimum => 0.9m * MinimumGuaranteed;
+    /// <summary>The legal upkeep minimum for a 9-hour day: 90 % of the MG, up to the cent so it is never below (3,825 € → 3,83 €), as payroll tools pay it.</summary>
+    public decimal Upkeep9hMinimum => Math.Ceiling(0.9m * MinimumGuaranteed * 100m) / 100m;
 
     /// <summary>The upkeep due for a day, whatever its length (IDCC 3239 art. 114).</summary>
     public const decimal UpkeepDailyFloor = 2.65m;
