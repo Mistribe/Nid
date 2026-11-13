@@ -60,30 +60,42 @@ A few rules hold everywhere:
 
 ## Self-hosting
 
-You need Docker with Compose v2, two host names (for example `nid.example.org` and `auth.example.org`), a reverse
-proxy that terminates TLS, and a device able to create a **passkey**: sign-in goes through
-[Pocket ID](https://github.com/pocket-id/pocket-id), which only accepts passkeys.
+Images are public on `ghcr.io/mistribe/nid` and `ghcr.io/mistribe/nid-backup`, for amd64 and arm64, no account
+needed: `latest`, `X.Y.Z`, or `X.Y` for its latest patch. Each carries a signed provenance attestation
+(`gh attestation verify oci://ghcr.io/mistribe/nid:latest --repo Mistribe/Nid`).
 
-There is no public image yet: build it from this repository.
+You need:
 
-```bash
-docker build -f src/Hosting/Nid.Host/Dockerfile -t nid:local .
-```
+- Docker with Compose v2;
+- two host names, for example `nid.example.org` and `auth.example.org`;
+- a reverse proxy that terminates TLS (Caddy, Traefik, nginx…);
+- a device able to create a **passkey** for each adult. Sign-in goes through
+  [Pocket ID](https://github.com/pocket-id/pocket-id), which only accepts passkeys: there is no password to leak or
+  reuse for an app that holds a household's whole financial picture.
 
 Then pick one of the two setups:
 
-- **Standalone** ([`deploy/standalone/`](deploy/standalone/compose.yaml)): one Compose file and one `.env`, nothing to
-  run first. Postgres and Pocket ID are optional profiles, for when you already run them elsewhere. Set
-  `NID_IMAGE=nid:local` in `.env`.
+- **Standalone** ([`deploy/standalone/`](deploy/standalone/compose.yaml)): one Compose file and one `.env`, using the
+  published image. Postgres and Pocket ID are optional profiles: leave them out when you already run them elsewhere.
 
   ```bash
   cd deploy/standalone
-  cp .env.example .env    # then fill it in, with NID_IMAGE=nid:local
+  cp .env.example .env    # addresses, secrets (openssl rand), database password
+  docker compose --profile postgres --profile pocket-id up -d pocket-id
+  ```
+
+  Open `https://auth.example.org/setup` straight away to create Pocket ID's administrator. In Pocket ID, create the
+  groups `nid-users` and `nid-admins`, the adults, and an OIDC client for Nid (the comments in `.env` give its
+  settings). Put the client's id and secret in `.env`, then start the rest:
+
+  ```bash
   docker compose --profile postgres --profile pocket-id up -d
   ```
 
 - **Reference** ([`deploy/`](deploy/README.md)): Postgres, Pocket ID, Nid and an encrypted `restic` backup to a local and
-  an optional remote repository, with `deploy/setup.sh` to generate the secrets and `deploy/restore.sh` to restore.
+  an optional remote repository, with `deploy/setup.sh` to generate the secrets and `deploy/restore.sh` to restore. It
+  builds the images from this repository by default; set `NID_IMAGE` and `NID_BACKUP_IMAGE` in `deploy/.env` to use
+  the published ones instead.
 
 [`deploy/README.md`](deploy/README.md) covers the installation, updates, backups and bank sync in detail (in French).
 The first person to sign in becomes the administrator and admits the other adults.
