@@ -33,11 +33,7 @@ public sealed class ChildcareCommitments(IVisibleItems visible, IChildcareStore 
                 cost = frozen.Cost;
             else
             {
-                var (days, stale) = await assembly.DaysAsync(context, ct);
-                var cmg = context.StoredMonth?.Cmg ?? StatementContext.CmgEstimate(validated.Select(s => (s.Month, s.Figures!.Cmg)).ToList()) ?? 0m;
-                var contributions = context.StoredMonth?.Contributions
-                    ?? StatementContext.ContributionsEstimate(validated.Select(s => (s.Month, s.Figures!.Contributions)).ToList());
-                var evaluation = await assembly.EvaluateAsync(context, days, stale, context.StoredMonth?.Mileage ?? 0m, cmg, context.StoredMonth?.Declared, contributions, context.StoredMonth?.Exemption, ct);
+                var evaluation = await assembly.EstimateAsync(context, ct);
                 cost = evaluation.Figures?.Cost ?? (validated.Count > 0 ? validated[^1].Figures!.Cost : null);
                 estimated |= cost is not null;
             }
