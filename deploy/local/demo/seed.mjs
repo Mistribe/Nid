@@ -32,6 +32,26 @@ export function pdf(lines) {
   return Buffer.from(body, 'latin1');
 }
 
+/**
+ * Every month of each arrangement up to `previous` (a Date, the first of last month), saved as the server plans it and
+ * validated: the server computes the pay. A month already validated is left as it is.
+ */
+export async function validateChildcare({ call }, previous) {
+  for (const arrangement of (await call('GET', '/api/v1/childcare')).items) {
+    let validated = 0;
+    for (let at = new Date(`${arrangement.start.slice(0, 7)}-01T00:00:00Z`); at <= previous; at.setUTCMonth(at.getUTCMonth() + 1)) {
+      const path = `/api/v1/childcare/${arrangement.id}/statements/${at.toISOString().slice(0, 7)}`;
+      const draft = await call('GET', path);
+      if (draft.state === 'validated') continue;
+      const days = draft.days.map(({ date, present, arrival, departure, lunch, snack, absence }) => ({ date, present, arrival, departure, lunch, snack, absence }));
+      const saved = await call('PUT', path, { days, mileage: '0', cmg: draft.cmgEstimate ?? '0', version: draft.version });
+      await call('POST', `${path}/validate`, { version: saved.version });
+      validated++;
+    }
+    console.log(`${arrangement.name}: ${validated} months validated.`);
+  }
+}
+
 export async function seed({ call }, anchor, shift) {
   const persons = await call('GET', '/api/v1/core/persons');
   const alice = persons.find((p) => p.email === 'alice@example.test').id;
@@ -110,8 +130,9 @@ export async function seed({ call }, anchor, shift) {
   // The CPI: INSEE's series when the stack can reach it, else a fictional one, so the real figures show either way.
   if (!(await call('GET', '/api/v1/core/inflation')).lastPublished) {
     await call('PATCH', '/api/v1/admin/household', { inflationEnabled: true });
-    await call('POST', '/api/v1/core/inflation/sync', {});
-    for (let i = 0; i < 15 && !(await call('GET', '/api/v1/core/inflation')).lastPublished; i++) await new Promise((r) => setTimeout(r, 2000));
+    // An instance without scheduled jobs (the public demo, Jobs__Enabled=false) refuses the sync: straight to the fictional series.
+    const refused = (await call('POST', '/api/v1/core/inflation/sync', {}, { allow: [422] }))?.status === 422;
+    for (let i = 0; !refused && i < 15 && !(await call('GET', '/api/v1/core/inflation')).lastPublished; i++) await new Promise((r) => setTimeout(r, 2000));
     if ((await call('GET', '/api/v1/core/inflation')).lastPublished) done.push('IPC (INSEE)');
     else {
       for (let i = 48, value = 112; i >= 1; i--, value *= 1.0017) {

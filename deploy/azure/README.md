@@ -118,7 +118,10 @@ Chaque nuit à 3 h UTC (et à la demande : **Actions › demo-reset › Run work
 3. se connecte en Alice et attend que la démo montre tout le foyer (Alice, Bob et Léa), puis vérifie qu'elle est en mode
    démo. Pendant le redémarrage, l'ancien réplica répond encore, sur une base vide ou à moitié chargée : un simple
    `/health/ready` ne prouverait rien. Un chargement interrompu fait échouer le job au bout de 10 minutes ; une autre
-   réinitialisation le répare.
+   réinitialisation le répare ;
+4. lance `deploy/local/demo/finish.mjs`, qui ajoute par l'API ce que les fichiers d'import ne contiennent pas : les mois
+   de garde de Léa validés, les documents, les avis d'impôt, les scénarios et l'indice des prix (une série fictive, la
+   démo n'ayant pas de tâches planifiées).
 
 Il lui faut, en plus des variables du §4 :
 

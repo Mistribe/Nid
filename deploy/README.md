@@ -568,6 +568,9 @@ de passe.
 - Tout ce qui sortirait de la démo est coupé : synchronisation bancaire (les réglages `EnableBanking__…` sont ignorés),
   emails (`Nid__Smtp__…` ignorés), jetons d'accès pour un assistant, webhooks Discord et messages de test.
 - Chaque écran affiche un bandeau « Démo : les données sont inventées et réinitialisées chaque nuit ».
+- Les fichiers d'import ne contiennent pas tout : `NID_URL=https://<domaine de la démo> node local/demo/finish.mjs`
+  valide les mois de garde, ajoute les documents, les avis d'impôt, les scénarios et l'indice des prix, connecté en
+  Alice. Le relancer ne change rien.
 
 Les variables restantes sont celles de toute installation :
 
