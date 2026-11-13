@@ -134,7 +134,9 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
                 ? Amount(estimate) : null,
             stored?.Declared is { } entered ? DeclaredOf(entered) : null,
             computed is { } n ? DeclarationOf(n.Declaration) : null,
-            stored?.Contributions is { } k ? Amount(k) : null, mealCharges, stored?.Exemption is { } x ? Amount(x) : null);
+            stored?.Contributions is { } k ? Amount(k) : null, mealCharges, stored?.Exemption is { } x ? Amount(x) : null,
+            BelowMinimums: LegalMinimumView.Of(LegalMinimums.Check(context.Chosen.NetHourlyRate, context.Chosen.GrossHourlyRate, context.Chosen.UpkeepPer9h,
+                context.Month.OnDayOfMonth(context.Month.Calendar.GetDaysInMonth(context.Month.Year, context.Month.Month)))));
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)

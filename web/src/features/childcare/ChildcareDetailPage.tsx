@@ -32,6 +32,7 @@ import { EditChildcareDialog, EndDialog, GapsDialog, ReviseDialog, UnpaidAbsence
 import { dayName } from './childcareSchema';
 import { stateLabel } from './statementText';
 import { YearSummary } from './YearSummary';
+import { BelowMinimums } from './BelowMinimums';
 import { reasonLabel } from './statementText';
 import '@/locales/childcare';
 import '@/locales/forms';
@@ -108,6 +109,8 @@ export function ChildcareDetailPage() {
         </section>
       </PageHeader>
       {summary.canWrite ? null : <p>{t('childcare_detail.read_only')}</p>}
+      <BelowMinimums items={detail.belowMinimums}
+        action={summary.canWrite && !summary.closed ? <Button type="button" variant="outline" size="sm" onClick={show('revise')}>{t('childcare_detail.revise')}</Button> : null} />
       {reopen.error ? <ProblemMessage problem={present(toProblem(reopen.error))} /> : null}
       {open === 'edit' ? <EditChildcareDialog {...dialog} /> : null}
       {open === 'revise' ? <ReviseDialog {...dialog} /> : null}

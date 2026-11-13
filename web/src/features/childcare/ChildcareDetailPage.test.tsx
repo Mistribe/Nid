@@ -353,6 +353,22 @@ describe('ChildcareDetailPage', () => {
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Terminer la garde', 'Partage…', 'Supprimer…']);
   });
 
+  it('warns when the terms fall below a legal minimum and offers a revision', async () => {
+    serve(detail({ belowMinimums: [{ code: 'childcare.below_minimum_upkeep', since: '2026-06-01', minimum: '3.92', value: '3.80' }] }));
+    const { user } = await renderApp(url);
+    const warning = await screen.findByRole('status', { name: 'Le contrat est sous un minimum légal' });
+    expect(warning).toHaveTextContent("L'indemnité d'entretien (3,80 € pour 9 h) est sous le minimum légal de 3,92 €, à compter du 1 juin 2026.");
+    await user.click(within(warning).getByRole('button', { name: 'Réviser' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('terms meeting the minimums show no warning', async () => {
+    serve(detail({ belowMinimums: [] }));
+    await renderApp(url);
+    expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Le contrat est sous un minimum légal' })).not.toBeInTheDocument();
+  });
+
   it('a reader without write sees no actions', async () => {
     serve(detail({}, { canWrite: false }));
     await renderApp(url);

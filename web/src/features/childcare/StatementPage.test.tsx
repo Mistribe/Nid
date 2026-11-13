@@ -67,6 +67,14 @@ describe('StatementPage', () => {
     expect(screen.getByRole('region', { name: 'Chiffres du mois' })).toHaveTextContent('Salaire net626,37 €');
   });
 
+  it('a month after a revaluation the terms miss warns and links to the contract', async () => {
+    serve(statement({ belowMinimums: [{ code: 'childcare.below_minimum_net_rate', since: '2026-06-01', minimum: '3.28', value: '3.10' }] }));
+    await renderApp(url);
+    const warning = await screen.findByRole('status', { name: 'Le contrat est sous un minimum légal' });
+    expect(warning).toHaveTextContent('Le salaire horaire net (3,10 €) est sous le minimum conventionnel de 3,28 € net par heure, à compter du 1 juin 2026.');
+    expect(within(warning).getByRole('link', { name: 'Ouvrir le contrat pour le réviser' })).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}`);
+  });
+
   it('names the week type next to the date', async () => {
     const days = september();
     days[0] = { ...days[0]!, weekType: 'Semaine courte' };

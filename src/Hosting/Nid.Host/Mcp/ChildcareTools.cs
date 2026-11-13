@@ -21,7 +21,7 @@ public sealed class ChildcareTools
         => McpCalls.RunAsync(services, () => new ListChildcareQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
 
     [McpServerTool(Name = "get_childcare", ReadOnly = true)]
-    [Description("One arrangement: its revisions with their week types (named weekly schedules and the weeks each covers), the weeks of the contract year (the week type each follows), its weeks without care, the paid-leave days accrued, the estimated CMG and its version. " + McpSetup.Untrusted)]
+    [Description("One arrangement: its revisions with their week types (named weekly schedules and the weeks each covers), the weeks of the contract year (the week type each follows), its weeks without care, the paid-leave days accrued, the estimated CMG, the legal minimums its terms fall below (belowMinimums: hourly rate or upkeep, the minimum and the day it took effect) and its version. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetChildcare(IServiceProvider services, [Description("The arrangement's id.")] Guid id, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetChildcareQuery(new ItemId(id)), ct);
 
@@ -32,7 +32,7 @@ public sealed class ChildcareTools
 
     [McpServerTool(Name = "get_childcare_statement", ReadOnly = true)]
     [Description("One month's statement: every day (planned, present, times, lunch, snack, absence reason), the mileage, the CMG, the contributions left to the household, the exemption on the extra hours, the Pajemploi declaration "
-        + "field by field and its version. Its days are what propose_save_childcare_statement sends back, the deviations changed. " + McpSetup.Untrusted)]
+        + "field by field, the legal minimums the month's terms fall below (belowMinimums) and its version. Its days are what propose_save_childcare_statement sends back, the deviations changed. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetChildcareStatement(IServiceProvider services, [Description("The arrangement's id.")] Guid id,
         [Description("The month, yyyy-MM.")] string month, CancellationToken ct = default)
         => Month.Parse(month) is { Success: true } parsed
