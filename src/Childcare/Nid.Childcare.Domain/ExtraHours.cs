@@ -42,6 +42,14 @@ public static class ExtraHours
     public static decimal Pay(decimal complementary, decimal overtime, decimal rate, decimal overtimeRate)
         => Mensualisation.Round(complementary * rate + overtime * rate * (1m + overtimeRate));
 
+    /// <summary>
+    /// IDCC 3239: the hours worked on a public holiday are paid 10 % more, on 1 May 100 % more, on top of their pay in the
+    /// mensualisation or as extra hours.
+    /// </summary>
+    public static decimal HolidayPremium(IEnumerable<StatementDay> days, decimal rate)
+        => Mensualisation.Round(days.Where(d => d.Present && FrenchHolidays.In(d.Date.Year).Contains(d.Date))
+            .Sum(d => Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value) * rate * (d.Date is { Month: 5, Day: 1 } ? 1m : 0.10m)));
+
     private static YearMonth Owner(LocalDate thursday, ContractTerms? terms)
     {
         if (terms is not null && thursday < terms.Start) return YearMonth(terms.Start);

@@ -40,7 +40,7 @@ public static class ChildcareMonth
         var complementary = input.Declared?.ComplementaryHours ?? ExtraHours.Started(computedComplementary);
         var overtime = input.Declared?.OvertimeHours ?? ExtraHours.Started(computedOvertime);
         var extraPay = ExtraHours.Pay(input.Declared?.ComplementaryHours ?? computedComplementary, input.Declared?.OvertimeHours ?? computedOvertime,
-            input.Terms.NetHourlyRate, input.Terms.OvertimeRate);
+            input.Terms.NetHourlyRate, input.Terms.OvertimeRate) + ExtraHours.HolidayPremium(inContract, input.Terms.NetHourlyRate);
         var (computedUpkeep, computedMeals) = Upkeep.Month(input.Days, input.Terms);
         var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
         var meals = input.Declared?.Meals ?? computedMeals;

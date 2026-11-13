@@ -143,3 +143,30 @@ public class ExtraHoursAbsenceTests
         Assert.Equal((2m, 0m), ExtraHours.Compute(month, all, Plan));
     }
 }
+
+public class HolidayPremiumTests
+{
+    private static StatementDay Worked(LocalDate date, bool planned = true)
+        => new(date, planned, true, new LocalTime(8, 15), new LocalTime(18, 0), false, null);
+
+    /// <summary>IDCC 3239: an ordinary public holiday worked adds 10 % to its hours, 1 May 100 %; other days add nothing.</summary>
+    [Fact]
+    public void A_public_holiday_worked_adds_10_percent_and_1_May_100_percent()
+    {
+        Assert.Equal(4.19m, ExtraHours.HolidayPremium([Worked(D(2026, 5, 25)), Worked(D(2026, 5, 26))], 4.30m));
+        Assert.Equal(41.93m, ExtraHours.HolidayPremium([Worked(D(2026, 5, 1))], 4.30m));
+        Assert.Equal(0m, ExtraHours.HolidayPremium([new StatementDay(D(2026, 5, 25), true, false, null, null, false, AbsenceReason.Holiday)], 4.30m));
+    }
+
+    /// <summary>The premium goes to the month's extra pay, on top of the extra hours the day makes.</summary>
+    [Fact]
+    public void The_month_pays_the_premium()
+    {
+        var month = new YearMonth(2026, 11);
+        MonthFigures With(LocalDate wednesday) => ChildcareMonth.Compute(new MonthInput(month, Terms, Plan, Gaps,
+            [.. StatementPreparation.Prepare(month, Plan, Gaps).Select(d => d.Date == wednesday ? Worked(d.Date, planned: false) : d)],
+            [.. StatementPreparation.Prepare(month.PlusMonths(-1), Plan, Gaps), .. StatementPreparation.Prepare(month.PlusMonths(1), Plan, Gaps)], 0, 0m, 0m, null));
+
+        Assert.Equal(4.19m, With(D(2026, 11, 11)).ExtraPay - With(D(2026, 11, 18)).ExtraPay);
+    }
+}
