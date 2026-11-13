@@ -4,7 +4,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Nid.Core.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Host.Demo;
+using Nid.Platform.Import;
 using Nid.TestSupport;
 using NodaTime;
 
@@ -157,11 +159,69 @@ public class DemoModeTests(PostgresFixture postgres) : IClassFixture<PostgresFix
     public void A_date_moves_by_whole_months_as_generate_mjs_moves_it(string value, int months, string expected)
         => Assert.Equal(expected, DemoHousehold.ShiftDate(value, months));
 
-    private static WebApplicationFactory<Program> DemoFactory(string connectionString)
+    [Fact]
+    public async Task A_load_cut_short_is_finished_on_the_next_start_without_loading_twice()
+    {
+        // The whole household, loaded in one go: what the interrupted load must end up as.
+        var reference = await postgres.NewConnectionStringAsync();
+        await using (var clean = DemoFactory(reference))
+        {
+            using var client = Client(clean);
+            var cookie = await SignInAsync(client, "alice", "/");
+            var expected = await HouseholdAsync(client, cookie);
+
+            // Bob's file commits, then Alice's commit fails inside its transaction, as if the container had been stopped.
+            var connectionString = await postgres.NewConnectionStringAsync();
+            await using (var cut = DemoFactory(connectionString, services =>
+                         {
+                             var commits = new CommitCounter();
+                             services.AddScoped<IImportAudit>(sp => new FailingSecondCommit(
+                                 ActivatorUtilities.CreateInstance<Nid.Platform.Infrastructure.Audit.ImportAuditLog>(sp), commits));
+                         }))
+            {
+                var error = Assert.ThrowsAny<Exception>(() => Client(cut));
+                Assert.Contains("commit alice.nid.json", error.ToString());
+            }
+
+            await using var next = DemoFactory(connectionString);
+            using var resumed = Client(next);
+            var again = await SignInAsync(resumed, "alice", "/");
+            Assert.Equal(expected, await HouseholdAsync(resumed, again));
+        }
+    }
+
+    /// <summary>The persons by name, and how many envelopes the household holds: twice Bob's file would show in the count.</summary>
+    private static async Task<string> HouseholdAsync(HttpClient client, string cookie)
+    {
+        var persons = await GetJsonAsync(client, cookie, "/api/v1/core/persons");
+        var envelopes = await GetJsonAsync(client, cookie, "/api/v1/investments/envelopes?scope=household");
+        var names = persons.EnumerateArray().Select(p => p.GetProperty("displayName").GetString()).Order();
+        return $"{string.Join(", ", names)} | {envelopes.GetProperty("items").GetArrayLength()} envelopes";
+    }
+
+    private sealed class CommitCounter
+    {
+        public int Count;
+    }
+
+    /// <summary>Records the first commit; throws at the second, which rolls that whole commit back.</summary>
+    private sealed class FailingSecondCommit(IImportAudit inner, CommitCounter commits) : IImportAudit
+    {
+        public Task RecordAsync(ImportCommitRecord record, CancellationToken ct)
+            => Interlocked.Increment(ref commits.Count) == 2
+                ? throw new InvalidOperationException("The container stopped in the middle of the commit.")
+                : inner.RecordAsync(record, ct);
+
+        public Task<ImportAuditView?> FindAsync(Guid session, CancellationToken ct) => inner.FindAsync(session, ct);
+    }
+
+    private static WebApplicationFactory<Program> DemoFactory(string connectionString, Action<IServiceCollection>? services = null)
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             Common(builder, connectionString);
             builder.UseSetting("Nid:Demo:Enabled", "true");
+            if (services is not null)
+                builder.ConfigureServices(services);
         });
 
     private static void Common(IWebHostBuilder builder, string connectionString)
