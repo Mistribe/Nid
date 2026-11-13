@@ -76,6 +76,8 @@ public sealed class StatementRow
     public decimal? Cmg { get; set; }
     /// <summary>#30: the contributions the Pajemploi summary leaves to the household; null while not entered.</summary>
     public decimal? Contributions { get; set; }
+    /// <summary>The contributions Pajemploi waived on the extra hours: entered on a draft (null while not), frozen at validation.</summary>
+    public decimal? Exemption { get; set; }
     public decimal? DeclaredNetPay { get; set; }
     public decimal? DeclaredUpkeep { get; set; }
     public decimal? DeclaredMeals { get; set; }

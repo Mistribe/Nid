@@ -82,6 +82,6 @@ public sealed class GetChildcareYearHandler(
             arrangement.ItemId.Value, item.DisplayName, people.GetValueOrDefault(arrangement.Child)?.DisplayName ?? "", arrangement.CarerName, year, years, box,
             Money(totals.NetPay), Money(totals.Cmg), Money(totals.Upkeep), Money(totals.Meals), Money(totals.TaxBase),
             counted.Select(s => StatementAssembly.Format(s.Month)).ToList(),
-            ChildcareYear.NotValidated(start, end, today, stored, year).Select(StatementAssembly.Format).ToList(), Money(totals.Contributions)));
+            ChildcareYear.NotValidated(start, end, today, stored, year).Select(StatementAssembly.Format).ToList(), Money(totals.Contributions), Money(totals.Exemption)));
     }
 }

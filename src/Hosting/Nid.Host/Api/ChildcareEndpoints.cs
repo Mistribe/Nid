@@ -192,10 +192,10 @@ public static class ChildcareEndpoints
     /// <summary>
     /// Every day of the month, the month's mileage and CMG as decimal strings, and the <c>version</c> read (0 when nothing was stored).
     /// <c>declared</c>: the fields entered by hand; <c>summary</c>: replaces the days; <c>contributions</c>: #30, those the Pajemploi summary
-    /// leaves to the household, null while not known.
+    /// leaves to the household, null while not known; <c>exemption</c>: the contributions it waived on the extra hours, null while not known (estimated).
     /// </summary>
     public sealed record StatementBody(IReadOnlyList<StatementDayBody>? Days, string? Mileage, string? Cmg, uint? Version, DeclaredBody? Declared = null, StatementSummaryBody? Summary = null,
-        string? Contributions = null)
+        string? Contributions = null, string? Exemption = null)
     {
         internal SaveStatementCommand? ToCommand(ItemId id, YearMonth? month, FieldReader reader)
         {
@@ -214,6 +214,7 @@ public static class ChildcareEndpoints
             var mileage = reader.Decimal(Mileage, "mileage") ?? 0m;
             var cmg = reader.Decimal(Cmg, "cmg");
             var contributions = reader.Decimal(Contributions, "contributions");
+            var exemption = reader.Decimal(Exemption, "exemption");
             var declared = Declared is { } e
                 ? new DeclaredFigures(reader.Decimal(e.NetPay, "declared.netPay"), reader.Decimal(e.Upkeep, "declared.upkeep"), reader.Decimal(e.Meals, "declared.meals"),
                     e.NormalHours, e.ActivityDays, e.PaidLeaveDays, reader.Decimal(e.ComplementaryHours, "declared.complementaryHours"), reader.Decimal(e.OvertimeHours, "declared.overtimeHours"))
@@ -230,7 +231,7 @@ public static class ChildcareEndpoints
                 if (reader.Ok) summary = new MonthSummaryInput(s.CareDays!.Value, hours!.Value, reason);
             }
             if (Version is null) reader.Add("version", "request.required", "The version read with the statement is required.");
-            return reader.Ok ? new SaveStatementCommand(id, month!.Value, days, mileage, cmg, Version!.Value, declared, summary, contributions) : null;
+            return reader.Ok ? new SaveStatementCommand(id, month!.Value, days, mileage, cmg, Version!.Value, declared, summary, contributions, exemption) : null;
         }
     }
 

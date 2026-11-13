@@ -32592,6 +32592,12 @@
                 "$ref": "#/components/schemas/MealChargesView"
               }
             ]
+          },
+          "exemption": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -32840,6 +32846,16 @@
             }
           },
           "contributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
+          },
+          "exemption": {
             "oneOf": [
               {
                 "type": "null"
@@ -54180,6 +54196,12 @@
               "null",
               "string"
             ]
+          },
+          "exemption": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -54330,6 +54352,16 @@
           },
           "costBeforeCmg": {
             "type": "boolean"
+          },
+          "exemption": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
           }
         }
       },

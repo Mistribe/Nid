@@ -29140,6 +29140,7 @@ export interface components {
             computed?: null | components["schemas"]["DeclarationView"];
             contributions?: null | string;
             mealCharges?: null | components["schemas"]["MealChargesView"];
+            exemption?: null | string;
         };
         ChildcareSummary: {
             /** Format: uuid */
@@ -29203,6 +29204,7 @@ export interface components {
             validatedMonths: string[];
             notValidated: string[];
             contributions?: null | components["schemas"]["ChildcareMoneyView"];
+            exemption?: null | components["schemas"]["ChildcareMoneyView"];
         };
         CloseBody: {
             closedOn: string;
@@ -34070,6 +34072,7 @@ export interface components {
             declared?: null | components["schemas"]["DeclaredBody"];
             summary?: null | components["schemas"]["StatementSummaryBody"];
             contributions?: null | string;
+            exemption?: null | string;
         };
         StatementDayBody: {
             date?: null | string;
@@ -34103,6 +34106,7 @@ export interface components {
             paidLeavePay: components["schemas"]["ChildcareMoneyView"];
             cost: components["schemas"]["ChildcareMoneyView"];
             costBeforeCmg: boolean;
+            exemption?: null | components["schemas"]["ChildcareMoneyView"];
         };
         StatementForm: {
             file: components["schemas"]["IFormFile"];

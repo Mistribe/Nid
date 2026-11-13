@@ -71,6 +71,23 @@ public class ChildcareMonthTests
         Assert.Equal(146, figures.Declaration.NormalHours); // 626.37 ÷ 4.30 = 145.67
     }
 
+    /// <summary>The exemption Pajemploi adds to the carer's pay for the declared extra hours: estimated, then the summary's figure.</summary>
+    [Fact]
+    public void The_exemption_on_extra_hours_counts_in_the_cost()
+    {
+        var input = Input(new YearMonth(2026, 11)) with { Declared = new DeclaredFigures(ComplementaryHours: 10m) };
+        var estimated = ChildcareMonth.Compute(input);
+        Assert.Equal(6.41m, estimated.Exemption);
+        var d = estimated.Declaration;
+        Assert.Equal(d.NetPay + d.Upkeep + d.Meals + d.Mileage + 6.41m - 300m, estimated.Cost);
+        Assert.Equal(d.NetPay + d.Upkeep + 6.41m - 300m, estimated.TaxBase);
+
+        var entered = ChildcareMonth.Compute(input with { Exemption = 6.13m });
+        Assert.Equal(6.13m, entered.Exemption);
+        Assert.Equal(estimated.Cost - 0.28m, entered.Cost);
+        Assert.Equal(0m, ChildcareMonth.Compute(Input(new YearMonth(2026, 11))).Exemption);
+    }
+
     [Fact]
     public void November_with_two_carer_absences()
     {

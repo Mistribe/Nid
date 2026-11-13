@@ -43,6 +43,17 @@ public static class ExtraHours
         => Mensualisation.Round(complementary * rate + overtime * rate * (1m + overtimeRate));
 
     /// <summary>
+    /// The salary contributions waived on the extra hours (code de la sécurité sociale, art. D241-21: at most 11,31 % of their gross pay),
+    /// as a share of their net pay at the contract's rate. Pajemploi computes the exact amount from the declaration; its summary gives it.
+    /// </summary>
+    // shortcut: 14,9 % of the net matches Pajemploi to about 0,10 € a month; the summary's figure replaces it once entered.
+    public const decimal ExemptionShareOfNet = 0.149m;
+
+    /// <summary>The exemption Pajemploi will add for these declared extra hours, to the cent.</summary>
+    public static decimal ExemptionEstimate(decimal complementary, decimal overtime, decimal rate, decimal overtimeRate)
+        => Mensualisation.Round((complementary * rate + overtime * rate * (1m + overtimeRate)) * ExemptionShareOfNet);
+
+    /// <summary>
     /// IDCC 3239: the hours worked on a public holiday are paid 10 % more, on 1 May 100 % more, on top of their pay in the
     /// mensualisation or as extra hours.
     /// </summary>

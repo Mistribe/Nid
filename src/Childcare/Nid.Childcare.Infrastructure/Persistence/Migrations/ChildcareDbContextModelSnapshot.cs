@@ -235,6 +235,10 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("deduction");
 
+                    b.Property<decimal?>("Exemption")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("exemption");
+
                     b.Property<decimal?>("ExtraPay")
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("extra_pay");
@@ -294,7 +298,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
 
                     b.ToTable("statement", "childcare", t =>
                         {
-                            t.HasCheckConstraint("ck_statement_amounts", "mileage >= 0 and (cmg is null or cmg >= 0) and (contributions is null or contributions >= 0)");
+                            t.HasCheckConstraint("ck_statement_amounts", "mileage >= 0 and (cmg is null or cmg >= 0) and (contributions is null or contributions >= 0) and (exemption is null or exemption >= 0)");
 
                             t.HasCheckConstraint("ck_statement_figures", "validated = (validated_at is not null) and validated = (net_pay is not null) and validated = (cost is not null) and validated = (child_sick_deducted is not null)");
 

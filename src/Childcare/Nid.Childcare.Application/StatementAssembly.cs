@@ -78,13 +78,13 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
     /// <summary>The figures of these days, or the problems and missing June months that withhold them.</summary>
     public async Task<MonthEvaluation> EvaluateAsync(
         MonthContext context, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, decimal mileage, decimal? cmg, DeclaredFigures? declared,
-        decimal contributions, CancellationToken ct)
+        decimal contributions, decimal? exemption, CancellationToken ct)
     {
         var previous = context.Month.PlusMonths(-1);
         var following = context.Month.PlusMonths(1);
         var before = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
         var after = context.Stored.Any(s => s.Month == following) ? await store.FindStatementAsync(context.Arrangement.ItemId, following, ct) : null;
-        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, before, mileage, cmg, declared, contributions, after);
+        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, before, mileage, cmg, declared, contributions, after, exemption);
     }
 
     public async Task<ChildcareStatementView> ViewAsync(PersonId reader, MonthContext context, CancellationToken ct)
@@ -95,11 +95,11 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var canWrite = (await policy.CheckManyAsync(reader, [context.Arrangement.ItemId], AccessKind.Write, ct)).Contains(context.Arrangement.ItemId);
         MonthEvaluation evaluation = stored is { Validated: true, Figures: { } frozen }
             ? new(frozen, [], [])
-            : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, stored?.Contributions ?? 0m, ct);
+            : await EvaluateAsync(context, days, stale, stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, stored?.Contributions ?? 0m, stored?.Exemption, ct);
         // #32: Nid's own figures are always computed, without the fields entered by hand and never frozen; a validated month's days follow the template as it now is.
         var computed = evaluation.Figures is null || stored is null || (!stored.Validated && (stored.Declared is null || stored.Declared == new DeclaredFigures()))
             ? evaluation.Figures
-            : (await EvaluateAsync(context, stored.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, ct)).Figures;
+            : (await EvaluateAsync(context, stored.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, stored.Exemption, ct)).Figures;
         // Shown only while the parts add up to the line: a figure typed by hand, or frozen under other prices, may not.
         var (lunch, snack) = Upkeep.MealCharges(days, context.Contract);
         var mealCharges = snack > 0m && evaluation.Figures?.Declaration.Meals == lunch + snack ? new MealChargesView(Amount(lunch), Amount(snack)) : null;
@@ -120,7 +120,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
                 ? Amount(estimate) : null,
             stored?.Declared is { } entered ? DeclaredOf(entered) : null,
             computed is { } n ? DeclarationOf(n.Declaration) : null,
-            stored?.Contributions is { } k ? Amount(k) : null, mealCharges);
+            stored?.Contributions is { } k ? Amount(k) : null, mealCharges, stored?.Exemption is { } x ? Amount(x) : null);
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)
@@ -171,7 +171,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         return new StatementFiguresView(
             DeclarationOf(f.Declaration),
             ChildcareMoneyView.Of(f.BasePay, currency), ChildcareMoneyView.Of(f.Deduction, currency), ChildcareMoneyView.Of(f.ExtraPay, currency),
-            ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg);
+            ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg, ChildcareMoneyView.Of(f.Exemption, currency));
     }
 
     private static DeclarationView DeclarationOf(PajemploiDeclaration d)

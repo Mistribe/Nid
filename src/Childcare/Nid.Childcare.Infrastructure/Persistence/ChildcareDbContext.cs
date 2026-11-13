@@ -102,13 +102,13 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.ToTable("statement", t =>
             {
                 t.HasCheckConstraint("ck_statement_month", "extract(day from month) = 1");
-                t.HasCheckConstraint("ck_statement_amounts", "mileage >= 0 and (cmg is null or cmg >= 0) and (contributions is null or contributions >= 0)");
+                t.HasCheckConstraint("ck_statement_amounts", "mileage >= 0 and (cmg is null or cmg >= 0) and (contributions is null or contributions >= 0) and (exemption is null or exemption >= 0)");
                 // Decision 14: a validated month has its figures frozen, a draft has none.
                 t.HasCheckConstraint("ck_statement_figures",
                     "validated = (validated_at is not null) and validated = (net_pay is not null) and validated = (cost is not null) and validated = (child_sick_deducted is not null)");
             });
             e.HasKey(x => new { x.ItemId, x.Month });
-            foreach (var amount in new[] { nameof(StatementRow.Mileage), nameof(StatementRow.Cmg), nameof(StatementRow.Contributions), nameof(StatementRow.DeclaredNetPay), nameof(StatementRow.DeclaredUpkeep), nameof(StatementRow.DeclaredMeals), nameof(StatementRow.NetPay), nameof(StatementRow.Upkeep),
+            foreach (var amount in new[] { nameof(StatementRow.Mileage), nameof(StatementRow.Cmg), nameof(StatementRow.Contributions), nameof(StatementRow.Exemption), nameof(StatementRow.DeclaredNetPay), nameof(StatementRow.DeclaredUpkeep), nameof(StatementRow.DeclaredMeals), nameof(StatementRow.NetPay), nameof(StatementRow.Upkeep),
                          nameof(StatementRow.Meals), nameof(StatementRow.BasePay), nameof(StatementRow.Deduction), nameof(StatementRow.ExtraPay),
                          nameof(StatementRow.PaidLeavePay), nameof(StatementRow.Cost), nameof(StatementRow.TaxBase) })
                 e.Property(amount).HasColumnType("numeric(19,4)");

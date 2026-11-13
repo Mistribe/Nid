@@ -144,6 +144,18 @@ public class ExtraHoursAbsenceTests
     }
 }
 
+public class ExemptionTests
+{
+    /// <summary>About Pajemploi's own: 11,43 € for 19 complementary hours, 6,13 € for 7 and 3 overtime ones, at 4 € net.</summary>
+    [Fact]
+    public void The_exemption_is_estimated_from_the_declared_extra_hours()
+    {
+        Assert.Equal(11.32m, ExtraHours.ExemptionEstimate(19m, 0m, 4.00m, 0.10m));
+        Assert.Equal(6.14m, ExtraHours.ExemptionEstimate(7m, 3m, 4.00m, 0.10m));
+        Assert.Equal(0m, ExtraHours.ExemptionEstimate(0m, 0m, 4.00m, 0.10m));
+    }
+}
+
 public class HolidayPremiumTests
 {
     private static StatementDay Worked(LocalDate date, bool planned = true)

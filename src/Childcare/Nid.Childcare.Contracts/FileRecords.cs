@@ -144,6 +144,10 @@ public sealed record StatementRecord
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public decimal? Contributions { get; set; }
 
+    /// <summary>The contributions Pajemploi waived on the extra hours, added to the carer's pay; absent for none.</summary>
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? Exemption { get; set; }
+
     public DeclaredRecord? Declared { get; set; }
 
     public required IReadOnlyList<DayRecord> Days { get; init; }

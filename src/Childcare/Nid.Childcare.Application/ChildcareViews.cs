@@ -87,7 +87,7 @@ public sealed record DeclarationView(
 /// <summary>The declaration with the pay's parts and the month's cost; <c>CostBeforeCmg</c> while the CMG is not entered (decision 17).</summary>
 public sealed record StatementFiguresView(
     DeclarationView Declaration, ChildcareMoneyView BasePay, ChildcareMoneyView Deduction, ChildcareMoneyView ExtraPay, ChildcareMoneyView PaidLeavePay,
-    ChildcareMoneyView Cost, bool CostBeforeCmg);
+    ChildcareMoneyView Cost, bool CostBeforeCmg, ChildcareMoneyView? Exemption = null);
 
 public sealed record FieldProblemView(string Field, string Code);
 
@@ -100,11 +100,12 @@ public sealed record DeclaredView(
 /// reference period is not validated (<c>MissingReferenceMonths</c>). <c>Version</c> 0: nothing stored yet. <c>CmgEstimate</c>: decision 19. <c>Declared</c>: decision 30.
 /// <c>Computed</c>: #32, the declaration as Nid computes it without the fields entered by hand, beside <c>Figures</c>' (the one the month uses).
 /// <c>Contributions</c>: #30, the contributions left to the household on the Pajemploi summary, in the cost; null while not entered (0 in the cost).
+/// <c>Exemption</c>: the contributions Pajemploi waived on the extra hours, from its summary; null while not entered (the figures' estimate in the cost).
 /// </summary>
 public sealed record ChildcareStatementView(
     Guid Id, string Name, string Month, string State, IReadOnlyList<StatementDayView> Days, string Mileage, string? Cmg, StatementFiguresView? Figures,
     IReadOnlyList<FieldProblemView> Problems, IReadOnlyList<string> MissingReferenceMonths, bool CanWrite, bool CanReopen, uint Version,
-    string? CmgEstimate = null, DeclaredView? Declared = null, DeclarationView? Computed = null, string? Contributions = null, MealChargesView? MealCharges = null) : IExposesItems
+    string? CmgEstimate = null, DeclaredView? Declared = null, DeclarationView? Computed = null, string? Contributions = null, MealChargesView? MealCharges = null, string? Exemption = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }
@@ -113,12 +114,13 @@ public sealed record ChildcareStatementView(
 /// #411 « Récapitulatif {année} »: the year's validated months summed, as the tax estimate counts them. <c>Retained</c> is the
 /// « reste à charge retenu pour le crédit d'impôt » (net pay + upkeep + contributions left to the household − CMG), to write in <c>Box</c> (7GA, 7GB or 7GC; null past the
 /// third child). <c>NotValidated</c>: the year's months, <c>yyyy-MM</c>, left out because they are not validated. <c>Years</c>: those the
-/// arrangement has months in, newest first. <c>Contributions</c>: #30, those the CMG left to the household, in <c>Retained</c>.
+/// arrangement has months in, newest first. <c>Contributions</c>: #30, those the CMG left to the household, in <c>Retained</c>. <c>Exemption</c>:
+/// the contributions Pajemploi waived on the extra hours and paid the carer, in <c>Retained</c>.
 /// </summary>
 public sealed record ChildcareYearView(
     Guid Id, string Name, string ChildName, string CarerName, int Year, IReadOnlyList<int> Years, string? Box, ChildcareMoneyView NetPay,
     ChildcareMoneyView Cmg, ChildcareMoneyView Upkeep, ChildcareMoneyView Meals, ChildcareMoneyView Retained, IReadOnlyList<string> ValidatedMonths,
-    IReadOnlyList<string> NotValidated, ChildcareMoneyView? Contributions = null) : IExposesItems
+    IReadOnlyList<string> NotValidated, ChildcareMoneyView? Contributions = null, ChildcareMoneyView? Exemption = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Id)];
 }

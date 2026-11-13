@@ -320,6 +320,7 @@ du fichier (`target_ref`).
 | `month` | string | `YYYY-MM`, dans les mois de la garde (`childcare.month_out_of_contract`), une fois par garde (`childcare.statement_twice`) |
 | `mileage`, `cmg` | chaînes décimales | Frais kilométriques et CMG du récapitulatif Pajemploi |
 | `contributions` | chaîne décimale, facultative | Cotisations restant à la charge du foyer sur le récapitulatif Pajemploi (au-delà du plafond horaire de prise en charge) ; absente : aucune. Comptées dans `cost` et `tax_base` |
+| `exemption` | chaîne décimale, facultative | Exonération de cotisations salariales sur les heures complémentaires et majorées, que Pajemploi ajoute au salaire versé (récapitulatif Pajemploi) ; absente : aucune. Comptée dans `cost` et `tax_base` |
 | `days` | tableau | Chaque jour du mois : `{ date, planned, present, arrival?, departure?, lunch, snack, absence? }` (un fichier plus ancien porte `meal`, lu comme `lunch`), `absence` parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `carer_training`, `family_agreed`, `holiday`, `paid_leave` (aussi sur un jour présent écourté : la part manquante est retenue si le contrat ne paie pas ce motif) ; `planned` est recalculé |
 | `figures` | objet | Les chiffres figés : `normal_hours`, `activity_days`, `paid_leave_days?`, `complementary_hours`, `overtime_hours`, `net_pay`, `upkeep`, `meals`, `base_pay`, `deduction`, `extra_pay`, `paid_leave_pay`, `cost`, `tax_base`, `child_sick_deducted` |
 

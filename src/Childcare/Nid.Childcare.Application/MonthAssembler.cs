@@ -59,7 +59,7 @@ public static class MonthAssembler
     /// </summary>
     public static MonthEvaluation Evaluate(
         MonthTerms terms, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, IReadOnlyList<Statement> stored,
-        Statement? previous, decimal mileage, decimal? cmg, DeclaredFigures? declared = null, decimal contributions = 0m, Statement? next = null)
+        Statement? previous, decimal mileage, decimal? cmg, DeclaredFigures? declared = null, decimal contributions = 0m, Statement? next = null, decimal? exemption = null)
     {
         IReadOnlyList<(string Field, string Code)> problems = [.. StatementCheck.Days(terms.Month, days), .. stale];
         var validated = stored.Where(s => s.Validated && s.Figures is not null && s.Month.CompareTo(terms.Month) < 0).ToList();
@@ -74,7 +74,7 @@ public static class MonthAssembler
         var input = new MonthInput(terms.Month, terms.Contract, terms.Plan, terms.Gaps, days,
             [.. Neighbour(terms, terms.Month.PlusMonths(-1), previous), .. Neighbour(terms, terms.Month.PlusMonths(1), next)], StatementContext.ChildSickUsedBefore(terms.Contract.Start, terms.Month,
                 validated.Select(s => (s.Month, s.Figures!.ChildSickDeducted)).ToList()),
-            mileage, cmg ?? 0m, june, declared, contributions);
+            mileage, cmg ?? 0m, june, declared, contributions, exemption);
         return new MonthEvaluation(ChildcareMonth.Compute(input), problems, missing);
     }
 
