@@ -9,17 +9,22 @@ Rien ici ne contient de secret ni d'identifiant d'abonnement : les valeurs entre
 
 ## 1. La base chez Neon
 
-1. Un projet Neon, dans la région la plus proche de celle du Container App.
-2. Une base `nid` et un rôle qui la possède, rien de plus, créés sur la branche **parente**, qui reste sans aucune table.
-3. La branche de la démo, créée à partir de cette parente : elle hérite de la base et du rôle. La réinitialiser depuis
-   sa parente remet la démo à zéro (§6). Une base ou un rôle créés sur la seule branche de la démo disparaîtraient à la
-   première réinitialisation.
-4. L'adresse **directe** (sans `-pooler`) : les migrations EF Core prennent un verrou que le pooler ne garde pas.
+1. Un projet Neon, dans la région la plus proche de celle du Container App. Il vient avec une branche `production`,
+   une base `neondb` et son rôle `neondb_owner` : c'est tout ce qu'il faut.
+2. Une branche **`vide`**, créée depuis `production` « from a past point in time », à un instant où la base existait
+   déjà mais où Nid ne s'y était pas encore connecté (juste après la création du projet, tant que l'historique le
+   garde). Elle n'a aucune table, et personne n'y écrit : c'est le modèle.
+3. Une branche **`demo`**, créée à partir de `vide` : elle hérite de la base et du rôle. C'est celle de Nid, et la
+   réinitialiser depuis sa parente remet la démo à zéro (§6). Une base ou un rôle créés sur la seule branche `demo`
+   disparaîtraient à la première réinitialisation.
+4. Les deux branches avec l'expiration « Never » : le réglage par défaut les supprime au bout d'un jour.
+5. L'adresse **directe** de `demo` (« Connection pooling » désactivé, sans `-pooler`) : les migrations EF Core prennent
+   un verrou que le pooler ne garde pas.
 
 La chaîne de connexion, au format Npgsql :
 
 ```text
-Host=<hôte direct>;Database=nid;Username=<rôle>;Password=<mot de passe>;SSL Mode=Require
+Host=<hôte direct de demo>;Database=neondb;Username=neondb_owner;Password=<mot de passe>;SSL Mode=Require
 ```
 
 ## 2. Le Container App (une fois)
