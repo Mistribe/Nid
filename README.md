@@ -1,19 +1,23 @@
 # Nid
 
-**A self-hosted overview of a household's finances: what you own, what is committed every month, what earns and what
-costs, and how it all moves over time.**
+**Your household's finances in one self-hosted place: net worth, monthly commitments, investments, loans, income and
+French tax. With an MCP server, so your AI assistant can read your figures and propose changes you approve.**
 
 [![CI](https://github.com/Mistribe/Nid/actions/workflows/ci.yml/badge.svg)](https://github.com/Mistribe/Nid/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Mistribe/Nid?sort=semver)](https://github.com/Mistribe/Nid/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Made for French households: income tax, PEA, PER, Livret A, life insurance and Pajemploi work out of the box. The
+interface is in French.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/frontend/screens/overview-dark.png">
   <img alt="The investments overview: total value, net contributions, gain, annual return and a chart of value and contributions" src="docs/frontend/screens/overview-light.png">
 </picture>
 
-Nid is not a bookkeeping tool: nobody types in day-to-day transactions. Bank lines arrive through bank sync and are
-matched to what Nid expects (subscriptions, loan payments, rents, transfers). It answers the questions banking apps
-leave open:
+**No daily bookkeeping.** Bank lines arrive through bank sync and are matched to what Nid expects (subscriptions, loan
+payments, rents, transfers). A few minutes a month keep it current, and it answers the questions banking apps leave
+open:
 
 - **Where do we stand?** Net worth, by envelope and by owner (mine, yours, joint).
 - **What is committed each month?** Subscriptions, loans, insurance, childcare, and what is coming up next.
@@ -21,13 +25,14 @@ leave open:
 - **How does our loan work?** Interest and principal in each payment, balance left, total cost, early repayment.
 - **What is left each month?** Income, committed share, and the margin before everyday spending.
 
-It is built for **two adults sharing one household**, with children as dependents. Every item has owners and is either
-shared or private. A monthly routine of a few minutes keeps it current, instead of daily data entry.
+**Built for couples.** Two adults share one household, with children as dependents. Every item has owners (mine,
+yours, joint) and is either shared or private.
+
+**Try it locally** with an invented household that fills every screen: see [Demo data](#development).
 
 > [!NOTE]
-> Nid is built for one French household and is used every day. The interface is **in French only**, and the tax,
-> savings and childcare rules are **French** (income tax, PEA, PER, Livret A, Pajemploi). The API and data model change
-> without notice between versions.
+> **Status:** used every day by a real household, released on every merge. The API and data model can still change
+> between versions: keep a JSON export (`nid.data`) before you upgrade.
 
 ## Features
 
