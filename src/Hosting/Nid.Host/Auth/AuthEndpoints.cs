@@ -13,13 +13,16 @@ public static class AuthEndpoints
     /// <summary>Where <c>/auth/login</c> sends the browser when the identity provider does not answer.</summary>
     public const string LoginUnavailablePath = "/login-unavailable";
 
-    public static IEndpointRouteBuilder MapAuth(this IEndpointRouteBuilder routes)
+    /// <param name="demo">Demo mode (issue 203): login leads to the demo page, which signs in as an adult of the demo household.</param>
+    public static IEndpointRouteBuilder MapAuth(this IEndpointRouteBuilder routes, bool demo = false)
     {
         routes.MapGet("/auth/login", async (HttpContext http, string? returnUrl, ILoggerFactory loggers) =>
         {
             var target = returnUrl ?? "/";
             if (!ReturnUrl.IsSafe(target))
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path.");
+            if (demo)
+                return Results.Redirect(Demo.DemoEndpoints.PagePath + "?returnUrl=" + Uri.EscapeDataString(target));
             try
             {
                 await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties { RedirectUri = target });
@@ -50,7 +53,7 @@ public static class AuthEndpoints
             var personId = SessionClaims.ReadPersonId(http.User);
             var person = personId is { } id ? await persons.FindAsync(id, http.RequestAborted) : null;
             if (person is null)
-                return ResultHttp.Json(new SessionResponse(false, null, null, null, null, options.Value.Authority));
+                return ResultHttp.Json(new SessionResponse(false, null, null, null, null, demo ? null : options.Value.Authority, demo));
 
             var preferences = await persons.PreferencesAsync(person.Id, http.RequestAborted);
 
@@ -60,7 +63,8 @@ public static class AuthEndpoints
                 SessionClaims.CsrfToken(options.Value.CsrfKey, person.Id, person.SessionEpoch),
                 person.SessionEpoch,
                 preferences,
-                options.Value.Authority));
+                demo ? null : options.Value.Authority,
+                demo));
         })
             .Produces<SessionResponse>();
 
@@ -73,6 +77,8 @@ public sealed record SessionPerson(Guid Id, string Name, string Kind);
 /// <summary>
 /// What the SPA reads first (frontend/architecture.md §3). Signed out: only <c>Authenticated</c> and
 /// <c>IdentityProvider</c> are set. <c>IdentityProvider</c> is the OIDC authority, whose own session outlives
-/// a Nid sign-out: the signed-out page links to it (identity-and-access/authentication.md).
+/// a Nid sign-out: the signed-out page links to it (identity-and-access/authentication.md). <c>Demo</c>: the instance runs in
+/// demo mode (issue 203), the app shows it on every screen.
 /// </summary>
-public sealed record SessionResponse(bool Authenticated, SessionPerson? Person, string? Csrf, int? SessionEpoch, Preferences? Preferences, string? IdentityProvider);
+public sealed record SessionResponse(
+    bool Authenticated, SessionPerson? Person, string? Csrf, int? SessionEpoch, Preferences? Preferences, string? IdentityProvider, bool Demo = false);

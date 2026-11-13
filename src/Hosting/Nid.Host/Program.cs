@@ -8,6 +8,7 @@ using Nid.Host.Admin;
 using Nid.Host.Api;
 using Nid.Host.Api.Json;
 using Nid.Host.Auth;
+using Nid.Host.Demo;
 using Nid.Host.Jobs;
 using Nid.Host.Mcp;
 using Nid.Host.Notifications;
@@ -66,12 +67,16 @@ if (!adminMode) builder.Logging.AddNidFileLogs(builder.Configuration);
 // generator reads the document, so the migrations below are skipped then — and so are the scheduled jobs,
 // whose hosted services would otherwise start against the placeholder connection string.
 var generatingOpenApi = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
+// Issue 203: a public demo. No identity provider, no bank sync, no email; the demo household is loaded on start.
+var demo = DemoOptions.Load(builder.Configuration);
 var fxOptions = builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new FxOptions();
 builder.Services.AddSingleton(fxOptions);
 var priceOptions = builder.Configuration.GetSection("Prices").Get<PriceOptions>() ?? new PriceOptions();
 builder.Services.AddSingleton(priceOptions);
 // PrivateKey arrives from the Docker secret file EnableBanking__PrivateKey (AddSecretFiles above).
-var bankingOptions = builder.Configuration.GetSection("EnableBanking").Get<Nid.Banking.Contracts.BankingOptions>() ?? new Nid.Banking.Contracts.BankingOptions();
+var bankingOptions = demo.Enabled
+    ? new Nid.Banking.Contracts.BankingOptions()
+    : builder.Configuration.GetSection("EnableBanking").Get<Nid.Banking.Contracts.BankingOptions>() ?? new Nid.Banking.Contracts.BankingOptions();
 builder.Services.AddSingleton(bankingOptions);
 var irlOptions = builder.Configuration.GetSection("Irl").Get<IrlOptions>() ?? new IrlOptions();
 builder.Services.AddSingleton(irlOptions);
@@ -111,7 +116,7 @@ switch (documentsOptions.Storage.Kind)
 var connectionString = builder.Configuration.GetConnectionString("nid")
     ?? (generatingOpenApi ? "Host=openapi-generation" : throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 // Parsed here so an incomplete SMTP configuration stops the host at startup (notifications design §5.3).
-var smtpOptions = builder.Configuration.GetSection(SmtpOptions.Section).Get<SmtpOptions>() ?? new SmtpOptions();
+var smtpOptions = demo.Enabled ? new SmtpOptions() : builder.Configuration.GetSection(SmtpOptions.Section).Get<SmtpOptions>() ?? new SmtpOptions();
 smtpOptions.Validate(builder.Configuration["Auth:PublicUrl"]);
 builder.Services.AddNidEmail(smtpOptions, builder.Configuration["Auth:PublicUrl"] ?? "");
 builder.Services.AddNid(connectionString);
@@ -119,7 +124,7 @@ builder.Services.AddNidOpenApi();
 if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))
     builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, inflationOptions, bankingOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
-builder.Services.AddNidAuthentication(builder.Configuration);
+builder.Services.AddNidAuthentication(builder.Configuration, demo.Enabled);
 builder.Services.AddTokenRateLimiter();
 builder.Services.AddNidMcp();
 builder.Services.AddNidDataProtection(builder.Configuration);
@@ -172,10 +177,16 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<BankingDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
+if (!generatingOpenApi && demo.Enabled)
+{
+    app.Logger.LogWarning("Demo mode is on (Nid__Demo__Enabled): anyone can sign in as the demo household, without a password.");
+    await DemoHousehold.SeedAsync(app.Services, app.Logger, CancellationToken.None);
+}
 
 app.MapDefaultEndpoints();
 app.MapNidHealth();
 app.UseForwardedHeaders();
+if (demo.Enabled) app.UseMiddleware<DemoGuardMiddleware>();
 // Before authentication: the SPA and its files need no session; routing has run, so endpoints keep their own answers.
 if (webApp is not null) app.UseNidWebApp(webApp);
 app.UseMiddleware<TokenFailureGateMiddleware>();
@@ -183,7 +194,8 @@ app.UseAuthentication();
 app.UseMiddleware<TokenRateLimitMiddleware>();
 app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
-app.MapAuth();
+app.MapAuth(demo.Enabled);
+if (demo.Enabled) app.MapDemo();
 app.MapPersonEndpoints();
 app.MapProposalEndpoints();
 app.MapSubscriptionEndpoints();

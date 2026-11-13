@@ -9,12 +9,13 @@ export const aliceSession: Session = {
   csrf: 'csrf-alice',
   sessionEpoch: 0,
   preferences: { theme: 'sobre', mode: 'system', chartPatterns: false, guidesSeen: allGuidesSeen() },
+  demo: false,
 };
 
 export const aliceSessionResponse: SessionResponse = { authenticated: true, ...aliceSession };
 
 export const signedOutResponse: SessionResponse = {
-  authenticated: false, person: null, csrf: null, sessionEpoch: null, preferences: null,
+  authenticated: false, person: null, csrf: null, sessionEpoch: null, preferences: null, demo: false,
 };
 
 export const allCapabilities: components['schemas']['CapabilitiesView'] = { modules: ['core', 'subscriptions', 'import', 'investments', 'income', 'realestate', 'goals', 'documents', 'banking', 'childcare'], admin: false };

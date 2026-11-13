@@ -8,7 +8,8 @@ namespace Nid.Host.Auth;
 
 public static class AuthenticationSetup
 {
-    public static IServiceCollection AddNidAuthentication(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="demo">Demo mode (issue 203): no identity provider, so no OpenID Connect scheme, whose options would refuse an empty authority.</param>
+    public static IServiceCollection AddNidAuthentication(this IServiceCollection services, IConfiguration configuration, bool demo = false)
     {
         var section = configuration.GetSection(NidAuthOptions.Section);
         services.Configure<NidAuthOptions>(section);
@@ -25,7 +26,7 @@ public static class AuthenticationSetup
                 o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
         });
 
-        services.AddAuthentication(o =>
+        var authentication = services.AddAuthentication(o =>
             {
                 // 4A: a bearer token is chosen per request; everything else stays the cookie's.
                 o.DefaultScheme = TokenAuthentication.Policy;
@@ -51,8 +52,9 @@ public static class AuthenticationSetup
                 cookie.Events.OnRedirectToLogin = c => { c.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
                 cookie.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
                 cookie.Events.OnValidatePrincipal = RejectRevokedSessions;
-            })
-            .AddOpenIdConnect(oidc =>
+            });
+        if (!demo)
+            authentication.AddOpenIdConnect(oidc =>
             {
                 oidc.Authority = options.Authority;
                 oidc.ClientId = options.ClientId;

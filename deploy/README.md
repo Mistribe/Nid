@@ -552,3 +552,34 @@ Pour changer la rétention, dans `.env` (puis `docker compose up -d nid`) :
 
 Le premier seuil atteint supprime les fichiers les plus anciens : avec les valeurs par défaut, le volume reste sous 1,5 Go.
 Si le dossier n'est pas accessible en écriture, Nid démarre quand même et le signale dans la console.
+
+## 14. Une démo publique
+
+Le mode démo fait tourner Nid sans fournisseur d'identité, avec le foyer inventé de `local/demo/` (Alice, Bob et Léa).
+Il est fait pour une instance publique jetable, **jamais pour un vrai foyer** : n'importe qui peut y entrer, sans mot
+de passe.
+
+- `Nid__Demo__Enabled=true` l'active ; il est désactivé partout ailleurs.
+- `/auth/login` mène à la page `/demo`, qui propose « Entrer en tant qu'Alice » (qui administre Nid) ou « Bob ». Pas de
+  Pocket ID, et aucune variable `Auth__Authority`, `Auth__ClientId` ou `Auth__ClientSecret`.
+- Au démarrage, une base vide est migrée puis remplie avec le foyer de démo, ses dates décalées pour finir le mois
+  dernier. Une base qui contient déjà ce foyer est laissée telle quelle ; une base qui contient **un autre adulte**
+  empêche Nid de démarrer.
+- Tout ce qui sortirait de la démo est coupé : synchronisation bancaire (les réglages `EnableBanking__…` sont ignorés),
+  emails (`Nid__Smtp__…` ignorés), jetons d'accès pour un assistant, webhooks Discord et messages de test.
+- Chaque écran affiche un bandeau « Démo : les données sont inventées et réinitialisées chaque nuit ».
+
+Les variables restantes sont celles de toute installation :
+
+```bash
+docker run -d --name nid-demo -p 8080:8080 \
+  -e Nid__Demo__Enabled=true \
+  -e Auth__PublicUrl=https://demo.example.org \
+  -e Auth__CsrfKey="$(openssl rand -hex 32)" \
+  -e ConnectionStrings__nid="Host=…;Database=nid;Username=nid;Password=…" \
+  ghcr.io/mistribe/nid:latest
+```
+
+Pour une démo qui repart de zéro, donnez-lui un Postgres **sans volume persistant**, dans le même groupe de conteneurs :
+redémarrer les deux (par exemple chaque nuit) donne une base vide, que Nid remplit de nouveau. Le reverse proxy TLS reste
+nécessaire, comme pour toute installation : le cookie de session ne circule qu'en HTTPS.

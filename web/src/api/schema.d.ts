@@ -33958,6 +33958,8 @@ export interface components {
             sessionEpoch?: null | number;
             preferences?: null | components["schemas"]["Preferences"];
             identityProvider?: null | string;
+            /** @default false */
+            demo: boolean;
         };
         SetLinkRoleBody: {
             role?: null | string;

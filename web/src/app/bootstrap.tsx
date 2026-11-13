@@ -8,7 +8,8 @@ import { App } from './App';
 import { LoginRefusedPage } from './LoginRefusedPage';
 import { LoginUnavailablePage } from './LoginUnavailablePage';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
-import { loadSession, loginUrl, LOGIN_REFUSED_PATH, LOGIN_UNAVAILABLE_PATH, SIGNED_OUT_PATH, type Session } from './session';
+import { DemoPage } from './DemoPage';
+import { DEMO_PATH, loadSession, loginUrl, LOGIN_REFUSED_PATH, LOGIN_UNAVAILABLE_PATH, SIGNED_OUT_PATH, type Session } from './session';
 import { SignedOutPage } from './SignedOutPage';
 import { StartupFailure } from './StartupFailure';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from './theme';
@@ -90,6 +91,7 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
   if (location.pathname === SIGNED_OUT_PATH) return renderSignedOut(root, api);
   if (location.pathname === LOGIN_REFUSED_PATH) return renderPage(root, <LoginRefusedPage email={new URLSearchParams(location.search).get('email')} />);
   if (location.pathname === LOGIN_UNAVAILABLE_PATH) return renderPage(root, <LoginUnavailablePage returnUrl={new URLSearchParams(location.search).get('returnUrl')} />);
+  if (location.pathname === DEMO_PATH) return renderPage(root, <DemoPage returnUrl={new URLSearchParams(location.search).get('returnUrl')} />);
 
   let session: Session | null;
   try {
