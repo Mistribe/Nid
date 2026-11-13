@@ -10,9 +10,10 @@ Rien ici ne contient de secret ni d'identifiant d'abonnement : les valeurs entre
 ## 1. La base chez Neon
 
 1. Un projet Neon, dans la région la plus proche de celle du Container App.
-2. Une branche parente **vide**, et la branche de la démo créée à partir d'elle : réinitialiser la branche de la démo
-   depuis sa parente remet la démo à zéro (Nid recharge le foyer au démarrage suivant).
-3. Une base `nid` et un rôle qui la possède, rien de plus.
+2. Une base `nid` et un rôle qui la possède, rien de plus, créés sur la branche **parente**, qui reste sans aucune table.
+3. La branche de la démo, créée à partir de cette parente : elle hérite de la base et du rôle. La réinitialiser depuis
+   sa parente remet la démo à zéro (§6). Une base ou un rôle créés sur la seule branche de la démo disparaîtraient à la
+   première réinitialisation.
 4. L'adresse **directe** (sans `-pooler`) : les migrations EF Core prennent un verrou que le pooler ne garde pas.
 
 La chaîne de connexion, au format Npgsql :
@@ -84,3 +85,25 @@ Une fois les images publiées, le job `demo` :
    puis vérifie que `/auth/session` dit `demo: true`.
 
 Un échec de ce job n'annule pas la release : les images et le tag sont déjà publiés.
+
+## 6. La réinitialisation nocturne
+
+Chaque nuit à 3 h UTC (et à la demande : **Actions › demo-reset › Run workflow**), `.github/workflows/demo-reset.yml` :
+
+1. réinitialise la branche Neon de la démo depuis sa parente vide (API Neon, `restore` avec la parente pour source), et
+   attend que Neon ait fini ;
+2. redémarre la révision active du Container App : au démarrage, Nid trouve une base vide, applique les migrations et
+   recharge le foyer de démo ;
+3. attend que `DEMO_URL/health/ready` réponde, puis vérifie que la démo est en mode démo.
+
+Il lui faut, en plus des variables du §4 :
+
+| Où | Nom | Valeur |
+|---|---|---|
+| Variable du dépôt | `NEON_PROJECT_ID` | l'identifiant du projet Neon |
+| Variable du dépôt | `NEON_DEMO_BRANCH_ID` | l'identifiant de la branche de la démo (`br-…`) |
+| Variable du dépôt | `NEON_PARENT_BRANCH_ID` | l'identifiant de sa branche parente vide (`br-…`) |
+| Secret de l'environnement `demo` | `NEON_API_KEY` | une clé d'API Neon (**Settings › Environments › demo › Environment secrets**) |
+
+La clé n'est lisible que par les jobs de l'environnement `demo`, que seule la branche `main` peut utiliser : jamais par
+une pull request.

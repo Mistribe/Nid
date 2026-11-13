@@ -1,0 +1,75 @@
+name: demo-reset
+
+# The public demo (deploy/azure/README.md) starts again from the demo household every night: its Neon branch is reset from
+# its empty parent, then the Container App restarts, and Nid migrates the empty database and loads the household on start
+# (demo mode). Skipped until the repository variable DEMO_CONTAINER_APP is set.
+#
+# Credentials: Azure through OIDC, federated with the `demo` environment (as the `demo` job of ci.yml); the Neon API key is a
+# secret of that environment only, readable by no other workflow and by no pull request.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+# Two resets never overlap; a manual one waits for the scheduled one.
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    if: vars.DEMO_CONTAINER_APP != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: demo
+      url: ${{ vars.DEMO_URL }}
+    permissions:
+      contents: read
+      id-token: write # the token Azure exchanges for its own (federated credential)
+    env:
+      APP: ${{ vars.DEMO_CONTAINER_APP }}
+      GROUP: ${{ vars.DEMO_RESOURCE_GROUP }}
+      URL: ${{ vars.DEMO_URL }}
+      NEON: https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}
+      BRANCH: ${{ vars.NEON_DEMO_BRANCH_ID }}
+      PARENT: ${{ vars.NEON_PARENT_BRANCH_ID }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+    steps:
+      # Neon applies a restore as operations: the branch is ready again once none of them is still running.
+      - name: Reset the Neon branch from its empty parent
+        run: |
+          neon() { curl -fsS -H "Authorization: Bearer $NEON_API_KEY" -H 'Accept: application/json' "$@"; }
+          neon -X POST -H 'Content-Type: application/json' -d "{\"source_branch_id\":\"$PARENT\"}" "$NEON/branches/$BRANCH/restore" > /dev/null
+          for attempt in $(seq 1 30); do
+            running=$(neon "$NEON/operations?limit=20" | jq --arg b "$BRANCH" '[.operations[] | select(.branch_id == $b and (.status == "running" or .status == "scheduling"))] | length')
+            [ "$running" = 0 ] && break
+            [ "$attempt" = 30 ] && { echo "::error::The Neon reset did not finish in 5 minutes"; exit 1; }
+            sleep 10
+          done
+          echo "Neon branch reset from its parent" >> "$GITHUB_STEP_SUMMARY"
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # A running replica would keep answering on an empty database: restart the active revision, whose next start loads the
+      # household again. At zero replicas the restart costs nothing, and the first visit starts on the empty database anyway.
+      - name: Restart the Container App
+        run: |
+          az extension add --name containerapp --upgrade --only-show-errors
+          revision=$(az containerapp show --name "$APP" --resource-group "$GROUP" --query properties.latestRevisionName -o tsv --only-show-errors)
+          az containerapp revision restart --name "$APP" --resource-group "$GROUP" --revision "$revision" --only-show-errors --output none
+          echo "Restarted $revision" >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the demo answers
+        if: env.URL != ''
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 20 "$URL/health/ready" > /dev/null; then break; fi
+            [ "$attempt" = 30 ] && { echo "::error::$URL/health/ready did not answer in 10 minutes"; exit 1; }
+            sleep 20
+          done
+          curl -fsS "$URL/auth/session" | jq -e '.demo == true' > /dev/null \
+            || { echo "::error::$URL answers, but not in demo mode"; exit 1; }
