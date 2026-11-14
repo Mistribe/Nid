@@ -10,5 +10,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "src/security-headers.ts", "playwright.config.ts", "e2e/**/*.ts"]
+  "include": ["vite.config.ts", "src/security-headers.ts", "playwright.config.ts", "playwright.local.config.ts", "e2e/**/*.ts"]
 }

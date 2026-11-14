@@ -2,11 +2,13 @@
 #
 #   nid                 always: the application (the API and the web app, one image)
 #   postgres            --profile postgres    skip it when a Postgres (16 or later) already runs elsewhere
-#   pocket-id           --profile pocket-id   skip it when your Pocket ID already runs elsewhere
+#   pocket-id           --profile pocket-id   optional: only to sign in through Pocket ID (passkeys) rather than with a
+#                                             password kept by Nid; skip it too when your Pocket ID already runs elsewhere
 #
 #   cp .env.example .env                                              # then fill it in
-#   docker compose up -d                                              # nid only (Postgres and Pocket ID elsewhere)
-#   docker compose --profile postgres --profile pocket-id up -d       # everything, in this file
+#   docker compose --profile postgres up -d                           # Nid and its Postgres: adults sign in with a password
+#   docker compose logs nid | grep setup                              # the address that creates the first administrator
+#   docker compose --profile postgres --profile pocket-id up -d       # with Pocket ID as well (AUTH_URL set)
 #
 # No port is published but nid's (and Pocket ID's, when it runs here): TLS is your reverse proxy's. It must set
 # X-Forwarded-Proto, -Host and -For itself. Details and the reference setup with backups: ../README.md.
@@ -24,9 +26,14 @@ services:
     image: ${NID_IMAGE:-ghcr.io/mistribe/nid:latest@sha256:0730bde06f0e15fb4611b3fc98bf29fe684c63451bfa9dc8d1cef0e72c815590}
     environment:
       Auth__PublicUrl: ${NID_URL:?set NID_URL in .env (https://nid.example.org)}
-      Auth__Authority: ${AUTH_URL:?set AUTH_URL in .env (https://auth.example.org)}
+      # How adults sign in (docs/identity-and-access/local-accounts.md §2): empty, an identifier and a password kept by Nid
+      # (local), or Pocket ID when AUTH_URL is set (oidc); `both` offers the two.
+      Auth__Mode: ${NID_AUTH_MODE:-}
+      Auth__Authority: ${AUTH_URL:-}
       Auth__ClientId: ${NID_OIDC_CLIENT_ID:-nid}
-      Auth__ClientSecret: ${NID_OIDC_CLIENT_SECRET:?set NID_OIDC_CLIENT_SECRET in .env (the client of Nid in Pocket ID)}
+      Auth__ClientSecret: ${NID_OIDC_CLIENT_SECRET:-}
+      # Plain http:// on a trusted home network, without a reverse proxy: passwords then travel in clear (local-accounts.md §12).
+      Auth__AllowInsecureHttp: ${NID_ALLOW_INSECURE_HTTP:-false}
       Auth__CsrfKey: ${NID_CSRF_KEY:?set NID_CSRF_KEY in .env (openssl rand -hex 32)}
       # Forwarded headers are trusted from the private ranges, where your reverse proxy is. To trust only its address,
       # set Auth__TrustedNetworks__0 (README).
@@ -42,7 +49,7 @@ services:
       - logs:/var/lib/nid/logs
     ports: ["${NID_WEB_BIND:-127.0.0.1}:${NID_WEB_PORT:-8080}:8080"]
     tmpfs: [/tmp]
-    # egress: catalog, rates, icons, Pocket ID's public URL, and a Postgres that runs elsewhere; a normal network, so the
+    # egress: catalog, rates, icons, Pocket ID's public URL (when used), and a Postgres that runs elsewhere; a normal network, so the
     # port above can be published. data: the one of this file.
     networks: [egress, data]
     # Waits for the Postgres of this file when it runs (--profile postgres), for nothing otherwise.
@@ -88,8 +95,10 @@ services:
     image: ghcr.io/pocket-id/pocket-id:v2.19.2-distroless@sha256:a21166a4eb513d2ffcbf815398480998d996a9e719cfba029395517658626f9e
     user: "65532:65532"
     environment:
-      APP_URL: ${AUTH_URL:?set AUTH_URL in .env (https://auth.example.org)}
-      ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY:?set POCKET_ID_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
+      # Both in .env with --profile pocket-id (AUTH_URL and POCKET_ID_ENCRYPTION_KEY); left optional here so the file still
+      # reads without Pocket ID. Pocket ID refuses to start without its key.
+      APP_URL: ${AUTH_URL:-}
+      ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY:-}
       TRUST_PROXY: "true"
       ANALYTICS_DISABLED: "true"
       VERSION_CHECK_DISABLED: "true"

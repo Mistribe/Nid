@@ -1,0 +1,4 @@
+{
+  "en": "Installing Nid no longer needs an identity provider: the standalone install starts with local accounts, and the admin page now says plainly when the last administrator tries to give up the role.",
+  "fr": "Installer Nid ne demande plus de fournisseur d'identité : l'installation autonome démarre avec les comptes locaux, et la page d'administration dit clairement quand le dernier administrateur tente de renoncer à son rôle."
+}

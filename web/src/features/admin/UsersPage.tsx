@@ -64,7 +64,14 @@ export function UsersPage() {
     ...settle,
     onSuccess: () => { settle.onSuccess(); toast.success(t('admin.users.unlocked')); },
   });
-  const setRole = $api.useMutation('put', '/api/v1/admin/users/{id}/admin', settle);
+  const setRole = $api.useMutation('put', '/api/v1/admin/users/{id}/admin', {
+    ...settle,
+    // The last administrator keeps the role: its own sentence, not the generic « changed meanwhile » of a conflict.
+    onError: (error: unknown) => {
+      if (toProblem(error).code === 'core.last_admin') toast.error(t('admin.users.last_admin'));
+      else settle.onError(error);
+    },
+  });
 
   const title = t('admin.users.title');
   const loadError = adults.error ?? household.error;

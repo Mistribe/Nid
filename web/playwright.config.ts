@@ -17,7 +17,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: QUIET },
+    // e2e/local/ needs a stack without an identity provider: playwright.local.config.ts.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: [...QUIET, '**/local/**'] },
     // Once the other journeys are done: the export reads alice's data from end to end, and « Déconnecter partout » (security.spec)
     // ends every session of bob, which the other journeys sign in.
     { name: 'quiet', use: { ...devices['Desktop Chrome'] }, testMatch: QUIET, dependencies: ['chromium'] },

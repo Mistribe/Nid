@@ -248,7 +248,10 @@ describe('Administration › Utilisateurs, rôle admin réglé dans Nid (issue 2
       const dialog = await screen.findByRole('alertdialog');
       await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
       await waitFor(() => expect(calls).toBe(attempt + 1));
+      // Refused: its own sentence, not the generic « changed meanwhile ».
+      if (attempt === 0) expect(await screen.findByText(/dernier administrateur du foyer/)).toBeInTheDocument();
     }
+    expect(screen.queryByText(/a changé entre-temps/)).not.toBeInTheDocument();
 
     await waitFor(() => expect(location.reload).toHaveBeenCalledTimes(1));
   });

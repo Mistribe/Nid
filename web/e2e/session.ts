@@ -1,7 +1,7 @@
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 
 // The e2e project cannot import src/ (the « @/ » alias is not resolved here), so ids are listed with version 999: seen whatever the guide's version.
-const GUIDE_IDS = ['dashboard', 'subscriptions', 'investments', 'income', 'properties', 'loans', 'routine', 'import', 'export'];
+export const GUIDE_IDS = ['dashboard', 'subscriptions', 'investments', 'income', 'properties', 'loans', 'routine', 'import', 'export'];
 // Pocket ID only knows passkeys at its sign-in screen, so the journeys sign in the way docs/spikes.md section 9septies found:
 // global-setup.ts opens each user's Pocket ID session once (a one-time access token from the identity provider's API, a throwaway
 // static key, development and smoke only; Pocket ID limits those exchanges to about five a minute) and leaves the cookies in
