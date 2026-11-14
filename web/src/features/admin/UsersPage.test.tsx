@@ -202,3 +202,62 @@ describe('Administration › Utilisateurs, comptes locaux (issue 215)', () => {
     await waitFor(() => expect(sent).toEqual([{ displayName: 'Dave', email: '' }]));
   });
 });
+
+describe('Administration › Utilisateurs, rôle admin réglé dans Nid (issue 215)', () => {
+  const nidDecides = () => server.use(http.get('*/api/v1/admin/system', () => HttpResponse.json({
+    version: '1.0.0', startedAt: '2026-09-24T06:00:00+00:00', health: { database: 'healthy', identityProvider: 'not_used' }, databaseSizeBytes: 1000,
+    auth: { mode: 'local', adminSource: 'nid', insecureHttp: false },
+  })));
+
+  it('gives the role after a confirmation', async () => {
+    serve([alice, bob]);
+    nidDecides();
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/admin/users/:id/admin', async ({ request, params }) => {
+      sent.push({ id: params.id, body: await request.json() });
+      return HttpResponse.json({ ...bob, isAdmin: true });
+    }));
+    const { user, location } = await renderApp('/admin/users', { capabilities: adminCapabilities });
+
+    expect(await screen.findByText(/Le rôle admin se règle ici/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions de Bob' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Donner le rôle admin' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Bob pourra gérer les utilisateurs');
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: bob.id, body: { admin: true } }]));
+    expect(location.reload).not.toHaveBeenCalled();
+  });
+
+  it('reloads the app only once taking the role from oneself has succeeded', async () => {
+    serve([alice, bob]);
+    nidDecides();
+    let calls = 0;
+    server.use(http.put('*/api/v1/admin/users/:id/admin', () => {
+      calls += 1;
+      return calls === 1
+        ? HttpResponse.json({ status: 409, code: 'core.last_admin', title: 'The household must keep at least one admin.' }, { status: 409 })
+        : HttpResponse.json({ ...alice, isAdmin: false });
+    }));
+    const { user, location } = await renderApp('/admin/users', { capabilities: adminCapabilities });
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await user.click(await screen.findByRole('button', { name: 'Actions d’Alice Dev' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Retirer le rôle admin' }));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
+      await waitFor(() => expect(calls).toBe(attempt + 1));
+    }
+
+    await waitFor(() => expect(location.reload).toHaveBeenCalledTimes(1));
+  });
+
+  it('offers no role action when the identity provider decides', async () => {
+    serve([alice, bob]);
+    const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Actions de Bob' }));
+    expect(screen.queryByRole('menuitem', { name: 'Donner le rôle admin' })).not.toBeInTheDocument();
+  });
+});

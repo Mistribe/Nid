@@ -33,7 +33,7 @@ export function UsersPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const { session } = useSession();
+  const { session, reload } = useSession();
   const [adding, setAdding] = useState(false);
   const [capNotice, setCapNotice] = useState(false);
   const [problem, setProblem] = useState<Presentation | null>(null);
@@ -41,6 +41,9 @@ export function UsersPage() {
   // Issue 215: a one-time password link just created, shown once.
   const [link, setLink] = useState<{ adult: Adult; url: string; purpose: string; expiresAt: string } | null>(null);
   const local = session.methods.includes('password');
+  // Issue 215: who decides the admin role (local-accounts.md §6); the admin area already reads the system status.
+  const nidDecidesAdmin = $api.useQuery('get', '/api/v1/admin/system').data?.auth.adminSource === 'nid';
+  const [roleAsk, setRoleAsk] = useState<Adult | null>(null);
   // Each row's ⋯, where the focus goes back when the confirmation closes.
   const menus = useRef<Record<string, HTMLButtonElement | null>>({});
   const adults = $api.useQuery('get', USERS);
@@ -61,6 +64,7 @@ export function UsersPage() {
     ...settle,
     onSuccess: () => { settle.onSuccess(); toast.success(t('admin.users.unlocked')); },
   });
+  const setRole = $api.useMutation('put', '/api/v1/admin/users/{id}/admin', settle);
 
   const title = t('admin.users.title');
   const loadError = adults.error ?? household.error;
@@ -81,6 +85,9 @@ export function UsersPage() {
       },
       ...(adult.lockedUntil ? [{ label: t('admin.users.unlock'), onSelect: () => unlock.mutate({ params: { path: { id: adult.id } } }) }] : []),
     ] : [];
+    const roleItems = nidDecidesAdmin
+      ? [{ label: t(adult.isAdmin ? 'admin.users.demote' : 'admin.users.promote'), onSelect: () => setRoleAsk(adult) }]
+      : [];
     return (
       <TableRow key={adult.id}>
         <TableCell>{adult.displayName}</TableCell>
@@ -95,7 +102,7 @@ export function UsersPage() {
         <TableCell>{adult.isAdmin ? <Badge variant="secondary">{t('admin.users.admin')}</Badge> : null}</TableCell>
         <TableCell className="text-right">
           <RowMenu label={t('admin.users.menu', { name: adult.displayName, context: elision(adult.displayName) })} triggerRef={(node) => { menus.current[adult.id] = node; }}
-            items={[...localItems, { label: t(pending ? 'admin.users.cancel_invitation' : 'admin.users.revoke'), destructive: pending, onSelect: () => setAsking(adult) }]} />
+            items={[...localItems, ...roleItems, { label: t(pending ? 'admin.users.cancel_invitation' : 'admin.users.revoke'), destructive: pending, onSelect: () => setAsking(adult) }]} />
         </TableCell>
       </TableRow>
     );
@@ -138,8 +145,20 @@ export function UsersPage() {
             if (asking.status === 'pending') remove.mutate(target); else revoke.mutate(target);
           }} />
       ) : null}
+      {roleAsk ? (
+        <ConfirmFromMenu label={t(roleAsk.isAdmin ? 'admin.users.demote' : 'admin.users.promote')}
+          confirmation={roleAsk.isAdmin
+            ? t(roleAsk.id === session.person.id ? 'admin.users.demote_self_confirm' : 'admin.users.demote_confirm', { name: roleAsk.displayName })
+            : t('admin.users.promote_confirm', { name: roleAsk.displayName })}
+          pending={setRole.isPending} returnFocus={{ current: menus.current[roleAsk.id] ?? null }}
+          onClose={() => setRoleAsk(null)}
+          onConfirm={() => setRole.mutate({ params: { path: { id: roleAsk.id } }, body: { admin: !roleAsk.isAdmin } }, {
+            // Without the role, the admin area is no longer theirs: the app reloads its capabilities.
+            onSuccess: () => { if (roleAsk.isAdmin && roleAsk.id === session.person.id) reload(); },
+          })} />
+      ) : null}
       {link ? <PasswordLinkDialog {...link} onClose={() => setLink(null)} /> : null}
-      <p className="max-w-prose text-sm text-muted-foreground">{t(local ? 'admin.users.managed_hint_local' : 'admin.users.managed_hint')}</p>
+      <p className="max-w-prose text-sm text-muted-foreground">{t(local ? 'admin.users.managed_hint_local' : 'admin.users.managed_hint')}{nidDecidesAdmin ? <> {t('admin.users.role_hint_nid')}</> : null}</p>
     </AdminFrame>
   );
 }

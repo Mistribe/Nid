@@ -15,7 +15,8 @@ namespace Nid.Host.Auth;
 /// run it without a real identity provider.
 /// </summary>
 public sealed class OidcSignIn(
-    IActorAccessor accessor, IInvoker invoker, ISecurityEvents events, IPersonRegistry persons, IOptions<NidAuthOptions> options)
+    IActorAccessor accessor, IInvoker invoker, ISecurityEvents events, IPersonRegistry persons, IOptions<NidAuthOptions> options,
+    AuthSettings settings)
 {
     /// <summary>The failures that mean « not this person », as opposed to a sign-in that broke.</summary>
     public static bool IsRefusal(Failure? failure)
@@ -30,12 +31,14 @@ public sealed class OidcSignIn(
 
         accessor.Current = Actor.System;
         var wasAdmin = (await persons.FindBySubjectAsync(subject, ct))?.IsAdmin ?? false;
-        var result = await invoker.InvokeAsync(new ProvisionAdultCommand(subject, name, email, groups.Contains(auth.AdminGroup)), ct);
+        // Issue 215: with Auth:AdminSource=nid the admin area decides the role; the identity provider's group is ignored.
+        bool? admin = settings.AdminSource == AdminSource.IdentityProvider ? groups.Contains(auth.AdminGroup) : null;
+        var result = await invoker.InvokeAsync(new ProvisionAdultCommand(subject, name, email, admin), ct);
 
         if (result.TryGetValue(out var person))
         {
             await events.RecordAsync(SecurityEvent.Of(SecurityEventNames.Login, person.Id), Actor.Browser(person.Id, person.IsAdmin), ct);
-            if (person.IsAdmin != wasAdmin)
+            if (admin is not null && person.IsAdmin != wasAdmin)
                 await events.RecordAsync(
                     new SecurityEvent(person.IsAdmin ? SecurityEventNames.AdminGranted : SecurityEventNames.AdminRevoked, person.Id, [],
                         new Dictionary<string, string> { ["source"] = "identity_provider" }),

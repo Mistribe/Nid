@@ -15,7 +15,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
     internal const long ProvisioningLockKey = 0x4E49_4401; // "NID" + 1
 
     public async Task<Result<PersonInfo>> ProvisionAdultAsync(
-        string oidcSubject, string displayName, string? email, bool isAdmin, CancellationToken ct)
+        string oidcSubject, string displayName, string? email, bool? isAdmin, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await LockAsync(ct);
@@ -26,7 +26,8 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         if (existing is not null)
         {
             existing.DisplayName = displayName;
-            existing.IsAdmin = isAdmin;
+            // Issue 215: null when Nid, not the identity provider, decides the role: the sign-in keeps it.
+            if (isAdmin is { } admin) existing.IsAdmin = admin;
             // A claim that now carries another adult's email must not break the unique index: keep the old one.
             if (address is null || !await EmailTakenAsync(address, existing.Id, ct))
                 existing.Email = address;
@@ -47,7 +48,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
             pending.OidcSubject = oidcSubject;
             pending.DisplayName = displayName;
             pending.Email = address;
-            pending.IsAdmin = isAdmin;
+            if (isAdmin is { } pendingAdmin) pending.IsAdmin = pendingAdmin;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return Result.Success(await InfoAsync(pending, ct));
@@ -62,7 +63,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         if (await db.Persons.CountAsync(p => p.Kind == "adult", ct) >= cap)
             return Fail(PersonCodes.AdultCap, $"This household is limited to {cap} adults.");
 
-        var created = NewAdult(oidcSubject, displayName, address, isAdmin);
+        var created = NewAdult(oidcSubject, displayName, address, isAdmin ?? false);
         db.Persons.Add(created);
         if (!await db.HouseholdSettings.AnyAsync(ct))
             db.HouseholdSettings.Add(new HouseholdSettingsRow());
@@ -271,6 +272,24 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         db.Persons.Remove(row);
         await db.SaveChangesAsync(ct);
         return Result.Success();
+    }
+
+    public async Task<Result<AdminChange>> SetAdminAsync(PersonId id, bool admin, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Two demotions at once must not both see another admin left (local-accounts.md §6).
+        await LockAsync(ct);
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value && p.Kind == "adult", ct);
+        if (row is null)
+            return Result.Failure<AdminChange>(new NotFoundFailure("person", id.ToString()));
+        if (row.IsAdmin == admin)
+            return Result.Success(new AdminChange(await InfoAsync(row, ct), false));
+        if (!admin && !await db.Persons.AnyAsync(p => p.Kind == "adult" && p.IsAdmin && p.Id != row.Id, ct))
+            return Result.Failure<AdminChange>(new Failure(PersonCodes.LastAdmin, "The household must keep at least one admin.", null));
+        row.IsAdmin = admin;
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(new AdminChange(await InfoAsync(row, ct), true));
     }
 
     public async Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct)

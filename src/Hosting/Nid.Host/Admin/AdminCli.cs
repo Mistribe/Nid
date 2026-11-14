@@ -58,6 +58,8 @@ public static class AdminCli
                 "create-admin" => await run.CreateAdminAsync(),
                 "reset-password" => await run.ResetPasswordAsync(),
                 "unlock" => await run.UnlockAsync(),
+                "grant-admin" => await run.SetAdminAsync(true),
+                "revoke-admin" => await run.SetAdminAsync(false),
                 _ => 2,
             };
         }
@@ -166,6 +168,36 @@ public static class AdminCli
             await console.Out.WriteLineAsync(Nid.Host.Auth.LocalAuthEndpoints.LinkUrl(auth.PublicUrl, link.Token));
             if (revokeTokens) await console.Out.WriteLineAsync("Ses jetons d'accès sont révoqués.");
             await RecordAsync("ok", null, person);
+            return 0;
+        }
+
+        /// <summary>Issue 215: `grant-admin` / `revoke-admin`, when Nid decides the role; the last admin keeps it.</summary>
+        public async Task<int> SetAdminAsync(bool admin)
+        {
+            if (settings.AdminSource == Nid.Host.Auth.AdminSource.IdentityProvider)
+            {
+                await console.Error.WriteLineAsync("Le rôle admin vient du fournisseur d'identité (Auth__AdminSource=identity_provider) : changez les groupes de la personne.");
+                await RecordAsync("refused", PersonCodes.AdminSourceIdentityProvider, null);
+                return 1;
+            }
+            if (await ResolveAsync() is not { } person) return 1;
+            var result = await SendAsync(new SetAdminCommand(new PersonId(person.Id), admin, "admin-cli"));
+            if (result.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure!.Code switch
+                {
+                    PersonCodes.LastAdmin => "C'est le dernier administrateur : donnez d'abord le rôle à un autre adulte.",
+                    _ when failure is NotFoundFailure => "Seul un adulte peut être administrateur.",
+                    _ => $"Refusé ({failure.Code}).",
+                });
+                await RecordAsync("refused", failure.Code, person);
+                return 1;
+            }
+            result.TryGetValue(out var view);
+            await console.Out.WriteLineAsync(!view!.Changed
+                ? $"{Describe(person)} {(admin ? "est déjà" : "n'est pas")} administrateur : rien à faire."
+                : $"{Describe(person)} {(admin ? "est maintenant" : "n'est plus")} administrateur.");
+            await RecordAsync(view.Changed ? "ok" : "unchanged", null, person);
             return 0;
         }
 

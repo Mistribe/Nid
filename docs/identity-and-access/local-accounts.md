@@ -126,7 +126,7 @@ Avec la source `nid` :
 
 - La zone admin, section Utilisateurs, **promeut ou rétrograde** un adulte actif ou en attente (`PUT /api/v1/admin/users/{id}/admin`) ; la CLI aussi (`grant-admin`, `revoke-admin`, §15).
 - **Il reste toujours au moins un admin** : retirer le rôle au dernier admin est refusé (`core.last_admin`, `409`), contrôlé sous le verrou du provisionnement pour que deux retraits simultanés ne passent pas ensemble. Se rétrograder soi-même est permis s'il reste un autre admin.
-- Une connexion OIDC (en `both`) ne touche plus à `is_admin` : le groupe d'accès reste exigé, le groupe admin est ignoré.
+- Une connexion OIDC (en `both`) ne touche plus à `is_admin` : le groupe d'accès reste exigé, le groupe admin est ignoré. Un adulte créé par une connexion OIDC arrive sans le rôle ; si le premier adulte d'une instance en `both` arrive par OIDC (la mise en place se ferme dès qu'un adulte existe), `nid admin grant-admin` lui donne le rôle. Livré en PR 4 : `PUT /api/v1/admin/users/{id}/admin`, `grant-admin`, `revoke-admin`, le menu de chaque ligne de la zone admin.
 - Chaque changement est journalisé `admin_granted` / `admin_revoked` avec `source: nid` (ou `source: admin-cli`) et l'admin qui l'a fait (`by`).
 - Un rôle retiré prend effet à la requête suivante de la personne (`ActorFilter` relit `person`, `authorization.md` §1) : aucune attente de reconnexion.
 

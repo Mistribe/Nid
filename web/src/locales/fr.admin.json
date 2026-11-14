@@ -59,7 +59,13 @@
       "link_expires": "Valable jusqu'au {{at}}, pour un seul usage. Un nouveau lien remplace celui-ci.",
       "copy": "Copier le lien",
       "copied": "Lien copié.",
-      "close": "Fermer"
+      "close": "Fermer",
+      "promote": "Donner le rôle admin",
+      "demote": "Retirer le rôle admin",
+      "promote_confirm": "{{name}} pourra gérer les utilisateurs, les réglages du foyer et le système. Le rôle ne donne accès à aucun élément privé.",
+      "demote_confirm": "{{name}} ne pourra plus administrer Nid.",
+      "demote_self_confirm": "Vous ne pourrez plus administrer Nid ; un autre administrateur pourra vous redonner le rôle.",
+      "role_hint_nid": "Le rôle admin se règle ici, depuis le menu de chaque ligne ; il reste toujours au moins un administrateur."
     },
     "household": {
       "title": "Foyer",
