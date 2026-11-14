@@ -612,6 +612,22 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password_hash");
 
+                    b.Property<Instant?>("TotpEnabledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("totp_enabled_at");
+
+                    b.Property<long?>("TotpLastStep")
+                        .HasColumnType("bigint")
+                        .HasColumnName("totp_last_step");
+
+                    b.Property<Instant?>("TotpPendingSince")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("totp_pending_since");
+
+                    b.Property<string>("TotpSecret")
+                        .HasColumnType("text")
+                        .HasColumnName("totp_secret");
+
                     b.HasKey("PersonId")
                         .HasName("pk_local_credential");
 
@@ -948,6 +964,39 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_proposal_status", "status in ('pending','approved','rejected','superseded')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.RecoveryCodeRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasColumnType("char(64)")
+                        .HasColumnName("code_hash");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<Instant?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recovery_code");
+
+                    b.HasIndex("PersonId", "CodeHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_recovery_code_person_id_code_hash");
+
+                    b.ToTable("recovery_code", "core");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ScenarioRow", b =>
@@ -1359,6 +1408,16 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_proposal_person_for_person_id");
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.RecoveryCodeRow", b =>
+                {
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_recovery_code_person_person_id");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ScenarioRow", b =>

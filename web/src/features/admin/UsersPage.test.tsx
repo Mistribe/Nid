@@ -11,9 +11,9 @@ import { toasts } from '@/test/toasts';
 type Adult = components['schemas']['AdultView'];
 
 // aliceSession (the default renderApp() session) is this same person: these tests exercise the self rows.
-const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true, methods: ['oidc'] };
-const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false, methods: ['oidc'] };
-const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false, methods: [] };
+const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true, methods: ['oidc'], totpEnabled: false };
+const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false, methods: ['oidc'], totpEnabled: false };
+const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false, methods: [], totpEnabled: false };
 
 function serve(adults: Adult[], maxAdults = 3) {
   let reads = 0;
@@ -153,7 +153,7 @@ describe('Administration › Utilisateurs', () => {
 describe('Administration › Utilisateurs, comptes locaux (issue 215)', () => {
   const local = { ...aliceSession, methods: ['password'] };
   const dave: Adult = { id: '01926b9e-0000-7000-8000-00000000000d', displayName: 'Dave', email: null, status: 'active', isAdmin: false, methods: ['password'],
-    lockedUntil: '2026-11-13T18:00:00+00:00', linkExpiresAt: null };
+    lockedUntil: '2026-11-13T18:00:00+00:00', linkExpiresAt: null, totpEnabled: true };
 
   it('creates a one-time link and shows it once, with its expiry', async () => {
     serve([alice, carol]);

@@ -26,5 +26,5 @@ public sealed class CoreAuditMap : IAuditMap
     // a password hash or a link's hash never reaches the audit; the login_*, password_* and credential_link_* events tell their life.
     // fx_rate: one bulk upsert the interceptor never sees, and collections have their journal (U8).
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(FxRateRow), typeof(FxSyncRunRow), typeof(CpiRow), typeof(CpiRunRow), typeof(AuditEntryRow), typeof(PersonalAccessTokenRow),
-        typeof(LocalCredentialRow), typeof(CredentialLinkRow) };
+        typeof(LocalCredentialRow), typeof(CredentialLinkRow), typeof(RecoveryCodeRow) };
 }

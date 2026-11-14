@@ -58,6 +58,7 @@ public static class AdminCli
                 "create-admin" => await run.CreateAdminAsync(),
                 "reset-password" => await run.ResetPasswordAsync(),
                 "unlock" => await run.UnlockAsync(),
+                "reset-totp" => await run.ResetTotpAsync(),
                 "grant-admin" => await run.SetAdminAsync(true),
                 "revoke-admin" => await run.SetAdminAsync(false),
                 _ => 2,
@@ -150,6 +151,24 @@ public static class AdminCli
                 return 1;
             }
             await console.Out.WriteLineAsync($"Le compte de {Describe(person)} est déverrouillé.");
+            await RecordAsync("ok", null, person);
+            return 0;
+        }
+
+        /// <summary>Issue 215: `reset-totp` turns an adult's second factor off, erases its recovery codes and closes their sessions.</summary>
+        public async Task<int> ResetTotpAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (await ResolveAsync() is not { } person) return 1;
+            var result = await SendAsync(new ResetTotpCommand(new PersonId(person.Id)));
+            if (result.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure is NotFoundFailure ? $"{Describe(person)} n'a pas de compte local." : $"Refusé ({failure!.Code}).");
+                await RecordAsync("refused", failure!.Code, person);
+                return 1;
+            }
+            await console.Out.WriteLineAsync(
+                $"La validation en deux étapes de {Describe(person)} est désactivée et ses sessions sont fermées : la connexion demande désormais le mot de passe seul.");
             await RecordAsync("ok", null, person);
             return 0;
         }

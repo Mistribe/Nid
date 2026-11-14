@@ -200,8 +200,28 @@ public sealed class LocalCredentialRow
     public Instant? LastFailedAt { get; set; }
     public int LockLevel { get; set; }
     public Instant? LockedUntil { get; set; }
+
+    /// <summary>The TOTP secret, encrypted by Data Protection (§10); <c>null</c> without a second factor.</summary>
+    public string? TotpSecret { get; set; }
+
+    public Instant? TotpPendingSince { get; set; }
+    public Instant? TotpEnabledAt { get; set; }
+
+    /// <summary>The last TOTP time step accepted: a code of that step or an earlier one is a replay.</summary>
+    public long? TotpLastStep { get; set; }
+
     public Instant? LastLoginAt { get; set; }
     public Instant CreatedAt { get; set; }
+}
+
+/// <summary>Issue 215, local-accounts.md §13.3: one recovery code of an adult's second factor, kept by its SHA-256.</summary>
+public sealed class RecoveryCodeRow
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public string CodeHash { get; set; } = "";
+    public Instant CreatedAt { get; set; }
+    public Instant? UsedAt { get; set; }
 }
 
 /// <summary>Issue 215, local-accounts.md §13.2: a one-time password link, kept by the SHA-256 of its secret.</summary>

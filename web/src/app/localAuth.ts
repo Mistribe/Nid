@@ -49,7 +49,7 @@ export function codeOf(error: unknown): string | null {
 const KNOWN = new Set([
   'auth.invalid_credentials', 'auth.https_required', 'auth.invalid_setup_token', 'auth.setup_closed', 'auth.link_unusable',
   'auth.login_invalid', 'auth.password_too_short', 'auth.password_too_long', 'auth.password_too_common', 'auth.current_password_wrong',
-  'core.login_taken', 'core.name_required',
+  'auth.invalid_code', 'auth.mfa_expired', 'auth.totp_already_enabled', 'core.login_taken', 'core.name_required',
 ]);
 
 /** What a refusal says in French: the server's English title is for logs and developers. */

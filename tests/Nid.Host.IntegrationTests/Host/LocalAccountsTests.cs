@@ -21,7 +21,7 @@ namespace Nid.Host.IntegrationTests.Host;
 /// the one-time links, the password rules, the transport, and no secret in the audit. A real host, cookies kept by hand
 /// as a browser keeps them.
 /// </summary>
-public class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public partial class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
 {
     private const string PublicUrl = "https://nid.example.test";
     private const string AlicePassword = "a long walk to the lighthouse";
@@ -420,6 +420,14 @@ public class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<Postgr
             return browser;
         }
 
+        /// <summary>A browser signed in with a password alone.</summary>
+        public async Task<Browser> SignInAsync(string login, string password)
+        {
+            var browser = Browser();
+            Assert.Equal(HttpStatusCode.OK, (await browser.PostAsync("/auth/login/password", new { login, password })).StatusCode);
+            return browser;
+        }
+
         /// <summary>An adult pre-registered by <paramref name="admin"/>, enrolled by their link.</summary>
         public async Task<Guid> EnrolAsync(Browser admin, string name, string login, string password)
         {
@@ -469,7 +477,7 @@ public class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<Postgr
             var token = (csrfOf ?? this).Token(path);
             if (csrf && token is not null) request.Headers.Add("X-Nid-Csrf", token);
             var response = await SendAsync(request);
-            if (path == "/auth/login/password" && response.IsSuccessStatusCode) await SessionAsync();
+            if (path is "/auth/login/password" or "/auth/login/totp" && response.IsSuccessStatusCode) await SessionAsync();
             return response;
         }
 
@@ -478,6 +486,15 @@ public class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<Postgr
         public Task<HttpResponseMessage> PutAsync(string path, object body)
         {
             var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
+            request.Headers.Add("Origin", PublicUrl);
+            if (sessionCsrf is not null) request.Headers.Add("X-Nid-Csrf", sessionCsrf);
+            return SendAsync(request);
+        }
+
+        /// <summary>A session request with a JSON body, whatever the method (a DELETE with a body, for one).</summary>
+        public Task<HttpResponseMessage> SendJsonAsync(HttpMethod method, string path, object body)
+        {
+            var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
             request.Headers.Add("Origin", PublicUrl);
             if (sessionCsrf is not null) request.Headers.Add("X-Nid-Csrf", sessionCsrf);
             return SendAsync(request);

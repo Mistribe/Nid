@@ -22,6 +22,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<PersonalAccessTokenRow> PersonalAccessTokens => Set<PersonalAccessTokenRow>();
     public DbSet<LocalCredentialRow> LocalCredentials => Set<LocalCredentialRow>();
     public DbSet<CredentialLinkRow> CredentialLinks => Set<CredentialLinkRow>();
+    public DbSet<RecoveryCodeRow> RecoveryCodes => Set<RecoveryCodeRow>();
     public DbSet<ProposalRow> Proposals => Set<ProposalRow>();
     public DbSet<TaxProfileRow> TaxProfiles => Set<TaxProfileRow>();
     public DbSet<TaxAssessmentRow> TaxAssessments => Set<TaxAssessmentRow>();
@@ -166,6 +167,17 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.TokenHash).IsUnique();
             // One live link per adult: a new one revokes the previous in the same transaction.
             e.HasIndex(x => x.PersonId).IsUnique().HasFilter("used_at is null and revoked_at is null").HasDatabaseName("ix_credential_link_live");
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Issue 215, local-accounts.md §13.3: the recovery codes of an adult's second factor, kept by their SHA-256.
+        modelBuilder.Entity<RecoveryCodeRow>(e =>
+        {
+            e.ToTable("recovery_code");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.CodeHash).HasColumnType("char(64)");
+            e.HasIndex(x => new { x.PersonId, x.CodeHash }).IsUnique();
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
         });
 

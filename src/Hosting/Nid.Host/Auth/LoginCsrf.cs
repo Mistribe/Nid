@@ -10,7 +10,7 @@ namespace Nid.Host.Auth;
 /// </summary>
 public static class LoginCsrf
 {
-    public static readonly string[] Paths = ["/auth/login/password", "/auth/setup", "/auth/link/inspect", "/auth/link/complete"];
+    public static readonly string[] Paths = ["/auth/login/password", "/auth/login/totp", "/auth/setup", "/auth/link/inspect", "/auth/link/complete"];
 
     private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(30);
 

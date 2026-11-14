@@ -18,6 +18,8 @@ public static class LocalAuthEndpoints
         services.TryAddSingleton(sp => new PasswordRules(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<NidAuthOptions>>().Value.Local));
         services.TryAddSingleton<LoginFailureLog>();
         services.TryAddSingleton<SetupToken>();
+        services.TryAddSingleton<TotpSecrets>();
+        services.TryAddSingleton<MfaStep>();
         services.TryAddScoped<LocalSignIn>();
         return services;
     }
@@ -31,6 +33,10 @@ public static class LocalAuthEndpoints
             .Produces<PasswordLoginResult>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        routes.MapPost("/auth/login/totp", (HttpContext http, TotpLoginBody body, LocalSignIn signIn) => signIn.TotpAsync(http, body))
+            .Produces<PasswordLoginResult>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         routes.MapPost("/auth/setup", (HttpContext http, LocalSetupBody body, LocalSignIn signIn) => signIn.SetupAsync(http, body))
             .Produces<LocalLoginView>(StatusCodes.Status201Created)

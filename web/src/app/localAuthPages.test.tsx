@@ -51,6 +51,57 @@ describe('LoginPage', () => {
     expect(location.assign).not.toHaveBeenCalled();
   });
 
+  it('asks for the code after a right password when two-step verification is on', async () => {
+    const sent: unknown[] = [];
+    server.use(
+      preSession(),
+      http.post('*/auth/login/password', () => HttpResponse.json({ next: 'totp', returnUrl: null })),
+      http.post('*/auth/login/totp', async ({ request }) => {
+        const body = await request.json();
+        sent.push(body);
+        return sent.length === 1
+          ? HttpResponse.json({ status: 401, code: 'auth.invalid_code' }, { status: 401 })
+          : HttpResponse.json({ next: 'done', returnUrl: '/dashboard' });
+      }),
+    );
+    const location = { assign: vi.fn() };
+    const { container } = render(<LoginPage returnUrl="/dashboard" login={null} location={location} />);
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText('Identifiant'), 'alice');
+    await user.type(screen.getByLabelText('Mot de passe'), 'a long walk to the lighthouse');
+    await user.click(screen.getByRole('button', { name: 'Se connecter' }));
+    await user.type(await screen.findByLabelText('Code'), '123456');
+    await expectNoAxeViolations(container);
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("Ce code n'est pas le bon");
+
+    await user.click(screen.getByRole('button', { name: 'Utiliser un code de secours' }));
+    await user.type(await screen.findByLabelText('Code de secours'), 'ABCD-EFGH-JKMN-PQRS');
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+
+    await waitFor(() => expect(location.assign).toHaveBeenCalledWith('/dashboard'));
+    expect(sent).toEqual([{ code: '123456' }, { recoveryCode: 'ABCD-EFGH-JKMN-PQRS' }]);
+  });
+
+  it('goes back to the password when the code step is over', async () => {
+    server.use(
+      preSession(),
+      http.post('*/auth/login/password', () => HttpResponse.json({ next: 'totp', returnUrl: null })),
+      http.post('*/auth/login/totp', () => HttpResponse.json({ status: 401, code: 'auth.mfa_expired' }, { status: 401 })),
+    );
+    render(<LoginPage returnUrl={null} login="alice" location={{ assign: vi.fn() }} />);
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText('Mot de passe'), 'a long walk to the lighthouse');
+    await user.click(screen.getByRole('button', { name: 'Se connecter' }));
+    await user.type(await screen.findByLabelText('Code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Recommencez avec votre mot de passe');
+    expect(screen.getByLabelText('Identifiant')).toBeInTheDocument();
+  });
+
   it('shows the password while asked to', async () => {
     server.use(preSession());
     render(<LoginPage returnUrl={null} login={null} location={{ assign: vi.fn() }} />);

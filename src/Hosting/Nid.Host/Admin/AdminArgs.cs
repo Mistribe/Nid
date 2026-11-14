@@ -18,6 +18,8 @@ public static class AdminArgs
         ["reset-password"] = (["person"], "Afficher un lien à usage unique pour choisir un nouveau mot de passe ; déverrouille le compte.",
             "nid admin reset-password --person <id|email|nom> [--revoke-tokens]"),
         ["unlock"] = (["person"], "Déverrouiller le compte local d'un adulte après trop d'échecs.", "nid admin unlock --person <id|email|nom>"),
+        ["reset-totp"] = (["person"], "Désactiver la validation en deux étapes d'un adulte (téléphone et codes de secours perdus) ; ferme ses sessions.",
+            "nid admin reset-totp --person <id|email|nom>"),
         ["grant-admin"] = (["person"], "Donner le rôle admin à un adulte (quand Nid décide du rôle).", "nid admin grant-admin --person <id|email|nom>"),
         ["revoke-admin"] = (["person"], "Retirer le rôle admin à un adulte ; le dernier admin le garde.", "nid admin revoke-admin --person <id|email|nom>"),
     };
