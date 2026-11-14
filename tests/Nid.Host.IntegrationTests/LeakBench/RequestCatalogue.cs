@@ -210,6 +210,11 @@ public static class RequestCatalogue
         new(typeof(UpdateCalendarFeedCommand), false, (_, _) => new UpdateCalendarFeedCommand("me", true)),
         new(typeof(GetCalendarFeedQuery), false, (_, _) => new GetCalendarFeedQuery(new CalendarFeedOptions(VisibilityScope.Me, true))),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),
+        // Issue 215: local accounts; their answers carry no item.
+        new(typeof(CreatePasswordLinkCommand), false, (data, _) => new CreatePasswordLinkCommand(data.App.AdultB, NodaTime.Duration.FromHours(1))),
+        new(typeof(RevokePasswordLinkCommand), false, (data, _) => new RevokePasswordLinkCommand(data.App.AdultB)),
+        new(typeof(UnlockAccountCommand), false, (data, _) => new UnlockAccountCommand(data.App.AdultB)),
+        new(typeof(CreateAdminAdultCommand), false, (_, _) => new CreateAdminAdultCommand("bench-admin", null)),
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
         new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),
         new(typeof(ListProposalsQuery), false, (_, _) => new ListProposalsQuery(null)),

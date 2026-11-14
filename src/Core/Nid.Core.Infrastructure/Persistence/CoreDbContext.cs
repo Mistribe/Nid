@@ -20,6 +20,8 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<ValuationRow> Valuations => Set<ValuationRow>();
     public DbSet<FlowRow> Flows => Set<FlowRow>();
     public DbSet<PersonalAccessTokenRow> PersonalAccessTokens => Set<PersonalAccessTokenRow>();
+    public DbSet<LocalCredentialRow> LocalCredentials => Set<LocalCredentialRow>();
+    public DbSet<CredentialLinkRow> CredentialLinks => Set<CredentialLinkRow>();
     public DbSet<ProposalRow> Proposals => Set<ProposalRow>();
     public DbSet<TaxProfileRow> TaxProfiles => Set<TaxProfileRow>();
     public DbSet<TaxAssessmentRow> TaxAssessments => Set<TaxAssessmentRow>();
@@ -98,9 +100,9 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.ToTable("person", t =>
             {
                 t.HasCheckConstraint("ck_person_kind", "kind in ('adult','dependent')");
-                // An adult is active (a subject) or pending (an email to be recognised by); a dependent never signs in.
-                t.HasCheckConstraint("ck_person_subject",
-                    "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
+                // A dependent never signs in. Issue 215: an adult may have neither subject nor email (a local account, or
+                // a pending adult who will choose a password by link), so the table no longer asks either of them.
+                t.HasCheckConstraint("ck_person_subject", "kind = 'adult' or oidc_subject is null");
                 t.HasCheckConstraint("ck_person_admin", "kind = 'adult' or not is_admin");
                 t.HasCheckConstraint("ck_person_retirement_age", "retirement_age between 50 and 75");
                 t.HasCheckConstraint("ck_person_retirement_months", "retirement_months between 0 and 11");
@@ -134,6 +136,37 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.Prefix).IsUnique();
             e.HasIndex(x => x.PersonId);
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Issue 215, local-accounts.md §13: an adult's local account, and the one-time links that create or reset it.
+        modelBuilder.Entity<LocalCredentialRow>(e =>
+        {
+            e.ToTable("local_credential", t =>
+            {
+                t.HasCheckConstraint("ck_local_credential_login", "length(login) between 1 and 254 and login = lower(login)");
+                t.HasCheckConstraint("ck_local_credential_counts", "failed_count >= 0 and lock_level >= 0");
+            });
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            e.HasIndex(x => x.Login).IsUnique();
+            e.HasOne<PersonRow>().WithOne().HasForeignKey<LocalCredentialRow>(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CredentialLinkRow>(e =>
+        {
+            e.ToTable("credential_link", t =>
+            {
+                t.HasCheckConstraint("ck_credential_link_purpose", "purpose in ('enroll','reset')");
+                t.HasCheckConstraint("ck_credential_link_via", "via in ('ui','admin-cli')");
+                t.HasCheckConstraint("ck_credential_link_expiry", "expires_at > created_at");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.TokenHash).HasColumnType("char(64)");
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            // One live link per adult: a new one revokes the previous in the same transaction.
+            e.HasIndex(x => x.PersonId).IsUnique().HasFilter("used_at is null and revoked_at is null").HasDatabaseName("ix_credential_link_live");
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ProposalRow>(e =>

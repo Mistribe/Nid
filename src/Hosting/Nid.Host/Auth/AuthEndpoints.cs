@@ -83,7 +83,10 @@ public static class AuthEndpoints
             {
                 // Issue 215: a fresh instance with local accounts waits for its first administrator (local-accounts spec §5).
                 var setupRequired = !demo && settings.Local && (await persons.AdultIdsAsync(http.RequestAborted)).Count == 0;
-                return ResultHttp.Json(new SessionResponse(false, null, null, null, null, identityProvider, demo, methods, setupRequired));
+                // The password form, the setup and the links post before any session: their CSRF token comes from a
+                // pre-session cookie set here (local-accounts spec §11).
+                var preCsrf = !demo && settings.Local ? LoginCsrf.Token(options.Value.CsrfKey, LoginCsrf.Ensure(http, settings)) : null;
+                return ResultHttp.Json(new SessionResponse(false, null, preCsrf, null, null, identityProvider, demo, methods, setupRequired));
             }
 
             var preferences = await persons.PreferencesAsync(person.Id, http.RequestAborted);

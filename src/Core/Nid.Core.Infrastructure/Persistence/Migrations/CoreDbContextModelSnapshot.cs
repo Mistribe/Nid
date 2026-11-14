@@ -112,6 +112,73 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.CredentialLinkRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Instant>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("purpose");
+
+                    b.Property<Instant?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("char(64)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<Instant?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.Property<string>("Via")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("via");
+
+                    b.HasKey("Id")
+                        .HasName("pk_credential_link");
+
+                    b.HasIndex("PersonId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_credential_link_live")
+                        .HasFilter("used_at is null and revoked_at is null");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_credential_link_token_hash");
+
+                    b.ToTable("credential_link", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_credential_link_expiry", "expires_at > created_at");
+
+                            t.HasCheckConstraint("ck_credential_link_purpose", "purpose in ('enroll','reset')");
+
+                            t.HasCheckConstraint("ck_credential_link_via", "via in ('ui','admin-cli')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FlowRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -501,6 +568,65 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.LocalCredentialRow", b =>
+                {
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_count");
+
+                    b.Property<Instant?>("LastFailedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_failed_at");
+
+                    b.Property<Instant?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_login_at");
+
+                    b.Property<int>("LockLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("lock_level");
+
+                    b.Property<Instant?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_until");
+
+                    b.Property<string>("Login")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("login");
+
+                    b.Property<Instant>("PasswordChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("password_changed_at");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("password_hash");
+
+                    b.HasKey("PersonId")
+                        .HasName("pk_local_credential");
+
+                    b.HasIndex("Login")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_credential_login");
+
+                    b.ToTable("local_credential", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_local_credential_counts", "failed_count >= 0 and lock_level >= 0");
+
+                            t.HasCheckConstraint("ck_local_credential_login", "length(login) between 1 and 254 and login = lower(login)");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.OwnershipRow", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -610,7 +736,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_person_retirement_months", "retirement_months between 0 and 11");
 
-                            t.HasCheckConstraint("ck_person_subject", "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
+                            t.HasCheckConstraint("ck_person_subject", "kind = 'adult' or oidc_subject is null");
                         });
                 });
 
@@ -1149,6 +1275,16 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.CredentialLinkRow", b =>
+                {
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_credential_link_person_person_id");
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FlowRow", b =>
                 {
                     b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
@@ -1176,6 +1312,16 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SupersedesId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_flow_flow_supersedes_id");
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.LocalCredentialRow", b =>
+                {
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithOne()
+                        .HasForeignKey("Nid.Core.Infrastructure.Persistence.LocalCredentialRow", "PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_local_credential_person_person_id");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.OwnershipRow", b =>

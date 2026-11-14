@@ -61,6 +61,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
         ["src/Core/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 2, // advisory locks: provisioning, projection assumptions (#155)
+        ["src/Core/Nid.Core.Infrastructure/Persistence/LocalAccountStore.cs"] = 8, // issue 215: local_credential, credential_link: excluded (secrets); the provisioning lock (3) and the person's row lock for a link
         ["src/Core/Nid.Core.Infrastructure/Persistence/PersonalAccessTokenStore.cs"] = 4, // lock; revoked_at (token_revoked, and a calendar feed regenerated: token_created) and last_used_at (not audited)
         ["src/Core/Nid.Core.Infrastructure/Persistence/ProposalStore.cs"] = 3, // the target's (or, without one, the submitter's) row lock; warnings append (not a decision, not in the write log)
         ["src/Core/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)

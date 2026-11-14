@@ -10,6 +10,8 @@
   <ItemGroup>
     <!-- Demo mode (issue 203) loads the demo household from these files; the image build copies them in (Dockerfile). -->
     <EmbeddedResource Include="..\..\..\deploy\local\demo\*.nid.json" LogicalName="demo.%(Filename)%(Extension)" />
+    <!-- Issue 215: the common passwords a local account may not use (local-accounts.md §4). -->
+    <EmbeddedResource Include="Auth/common-passwords.txt" LogicalName="Nid.Host.Auth.common-passwords.txt" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="UnambitiousFx.Synapse" />

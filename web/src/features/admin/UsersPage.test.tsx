@@ -11,9 +11,9 @@ import { toasts } from '@/test/toasts';
 type Adult = components['schemas']['AdultView'];
 
 // aliceSession (the default renderApp() session) is this same person: these tests exercise the self rows.
-const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true };
-const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false };
-const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false };
+const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true, methods: ['oidc'] };
+const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false, methods: ['oidc'] };
+const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false, methods: [] };
 
 function serve(adults: Adult[], maxAdults = 3) {
   let reads = 0;

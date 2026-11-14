@@ -22,7 +22,9 @@ public sealed class CoreAuditMap : IAuditMap
         [typeof(ProposalRow)] = new(e => AuditItems.Of(e, nameof(ProposalRow.TargetItemId))),
     };
 
-    // tokens: their life is told by the token_* security events (spec 4A §2).
+    // tokens: their life is told by the token_* security events (spec 4A §2). Local accounts and their links (issue 215):
+    // a password hash or a link's hash never reaches the audit; the login_*, password_* and credential_link_* events tell their life.
     // fx_rate: one bulk upsert the interceptor never sees, and collections have their journal (U8).
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(FxRateRow), typeof(FxSyncRunRow), typeof(CpiRow), typeof(CpiRunRow), typeof(AuditEntryRow), typeof(PersonalAccessTokenRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(FxRateRow), typeof(FxSyncRunRow), typeof(CpiRow), typeof(CpiRunRow), typeof(AuditEntryRow), typeof(PersonalAccessTokenRow),
+        typeof(LocalCredentialRow), typeof(CredentialLinkRow) };
 }

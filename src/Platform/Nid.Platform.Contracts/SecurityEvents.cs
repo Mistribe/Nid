@@ -28,11 +28,42 @@ public static class SecurityEventNames
     /// <summary>5B: a bank statement file written to an account (bank sync spec §10); counts only, never a label, an amount or an IBAN.</summary>
     public const string BankStatementImported = "bank_statement_imported";
 
+    /// <summary>
+    /// Issue 215, local-accounts.md §16: a wrong password or code, a locked account, an unknown identifier (never its text);
+    /// at most one a minute per account or address, with <c>count</c>. Data <c>reason</c>, <c>count</c>, <c>address</c>.
+    /// </summary>
+    public const string LoginFailed = "login_failed";
+
+    /// <summary>Issue 215: a local account locked after repeated failures (<c>level</c>, <c>until</c>).</summary>
+    public const string LoginLocked = "login_locked";
+
+    /// <summary>Issue 215: the adult changed their password, or their identifier (<c>field</c>).</summary>
+    public const string PasswordChanged = "password_changed";
+
+    /// <summary>Issue 215: a reset link was used; the adult's sessions are closed (<c>link_id</c>).</summary>
+    public const string PasswordReset = "password_reset";
+
+    /// <summary>Issue 215: an admin or the CLI created or revoked a one-time password link (<c>purpose</c>, <c>link_id</c>, <c>by</c>).</summary>
+    public const string CredentialLinkIssued = "credential_link_issued";
+
+    public const string CredentialLinkRevoked = "credential_link_revoked";
+
+    /// <summary>Issue 215: an enrolment link was used: the adult is active (<c>link_id</c>).</summary>
+    public const string AccountEnrolled = "account_enrolled";
+
+    /// <summary>Issue 215: an admin or the CLI unlocked a local account (<c>by</c>).</summary>
+    public const string AccountUnlocked = "account_unlocked";
+
+    /// <summary>Issue 215: the first administrator was created on the setup page.</summary>
+    public const string SetupCompleted = "setup_completed";
+
     /// <summary>What the admin area's security journal shows (spec §5.1): nothing about another adult's own sessions.</summary>
     public static IReadOnlySet<string> AdminJournal { get; } = new HashSet<string>
     {
         LoginRefused, AccessViolation, PersonPreregistered, PersonPreregistrationCancelled,
         AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound, TokenAuthFailed,
+        // Issue 215: what an admin needs to act on; an adult's own failed sign-ins stay theirs (login_failed is not here).
+        LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted,
     };
 }
 

@@ -1,3 +1,4 @@
+using NodaTime;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
@@ -7,12 +8,23 @@ namespace Nid.Core.Application.Admin;
 
 /// <summary>
 /// An adult as the admin area shows it (administration-and-audit.md §2.2): no item, no amount. <c>IsAdmin</c> is the
-/// identity provider's answer at the adult's last sign-in; Nid does not edit it.
+/// identity provider's answer at the adult's last sign-in; Nid does not edit it. Issue 215: <c>Methods</c> (<c>password</c>,
+/// <c>oidc</c>), <c>LockedUntil</c> while a local account is locked, <c>LinkExpiresAt</c> while a password link waits.
 /// </summary>
-public sealed record AdultView(Guid Id, string DisplayName, string? Email, string Status, bool IsAdmin)
+public sealed record AdultView(
+    Guid Id, string DisplayName, string? Email, string Status, bool IsAdmin, IReadOnlyList<string> Methods, Instant? LockedUntil, Instant? LinkExpiresAt)
 {
-    public static AdultView From(PersonInfo person)
-        => new(person.Id.Value, person.DisplayName, person.Email, person.IsPending ? "pending" : "active", person.IsAdmin);
+    public static AdultView From(PersonInfo person, LocalAccountState? local = null)
+        => new(person.Id.Value, person.DisplayName, person.Email, person.IsPending ? "pending" : "active", person.IsAdmin,
+            MethodsOf(person), local?.LockedUntil, local?.LinkExpiresAt);
+
+    private static IReadOnlyList<string> MethodsOf(PersonInfo person)
+    {
+        var methods = new List<string>(2);
+        if (person.HasLocalAccount) methods.Add("password");
+        if (person.HasSubject) methods.Add("oidc");
+        return methods;
+    }
 }
 
 public sealed record HouseholdSettingsView(
@@ -72,18 +84,22 @@ public sealed record UpdateHouseholdSettingsCommand(
 }
 
 [RequestHandler<ListAdultsQuery, IReadOnlyList<AdultView>>]
-public sealed class ListAdultsHandler(IPersonRegistry persons) : IRequestHandler<ListAdultsQuery, IReadOnlyList<AdultView>>
+public sealed class ListAdultsHandler(IPersonRegistry persons, ILocalAccountStore accounts, IClock clock)
+    : IRequestHandler<ListAdultsQuery, IReadOnlyList<AdultView>>
 {
     public async ValueTask<Result<IReadOnlyList<AdultView>>> HandleAsync(ListAdultsQuery query, CancellationToken ct = default)
-        => Result.Success<IReadOnlyList<AdultView>>(
-            (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult).Select(AdultView.From).ToList());
+    {
+        var states = (await accounts.StatesAsync(clock.GetCurrentInstant(), ct)).ToDictionary(s => s.Person);
+        return Result.Success<IReadOnlyList<AdultView>>((await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult)
+            .Select(p => AdultView.From(p, states.GetValueOrDefault(p.Id))).ToList());
+    }
 }
 
 [RequestHandler<PreRegisterAdultCommand, AdultView>]
 public sealed class PreRegisterAdultHandler(IPersonRegistry persons) : IRequestHandler<PreRegisterAdultCommand, AdultView>
 {
     public async ValueTask<Result<AdultView>> HandleAsync(PreRegisterAdultCommand command, CancellationToken ct = default)
-        => (await persons.PreRegisterAdultAsync(command.DisplayName, command.Email, ct)).Map(AdultView.From);
+        => (await persons.PreRegisterAdultAsync(command.DisplayName, command.Email, ct)).Map(p => AdultView.From(p));
 }
 
 [RequestHandler<DeletePendingAdultCommand, PersonId>]
@@ -100,7 +116,7 @@ public sealed class DeletePendingAdultHandler(IPersonRegistry persons) : IReques
 public sealed class RevokeSessionsHandler(IPersonRegistry persons) : IRequestHandler<RevokeSessionsCommand, AdultView>
 {
     public async ValueTask<Result<AdultView>> HandleAsync(RevokeSessionsCommand command, CancellationToken ct = default)
-        => (await persons.RevokeSessionsAsync(command.Person, ct)).Map(AdultView.From);
+        => (await persons.RevokeSessionsAsync(command.Person, ct)).Map(p => AdultView.From(p));
 }
 
 [RequestHandler<RevokeTokensCommand, TokensRevokedView>]
@@ -138,7 +154,7 @@ public sealed record PersonView(Guid Id, string Kind, string DisplayName, string
 {
     public static PersonView From(PersonInfo person) => new(
         person.Id.Value, person.Kind == PersonKind.Adult ? "adult" : "dependent", person.DisplayName, person.Email,
-        person.IsPending ? "pending" : "active", person.IsAdmin, person.Kind == PersonKind.Adult && !person.IsPending);
+        person.IsPending ? "pending" : "active", person.IsAdmin, person.HasSubject);
 }
 
 public sealed record ListAllPersonsQuery : IQuery<IReadOnlyList<PersonView>>, IAdminOnly;

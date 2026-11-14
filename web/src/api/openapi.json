@@ -36,6 +36,212 @@
         }
       }
     },
+    "/auth/login/password": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLoginBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLoginResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/setup": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalSetupBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalLoginView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/link/inspect": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLinkTokenBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLinkInfoView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/link/complete": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletePasswordLinkBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalLoginView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documents/uploads/{token}": {
       "post": {
         "tags": [
@@ -29507,6 +29713,284 @@
         }
       }
     },
+    "/api/v1/admin/users/{id}/password-link": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLinkBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLinkResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonIdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/unlock": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonIdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/household": {
       "get": {
         "tags": [
@@ -30849,7 +31333,8 @@
           "id",
           "displayName",
           "status",
-          "isAdmin"
+          "isAdmin",
+          "methods"
         ],
         "type": "object",
         "properties": {
@@ -30871,6 +31356,26 @@
           },
           "isAdmin": {
             "type": "boolean"
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lockedUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "linkExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -33267,6 +33772,29 @@
           },
           "gapReal": {
             "type": "string"
+          }
+        }
+      },
+      "CompletePasswordLinkBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "login": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -45830,6 +46358,46 @@
           }
         }
       },
+      "LocalLoginView": {
+        "required": [
+          "login"
+        ],
+        "type": "object",
+        "properties": {
+          "login": {
+            "type": "string"
+          }
+        }
+      },
+      "LocalSetupBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "login": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ManualRateBody": {
         "required": [
           "rate"
@@ -46715,6 +47283,109 @@
             "items": {
               "$ref": "#/components/schemas/OverviewFindingView"
             }
+          }
+        }
+      },
+      "PasswordLinkBody": {
+        "required": [
+          "revokeTokens"
+        ],
+        "type": "object",
+        "properties": {
+          "revokeTokens": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PasswordLinkInfoView": {
+        "required": [
+          "purpose",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "login": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PasswordLinkResult": {
+        "required": [
+          "url",
+          "purpose",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PasswordLinkTokenBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PasswordLoginBody": {
+        "type": "object",
+        "properties": {
+          "login": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "returnUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PasswordLoginResult": {
+        "required": [
+          "next"
+        ],
+        "type": "object",
+        "properties": {
+          "next": {
+            "type": "string"
+          },
+          "returnUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

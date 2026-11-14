@@ -98,6 +98,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<CoreDbContext>>();
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IPersonalAccessTokens, PersonalAccessTokenStore>();
+        services.AddScoped<ILocalAccountStore, LocalAccountStore>();
         services.AddScoped<IProposalStore, ProposalStore>();
         services.AddScoped<Nid.Core.Application.ProposalHandlers>();
         services.AddScoped<IProposalSubmitter, Nid.Core.Application.ProposalSubmitter>();

@@ -46,13 +46,15 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
 }
 
 /// <summary>
-/// <paramref name="IsPending"/>: an adult an admin pre-registered who has not signed in yet (no OIDC subject).
+/// <paramref name="IsPending"/>: an adult an admin pre-registered who has not signed in yet (no OIDC subject, no local account).
+/// <paramref name="HasSubject"/>, <paramref name="HasLocalAccount"/> (issue 215): how an active adult signs in, never the values.
 /// <paramref name="IsAdmin"/>: the technical role; it never widens Readers or Writers (authorization.md §1).
 /// <paramref name="BirthDate"/> and <paramref name="RetirementAge"/> (50 to 75, 64 until set) feed the net worth projection.
 /// </summary>
 public sealed record PersonInfo(
     PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch,
-    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64, int RetirementMonths = 0);
+    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64, int RetirementMonths = 0,
+    bool HasSubject = false, bool HasLocalAccount = false);
 
 /// <summary>1F4 design §3: what a rebinding did; <c>Changed</c> is false when the adult already had that subject.</summary>
 public sealed record RebindOutcome(PersonInfo Person, string? PreviousSubject, bool Changed);
