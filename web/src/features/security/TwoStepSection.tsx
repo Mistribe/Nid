@@ -10,6 +10,7 @@ import { Section } from '@/components/page/Section';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import '@/locales/security';
+import { TotpQrCode } from './TotpQrCode';
 
 type Dialog = { kind: 'setup'; secret: string; uri: string } | { kind: 'codes'; codes: string[]; first: boolean } | { kind: 'regenerate' } | { kind: 'disable' };
 
@@ -111,6 +112,7 @@ function SetupDialog({ secret, uri, error, onClose, onFail, onCodes }: {
       {() => (
         <div className="space-y-4">
           <p className="text-sm">{t('security.totp.setup_step_app')}</p>
+          <TotpQrCode uri={uri} label={t('security.totp.qr_label')} />
           <p><a href={uri} className={buttonVariants({ variant: 'outline' })}>{t('security.totp.open_app')}</a></p>
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{t('security.totp.key')}</p>

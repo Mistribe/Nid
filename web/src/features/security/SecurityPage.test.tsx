@@ -136,6 +136,8 @@ describe('Sécurité, compte local (issue 215)', () => {
     await user.click(screen.getByRole('button', { name: 'Activer' }));
     const setup = await screen.findByRole('dialog', { name: 'Activer la validation en deux étapes' });
     expect(within(setup).getByTestId('totp-secret')).toHaveTextContent('JBSW Y3DP EHPK 3PXP');
+    // Drawn in the browser from the otpauth address: the secret never goes to a third party.
+    expect(await within(setup).findByRole('img', { name: /QR code à scanner/ })).toBeInTheDocument();
     expect(within(setup).getByRole('link', { name: "Ouvrir dans l'application" })).toHaveAttribute('href', expect.stringMatching(/^otpauth:\/\/totp\//));
     await user.type(within(setup).getByLabelText('Code'), '123456');
     await user.click(within(setup).getByRole('button', { name: 'Activer' }));
