@@ -13,6 +13,7 @@ import { formatInstant } from '@/lib/format';
 import { eventLabel, viaLabel } from './eventLabel';
 import { McpHelp } from './McpHelp';
 import { PasswordSection } from './PasswordSection';
+import { TwoStepSection } from './TwoStepSection';
 import { TokensSection } from './TokensSection';
 
 /** screens.md "Sécurité" (administration-and-audit.md §5): my events, signing out everywhere, and my tokens (4A). */
@@ -39,7 +40,7 @@ export function SecurityPage() {
       </Section>
 
       {/* Issue 215: with local accounts; it renders nothing for an adult without one. */}
-      {session.methods.includes('password') ? <PasswordSection /> : null}
+      {session.methods.includes('password') ? <><PasswordSection /><TwoStepSection /></> : null}
 
       <TokensSection />
 

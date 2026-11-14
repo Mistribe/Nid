@@ -57,13 +57,26 @@ public static class SecurityEventNames
     /// <summary>Issue 215: the first administrator was created on the setup page.</summary>
     public const string SetupCompleted = "setup_completed";
 
+    /// <summary>Issue 215, local-accounts.md §10: the adult turned their second factor on or off.</summary>
+    public const string TotpEnabled = "totp_enabled";
+
+    public const string TotpDisabled = "totp_disabled";
+
+    /// <summary>Issue 215: `nid admin reset-totp` turned an adult's second factor off and closed their sessions.</summary>
+    public const string TotpReset = "totp_reset";
+
+    /// <summary>Issue 215: a sign-in used a recovery code (<c>left</c>).</summary>
+    public const string RecoveryCodeUsed = "recovery_code_used";
+
+    public const string RecoveryCodesRegenerated = "recovery_codes_regenerated";
+
     /// <summary>What the admin area's security journal shows (spec §5.1): nothing about another adult's own sessions.</summary>
     public static IReadOnlySet<string> AdminJournal { get; } = new HashSet<string>
     {
         LoginRefused, AccessViolation, PersonPreregistered, PersonPreregistrationCancelled,
         AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound, TokenAuthFailed,
         // Issue 215: what an admin needs to act on; an adult's own failed sign-ins stay theirs (login_failed is not here).
-        LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted,
+        LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted, TotpReset,
     };
 }
 

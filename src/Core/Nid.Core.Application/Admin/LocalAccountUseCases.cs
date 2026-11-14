@@ -116,3 +116,19 @@ public sealed class SetAdminHandler(IPersonRegistry persons) : IRequestHandler<S
     public async ValueTask<Result<AdminRoleView>> HandleAsync(SetAdminCommand command, CancellationToken ct = default)
         => (await persons.SetAdminAsync(command.Person, command.Admin, ct)).Map(change => new AdminRoleView(AdultView.From(change.Person), change.Changed));
 }
+
+/// <summary>
+/// Issue 215, local-accounts.md §10 (`nid admin reset-totp`): the adult lost their phone and their recovery codes. Their
+/// second factor goes off, its codes are erased and every session of theirs closes. Not found without a local account.
+/// </summary>
+public sealed record ResetTotpCommand(PersonId Person) : ICommand<PersonId>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent EventFor(object response) => SecurityEvent.Of(SecurityEventNames.TotpReset, Person);
+}
+
+[RequestHandler<ResetTotpCommand, PersonId>]
+public sealed class ResetTotpHandler(ILocalAccountStore accounts) : IRequestHandler<ResetTotpCommand, PersonId>
+{
+    public async ValueTask<Result<PersonId>> HandleAsync(ResetTotpCommand command, CancellationToken ct = default)
+        => (await accounts.DisableTotpAsync(command.Person, true, ct)).Map(p => p.Id);
+}

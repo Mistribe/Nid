@@ -97,10 +97,10 @@ public sealed class LoginFailureLog(IClock clock)
 /// Issue 215: what the local-account routes do (local-accounts.md §5, §7, §9, §11, §12). One route opens a local
 /// session, <see cref="PasswordAsync"/>; the setup and the links never do.
 /// </summary>
-public sealed class LocalSignIn(
+public sealed partial class LocalSignIn(
     ILocalAccountStore accounts, IPersonRegistry persons, LocalPasswordHasher hasher, PasswordRules rules, TokenFailureGate gate,
     LoginFailureLog failures, SetupToken setup, ISecurityEvents events, IClock clock, IOptions<NidAuthOptions> options, AuthSettings settings,
-    ILogger<LocalSignIn> logger, IActorAccessor actor, UnambitiousFx.Synapse.Abstractions.IInvoker invoker)
+    ILogger<LocalSignIn> logger, IActorAccessor actor, UnambitiousFx.Synapse.Abstractions.IInvoker invoker, TotpSecrets secrets, MfaStep mfa)
 {
     public const string InvalidCredentials = "auth.invalid_credentials";
     public const string HttpsRequired = "auth.https_required";
@@ -131,18 +131,7 @@ public sealed class LocalSignIn(
             gate.Fail(address);
             var reason = credential is null ? "unknown_login" : locked ? "locked" : "bad_password";
             if (credential is not null && !locked)
-            {
-                var local = options.Value.Local.Bounded();
-                var outcome = await accounts.RecordFailureAsync(credential.Person, now, local.LockThreshold,
-                    NodaTime.Duration.FromMinutes(1), NodaTime.Duration.FromMinutes(local.LockMaxMinutes), ct);
-                if (outcome.LockedNow)
-                    await events.RecordAsync(new SecurityEvent(SecurityEventNames.LoginLocked, credential.Person, [],
-                        new Dictionary<string, string>
-                        {
-                            ["level"] = outcome.Level.ToString(CultureInfo.InvariantCulture),
-                            ["until"] = InstantPattern(outcome.Until!.Value),
-                        }), Actor.System, ct);
-            }
+                await CountAccountFailureAsync(credential.Person, now, ct);
             await RecordFailureAsync(credential?.Person, reason, address, ct);
             return Problem(StatusCodes.Status401Unauthorized, InvalidCredentials,
                 "Wrong identifier or password, or too many attempts: try again in a few minutes.");
@@ -152,14 +141,40 @@ public sealed class LocalSignIn(
             return Problem(StatusCodes.Status401Unauthorized, InvalidCredentials, "Wrong identifier or password, or too many attempts: try again in a few minutes.");
 
         var rehash = check == PasswordCheck.SuccessRehashNeeded ? await hasher.HashAsync(password, ct) : null;
+        if (credential.TotpEnabled)
+        {
+            // The failures are not cleared yet: wrong codes keep counting towards the lock (spec §10).
+            if (rehash is not null) await accounts.RehashAsync(person.Id, rehash, ct);
+            mfa.Issue(http, person, target);
+            return ResultHttp.Json(new PasswordLoginResult("totp", null));
+        }
         await accounts.RecordSuccessAsync(person.Id, now, rehash, ct);
+        await OpenSessionAsync(http, person, "pwd", "password", ct);
+        return ResultHttp.Json(new PasswordLoginResult("done", target));
+    }
+
+    private async Task OpenSessionAsync(HttpContext http, PersonInfo person, string amr, string method, CancellationToken ct)
+    {
         await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            SessionClaims.Create(person, SessionClaims.LocalSubject, CookieAuthenticationDefaults.AuthenticationScheme, "pwd"),
+            SessionClaims.Create(person, SessionClaims.LocalSubject, CookieAuthenticationDefaults.AuthenticationScheme, amr),
             new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.Value.SessionAbsoluteDays) });
         LoginCsrf.Clear(http, settings);
         await events.RecordAsync(new SecurityEvent(SecurityEventNames.Login, person.Id, [],
-            new Dictionary<string, string> { ["method"] = "password" }), Actor.Browser(person.Id, person.IsAdmin), ct);
-        return ResultHttp.Json(new PasswordLoginResult("done", target));
+            new Dictionary<string, string> { ["method"] = method }), Actor.Browser(person.Id, person.IsAdmin), ct);
+    }
+
+    /// <summary>A wrong password or code counts towards the account's lock (spec §9); the lock itself is an event.</summary>
+    private async Task<bool> CountAccountFailureAsync(PersonId person, Instant now, CancellationToken ct)
+    {
+        var local = options.Value.Local.Bounded();
+        var outcome = await accounts.RecordFailureAsync(person, now, local.LockThreshold,
+            NodaTime.Duration.FromMinutes(1), NodaTime.Duration.FromMinutes(local.LockMaxMinutes), ct);
+        if (outcome.LockedNow)
+            await events.RecordAsync(new SecurityEvent(SecurityEventNames.LoginLocked, person, [], new Dictionary<string, string>
+            {
+                ["level"] = outcome.Level.ToString(CultureInfo.InvariantCulture), ["until"] = InstantPattern(outcome.Until!.Value),
+            }), Actor.System, ct);
+        return outcome.LockedNow;
     }
 
     public async Task<IResult> SetupAsync(HttpContext http, LocalSetupBody body)
@@ -262,28 +277,8 @@ public sealed class LocalSignIn(
         if (credential is null || person is null)
             return ResultHttp.Problem(new NotFoundFailure("account", "me"));
 
-        var now = clock.GetCurrentInstant();
-        var locked = credential.LockedUntil is { } until && until > now;
-        var check = await hasher.VerifyAsync(credential.PasswordHash, PasswordRules.NormalizePassword(body.Current ?? ""), ct);
-        if (check is null) return Busy();
-        if (locked || check == PasswordCheck.Failed)
-        {
-            if (!locked)
-            {
-                var local = options.Value.Local.Bounded();
-                var outcome = await accounts.RecordFailureAsync(me, now, local.LockThreshold,
-                    NodaTime.Duration.FromMinutes(1), NodaTime.Duration.FromMinutes(local.LockMaxMinutes), ct);
-                if (outcome.LockedNow)
-                    await events.RecordAsync(new SecurityEvent(SecurityEventNames.LoginLocked, me, [], new Dictionary<string, string>
-                    {
-                        ["level"] = outcome.Level.ToString(CultureInfo.InvariantCulture), ["until"] = InstantPattern(outcome.Until!.Value),
-                    }), Actor.System, ct);
-            }
-            await RecordFailureAsync(me, locked ? "locked" : "bad_password", TokenAuthentication.ClientAddress(http), ct);
-            // 400, not 401: the session is fine, only the password typed is not.
-            return ResultHttp.Problem(new Failure(CurrentPasswordWrong, "The current password is wrong, or the account is locked for a few minutes.",
-                new Dictionary<string, object?> { ["field"] = "current" }));
-        }
+        if (await CheckMyPasswordAsync(http, credential, body.Current, "current") is { } wrong)
+            return wrong;
 
         var password = rules.Check(body.New, credential.Login, person.Email, person.DisplayName);
         if (!password.TryGetValue(out var normalized))
@@ -293,10 +288,35 @@ public sealed class LocalSignIn(
         var changed = await invoker.InvokeAsync(new Nid.Core.Application.SetMyPasswordCommand(hash), ct);
         if (!changed.TryGetValue(out var updated))
             return Failed(changed);
-        await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            SessionClaims.Create(updated!, SessionClaims.LocalSubject, CookieAuthenticationDefaults.AuthenticationScheme, "pwd"),
-            new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.Value.SessionAbsoluteDays) });
+        await ReissueAsync(http, updated!);
         return Results.NoContent();
+    }
+
+    /// <summary>The session that asked stays open at the adult's new epoch, opened the way it was (password, with a code or not).</summary>
+    private Task ReissueAsync(HttpContext http, PersonInfo person)
+        => http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            SessionClaims.Create(person, SessionClaims.LocalSubject, CookieAuthenticationDefaults.AuthenticationScheme,
+                http.User.FindFirst(SessionClaims.Amr)?.Value ?? "pwd"),
+            new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.Value.SessionAbsoluteDays) });
+
+    /// <summary>
+    /// The adult's own password, asked again before a change to their account. A wrong one counts towards the lock like a
+    /// failed sign-in; the answer is 400, not 401: the session is fine, only the password typed is not.
+    /// </summary>
+    private async Task<IResult?> CheckMyPasswordAsync(HttpContext http, LocalCredential credential, string? typed, string field)
+    {
+        var ct = http.RequestAborted;
+        var now = clock.GetCurrentInstant();
+        var locked = credential.LockedUntil is { } until && until > now;
+        var check = await hasher.VerifyAsync(credential.PasswordHash, PasswordRules.NormalizePassword(typed ?? ""), ct);
+        if (check is null) return Busy();
+        if (!locked && check != PasswordCheck.Failed)
+            return null;
+        if (!locked)
+            await CountAccountFailureAsync(credential.Person, now, ct);
+        await RecordFailureAsync(credential.Person, locked ? "locked" : "bad_password", TokenAuthentication.ClientAddress(http), ct);
+        return ResultHttp.Problem(new Failure(CurrentPasswordWrong, "The current password is wrong, or the account is locked for a few minutes.",
+            new Dictionary<string, object?> { ["field"] = field }));
     }
 
     /// <summary>What a password must not be sent over (spec §12), and an address past its failures (spec §9).</summary>

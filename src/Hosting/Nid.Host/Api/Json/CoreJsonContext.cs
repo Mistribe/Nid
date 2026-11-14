@@ -98,6 +98,12 @@ namespace Nid.Host.Api.Json;
 // Issue 215: local accounts.
 [JsonSerializable(typeof(PasswordLoginBody))]
 [JsonSerializable(typeof(ChangePasswordBody))]
+[JsonSerializable(typeof(TotpLoginBody))]
+[JsonSerializable(typeof(TotpSetupView))]
+[JsonSerializable(typeof(TotpConfirmBody))]
+[JsonSerializable(typeof(TotpDisableBody))]
+[JsonSerializable(typeof(RecoveryCodesBody))]
+[JsonSerializable(typeof(RecoveryCodesView))]
 [JsonSerializable(typeof(MyCredentialView))]
 [JsonSerializable(typeof(PasswordLoginResult))]
 [JsonSerializable(typeof(LocalSetupBody))]

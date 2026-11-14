@@ -84,7 +84,7 @@ describe('Sécurité, compte local (issue 215)', () => {
   it('changes my password with the current one, then reloads to take the reissued session', async () => {
     let sent: unknown = null;
     server.use(
-      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({ login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00' })),
+      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({ login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00', totpEnabled: false, recoveryCodesLeft: 0 })),
       http.put('*/api/v1/core/me/password', async ({ request }) => { sent = await request.json(); return new HttpResponse(null, { status: 204 }); }),
     );
     const { user, location } = await renderApp('/security', { session: local });
@@ -101,7 +101,7 @@ describe('Sécurité, compte local (issue 215)', () => {
 
   it('says the current password is wrong', async () => {
     server.use(
-      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({ login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00' })),
+      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({ login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00', totpEnabled: false, recoveryCodesLeft: 0 })),
       http.put('*/api/v1/core/me/password', () => HttpResponse.json({ status: 400, code: 'auth.current_password_wrong' }, { status: 400 })),
     );
     const { user } = await renderApp('/security', { session: local });
@@ -111,6 +111,64 @@ describe('Sécurité, compte local (issue 215)', () => {
     await user.click(screen.getByRole('button', { name: 'Changer le mot de passe' }));
 
     expect(await screen.findByText(/mot de passe actuel est incorrect/)).toBeInTheDocument();
+  });
+
+  it('turns two-step verification on with the key and a first code, then shows the recovery codes once', async () => {
+    let confirmed: unknown = null;
+    let on = false;
+    const codes = Array.from({ length: 10 }, (_, i) => `ABCD-EFGH-JKMN-PQ${String(i).padStart(2, '0')}`);
+    server.use(
+      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({
+        login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00', totpEnabled: on, recoveryCodesLeft: on ? 10 : 0,
+      })),
+      http.post('*/api/v1/core/me/totp', () => HttpResponse.json({
+        secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', otpauthUri: 'otpauth://totp/Nid:alice?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Nid',
+      })),
+      http.post('*/api/v1/core/me/totp/confirm', async ({ request }) => {
+        confirmed = await request.json();
+        on = true;
+        return HttpResponse.json({ codes });
+      }),
+    );
+    const { user } = await renderApp('/security', { session: local });
+
+    expect(await screen.findByText(/Désactivée : votre mot de passe suffit/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Activer' }));
+    const setup = await screen.findByRole('dialog', { name: 'Activer la validation en deux étapes' });
+    expect(within(setup).getByTestId('totp-secret')).toHaveTextContent('JBSW Y3DP EHPK 3PXP');
+    expect(within(setup).getByRole('link', { name: "Ouvrir dans l'application" })).toHaveAttribute('href', expect.stringMatching(/^otpauth:\/\/totp\//));
+    await user.type(within(setup).getByLabelText('Code'), '123456');
+    await user.click(within(setup).getByRole('button', { name: 'Activer' }));
+
+    const shown = await screen.findByRole('dialog', { name: 'Vos codes de secours' });
+    expect(within(within(shown).getByRole('list')).getAllByRole('listitem')).toHaveLength(10);
+    expect(confirmed).toEqual({ code: '123456' });
+    await user.click(within(shown).getByRole('button', { name: "J'ai noté mes codes" }));
+
+    expect(await screen.findByText('Validation en deux étapes activée.')).toBeInTheDocument();
+    expect(await screen.findByText('Codes de secours restants : 10.')).toBeInTheDocument();
+    expect(screen.queryByText('ABCD-EFGH-JKMN-PQ00')).not.toBeInTheDocument();
+  });
+
+  it('turns two-step verification off with the password and a code, and warns when few recovery codes are left', async () => {
+    let sent: unknown = null;
+    server.use(
+      http.get('*/api/v1/core/me/credential', () => HttpResponse.json({
+        login: 'alice', passwordChangedAt: '2026-11-01T08:00:00+00:00', totpEnabled: sent === null, recoveryCodesLeft: 2,
+      })),
+      http.delete('*/api/v1/core/me/totp', async ({ request }) => { sent = await request.json(); return new HttpResponse(null, { status: 204 }); }),
+    );
+    const { user } = await renderApp('/security', { session: local });
+
+    expect(await screen.findByText(/ne vous reste que 2 codes de secours/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Désactiver' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Désactiver la validation en deux étapes' });
+    await user.type(within(dialog).getByLabelText('Mot de passe'), 'a long walk to the lighthouse');
+    await user.type(within(dialog).getByLabelText("Code de l'application ou de secours"), '654321');
+    await user.click(within(dialog).getByRole('button', { name: 'Désactiver' }));
+
+    expect(await screen.findByText('Validation en deux étapes désactivée.')).toBeInTheDocument();
+    expect(sent).toEqual({ password: 'a long walk to the lighthouse', code: '654321' });
   });
 
   it('shows no password section to an adult of the identity provider', async () => {

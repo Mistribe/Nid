@@ -5,7 +5,7 @@ import { PasswordInput } from '@/components/form/PasswordInput';
 import { Wordmark } from '@/components/Logo';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createPublicApi, refusal, usePreSession } from './localAuth';
+import { codeOf, createPublicApi, refusal, usePreSession } from './localAuth';
 import { oidcLoginUrl, safeReturnUrl } from './session';
 
 /** The public pages' frame: one content window on the halo, as the signed-out page. */
@@ -33,6 +33,8 @@ export function LoginPage({ returnUrl, login, location }: {
   const session = usePreSession(api, setCsrf);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // Issue 215, local-accounts.md §10: after a right password, a code when the adult turned the second factor on.
+  const [step, setStep] = useState<'password' | 'code' | 'recovery'>('password');
   const target = safeReturnUrl(returnUrl);
 
   if (session === 'failed') return <AuthFrame title={t('local_auth.login.title')}><p role="alert">{t('local_auth.error.unreachable')}</p></AuthFrame>;
@@ -51,6 +53,10 @@ export function LoginPage({ returnUrl, login, location }: {
       const { data, error: problem, response } = await api.fetchClient.POST('/auth/login/password', {
         body: { login: ((fields.get('login') as string | null) ?? ''), password: ((fields.get('password') as string | null) ?? ''), returnUrl: target },
       });
+      if (data?.next === 'totp') {
+        setStep('code');
+        return;
+      }
       if (data) {
         location.assign(safeReturnUrl(data.returnUrl ?? target));
         return;
@@ -62,6 +68,55 @@ export function LoginPage({ returnUrl, login, location }: {
       setPending(false);
     }
   };
+
+  const submitCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const typed = (new FormData(event.currentTarget).get('code') as string | null) ?? '';
+    setPending(true);
+    setError(null);
+    try {
+      const { data, error: problem, response } = await api.fetchClient.POST('/auth/login/totp', {
+        body: step === 'recovery' ? { recoveryCode: typed } : { code: typed },
+      });
+      if (data) {
+        location.assign(safeReturnUrl(data.returnUrl ?? target));
+        return;
+      }
+      // Too slow, too many wrong codes, or locked: the password again.
+      if (codeOf(problem) === 'auth.mfa_expired') setStep('password');
+      setError(refusal(t, problem, response.status));
+    } catch {
+      setError(t('local_auth.error.unreachable'));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  if (step !== 'password') {
+    const recovery = step === 'recovery';
+    return (
+      <AuthFrame title={t('local_auth.code.title')}>
+        <p className="text-sm text-muted-foreground">{t(recovery ? 'local_auth.code.recovery_intro' : 'local_auth.code.intro')}</p>
+        <form key={step} className="flex flex-col gap-3" onSubmit={(event) => void submitCode(event)}>
+          {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+          <Field label={t(recovery ? 'local_auth.code.recovery' : 'local_auth.code.code')}>
+            {(c) => recovery
+              ? <Input {...c} name="code" autoComplete="off" autoCapitalize="characters" spellCheck={false} required autoFocus />
+              : <Input {...c} name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} required autoFocus />}
+          </Field>
+          <Button type="submit" disabled={pending}>{t('local_auth.code.submit')}</Button>
+        </form>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="link" className="px-0" onClick={() => { setError(null); setStep(recovery ? 'code' : 'recovery'); }}>
+            {t(recovery ? 'local_auth.code.use_app' : 'local_auth.code.use_recovery')}
+          </Button>
+          <Button type="button" variant="link" className="px-0" onClick={() => { setError(null); setStep('password'); }}>
+            {t('local_auth.code.back')}
+          </Button>
+        </div>
+      </AuthFrame>
+    );
+  }
 
   const oidc = session.methods.includes('oidc');
   return (

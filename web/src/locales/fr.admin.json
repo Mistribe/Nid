@@ -49,6 +49,7 @@
       "add_hint_local": "Après l'avoir ajouté, créez son lien depuis le menu de sa ligne : il y choisira son identifiant et son mot de passe. L'email est facultatif.",
       "locked": "Verrouillé",
       "link_pending": "Lien en attente",
+      "totp": "Deux étapes",
       "enroll_link": "Créer son lien d'accès",
       "reset_link": "Créer un lien de mot de passe",
       "unlock": "Déverrouiller",

@@ -9,14 +9,16 @@ namespace Nid.Core.Application.Admin;
 /// <summary>
 /// An adult as the admin area shows it (administration-and-audit.md §2.2): no item, no amount. <c>IsAdmin</c> is the
 /// identity provider's answer at the adult's last sign-in; Nid does not edit it. Issue 215: <c>Methods</c> (<c>password</c>,
-/// <c>oidc</c>), <c>LockedUntil</c> while a local account is locked, <c>LinkExpiresAt</c> while a password link waits.
+/// <c>oidc</c>), <c>LockedUntil</c> while a local account is locked, <c>LinkExpiresAt</c> while a password link waits,
+/// <c>TotpEnabled</c> when the adult has turned the second factor on (never the secret nor the codes).
 /// </summary>
 public sealed record AdultView(
-    Guid Id, string DisplayName, string? Email, string Status, bool IsAdmin, IReadOnlyList<string> Methods, Instant? LockedUntil, Instant? LinkExpiresAt)
+    Guid Id, string DisplayName, string? Email, string Status, bool IsAdmin, IReadOnlyList<string> Methods, Instant? LockedUntil, Instant? LinkExpiresAt,
+    bool TotpEnabled = false)
 {
     public static AdultView From(PersonInfo person, LocalAccountState? local = null)
         => new(person.Id.Value, person.DisplayName, person.Email, person.IsPending ? "pending" : "active", person.IsAdmin,
-            MethodsOf(person), local?.LockedUntil, local?.LinkExpiresAt);
+            MethodsOf(person), local?.LockedUntil, local?.LinkExpiresAt, local?.TotpEnabled ?? false);
 
     private static IReadOnlyList<string> MethodsOf(PersonInfo person)
     {

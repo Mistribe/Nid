@@ -216,7 +216,7 @@ public sealed class LocalAccountStore(CoreDbContext db, IClock clock) : ILocalAc
 
     public async Task<IReadOnlyList<LocalAccountState>> StatesAsync(Instant now, CancellationToken ct)
     {
-        var credentials = await db.LocalCredentials.AsNoTracking().Select(c => new { c.PersonId, c.LockedUntil }).ToListAsync(ct);
+        var credentials = await db.LocalCredentials.AsNoTracking().Select(c => new { c.PersonId, c.LockedUntil, Totp = c.TotpEnabledAt != null }).ToListAsync(ct);
         var links = await db.CredentialLinks.AsNoTracking()
             .Where(l => l.UsedAt == null && l.RevokedAt == null && l.ExpiresAt > now)
             .Select(l => new { l.PersonId, l.ExpiresAt }).ToListAsync(ct);
@@ -224,8 +224,91 @@ public sealed class LocalAccountStore(CoreDbContext db, IClock clock) : ILocalAc
         {
             var credential = credentials.FirstOrDefault(c => c.PersonId == id);
             var lockedUntil = credential?.LockedUntil is { } until && until > now ? until : (Instant?)null;
-            return new LocalAccountState(new PersonId(id), credential is not null, lockedUntil, links.FirstOrDefault(l => l.PersonId == id)?.ExpiresAt);
+            return new LocalAccountState(new PersonId(id), credential is not null, lockedUntil, links.FirstOrDefault(l => l.PersonId == id)?.ExpiresAt,
+                credential?.Totp ?? false);
         }).ToList();
+    }
+
+    public async Task RehashAsync(PersonId person, string passwordHash, CancellationToken ct)
+        => await db.LocalCredentials.Where(c => c.PersonId == person.Value)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.PasswordHash, passwordHash), ct);
+
+    public async Task<bool> BeginTotpAsync(PersonId person, string protectedSecret, Instant now, CancellationToken ct)
+        => await db.LocalCredentials.Where(c => c.PersonId == person.Value && c.TotpEnabledAt == null).ExecuteUpdateAsync(s => s
+            .SetProperty(c => c.TotpSecret, protectedSecret)
+            .SetProperty(c => c.TotpPendingSince, now)
+            .SetProperty(c => c.TotpLastStep, (long?)null), ct) > 0;
+
+    public async Task<bool> ConfirmTotpAsync(
+        PersonId person, long step, IReadOnlyCollection<string> recoveryCodeHashes, Instant now, Instant pendingSince, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var confirmed = await db.LocalCredentials
+            .Where(c => c.PersonId == person.Value && c.TotpEnabledAt == null && c.TotpSecret != null && c.TotpPendingSince >= pendingSince)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.TotpEnabledAt, now)
+                .SetProperty(c => c.TotpPendingSince, (Instant?)null)
+                .SetProperty(c => c.TotpLastStep, step), ct) > 0;
+        if (!confirmed)
+            return false;
+        await WriteRecoveryCodesAsync(person, recoveryCodeHashes, now, ct);
+        await transaction.CommitAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> AcceptTotpStepAsync(PersonId person, long step, CancellationToken ct)
+        // One statement: two requests with the same code cannot both pass.
+        => await db.LocalCredentials
+            .Where(c => c.PersonId == person.Value && c.TotpEnabledAt != null && (c.TotpLastStep == null || c.TotpLastStep < step))
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.TotpLastStep, step), ct) > 0;
+
+    public async Task<int?> UseRecoveryCodeAsync(PersonId person, string codeHash, Instant now, CancellationToken ct)
+    {
+        var used = await db.RecoveryCodes.Where(r => r.PersonId == person.Value && r.CodeHash == codeHash && r.UsedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.UsedAt, now), ct);
+        return used == 0 ? null : await RecoveryCodesLeftAsync(person, ct);
+    }
+
+    public async Task<bool> ReplaceRecoveryCodesAsync(PersonId person, IReadOnlyCollection<string> codeHashes, Instant now, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        if (!await db.LocalCredentials.AnyAsync(c => c.PersonId == person.Value && c.TotpEnabledAt != null, ct))
+            return false;
+        await WriteRecoveryCodesAsync(person, codeHashes, now, ct);
+        await transaction.CommitAsync(ct);
+        return true;
+    }
+
+    public Task<int> RecoveryCodesLeftAsync(PersonId person, CancellationToken ct)
+        => db.RecoveryCodes.CountAsync(r => r.PersonId == person.Value && r.UsedAt == null, ct);
+
+    public async Task<Result<PersonInfo>> DisableTotpAsync(PersonId person, bool endSessions, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var credential = await db.LocalCredentials.SingleOrDefaultAsync(c => c.PersonId == person.Value, ct);
+        if (credential is null)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("account", person.ToString()));
+        var row = await db.Persons.SingleAsync(p => p.Id == person.Value, ct);
+        credential.TotpSecret = null;
+        credential.TotpPendingSince = null;
+        credential.TotpEnabledAt = null;
+        credential.TotpLastStep = null;
+        if (endSessions)
+            row.SessionEpoch++;
+        await db.RecoveryCodes.Where(r => r.PersonId == person.Value).ExecuteDeleteAsync(ct);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(PersonRegistry.ToInfo(row, true));
+    }
+
+    private async Task WriteRecoveryCodesAsync(PersonId person, IReadOnlyCollection<string> codeHashes, Instant now, CancellationToken ct)
+    {
+        await db.RecoveryCodes.Where(r => r.PersonId == person.Value).ExecuteDeleteAsync(ct);
+        db.RecoveryCodes.AddRange(codeHashes.Select(hash => new RecoveryCodeRow
+        {
+            Id = Guid.CreateVersion7(), PersonId = person.Value, CodeHash = hash, CreatedAt = now,
+        }));
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>The SHA-256 of the whole link, in lower-case hexadecimal: a 256-bit secret needs no slow hash.</summary>
@@ -242,7 +325,8 @@ public sealed class LocalAccountStore(CoreDbContext db, IClock clock) : ILocalAc
     };
 
     private static LocalCredential ToCredential(LocalCredentialRow row)
-        => new(new PersonId(row.PersonId), row.Login, row.PasswordHash, row.FailedCount, row.LockLevel, row.LockedUntil, row.PasswordChangedAt);
+        => new(new PersonId(row.PersonId), row.Login, row.PasswordHash, row.FailedCount, row.LockLevel, row.LockedUntil, row.PasswordChangedAt,
+            row.TotpSecret, row.TotpPendingSince, row.TotpEnabledAt);
 
     private static Result<CompletedLink> NotFound() => Result.Failure<CompletedLink>(new NotFoundFailure("link", "?"));
 

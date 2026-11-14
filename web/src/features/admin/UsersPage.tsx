@@ -97,6 +97,7 @@ export function UsersPage() {
             <Badge variant={pending ? 'outline' : 'secondary'}>{t(pending ? 'admin.users.pending' : 'admin.users.active')}</Badge>
             {adult.lockedUntil ? <Badge variant="outline">{t('admin.users.locked')}</Badge> : null}
             {adult.linkExpiresAt ? <Badge variant="outline">{t('admin.users.link_pending')}</Badge> : null}
+            {adult.totpEnabled ? <Badge variant="outline">{t('admin.users.totp')}</Badge> : null}
           </span>
         </TableCell>
         <TableCell>{adult.isAdmin ? <Badge variant="secondary">{t('admin.users.admin')}</Badge> : null}</TableCell>

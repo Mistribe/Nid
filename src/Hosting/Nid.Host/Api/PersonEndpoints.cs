@@ -113,6 +113,28 @@ public static class PersonEndpoints
             api.MapPut("/me/password", (HttpContext http, Auth.ChangePasswordBody body, Auth.LocalSignIn signIn) => signIn.ChangeMyPasswordAsync(http, body))
                 .ReturnsNoContent()
                 .ProducesProblem(StatusCodes.Status400BadRequest);
+
+            // Issue 215, local-accounts.md §10: the second factor.
+            api.MapPost("/me/totp", (HttpContext http, Auth.LocalSignIn signIn) => signIn.BeginTotpAsync(http))
+                .Produces<Auth.TotpSetupView>()
+                .ProducesProblem(StatusCodes.Status409Conflict);
+
+            api.MapPost("/me/totp/confirm", (HttpContext http, Auth.TotpConfirmBody body, Auth.LocalSignIn signIn) => signIn.ConfirmTotpAsync(http, body))
+                .Produces<Auth.RecoveryCodesView>()
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            api.MapDelete("/me/totp", (HttpContext http, [Microsoft.AspNetCore.Mvc.FromBody] Auth.TotpDisableBody body, Auth.LocalSignIn signIn)
+                    => signIn.DisableTotpAsync(http, body))
+                .ReturnsNoContent()
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            api.MapPost("/me/totp/recovery-codes", (HttpContext http, Auth.RecoveryCodesBody body, Auth.LocalSignIn signIn)
+                    => signIn.RegenerateRecoveryCodesAsync(http, body))
+                .Produces<Auth.RecoveryCodesView>()
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status404NotFound);
         }
 
         // Issue 85: the Foyer / Moi selector only shows once « Moi » can differ from « Foyer ».
@@ -249,8 +271,9 @@ public static class ResultHttp
             _ when failure.Code == TokenCodes.LimitReached => StatusCodes.Status409Conflict,
             // Issue 215: local accounts (local-accounts.md §14).
             _ when failure.Code is LocalAccountCodes.LoginInvalid or LocalAccountCodes.PasswordTooShort or LocalAccountCodes.PasswordTooLong
-                or LocalAccountCodes.PasswordTooCommon or Auth.LocalSignIn.CurrentPasswordWrong => StatusCodes.Status400BadRequest,
-            _ when failure.Code is LocalAccountCodes.LoginTaken or PersonCodes.LastAdmin or PersonCodes.AdminSourceIdentityProvider => StatusCodes.Status409Conflict,
+                or LocalAccountCodes.PasswordTooCommon or Auth.LocalSignIn.CurrentPasswordWrong or Auth.LocalSignIn.InvalidCode => StatusCodes.Status400BadRequest,
+            _ when failure.Code is LocalAccountCodes.LoginTaken or LocalAccountCodes.TotpAlreadyEnabled or PersonCodes.LastAdmin
+                or PersonCodes.AdminSourceIdentityProvider => StatusCodes.Status409Conflict,
             _ when failure.Code == LocalAccountCodes.SetupClosed => StatusCodes.Status404NotFound,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,

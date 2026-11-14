@@ -27,6 +27,11 @@
     "account_enrolled": "Accès créé par lien",
     "account_unlocked": "Compte déverrouillé",
     "setup_completed": "Mise en place de Nid",
+    "totp_enabled": "Validation en deux étapes activée",
+    "totp_disabled": "Validation en deux étapes désactivée",
+    "totp_reset": "Validation en deux étapes désactivée par un administrateur",
+    "recovery_code_used": "Connexion avec un code de secours",
+    "recovery_codes_regenerated": "Nouveaux codes de secours",
     "unknown": "Événement {{name}}"
   }
 }
