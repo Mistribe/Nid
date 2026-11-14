@@ -62,13 +62,18 @@ public static class MonthAssembler
         return (days, stale);
     }
 
+    /// <summary>The contract's last month, when it has ended: the month of its last day.</summary>
+    public static bool IsLast(MonthTerms terms, ContractEnd? end) => end is not null && terms.Contract.End is { } last && last.ToYearMonth() == terms.Month;
+
     /// <summary>
     /// The figures of these days, or the problems and missing June months that withhold them. <paramref name="stored"/>: the
-    /// arrangement's statements (the validated ones' figures count); <paramref name="previous"/>, <paramref name="next"/>: the adjacent months', with their days.
+    /// arrangement's statements (the validated ones' figures count; with their days on the last month of an ended contract, see
+    /// <see cref="IsLast"/>); <paramref name="previous"/>, <paramref name="next"/>: the adjacent months', with their days.
     /// </summary>
     public static MonthEvaluation Evaluate(
         MonthTerms terms, IReadOnlyList<StatementDay> days, IReadOnlyList<(string Field, string Code)> stale, IReadOnlyList<Statement> stored,
-        Statement? previous, decimal mileage, decimal? cmg, DeclaredFigures? declared = null, decimal contributions = 0m, Statement? next = null, decimal? exemption = null)
+        Statement? previous, decimal mileage, decimal? cmg, DeclaredFigures? declared = null, decimal contributions = 0m, Statement? next = null, decimal? exemption = null,
+        ContractEnd? end = null)
     {
         IReadOnlyList<(string Field, string Code)> problems = [.. StatementCheck.Days(terms.Month, days), .. stale];
         var validated = stored.Where(s => s.Validated && s.Figures is not null && s.Month.CompareTo(terms.Month) < 0).ToList();
@@ -77,14 +82,61 @@ public static class MonthAssembler
         if (terms.Month.Month == 6)
             (june, missing) = StatementContext.June(terms.Month, terms.Contract, terms.Plan, terms.Gaps,
                 validated.Select(s => (s.Month, s.Figures!.BasePay - s.Figures.Deduction + s.Figures.ExtraPay, s.Days)).ToList());
+        EndingInput? ending = null;
+        if (IsLast(terms, end))
+        {
+            (ending, var before) = Ending(terms, end!, validated);
+            missing = [.. missing.Union(before).Order()];
+            if (ending is not null && ending.GrossRatio is null && EndOfContract.IndemnityDue(end!.Reason, terms.Contract.Start, end.Notified))
+                problems = [.. problems, ("terms.grossHourlyRate", ChildcareCodes.GrossRateRequired)];
+        }
         if (problems.Count > 0 || missing.Count > 0)
             return new MonthEvaluation(null, problems, missing);
 
         var input = new MonthInput(terms.Month, terms.Contract, terms.Plan, terms.Gaps, days,
             [.. Neighbour(terms, terms.Month.PlusMonths(-1), previous), .. Neighbour(terms, terms.Month.PlusMonths(1), next)], StatementContext.ChildSickUsedBefore(terms.Contract.Start, terms.Month,
                 validated.Select(s => (s.Month, s.Figures!.ChildSickDeducted)).ToList()),
-            mileage, cmg ?? 0m, june, declared, contributions, exemption, terms.On);
+            mileage, cmg ?? 0m, june, declared, contributions, exemption, terms.On, ending);
         return new MonthEvaluation(ChildcareMonth.Compute(input), problems, missing);
+    }
+
+    /// <summary>
+    /// What the last month settles, from the validated months before it (each with its days), or the months still to validate.
+    /// The regularisation runs over the whole contract (art. 124), the leave balance over the period since the last 1 June, the one
+    /// June's statement has not paid (art. 125).
+    /// </summary>
+    private static (EndingInput? Input, IReadOnlyList<YearMonth> Missing) Ending(MonthTerms terms, ContractEnd end, IReadOnlyList<Statement> validated)
+    {
+        var (start, last) = (terms.Contract.Start, terms.Contract.End!.Value);
+        var first = ChildcareRules.FirstDay.ToYearMonth();
+        var earlier = StatementContext.Months(start, last, last).Where(m => m != terms.Month).ToList();
+        var missing = earlier.Where(m => m.CompareTo(first) >= 0 && validated.All(v => v.Month != m)).ToList();
+        if (missing.Count > 0)
+            return (null, missing);
+
+        var leaveFrom = LocalDate.Max(start, new LocalDate(terms.Month.Month >= 6 ? terms.Month.Year : terms.Month.Year - 1, 6, 1));
+        var (due, paid, net, leavePay) = (0m, 0m, 0m, 0m);
+        var leaveDays = new List<StatementDay>();
+        foreach (var month in validated.Where(v => earlier.Contains(v.Month)).OrderBy(v => v.Month))
+        {
+            var f = month.Figures!;
+            var monthTerms = MonthTerms.For(terms.Revisions, terms.Gaps, terms.Overrides, month.Month);
+            if (month.Days.Count == 0)
+                throw new ArgumentException($"{month.Month:uuuu-MM} is needed with its days.", nameof(validated));
+            var sickBefore = StatementContext.ChildSickUsedBefore(start, month.Month, validated.Select(v => (v.Month, v.Figures!.ChildSickDeducted)).ToList());
+            var inContract = month.Days.Where(d => StatementPreparation.InContract(d.Date, monthTerms.Contract)).ToList();
+            due += Mensualisation.Round(monthTerms.Contract.NetHourlyRate * EndOfContract.HoursDue(inContract, monthTerms.Plan, sickBefore, monthTerms.Contract.UnpaidAbsences));
+            paid += f.BasePay - f.Deduction;
+            net += f.Declaration.NetPay;
+            if (month.Month.CompareTo(leaveFrom.ToYearMonth()) >= 0)
+            {
+                leavePay += f.BasePay - f.Deduction + f.ExtraPay;
+                leaveDays.AddRange(inContract.Where(d => d.Date >= leaveFrom));
+            }
+        }
+        var gross = terms.Revisions.LastOrDefault(r => r.GrossHourlyRate is not null);
+        return (new EndingInput(end.Reason, end.Notified, leaveDays, leavePay, due, paid, net,
+            gross is null ? null : gross.GrossHourlyRate!.Value / gross.NetHourlyRate), []);
     }
 
     /// <summary>

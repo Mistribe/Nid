@@ -39,6 +39,8 @@ public static class ChildcareCodes
     public const string MonthOutOfContract = "childcare.month_out_of_contract";
     public const string RevisionNotAfter = "childcare.revision_not_after";
     public const string EndBeforeTerms = "childcare.end_before_terms";
+    public const string GrossRateRequired = "childcare.gross_rate_required";
+    public const string NotifiedOutOfContract = "childcare.notified_out_of_contract";
     public const string Closed = "childcare.closed";
     public const string Open = "childcare.open";
     public const string Conflict = "childcare.conflict";

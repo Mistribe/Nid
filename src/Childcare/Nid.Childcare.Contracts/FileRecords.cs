@@ -30,6 +30,17 @@ public sealed record ArrangementRecord
 
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public bool Closed { get; set; }
+
+    /// <summary>How a closed contract ended; omitted when it was closed without saying.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EndRecord? End { get; set; }
+}
+
+/// <summary>The end's reason (<c>withdrawal</c>, <c>misconduct</c>, <c>approval</c>, <c>child_death</c>, <c>resignation</c>, <c>trial</c>) and the day it was notified.</summary>
+public sealed record EndRecord
+{
+    public required string Reason { get; init; }
+    public required string Notified { get; init; }
 }
 
 public sealed record CarerRecord
@@ -236,4 +247,17 @@ public sealed record FiguresRecord
     public required decimal TaxBase { get; init; }
 
     public required int ChildSickDeducted { get; init; }
+
+    /// <summary>The last month's end-of-contract lines, omitted on any other month.</summary>
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? Regularisation { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? LeaveIndemnity { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? RuptureIndemnity { get; set; }
 }

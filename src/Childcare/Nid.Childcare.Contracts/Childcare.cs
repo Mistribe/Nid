@@ -5,6 +5,16 @@ namespace Nid.Childcare.Contracts;
 /// <summary>Childcare spec §2: why a planned day was not worked; the contract decides which reasons are not paid.</summary>
 public enum AbsenceReason { Family, ParentRtt, ChildSick, CarerAbsent, Holiday, PaidLeave, CarerTraining, FamilyAgreed }
 
+/// <summary>
+/// Why the contract ends (IDCC 3239, socle spécifique assistant maternel, art. 119–121; art. 63 for a death): the employer withdraws the
+/// child, for the carer's serious or gross misconduct, the approval is changed, suspended or withdrawn, the child dies, the carer resigns,
+/// or either party ends it during the trial period.
+/// </summary>
+public enum EndReason { Withdrawal, Misconduct, Approval, ChildDeath, Resignation, Trial }
+
+/// <summary>How the contract ended: the reason and the day the letter was first presented or handed over, the notice's start.</summary>
+public sealed record ContractEnd(EndReason Reason, LocalDate Notified);
+
 /// <summary>Who provides a meal, set per meal in the contract terms: only the nanny's are paid.</summary>
 public enum MealProvider { Nanny, Employer }
 
@@ -37,18 +47,22 @@ public sealed record DeclaredFigures(
 }
 
 /// <summary>Spec §3: the Pajemploi monthly declaration, field by field.</summary>
+/// <remarks><c>LeaveIndemnity</c>, <c>RuptureIndemnity</c>: the last declaration's « indemnité compensatrice de congés payés » and « indemnité de
+/// rupture » fields, outside the net pay (Pajemploi, « Les indemnités de fin de contrat »); 0 on any other month.</remarks>
 public sealed record PajemploiDeclaration(
     int NormalHours, int ActivityDays, int? PaidLeaveDays, decimal ComplementaryHours, decimal OvertimeHours,
-    decimal NetPay, decimal Upkeep, decimal Meals, decimal Mileage);
+    decimal NetPay, decimal Upkeep, decimal Meals, decimal Mileage, decimal LeaveIndemnity = 0m, decimal RuptureIndemnity = 0m);
 
 /// <summary>
 /// Spec §3 and §6: the declaration with the pay's parts, the month's cost and the childcare tax base. <c>Contributions</c>: #30, the
 /// contributions the CMG leaves to the household, as the Pajemploi summary shows them; in the cost and the tax base. <c>Exemption</c>: the
 /// salary contributions Pajemploi waives on the extra hours and adds to what it pays the carer; in the cost and the tax base.
+/// <c>Regularisation</c>: the last month's salary balance of an incomplete year (IDCC 3239 art. 124), a part of the net pay, below 0 when the
+/// carer was paid for more hours than the child was welcomed.
 /// </summary>
 public sealed record MonthFigures(
     PajemploiDeclaration Declaration, decimal BasePay, decimal Deduction, decimal ExtraPay, decimal PaidLeavePay,
-    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted, decimal Contributions = 0m, decimal Exemption = 0m);
+    decimal Cmg, decimal Cost, decimal TaxBase, int ChildSickDeducted, decimal Contributions = 0m, decimal Exemption = 0m, decimal Regularisation = 0m);
 
 /// <summary>The names of <see cref="MealProvider"/>, on the wire and in the database.</summary>
 public static class MealProviderCodes
@@ -84,4 +98,18 @@ public static class AbsenceCodes
     public static AbsenceReason? TryParse(string? name) => Names.FirstOrDefault(n => n.Value == name) is { Value: not null } hit ? hit.Key : null;
 
     public static AbsenceReason Parse(string name) => TryParse(name) ?? throw new ArgumentException($"Unknown absence reason {name}.", nameof(name));
+}
+
+/// <summary>The snake_case names of <see cref="EndReason"/>, on the wire and in the database.</summary>
+public static class EndReasonCodes
+{
+    private static readonly Dictionary<EndReason, string> Names = new()
+    {
+        [EndReason.Withdrawal] = "withdrawal", [EndReason.Misconduct] = "misconduct", [EndReason.Approval] = "approval",
+        [EndReason.ChildDeath] = "child_death", [EndReason.Resignation] = "resignation", [EndReason.Trial] = "trial",
+    };
+
+    public static string Of(EndReason reason) => Names[reason];
+
+    public static EndReason? TryParse(string? name) => Names.FirstOrDefault(n => n.Value == name) is { Value: not null } hit ? hit.Key : null;
 }

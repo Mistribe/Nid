@@ -47,6 +47,14 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("child_id");
 
+                    b.Property<LocalDate?>("EndNotified")
+                        .HasColumnType("date")
+                        .HasColumnName("end_notified");
+
+                    b.Property<string>("EndReason")
+                        .HasColumnType("text")
+                        .HasColumnName("end_reason");
+
                     b.Property<string>("ImportHash")
                         .HasColumnType("char(64)")
                         .HasColumnName("import_hash");
@@ -243,6 +251,10 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("extra_pay");
 
+                    b.Property<decimal?>("LeaveIndemnity")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("leave_indemnity");
+
                     b.Property<decimal?>("Meals")
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("meals");
@@ -270,6 +282,14 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("PaidLeavePay")
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("paid_leave_pay");
+
+                    b.Property<decimal?>("Regularisation")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("regularisation");
+
+                    b.Property<decimal?>("RuptureIndemnity")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("rupture_indemnity");
 
                     b.Property<decimal?>("TaxBase")
                         .HasColumnType("numeric(19,4)")

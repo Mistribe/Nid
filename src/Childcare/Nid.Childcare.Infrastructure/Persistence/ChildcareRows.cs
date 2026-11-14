@@ -12,6 +12,9 @@ public sealed class ArrangementRow
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
+    /// <summary>Why the contract ended (<c>EndReasonCodes</c>) and when it was notified; null while open, or closed before they were asked.</summary>
+    public string? EndReason { get; set; }
+    public LocalDate? EndNotified { get; set; }
     public uint Version { get; set; }
 }
 
@@ -102,6 +105,10 @@ public sealed class StatementRow
     public decimal? Cost { get; set; }
     public decimal? TaxBase { get; set; }
     public int? ChildSickDeducted { get; set; }
+    /// <summary>The last month's regularisation, leave and breach indemnities; null on any other month.</summary>
+    public decimal? Regularisation { get; set; }
+    public decimal? LeaveIndemnity { get; set; }
+    public decimal? RuptureIndemnity { get; set; }
     public uint Version { get; set; }
 }
 

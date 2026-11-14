@@ -89,11 +89,26 @@ public static class ChildcareEndpoints
             {
                 var reader = new FieldReader();
                 var on = reader.Date(body.On, "on");
+                var end = body.Reason is null && body.Notified is null ? null : ChildcareBodies.End(reader, body.Reason, body.Notified);
+                var gross = body.GrossHourlyRate is null ? null : reader.Decimal(body.GrossHourlyRate, "grossHourlyRate");
                 return !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new CloseChildcareCommand(new ItemId(id), on!.Value), ct)).ToHttp(x => new IdResponse(x.Value));
+                    : (await invoker.InvokeAsync(new CloseChildcareCommand(new ItemId(id), on!.Value, end, gross), ct)).ToHttp(x => new IdResponse(x.Value));
             })
             .Returns<IdResponse>();
+
+        // What ending the contract this way means, before it is ended: seniority, notice, breach indemnity.
+        api.MapGet("/{id:guid}/end", async (Guid id, string? reason, string? notified, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var end = ChildcareBodies.End(reader, reason, notified);
+                return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new ContractEndQuery(new ItemId(id), end!), ct)).ToHttp(view => view);
+            })
+            .Returns<ContractEndView>();
+
+        api.MapGet("/{id:guid}/settlement", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetSettlementQuery(new ItemId(id)), ct)).ToHttp(view => view))
+            .Returns<ChildcareSettlementView>();
 
         api.MapPost("/{id:guid}/reopen", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ReopenChildcareCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
@@ -292,10 +307,19 @@ public static class ChildcareEndpoints
 
     public sealed record GapsBody(IReadOnlyList<CareGapBody>? Gaps);
 
-    public sealed record CloseChildcareBody(string? On);
+    /// <summary><c>Reason</c> and <c>Notified</c> go together; <c>GrossHourlyRate</c> a decimal string, for the breach indemnity.</summary>
+    public sealed record CloseChildcareBody(string? On, string? Reason = null, string? Notified = null, string? GrossHourlyRate = null);
 
     private static class ChildcareBodies
     {
+        public static ContractEnd? End(FieldReader reader, string? reason, string? notified)
+        {
+            var parsed = EndReasonCodes.TryParse(reason);
+            if (parsed is null) reader.Add("reason", "request.invalid", "withdrawal, misconduct, approval, child_death, resignation or trial.");
+            var day = reader.Date(notified, "notified");
+            return parsed is { } r && day is { } d ? new ContractEnd(r, d) : null;
+        }
+
         private static readonly NodaTime.Text.YearMonthPattern MonthPattern = NodaTime.Text.YearMonthPattern.CreateWithInvariantCulture("uuuu-MM");
 
         public static YearMonth? Month(FieldReader reader, string value)

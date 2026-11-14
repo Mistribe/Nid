@@ -1,4 +1,4 @@
-import { Link, useParams, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,12 +28,12 @@ import { useAnchoredDocuments } from '@/features/documents/api';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import type { RootSearch } from '@/lib/search';
 import { useChildcare, useChildcareList, useOverrideWeek, useReopenChildcare, useStatements, type ChildcareDetail, type ChildcareTerms, type StatementRow } from './api';
-import { EditChildcareDialog, EndDialog, GapsDialog, ReviseDialog, UnpaidAbsencesDialog } from './ChildcareDialogs';
+import { EditChildcareDialog, GapsDialog, ReviseDialog, UnpaidAbsencesDialog } from './ChildcareDialogs';
 import { dayName } from './childcareSchema';
 import { stateLabel } from './statementText';
 import { YearSummary } from './YearSummary';
 import { BelowMinimums } from './BelowMinimums';
-import { reasonLabel } from './statementText';
+import { endReasonLabel, reasonLabel } from './statementText';
 import '@/locales/childcare';
 import '@/locales/forms';
 import '@/locales/deletion';
@@ -41,7 +41,7 @@ import { PageSkeleton } from '@/components/page/skeletons';
 
 const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
 
-type Open = 'edit' | 'revise' | 'gaps' | 'end' | 'delete' | null;
+type Open = 'edit' | 'revise' | 'gaps' | 'delete' | null;
 
 /** Hours as the server writes them (`38.00`), shown the French way (`38`, `37,5`): text only, nothing computed. */
 export const hoursText = (hours: string) => hours.replace(/\.?0+$/, '').replace('.', ',');
@@ -53,6 +53,7 @@ export function ChildcareDetailPage() {
   const answer = useChildcare(id);
   const [open, setOpen] = useState<Open>(null);
   const reopen = useReopenChildcare();
+  const navigate = useNavigate();
   const crumbs = [{ label: t('childcare_list.title'), to: '/childcare' as const }];
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
   if (!answer.data) return <><PageTrail crumbs={crumbs} /><PageSkeleton label={t('childcare_detail.loading')} actions={2} stats={4} tabs={4} /></>;
@@ -62,7 +63,7 @@ export function ChildcareDetailPage() {
   const terms = detail.terms.find((r) => r.from === summary.inForceFrom)!;
   const show = (o: Open) => () => setOpen(o);
   const more = <SharingMenu item={id} onAnnounce={toast.success} shared={summary.visibility === 'shared'} label={t('page.more_actions')}
-    items={summary.closed ? [] : [{ label: t('childcare_detail.end'), onSelect: show('end') }]}
+    items={summary.closed ? [] : [{ label: t('childcare_detail.end'), onSelect: () => void navigate({ to: '/childcare/$id/end', params: { id } }) }]}
     trailing={[{ label: t('deletion.menu'), destructive: true, onSelect: show('delete') }]} />;
   const actions = !summary.canWrite ? null : summary.closed
     ? <><Button type="button" variant="outline" disabled={reopen.isPending} onClick={() => reopen.mutate({ params: { path: { id } } })}>{t('childcare_detail.reopen')}</Button>{more}</>
@@ -115,9 +116,16 @@ export function ChildcareDetailPage() {
       {open === 'edit' ? <EditChildcareDialog {...dialog} /> : null}
       {open === 'revise' ? <ReviseDialog {...dialog} /> : null}
       {open === 'gaps' ? <GapsDialog {...dialog} /> : null}
-      {open === 'end' ? <EndDialog {...dialog} /> : null}
       {summary.canWrite && open === 'delete'
         ? <Suspense fallback={null}><DeleteItemFlow kind="childcare.delete_childcare" id={id} closed={summary.closed} onClose={() => setOpen(null)} /></Suspense> : null}
+      {detail.end ? (
+        <Section title={t('childcare_end.ended_title')}>
+          <p className="text-sm">
+            {t('childcare_end.ended', { reason: endReasonLabel(t, detail.end.reason), date: formatLocalDate(detail.end.notified) })}{' '}
+            <Link to="/childcare/$id/settlement" params={{ id }} className="underline">{t('childcare_settlement.title')}</Link>
+          </p>
+        </Section>
+      ) : null}
       <Tabs detail={detail} terms={terms} onGaps={summary.canWrite && !summary.closed ? show('gaps') : null} />
     </article>
   );

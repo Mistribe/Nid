@@ -145,6 +145,10 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
                 hint: view.figures.costBeforeCmg ? t('childcare_statement.before_cmg') : null },
               { label: t('childcare_statement.cmg'), tip: t('childcare_detail.cmg_tip'), value: view.cmg == null ? '—' : formatCurrency(view.cmg, 'EUR') },
               ...(view.contributions == null ? [] : [{ label: t('childcare_statement.contributions'), value: formatCurrency(view.contributions, 'EUR') }]),
+              // The contract's last month: the incomplete year's balance is part of the net pay.
+              ...(view.figures.regularisation ? [{ label: t('childcare_statement.regularisation'), tip: t('childcare_statement.regularisation_tip'),
+                value: <Money value={view.figures.regularisation} tabular />,
+                hint: <Link to="/childcare/$id/settlement" params={{ id }} className="underline">{t('childcare_statement.settlement')}</Link> }] : []),
               ...(!view.figures.exemption || /^0(\.0+)?$/.test(view.figures.exemption.amount) ? [] : [{ label: t('childcare_statement.exemption'),
                 tip: t('childcare_statement.exemption_tip'), value: <Money value={view.figures.exemption} tabular />,
                 hint: view.exemption == null ? t('childcare_statement.estimated') : null }]),

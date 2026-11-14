@@ -36,4 +36,10 @@ const REASONS = {
 
 export const ABSENCE_REASONS = Object.keys(REASONS) as (keyof typeof REASONS)[];
 
+const END_REASONS = ['withdrawal', 'misconduct', 'approval', 'child_death', 'resignation', 'trial'] as const;
+
+/** Why a contract ended, in words; an unknown code reads as a withdrawal's. */
+export const endReasonLabel = (t: TFunction, reason: string) =>
+  t(`childcare_end.reason.${END_REASONS.find((r) => r === reason) ?? 'withdrawal'}`);
+
 export const reasonLabel = (t: TFunction, reason: string) => t(REASONS[reason as keyof typeof REASONS] ?? REASONS.family);
