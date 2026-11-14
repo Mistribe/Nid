@@ -26,7 +26,6 @@ export type Settlement = components['schemas']['ChildcareSettlementView'];
 
 export const ARRANGEMENT = '/api/v1/childcare/{id}' as const;
 export const REVISIONS = '/api/v1/childcare/{id}/revisions' as const;
-export const REVISION = '/api/v1/childcare/{id}/revisions/{from}' as const;
 export const GAPS = '/api/v1/childcare/{id}/gaps' as const;
 export const WEEK_OVERRIDE = '/api/v1/childcare/{id}/week-overrides/{monday}' as const;
 export const CLOSE = '/api/v1/childcare/{id}/close' as const;
@@ -67,11 +66,6 @@ export function useEditChildcare() {
 export function useReviseChildcare() {
   const { $api } = useApi();
   return $api.useMutation('post', REVISIONS, useWrite());
-}
-
-export function useSetUnpaidAbsences() {
-  const { $api } = useApi();
-  return $api.useMutation('put', REVISION, useWrite());
 }
 
 export function useReplaceGaps() {

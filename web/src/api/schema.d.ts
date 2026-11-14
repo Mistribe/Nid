@@ -30621,6 +30621,8 @@ export interface components {
             terms?: null | components["schemas"]["TermsBody"];
             /** Format: uint32 */
             version?: null | number;
+            /** @description Start (YYYY-MM-DD) of the revision to correct, a past one included; the last revision when omitted. */
+            revision?: null | string;
         };
         EditDocumentBody: {
             title?: null | string;

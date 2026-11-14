@@ -28,7 +28,7 @@ import { useAnchoredDocuments } from '@/features/documents/api';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import type { RootSearch } from '@/lib/search';
 import { useChildcare, useChildcareList, useOverrideWeek, useReopenChildcare, useStatements, type ChildcareDetail, type ChildcareTerms, type StatementRow } from './api';
-import { EditChildcareDialog, GapsDialog, ReviseDialog, UnpaidAbsencesDialog } from './ChildcareDialogs';
+import { EditChildcareDialog, GapsDialog, ReviseDialog } from './ChildcareDialogs';
 import { dayName } from './childcareSchema';
 import { stateLabel } from './statementText';
 import { YearSummary } from './YearSummary';
@@ -280,9 +280,9 @@ function Revisions({ detail }: { detail: ChildcareDetail }) {
   const editable = detail.summary.canWrite && !detail.summary.closed;
   // Only the last terms are open-ended: in force, or a revision that has not started yet.
   const end = (r: ChildcareTerms) => r.to ? <LocalDate value={r.to} style="short" /> : t(r.from > detail.summary.inForceFrom ? 'childcare_detail.upcoming' : 'childcare_detail.current');
-  // #192: a past revision's absences stay correctable, the current terms' too.
+  // A past revision stays correctable in full, the current terms too.
   const menu = (r: ChildcareTerms) => editable
-    ? <RowMenu label={t('childcare_detail.revision_menu', { from: formatLocalDate(r.from, 'short') })} items={[{ label: t('childcare_detail.unpaid_edit'), onSelect: () => setEditing(r) }]} />
+    ? <RowMenu label={t('childcare_detail.revision_menu', { from: formatLocalDate(r.from, 'short') })} items={[{ label: t('childcare_detail.revision_edit'), onSelect: () => setEditing(r) }]} />
     : null;
   const absences = (r: ChildcareTerms) => r.unpaidAbsences.map((a) => reasonLabel(t, a)).join(', ') || t('childcare_detail.dash');
   return (
@@ -303,7 +303,7 @@ function Revisions({ detail }: { detail: ChildcareDetail }) {
             <span className="w-full text-muted-foreground">{absences(r)}</span>
           </div>
         )} />
-      {editing ? <UnpaidAbsencesDialog detail={detail} revision={editing} onClose={() => setEditing(null)}
+      {editing ? <EditChildcareDialog detail={detail} revision={editing.from} onClose={() => setEditing(null)}
         onDone={(message) => { setEditing(null); toast.success(message); }} /> : null}
     </>
   );

@@ -26,7 +26,6 @@ function serve(body: ChildcareDetail, writes: { path: string; body: unknown }[] 
     http.post('*/api/v1/childcare/:id/revisions', record),
     http.post('*/api/v1/childcare/:id/close', record),
     http.put('*/api/v1/childcare/:id/gaps', record),
-    http.put('*/api/v1/childcare/:id/revisions/:from', record),
     http.put('*/api/v1/childcare/:id/week-overrides/:monday', record),
   );
 }
@@ -235,21 +234,28 @@ describe('ChildcareDetailPage', () => {
     expect(rows[2]).not.toHaveTextContent('En cours');
   });
 
-  it('corrects a past revision\'s unpaid absences from its row (#192)', async () => {
+  it('corrects a past revision in full from its row, its start kept', async () => {
     const writes: { path: string; body: unknown }[] = [];
-    serve(detail({ terms: [terms({ to: '2025-12-31' }), terms({ from: '2026-01-01' })] }), writes);
+    serve(detail({ terms: [terms({ to: '2025-12-31', netHourlyRate: '4.00' }), terms({ from: '2026-01-01' })] }), writes);
     const { user } = await renderApp(url);
     await user.click(await screen.findByRole('tab', { name: 'Révisions' }));
     const table = screen.getByRole('table', { name: 'Révisions' });
     expect(within(table).getAllByRole('row')[2]).toHaveTextContent("Enfant malade, Absence de l'assistante");
     await user.click(within(table).getByRole('button', { name: 'Actions sur la période du 1 sept. 2025' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Modifier les absences non payées' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Absences non payées' });
-    expect(dialog).toHaveTextContent('Période du 1 sept. 2025 au 31 déc. 2025.');
+    await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Modifier la garde' });
+    expect(dialog).toHaveTextContent('Période commençant le 1 sept. 2025.');
+    const net = within(dialog).getByLabelText('Taux horaire net (€)');
+    expect(net).toHaveValue('4,00');
+    await user.clear(net);
+    await user.type(net, '4,50');
     await user.click(within(dialog).getByRole('checkbox', { name: 'RTT employeur' }));
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
     await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toEqual({ path: `/api/v1/childcare/${ARRANGEMENT_ID}/revisions/2025-09-01`, body: { unpaidAbsences: ['child_sick', 'carer_absent', 'parent_rtt'] } });
+    const body = writes[0]!.body as { revision: string; terms: { from: string; netHourlyRate: string; unpaidAbsences: string[] } };
+    expect(writes[0]!.path).toBe(`/api/v1/childcare/${ARRANGEMENT_ID}`);
+    expect([body.revision, body.terms.from, body.terms.netHourlyRate, body.terms.unpaidAbsences])
+      .toEqual(['2025-09-01', '2025-09-01', '4.50', ['child_sick', 'carer_absent', 'parent_rtt']]);
   });
 
   it('a closed arrangement offers no correction of its revisions', async () => {

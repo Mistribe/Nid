@@ -79,7 +79,7 @@ public class ChildcareStoreTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var app = await NidApp.StartAsync(fixture);
         var id = await CreatedAsync(app);
         var from = new LocalDate(2025, 9, 1);
-        await WithStoreAsync(app, async s => { await s.ReplaceCurrentTermsAsync(TwoTypes(id, from), default); return 0; });
+        await WithStoreAsync(app, async s => { await s.ReplaceTermsAsync(TwoTypes(id, from), default); return 0; });
         var terms = Assert.Single(await WithStoreAsync(app, s => s.TermsOfAsync([id], default)));
         Assert.Equal(45, terms.ProgrammedWeeks);
         Assert.Equal(["Longue", "Courte"], terms.WeekTypes.Select(w => w.Name));
@@ -87,7 +87,7 @@ public class ChildcareStoreTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(4, terms.WeekTypes[0].Schedule.Count);
         Assert.Equal(new LocalTime(16, 45), Assert.Single(terms.WeekTypes[1].Schedule).Departure);
 
-        await WithStoreAsync(app, async s => { await s.ReplaceCurrentTermsAsync(TermsOf(id, from), default); return 0; });
+        await WithStoreAsync(app, async s => { await s.ReplaceTermsAsync(TermsOf(id, from), default); return 0; });
         Assert.Single(Assert.Single(await WithStoreAsync(app, s => s.TermsOfAsync([id], default))).WeekTypes);
     }
 
