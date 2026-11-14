@@ -8,13 +8,14 @@ namespace Nid.Core.Application.Tax;
 /// Spec §8. <c>ProfileFrom</c>: the earlier year whose profile stands in, null when the year has its own (or none). <c>Dependents</c>
 /// is the household's count of dependents (the profile may say otherwise); <c>RentalProperties</c> the visible ones Pinel may name.
 /// Tax assessments spec §5-§6: <c>CarriedFrom</c> what the previous year's notices lay over the profile (null: nothing), <c>Gaps</c> the
-/// year's own notice against the estimate (null: no notice for these adults).
+/// year's own notice against the estimate (null: no notice for these adults). <c>RentalDeficitEstimated</c>: the rental deficit last
+/// year's estimate leaves for this one, a suggestion for the profile's field when no notice of last year prints one (null: none).
 /// </summary>
 public sealed record TaxEstimateView(
     int Year, TaxProfileView Profile, int? ProfileFrom, TaxInputsView Inputs, TaxResultView Result, IReadOnlyList<TaxNoticeView> Notices,
     IReadOnlyList<TaxAdultView> Adults, int Dependents, IReadOnlyList<TaxPropertyView> RentalProperties,
     IReadOnlyList<TaxSalaryDetailView> SalaryDetail, IReadOnlyDictionary<Guid, string> ObservedRates,
-    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null) : IExposesItems
+    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Notices.Select(n => n.Item).Concat(RentalProperties.Select(p => p.Id)).Concat(SalaryDetail.Select(d => d.Item));
 }
@@ -150,6 +151,7 @@ public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, 
 /// <summary>
 /// Spec §4, each step's figure as a decimal string; rates in percent (<c>"30"</c>, <c>"4.27"</c>). <c>ReferenceIncome</c>: the
 /// revenu fiscal de référence. <c>RentalRegimeGap</c>: the total tax under the other rental regime minus this one, null when there is no choice.
+/// <c>RentalDeficitCarriedForward</c>: the rental deficit left for the next years.
 /// </summary>
 public sealed record TaxResultView(
     int Year, int RulesYear, string Parts, IReadOnlyList<TaxDeclarantResultView> Declarants,
@@ -158,7 +160,8 @@ public sealed record TaxResultView(
     string ChildcareCredit, string HomeEmploymentCredit, string NicheCapExcess,
     string IncomeTax, string CapitalFlatTax, string SocialLevies, string TotalTax,
     string MarginalRate, string? AverageRate, string NetBeforeTax, string NetAfterTax, string NetAfterTaxMonthly,
-    IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null, string ReferenceIncome = "0.00", string? RentalRegimeGap = null)
+    IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null, string ReferenceIncome = "0.00", string? RentalRegimeGap = null,
+    string RentalDeficitCarriedForward = "0.00")
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
@@ -171,7 +174,7 @@ public sealed record TaxResultView(
         Amount(r.IncomeTax), Amount(r.CapitalFlatTax), Amount(r.SocialLevies), Amount(r.TotalTax),
         Rate(r.MarginalRate), r.AverageRate is { } a ? Rate(a) : null, Amount(r.NetBeforeTax), Amount(r.NetAfterTax), Amount(r.NetAfterTaxMonthly),
         r.Warnings, WithholdingView.Of(r.Withholding), r.Per is { } household ? TaxPerView.Of(household) : null, Amount(r.ReferenceIncome),
-        r.RentalRegimeGap is { } gap ? Amount(gap) : null);
+        r.RentalRegimeGap is { } gap ? Amount(gap) : null, Amount(r.RentalDeficitCarriedForward));
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {

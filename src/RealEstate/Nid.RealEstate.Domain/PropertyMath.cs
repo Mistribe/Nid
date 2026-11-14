@@ -74,7 +74,7 @@ public static class PropertyMath
     /// <summary>Spec 3C1 §5: the acquisition and the works paid up to d.</summary>
     public static decimal CostPrice(PropertyDetails property, IEnumerable<Flow> flows, LocalDate d)
         => property.PurchasePrice + property.NotaryFees + property.AgencyFees + property.OtherAcquisitionCosts
-           + flows.Where(f => f.OccurredOn <= d && f.Kind == FlowKind.Expense && f.Category == PropertyCategories.Works).Sum(f => f.Amount.Amount);
+           + flows.Where(f => f.OccurredOn <= d && f.Kind == FlowKind.Expense && PropertyCategories.IsWorks(f.Category)).Sum(f => f.Amount.Amount);
 
     /// <summary>
     /// Passive income spec C7: the rent cashed in <paramref name="month"/> (first day), and its costs — expenses but works, less
@@ -86,7 +86,7 @@ public static class PropertyMath
         var inMonth = flows.Where(f => f.OccurredOn >= month && f.OccurredOn < next).ToList();
         decimal Sum(FlowKind kind, Func<string?, bool> category) => inMonth.Where(f => f.Kind == kind && category(f.Category)).Sum(f => f.Amount.Amount);
         var let = tenancies.Any(t => t.StartsOn < next && (t.EndsOn is not { } end || end >= month));
-        var costs = Sum(FlowKind.Expense, c => c != PropertyCategories.Works) - Sum(FlowKind.Income, c => c == PropertyCategories.RecoverableCharges);
+        var costs = Sum(FlowKind.Expense, c => !PropertyCategories.IsWorks(c)) - Sum(FlowKind.Income, c => c == PropertyCategories.RecoverableCharges);
         return new PropertyIncomeMonth(month, Sum(FlowKind.Income, c => c == PropertyCategories.Rent), let ? costs : 0m);
     }
 
@@ -166,7 +166,7 @@ public static class PropertyMath
         var inWindow = flows.Where(f => f.OccurredOn >= first && f.OccurredOn <= d).ToList();
         var rent = inWindow.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount);
         // Spec 3C2 §1.4: works are in the cost price already; loan costs are never deducted.
-        var charges = inWindow.Where(f => f.Kind == FlowKind.Expense && f.Category != PropertyCategories.Works).Sum(f => f.Amount.Amount);
+        var charges = inWindow.Where(f => f.Kind == FlowKind.Expense && !PropertyCategories.IsWorks(f.Category)).Sum(f => f.Amount.Amount);
         var expected = tenancies.Sum(t => Expected(t, first, d));
 
         var starts = tenancies.Select(t => t.StartsOn).ToList();

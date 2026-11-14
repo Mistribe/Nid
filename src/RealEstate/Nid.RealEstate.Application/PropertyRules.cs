@@ -18,7 +18,7 @@ internal static class PropertyRules
     public const int EveryCountMax = 120;
 
     /// <summary>Spec 3C2 §2: an expense category of the property without <c>works</c>, already in the cost price.</summary>
-    public static readonly IReadOnlyList<string> RecurringCategories = PropertyCategories.Expense.Where(c => c is not PropertyCategories.Works).ToList();
+    public static readonly IReadOnlyList<string> RecurringCategories = PropertyCategories.Expense.Where(c => !PropertyCategories.IsWorks(c)).ToList();
 
     /// <summary>1 to 100 characters after trimming, stored as sent (as a loan's name).</summary>
     public static Failure? Name(string? name)

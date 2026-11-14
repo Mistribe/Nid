@@ -97,13 +97,13 @@ public static class PropertyReturn
             if (f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!))
                 list.Add(new(f.OccurredOn, "rent", f.Amount.Amount));
             else if (f.Kind == FlowKind.Expense)
-                list.Add(new(f.OccurredOn, f.Category == PropertyCategories.Works ? "works" : "charges", -f.Amount.Amount));
+                list.Add(new(f.OccurredOn, PropertyCategories.IsWorks(f.Category) ? "works" : "charges", -f.Amount.Amount));
         }
 
         var lease = i.Tenancies.FirstOrDefault(t => PropertyMath.Covers(t, i.Today))
                     ?? i.Tenancies.OrderByDescending(t => t.EndsOn ?? LocalDate.MaxIsoValue).FirstOrDefault();
         var first = i.Today.PlusMonths(-12).PlusDays(1);
-        var charges = i.Flows.Where(f => f.Kind == FlowKind.Expense && f.Category != PropertyCategories.Works && f.OccurredOn >= first && f.OccurredOn <= i.Today)
+        var charges = i.Flows.Where(f => f.Kind == FlowKind.Expense && !PropertyCategories.IsWorks(f.Category) && f.OccurredOn >= first && f.OccurredOn <= i.Today)
             .Sum(f => f.Amount.Amount) / 12;
         var pinelEnd = PinelEnd(i.Pinel);
         for (var m = new LocalDate(i.Today.Year, i.Today.Month, 1).PlusMonths(1); m < resaleOn; m = m.PlusMonths(1))

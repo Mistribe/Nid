@@ -75,7 +75,8 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// the revenu fiscal de référence (art. 1417 IV CGI), the net taxable income plus the PER deduction, the flat-taxed capital income
 /// and the exempt income after the 10 % allowance, to the euro below. <c>RentalRegimeGap</c>: the total tax under the other rental
 /// regime minus this one (negative: the other costs less); null without rents, or when the micro-foncier is shut (rents over its
-/// ceiling, a Pinel property).
+/// ceiling, a Pinel property). <c>RentalDeficitCarriedForward</c>: the rental deficit left for the next years, the earlier ones the year's
+/// rents did not absorb plus the year's own beyond what the global income takes (2044 line 441 and the interest's).
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -84,7 +85,8 @@ public sealed record TaxResult(
     decimal ChildcareCredit, decimal HomeEmploymentCredit, decimal NicheCapExcess,
     decimal IncomeTax, decimal CapitalFlatTax, decimal SocialLevies, decimal TotalTax,
     decimal MarginalRate, decimal? AverageRate, decimal NetBeforeTax, decimal NetAfterTax, decimal NetAfterTaxMonthly,
-    IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null);
+    IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null,
+    decimal RentalDeficitCarriedForward = 0m);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -199,13 +201,14 @@ public static class TaxCalculator
             warnings.Add(TaxWarnings.PinelRequiresReal);
             regime = RentalRegime.Real;
         }
-        decimal rentalTaxable, deficit = 0m;
+        decimal rentalTaxable, deficit = 0m, loss = 0m;
         if (regime == RentalRegime.Micro)
             rentalTaxable = inputs.RentalGross * (1 - rules.MicroRentalAllowance);
         else
         {
             rentalTaxable = Math.Max(0m, inputs.RentalGross - inputs.RentalInterest - inputs.RentalCharges);
-            // Interest only offsets rents; the other charges' deficit goes on the global income, capped (the rest carried, not followed).
+            loss = Math.Max(0m, inputs.RentalInterest + inputs.RentalCharges - inputs.RentalGross);
+            // Interest only offsets rents; the other charges' deficit goes on the global income, capped, the rest carried.
             deficit = Rental2044.GlobalDeficit(inputs.RentalGross, inputs.RentalCharges, inputs.RentalInterest,
                 rules.DeficitCap(inputs.RentalEnergyWorks, inputs.RentalCharges));
         }
@@ -275,7 +278,9 @@ public static class TaxCalculator
             taxable == 0m ? null : Math.Round(Math.Max(0m, incomeTax) / taxable, 4, MidpointRounding.AwayFromZero),
             Euros(netBefore), Euros(netAfter), Euros(netAfter / 12), warnings,
             Withhold(rules, declarants, rentalTaxable, grossTax - decote, pinel + donation + childcare + home - excess, incomeTax),
-            perHousehold, reference, regimeGap);
+            perHousehold, reference, regimeGap,
+            // shortcut: the 10-year limit is not followed; the rules start in 2025, so no deficit Nid computes expires before 2035.
+            Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit));
     }
 
     /// <summary>

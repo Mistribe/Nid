@@ -144,6 +144,15 @@ public sealed class TaxEstimates(
         var (inputs, notices, _) = Assemble(year, lines, r.Effective, people, previous);
         var adults = Adults(people);
         var result = TaxCalculator.Compute(inputs);
+        // The deficit last year's estimate leaves, offered only where no notice of last year prints its own and a property is rented.
+        string? deficitEstimated = null;
+        if (year - 1 >= TaxRules.FirstYear && r.Carry?.RentalDeficitCarried is null && lines.Any(l => l.Code == TaxLineCodes.RentalProperty))
+        {
+            var last = await ComputeAsync(year - 1, scope, today, ct);
+            if (last.TryGetFailure(out failure)) return Result.Failure<TaxEstimateView>(failure!);
+            if (last.TryGetValue(out var before) && before.RentalDeficitCarriedForward > 0m)
+                deficitEstimated = Amount(before.RentalDeficitCarriedForward);
+        }
         // Tax-per spec §4.5: the PERs each declarant's contributions were read from.
         IReadOnlyList<IReadOnlyList<string>> perEnvelopes = adults
             .Select(a => (IReadOnlyList<string>)lines.Where(l => l.Code == TaxLineCodes.PerContribution && l.Person == a.Id)
@@ -159,7 +168,7 @@ public sealed class TaxEstimates(
                 .Select(l => new TaxSalaryDetailView(l.Person!.Value.Value, l.Item, l.Name, l.On!.Value, l.Note, l.Category!, Amount(l.Amount))).ToList(),
             adults.Select(a => (a.Id.Value, Rate: ObservedRate(lines, a.Id))).Where(x => x.Rate is not null)
                 .ToDictionary(x => x.Value, x => Percent(x.Rate!.Value)),
-            r.Carry is { } carry ? TaxCarryView.Of(carry) : null, GapsOf(r.YearNotices, result, adults.Select(a => a.Id.Value).ToList())));
+            r.Carry is { } carry ? TaxCarryView.Of(carry) : null, GapsOf(r.YearNotices, result, adults.Select(a => a.Id.Value).ToList()), deficitEstimated));
     }
 
     /// <summary>Tax assessments spec §6: the gaps of the year's notice whose declarants are the estimate's adults, if there is one.</summary>

@@ -14,16 +14,16 @@ namespace Nid.RealEstate.Application;
 /// </summary>
 public sealed class RentalTax(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IFlows flows) : ITaxContribution
 {
-    /// <summary>Spec §3: the form line a flow's category feeds, <see cref="TaxLineCodes.RentalToCheck"/> for works and other, null out of the form.</summary>
+    /// <summary>Spec §3: the form line a flow's category feeds, <see cref="TaxLineCodes.RentalToCheck"/> for construction works and other, null out of the form.</summary>
     public static string? LineOf(string? category) => category switch
     {
         PropertyCategories.Rent => TaxLineCodes.Rental211,
         PropertyCategories.ManagementFees => TaxLineCodes.Rental221,
         "insurance" => TaxLineCodes.Rental223,
-        "maintenance" => TaxLineCodes.Rental224,
+        "maintenance" or PropertyCategories.Works => TaxLineCodes.Rental224,
         "property_tax" => TaxLineCodes.Rental227,
         "condo_fees" => TaxLineCodes.Rental229,
-        PropertyCategories.Works or "other" => TaxLineCodes.RentalToCheck,
+        PropertyCategories.ConstructionWorks or "other" => TaxLineCodes.RentalToCheck,
         _ => null,
     };
 

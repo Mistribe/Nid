@@ -19,13 +19,19 @@ public sealed record PropertyDetails(
 /// <summary>README §4: a property's flow categories by kind, in the order the real cost lists them.</summary>
 public static class PropertyCategories
 {
+    /// <summary>Repairs, upkeep and improvement: deductible from the rents (2044 line 224) and in the cost price.</summary>
     public const string Works = "works";
+    /// <summary>Building, rebuilding, enlarging: in the cost price, never deductible from the rents (CGI art. 31 I 1° b).</summary>
+    public const string ConstructionWorks = "construction_works";
     public const string Rent = "rent";
     public const string ManagementFees = "management_fees";
     public const string RecoverableCharges = "recoverable_charges";
 
-    public static readonly IReadOnlyList<string> Expense = [Works, "property_tax", "condo_fees", "insurance", "energy", "maintenance", ManagementFees, "other"];
+    public static readonly IReadOnlyList<string> Expense = [Works, ConstructionWorks, "property_tax", "condo_fees", "insurance", "energy", "maintenance", ManagementFees, "other"];
     public static readonly IReadOnlyList<string> Income = [Rent, RecoverableCharges, "other_income"];
+
+    /// <summary>Works of either kind: the cost price holds them, the running charges never.</summary>
+    public static bool IsWorks(string? category) => category is Works or ConstructionWorks;
 
     /// <summary>What a tenant pays in cash: the rent and the charges recorded apart.</summary>
     public static readonly IReadOnlySet<string> CashIn = new HashSet<string> { Rent, RecoverableCharges };

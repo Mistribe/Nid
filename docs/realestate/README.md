@@ -60,7 +60,8 @@ Convention du module pour le champ `category` des flux du Core :
 
 | `kind` | `category` | Effet |
 |---|---|---|
-| `expense` | `works` | Entre dans le **prix de revient** et dans le coût réel |
+| `expense` | `works` | Réparation, entretien, amélioration : entre dans le **prix de revient** et dans le coût réel ; déductible des loyers (ligne 224 de la 2044) |
+| `expense` | `construction_works` | Construction, reconstruction, agrandissement : entre dans le **prix de revient** et dans le coût réel ; jamais déductible des loyers (listé « À vérifier » sur la 2044) |
 | `expense` | `property_tax`, `condo_fees`, `insurance`, `energy`, `maintenance`, `other` | Entrent dans le coût réel |
 | `expense` | `management_fees` | Frais de gestion (ligne 221 de la 2044) ; entrent dans le coût réel |
 | `income` | `rent`, `other_income` | Hors coût réel ; servent au coût net et au rendement |

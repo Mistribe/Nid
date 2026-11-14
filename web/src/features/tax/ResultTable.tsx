@@ -42,6 +42,7 @@ export function ResultTable({ columns, label, declarants = true }: {
       money(t('tax.row.deficit_carried'), (r) => r.rentalDeficitCarriedUsed, false, tip('deficit_carried')),
       { title: t('tax.row.rental'), cell: (r) => t('tax.row.rental_value', { amount: eur(r.rentalTaxable), regime: regimeText(t, r.rentalRegime) }), amount: (r) => r.rentalTaxable, tip: tip('rental') },
       money(t('tax.row.deficit'), (r) => r.rentalDeficit, false, tip('rental_deficit')),
+      money(t('tax.row.deficit_forward'), (r) => r.rentalDeficitCarriedForward, false, tip('deficit_forward')),
       money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true, tip('net_taxable')),
       money(t('tax.row.reference_income'), (r) => r.referenceIncome, false, tip('reference_income')),
     ] },

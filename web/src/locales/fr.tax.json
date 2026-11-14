@@ -108,6 +108,7 @@
       "rental_value": "{{amount}} ({{regime}})",
       "deficit": "Déficit foncier imputé",
       "deficit_carried": "Déficits fonciers antérieurs imputés",
+      "deficit_forward": "Déficit foncier à reporter",
       "net_taxable": "Revenu net imposable",
       "reference_income": "Revenu fiscal de référence",
       "reference_income_note": "Revenu fiscal de référence : revenu net imposable, plus les versements PER déduits, les dividendes et intérêts du compte-titres et les revenus exonérés du profil. Il se compare à l’avis d’imposition de la même année de revenus.",
@@ -148,6 +149,7 @@
       "rental": "Ce que vos loyers ajoutent à vos revenus imposables, une fois retirées les charges : 30 % d’office au micro-foncier, les vraies charges au réel.",
       "rental_deficit": "Au réel, quand vos charges dépassent vos loyers, la perte (hors intérêts d’emprunt) se retire de vos autres revenus, jusqu’à 10 700 € par an. Le reste se reporte sur les dix années suivantes.",
       "deficit_carried": "Les pertes foncières des années passées pas encore utilisées : elles réduisent vos revenus fonciers de cette année, jamais vos salaires. Le reste à reporter est sur votre avis, rubrique « Déficits fonciers antérieurs non encore imputés ».",
+      "deficit_forward": "Ce qui reste de vos pertes foncières à la fin de l’année : les anciennes que vos loyers n’ont pas absorbées, plus la part de cette année que vos autres revenus ne prennent pas (les intérêts d’emprunt, et au-delà de 10 700 €). Elles réduiront vos revenus fonciers des dix années suivantes. Nid la propose l’année suivante dans votre profil.",
       "net_taxable": "Le revenu sur lequel l’impôt est calculé : vos revenus, moins les abattements et les déductions (PER, déficit foncier).",
       "reference_income": "Le revenu fiscal de référence (RFR) : votre revenu imposable plus quelques revenus exonérés. Il sert à ouvrir des aides et des exonérations ; il est en haut de la première page de votre avis d’imposition.",
       "parts": "Le quotient familial : chaque adulte compte pour une part, les deux premiers enfants pour une demi-part chacun, les suivants pour une part. Plus de parts, c’est moins d’impôt pour le même revenu.",
@@ -194,7 +196,7 @@
       "childcare_from_statements": "Frais de garde de « {{name}} » : {{amount}} d’après ses relevés validés, à la place du montant du profil.",
       "childcare_projected": "Reste de l’année pour « {{name}} » : {{amount}} (mois validés : {{validated}} ; mois estimés à leur moyenne : {{estimated}}).",
       "childcare_estimated": "Frais de garde de « {{name}} » : {{amount}} estimés d’après le contrat pour {{estimated}} mois, à la place du montant du profil, en attendant un relevé validé.",
-      "rental_to_check": "{{name}} : {{amount}} de dépenses à vérifier (travaux, autres) non comptées — voir Déclaration 2044."
+      "rental_to_check": "{{name}} : {{amount}} de dépenses à vérifier (construction ou agrandissement, autres) non comptées — voir Déclaration 2044."
     },
     "per": {
       "title": "PER",
@@ -236,7 +238,7 @@
       "totals": "Totaux du foyer",
       "notes": "À savoir pour la 2044",
       "to_check": "À vérifier",
-      "to_check_help": "Ces dépenses ne sont pas comptées : classez-les dans une catégorie déductible ou laissez-les de côté.",
+      "to_check_help": "Ces dépenses ne sont pas comptées. Les travaux de construction ou d’agrandissement ne se déduisent jamais des loyers ; une autre dépense se déduit si vous la classez dans une catégorie déductible (travaux d’entretien ou d’amélioration, assurance…).",
       "csv_header": { "property": "Bien", "line": "Ligne", "label": "Libellé", "amount": "Montant" },
       "figure": { "receipts": "Recettes", "charges": "Charges", "interest": "Intérêts", "result": "Résultat", "deficit": "Déficit" },
       "note": {
@@ -338,6 +340,7 @@
       "expenses_actual_hint": "Vide : abattement de 10 %. Renseignés, ils le remplacent.",
       "from_notice": "Avis {{year}}",
       "deficit_suggested": "D’après l’avis {{year}}, à ajuster",
+      "deficit_estimated": "D’après l’estimation {{year}}, à ajuster avec votre avis",
       "per_unused_hint": "Somme des plafonds non utilisés des 3 années précédentes : Nid y ajoute le plafond de l’année, estimé sur vos revenus. Avec le plafond de l’avis, il donne le plafond de l’année et le minimum à verser.",
       "per_ceiling": "Plafond épargne retraite (avis)",
       "per_ceiling_hint": "Avis d’imposition, rubrique Plafond épargne retraite.",

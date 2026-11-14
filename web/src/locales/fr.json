@@ -904,7 +904,7 @@
     "kind": "Type",
     "kind_option": { "expense": "Dépense", "income": "Revenu" },
     "category": "Catégorie",
-    "category_option": { "works": "Travaux", "property_tax": "Taxe foncière", "condo_fees": "Charges de copropriété", "insurance": "Assurance", "energy": "Énergie", "maintenance": "Entretien", "management_fees": "Frais de gestion", "other": "Autre", "rent": "Loyer", "recoverable_charges": "Charges locatives", "other_income": "Autre revenu" },
+    "category_option": { "works": "Travaux", "construction_works": "Construction, agrandissement", "property_tax": "Taxe foncière", "condo_fees": "Charges de copropriété", "insurance": "Assurance", "energy": "Énergie", "maintenance": "Entretien", "management_fees": "Frais de gestion", "other": "Autre", "rent": "Loyer", "recoverable_charges": "Charges locatives", "other_income": "Autre revenu" },
     "date": "Date",
     "amount": "Montant",
     "note": "Note",

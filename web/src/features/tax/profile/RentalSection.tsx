@@ -40,7 +40,9 @@ export function RentalSection({ estimate, draft }: SectionProps) {
           <span id={hintId} className="block text-sm text-muted-foreground">{t(`tax.profile.regime_hint.${draft.value.regime as (typeof REGIMES)[number]}`)}</span>
         </div>
         <AmountField draft={draft} name="rentalDeficitCarried" badge="4BD"
-          hint={suggestedDeficit(estimate) && estimate.carriedFrom ? t('tax.profile.deficit_suggested', { year: estimate.carriedFrom.year }) : t('tax.profile.deficit_carried_hint')} />
+          hint={!suggestedDeficit(estimate) ? t('tax.profile.deficit_carried_hint')
+            : estimate.carriedFrom?.rentalDeficitCarried != null ? t('tax.profile.deficit_suggested', { year: estimate.carriedFrom.year })
+              : t('tax.profile.deficit_estimated', { year: estimate.year - 1 })} />
         {estimate.year <= LAST_ENERGY_YEAR && draft.value.regime !== 'micro' && (
           <AmountField draft={draft} name="rentalEnergyWorks" hint={t('tax.profile.energy_works_hint')} />
         )}

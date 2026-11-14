@@ -153,7 +153,7 @@ internal static class PropertiesCostsMath
         {
             var lines = r.Figures.RealCostLines;
             decimal Line(string code) => lines.Where(l => l.Code == code).Sum(l => l.Amount);
-            var other = lines.Where(l => l.Code != "acquisition" && l.Code != PropertyCategories.Works && !LoanLines.Contains(l.Code)).Sum(l => l.Amount);
+            var other = lines.Where(l => l.Code != "acquisition" && !PropertyCategories.IsWorks(l.Code) && !LoanLines.Contains(l.Code)).Sum(l => l.Amount);
             var running = r.Source.Property.Costs.Select(c => c.Cost).Where(c => c.StartsOn <= today && (c.EndsOn is not { } end || today < end));
             var periodFlows = r.Source.Flows.Where(f => f.OccurredOn >= first && f.OccurredOn <= today).ToList();
             return (Read: r, Converted: Convert(r.Figures.RealCost, r.Currency), Row: new CostRow(r.Source.Item.Id, r.Source.Item.DisplayName, r.Currency.Code,
@@ -161,7 +161,7 @@ internal static class PropertiesCostsMath
                 Amount(running.Sum(PropertyMath.MonthlyEquivalent)),
                 Amount(periodFlows.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount)),
                 Amount(LoanPayment(r.Source, r.Currency, rates, thisMonth, today)),
-                Amount(Line("acquisition")), Amount(Line(PropertyCategories.Works)), Amount(Line("loan_interest")), Amount(Line("loan_insurance")),
+                Amount(Line("acquisition")), Amount(lines.Where(l => PropertyCategories.IsWorks(l.Code)).Sum(l => l.Amount)), Amount(Line("loan_interest")), Amount(Line("loan_insurance")),
                 Amount(Line("loan_fees")), Amount(other), Amount(r.Figures.RealCost), Amount(r.Figures.RealCost - r.Figures.NetCostOfRents),
                 Amount(r.Figures.NetCostOfRents), null));
         })
@@ -172,7 +172,7 @@ internal static class PropertiesCostsMath
 
         return new PropertiesCosts(reference.Code, first, today,
             View(SumOrNull(paid.Select(p => p.Amount))), // No works among the expenses paid is 0 of works, as long as something was paid.
-            View(paid.Count == 0 ? null : SumOrNull(paid.Where(p => p.Category == PropertyCategories.Works).Select(p => p.Amount).Append(0m))),
+            View(paid.Count == 0 ? null : SumOrNull(paid.Where(p => PropertyCategories.IsWorks(p.Category)).Select(p => p.Amount).Append(0m))),
             View(SumOrNull(planned.Select(p => p.Amount))),
             // D14: the dashboard's « Charges des biens »: the monthly equivalents of the costs running today.
             View(SumOrNull(read.Select(r => Convert(r.Source.Property.Costs.Select(c => c.Cost)
