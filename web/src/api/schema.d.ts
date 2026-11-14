@@ -35903,6 +35903,7 @@ export interface components {
             };
             carriedFrom?: null | components["schemas"]["TaxCarryView"];
             gaps?: null | components["schemas"]["TaxGapsView"];
+            rentalDeficitEstimated?: null | string;
         };
         TaxGapLineView: {
             code: string;
@@ -36084,6 +36085,8 @@ export interface components {
             /** @default 0.00 */
             referenceIncome: string;
             rentalRegimeGap?: null | string;
+            /** @default 0.00 */
+            rentalDeficitCarriedForward: string;
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];

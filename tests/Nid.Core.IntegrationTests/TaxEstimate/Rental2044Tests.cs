@@ -71,7 +71,8 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var b = await RentalAsync(app, "Appartement B");
         await FlowAsync(app, b, "2025-03-01", "income", "rent", "6000");
         await FlowAsync(app, b, "2025-04-01", "expense", "maintenance", "1200");
-        await FlowAsync(app, b, "2025-05-10", "expense", "works", "3000", "Toiture");
+        await FlowAsync(app, b, "2025-05-10", "expense", "works", "3000", "Toiture"); // repairs: deductible, line 224
+        await FlowAsync(app, b, "2025-05-20", "expense", "construction_works", "5000", "Véranda"); // enlarging: never deductible
         await FlowAsync(app, b, "2025-06-10", "expense", "other", "150");
 
         var form = await FormAsync(app, app.AdultA, 2025);
@@ -85,12 +86,38 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(["9600.00", "9600.00", "480.00", "20.00", "300.00", "0.00", "900.00", "600.00", "0.00", "2300.00", "0.00", "7300.00"],
             first.GetProperty("lines").EnumerateArray().Select(l => S(l, "amount")));
         var second = PropertyOf(form, "Appartement B");
-        Assert.Equal(("6000.00", "1200.00", "1220.00", "4780.00"), (Line(second, "211"), Line(second, "224"), Line(second, "240"), Line(second, "263")));
+        Assert.Equal(("6000.00", "4200.00", "4220.00", "1780.00"), (Line(second, "211"), Line(second, "224"), Line(second, "240"), Line(second, "263")));
 
-        Assert.Equal([(b.Value, "2025-05-10", "works", "Toiture", "3000.00"), (b.Value, "2025-06-10", "other", null, "150.00")],
+        Assert.Equal([(b.Value, "2025-05-20", "construction_works", "Véranda", "5000.00"), (b.Value, "2025-06-10", "other", null, "150.00")],
             form.GetProperty("toCheck").EnumerateArray().Select(c => (c.GetProperty("property").GetGuid(), S(c, "occurredOn"), S(c, "category"), S(c, "note"), S(c, "amount"))));
-        Assert.Equal(("15600.00", "3520.00", "0.00", "12080.00"), (Total(form, "receipts"), Total(form, "charges"), Total(form, "interest"), Total(form, "result")));
-        Assert.Equal(("12080.00", "0.00", "0.00", "0.00"), (Total(form, "box4BA"), Total(form, "box4BB"), Total(form, "box4BC"), Total(form, "box4BE")));
+        Assert.Equal(("15600.00", "6520.00", "0.00", "9080.00"), (Total(form, "receipts"), Total(form, "charges"), Total(form, "interest"), Total(form, "result")));
+        Assert.Equal(("9080.00", "0.00", "0.00", "0.00"), (Total(form, "box4BA"), Total(form, "box4BB"), Total(form, "box4BC"), Total(form, "box4BE")));
+    }
+
+    [Fact]
+    public async Task The_deficit_a_year_leaves_is_suggested_to_the_next_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RegimeAsync(app, "real");
+        var home = await RentalAsync(app, "Studio");
+        await FlowAsync(app, home, "2025-03-01", "income", "rent", "5000");
+        await FlowAsync(app, home, "2025-05-10", "expense", "works", "20000", "Toiture");
+
+        // 5 000 of rents against 20 020 of charges (the 20 € included): 10 700 on the global income, 4 320 carried.
+        var year = await EstimateAsync(app, app.AdultA, 2025);
+        Assert.Equal(("10700.00", "4320.00"), (S(year.GetProperty("result"), "rentalDeficit"), S(year.GetProperty("result"), "rentalDeficitCarriedForward")));
+        Assert.Equal("4320.00", S(await EstimateAsync(app, app.AdultA, 2026), "rentalDeficitEstimated"));
+    }
+
+    [Fact]
+    public async Task A_year_without_deficit_suggests_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await RegimeAsync(app, "real");
+        var home = await RentalAsync(app, "Studio");
+        await FlowAsync(app, home, "2025-03-01", "income", "rent", "5000");
+
+        Assert.Equal(JsonValueKind.Null, (await EstimateAsync(app, app.AdultA, 2026)).GetProperty("rentalDeficitEstimated").ValueKind);
     }
 
     [Theory]
@@ -221,13 +248,13 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await RegimeAsync(app, "real");
         var home = await RentalAsync(app, "Travaux");
-        await FlowAsync(app, home, "2025-05-10", "expense", "works", "2000");
+        await FlowAsync(app, home, "2025-05-10", "expense", "construction_works", "2000");
         await FlowAsync(app, home, "2025-06-10", "expense", "other", "100");
 
         var form = await FormAsync(app, app.AdultA, 2025);
 
         Assert.Empty(form.GetProperty("properties").EnumerateArray());
-        Assert.Equal(["works", "other"], form.GetProperty("toCheck").EnumerateArray().Select(c => S(c, "category")));
+        Assert.Equal(["construction_works", "other"], form.GetProperty("toCheck").EnumerateArray().Select(c => S(c, "category")));
         Assert.Equal("0.00", Total(form, "charges"));
         Assert.Equal("0.00", S((await EstimateAsync(app, app.AdultA, 2025)).GetProperty("inputs"), "rentalCharges"));
     }
@@ -238,7 +265,7 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await RegimeAsync(app, "real");
         var home = await RentalAsync(app, "Travaux");
-        await FlowAsync(app, home, "2025-05-10", "expense", "works", "2000");
+        await FlowAsync(app, home, "2025-05-10", "expense", "construction_works", "2000");
         await FlowAsync(app, home, "2025-06-10", "expense", "other", "100");
 
         var estimate = await EstimateAsync(app, app.AdultA, 2025);

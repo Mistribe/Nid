@@ -28,10 +28,10 @@ export type ProfileBody = components['schemas']['TaxProfileBody'];
 
 /**
  * The notice's 4BD only suggests: it pre-fills an empty field, editable, and is saved when the user saves. Only where the
- * field shows (a rental property): a hidden suggestion would be saved unseen.
+ * field shows (a rental property): a hidden suggestion would be saved unseen. Without a notice's, last year's estimate's.
  */
 export function suggestedDeficit(estimate: TaxEstimate): string | undefined {
-  const carried = estimate.carriedFrom?.rentalDeficitCarried;
+  const carried = estimate.carriedFrom?.rentalDeficitCarried ?? estimate.rentalDeficitEstimated;
   return estimate.rentalProperties.length && carried !== null && carried !== undefined && ZERO.test(estimate.profile.rentalDeficitCarried.trim())
     ? carried : undefined;
 }

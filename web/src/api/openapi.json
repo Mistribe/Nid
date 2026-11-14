@@ -58275,6 +58275,12 @@
                 "$ref": "#/components/schemas/TaxGapsView"
               }
             ]
+          },
+          "rentalDeficitEstimated": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -58821,7 +58827,8 @@
           "netAfterTax",
           "netAfterTaxMonthly",
           "warnings",
-          "withholding"
+          "withholding",
+          "rentalDeficitCarriedForward"
         ],
         "type": "object",
         "properties": {
@@ -58939,6 +58946,10 @@
               "null",
               "string"
             ]
+          },
+          "rentalDeficitCarriedForward": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },

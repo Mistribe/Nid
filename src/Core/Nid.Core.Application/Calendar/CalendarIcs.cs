@@ -99,6 +99,7 @@ public static class CalendarIcs
     private static string Category(string? code) => code switch
     {
         "works" => "Travaux",
+        "construction_works" => "Construction, agrandissement",
         "property_tax" => "Taxe foncière",
         "condo_fees" => "Charges de copropriété",
         "insurance" => "Assurance",

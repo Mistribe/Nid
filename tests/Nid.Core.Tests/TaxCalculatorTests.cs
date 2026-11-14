@@ -211,6 +211,38 @@ public class TaxCalculatorTests
     }
 
     [Theory]
+    [InlineData(null, 10_000, 0, 0, 0, 0)] // micro, nothing carried
+    [InlineData(null, 10_000, 0, 0, 9_000, 2_000)] // micro: 7 000 absorbed of the 9 000 carried
+    [InlineData(RentalRegime.Real, 12_000, 14_000, 3_000, 0, 2_000)] // the interest beyond the rents
+    [InlineData(RentalRegime.Real, 5_000, 0, 20_000, 0, 4_300)] // beyond the 10 700 the global income takes
+    [InlineData(RentalRegime.Real, 5_000, 0, 20_000, 1_000, 5_300)] // and the earlier deficit the year's loss leaves whole
+    [InlineData(RentalRegime.Real, 10_000, 2_000, 5_000, 4_000, 1_000)] // a profit of 3 000 absorbs 3 000 of the 4 000
+    public void The_rental_deficit_left_is_carried_forward(RentalRegime? regime, int gross, int interest, int charges, int carried, int forward)
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m), Other(0m)]) with
+        {
+            RentalGross = gross, RentalInterest = interest, RentalCharges = charges, RentalRegime = regime, RentalDeficitCarried = carried,
+        });
+
+        Assert.Equal(forward, result.RentalDeficitCarriedForward);
+    }
+
+    [Fact]
+    public void The_carried_forward_deficit_is_the_2044_carried_lines()
+    {
+        // 2044 lines 441 and the interest's: what the form carries is what the estimate carries, with nothing carried before.
+        var columns = Rental2044.Columns([new(Guid.NewGuid(), "A", 5_000m, 3_000m, 20m, 1_000m, 9_000m, 1_200m, 980m, 8_000m)]);
+        var totals = Rental2044.Totals(columns, 10_700m);
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with
+        {
+            RentalGross = totals.Receipts, RentalCharges = totals.Charges, RentalInterest = totals.Interest, RentalRegime = RentalRegime.Real,
+        });
+
+        Assert.Equal(totals.CarriedDeficit, result.RentalDeficitCarriedForward);
+        Assert.Equal(totals.GlobalDeficit, result.RentalDeficit);
+    }
+
+    [Theory]
     [InlineData(2025, 9_500, 20_200)] // BOI-RFPI-BASE-30-20, first example: 10 700 + 9 500
     [InlineData(2025, 19_600, 21_400)] // second example: 21 400 at most
     [InlineData(2025, 0, 10_700)]

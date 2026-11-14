@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ADULT, estimate } from '../taxTestData';
-import { countChanges, draftErrors, initialDraft, profileBody } from './draft';
+import { countChanges, draftErrors, initialDraft, profileBody, suggestedDeficit } from './draft';
 
 describe('profile draft', () => {
   it('sends the saved profile back unchanged', () => {
@@ -28,6 +28,15 @@ describe('profile draft', () => {
 
     expect(profileBody(draft)).toMatchObject({ perCeilings: {} });
     expect(countChanges(draft, initial)).toBe(1);
+  });
+
+  it('suggests last year’s estimated deficit when no notice prints one, the notice’s first', () => {
+    const loaded = { ...estimate(), rentalProperties: [{ id: 'p', name: 'Studio', acquiredIn: 2020 }], rentalDeficitEstimated: '2000.00' };
+
+    expect(suggestedDeficit(loaded)).toBe('2000.00');
+    expect(initialDraft(loaded).amounts.rentalDeficitCarried).toBe('2000,00');
+    expect(suggestedDeficit({ ...loaded, carriedFrom: { year: 2025, perCeilings: {}, perCeilingsExpiring: {}, perUnusedCeilings: {}, rentalDeficitCarried: '1500.00' } })).toBe('1500.00');
+    expect(suggestedDeficit({ ...loaded, profile: { ...loaded.profile, rentalDeficitCarried: '800.00' } })).toBeUndefined();
   });
 
   it('names each field whose text the API would refuse', () => {

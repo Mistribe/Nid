@@ -7,7 +7,7 @@ export const CADENCES = ['yearly', 'manual'] as const;
 export const FLOW_KINDS = ['expense', 'income'] as const;
 /** README §4's convention, in the server's order (`PropertyCategories`). */
 export const CATEGORIES = {
-  expense: ['works', 'property_tax', 'condo_fees', 'insurance', 'energy', 'maintenance', 'management_fees', 'other'],
+  expense: ['works', 'construction_works', 'property_tax', 'condo_fees', 'insurance', 'energy', 'maintenance', 'management_fees', 'other'],
   income: ['rent', 'recoverable_charges', 'other_income'],
 } as const;
 const WARNINGS = ['no_valuation', 'valuation_stale', 'loan_other_currency', 'fx_missing', 'visibility_mismatch', 'rental_without_tenancy'] as const;

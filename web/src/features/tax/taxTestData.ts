@@ -5,7 +5,7 @@ export const ADULT = '0192f0aa-0000-7000-8000-0000000000a1';
 export const result = (over: Partial<TaxResult> = {}): TaxResult => ({
   year: 2026, rulesYear: 2025, parts: '3.0',
   declarants: [{ name: 'Alice', netSalary: '39000.00', netTaxableIncome: '40424.63', allowance: '4042.46', taxable: '36382.17', perDeducted: '0.00' }],
-  rentalRegime: 'micro', rentalTaxable: '0.00', rentalDeficitCarriedUsed: '0.00', rentalDeficit: '0.00', netTaxableIncome: '64407.00', referenceIncome: '66407.00', grossTax: '3256.77', familyCapApplied: false,
+  rentalRegime: 'micro', rentalTaxable: '0.00', rentalDeficitCarriedUsed: '0.00', rentalDeficit: '0.00', rentalDeficitCarriedForward: '0.00', netTaxableIncome: '64407.00', referenceIncome: '66407.00', grossTax: '3256.77', familyCapApplied: false,
   decote: '9.31', pinelReduction: '0.00', donationReduction: '0.00', childcareCredit: '3000.00', homeEmploymentCredit: '0.00', nicheCapExcess: '0.00',
   incomeTax: '247.00', capitalFlatTax: '0.00', socialLevies: '0.00', totalTax: '247.00', marginalRate: '11', averageRate: '0.38',
   netBeforeTax: '69000.00', netAfterTax: '68753.00', netAfterTaxMonthly: '5729.42', warnings: ['rules_carried_forward'],

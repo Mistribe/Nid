@@ -32,7 +32,7 @@ public sealed class PropertiesSale(IVisibleItems visible, IItemRegistry items, I
             var now = estimates?.GetValueOrDefault(property.ItemId) is { } values && spent is not null
                 ? PropertyMath.At(d, false, values, [], [], [], today)
                 : null;
-            var works = spent?.Where(f => f.Category == PropertyCategories.Works && f.OccurredOn <= today).Sum(f => f.Amount.Amount) ?? 0m;
+            var works = spent?.Where(f => PropertyCategories.IsWorks(f.Category) && f.OccurredOn <= today).Sum(f => f.Amount.Amount) ?? 0m;
             list.Add(new PropertyForSale(item.Id, item.DisplayName, item.Currency, item.Owners, LoanWire.Of(d.Type), d.PurchaseDate,
                 d.PurchasePrice, d.NotaryFees + d.AgencyFees + d.OtherAcquisitionCosts, works, now?.Value, now?.ValueOn, now?.Stale ?? false));
         }
