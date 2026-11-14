@@ -225,11 +225,10 @@ public sealed class ChildcareImportSection(
                 if (previous is { Days.Count: 0 })
                     previous = await store.FindStatementAsync(plan.Id, previous.Month, ct);
                 var end = plan.Parsed.End;
-                // The last month settles the whole contract: it reads every validated month's days.
-                if (MonthAssembler.IsLast(terms, end))
-                    for (var k = 0; k < known.Count; k++)
-                        if (known[k].Days.Count == 0)
-                            known[k] = (await store.FindStatementAsync(plan.Id, known[k].Month, ct))!;
+                // The last month settles the whole contract, June the reference period's leave: they read the validated months' days.
+                for (var k = 0; k < known.Count; k++)
+                    if (known[k] is { Validated: true, Days.Count: 0 } && MonthAssembler.ReadsDaysOf(terms, end, known[k].Month))
+                        known[k] = (await store.FindStatementAsync(plan.Id, known[k].Month, ct))!;
                 var evaluation = MonthAssembler.Evaluate(terms, days, [], known, previous, record.Mileage, record.Cmg, DeclaredOf(record.Declared), record.Contributions ?? 0m, exemption: record.Exemption ?? 0m, end: end);
                 // A month may have been validated before or after the next one's days were corrected: either way its figures stand.
                 var following = group.Where(e => e.Month == month.PlusMonths(1) && possible.Contains(e.Month)).Select(e => new Statement(plan.Id, e.Month, true, 0m, null, e.Days, null, 0)).FirstOrDefault();
@@ -310,8 +309,8 @@ public sealed class ChildcareImportSection(
                 }
                 known.Add(full);
             }
-            else // an ended contract's last month reads every validated month's days
-                known.Add(plan.Parsed.End is null ? month : (await store.FindStatementAsync(plan.Id, month.Month, ct))!);
+            else // a later June or an ended contract's last month reads the validated months' days
+                known.Add((await store.FindStatementAsync(plan.Id, month.Month, ct))!);
         }
         return true;
     }

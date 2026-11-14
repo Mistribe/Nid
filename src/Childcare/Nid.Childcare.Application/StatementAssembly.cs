@@ -85,15 +85,10 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var before = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
         var after = context.Stored.Any(s => s.Month == following) ? await store.FindStatementAsync(context.Arrangement.ItemId, following, ct) : null;
         var end = context.Arrangement.End;
-        // The last month settles the whole contract: it reads every validated month's days.
-        var stored = context.Stored;
-        if (MonthAssembler.IsLast(context.Terms, end))
-        {
-            var full = new List<Statement>();
-            foreach (var s in context.Stored) // one at a time: the store's context runs one query at once
-                full.Add(s.Validated ? (await store.FindStatementAsync(context.Arrangement.ItemId, s.Month, ct))! : s);
-            stored = full;
-        }
+        // The last month settles the whole contract, June the reference period's leave: they read the validated months' days.
+        var stored = new List<Statement>();
+        foreach (var s in context.Stored) // one at a time: the store's context runs one query at once
+            stored.Add(s.Validated && MonthAssembler.ReadsDaysOf(context.Terms, end, s.Month) ? (await store.FindStatementAsync(context.Arrangement.ItemId, s.Month, ct))! : s);
         return MonthAssembler.Evaluate(context.Terms, days, stale, stored, before, mileage, cmg, declared, contributions, after, exemption, end);
     }
 

@@ -66,6 +66,14 @@ public static class MonthAssembler
     public static bool IsLast(MonthTerms terms, ContractEnd? end) => end is not null && terms.Contract.End is { } last && last.ToYearMonth() == terms.Month;
 
     /// <summary>
+    /// Whether this month's evaluation reads the days of the validated <paramref name="month"/>: every one for the last month of an
+    /// ended contract, the reference period's (June N−1 … May N) for June, whose leave the days acquire. The store lists statements
+    /// without their days: a caller loads these.
+    /// </summary>
+    public static bool ReadsDaysOf(MonthTerms terms, ContractEnd? end, YearMonth month)
+        => IsLast(terms, end) || terms.Month.Month == 6 && month.CompareTo(terms.Month.PlusMonths(-12)) >= 0 && month.CompareTo(terms.Month) < 0;
+
+    /// <summary>
     /// The figures of these days, or the problems and missing June months that withhold them. <paramref name="stored"/>: the
     /// arrangement's statements (the validated ones' figures count; with their days on the last month of an ended contract, see
     /// <see cref="IsLast"/>); <paramref name="previous"/>, <paramref name="next"/>: the adjacent months', with their days.
