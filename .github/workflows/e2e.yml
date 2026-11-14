@@ -48,6 +48,42 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Issue 215: deploy/standalone without an identity provider, installed as the README says, then the journeys of local
+  # accounts (setup, links, reset, two-step verification, admin role) and the CLI in the image (deploy/standalone/smoke-local.sh).
+  local-journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - run: docker build -f src/Hosting/Nid.Host/Dockerfile -t nid:local .
+      - name: Fresh standalone install with local accounts, every journey
+        run: deploy/standalone/smoke-local.sh
+        env:
+          KEEP: '1'
+      - name: Compose logs
+        if: failure()
+        run: docker compose -p nid-smoke-local logs --no-color --timestamps | tail -300
+      - name: Playwright results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results-local
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
   # The two images as ci.yml's `build` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails.
   image:
     runs-on: ubuntu-latest
