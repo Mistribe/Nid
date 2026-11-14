@@ -17,15 +17,16 @@ public static class PaidLeave
     /// effective work, rounded up to the whole day, 30 at most (C. trav. L3141-3 and L3141-4, IDCC 3239 art. 102-1; DREETS
     /// Occitanie fiche 1.5 of 5 November 2024: the month method does not apply to a contract of 46 weeks or fewer, « 2,75
     /// jours doit être arrondi à 3 »). A week counts for its template days worked or assimilated over its template days, so
-    /// weeks without care, the days outside the contract and the unpaid absences earn nothing.
+    /// weeks without care, the days outside the contract and the unpaid absences earn nothing. Neither does an absence in a
+    /// week without care (<paramref name="gaps"/>): leave taken there replaces no planned day.
     /// </summary>
-    public static int Accrued(IEnumerable<StatementDay> days, WeekPlan plan, IReadOnlyList<AbsenceReason>? unpaid = null)
+    public static int Accrued(IEnumerable<StatementDay> days, WeekPlan plan, IReadOnlyList<AbsenceReason>? unpaid = null, IReadOnlyList<CareGap>? gaps = null)
     {
         var reasons = unpaid ?? AbsenceCodes.DefaultUnpaid;
         var weeks = days.GroupBy(d => WeekPlan.MondayOf(d.Date)).Sum(w =>
         {
             var template = plan.Types[plan.TypeOf(w.Key)].Schedule.Count;
-            return template == 0 ? 0m : Math.Min(1m, (decimal)w.Count(d => Counts(d, reasons)) / template);
+            return template == 0 ? 0m : Math.Min(1m, (decimal)w.Count(d => Counts(d, reasons, gaps ?? [])) / template);
         });
         // Thirds and sevenths of a week are not exact in decimal: a whole result must not round up to the next day.
         return Math.Min(ChildcareRules.LeaveDaysCap, (int)Math.Ceiling(Math.Round(weeks * ChildcareRules.LeaveDaysPerFourWeeks / 4m, 6)));
@@ -42,8 +43,8 @@ public static class PaidLeave
     /// an unpaid absence (the child's sickness, the carer's) is not effective work.
     /// shortcut: the carer's own sickness earns nothing, not the 2 days a month of L3141-5 7°; upgrade when absences tell sickness apart.
     /// </summary>
-    private static bool Counts(StatementDay day, IReadOnlyList<AbsenceReason> unpaid)
-        => day.Present || day.Planned && day.Absence is { } r
+    private static bool Counts(StatementDay day, IReadOnlyList<AbsenceReason> unpaid, IReadOnlyList<CareGap> gaps)
+        => day.Present || day.Planned && day.Absence is { } r && !StatementPreparation.InGap(day.Date, gaps)
             && (Assimilated.Contains(r) || !unpaid.Contains(r) && !AbsenceCodes.AlwaysUnpaid.Contains(r));
 
     /// <summary>
