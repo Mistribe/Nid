@@ -107,9 +107,8 @@ public sealed class LocalSignIn(
 
     public async Task<IResult> PasswordAsync(HttpContext http, PasswordLoginBody body)
     {
-        var target = body.ReturnUrl ?? "/";
-        if (!ReturnUrl.IsSafe(target))
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path.");
+        // An unsafe return URL is replaced, not refused: the sign-in never depends on it (no open redirect either way).
+        var target = ReturnUrl.IsSafe(body.ReturnUrl) ? body.ReturnUrl! : "/";
         if (Refused(http) is { } refused) return refused;
 
         var address = TokenAuthentication.ClientAddress(http);

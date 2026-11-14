@@ -59,6 +59,12 @@ public class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<Postgr
         Assert.Equal("Alice", session.GetProperty("person").GetProperty("name").GetString());
         Assert.Equal(HttpStatusCode.OK, (await browser.GetAsync("/api/v1/admin/system")).StatusCode);
 
+        // A return URL off this application is never followed: the answer sends back to the start page.
+        var elsewhere = await host.Browser().PostAsync("/auth/login/password",
+            new { login = "alice", password = AlicePassword, returnUrl = "https://elsewhere.example/" });
+        Assert.Equal(HttpStatusCode.OK, elsewhere.StatusCode);
+        Assert.Equal("/", (await elsewhere.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("returnUrl").GetString());
+
         Assert.Single(await host.EventsAsync(SecurityEventNames.SetupCompleted));
         Assert.Contains(await host.EventsAsync(SecurityEventNames.Login),
             e => JsonSerializer.Deserialize<Dictionary<string, string>>(e.Data)!.GetValueOrDefault("method") == "password");
