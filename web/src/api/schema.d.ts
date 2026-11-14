@@ -34202,8 +34202,9 @@ export interface components {
             sessionEpoch?: null | number;
             preferences?: null | components["schemas"]["Preferences"];
             identityProvider?: null | string;
-            /** @default false */
             demo: boolean;
+            methods: string[];
+            setupRequired: boolean;
         };
         SetLinkRoleBody: {
             role?: null | string;
@@ -34571,6 +34572,11 @@ export interface components {
             /** Format: uuid */
             connectionId?: null | string;
         };
+        SystemAuthView: {
+            mode: string;
+            adminSource: string;
+            insecureHttp: boolean;
+        };
         SystemHealthView: {
             database: string;
             identityProvider: string;
@@ -34582,6 +34588,7 @@ export interface components {
             health: components["schemas"]["SystemHealthView"];
             /** Format: int64 */
             databaseSizeBytes?: null | number;
+            auth: components["schemas"]["SystemAuthView"];
         };
         TaxAdultView: {
             /** Format: uuid */

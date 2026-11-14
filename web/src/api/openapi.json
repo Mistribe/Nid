@@ -54069,7 +54069,9 @@
       "SessionResponse": {
         "required": [
           "authenticated",
-          "demo"
+          "demo",
+          "methods",
+          "setupRequired"
         ],
         "type": "object",
         "properties": {
@@ -54116,8 +54118,16 @@
             ]
           },
           "demo": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "setupRequired": {
+            "type": "boolean"
           }
         }
       },
@@ -55896,6 +55906,25 @@
         },
         "additionalProperties": false
       },
+      "SystemAuthView": {
+        "required": [
+          "mode",
+          "adminSource",
+          "insecureHttp"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "adminSource": {
+            "type": "string"
+          },
+          "insecureHttp": {
+            "type": "boolean"
+          }
+        }
+      },
       "SystemHealthView": {
         "required": [
           "database",
@@ -55915,7 +55944,8 @@
         "required": [
           "version",
           "startedAt",
-          "health"
+          "health",
+          "auth"
         ],
         "type": "object",
         "properties": {
@@ -55935,6 +55965,9 @@
               "integer"
             ],
             "format": "int64"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/SystemAuthView"
           }
         }
       },

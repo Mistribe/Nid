@@ -4,6 +4,18 @@ public sealed class NidAuthOptions
 {
     public const string Section = "Auth";
 
+    /// <summary><c>local</c>, <c>oidc</c> or <c>both</c>; unset, inferred from <see cref="Authority"/> (<see cref="AuthSettings"/>).</summary>
+    public string? Mode { get; set; }
+
+    /// <summary><c>identity_provider</c> or <c>nid</c>; unset, <c>identity_provider</c> in <c>oidc</c> and <c>nid</c> otherwise.</summary>
+    public string? AdminSource { get; set; }
+
+    /// <summary>
+    /// Off by default. On, the cookies lose the <c>__Host-</c> prefix and follow the request's scheme, so they travel over
+    /// plain HTTP (a home network); the host warns at every start and the admin area shows it (local-accounts spec §12).
+    /// </summary>
+    public bool AllowInsecureHttp { get; set; }
+
     /// <summary>Public origin of the application, e.g. <c>https://nid.example.org</c>: used for redirects and the Origin check.</summary>
     public string PublicUrl { get; set; } = "";
 
