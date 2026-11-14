@@ -50,6 +50,7 @@
       "locked": "Verrouillé",
       "link_pending": "Lien en attente",
       "totp": "Deux étapes",
+      "last_admin": "C'est le dernier administrateur du foyer : donnez d'abord le rôle à un autre adulte.",
       "enroll_link": "Créer son lien d'accès",
       "reset_link": "Créer un lien de mot de passe",
       "unlock": "Déverrouiller",

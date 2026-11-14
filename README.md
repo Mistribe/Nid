@@ -68,30 +68,30 @@ needed: `latest`, `X.Y.Z`, or `X.Y` for its latest patch. Each carries a signed 
 You need:
 
 - Docker with Compose v2;
-- two host names, for example `nid.example.org` and `auth.example.org`;
-- a reverse proxy that terminates TLS (Caddy, Traefik, nginx…);
-- a device able to create a **passkey** for each adult. Sign-in goes through
-  [Pocket ID](https://github.com/pocket-id/pocket-id), which only accepts passkeys: there is no password to leak or
-  reuse for an app that holds a household's whole financial picture.
+- a host name, for example `nid.example.org`, and a reverse proxy that terminates TLS (Caddy, Traefik, nginx…). To try
+  Nid on your own computer first, `http://localhost:8080` needs neither.
 
 Then pick one of the two setups:
 
 - **Standalone** ([`deploy/standalone/`](deploy/standalone/compose.yaml)): one Compose file and one `.env`, using the
-  published image. Postgres and Pocket ID are optional profiles: leave them out when you already run them elsewhere.
+  published image. Each adult signs in with an identifier and a password kept by Nid (at least 12 characters, checked
+  against common passwords, locked after repeated failures), with optional two-step verification by an authenticator app.
 
   ```bash
   cd deploy/standalone
-  cp .env.example .env    # addresses, secrets (openssl rand), database password
-  docker compose --profile postgres --profile pocket-id up -d pocket-id
+  cp .env.example .env                       # NID_URL, NID_CSRF_KEY (openssl rand -hex 32), NID_DB_PASSWORD
+  docker compose --profile postgres up -d
+  docker compose logs nid | grep setup       # the one-time address that creates the first administrator
   ```
 
-  Open `https://auth.example.org/setup` straight away to create Pocket ID's administrator. In Pocket ID, create the
-  groups `nid-users` and `nid-admins`, the adults, and an OIDC client for Nid (the comments in `.env` give its
-  settings). Put the client's id and secret in `.env`, then start the rest:
+  Open that address, create the administrator's account, and sign in. The administrator adds the other adults in
+  Administration › Utilisateurs and gives each a one-time link, where they choose their own identifier and password.
+  Leave out `--profile postgres` when a Postgres (16 or later) already runs elsewhere.
 
-  ```bash
-  docker compose --profile postgres --profile pocket-id up -d
-  ```
+  **Passkeys with Pocket ID, optional.** To sign in through [Pocket ID](https://github.com/pocket-id/pocket-id), which
+  only accepts passkeys, add `--profile pocket-id` (or use one that already runs), set `AUTH_URL` and Nid's OIDC client
+  in `.env` (its comments give the client's settings), and create the groups `nid-users` and `nid-admins` in Pocket ID.
+  `NID_AUTH_MODE=both` offers the two ways side by side.
 
 - **Reference** ([`deploy/`](deploy/README.md)): Postgres, Pocket ID, Nid and an encrypted `restic` backup to a local and
   an optional remote repository, with `deploy/setup.sh` to generate the secrets and `deploy/restore.sh` to restore. It
@@ -99,7 +99,7 @@ Then pick one of the two setups:
   the published ones instead.
 
 [`deploy/README.md`](deploy/README.md) covers the installation, updates, backups and bank sync in detail (in French).
-The first person to sign in becomes the administrator and admits the other adults.
+How adults sign in, and the trade-offs of each way: [`docs/identity-and-access/local-accounts.md`](docs/identity-and-access/local-accounts.md).
 
 ## Development
 
@@ -140,7 +140,7 @@ node deploy/local/demo/sign-in-link.mjs alice   # a one-time sign-in link (the d
 | Back end | .NET 10, ASP.NET Core minimal APIs, EF Core with Npgsql, NodaTime, Quartz.NET, [Synapse](https://github.com/UnambitiousFx/Synapse) for commands, queries and events |
 | Database | PostgreSQL, one schema per module |
 | Front end | React, TypeScript, Vite, Tailwind CSS and shadcn/ui, TanStack Query, a client generated from the OpenAPI document; installable as a PWA |
-| Identity | Pocket ID (OIDC, passkeys); the browser talks to a backend-for-frontend with a session cookie |
+| Identity | Local accounts (PBKDF2 passwords, optional TOTP) or Pocket ID (OIDC, passkeys), or both; the browser talks to a backend-for-frontend with a session cookie |
 | Assistant | The MCP C# SDK, on personal access tokens with scoped presets |
 
 Nid is a modular monolith: one process serves the web app, the API, the MCP endpoint and the scheduled jobs.
