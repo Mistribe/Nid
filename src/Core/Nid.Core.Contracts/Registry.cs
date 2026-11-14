@@ -86,7 +86,8 @@ public interface IPersonRegistry
     Task<PersonInfo?> FindBySubjectAsync(string oidcSubject, CancellationToken ct);
 
     /// <summary>An admin adds an adult who will be recognised by email at their first sign-in. Pending adults count against the cap.</summary>
-    Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string email, CancellationToken ct);
+    /// <remarks>Issue 215: <paramref name="emailOptional"/> with local accounts only, where the email binds nothing.</remarks>
+    Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string? email, CancellationToken ct, bool emailOptional = false);
 
     Task<Result<PersonInfo>> CreateDependentAsync(string displayName, CancellationToken ct);
 

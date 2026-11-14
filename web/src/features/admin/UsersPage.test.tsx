@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
-import { adminCapabilities, allCapabilities } from '@/test/fixtures';
+import { adminCapabilities, aliceSession, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
@@ -147,5 +147,58 @@ describe('Administration › Utilisateurs', () => {
 
     // The confirmation loads lazily: it may not be there yet when the click returns.
     expect(await screen.findByText(/vous devrez vous reconnecter/)).toBeInTheDocument();
+  });
+});
+
+describe('Administration › Utilisateurs, comptes locaux (issue 215)', () => {
+  const local = { ...aliceSession, methods: ['password'] };
+  const dave: Adult = { id: '01926b9e-0000-7000-8000-00000000000d', displayName: 'Dave', email: null, status: 'active', isAdmin: false, methods: ['password'],
+    lockedUntil: '2026-11-13T18:00:00+00:00', linkExpiresAt: null };
+
+  it('creates a one-time link and shows it once, with its expiry', async () => {
+    serve([alice, carol]);
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/admin/users/:id/password-link', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ url: 'https://nid.example.test/password#nid_link_abc', purpose: 'enroll', expiresAt: '2026-11-16T18:00:00+00:00' }, { status: 201 });
+    }));
+    const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities, session: local });
+
+    await user.click(await screen.findByRole('button', { name: 'Actions de Carol' }));
+    await user.click(await screen.findByRole('menuitem', { name: "Créer son lien d'accès" }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Lien à usage unique' });
+    expect(within(dialog).getByRole('textbox')).toHaveValue('https://nid.example.test/password#nid_link_abc');
+    expect(dialog).toHaveTextContent('Carol');
+    expect(sent).toEqual([{ revokeTokens: false }]);
+    expect(screen.getByText(/Chaque adulte se connecte avec son identifiant/)).toBeInTheDocument();
+  });
+
+  it('shows a locked account and unlocks it', async () => {
+    serve([alice, dave]);
+    let unlocked = false;
+    server.use(http.post('*/api/v1/admin/users/:id/unlock', () => { unlocked = true; return HttpResponse.json({ id: dave.id }); }));
+    const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities, session: local });
+
+    expect(within(await screen.findByRole('row', { name: /Dave/ })).getByText('Verrouillé')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions de Dave' }));
+    expect(screen.getByRole('menuitem', { name: 'Créer un lien de mot de passe' })).toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: 'Déverrouiller' }));
+
+    await waitFor(() => expect(unlocked).toBe(true));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Compte déverrouillé.'));
+  });
+
+  it('adds an adult without an email', async () => {
+    serve([alice]);
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/admin/users', async ({ request }) => { sent.push(await request.json()); return HttpResponse.json(carol, { status: 201 }); }));
+    const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities, session: local });
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un adulte' }));
+    await user.type(await screen.findByLabelText('Nom'), 'Dave');
+    await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+
+    await waitFor(() => expect(sent).toEqual([{ displayName: 'Dave', email: '' }]));
   });
 });

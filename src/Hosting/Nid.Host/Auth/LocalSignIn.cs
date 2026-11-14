@@ -28,6 +28,8 @@ public sealed record PasswordLinkInfoView(string Purpose, string Name, string? L
 
 public sealed record CompletePasswordLinkBody(string? Token, string? Login, string? Password);
 
+public sealed record ChangePasswordBody(string? Current, string? New);
+
 /// <summary>
 /// The setup token of a fresh instance (local-accounts.md §5): drawn at start while no adult exists, kept in memory only,
 /// written to the log; forgotten once the first administrator exists.
@@ -98,11 +100,12 @@ public sealed class LoginFailureLog(IClock clock)
 public sealed class LocalSignIn(
     ILocalAccountStore accounts, IPersonRegistry persons, LocalPasswordHasher hasher, PasswordRules rules, TokenFailureGate gate,
     LoginFailureLog failures, SetupToken setup, ISecurityEvents events, IClock clock, IOptions<NidAuthOptions> options, AuthSettings settings,
-    ILogger<LocalSignIn> logger, IActorAccessor actor)
+    ILogger<LocalSignIn> logger, IActorAccessor actor, UnambitiousFx.Synapse.Abstractions.IInvoker invoker)
 {
     public const string InvalidCredentials = "auth.invalid_credentials";
     public const string HttpsRequired = "auth.https_required";
     public const string InvalidSetupToken = "auth.invalid_setup_token";
+    public const string CurrentPasswordWrong = "auth.current_password_wrong";
     private const int MaxPasswordInput = 4 * PasswordRules.MaxLength;
 
     public async Task<IResult> PasswordAsync(HttpContext http, PasswordLoginBody body)
@@ -241,6 +244,59 @@ public sealed class LocalSignIn(
         await events.RecordAsync(new SecurityEvent(name, done.Person.Id, [], new Dictionary<string, string> { ["link_id"] = done.LinkId.ToString() }),
             Actor.System, ct);
         return ResultHttp.Json(new LocalLoginView(current!));
+    }
+
+    /// <summary>
+    /// Issue 215, local-accounts.md §8: the adult replaces their own password, the current one asked. A wrong current
+    /// password counts towards the lock like a failed sign-in. The other sessions close; this one is reissued.
+    /// </summary>
+    public async Task<IResult> ChangeMyPasswordAsync(HttpContext http, ChangePasswordBody body)
+    {
+        if (actor.Current is not { PersonId: { } me } current)
+            return Results.Unauthorized();
+        if (current.TokenId is not null)
+            return ResultHttp.Problem(new Failure(BrowserOnlyCodes.Required, "This action is only available from a browser session.", null));
+        var ct = http.RequestAborted;
+        var credential = await accounts.FindAsync(me, ct);
+        var person = await persons.FindAsync(me, ct);
+        if (credential is null || person is null)
+            return ResultHttp.Problem(new NotFoundFailure("account", "me"));
+
+        var now = clock.GetCurrentInstant();
+        var locked = credential.LockedUntil is { } until && until > now;
+        var check = await hasher.VerifyAsync(credential.PasswordHash, PasswordRules.NormalizePassword(body.Current ?? ""), ct);
+        if (check is null) return Busy();
+        if (locked || check == PasswordCheck.Failed)
+        {
+            if (!locked)
+            {
+                var local = options.Value.Local.Bounded();
+                var outcome = await accounts.RecordFailureAsync(me, now, local.LockThreshold,
+                    NodaTime.Duration.FromMinutes(1), NodaTime.Duration.FromMinutes(local.LockMaxMinutes), ct);
+                if (outcome.LockedNow)
+                    await events.RecordAsync(new SecurityEvent(SecurityEventNames.LoginLocked, me, [], new Dictionary<string, string>
+                    {
+                        ["level"] = outcome.Level.ToString(CultureInfo.InvariantCulture), ["until"] = InstantPattern(outcome.Until!.Value),
+                    }), Actor.System, ct);
+            }
+            await RecordFailureAsync(me, locked ? "locked" : "bad_password", TokenAuthentication.ClientAddress(http), ct);
+            // 400, not 401: the session is fine, only the password typed is not.
+            return ResultHttp.Problem(new Failure(CurrentPasswordWrong, "The current password is wrong, or the account is locked for a few minutes.",
+                new Dictionary<string, object?> { ["field"] = "current" }));
+        }
+
+        var password = rules.Check(body.New, credential.Login, person.Email, person.DisplayName);
+        if (!password.TryGetValue(out var normalized))
+            return Failed(password);
+        var hash = await hasher.HashAsync(normalized!, ct);
+        if (hash is null) return Busy();
+        var changed = await invoker.InvokeAsync(new Nid.Core.Application.SetMyPasswordCommand(hash), ct);
+        if (!changed.TryGetValue(out var updated))
+            return Failed(changed);
+        await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            SessionClaims.Create(updated!, SessionClaims.LocalSubject, CookieAuthenticationDefaults.AuthenticationScheme, "pwd"),
+            new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.Value.SessionAbsoluteDays) });
+        return Results.NoContent();
     }
 
     /// <summary>What a password must not be sent over (spec §12), and an address past its failures (spec §9).</summary>

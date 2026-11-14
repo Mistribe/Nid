@@ -215,6 +215,8 @@ public static class RequestCatalogue
         new(typeof(RevokePasswordLinkCommand), false, (data, _) => new RevokePasswordLinkCommand(data.App.AdultB)),
         new(typeof(UnlockAccountCommand), false, (data, _) => new UnlockAccountCommand(data.App.AdultB)),
         new(typeof(CreateAdminAdultCommand), false, (_, _) => new CreateAdminAdultCommand("bench-admin", null)),
+        new(typeof(GetMyCredentialQuery), false, (_, _) => new GetMyCredentialQuery()),
+        new(typeof(SetMyPasswordCommand), false, (_, _) => new SetMyPasswordCommand("bench-hash")),
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
         new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),
         new(typeof(ListProposalsQuery), false, (_, _) => new ListProposalsQuery(null)),

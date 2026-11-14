@@ -44,7 +44,22 @@
       "add_hint": "Cette adresse email sera rattachée à cet adulte à sa première connexion, ce qui permet de lui attribuer des éléments avant (un import, par exemple). Son accès à Nid se règle dans le fournisseur d'identité.",
       "add": "Ajouter",
       "added": "Adulte ajouté.",
-      "cap_reached": "Le foyer est limité à {{max}} adultes. Pour en ajouter un, relevez le plafond dans"
+      "cap_reached": "Le foyer est limité à {{max}} adultes. Pour en ajouter un, relevez le plafond dans",
+      "managed_hint_local": "Chaque adulte se connecte avec son identifiant et son mot de passe. Pour un nouvel adulte, ou un mot de passe oublié, créez un lien à usage unique depuis le menu de sa ligne et transmettez-le-lui.",
+      "add_hint_local": "Après l'avoir ajouté, créez son lien depuis le menu de sa ligne : il y choisira son identifiant et son mot de passe. L'email est facultatif.",
+      "locked": "Verrouillé",
+      "link_pending": "Lien en attente",
+      "enroll_link": "Créer son lien d'accès",
+      "reset_link": "Créer un lien de mot de passe",
+      "unlock": "Déverrouiller",
+      "unlocked": "Compte déverrouillé.",
+      "link_title": "Lien à usage unique",
+      "link_enroll_body": "Transmettez ce lien à {{name}} (de vive voix, par message…) : il y choisira son identifiant et son mot de passe. Il n'est affiché qu'une fois.",
+      "link_reset_body": "Transmettez ce lien à {{name}} : il y choisira un nouveau mot de passe, et ses autres sessions seront fermées. Il n'est affiché qu'une fois.",
+      "link_expires": "Valable jusqu'au {{at}}, pour un seul usage. Un nouveau lien remplace celui-ci.",
+      "copy": "Copier le lien",
+      "copied": "Lien copié.",
+      "close": "Fermer"
     },
     "household": {
       "title": "Foyer",

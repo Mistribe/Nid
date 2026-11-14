@@ -10,8 +10,20 @@ const isWebAddress = (url: string | null): url is string => url !== null && /^ht
  * Nid's cookie is gone, the identity provider's session is not (identity-and-access/authentication.md §6):
  * "Se reconnecter" would succeed without a password. Say so, and point to the portal that can close it.
  */
-export function SignedOutPage({ identityProvider }: { identityProvider: string | null }) {
+export function SignedOutPage({ identityProvider, oidc = true }: { identityProvider: string | null; oidc?: boolean }) {
   const { t } = useTranslation();
+  // Issue 215: with local accounts alone no other session stays open; signing in again asks for the password.
+  if (!oidc) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center p-4">
+        <div className="content-pane rounded-pane flex flex-col gap-4 p-6 shadow-card">
+          <Wordmark className="h-8" />
+          <h1 className="text-2xl font-semibold">{t('signed_out.title')}</h1>
+          <p><a href={loginUrl({ pathname: '/', search: '' })} className={buttonVariants()}>{t('signed_out.sign_in_again')}</a></p>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center p-4">
       {/* Text never sits on the bare halo: the page is one content window, as in the shell. */}

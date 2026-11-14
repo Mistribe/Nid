@@ -152,6 +152,23 @@ public sealed class LocalAccountStore(CoreDbContext db, IClock clock) : ILocalAc
         return Result.Success(new CompletedLink(PersonRegistry.ToInfo(person, true), purpose, link.Id));
     }
 
+    public async Task<Result<PersonInfo>> ChangePasswordAsync(PersonId person, string passwordHash, Instant now, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var credential = await db.LocalCredentials.SingleOrDefaultAsync(c => c.PersonId == person.Value, ct);
+        if (credential is null)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("account", person.ToString()));
+        var row = await db.Persons.SingleAsync(p => p.Id == person.Value, ct);
+        credential.PasswordHash = passwordHash;
+        credential.PasswordChangedAt = now;
+        credential.FailedCount = 0;
+        // The adult's other sessions close; the one that asked is reissued with the new epoch by the caller.
+        row.SessionEpoch++;
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(PersonRegistry.ToInfo(row, true));
+    }
+
     public async Task<Result<PersonInfo>> CreateFirstAdminAsync(string displayName, string login, string passwordHash, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -225,7 +242,7 @@ public sealed class LocalAccountStore(CoreDbContext db, IClock clock) : ILocalAc
     };
 
     private static LocalCredential ToCredential(LocalCredentialRow row)
-        => new(new PersonId(row.PersonId), row.Login, row.PasswordHash, row.FailedCount, row.LockLevel, row.LockedUntil);
+        => new(new PersonId(row.PersonId), row.Login, row.PasswordHash, row.FailedCount, row.LockLevel, row.LockedUntil, row.PasswordChangedAt);
 
     private static Result<CompletedLink> NotFound() => Result.Failure<CompletedLink>(new NotFoundFailure("link", "?"));
 

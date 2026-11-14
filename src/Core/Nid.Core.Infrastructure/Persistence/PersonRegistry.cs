@@ -80,24 +80,24 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
     private async Task<int> CapAsync(CancellationToken ct)
         => await db.HouseholdSettings.Select(s => (int?)s.MaxAdults).FirstOrDefaultAsync(ct) ?? new HouseholdSettingsRow().MaxAdults;
 
-    public async Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string email, CancellationToken ct)
+    public async Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string? email, CancellationToken ct, bool emailOptional = false)
     {
         if (string.IsNullOrWhiteSpace(displayName))
             return Fail(PersonCodes.NameRequired, "A name is required.");
         var address = email?.Trim() ?? "";
-        if (!LooksLikeEmail(address))
+        if (!(emailOptional && address.Length == 0) && !LooksLikeEmail(address))
             return Fail(PersonCodes.EmailRequired, "An email address is required: it is how the person is recognised at their first sign-in.");
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await LockAsync(ct);
 
-        if (await EmailTakenAsync(address, null, ct))
+        if (address.Length > 0 && await EmailTakenAsync(address, null, ct))
             return Fail(PersonCodes.EmailTaken, "Another adult already has this email address.");
         var cap = await CapAsync(ct);
         if (await db.Persons.CountAsync(p => p.Kind == "adult", ct) >= cap)
             return Fail(PersonCodes.AdultCap, $"This household is limited to {cap} adults.");
 
-        var row = NewAdult(null, displayName.Trim(), address, isAdmin: false);
+        var row = NewAdult(null, displayName.Trim(), address.Length == 0 ? null : address, isAdmin: false);
         db.Persons.Add(row);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

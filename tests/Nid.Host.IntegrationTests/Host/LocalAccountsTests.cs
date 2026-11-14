@@ -320,6 +320,47 @@ public class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task Changing_my_password_keeps_this_session_and_closes_the_others()
+    {
+        await using var host = await HostAsync();
+        var alice = await host.SetUpAliceAsync();
+        await host.EnrolAsync(alice, "Bob", "bob", BobPassword);
+        var here = host.Browser();
+        var elsewhere = host.Browser();
+        Assert.Equal(HttpStatusCode.OK, (await here.PostAsync("/auth/login/password", new { login = "bob", password = BobPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await elsewhere.PostAsync("/auth/login/password", new { login = "bob", password = BobPassword })).StatusCode);
+
+        var credential = await (await here.GetAsync("/api/v1/core/me/credential")).Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("bob", credential.GetProperty("login").GetString());
+
+        var wrong = await here.PutAsync("/api/v1/core/me/password", new { current = "not my password at all", @new = "a fresh sentence for bob" });
+        Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        Assert.Equal("auth.current_password_wrong", (await wrong.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString());
+
+        const string fresh = "a fresh sentence for bob";
+        Assert.Equal(HttpStatusCode.NoContent, (await here.PutAsync("/api/v1/core/me/password", new { current = BobPassword, @new = fresh })).StatusCode);
+        Assert.True((await here.SessionAsync()).GetProperty("authenticated").GetBoolean());
+        Assert.False((await elsewhere.SessionAsync()).GetProperty("authenticated").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, (await host.Browser().PostAsync("/auth/login/password", new { login = "bob", password = fresh })).StatusCode);
+        Assert.Single(await host.EventsAsync(SecurityEventNames.PasswordChanged));
+    }
+
+    [Fact]
+    public async Task With_local_accounts_alone_an_adult_is_added_without_an_email()
+    {
+        await using var host = await HostAsync();
+        var alice = await host.SetUpAliceAsync();
+
+        var created = await alice.PostAsync("/api/v1/admin/users", new { displayName = "Dave", email = "" });
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var dave = (await created.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
+        var token = Token(await alice.PasswordLinkAsync(dave));
+        var inspected = await (await host.Browser().PostAsync("/auth/link/inspect", new { token })).Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("dave", inspected.GetProperty("login").GetString());
+    }
+
+    [Fact]
     public async Task With_oidc_only_there_is_no_password_route()
     {
         await using var host = await HostAsync(new() { ["Auth:Mode"] = "oidc", ["Auth:Authority"] = "https://auth.example.test", ["Auth:ClientSecret"] = "s" });
@@ -433,6 +474,14 @@ public class LocalAccountsTests(PostgresFixture postgres) : IClassFixture<Postgr
         }
 
         public Task<HttpResponseMessage> GetAsync(string path) => SendAsync(new HttpRequestMessage(HttpMethod.Get, path));
+
+        public Task<HttpResponseMessage> PutAsync(string path, object body)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
+            request.Headers.Add("Origin", PublicUrl);
+            if (sessionCsrf is not null) request.Headers.Add("X-Nid-Csrf", sessionCsrf);
+            return SendAsync(request);
+        }
 
         public Task<HttpResponseMessage> DeleteAsync(string path)
         {
