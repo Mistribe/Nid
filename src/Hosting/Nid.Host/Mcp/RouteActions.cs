@@ -256,7 +256,9 @@ public static class RouteActions
             "Make one week (monday yyyy-MM-dd, a Monday of the contract) follow another week type: weekType is the rank in get_childcare's "
             + "weekTypes, 0 for the first; the rank the rotation gives removes the exception. " + Ids),
         new("close_childcare", "POST", "/api/v1/childcare/{id:guid}/close", typeof(CloseChildcareBody),
-            "End an arrangement on its last day (on). " + Ids + Amounts),
+            "End an arrangement on its last day (on), with why (reason: withdrawal, misconduct, approval, child_death, resignation or trial) "
+            + "and the day the letter was handed over (notified, yyyy-MM-dd), so the last month settles notice, regularisation, leave and breach indemnity; "
+            + "grossHourlyRate when the terms lack it and the indemnity is due. " + Ids + Amounts),
         new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,
             "Reopen an ended arrangement. " + Ids),
         new("delete_childcare", "DELETE", "/api/v1/childcare/{id:guid}", null,

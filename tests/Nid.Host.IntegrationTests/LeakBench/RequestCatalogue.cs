@@ -574,6 +574,8 @@ public static class RequestCatalogue
         new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),
         new(typeof(GetStatementQuery), true, (_, item) => new GetStatementQuery(item, new YearMonth(2025, 9))),
         new(typeof(GetChildcareYearQuery), true, (_, item) => new GetChildcareYearQuery(item, 2025)),
+        new(typeof(ContractEndQuery), true, (_, item) => new ContractEndQuery(item, new ContractEnd(EndReason.Withdrawal, new LocalDate(2026, 1, 5)))),
+        new(typeof(GetSettlementQuery), true, (_, item) => new GetSettlementQuery(item)),
         // No days: an allowed writer meets the 422 on days, never an access refusal; version 1 is never stored.
         new(typeof(SaveStatementCommand), true, (_, item) => new SaveStatementCommand(item, new YearMonth(2025, 9), [], 0m, null, 1)),
         new(typeof(ValidateStatementCommand), true, (_, item) => new ValidateStatementCommand(item, new YearMonth(2025, 9), 1)),

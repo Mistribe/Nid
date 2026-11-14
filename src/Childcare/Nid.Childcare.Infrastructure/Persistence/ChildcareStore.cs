@@ -131,10 +131,12 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct)
+    public async Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct, ContractEnd? end = null)
     {
         var current = await db.Terms.Where(t => t.ItemId == id.Value).OrderByDescending(t => t.From).FirstAsync(ct);
         current.To = to;
+        var arrangement = await db.Arrangements.SingleAsync(a => a.ItemId == id.Value, ct);
+        (arrangement.EndReason, arrangement.EndNotified) = (end is null ? null : EndReasonCodes.Of(end.Reason), end?.Notified);
         await TouchAsync(id, ct);
         await db.SaveChangesAsync(ct);
     }
@@ -214,6 +216,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.Cost = figures.Cost;
         row.TaxBase = figures.TaxBase;
         row.ChildSickDeducted = figures.ChildSickDeducted;
+        Settle(row, figures);
         ReplaceDays(id, first, days, await db.StatementDays.Where(d => d.ItemId == id.Value && d.Month == first).ToListAsync(ct));
         return await SaveStatementAsync(ct);
     }
@@ -227,6 +230,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.NormalHours = row.ActivityDays = row.PaidLeaveDays = row.ChildSickDeducted = null;
         row.ComplementaryHours = row.OvertimeHours = row.NetPay = row.Upkeep = row.Meals = null;
         row.BasePay = row.Deduction = row.ExtraPay = row.PaidLeavePay = row.Cost = row.TaxBase = null;
+        row.Regularisation = row.LeaveIndemnity = row.RuptureIndemnity = null;
         await db.SaveChangesAsync(ct);
     }
 
@@ -272,9 +276,9 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             r.Validated
                 ? new MonthFigures(
                     new PajemploiDeclaration(r.NormalHours!.Value, r.ActivityDays!.Value, r.PaidLeaveDays, r.ComplementaryHours!.Value, r.OvertimeHours!.Value,
-                        r.NetPay!.Value, r.Upkeep!.Value, r.Meals!.Value, r.Mileage),
+                        r.NetPay!.Value, r.Upkeep!.Value, r.Meals!.Value, r.Mileage, r.LeaveIndemnity ?? 0m, r.RuptureIndemnity ?? 0m),
                     r.BasePay!.Value, r.Deduction!.Value, r.ExtraPay!.Value, r.PaidLeavePay!.Value, r.Cmg!.Value, r.Cost!.Value, r.TaxBase!.Value,
-                    r.ChildSickDeducted!.Value, r.Contributions ?? 0m, r.Exemption ?? 0m)
+                    r.ChildSickDeducted!.Value, r.Contributions ?? 0m, r.Exemption ?? 0m, r.Regularisation ?? 0m)
                 : null,
             r.Version, r.ValidatedAt,
             new DeclaredFigures(r.DeclaredNetPay, r.DeclaredUpkeep, r.DeclaredMeals, r.DeclaredNormalHours, r.DeclaredActivityDays, r.DeclaredPaidLeaveDays,
@@ -343,6 +347,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         (row.NetPay, row.Upkeep, row.Meals, row.BasePay, row.Deduction, row.ExtraPay) =
             (d.NetPay, d.Upkeep, d.Meals, figures.BasePay, figures.Deduction, figures.ExtraPay);
         (row.PaidLeavePay, row.Cost, row.TaxBase, row.ChildSickDeducted) = (figures.PaidLeavePay, figures.Cost, figures.TaxBase, figures.ChildSickDeducted);
+        Settle(row, figures);
         ReplaceDays(statement.ItemId, first, statement.Days, await db.StatementDays.Where(x => x.ItemId == statement.ItemId.Value && x.Month == first).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
     }
@@ -384,6 +389,16 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.CarerName = a.CarerName;
         row.CarerPajemploi = a.CarerPajemploi;
         row.CarerApproval = a.CarerApproval;
+        (row.EndReason, row.EndNotified) = (a.End is null ? null : EndReasonCodes.Of(a.End.Reason), a.End?.Notified);
+    }
+
+    /// <summary>The end-of-contract lines, null on a month without them so that only the last month carries them.</summary>
+    private static void Settle(StatementRow row, MonthFigures figures)
+    {
+        var settles = figures.Regularisation != 0m || figures.Declaration.LeaveIndemnity != 0m || figures.Declaration.RuptureIndemnity != 0m;
+        (row.Regularisation, row.LeaveIndemnity, row.RuptureIndemnity) = settles
+            ? (figures.Regularisation, figures.Declaration.LeaveIndemnity, figures.Declaration.RuptureIndemnity)
+            : ((decimal?)null, (decimal?)null, (decimal?)null);
     }
 
     private static void Apply(TermsRow row, Terms t)
@@ -400,5 +415,6 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
     }
 
     private static Arrangement ToArrangement(ArrangementRow r)
-        => new(new ItemId(r.ItemId), new PersonId(r.ChildId), r.CarerName, r.CarerPajemploi, r.CarerApproval, r.Version);
+        => new(new ItemId(r.ItemId), new PersonId(r.ChildId), r.CarerName, r.CarerPajemploi, r.CarerApproval, r.Version,
+            EndReasonCodes.TryParse(r.EndReason) is { } reason && r.EndNotified is { } notified ? new ContractEnd(reason, notified) : null);
 }

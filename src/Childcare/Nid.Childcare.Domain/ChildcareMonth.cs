@@ -3,8 +3,17 @@ using NodaTime;
 
 namespace Nid.Childcare.Domain;
 
-/// <summary>June only: months of the reference period with care (a month the contract enters or leaves counts for its share), and its net pay (base − deductions + extra pay).</summary>
-public sealed record PaidLeaveInput(decimal MonthsWithCare, decimal ReferenceNetPay);
+/// <summary>June only: the leave days acquired over the reference period (<see cref="PaidLeave.Accrued"/>), and its net pay (base − deductions + extra pay).</summary>
+public sealed record PaidLeaveInput(int AccruedDays, decimal ReferenceNetPay);
+
+/// <summary>
+/// The contract's last month: why and when it was notified; the leave period still unpaid (since the last 1 June) — the earlier
+/// months' days within it and their pay; the earlier months' hours due at their rate (<see cref="EndOfContract.HoursDue"/>) and their
+/// mensualised pay after deductions; the earlier months' net pay; the gross-to-net hourly ratio, null when the contract has no gross rate.
+/// </summary>
+public sealed record EndingInput(
+    EndReason Reason, LocalDate Notified, IReadOnlyList<StatementDay> LeaveDaysBefore, decimal LeavePayBefore, decimal DueBefore, decimal PaidBefore, decimal NetPayBefore,
+    decimal? GrossRatio);
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
@@ -17,7 +26,7 @@ public sealed record MonthInput(
     YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
     decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null, decimal Contributions = 0m, decimal? Exemption = null,
-    Func<LocalDate, ContractTerms>? TermsOn = null);
+    Func<LocalDate, ContractTerms>? TermsOn = null, EndingInput? Ending = null);
 
 /// <summary>Childcare spec §3 and §6: a month's Pajemploi declaration, its cost and its childcare tax base. Pure.</summary>
 public static class ChildcareMonth
@@ -48,12 +57,23 @@ public static class ChildcareMonth
         var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
         var meals = input.Declared?.Meals ?? computedMeals;
 
-        var leaveDays = input.Declared?.PaidLeaveDays ?? (input.June is { } june ? PaidLeave.Accrued(june.MonthsWithCare) : null);
+        var leaveDays = input.Declared?.PaidLeaveDays ?? input.June?.AccruedDays;
         // The contract's average week over its template weeks (38,389 h for 23 × 39 h + 22 × 37,75 h).
         var weeklyHours = annualHours / input.Plan.ProgrammedWeeks;
         var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
 
-        var computedPay = basePay - deduction + extraPay + leavePay;
+        // The last month settles the incomplete year (art. 124) and the leave not yet paid, as the higher of the tenth and maintained pay (art. 125).
+        var (regularisation, balanceDays, leaveIndemnity) = (0m, 0, 0m);
+        if (input.Ending is { } end)
+        {
+            var due = end.DueBefore + Mensualisation.Round(input.Terms.NetHourlyRate * EndOfContract.HoursDue(inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences));
+            regularisation = due - end.PaidBefore - (basePay - deduction);
+            balanceDays = PaidLeave.Accrued([.. end.LeaveDaysBefore, .. inContract], input.Plan, input.Terms.UnpaidAbsences);
+            if (balanceDays > 0)
+                leaveIndemnity = PaidLeave.JuneIndemnity(end.LeavePayBefore + basePay - deduction + extraPay + regularisation, input.Terms.NetHourlyRate, weeklyHours, balanceDays);
+        }
+
+        var computedPay = basePay - deduction + extraPay + leavePay + regularisation;
         var netPay = input.Declared?.NetPay ?? computedPay;
         // Decision 30: the difference goes to the extra pay, so that the parts still add up and June's reference pay follows.
         extraPay += netPay - computedPay;
@@ -69,15 +89,24 @@ public static class ChildcareMonth
         // #26: the hours the pay at the normal rate stands for, mensualised less deducted, extra hours apart: the hour
         // the extra minutes round up to is not taken back out of them (142.5 h and 40 min extra declare 143 h + 1 h).
         var normalHours = input.Declared?.NormalHours
-            ?? Math.Max(0, Mensualisation.NormalHours(basePay - deduction + leavePay, input.Terms.NetHourlyRate));
-        var declaration = new PajemploiDeclaration(normalHours, activityDays, leaveDays,
-            complementary, overtime, netPay, upkeep, meals, input.Mileage);
+            ?? Math.Max(0, Mensualisation.NormalHours(basePay - deduction + leavePay + regularisation, input.Terms.NetHourlyRate));
+        // Art. 121: the indemnity's base is every salary of the contract, this month's and the leave indemnity included.
+        var rupture = input.Ending is { } ending && EndOfContract.IndemnityDue(ending.Reason, input.Terms.Start, ending.Notified)
+            ? EndOfContract.RuptureIndemnity(ending.NetPayBefore + netPay + leaveIndemnity,
+                ending.GrossRatio ?? throw new ArgumentException("The breach indemnity needs the contract's gross hourly rate.", nameof(input)))
+            : 0m;
+        // The last declaration counts the leave days it settles (Pajemploi).
+        var declaredLeaveDays = input.Declared?.PaidLeaveDays ?? (balanceDays > 0 ? (leaveDays ?? 0) + balanceDays : leaveDays);
+        var declaration = new PajemploiDeclaration(normalHours, activityDays, declaredLeaveDays,
+            complementary, overtime, netPay, upkeep, meals, input.Mileage, leaveIndemnity, rupture);
         // The declared net is before the exemption: Pajemploi adds it to what it pays the carer, so the household pays it too.
         var exemption = input.Exemption ?? ExtraHours.ExemptionEstimate(complementary, overtime, input.Terms.NetHourlyRate, input.Terms.OvertimeRate);
         // #30: the CMG covers the contributions only up to an hourly ceiling; past it the household pays the rest, read from the summary.
         var paid = input.Contributions + exemption;
+        // The breach indemnity is not a salary (art. 121): in the cost, not in the childcare tax base.
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
-            netPay + upkeep + meals + input.Mileage + paid - input.Cmg, netPay + upkeep + paid - input.Cmg, childSick, input.Contributions, exemption);
+            netPay + leaveIndemnity + rupture + upkeep + meals + input.Mileage + paid - input.Cmg, netPay + leaveIndemnity + upkeep + paid - input.Cmg, childSick,
+            input.Contributions, exemption, regularisation);
     }
 
     /// <summary>

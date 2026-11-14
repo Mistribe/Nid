@@ -7,6 +7,7 @@ import { CHILDCARE } from '@/api/childcare';
 export { CHILDCARE, useChildcareList, type ChildcareList, type ChildcareSummary, type Scope } from '@/api/childcare';
 export type ChildcareDetail = components['schemas']['ChildcareDetail'];
 export type ChildcareTerms = components['schemas']['ChildcareTermsView'];
+export type LegalMinimum = components['schemas']['LegalMinimumView'];
 export type WeekdaySlot = components['schemas']['WeekdaySlotView'];
 export type CareGap = components['schemas']['CareGapView'];
 export type CreateChildcareBody = components['schemas']['CreateChildcareBody'];
@@ -20,6 +21,8 @@ export type StatementDay = components['schemas']['StatementDayView'];
 export type StatementDayBody = components['schemas']['StatementDayBody'];
 export type Declaration = components['schemas']['DeclarationView'];
 export type ChildcareYear = components['schemas']['ChildcareYearView'];
+export type ContractEnd = components['schemas']['ContractEndView'];
+export type Settlement = components['schemas']['ChildcareSettlementView'];
 
 export const ARRANGEMENT = '/api/v1/childcare/{id}' as const;
 export const REVISIONS = '/api/v1/childcare/{id}/revisions' as const;
@@ -27,6 +30,8 @@ export const GAPS = '/api/v1/childcare/{id}/gaps' as const;
 export const WEEK_OVERRIDE = '/api/v1/childcare/{id}/week-overrides/{monday}' as const;
 export const CLOSE = '/api/v1/childcare/{id}/close' as const;
 export const REOPEN = '/api/v1/childcare/{id}/reopen' as const;
+export const END = '/api/v1/childcare/{id}/end' as const;
+export const SETTLEMENT = '/api/v1/childcare/{id}/settlement' as const;
 export const STATEMENTS = '/api/v1/childcare/{id}/statements' as const;
 export const STATEMENT = '/api/v1/childcare/{id}/statements/{month}' as const;
 export const VALIDATE = '/api/v1/childcare/{id}/statements/{month}/validate' as const;
@@ -35,7 +40,7 @@ export const SUMMARY = '/api/v1/childcare/{id}/summary' as const;
 
 /** Every write invalidates the list and every arrangement. */
 export function invalidateChildcare(queryClient: QueryClient): Promise<void> {
-  return Promise.all([CHILDCARE, ARRANGEMENT, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([CHILDCARE, ARRANGEMENT, SETTLEMENT, STATEMENT, SERIES_POINTS, SERIES_CATALOGUE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }
 
 export function useChildcare(id: string) {
@@ -78,6 +83,17 @@ export function useCloseChildcare() {
   return $api.useMutation('post', CLOSE, useWrite());
 }
 
+/** What ending the contract this way means (notice, breach indemnity), once the reason and the notification day are known. */
+export function useContractEnd(id: string, reason: string, notified: string) {
+  const { $api } = useApi();
+  return $api.useQuery('get', END, { params: { path: { id }, query: { reason, notified } } }, { enabled: reason !== '' && /^\d{4}-\d{2}-\d{2}$/.test(notified) });
+}
+
+export function useSettlement(id: string) {
+  const { $api } = useApi();
+  return $api.useQuery('get', SETTLEMENT, { params: { path: { id } } });
+}
+
 export function useReopenChildcare() {
   const { $api } = useApi();
   return $api.useMutation('post', REOPEN, useWrite());
@@ -95,7 +111,7 @@ export function useStatement(id: string, month: string) {
 
 /** A statement write answers with the month as it now reads: the month and the list are refetched. */
 export function invalidateStatements(queryClient: QueryClient): Promise<void> {
-  return Promise.all([STATEMENTS, STATEMENT, SUMMARY, SERIES_POINTS].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([STATEMENTS, STATEMENT, SUMMARY, SETTLEMENT, SERIES_POINTS].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }
 
 function useStatementWrite() {

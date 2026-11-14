@@ -47,17 +47,20 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
                 Hours(Mensualisation.AnnualHours(now.WeekTypes) / now.ProgrammedWeeks),
                 StatementContext.ToPrepare(revisions[0].From, views[^1].To, today, validated[arrangement.ItemId]).Select(StatementAssembly.Format).ToList());
             var placed = gaps[arrangement.ItemId].ToList();
-            var year = ContractCheck.Year(TermsPlan.Of(now, revisions[0].From, overrides[arrangement.ItemId].ToList()), revisions[0].From, placed, today);
+            var plan = TermsPlan.Of(now, revisions[0].From, overrides[arrangement.ItemId].ToList());
+            var year = ContractCheck.Year(plan, revisions[0].From, placed, today);
             var allocated = ContractCheck.Allocated(year, now.WeekTypes.Count);
             return new ChildcareDetail(summary, arrangement.CarerPajemploi, arrangement.CarerApproval, views,
                 placed.Select(g => new CareGapView(g.Monday, g.Weeks, g.Monday.PlusWeeks(g.Weeks).PlusDays(-1))).ToList(),
                 ContractCheck.GapWeeksToPlace(revisions[0].From, revisions[^1].ProgrammedWeeks, placed, today),
-                StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today), arrangement.Version,
+                StatementContext.LeaveDaysAccrued(revisions[0].From, revisions[^1].To, today, plan, placed), arrangement.Version,
                 year.Select(w => new ContractWeekView(w.Monday, w.WeekType, w.Overridden, w.Gap)).ToList(),
                 now.WeekTypes.Select((w, i) => new WeekTypeCountView(w.Name, allocated[i], w.Weeks)).ToList(),
                 GapYears(revisions, views[^1].To, placed, today),
                 estimates[arrangement.ItemId] is { } cmg ? ChildcareMoneyView.Of(cmg, currency) : null,
-                StatementContext.ChildSickUsed(revisions[0].From, today, sickDeducted[arrangement.ItemId]));
+                StatementContext.ChildSickUsed(revisions[0].From, today, sickDeducted[arrangement.ItemId]),
+                BelowMinimums: LegalMinimumView.Of(BelowMinimums(revisions, today)),
+                End: arrangement.End is { } end ? ContractEndView.Of(end, revisions) : null);
         }).ToList();
     }
 
@@ -68,6 +71,20 @@ public sealed class ChildcareReader(IChildcareStore store, IPersonRegistry perso
             .Select(y => new GapYearView(y.From, y.To, y.Allowed, y.Placed, Math.Max(0, y.Allowed - y.Placed),
                 gaps.Where(g => g.Monday >= y.From && g.Monday <= y.To).ToList()))
             .ToList();
+    }
+
+    /// <summary>
+    /// The minimums broken today, then on the latest revaluation the tables know (a published one warns before it takes effect), each
+    /// day against the revision in force then: a revision entered for the revaluation clears its warning. Nothing once the contract has ended.
+    /// </summary>
+    internal static IReadOnlyList<LegalMinimums.Breach> BelowMinimums(IReadOnlyList<Terms> revisions, LocalDate today)
+    {
+        var start = LocalDate.Max(today, revisions[0].From);
+        if (revisions[^1].To is { } end && end < today) return [];
+        var later = LocalDate.Max(start, LegalMinimums.LastChange);
+        return new[] { start, revisions[^1].To is { } e ? LocalDate.Min(e, later) : later }
+            .SelectMany(day => revisions.LastOrDefault(r => r.From <= day) is { } t ? LegalMinimums.Check(t.NetHourlyRate, t.GrossHourlyRate, t.UpkeepPer9h, day) : [])
+            .DistinctBy(b => b.Code).ToList();
     }
 
     /// <summary>The list's order: open first, then by child and name.</summary>

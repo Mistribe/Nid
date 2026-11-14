@@ -103,7 +103,7 @@ public class ChildcareMonthTests
     [Fact]
     public void June_adds_paid_leave()
     {
-        var figures = ChildcareMonth.Compute(Input(new YearMonth(2027, 6), june: new PaidLeaveInput(12, 7516.44m)));
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2027, 6), june: new PaidLeaveInput(30, 7516.44m)));
         Assert.Equal(30, figures.Declaration.PaidLeaveDays);
         Assert.Equal(817.00m, figures.PaidLeavePay);
         Assert.Equal(figures.BasePay + 817.00m, figures.Declaration.NetPay);

@@ -8,15 +8,20 @@ namespace Nid.Childcare.Application;
 
 /// <summary>
 /// Childcare decision 18: for each of the reader's own arrangements, the last month gone by (the current one from its last
-/// day) while it is not validated. Older months stay in the Relevés tab. No amount travels.
+/// day) while it is not validated. Older months stay in the Relevés tab. And, for an arrangement not ended, the terms in force under a
+/// legal minimum in force today (<see cref="LegalMinimums"/>), keyed by the day that minimum took effect: each revaluation notifies once. No amount travels.
 /// </summary>
 public sealed class ChildcareNotificationSource(IVisibleItems visible, IChildcareStore store) : INotificationSource
 {
     public const string StatementDue = "childcare_statement_due";
+    public const string BelowMinimum = "childcare_below_minimum";
 
     public string Name => "childcare";
 
-    public IReadOnlyList<NotificationKind> Kinds { get; } = [new(StatementDue, "due_date", NotificationLevel.Action, "childcare", 0)];
+    public IReadOnlyList<NotificationKind> Kinds { get; } = [
+        new(StatementDue, "due_date", NotificationLevel.Action, "childcare", 0),
+        new(BelowMinimum, "finding", NotificationLevel.Action, "childcare", null),
+    ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {
@@ -30,7 +35,19 @@ public sealed class ChildcareNotificationSource(IVisibleItems visible, IChildcar
         foreach (var arrangement in found)
         {
             var revisions = terms[arrangement.ItemId].ToList();
-            if (revisions.Count == 0 || !StatementContext.Months(revisions[0].From, revisions[^1].To, today).Contains(due))
+            if (revisions.Count == 0)
+                continue;
+            if (revisions[^1].To is not { } end || end >= today)
+            {
+                var inForce = revisions.LastOrDefault(r => r.From <= today) ?? revisions[0];
+                if (LegalMinimums.Check(inForce.NetHourlyRate, inForce.GrossHourlyRate, inForce.UpkeepPer9h, today) is [_, ..] breaches)
+                {
+                    var since = breaches.Max(b => b.Since);
+                    signals.Add(new Signal(SignalKeys.Dated(BelowMinimum, arrangement.ItemId, since), BelowMinimum, [arrangement.ItemId], since,
+                        new Dictionary<string, string>()));
+                }
+            }
+            if (!StatementContext.Months(revisions[0].From, revisions[^1].To, today).Contains(due))
                 continue;
             if ((await store.StatementsOfAsync(arrangement.ItemId, ct)).Any(s => s.Month == due && s.Validated))
                 continue;

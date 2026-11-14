@@ -1,15 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm, type Path, type Resolver } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { FormDialog } from '@/components/FormDialog';
-import { DateField } from '@/components/form/DateField';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Field } from '@/components/form/Field';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useCloseChildcare, useEditChildcare, useReplaceGaps, useReviseChildcare, type ChildcareDetail } from './api';
+import { useEditChildcare, useReplaceGaps, useReviseChildcare, type ChildcareDetail } from './api';
 import {
   carerToWire, childcarePath, editSchema, gapsDefaults, gapsSchema, gapsToWire, termsDefaults, termsSchema, termsToWire,
   type EditValues, type GapRow, type TermsValues,
@@ -142,35 +141,6 @@ export function GapsDialog({ detail, onClose, onDone }: DialogProps) {
           <Unplaced messages={errors.unplaced} />
           <GapFields form={form} />
           <Actions submit={t('childcare_detail.save')} pending={replace.isPending} onCancel={() => done()} />
-        </form>
-      )}
-    </FormDialog>
-  );
-}
-
-/** Ends the current terms on the last day of care and archives the arrangement; it can be reopened. */
-export function EndDialog({ detail, onClose, onDone }: DialogProps) {
-  const { t } = useTranslation();
-  const close = useCloseChildcare();
-  const [on, setOn] = useState('');
-  const [error, setError] = useState('');
-  const errors = useChildcareErrors<{ on: string }>((_, e) => setError(e.message ?? ''), (p) => (p === 'on' ? 'on' : undefined));
-  return (
-    <FormDialog title={t('childcare_detail.end_title')} onClose={onClose} onDone={onDone}>
-      {({ titleId, done }) => (
-        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(on)) { setError(t('childcare_form.error.date_format')); return; }
-          errors.clear();
-          close.mutate({ params: { path: { id: detail.summary.id } }, body: { on } },
-            { onSuccess: () => done(t('childcare_detail.ended')), onError: (e) => errors.onError(e) });
-        }}>
-          {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
-          <Unplaced messages={errors.unplaced} />
-          <p className="text-sm text-muted-foreground">{t('childcare_detail.end_body', { name: detail.summary.name })}</p>
-          <Field label={t('childcare_detail.end_on')} error={error || undefined}>{(c) => <DateField {...c} value={on} onChange={setOn} />}</Field>
-          <Actions submit={t('childcare_detail.end_submit')} pending={close.isPending} onCancel={() => done()} />
         </form>
       )}
     </FormDialog>

@@ -307,17 +307,21 @@ describe('ChildcareDetailPage', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Cette garde a changé entre-temps');
   });
 
-  it('ending the arrangement asks for its last day', async () => {
-    const writes: { path: string; body: unknown }[] = [];
-    serve(detail(), writes);
+  it('ending the arrangement opens its own page, and an ended one leads to its settlement', async () => {
+    serve(detail());
     const { user } = await renderApp(url);
     await screen.findByRole('button', { name: 'Modifier' });
     await openMore(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Terminer la garde' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Dernier jour'), '31/10/2025');
-    await user.click(within(dialog).getByRole('button', { name: 'Terminer' }));
-    await waitFor(() => expect(writes).toEqual([{ path: `/api/v1/childcare/${ARRANGEMENT_ID}/close`, body: { on: '2025-10-31' } }]));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mettre fin au contrat' })).toBeInTheDocument();
+    cleanup();
+
+    serve(detail({ end: { reason: 'withdrawal', notified: '2025-10-01', seniorityMonths: 1, noticeEnd: '2025-10-08', indemnityDue: false, grossRateKnown: false } },
+      { closed: true, end: '2025-10-08' }));
+    await renderApp(url);
+    const ended = await screen.findByRole('region', { name: 'Fin du contrat' });
+    expect(ended).toHaveTextContent('Je retire mon enfant, lettre du 1 octobre 2025.');
+    expect(within(ended).getByRole('link', { name: 'Solde de tout compte' })).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}/settlement`);
   });
 
   it('a revision refused on its date or its weeks says why', async () => {
@@ -334,20 +338,6 @@ describe('ChildcareDetailPage', () => {
     expect(within(dialog).getByText(/Plus de semaines sans accueil sur une année de contrat/)).toBeInTheDocument();
   });
 
-  it('ending before the current terms says why', async () => {
-    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', title: 'Unprocessable', status: 422, code: 'request.invalid', errors: [
-      { path: 'on', code: 'childcare.end_before_terms', message: 'The end comes on or after the current terms\' start.' },
-    ] }, { status: 422 }));
-    const { user } = await renderApp(url);
-    await screen.findByRole('button', { name: 'Modifier' });
-    await openMore(user);
-    await user.click(await screen.findByRole('menuitem', { name: 'Terminer la garde' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Dernier jour'), '31/08/2025');
-    await user.click(within(dialog).getByRole('button', { name: 'Terminer' }));
-    expect(await within(dialog).findByText('Le dernier jour vient au plus tôt au début des conditions en cours.')).toBeInTheDocument();
-  });
-
   it('keeps two buttons in the header and the ending in the ⋯ menu', async () => {
     serve(detail());
     const { user, container } = await renderApp(url);
@@ -357,6 +347,22 @@ describe('ChildcareDetailPage', () => {
     await openMore(user);
     await screen.findByRole('menuitem', { name: 'Terminer la garde' });
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Terminer la garde', 'Partage…', 'Supprimer…']);
+  });
+
+  it('warns when the terms fall below a legal minimum and offers a revision', async () => {
+    serve(detail({ belowMinimums: [{ code: 'childcare.below_minimum_upkeep', since: '2026-06-01', minimum: '3.92', value: '3.80' }] }));
+    const { user } = await renderApp(url);
+    const warning = await screen.findByRole('status', { name: 'Le contrat est sous un minimum légal' });
+    expect(warning).toHaveTextContent("L'indemnité d'entretien (3,80 € pour 9 h) est sous le minimum légal de 3,92 €, à compter du 1 juin 2026.");
+    await user.click(within(warning).getByRole('button', { name: 'Réviser' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('terms meeting the minimums show no warning', async () => {
+    serve(detail({ belowMinimums: [] }));
+    await renderApp(url);
+    expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Le contrat est sous un minimum légal' })).not.toBeInTheDocument();
   });
 
   it('a reader without write sees no actions', async () => {

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { elision } from '@/lib/elision';
@@ -23,6 +23,7 @@ import {
   type StatementDayBody,
 } from './api';
 import { DayDialog } from './DayDialog';
+import { BelowMinimums } from './BelowMinimums';
 import { Declaration, type DeclarationEntry } from './Declaration';
 import { MonthSummaryDialog, type MonthSummary } from './MonthSummaryDialog';
 import { dayTitle, frenchNumber, monthTitle, problemText, reasonLabel, stateLabel, statementError } from './statementText';
@@ -144,6 +145,10 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
                 hint: view.figures.costBeforeCmg ? t('childcare_statement.before_cmg') : null },
               { label: t('childcare_statement.cmg'), tip: t('childcare_detail.cmg_tip'), value: view.cmg == null ? '—' : formatCurrency(view.cmg, 'EUR') },
               ...(view.contributions == null ? [] : [{ label: t('childcare_statement.contributions'), value: formatCurrency(view.contributions, 'EUR') }]),
+              // The contract's last month: the incomplete year's balance is part of the net pay.
+              ...(view.figures.regularisation ? [{ label: t('childcare_statement.regularisation'), tip: t('childcare_statement.regularisation_tip'),
+                value: <Money value={view.figures.regularisation} tabular />,
+                hint: <Link to="/childcare/$id/settlement" params={{ id }} className="underline">{t('childcare_statement.settlement')}</Link> }] : []),
               ...(!view.figures.exemption || /^0(\.0+)?$/.test(view.figures.exemption.amount) ? [] : [{ label: t('childcare_statement.exemption'),
                 tip: t('childcare_statement.exemption_tip'), value: <Money value={view.figures.exemption} tabular />,
                 hint: view.exemption == null ? t('childcare_statement.estimated') : null }]),
@@ -153,6 +158,8 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
       </PageHeader>
       {error && editing === null && !summarising ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {view.state === 'validated' ? <p>{t('childcare_statement.read_only')}</p> : null}
+      <BelowMinimums items={view.belowMinimums}
+        action={<Link to="/childcare/$id" params={{ id }} className="font-medium underline underline-offset-4">{t('childcare_statement.minimums_open')}</Link>} />
       {editable && view.cmg == null ? <p className="text-sm text-muted-foreground">{t('childcare_statement.validate_needs_cmg')}</p> : null}
 
       <Section title={t('childcare_statement.days')}

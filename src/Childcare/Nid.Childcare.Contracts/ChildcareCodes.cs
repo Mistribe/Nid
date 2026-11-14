@@ -20,6 +20,9 @@ public static class ChildcareCodes
     public const string DaysIncomplete = "childcare.days_incomplete";
     public const string AbsenceRequired = "childcare.absence_required";
     public const string AbsenceNotAllowed = "childcare.absence_not_allowed";
+    public const string BelowMinimumGrossRate = "childcare.below_minimum_gross_rate";
+    public const string BelowMinimumNetRate = "childcare.below_minimum_net_rate";
+    public const string BelowMinimumUpkeep = "childcare.below_minimum_upkeep";
     public const string DayReplanned = "childcare.day_replanned";
     public const string SummaryInvalid = "childcare.summary_invalid";
     public const string SummaryTooManyDays = "childcare.summary_too_many_days";
@@ -36,6 +39,8 @@ public static class ChildcareCodes
     public const string MonthOutOfContract = "childcare.month_out_of_contract";
     public const string RevisionNotAfter = "childcare.revision_not_after";
     public const string EndBeforeTerms = "childcare.end_before_terms";
+    public const string GrossRateRequired = "childcare.gross_rate_required";
+    public const string NotifiedOutOfContract = "childcare.notified_out_of_contract";
     public const string Closed = "childcare.closed";
     public const string Open = "childcare.open";
     public const string Conflict = "childcare.conflict";

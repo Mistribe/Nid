@@ -23,7 +23,7 @@ public sealed record ChildcareRules(LocalDate From, decimal MinimumGuaranteed)
     public const decimal OvertimeThresholdHours = 45m;
     /// <summary>Sick-child days the employer may deduct per contract year, with a certificate (art. 105).</summary>
     public const int ChildSickQuotaDays = 5;
-    public const decimal LeaveDaysPerMonth = 2.5m;
+    public const decimal LeaveDaysPerFourWeeks = 2.5m;
     public const int LeaveDaysCap = 30;
     /// <summary>Beyond this, the contract is a full year, which Nid does not model.</summary>
     public const int MaxProgrammedWeeks = 46;

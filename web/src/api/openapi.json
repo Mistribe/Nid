@@ -13440,6 +13440,200 @@
         }
       }
     },
+    "/api/v1/childcare/{id}/end": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "notified",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractEndView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/childcare/{id}/settlement": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChildcareSettlementView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/childcare/{id}/reopen": {
       "post": {
         "tags": [
@@ -32406,6 +32600,25 @@
             "type": "integer",
             "format": "int32",
             "default": 5
+          },
+          "belowMinimums": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LegalMinimumView"
+            }
+          },
+          "end": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ContractEndView"
+              }
+            ]
           }
         }
       },
@@ -32435,6 +32648,76 @@
           },
           "currency": {
             "type": "string"
+          }
+        }
+      },
+      "ChildcareSettlementView": {
+        "required": [
+          "id",
+          "name",
+          "childName",
+          "carerName",
+          "start",
+          "lastDay",
+          "end",
+          "month",
+          "validated",
+          "problems",
+          "missingMonths"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "childName": {
+            "type": "string"
+          },
+          "carerName": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "lastDay": {
+            "type": "string",
+            "format": "date"
+          },
+          "end": {
+            "$ref": "#/components/schemas/ContractEndView"
+          },
+          "month": {
+            "type": "string"
+          },
+          "validated": {
+            "type": "boolean"
+          },
+          "lines": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SettlementLinesView"
+              }
+            ]
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldProblemView"
+            }
+          },
+          "missingMonths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -32605,6 +32888,15 @@
               "null",
               "string"
             ]
+          },
+          "belowMinimums": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LegalMinimumView"
+            }
           }
         }
       },
@@ -32903,6 +33195,24 @@
               "null",
               "string"
             ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notified": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grossHourlyRate": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -33067,6 +33377,40 @@
             "items": {
               "$ref": "#/components/schemas/BankAccountView"
             }
+          }
+        }
+      },
+      "ContractEndView": {
+        "required": [
+          "reason",
+          "notified",
+          "seniorityMonths",
+          "noticeEnd",
+          "indemnityDue",
+          "grossRateKnown"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "notified": {
+            "type": "string",
+            "format": "date"
+          },
+          "seniorityMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "noticeEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "indemnityDue": {
+            "type": "boolean"
+          },
+          "grossRateKnown": {
+            "type": "boolean"
           }
         }
       },
@@ -35236,6 +35580,18 @@
           },
           "mileage": {
             "type": "string"
+          },
+          "leaveIndemnity": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ruptureIndemnity": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -43242,6 +43598,30 @@
           "defaultDays": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "LegalMinimumView": {
+        "required": [
+          "code",
+          "since",
+          "minimum",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date"
+          },
+          "minimum": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
           }
         }
       },
@@ -53696,7 +54076,9 @@
       "SessionResponse": {
         "required": [
           "authenticated",
-          "demo"
+          "demo",
+          "methods",
+          "setupRequired"
         ],
         "type": "object",
         "properties": {
@@ -53743,8 +54125,16 @@
             ]
           },
           "demo": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "setupRequired": {
+            "type": "boolean"
           }
         }
       },
@@ -53756,6 +54146,52 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "SettlementLinesView": {
+        "required": [
+          "lastPay",
+          "regularisation",
+          "leaveIndemnity",
+          "ruptureIndemnity",
+          "upkeep",
+          "meals",
+          "mileage",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "lastPay": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
+          },
+          "regularisation": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
+          },
+          "leaveDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "leaveIndemnity": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
+          },
+          "ruptureIndemnity": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
+          },
+          "upkeep": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
+          },
+          "meals": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
+          },
+          "mileage": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
+          },
+          "total": {
+            "$ref": "#/components/schemas/ChildcareMoneyView"
           }
         }
       },
@@ -54407,6 +54843,16 @@
             "type": "boolean"
           },
           "exemption": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
+          },
+          "regularisation": {
             "oneOf": [
               {
                 "type": "null"
@@ -55467,6 +55913,25 @@
         },
         "additionalProperties": false
       },
+      "SystemAuthView": {
+        "required": [
+          "mode",
+          "adminSource",
+          "insecureHttp"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "adminSource": {
+            "type": "string"
+          },
+          "insecureHttp": {
+            "type": "boolean"
+          }
+        }
+      },
       "SystemHealthView": {
         "required": [
           "database",
@@ -55486,7 +55951,8 @@
         "required": [
           "version",
           "startedAt",
-          "health"
+          "health",
+          "auth"
         ],
         "type": "object",
         "properties": {
@@ -55506,6 +55972,9 @@
               "integer"
             ],
             "format": "int64"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/SystemAuthView"
           }
         }
       },

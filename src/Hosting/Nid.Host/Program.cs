@@ -177,6 +177,9 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<BankingDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
+// Issue 215: plain HTTP is the hoster's explicit choice, said again at every start (local-accounts spec §12).
+if (!generatingOpenApi && app.Services.GetRequiredService<AuthSettings>().AllowInsecureHttp)
+    app.Logger.LogWarning("Plain HTTP is allowed (Auth__AllowInsecureHttp): passwords and the session cookie can travel unencrypted. Put Nid behind an HTTPS reverse proxy unless this network is trusted.");
 if (!generatingOpenApi && demo.Enabled)
 {
     app.Logger.LogWarning("Demo mode is on (Nid__Demo__Enabled): anyone can sign in as the demo household, without a password.");

@@ -153,18 +153,13 @@
     "edit_title": "Modifier la garde",
     "revise_title": "Réviser la garde",
     "gaps_title": "Semaines sans accueil",
-    "end_title": "Terminer la garde",
     "revision_from": "Date de la révision",
     "revise_submit": "Enregistrer la révision",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "saved": "Garde enregistrée.",
     "revised": "Révision enregistrée.",
-    "ended": "Garde terminée.",
     "conflict": "Cette garde a changé entre-temps : le formulaire montre la version à jour, vérifiez-la puis enregistrez de nouveau.",
-    "end_body": "« {{name}} » passe dans les gardes terminées ; vous pourrez la rouvrir.",
-    "end_on": "Dernier jour",
-    "end_submit": "Terminer",
     "tab_statements": "Relevés",
     "leave": "Congés acquis",
     "leave_days_one": "{{count}} jour",
@@ -183,7 +178,14 @@
     "tab_summary": "Récapitulatif",
     "contracts": "Contrats",
     "other_contracts": "Changer de contrat",
-    "statements_year": "Relevés {{year}}"
+    "statements_year": "Relevés {{year}}",
+    "minimums": {
+      "title": "Le contrat est sous un minimum légal",
+      "gross_rate": "Le salaire horaire brut ({{value}} €) est sous le minimum conventionnel de {{minimum}} € par heure, à compter du {{since}}.",
+      "net_rate": "Le salaire horaire net ({{value}} €) est sous le minimum conventionnel de {{minimum}} € net par heure, à compter du {{since}}.",
+      "upkeep": "L'indemnité d'entretien ({{value}} € pour 9 h) est sous le minimum légal de {{minimum}} €, à compter du {{since}}.",
+      "hint": "Révisez les conditions du contrat à cette date. Les mois déjà validés ne changent pas ; l'indemnité d'entretien des relevés est déjà portée au minimum."
+    }
   },
   "childcare_statement": {
     "loading": "Chargement du relevé",
@@ -284,7 +286,9 @@
       "netPay": "Salaire net",
       "upkeep": "Indemnités d'entretien",
       "meals": "Indemnités de repas",
-      "mileage": "Indemnités kilométriques"
+      "mileage": "Indemnités kilométriques",
+      "leaveIndemnity": "Indemnité compensatrice de congés payés",
+      "ruptureIndemnity": "Indemnité de rupture"
     },
     "reason": {
       "family": "Convenance de la famille",
@@ -314,7 +318,11 @@
       "amount_format": "Saisissez un montant, par exemple 12,50.",
       "childcare_previous_not_validated": "Validez d'abord le mois précédent : le quota enfant malade et la première semaine de ce mois en dépendent."
     },
-    "cmg_estimate": "Estimé d’après les derniers mois : {{amount}}"
+    "cmg_estimate": "Estimé d’après les derniers mois : {{amount}}",
+    "minimums_open": "Ouvrir le contrat pour le réviser",
+    "regularisation": "Régularisation",
+    "regularisation_tip": "Le dernier mois, le salaire est régularisé : les heures réellement accueillies depuis le début du contrat, au taux horaire, moins le salaire mensualisé déjà versé. Positive, elle est due à l'assistante maternelle ; négative, elle vient en déduction (convention collective, art. 124).",
+    "settlement": "Voir le solde de tout compte"
   },
   "childcare_year": {
     "title": "Récapitulatif {{year}}",
@@ -353,5 +361,84 @@
       "amount": "Montant"
     },
     "csv_not_validated": "Mois non validés"
+  },
+  "childcare_end": {
+    "title": "Mettre fin au contrat",
+    "step_why": "Qui et pourquoi",
+    "step_when": "La lettre",
+    "step_end": "Le dernier jour",
+    "who": "Qui met fin au contrat ?",
+    "who_employer": "Moi, l'employeur",
+    "who_carer": "L'assistante maternelle",
+    "why": "Pour quelle raison ?",
+    "why_tip": "La raison décide du préavis et de l'indemnité de rupture. Un retrait d'enfant est la décision de ne plus confier votre enfant, quel qu'en soit le motif.",
+    "reason": {
+      "withdrawal": "Je retire mon enfant",
+      "misconduct": "Faute grave ou lourde de l'assistante maternelle",
+      "approval": "Agrément suspendu, modifié ou retiré",
+      "child_death": "Décès de l'enfant",
+      "resignation": "Démission",
+      "trial": "Pendant la période d'essai"
+    },
+    "notified": "Lettre remise ou présentée le",
+    "notified_tip": "Le préavis commence le jour où la lettre recommandée est présentée pour la première fois, ou le jour où elle est remise en main propre contre décharge.",
+    "notified_hint": "jj/mm/aaaa",
+    "seniority": "Ancienneté",
+    "months_one": "{{count}} mois",
+    "months_other": "{{count}} mois",
+    "notice_end": "Fin du préavis",
+    "notice_end_tip": "Le préavis dure 8 jours calendaires avant 3 mois d'accueil, 15 jours jusqu'à un an, un mois au-delà. Il n'y en a pas pour une faute grave, un retrait d'agrément ou pendant l'essai. Si vous ne faites pas travailler le préavis, il reste payé.",
+    "no_notice": "pas de préavis",
+    "indemnity": "Indemnité de rupture",
+    "indemnity_tip": "Due quand vous retirez l'enfant après au moins 9 mois d'accueil, ou au décès de l'enfant : 1/80 des salaires bruts de tout le contrat. Pas due en cas de faute grave ou lourde, de retrait d'agrément ni de démission.",
+    "indemnity_due": "due",
+    "indemnity_not_due": "pas due",
+    "on": "Dernier jour du contrat",
+    "on_tip": "Par défaut la fin du préavis. Les jours du préavis non travaillés à votre demande restent payés : saisissez-les comme absences à votre convenance.",
+    "gross": "Taux horaire brut",
+    "gross_tip": "L'indemnité de rupture se calcule sur le brut. Le taux brut figure sur le contrat ou sur le relevé Pajemploi.",
+    "gross_hint": "Gardé sur le contrat.",
+    "next": "Les sommes de fin de contrat (régularisation, congés payés, indemnité) s'ajoutent au relevé du dernier mois, une fois les mois précédents validés.",
+    "submit": "Mettre fin au contrat",
+    "ended_title": "Fin du contrat",
+    "ended": "{{reason}}, lettre du {{date}}.",
+    "error": {
+      "notified_before_start": "La lettre vient après le début du contrat.",
+      "on_before_notified": "Le dernier jour vient après la lettre.",
+      "gross_required": "Saisissez le taux horaire brut, par exemple 5,50."
+    }
+  },
+  "childcare_settlement": {
+    "title": "Solde de tout compte",
+    "loading": "Chargement du solde de tout compte",
+    "print": "Imprimer",
+    "draft": "Montants provisoires tant que le relevé du dernier mois n'est pas validé :",
+    "withheld": "Les montants viendront avec le relevé du dernier mois :",
+    "receipt": "Reçu pour solde de tout compte",
+    "carer": "Assistante maternelle :",
+    "child": "Enfant accueilli :",
+    "period": "Contrat :",
+    "from_to": "du {{start}} au {{end}}",
+    "reason": "Motif de la fin :",
+    "last_pay": "Salaire de {{month}}",
+    "regularisation": "Régularisation de l'année incomplète",
+    "regularisation_tip": "Les heures réellement accueillies depuis le début du contrat, au taux horaire, moins le salaire mensualisé déjà versé (convention collective, art. 124). Négative, elle vient en déduction.",
+    "leave": "Indemnité compensatrice de congés payés",
+    "leave_days_one": "Indemnité de congés payés ({{count}} jour)",
+    "leave_days_other": "Indemnité de congés payés ({{count}} jours)",
+    "leave_tip": "Les congés acquis depuis le 1er juin et pas encore payés : le plus avantageux du dixième des salaires de la période et du maintien de salaire (art. 125).",
+    "rupture": "Indemnité de rupture",
+    "rupture_tip": "1/80 des salaires bruts de tout le contrat, sans l'entretien, les repas ni les kilomètres (art. 121). Elle n'est pas un salaire : exonérée de cotisations dans les limites légales.",
+    "upkeep": "Indemnités d'entretien",
+    "meals": "Repas",
+    "mileage": "Indemnités kilométriques",
+    "total": "Total versé",
+    "statement": "{{carer}} reconnaît avoir reçu, pour solde de tout compte, la somme ci-dessus. Ce reçu peut être dénoncé dans les six mois qui suivent sa signature.",
+    "signature": "Fait en deux exemplaires, le ……………… — Signatures de l'employeur et de l'assistante maternelle :",
+    "documents": "Documents à remettre",
+    "doc_declaration": "La dernière déclaration Pajemploi : la date de fin, le salaire du dernier mois, l'indemnité compensatrice de congés payés et l'indemnité de rupture dans leurs cases.",
+    "doc_france_travail": "L'attestation France Travail : Pajemploi la produit une fois la dernière déclaration faite (« Gérer votre fin de contrat »).",
+    "doc_certificate": "Le certificat de travail : à rédiger et signer vous-même, avec les dates du contrat et l'emploi (assistante maternelle agréée).",
+    "doc_receipt": "Ce reçu pour solde de tout compte, imprimé en deux exemplaires et signé."
   }
 }

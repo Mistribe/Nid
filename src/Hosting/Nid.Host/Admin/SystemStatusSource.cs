@@ -43,7 +43,8 @@ public sealed class OidcIdentityProviderProbe(IOptionsMonitor<OpenIdConnectOptio
     }
 }
 
-public sealed class SystemStatusSource(NpgsqlDataSource dataSource, IIdentityProviderProbe identityProvider, ProcessStart process)
+public sealed class SystemStatusSource(
+    NpgsqlDataSource dataSource, IIdentityProviderProbe identityProvider, ProcessStart process, Nid.Host.Auth.AuthSettings auth)
     : ISystemStatusSource
 {
     private static readonly string Version =
@@ -62,10 +63,12 @@ public sealed class SystemStatusSource(NpgsqlDataSource dataSource, IIdentityPro
             // Reported as unhealthy below; the admin page is where an outage should be visible.
         }
 
-        var reachable = await identityProvider.IsReachableAsync(ct);
+        // Issue 215: local accounts alone have no identity provider to probe.
+        var identity = !auth.Oidc ? "not_used" : await identityProvider.IsReachableAsync(ct) ? "healthy" : "unhealthy";
         return new SystemStatusView(
             Version, process.At,
-            new SystemHealthView(size is null ? "unhealthy" : "healthy", reachable ? "healthy" : "unhealthy"),
-            size);
+            new SystemHealthView(size is null ? "unhealthy" : "healthy", identity),
+            size,
+            new SystemAuthView(auth.ModeName, auth.AdminSourceName, auth.AllowInsecureHttp));
     }
 }
