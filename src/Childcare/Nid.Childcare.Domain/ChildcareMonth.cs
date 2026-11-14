@@ -68,7 +68,7 @@ public static class ChildcareMonth
         {
             var due = end.DueBefore + Mensualisation.Round(input.Terms.NetHourlyRate * EndOfContract.HoursDue(inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences));
             regularisation = due - end.PaidBefore - (basePay - deduction);
-            balanceDays = PaidLeave.Accrued([.. end.LeaveDaysBefore, .. inContract], input.Plan, input.Terms.UnpaidAbsences);
+            balanceDays = PaidLeave.Accrued([.. end.LeaveDaysBefore, .. inContract], input.Plan, input.Terms.UnpaidAbsences, input.Gaps);
             if (balanceDays > 0)
                 leaveIndemnity = PaidLeave.JuneIndemnity(end.LeavePayBefore + basePay - deduction + extraPay + regularisation, input.Terms.NetHourlyRate, weeklyHours, balanceDays);
         }

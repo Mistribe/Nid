@@ -64,7 +64,7 @@ public static class StatementContext
         if (missing.Count > 0) return (null, missing);
         var inPeriod = validated.Where(v => months.Contains(v.Month)).ToList();
         var days = months.SelectMany(m => inPeriod.Find(v => v.Month == m).Days ?? StatementPreparation.Prepare(m, plan, gaps, contract));
-        return (new PaidLeaveInput(PaidLeave.Accrued(days.Where(d => StatementPreparation.InContract(d.Date, contract)), plan, contract.UnpaidAbsences),
+        return (new PaidLeaveInput(PaidLeave.Accrued(days.Where(d => StatementPreparation.InContract(d.Date, contract)), plan, contract.UnpaidAbsences, gaps),
             inPeriod.Sum(v => v.ReferencePay)), missing);
     }
 

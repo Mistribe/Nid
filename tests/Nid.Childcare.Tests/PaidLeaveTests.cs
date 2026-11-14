@@ -52,6 +52,22 @@ public class PaidLeaveTests
         Assert.Equal(24, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerTraining, week), Plan));
     }
 
+    /// <summary>
+    /// Paid leave taken in the two weeks without care replaces no planned day: still 37 weeks, 24 days. Read as work, it would
+    /// make 39 weeks, 25 days. A day worked there still counts.
+    /// </summary>
+    [Fact]
+    public void Absences_in_weeks_without_care_earn_nothing()
+    {
+        IReadOnlyList<CareGap> gaps = [new(D(2027, 2, 15), 2)];
+        var days = Days(D(2026, 9, 1), D(2027, 5, 31), gaps).Select(d => StatementPreparation.InGap(d.Date, gaps) && d.Date.DayOfWeek <= IsoDayOfWeek.Friday
+            ? d with { Planned = true, Absence = AbsenceReason.PaidLeave } : d).ToList();
+        Assert.Equal(25, PaidLeave.Accrued(days, Plan));
+        Assert.Equal(24, PaidLeave.Accrued(days, Plan, gaps: gaps));
+        var worked = days.Select(d => d.Absence == AbsenceReason.PaidLeave ? d with { Absence = null, Present = true } : d).ToList();
+        Assert.Equal(25, PaidLeave.Accrued(worked, Plan, gaps: gaps));
+    }
+
     /// <summary>Four weeks give 2,5 days, rounded up to 3; a single day of four gives 0,16, so 1.</summary>
     [Fact]
     public void Rounds_up_to_the_whole_day()
