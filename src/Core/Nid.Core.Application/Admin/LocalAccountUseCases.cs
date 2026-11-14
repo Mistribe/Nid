@@ -92,3 +92,27 @@ public sealed class CreateAdminAdultHandler(ILocalAccountStore accounts) : IRequ
     public async ValueTask<Result<AdultView>> HandleAsync(CreateAdminAdultCommand command, CancellationToken ct = default)
         => (await accounts.CreateAdminAdultAsync(command.DisplayName, command.Email, ct)).Map(p => AdultView.From(p));
 }
+
+/// <summary>The admin role after a change: the adult as the list shows them, and whether anything moved.</summary>
+public sealed record AdminRoleView(AdultView Adult, bool Changed);
+
+/// <summary>
+/// Issue 215 (local-accounts.md §6): with `Auth:AdminSource=nid`, an admin (or `nid admin grant-admin` / `revoke-admin`)
+/// gives or takes away the admin role; the last admin keeps it. <paramref name="Source"/>: <c>nid</c> or <c>admin-cli</c>.
+/// The host refuses the command when the identity provider decides the role.
+/// </summary>
+public sealed record SetAdminCommand(PersonId Person, bool Admin, string Source = "nid") : ICommand<AdminRoleView>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent? EventFor(object response)
+        => response is AdminRoleView { Changed: true }
+            ? new SecurityEvent(Admin ? SecurityEventNames.AdminGranted : SecurityEventNames.AdminRevoked, Person, [],
+                new Dictionary<string, string> { ["source"] = Source })
+            : null;
+}
+
+[RequestHandler<SetAdminCommand, AdminRoleView>]
+public sealed class SetAdminHandler(IPersonRegistry persons) : IRequestHandler<SetAdminCommand, AdminRoleView>
+{
+    public async ValueTask<Result<AdminRoleView>> HandleAsync(SetAdminCommand command, CancellationToken ct = default)
+        => (await persons.SetAdminAsync(command.Person, command.Admin, ct)).Map(change => new AdminRoleView(AdultView.From(change.Person), change.Changed));
+}

@@ -250,7 +250,7 @@ public static class ResultHttp
             // Issue 215: local accounts (local-accounts.md §14).
             _ when failure.Code is LocalAccountCodes.LoginInvalid or LocalAccountCodes.PasswordTooShort or LocalAccountCodes.PasswordTooLong
                 or LocalAccountCodes.PasswordTooCommon or Auth.LocalSignIn.CurrentPasswordWrong => StatusCodes.Status400BadRequest,
-            _ when failure.Code == LocalAccountCodes.LoginTaken => StatusCodes.Status409Conflict,
+            _ when failure.Code is LocalAccountCodes.LoginTaken or PersonCodes.LastAdmin or PersonCodes.AdminSourceIdentityProvider => StatusCodes.Status409Conflict,
             _ when failure.Code == LocalAccountCodes.SetupClosed => StatusCodes.Status404NotFound,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,

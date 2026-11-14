@@ -20,4 +20,10 @@ public static class PersonCodes
 
     /// <summary>#156: a dependent something still names (an item's owner, a childcare contract…) is not removed.</summary>
     public const string PersonInUse = "core.person_in_use";
+
+    /// <summary>Issue 215: the role would leave the household without any admin. HTTP 409.</summary>
+    public const string LastAdmin = "core.last_admin";
+
+    /// <summary>Issue 215: the role comes from the identity provider's group (Auth:AdminSource=identity_provider). HTTP 409.</summary>
+    public const string AdminSourceIdentityProvider = "core.admin_source_identity_provider";
 }

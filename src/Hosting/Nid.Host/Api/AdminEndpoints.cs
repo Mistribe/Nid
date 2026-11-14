@@ -18,6 +18,9 @@ public static class AdminEndpoints
     /// <summary>Issue 215: <c>RevokeTokens</c> also revokes the adult's access tokens, for a suspected takeover.</summary>
     public sealed record PasswordLinkBody(bool RevokeTokens);
 
+    /// <summary>Issue 215: give (<c>true</c>) or take away (<c>false</c>) the admin role.</summary>
+    public sealed record AdminRoleBody(bool Admin);
+
     /// <summary>The link's address, shown once (the secret is in its fragment), what it does and when it stops working.</summary>
     public sealed record PasswordLinkResult(string Url, string Purpose, NodaTime.Instant ExpiresAt);
 
@@ -74,6 +77,15 @@ public static class AdminEndpoints
                         .ToHttp(person => new PersonIdResponse(person.Value)))
                 .Returns<PersonIdResponse>();
         }
+
+        // Issue 215 (local-accounts.md §6): the admin role, when Nid decides it; the last admin keeps it.
+        api.MapPut("/users/{id:guid}/admin", async (Guid id, AdminRoleBody body, IInvoker invoker, AuthSettings settings, CancellationToken ct)
+                => settings.AdminSource == AdminSource.IdentityProvider
+                    ? ResultHttp.Problem(new UnambitiousFx.Functional.Failures.Failure(PersonCodes.AdminSourceIdentityProvider,
+                        "The admin role comes from the identity provider's group: change it there.", null))
+                    : (await invoker.InvokeAsync(new SetAdminCommand(new PersonId(id), body.Admin), ct)).ToHttp(view => view.Adult))
+            .Returns<AdultView>()
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         api.MapGet("/household", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetHouseholdSettingsQuery(), ct)).ToHttp(settings => settings))

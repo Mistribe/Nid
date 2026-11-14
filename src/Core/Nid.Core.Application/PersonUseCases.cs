@@ -8,7 +8,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Core.Application;
 
 /// <summary><paramref name="IsAdmin"/>: whether the identity provider put this adult in the admin group.</summary>
-public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayName, string? Email, bool IsAdmin = false) : ICommand<PersonInfo>;
+public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayName, string? Email, bool? IsAdmin = false) : ICommand<PersonInfo>;
 
 /// <summary>#156: <paramref name="BirthDate"/> is optional, checked as <see cref="SetRetirementCommand"/>'s.</summary>
 public sealed record CreateDependentCommand(string DisplayName, LocalDate? BirthDate = null) : ICommand<PersonInfo>;

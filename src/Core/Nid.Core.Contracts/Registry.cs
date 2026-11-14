@@ -80,7 +80,8 @@ public interface IPersonRegistry
     /// the cap is reached (<see cref="PersonCodes.AdultCap"/>) or another adult already has that email under another
     /// subject (<see cref="PersonCodes.EmailTaken"/>: <c>rebind-subject</c> is the way to move an adult to a new subject).
     /// </summary>
-    Task<Result<PersonInfo>> ProvisionAdultAsync(string oidcSubject, string displayName, string? email, bool isAdmin, CancellationToken ct);
+    /// <remarks>Issue 215: a null <paramref name="isAdmin"/> (`Auth:AdminSource=nid`) leaves the role as it is; a new adult starts without it.</remarks>
+    Task<Result<PersonInfo>> ProvisionAdultAsync(string oidcSubject, string displayName, string? email, bool? isAdmin, CancellationToken ct);
 
     /// <summary>The adult bound to this OIDC subject, <c>null</c> when none is.</summary>
     Task<PersonInfo?> FindBySubjectAsync(string oidcSubject, CancellationToken ct);
@@ -123,6 +124,12 @@ public interface IPersonRegistry
 
     /// <summary>"Sign out everywhere": increments the adult's session epoch, so every cookie they hold is refused.</summary>
     Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct);
+
+    /// <summary>
+    /// Issue 215 (local-accounts.md §6): grants or takes away the admin role of an adult, under the provisioning lock. Taking it
+    /// from the last admin is <see cref="PersonCodes.LastAdmin"/>; a dependent is not found. <c>Changed</c> is false when nothing moved.
+    /// </summary>
+    Task<Result<AdminChange>> SetAdminAsync(PersonId id, bool admin, CancellationToken ct);
 }
 
 public interface IItemRegistry
@@ -211,3 +218,6 @@ public interface IAccessPolicy
     /// </summary>
     Task<Result> CheckCreationAsync(PersonId actor, IReadOnlyList<OwnerShare> owners, CancellationToken ct);
 }
+
+/// <summary>Issue 215: the adult after <see cref="IPersonRegistry.SetAdminAsync"/>, and whether their role changed.</summary>
+public sealed record AdminChange(PersonInfo Person, bool Changed);

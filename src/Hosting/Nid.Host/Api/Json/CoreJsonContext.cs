@@ -107,6 +107,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(CompletePasswordLinkBody))]
 [JsonSerializable(typeof(PasswordLinkView))]
 [JsonSerializable(typeof(AdminEndpoints.PasswordLinkBody))]
+[JsonSerializable(typeof(AdminEndpoints.AdminRoleBody))]
 [JsonSerializable(typeof(AdminEndpoints.PasswordLinkResult))]
 [JsonSerializable(typeof(InflationView))]
 [JsonSerializable(typeof(SeriesCatalogView))]
