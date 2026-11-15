@@ -10,8 +10,9 @@ namespace Nid.Childcare.Domain;
 /// </summary>
 public static class ExtraHours
 {
-    /// <summary><paramref name="days"/> covers every ISO week touching <paramref name="month"/>.</summary>
-    public static (decimal Complementary, decimal Overtime) Compute(YearMonth month, IReadOnlyList<StatementDay> days, WeekPlan plan, ContractTerms? terms = null)
+    /// <summary><paramref name="days"/> covers every ISO week touching <paramref name="month"/>; <paramref name="counts"/>: the days whose hours to count, of the month (#227: those of one revision).</summary>
+    public static (decimal Complementary, decimal Overtime) Compute(YearMonth month, IReadOnlyList<StatementDay> days, WeekPlan plan, ContractTerms? terms = null,
+        Func<LocalDate, bool>? counts = null)
     {
         var reasons = terms?.UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid;
         decimal complementary = 0m, overtime = 0m;
@@ -30,7 +31,7 @@ public static class ExtraHours
                 var extra = Math.Max(0m, Mensualisation.Hours(d.Arrival!.Value, d.Departure!.Value) - (d.Planned ? plan.HoursOn(d.Date) : 0m));
                 var under = Math.Min(extra, left);
                 left -= under;
-                if (!InMonth(d.Date, month)) continue;
+                if (!InMonth(d.Date, month) || counts?.Invoke(d.Date) == false) continue;
                 complementary += under;
                 overtime += extra - under;
             }
