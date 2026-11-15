@@ -10,7 +10,7 @@ deux étapes en option. `nid` tourne toujours ; Postgres est un profil (`--profi
 l'a déjà ailleurs, Pocket ID aussi (`--profile pocket-id`), seulement pour se connecter par passkey.
 
 ```bash
-cd deploy/standalone
+git clone --depth 1 https://github.com/Mistribe/Nid.git && cd Nid/deploy/standalone
 cp .env.example .env                    # NID_URL, NID_CSRF_KEY (openssl rand -hex 32), NID_DB_PASSWORD
 docker compose --profile postgres up -d
 docker compose logs nid | grep setup    # l'adresse à usage unique qui crée le premier administrateur

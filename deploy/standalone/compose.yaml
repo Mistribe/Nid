@@ -23,7 +23,9 @@ x-hardened: &hardened
 services:
   nid:
     <<: *hardened
-    image: ${NID_IMAGE:-ghcr.io/mistribe/nid:latest@sha256:0730bde06f0e15fb4611b3fc98bf29fe684c63451bfa9dc8d1cef0e72c815590}
+    # Nid's own image follows its releases: no digest here (Renovate leaves it alone), or this file would install an old
+    # version. To stay on one version, set NID_IMAGE to ghcr.io/mistribe/nid:X.Y.Z.
+    image: ${NID_IMAGE:-ghcr.io/mistribe/nid:latest}
     environment:
       Auth__PublicUrl: ${NID_URL:?set NID_URL in .env (https://nid.example.org)}
       # How adults sign in (docs/identity-and-access/local-accounts.md §2): empty, an identifier and a password kept by Nid
