@@ -141,7 +141,7 @@ public class AssumptionPatchEndpointTests(PostgresFixture fixture) : IClassFixtu
 
         var errors = await RefusedAsync(app, JsonSerializer.Deserialize<JsonElement>(body));
 
-        Assert.Equal(path, errors[0].FieldPath());
+        Assert.Equal(ProblemJson.PointerOf(path), errors[0].FieldPointer()); // #250: a year key reads as an index once a pointer
     }
 
     [Fact]

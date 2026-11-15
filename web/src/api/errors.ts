@@ -39,6 +39,14 @@ export function pathOf(pointer: string | null | undefined): string {
   return path;
 }
 
+/**
+ * A pointer cannot tell a numeric key from an index, so a field the page names by a numeric key (`inflationByYear.2026`)
+ * comes back as `inflationByYear[2026]`: compare such paths with this, not `===`.
+ */
+export const samePath = (a: string, b: string): boolean => canonical(a) === canonical(b);
+
+const canonical = (path: string) => path.replace(/\.(\d+)(?=[.[]|$)/g, '[$1]');
+
 /** A refused field as the pages read it; one already read (it has a `path`) stays as it is. */
 const fieldOf = (error: FieldError | WireFieldError, code: string): FieldError =>
   'path' in error

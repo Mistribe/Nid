@@ -177,7 +177,8 @@ public class MalformedInputTests(PostgresFixture fixture, SharedNidApp shared) :
         Assert.False(string.IsNullOrEmpty(problem.GetProperty("detail").GetString()));
         var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
         Assert.Equal("#/grants/0/startsOn", error.GetProperty("pointer").GetString());
-        Assert.Equal(problem.GetProperty("code").GetString(), error.GetProperty("code").GetString());
+        Assert.Equal("request.invalid", problem.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrEmpty(error.GetProperty("code").GetString())); // the field's own code (request.date)
         Assert.Equal(problem.GetProperty("detail").GetString(), error.GetProperty("detail").GetString());
         Assert.False(error.TryGetProperty("path", out _));
         Assert.False(error.TryGetProperty("message", out _));

@@ -277,7 +277,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", Body("boss"));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        Assert.Contains("declarants[1].status", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Contains("#/declarants/1/status", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

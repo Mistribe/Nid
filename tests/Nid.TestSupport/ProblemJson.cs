@@ -14,4 +14,11 @@ public static class ProblemJson
         => entry.TryGetProperty("pointer", out var pointer)
             ? FieldErrors.PathOf(pointer.GetString())
             : entry.TryGetProperty("path", out var path) ? path.GetString() ?? "" : "";
+
+    /// <summary>A refused field's RFC 9457 <c>pointer</c> as sent, for a path a pointer cannot tell from an index (a year key).</summary>
+    public static string? FieldPointer(this JsonElement entry)
+        => entry.TryGetProperty("pointer", out var pointer) ? pointer.GetString() : null;
+
+    /// <summary>The pointer the API sends for a rule's path (<c>inflationByYear.2031</c> → <c>#/inflationByYear/2031</c>).</summary>
+    public static string? PointerOf(string path) => new UnambitiousFx.Functional.Failures.ValidationError(path, "").Pointer;
 }

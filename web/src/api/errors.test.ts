@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pathOf, present, toProblem } from './errors';
+import { pathOf, present, samePath, toProblem } from './errors';
 
 describe('present', () => {
   it.each([
@@ -50,4 +50,12 @@ describe('pathOf', () => {
     [null, ''],
     ['#', ''],
   ])('reads %s as %s', (pointer, path) => expect(pathOf(pointer)).toBe(path));
+});
+
+describe('samePath', () => {
+  it('reads a numeric key and an index alike, since a pointer cannot tell them apart', () => {
+    expect(samePath('inflationByYear[2026]', 'inflationByYear.2026')).toBe(true);
+    expect(samePath('classRatesByYear.equity[2027]', 'classRatesByYear.equity.2027')).toBe(true);
+    expect(samePath('inflationByYear[2026]', 'inflationByYear.2027')).toBe(false);
+  });
 });

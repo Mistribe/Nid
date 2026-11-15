@@ -80,7 +80,9 @@ export const isComplete = (a: AssumptionsDraft) =>
   [...Object.values(a.classRates), ...Object.values(a.classVolatility), a.inflation, a.incomeGrowth, a.withdrawalRate, ...Object.values(a.inflationByYear), ...Object.values(a.classRatesByYear).flatMap((y) => Object.values(y))].every((v) => !bare(v) || RATE.test(bare(v))) && (!bare(a.monthlySavings) || SIGNED.test(bare(a.monthlySavings))) && (!bare(a.monthlyLivingCost) || UNSIGNED.test(bare(a.monthlyLivingCost)));
 
 /** A server path of the horizon or the assumptions (`horizon`, `assumptions.classRates.equity`) as the draft's field. */
-export function assumptionPath(path: string): 'horizon' | `assumptions.${string}` | undefined {
+export function assumptionPath(served: string): 'horizon' | `assumptions.${string}` | undefined {
+  // #250: a year comes back as an index (`inflationByYear[2026]`); the draft names it as a key.
+  const path = served.replace(/\[(\d+)\]/g, '.$1');
   if (path === 'horizon') return path;
   if (path === 'assumptions.freedPaymentsToSavings') return 'assumptions.freed';
   if (/^assumptions\.((classRates|classVolatility)\.[a-z_]+|classRatesByYear\.[a-z_]+\.\d{4}|inflationByYear\.\d{4}|inflation|incomeGrowth|withdrawalRate|monthlyLivingCost|monthlySavings|savingsClass)$/.test(path)) return path as `assumptions.${string}`;

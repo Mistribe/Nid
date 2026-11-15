@@ -283,7 +283,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         var errors = problem.GetProperty("errors");
-        Assert.Equal(path, errors[0].FieldPath());
+        Assert.Equal(ProblemJson.PointerOf(path), errors[0].FieldPointer()); // #250: a year key reads as an index once a pointer
         Assert.Equal(1, errors.GetArrayLength()); // a bad key is refused once, its value unread
     }
 

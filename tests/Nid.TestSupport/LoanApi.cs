@@ -91,7 +91,7 @@ public static class LoanApi
     {
         var body = await JsonAsync(response);
         if (body.TryGetProperty("errors", out var errors) && errors.GetArrayLength() > 0)
-            return (response.StatusCode, errors[0].GetProperty("code").GetString(), errors[0].GetProperty("path").GetString());
+            return (response.StatusCode, errors[0].GetProperty("code").GetString(), errors[0].FieldPath());
         return (response.StatusCode, body.GetProperty("code").GetString(), null);
     }
 

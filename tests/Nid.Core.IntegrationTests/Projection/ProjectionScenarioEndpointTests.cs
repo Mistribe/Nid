@@ -431,7 +431,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal("projection.invalid_field", Str(problem, "code"));
-        Assert.Contains(List(problem, "errors"), e => Str(e, "path") == path);
+        Assert.Contains(List(problem, "errors"), e => e.FieldPath() == path);
     }
 
     [Fact]

@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
-import { present, toProblem } from '@/api/errors';
+import { present, samePath, toProblem } from '@/api/errors';
 import { RETIREMENT } from '@/api/retirement';
 import { SERIES_POINTS } from '@/api/series';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -27,8 +27,9 @@ export function useAssumptionsPatch(placed: readonly string[]) {
     },
   });
   const fields = fieldErrorsOf(mutation.error);
-  const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? messageFor(t, f) : undefined; };
-  const isPlaced = (path: string) => placed.some((p) => path === p || path.startsWith(`${p}.`));
+  // #250: a year comes back as an index (`inflationByYear[2026]`), the page names it as a key (`inflationByYear.2026`).
+  const errorOf = (path: string) => { const f = fields.find((x) => samePath(x.path, path)); return f ? messageFor(t, f) : undefined; };
+  const isPlaced = (path: string) => placed.some((p) => samePath(path, p) || path.startsWith(`${p}.`) || path.startsWith(`${p}[`));
   const problem = mutation.error && (fields.length === 0 || !fields.every((f) => isPlaced(f.path)))
     ? <ProblemMessage problem={present(toProblem(mutation.error))} /> : null;
   const save = (body: AssumptionsPatch, onError?: () => void) => mutation.mutate({ body }, { onError });

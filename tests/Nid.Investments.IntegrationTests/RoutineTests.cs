@@ -209,7 +209,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         var pea = await EnvelopeAsync(app, "PEA", "monthly");
         var response = await RecordAsync(app, app.AdultA, new { on = "2025-10-31", lines = new[] { new { envelopeId = pea.Value, value = Eur("1.00") } } });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Contains("\"path\":\"on\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Contains("\"pointer\":\"#/on\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
