@@ -56,8 +56,9 @@ A few rules hold everywhere:
 - **Amounts are computed by the server, deterministically.** An AI assistant may read and propose; it never computes a
   gain, a return, a schedule or a tax.
 - **Every figure keeps its source**: entered by hand, imported, read from a bank, or proposed from a document.
-- **Your data stays yours**: self-hosted, a full export and import in one JSON file (`nid.data`), nightly encrypted
-  backups in the reference setup, and an audit log of every change and of security events.
+- **Your data stays yours**: self-hosted, an export and import of your figures in one documented JSON file (`nid.data`;
+  documents, tax notices and saved scenarios are not in it yet), nightly encrypted backups of everything in the
+  reference setup, and an audit log of every change and of security events.
 
 ## Self-hosting
 
