@@ -380,7 +380,7 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
         Assert.DoesNotContain(secret.ToString(), refusal, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("4321", refusal);
         Assert.DoesNotContain("Prêt secret", refusal);
-        Assert.Contains("events[1].loan", refusal);
+        Assert.Contains("#/events/1/loan", refusal);
 
         var seenByB = await GetAsync(app, id, app.AdultB);
         var events = List(seenByB.GetProperty("result").GetProperty("document"), "events");
