@@ -4,6 +4,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { AlertTriangle } from 'lucide-react';
 import type { TaxEstimate } from '@/api/tax';
 import { ActivitySection } from './ActivitySection';
+import { CapitalSection } from './CapitalSection';
 import { ExemptSection } from './ExemptSection';
 import { ExpensesSection } from './ExpensesSection';
 import { HouseholdSection } from './HouseholdSection';
@@ -16,7 +17,7 @@ import '@/locales/tax';
 
 export const PROFILE_FORM = 'tax-profile';
 const TITLES = {
-  foyer: 'tax.profile.household', activite: 'tax.profile.activity', retraite: 'tax.profile.retirement', depenses: 'tax.profile.expenses',
+  foyer: 'tax.profile.household', activite: 'tax.profile.activity', retraite: 'tax.profile.retirement', depenses: 'tax.profile.expenses', placements: 'tax.profile.capital',
   location: 'tax.profile.rental', exoneres: 'tax.profile.exempt_title',
 } as const satisfies Record<ProfileSectionId, string>;
 
@@ -48,6 +49,7 @@ export function ProfileForm({ estimate, draft }: { estimate: TaxEstimate; draft:
           <ActivitySection {...props} />
           <RetirementSection {...props} />
           <ExpensesSection {...props} />
+          <CapitalSection {...props} />
           <RentalSection {...props} />
           <ExemptSection {...props} />
         </form>

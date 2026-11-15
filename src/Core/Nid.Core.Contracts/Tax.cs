@@ -52,6 +52,8 @@ public static class TaxLineCodes
     /// <summary>A rental property: its cost price, purchase date and surface (the 20 € per property, Pinel's base).</summary>
     public const string RentalProperty = "rental_property";
     public const string CapitalIncome = "capital_income";
+    /// <summary>#234: a brokerage account's dividends, eligible to the 40 % allowance under the scale; counted in the capital income too.</summary>
+    public const string CapitalDividends = "capital_dividends";
     /// <summary>Childcare spec decision 21: a validated childminder statement's tax base (net pay + upkeep + contributions left to the household + exemption on the extra hours − CMG), without a person.</summary>
     public const string ChildcareOutsideHome = "childcare_outside_home";
     /// <summary>#14: a month of the current year left to validate, at the mean tax base of the validated months, without a person.</summary>
@@ -158,7 +160,8 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? ContributionRates = null, IReadOnlyDictionary<Guid, decimal>? ActualExpenses = null,
     IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m,
     IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false,
-    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null)
+    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null,
+    bool CapitalScale = false, decimal DeductibleCsg = 0m)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }

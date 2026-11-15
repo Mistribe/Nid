@@ -269,8 +269,28 @@ function Detail({ estimate, onProfile }: { estimate: TaxEstimate; onProfile: () 
       <PerSummary result={estimate.result} year={estimate.year} onProfile={onProfile} />
       <ResultTable label={t('tax.detail_table')} declarants={false} columns={[{ title: t('tax.estimate'), result: estimate.result }]} />
       <RegimeChoice result={estimate.result} onProfile={onProfile} />
+      <CapitalChoice result={estimate.result} onProfile={onProfile} />
       <p className="text-sm text-muted-foreground">{t('tax.out_of_scope')}</p>
     </>
+  );
+}
+
+/** #234: the capital income's option as a question, with what the other one would cost (the server's gap) and next year's 6DE. */
+function CapitalChoice({ result: r, onProfile }: { result: TaxResult; onProfile: () => void }) {
+  const { t } = useTranslation();
+  const gap = r.capitalOptionGap;
+  if (!gap) return null;
+  const comparison = ZERO.test(gap) ? t('tax.capital_choice.same')
+    : gap.startsWith('-') ? t('tax.capital_choice.less', { amount: eur(gap.slice(1)) }) : t('tax.capital_choice.more', { amount: eur(gap) });
+  return (
+    <div className="max-w-3xl space-y-1 text-sm">
+      <p className="flex items-center gap-1.5 font-medium">{t('tax.capital_choice.question')}<InfoTip label={t('tax.capital_choice.question')}>{tipText(t, 'capital_option')}</InfoTip></p>
+      <p>
+        {t(r.capitalScale ? 'tax.capital_choice.current_scale' : 'tax.capital_choice.current_flat')} {comparison}{' '}
+        {r.capitalScale && !ZERO.test(r.deductibleCsgNextYear) ? <>{t('tax.capital_choice.csg', { amount: eur(r.deductibleCsgNextYear) })}{' '}</> : null}
+        <Button variant="link" className="h-auto p-0 text-sm" onClick={onProfile}>{t('tax.capital_choice.change')}</Button>
+      </p>
+    </div>
   );
 }
 

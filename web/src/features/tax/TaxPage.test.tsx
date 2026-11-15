@@ -60,12 +60,29 @@ describe('TaxPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('asks flat tax or scale with the server’s comparison and next year’s deductible CSG', async () => {
+    const loaded = estimate();
+    loaded.result = result({ capitalScale: true, capitalOptionGap: '-120.00', deductibleCsgNextYear: '272.00', dividendAllowance: '1200.00' });
+    loaded.profile = { ...loaded.profile, capitalScale: true };
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    const { user } = await renderApp('/tax');
+
+    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
+    expect(within(table).getByRole('row', { name: /Abattement de 40 % sur les dividendes/ })).toHaveTextContent('1 200,00 €');
+    expect(screen.getByText('Prélèvement forfaitaire ou barème ?')).toBeInTheDocument();
+    expect(screen.getByText(/au barème progressif.+l’autre option vous ferait payer 120,00 € de moins\. Au barème, 272,00 € de CSG/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Changer d’option dans le Profil fiscal' }));
+    expect(screen.getByRole('tab', { name: 'Profil fiscal', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Barème progressif', checked: true })).toBeInTheDocument();
+  });
+
   it('asks nothing about the regime when the server has no comparison', async () => {
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
     await renderApp('/tax');
 
     await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
     expect(screen.queryByText('Micro-foncier ou réel ?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Prélèvement forfaitaire ou barème ?')).not.toBeInTheDocument();
   });
 
   it('lists what to type on impots.gouv.fr and the rate that should follow', async () => {
@@ -271,7 +288,7 @@ describe('TaxPage', () => {
     await renderApp('/tax?tab=profile');
 
     const nav = await screen.findByRole('navigation', { name: 'Rubriques du profil' });
-    expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#foyer', '#activite', '#retraite', '#depenses', '#exoneres']);
+    expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#foyer', '#activite', '#retraite', '#depenses', '#placements', '#exoneres']);
     expect(within(nav).getByRole('link', { name: /Dépenses de l’année/ })).toHaveTextContent('à revoir');
     expect(within(nav).getByRole('link', { name: /Foyer/ })).not.toHaveTextContent('à revoir');
     expect(screen.getByText(/Repris du profil de 2025/)).toBeInTheDocument();

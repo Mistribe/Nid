@@ -108,6 +108,12 @@ public sealed record TaxRules(
         _ => throw new ArgumentOutOfRangeException(nameof(status)),
     };
 
+    /// <summary>#234: the allowance on eligible dividends under the progressive scale (art. 158, 3-2° CGI).</summary>
+    public const decimal DividendAllowanceRate = 0.40m;
+
+    /// <summary>#234: the CSG on capital income taxed at the scale, deductible from the next year's income (art. 154 quinquies CGI).</summary>
+    public const decimal DeductibleCsgRate = 0.068m;
+
     /// <summary>CSG non déductible (2,4 %) and CRDS (0,5 %) on 98,25 % of the gross: withheld, yet taxable.</summary>
     public const decimal NonDeductibleCsg = 0.029m * 0.9825m;
 }

@@ -28,14 +28,19 @@ public sealed record TaxDeclarant(
 /// <c>RentalDeficitCarried</c>: the earlier years' rental deficits not yet imputed, which only offset the year's rental income.
 /// <c>PerPooling</c>: the spouses pool their PER ceilings (spec §4.3), a joint declaration only. <c>DonationsAid</c> is box 7UD,
 /// <c>DonationsAidLate</c> 7UQ: the aid donations of 2025 made from 14 October. <c>RentalEnergyWorks</c>: the energy renovation works
-/// among the rental charges, which raise the deficit's cap.
+/// among the rental charges, which raise the deficit's cap. <c>CapitalIncome</c> is every interest and dividend, gross;
+/// <c>CapitalDividends</c> the part of it that is dividends eligible to the 40 % allowance. <c>CapitalScale</c>: the household opts for
+/// the progressive scale (box 2OP) instead of the flat tax. <c>DeductibleCsg</c>: box 6DE, the CSG deductible on last year's capital
+/// income taxed at the scale. <c>ReferenceIncomesBefore</c>: the reference incomes of the two years before (N−1, N−2) from their
+/// notices, which the high-income contribution's smoothing reads; null when one is not known.
 /// </summary>
 public sealed record TaxInputs(
     int Year, IReadOnlyList<TaxDeclarant> Declarants, int Dependents, int ChildrenUnder6,
     decimal RentalGross, decimal RentalInterest, decimal RentalCharges, RentalRegime? RentalRegime,
     decimal CapitalIncome, decimal NonTaxableIncome, decimal PinelReduction,
     decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid, decimal RentalDeficitCarried = 0m,
-    bool PerPooling = false, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m);
+    bool PerPooling = false, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m,
+    decimal CapitalDividends = 0m, bool CapitalScale = false, decimal DeductibleCsg = 0m, (decimal N1, decimal N2)? ReferenceIncomesBefore = null);
 
 /// <summary>Where a declarant's salary comes from: none, the entered net taxable income, the gross estimated, or both.</summary>
 public enum SalaryMethod { None, Entered, Estimated, Mixed }
@@ -77,6 +82,10 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// regime minus this one (negative: the other costs less); null without rents, or when the micro-foncier is shut (rents over its
 /// ceiling, a Pinel property). <c>RentalDeficitCarriedForward</c>: the rental deficit left for the next years, the earlier ones the year's
 /// rents did not absorb plus the year's own beyond what the global income takes (2044 line 441 and the interest's).
+/// #234: <c>CapitalScale</c> the option the year is computed under (2OP), <c>CapitalOptionGap</c> the total tax under the other option
+/// minus this one (negative: the other costs less), null without capital income. <c>DividendAllowance</c>: the 40 % on the dividends,
+/// under the scale only. <c>DeductibleCsgNextYear</c>: the CSG the year's capital income under the scale makes deductible next year (6DE).
+/// <c>HighIncomeContribution</c>: the CEHR on the reference income, in <c>TotalTax</c>; <c>HighIncomeSmoothed</c> when its quotient applied.
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -86,7 +95,8 @@ public sealed record TaxResult(
     decimal IncomeTax, decimal CapitalFlatTax, decimal SocialLevies, decimal TotalTax,
     decimal MarginalRate, decimal? AverageRate, decimal NetBeforeTax, decimal NetAfterTax, decimal NetAfterTaxMonthly,
     IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null,
-    decimal RentalDeficitCarriedForward = 0m);
+    decimal RentalDeficitCarriedForward = 0m, bool CapitalScale = false, decimal? CapitalOptionGap = null, decimal DividendAllowance = 0m,
+    decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -115,7 +125,6 @@ public static class TaxWarnings
     public const string RulesProvisional = "rules_provisional";
     public const string MicroOverCeiling = "micro_over_ceiling";
     public const string PinelRequiresReal = "pinel_requires_real";
-    public const string HighIncomeContribution = "high_income_contribution";
     /// <summary>The profile's contribution rate is far from the one the phases holding both gross and net taxable show.</summary>
     public const string ContributionRateDiffers = "contribution_rate_differs";
     /// <summary>Spec §4.4: a declarant's PER contributions exceed the ceiling, once per declarant concerned.</summary>
@@ -220,7 +229,11 @@ public static class TaxCalculator
         var carriedUsed = Math.Min(rentalTaxable, Math.Max(0m, inputs.RentalDeficitCarried));
         rentalTaxable -= carriedUsed;
 
-        var global = Math.Max(0m, declarants.Sum(d => d.Taxable) + rentalTaxable - deficit);
+        // #234: under the scale (2OP) the capital income joins the global income, the eligible dividends after 40 %.
+        var capital = Math.Max(0m, inputs.CapitalIncome);
+        var dividendAllowance = inputs.CapitalScale ? Euros(TaxRules.DividendAllowanceRate * Math.Min(Math.Max(0m, inputs.CapitalDividends), capital)) : 0m;
+        var capitalInGlobal = inputs.CapitalScale ? capital - dividendAllowance : 0m;
+        var global = Math.Max(0m, declarants.Sum(d => d.Taxable) + rentalTaxable - deficit + capitalInGlobal - Math.Max(0m, inputs.DeductibleCsg));
         var taxable = Math.Floor(Math.Max(0m, global - declarants.Sum(d => d.PerDeducted)));
 
         var baseParts = inputs.Declarants.Count;
@@ -250,12 +263,13 @@ public static class TaxCalculator
         var excess = Math.Max(0m, pinel + childcare + home - rules.NicheCap);
         var incomeTax = Math.Round(tax - childcare - home + excess, 0, MidpointRounding.AwayFromZero);
 
-        var flat = Euros(rules.FlatTaxRate * inputs.CapitalIncome);
-        var levies = Euros(rules.CapitalSocialRate * inputs.CapitalIncome + rules.RentalSocialRate * rentalTaxable);
-        var total = incomeTax + flat + levies;
-
-        if (taxable > 250_000m * baseParts)
-            warnings.Add(TaxWarnings.HighIncomeContribution);
+        var flat = inputs.CapitalScale ? 0m : Euros(rules.FlatTaxRate * capital);
+        var levies = Euros(rules.CapitalSocialRate * capital + rules.RentalSocialRate * rentalTaxable);
+        // The reference income adds back the PER deduction, the dividends' allowance, the flat-taxed capital income and the exempt income.
+        var reference = Math.Floor(taxable + declarants.Sum(d => d.PerDeducted) + dividendAllowance + (inputs.CapitalScale ? 0m : capital)
+            + inputs.Declarants.Sum(d => ExemptNet(d, rules)));
+        var (cehr, smoothed) = HighIncome(reference, baseParts == 2, inputs.ReferenceIncomesBefore);
+        var total = incomeTax + flat + levies + cehr;
 
         var netBefore = declarants.Sum(d => d.NetSalary) + inputs.Declarants.Sum(d => d.OtherTaxable)
             + inputs.RentalGross + inputs.CapitalIncome + inputs.NonTaxableIncome;
@@ -273,18 +287,38 @@ public static class TaxCalculator
         decimal? regimeGap = withTaxSaved && inputs.RentalGross > 0m && inputs.RentalGross <= rules.MicroRentalCeiling && !pinelOwner
             ? Compute(inputs with { RentalRegime = regime == RentalRegime.Micro ? RentalRegime.Real : RentalRegime.Micro }, withTaxSaved: false).TotalTax - total
             : null;
-        var reference = Math.Floor(taxable + declarants.Sum(d => d.PerDeducted) + Math.Max(0m, inputs.CapitalIncome)
-            + inputs.Declarants.Sum(d => ExemptNet(d, rules)));
+        // #234: the same year under the other capital option, the outer run only.
+        decimal? optionGap = withTaxSaved && capital > 0m
+            ? Compute(inputs with { CapitalScale = !inputs.CapitalScale }, withTaxSaved: false).TotalTax - total
+            : null;
         return new TaxResult(
             inputs.Year, rules.RulesYear, parts, declarants, regime, Euros(rentalTaxable), Euros(carriedUsed), Euros(deficit), taxable,
             Euros(grossTax), familyCapped, Euros(decote), Euros(pinel), Euros(donation), Euros(childcare), Euros(home), Euros(excess),
             incomeTax, flat, levies, total, MarginalRate(rules, taxable / parts),
             taxable == 0m ? null : Math.Round(Math.Max(0m, incomeTax) / taxable, 4, MidpointRounding.AwayFromZero),
             Euros(netBefore), Euros(netAfter), Euros(netAfter / 12), warnings,
-            Withhold(rules, declarants, rentalTaxable, grossTax - decote, pinel + donation + childcare + home - excess, incomeTax),
+            Withhold(rules, declarants, rentalTaxable, grossTax - decote, pinel + donation + childcare + home - excess, incomeTax, capitalInGlobal),
             perHousehold, reference, regimeGap,
             // shortcut: the 10-year limit is not followed; the rules start in 2025, so no deficit Nid computes expires before 2035.
-            Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit));
+            Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit),
+            inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed);
+    }
+
+    /// <summary>
+    /// #234, art. 223 sexies CGI: 3 % of the reference income from 250 000 € (500 000 € for a couple) to twice that, 4 % beyond. The
+    /// quotient (BOI-IR-CHR § 140–200): when both earlier reference incomes are within the threshold and this one reaches 1.5 times their
+    /// mean, twice the contribution on the mean plus half the excess over it. Without both earlier figures, no smoothing.
+    /// </summary>
+    public static (decimal Contribution, bool Smoothed) HighIncome(decimal reference, bool couple, (decimal N1, decimal N2)? before)
+    {
+        var threshold = couple ? 500_000m : 250_000m;
+        decimal On(decimal income) => 0.03m * Math.Clamp(income - threshold, 0m, threshold) + 0.04m * Math.Max(0m, income - 2 * threshold);
+        if (before is var (n1, n2) && n1 <= threshold && n2 <= threshold && reference >= 1.5m * (n1 + n2) / 2 && reference > threshold)
+        {
+            var mean = (n1 + n2) / 2;
+            return (Math.Round(2 * On((reference - mean) / 2 + mean), 0, MidpointRounding.AwayFromZero), true);
+        }
+        return (Math.Round(On(reference), 0, MidpointRounding.AwayFromZero), false);
     }
 
     /// <summary>
@@ -346,11 +380,13 @@ public static class TaxCalculator
     /// <summary>
     /// Spec §4bis, the DGFiP's « fiche de calcul du taux » : the tax after the family quotient and the decote, before reductions and
     /// credits, over the income within the withholding (salaries before the 10 % allowance, positive rental income). Capital income
-    /// under the flat tax is outside it, and Nid holds no other income in the global one, so the tax needs no prorating.
+    /// is outside it: under the scale (<paramref name="capitalInGlobal"/>) the tax is prorated by the share of the global income it leaves.
     /// </summary>
-    private static Withholding Withhold(TaxRules rules, IReadOnlyList<DeclarantResult> declarants, decimal rentalTaxable, decimal baseTax, decimal leftOut, decimal incomeTax)
+    private static Withholding Withhold(TaxRules rules, IReadOnlyList<DeclarantResult> declarants, decimal rentalTaxable, decimal baseTax, decimal leftOut, decimal incomeTax, decimal capitalInGlobal)
     {
-        var taxBase = Math.Round(baseTax, 0, MidpointRounding.AwayFromZero);
+        var within = declarants.Sum(d => d.Taxable) + Math.Max(0m, rentalTaxable);
+        var share = capitalInGlobal > 0m && within + capitalInGlobal > 0m ? within / (within + capitalInGlobal) : 1m;
+        var taxBase = Math.Round(baseTax * share, 0, MidpointRounding.AwayFromZero);
         var income = declarants.Sum(d => d.NetTaxableIncome) + Euros(rentalTaxable);
         var rate = income == 0m ? 0m : Math.Round(taxBase / income * 100, 1, MidpointRounding.AwayFromZero);
         var annual = Euros(rate / 100 * income);

@@ -58371,7 +58371,10 @@
           "donationsAid",
           "rentalDeficitCarried",
           "donationsAidLate",
-          "rentalEnergyWorks"
+          "rentalEnergyWorks",
+          "capitalDividends",
+          "capitalScale",
+          "deductibleCsg"
         ],
         "type": "object",
         "properties": {
@@ -58441,6 +58444,18 @@
             "default": "0.00"
           },
           "rentalEnergyWorks": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "capitalDividends": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "deductibleCsg": {
             "type": "string",
             "default": "0.00"
           }
@@ -58526,6 +58541,7 @@
       "TaxProfileBody": {
         "required": [
           "childrenUnder6",
+          "capitalScale",
           "perPooling"
         ],
         "type": "object",
@@ -58670,6 +58686,16 @@
               "null",
               "string"
             ]
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "deductibleCsg": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -58677,6 +58703,7 @@
         "required": [
           "statuses",
           "childrenUnder6",
+          "deductibleCsg",
           "pinel",
           "childcareOutsideHome",
           "homeEmployment",
@@ -58691,7 +58718,8 @@
           "perPooling",
           "exemptIncomes",
           "donationsAidLate",
-          "rentalEnergyWorks"
+          "rentalEnergyWorks",
+          "capitalScale"
         ],
         "type": "object",
         "properties": {
@@ -58789,6 +58817,14 @@
               "null",
               "string"
             ]
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "deductibleCsg": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -58843,7 +58879,12 @@
           "netAfterTaxMonthly",
           "warnings",
           "withholding",
-          "rentalDeficitCarriedForward"
+          "rentalDeficitCarriedForward",
+          "capitalScale",
+          "dividendAllowance",
+          "deductibleCsgNextYear",
+          "highIncomeContribution",
+          "highIncomeSmoothed"
         ],
         "type": "object",
         "properties": {
@@ -58965,6 +59006,32 @@
           "rentalDeficitCarriedForward": {
             "type": "string",
             "default": "0.00"
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "capitalOptionGap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dividendAllowance": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "deductibleCsgNextYear": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "highIncomeContribution": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "highIncomeSmoothed": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
