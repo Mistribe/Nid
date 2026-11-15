@@ -70,7 +70,7 @@ public static class ProblemMapping
             InvestmentsCodes.HoldingClosed, InvestmentsCodes.SnapshotExists,
             IncomeCodes.SourceEnded,
             ChildcareCodes.StatementValidated, // a week of a validated month names its field (monday)
-            GoalsCodes.GoalClosed, GoalsCodes.GoalOpen, GoalsCodes.ShareExceeded, GoalsCodes.Conflict,
+            GoalsCodes.ShareExceeded, // a goal's funding line names its field (funding[i].shareBp)
             LoanCodes.LoanConflict, LoanCodes.FeeConflict, LoanCodes.RepaymentConflict,
             PropertyCodes.PropertyConflict, PropertyCodes.RecurringCostConflict, PropertyCodes.TenancyConflict,
             TaxAssessmentCodes.Conflict, ProposalCodes.Conflict, ProposalCodes.Decided,
