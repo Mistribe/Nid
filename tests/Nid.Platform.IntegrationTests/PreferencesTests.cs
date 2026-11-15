@@ -41,7 +41,7 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await JsonOf(response);
         var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
-        Assert.Equal((path, code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal((path, code), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Fact]

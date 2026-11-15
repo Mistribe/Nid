@@ -38,7 +38,7 @@ describe('LoginPage', () => {
 
   it('says one thing for any refusal, and never leaves the page', async () => {
     server.use(preSession(), http.post('*/auth/login/password', () =>
-      HttpResponse.json({ status: 401, code: 'auth.invalid_credentials', title: 'Wrong' }, { status: 401 })));
+      HttpResponse.json({ status: 401, code: 'auth.invalid_credentials', detail: 'Wrong' }, { status: 401 })));
     const location = { assign: vi.fn() };
     render(<LoginPage returnUrl={null} login="alice" location={location} />);
     const user = userEvent.setup();
@@ -197,7 +197,7 @@ describe('PasswordLinkPage', () => {
     server.use(
       preSession(),
       http.post('*/auth/link/inspect', () => HttpResponse.json({ purpose: 'reset', name: 'Bob', login: 'bob' })),
-      http.post('*/auth/link/complete', () => HttpResponse.json({ status: 400, code: 'auth.password_too_common', title: 'Too common' }, { status: 400 })),
+      http.post('*/auth/link/complete', () => HttpResponse.json({ status: 400, code: 'auth.password_too_common', detail: 'Too common' }, { status: 400 })),
     );
     render(<PasswordLinkPage token="nid_link_abc" location={{ assign: vi.fn() }} />);
     const user = userEvent.setup();

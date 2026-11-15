@@ -129,7 +129,7 @@ describe('SaleTaxSection', () => {
   it('shows a server error inside the titled section', async () => {
     server.use(
       http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
-      http.get('*/api/v1/tax/sale', () => HttpResponse.json({ status: 500, title: 'Boom' }, { status: 500, headers: { 'Content-Type': 'application/problem+json' } })),
+      http.get('*/api/v1/tax/sale', () => HttpResponse.json({ status: 500, detail: 'Boom' }, { status: 500, headers: { 'Content-Type': 'application/problem+json' } })),
     );
     await renderApp(`/properties/${PROPERTY}`);
 

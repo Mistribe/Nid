@@ -353,7 +353,7 @@ describe('NewLoan', () => {
 
   it('shows a server refusal under the line it names, back on its step with its options opened, and keeps the visibility answered', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_loan', title: 'x', errors: [{ path: 'phases[1].openingBalanceOverride', code: 'realestate.invalid_loan', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_loan', detail: 'x', errors: [{ detail: 'x', pointer: '#/phases/1/openingBalanceOverride', code: 'realestate.invalid_loan' }] },
       { status: 422 }));
     const { user } = await renderApp('/loans/new');
 
@@ -378,7 +378,7 @@ describe('NewLoan', () => {
 
   it('shows a refusal no field owns above the form', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_loan', title: 'x', errors: [{ path: 'phases[0].seq', code: 'realestate.invalid_loan', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_loan', detail: 'x', errors: [{ detail: 'x', pointer: '#/phases/0/seq', code: 'realestate.invalid_loan' }] },
       { status: 422 }));
     const { user } = await renderApp('/loans/new');
 
@@ -444,7 +444,7 @@ describe('NewLoan', () => {
 
   it('shows realestate.invalid_property under « Bien financé », back on its step', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_property', title: 'x', errors: [{ path: 'propertyId', code: 'realestate.invalid_property', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_property', detail: 'x', errors: [{ detail: 'x', pointer: '#/propertyId', code: 'realestate.invalid_property' }] },
       { status: 422 }));
     server.use(http.get('*/api/v1/realestate/properties', () => HttpResponse.json(propertyList([propertySummary()]))));
     const { user } = await renderApp('/loans/new');

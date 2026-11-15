@@ -49052,6 +49052,21 @@
               "null",
               "string"
             ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ValidationProblemError"
+            }
           }
         }
       },
@@ -59532,6 +59547,29 @@
               {
                 "$ref": "#/components/schemas/DocumentSummary"
               }
+            ]
+          }
+        }
+      },
+      "ValidationProblemError": {
+        "required": [
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "pointer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }

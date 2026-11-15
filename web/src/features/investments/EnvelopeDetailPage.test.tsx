@@ -26,7 +26,7 @@ describe('EnvelopeDetailPage', () => {
     await waitFor(() => expectTrailBack('Placements', '/investments'));
     cleanup();
 
-    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/investments/${PEA}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Placements', '/investments'));
@@ -170,7 +170,7 @@ describe('EnvelopeDetailPage', () => {
   });
 
   it('says an unknown envelope is not found', async () => {
-    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/investments/${PEA}`);
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'Page introuvable' });
@@ -186,7 +186,7 @@ describe('EnvelopeDetailPage', () => {
     let calls = 0;
     server.use(http.get('*/api/v1/investments/envelopes/:id', () => {
       calls += 1;
-      return HttpResponse.json({ status: 500, title: 'Boom', traceId: 'req-42' }, { status: 500 });
+      return HttpResponse.json({ status: 500, detail: 'Boom', traceId: 'req-42' }, { status: 500 });
     }));
     const { user } = await renderApp(`/investments/${PEA}`);
 

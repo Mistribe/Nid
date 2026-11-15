@@ -38,7 +38,7 @@ public class OwnershipEditTests(PostgresFixture fixture) : IClassFixture<Postgre
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.True(response.StatusCode == HttpStatusCode.UnprocessableEntity, body);
         var error = JsonDocument.Parse(body).RootElement.GetProperty("errors")[0];
-        return (error.GetProperty("code").GetString()!, error.GetProperty("path").GetString()!);
+        return (error.GetProperty("code").GetString()!, error.FieldPath()!);
     }
 
     [Theory]

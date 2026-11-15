@@ -126,7 +126,7 @@ public class GoalWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         foreach (var (response, field) in new[] { (created, "targetAmount"), (edited, "targetAmount"), (progress, "amount") })
         {
             await AssertRefusedAsync(response, HttpStatusCode.UnprocessableEntity, GoalsCodes.InvalidTarget);
-            Assert.Equal(field, (await JsonAsync(response)).GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal(field, (await JsonAsync(response)).GetProperty("errors")[0].FieldPath());
         }
     }
 
@@ -319,7 +319,7 @@ public class GoalWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         var unversioned = await EditAsync(app, app.AdultA, goal, missing);
         await AssertRefusedAsync(unversioned, HttpStatusCode.UnprocessableEntity, "request.invalid");
-        Assert.Equal("version", (await JsonAsync(unversioned)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("version", (await JsonAsync(unversioned)).GetProperty("errors")[0].FieldPath());
         Assert.Equal(HttpStatusCode.OK, (await EditAsync(app, app.AdultA, goal, Edit("Voyage", "11000"))).StatusCode);
         var stale = Edit("Voyage", "12000");
         stale["version"] = read;

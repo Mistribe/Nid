@@ -181,8 +181,8 @@ describe('NewProjectionScenarioPage', () => {
     server.use(http.post('*/api/v1/scenarios/projection', async ({ request }) => {
       created.push(await request.json());
       return HttpResponse.json({
-        type: 'about:blank', title: 'Invalid', status: 422,
-        errors: [{ path: 'events[0].amount', code: 'projection.invalid_field', message: 'The amount is required and positive.' }],
+        type: 'about:blank', detail: 'Invalid', status: 422,
+        errors: [{ detail: 'The amount is required and positive.', pointer: '#/events/0/amount', code: 'projection.invalid_field' }],
       }, { status: 422, headers: { 'Content-Type': 'application/problem+json' } });
     }));
     const { user } = await renderApp('/scenarios/new?kind=projection');

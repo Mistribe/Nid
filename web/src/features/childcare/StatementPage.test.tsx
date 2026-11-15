@@ -43,7 +43,7 @@ describe('StatementPage', () => {
       http.get('*/api/v1/childcare/:id', () => HttpResponse.json(detail())),
       http.get('*/api/v1/childcare/:id/statements', () => HttpResponse.json(statements())),
       http.get('*/api/v1/documents', () => HttpResponse.json(list([]))),
-      http.get('*/api/v1/childcare/:id/statements/:month', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })),
+      http.get('*/api/v1/childcare/:id/statements/:month', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })),
     );
     const { router } = await renderApp(`/childcare/${ARRANGEMENT_ID}`);
     await screen.findByRole('heading', { level: 1, name: 'Garde de Léa' });

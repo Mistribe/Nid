@@ -308,7 +308,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
         var none = await h.App.RawAsync(h.App.AdultB, HttpMethod.Post, TestRoute, new { channel = "discord_person" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, none.StatusCode);
         var error = Assert.Single((await none.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("channel", "notifications.discord_unavailable"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("channel", "notifications.discord_unavailable"), (error.FieldPath(), error.GetProperty("code").GetString()));
 
         h.Discord.Answer = _ => new HttpResponseMessage(HttpStatusCode.NotFound);
         clock.Now += NodaTime.Duration.FromSeconds(30); // one test per person and channel every 30 s

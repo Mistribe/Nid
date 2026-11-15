@@ -216,7 +216,7 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         var missing = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", new { note = "x" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, missing.StatusCode);
         Assert.Equal(["amount", "occurredOn"],
-            (await JsonAsync(missing)).GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("path").GetString()!).Order().ToList());
+            (await JsonAsync(missing)).GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()!).Order().ToList());
     }
 
     [Fact]
@@ -405,7 +405,7 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{id}/phases/{pid}");
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        Assert.Contains((await JsonAsync(refused)).GetProperty("errors").EnumerateArray(), e => e.GetProperty("path").GetString() == "version");
+        Assert.Contains((await JsonAsync(refused)).GetProperty("errors").EnumerateArray(), e => e.FieldPath() == "version");
         Assert.Single(await StoredAsync(app, id));
     }
 

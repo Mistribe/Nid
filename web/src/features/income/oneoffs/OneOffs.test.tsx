@@ -35,7 +35,7 @@ function serve(initial: IncomeSourceDetail = detail({ oneOffs: [OLDER, PROJECT] 
       const body = (await request.json()) as Body;
       sent.push({ method: 'PUT', url: request.url, body });
       if (!current.oneOffs.some((f) => f.id === params.flowId))
-        return HttpResponse.json({ status: 409, code: 'core.fact_retired', title: 'Retired.' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'core.fact_retired', detail: 'Retired.' }, { status: 409 });
       const id = `o${next++}`;
       current = { ...current, oneOffs: current.oneOffs.map((f) => (f.id === params.flowId ? view(id, body) : f)) };
       return HttpResponse.json({ id });
@@ -43,7 +43,7 @@ function serve(initial: IncomeSourceDetail = detail({ oneOffs: [OLDER, PROJECT] 
     http.delete('*/api/v1/income/sources/:id/one-offs/:flowId', ({ request, params }) => {
       sent.push({ method: 'DELETE', url: request.url });
       if (!current.oneOffs.some((f) => f.id === params.flowId))
-        return HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 });
+        return HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 });
       current = { ...current, oneOffs: current.oneOffs.filter((f) => f.id !== params.flowId) };
       return new HttpResponse(null, { status: 204 });
     }),

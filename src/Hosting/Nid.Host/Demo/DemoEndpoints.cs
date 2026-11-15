@@ -23,7 +23,7 @@ public static class DemoEndpoints
             {
                 var target = returnUrl ?? "/";
                 if (!ReturnUrl.IsSafe(target))
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "returnUrl must be a relative path.");
                 if (DemoHousehold.Find(key) is not { } adult || await persons.FindBySubjectAsync(adult.Subject, http.RequestAborted) is not { } person)
                     return Results.NotFound();
 

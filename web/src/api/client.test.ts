@@ -50,7 +50,7 @@ describe('createApi', () => {
   });
 
   it('passes a Problem body through unchanged', async () => {
-    const problem = { status: 409, code: 'core.conflict', title: 'Conflict', traceId: 'abc' };
+    const problem = { status: 409, code: 'core.conflict', detail: 'Conflict', traceId: 'abc' };
     server.use(http.patch('*/api/v1/core/me/preferences', () =>
       HttpResponse.json(problem, { status: 409, headers: { 'content-type': 'application/problem+json' } })));
     const api = createApi({ getCsrf: () => 'token-1', onUnauthenticated: vi.fn() });

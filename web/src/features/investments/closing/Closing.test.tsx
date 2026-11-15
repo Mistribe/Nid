@@ -107,7 +107,7 @@ describe('closing an envelope', () => {
   });
 
   it('places a closing before the last value or flow on the closing date', async () => {
-    serve(detail(), [], () => problem(422, 'investments.invalid_envelope', { errors: [{ path: 'closedOn', code: 'investments.invalid_envelope', message: 'x' }] })());
+    serve(detail(), [], () => problem(422, 'investments.invalid_envelope', { errors: [{ detail: 'x', pointer: '#/closedOn', code: 'investments.invalid_envelope' }] })());
     const { user } = await renderApp(`/investments/${PEA}`);
 
     const dialog = await openDialog(user);

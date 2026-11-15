@@ -60,7 +60,7 @@ public class WebhookTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = Assert.Single((await JsonOf(response)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("url", "notifications.invalid_webhook"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("url", "notifications.invalid_webhook"), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Fact]

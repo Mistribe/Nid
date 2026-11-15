@@ -198,7 +198,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal(code, problem.GetProperty("code").GetString());
-        Assert.Equal(path, problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal(path, problem.GetProperty("errors")[0].FieldPath());
         Assert.Equal(JsonValueKind.Null, (await LatestAsync(app, first)).GetProperty("lastValue").ValueKind);
     }
 
@@ -209,7 +209,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         var pea = await EnvelopeAsync(app, "PEA", "monthly");
         var response = await RecordAsync(app, app.AdultA, new { on = "2025-10-31", lines = new[] { new { envelopeId = pea.Value, value = Eur("1.00") } } });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Contains("\"path\":\"on\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Contains("\"pointer\":\"#/on\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
         Assert.Equal("investments.routine_value_exists", problem.GetProperty("code").GetString());
-        Assert.Equal("lines[0].value", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("lines[0].value", problem.GetProperty("errors")[0].FieldPath());
         Assert.Equal(1000m, Dec((await LatestAsync(app, pea)).GetProperty("lastValue")));
     }
 

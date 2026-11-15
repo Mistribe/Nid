@@ -145,6 +145,56 @@ public class MalformedInputTests(PostgresFixture fixture, SharedNidApp shared) :
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors");
-        Assert.Equal("grants[0].startsOn", Assert.Single(errors.EnumerateArray()).GetProperty("path").GetString());
+        Assert.Equal("grants[0].startsOn", Assert.Single(errors.EnumerateArray()).FieldPath());
+    }
+
+    /// <summary>#250: RFC 9457 — a fixed title, the sentence in <c>detail</c>, each refused field as <c>{ detail, pointer, code }</c>.</summary>
+    [Fact]
+    public async Task A_refused_field_answers_rfc_9457_problem_details()
+    {
+        var app = shared.App;
+        var id = await app.NewMonthlyAsync(app.AdultA, 10m);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/purchases", new
+        {
+            date = "2025-01-01", label = "gift", kind = "gift",
+            price = new { amount = "0", currency = "EUR" },
+            payer = new { type = "external" },
+            grants = new[]
+            {
+                new
+                {
+                    subscriptionId = id.Value, duration = new { count = 3, unit = "month" },
+                    source = "gift", startsOn = "not-a-date",
+                },
+            },
+        });
+
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(422, problem.GetProperty("status").GetInt32());
+        Assert.Equal("Validation Error", problem.GetProperty("title").GetString());
+        Assert.False(string.IsNullOrEmpty(problem.GetProperty("detail").GetString()));
+        var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
+        Assert.Equal("#/grants/0/startsOn", error.GetProperty("pointer").GetString());
+        Assert.Equal("request.invalid", problem.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrEmpty(error.GetProperty("code").GetString())); // the field's own code (request.date)
+        Assert.Equal(problem.GetProperty("detail").GetString(), error.GetProperty("detail").GetString());
+        Assert.False(error.TryGetProperty("path", out _));
+        Assert.False(error.TryGetProperty("message", out _));
+    }
+
+    [Fact]
+    public async Task An_unreadable_query_value_is_a_bad_request_with_its_reason_in_detail()
+    {
+        var app = shared.App;
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/subscriptions?from=oops");
+
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(400, problem.GetProperty("status").GetInt32());
+        Assert.Equal("Bad Request", problem.GetProperty("title").GetString());
+        Assert.Equal("request.malformed", problem.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrEmpty(problem.GetProperty("detail").GetString()));
     }
 }

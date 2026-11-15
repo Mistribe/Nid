@@ -166,7 +166,7 @@ describe('the routine', () => {
     server.use(
       http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine(lines()))),
       http.post('*/api/v1/investments/routine', () => HttpResponse.json(
-        { status: 422, code: 'investments.routine_invalid_amount', title: 'A contribution is positive.', errors: [{ path: 'lines[1].contribution', code: 'investments.routine_invalid_amount', message: 'A contribution is positive.' }] },
+        { status: 422, code: 'investments.routine_invalid_amount', detail: 'A contribution is positive.', errors: [{ detail: 'A contribution is positive.', pointer: '#/lines/1/contribution', code: 'investments.routine_invalid_amount' }] },
         { status: 422 })),
     );
     const { user } = await renderApp('/routine');

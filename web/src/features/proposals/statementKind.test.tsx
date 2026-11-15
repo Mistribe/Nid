@@ -115,8 +115,8 @@ describe('Un relevé proposé', () => {
     const p = statement();
     serve([p], { preview: statementPreview });
     server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
-      { status: 409, code: 'core.external_ref_taken', title: 'This reference is already recorded: leave this movement out.',
-        errors: [{ path: 'payload.movements[0].ref', code: 'core.external_ref_taken', message: 'x' }] },
+      { status: 409, code: 'core.external_ref_taken', detail: 'This reference is already recorded: leave this movement out.',
+        errors: [{ detail: 'x', pointer: '#/payload/movements/0/ref', code: 'core.external_ref_taken' }] },
       { status: 409 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 

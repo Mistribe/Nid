@@ -119,7 +119,7 @@ public class BankScheduleEndpointTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(
             [("realestate.bank_schedule_invalid", "rows[2].dueDate"), ("realestate.bank_schedule_invalid", "rows[4].payment"),
              ("realestate.bank_schedule_invalid", "rows[5]")],
-            (await JsonAsync(unreadable)).GetProperty("errors").EnumerateArray().Select(e => (S(e, "code"), S(e, "path"))));
+            (await JsonAsync(unreadable)).GetProperty("errors").EnumerateArray().Select(e => (S(e, "code"), e.FieldPath())));
 
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.bank_schedule_invalid", "rows[1].payment"),
             await RefusalAsync(await PreviewRawAsync(app, id, new { text = "Date;Échéance;Intérêts;Capital;CRD\n15/11/2020;1209,92;583,33;576,59;199423,41\n" })));

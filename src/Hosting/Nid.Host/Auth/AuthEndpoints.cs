@@ -41,7 +41,7 @@ public static class AuthEndpoints
         {
             var target = returnUrl ?? "/";
             if (!ReturnUrl.IsSafe(target))
-                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path.");
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "returnUrl must be a relative path.");
             if (demo)
                 return Results.Redirect(Demo.DemoEndpoints.PagePath + "?returnUrl=" + Uri.EscapeDataString(target));
             // Issue 215: with local accounts the web app's sign-in page asks for the password (and offers the identity
@@ -57,7 +57,7 @@ public static class AuthEndpoints
             {
                 var target = returnUrl ?? "/";
                 if (!ReturnUrl.IsSafe(target))
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "returnUrl must be a relative path.");
                 return await ChallengeOidcAsync(http, target, loggers);
             })
                 .ExcludeFromDescription();

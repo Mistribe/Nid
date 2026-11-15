@@ -45,7 +45,7 @@ describe('IncomeSourceDetailPage', () => {
     await waitFor(() => expectTrailBack('Revenus', '/income'));
     cleanup();
 
-    server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/income/${SALARY}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Revenus', '/income'));
@@ -366,7 +366,7 @@ describe('IncomeSourceDetailPage', () => {
   });
 
   it('says an unknown source is not found', async () => {
-    server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/income/${SALARY}`);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();

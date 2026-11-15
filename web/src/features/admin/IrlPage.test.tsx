@@ -146,7 +146,7 @@ describe('Administration › IRL', () => {
       sent.push({ url: new URL(request.url).pathname, body: await request.json() });
       return sent.length === 1
         ? HttpResponse.json({ quarter: '2026-Q3', value: '149.10', publishedOn: '2026-10-15', fetchedOn: '2026-10-23', source: 'manual' })
-        : HttpResponse.json({ status: 422, code: 'realestate.irl_from_insee', title: 'x', errors: [{ path: 'value', code: 'realestate.irl_from_insee', message: 'x' }] }, { status: 422 });
+        : HttpResponse.json({ status: 422, code: 'realestate.irl_from_insee', detail: 'x', errors: [{ detail: 'x', pointer: '#/value', code: 'realestate.irl_from_insee' }] }, { status: 422 });
     }));
     const { user } = await renderApp('/admin/irl', { capabilities: adminCapabilities });
 

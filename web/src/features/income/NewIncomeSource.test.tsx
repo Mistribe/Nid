@@ -153,7 +153,7 @@ describe('NewIncomeSource', () => {
 
   it('shows a server refusal under the line it names, and keeps the visibility answered', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'income.phase_overlap', title: 'x', errors: [{ path: 'phases[1].startsOn', code: 'income.phase_overlap', message: 'x' }] },
+      { status: 422, code: 'income.phase_overlap', detail: 'x', errors: [{ detail: 'x', pointer: '#/phases/1/startsOn', code: 'income.phase_overlap' }] },
       { status: 422 }));
     const { user } = await renderApp('/income/new');
 
@@ -172,7 +172,7 @@ describe('NewIncomeSource', () => {
 
   it('sends the person back to the first step when the server refuses a field of it', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'income.invalid_source', title: 'x', errors: [{ path: 'payerLabel', code: 'income.invalid_source', message: 'x' }] },
+      { status: 422, code: 'income.invalid_source', detail: 'x', errors: [{ detail: 'x', pointer: '#/payerLabel', code: 'income.invalid_source' }] },
       { status: 422 }));
     const { user } = await renderApp('/income/new');
 
@@ -185,7 +185,7 @@ describe('NewIncomeSource', () => {
   });
 
   it('shows a refusal no field owns above the form', async () => {
-    serveCreate([], () => HttpResponse.json({ status: 422, code: 'income.invalid_source', title: 'x' }, { status: 422 }));
+    serveCreate([], () => HttpResponse.json({ status: 422, code: 'income.invalid_source', detail: 'x' }, { status: 422 }));
     const { user } = await renderApp('/income/new');
 
     await essentials(user);

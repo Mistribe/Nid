@@ -41,7 +41,7 @@ public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = Assert.Single((await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("startsOn", code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("startsOn", code), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Fact]

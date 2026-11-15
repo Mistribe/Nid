@@ -15,7 +15,7 @@ const BONUS: LoanRepayment = { id: 'r1', onDate: '2026-03-20', amount: '10000.00
 /** An amount as the server writes it back: two decimals. */
 const written = (typed: string) => (typed.includes('.') ? typed : `${typed}.00`);
 const refusal = (path: string, code: string) =>
-  HttpResponse.json({ status: 422, code, title: 'x', errors: [{ path, code, message: 'x' }] }, { status: 422 });
+  HttpResponse.json({ status: 422, code, detail: 'x', errors: [{ path, code, message: 'x' }] }, { status: 422 });
 
 function serve(initial: LoanDetail = loanDetail({ repayments: [BONUS] }), refuse?: (method: string) => Response | undefined) {
   let current = initial;
@@ -40,8 +40,8 @@ function serve(initial: LoanDetail = loanDetail({ repayments: [BONUS] }), refuse
       const body = (await request.json()) as Body;
       sent.push({ method: 'PUT', url: request.url, body });
       const old = current.repayments.find((r) => r.id === params.eventId);
-      if (!old) return HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 });
-      if (old.version !== body.version) return HttpResponse.json({ status: 409, code: 'realestate.repayment_conflict', title: 'Changed.' }, { status: 409 });
+      if (!old) return HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 });
+      if (old.version !== body.version) return HttpResponse.json({ status: 409, code: 'realestate.repayment_conflict', detail: 'Changed.' }, { status: 409 });
       current = { ...current, repayments: current.repayments.map((r) => (r.id === old.id ? view(old.id, body, old.version + 1) : r)) };
       return HttpResponse.json({ id: old.id });
     }),

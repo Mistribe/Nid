@@ -42,6 +42,21 @@ public static class OpenApiSetup
                     schema.Items = await context.GetOrCreateSchemaAsync(typeof(InvestmentEndpoints.SwitchLegBody), null, ct);
                 }
             });
+            options.AddSchemaTransformer(async (schema, context, ct) =>
+            {
+                // #250: the extensions every refusal carries (ProblemMapping): its stable code and, for refused fields,
+                // the RFC 9457 list of { detail, pointer, code }.
+                if (context.JsonTypeInfo.Type == typeof(Microsoft.AspNetCore.Mvc.ProblemDetails) && schema.Properties is not null)
+                {
+                    schema.Properties["code"] = new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Null };
+                    schema.Properties["errors"] = new OpenApiSchema
+                    {
+                        Type = JsonSchemaType.Array | JsonSchemaType.Null,
+                        Items = await context.GetOrCreateSchemaAsync(
+                            typeof(UnambitiousFx.Functional.AspNetCore.Mappers.ValidationProblemError), null, ct),
+                    };
+                }
+            });
             options.AddSchemaTransformer((schema, context, _) =>
             {
                 MarkNonNullablePropertiesRequired(schema, context.JsonTypeInfo);

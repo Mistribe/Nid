@@ -266,7 +266,7 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
         var none = await bare.App.RawAsync(bare.App.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "discord_household" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, none.StatusCode);
         var error = Assert.Single((await none.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("channel", "notifications.discord_unavailable"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("channel", "notifications.discord_unavailable"), (error.FieldPath(), error.GetProperty("code").GetString()));
 
         var personal = await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "discord_person" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, personal.StatusCode);

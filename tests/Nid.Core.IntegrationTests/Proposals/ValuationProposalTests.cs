@@ -127,7 +127,7 @@ public class ValuationProposalTests(PostgresFixture fixture, SharedNidApp shared
         {
             var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, body);
             Assert.True(response.StatusCode == HttpStatusCode.UnprocessableEntity, $"{path}: {response.StatusCode}");
-            Assert.Equal(path, (await JsonOf(response)).GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal(path, (await JsonOf(response)).GetProperty("errors")[0].FieldPath());
         }
     }
 

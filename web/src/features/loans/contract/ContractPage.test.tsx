@@ -26,7 +26,7 @@ function serve(initial: LoanDetail = loanDetail(), refuse?: () => Response) {
       bodies.push(body);
       if (refuse) return refuse();
       if (body.version !== current.contract.version)
-        return HttpResponse.json({ status: 409, code: 'realestate.loan_conflict', title: 'Changed.' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'realestate.loan_conflict', detail: 'Changed.' }, { status: 409 });
       current = { ...current, contract: { ...current.contract, version: current.contract.version + 1 } };
       return HttpResponse.json({ id: current.id });
     }),
@@ -35,7 +35,7 @@ function serve(initial: LoanDetail = loanDetail(), refuse?: () => Response) {
 }
 
 const refusal = (path: string, code = 'realestate.invalid_loan') => () =>
-  HttpResponse.json({ status: 422, code, title: 'x', errors: [{ path, code, message: 'x' }] }, { status: 422 });
+  HttpResponse.json({ status: 422, code, detail: 'x', errors: [{ path, code, message: 'x' }] }, { status: 422 });
 const form = () => screen.findByRole('form', { name: 'Contrat du crédit' });
 const group = (name: string) => screen.getByRole('group', { name });
 const save = (user: User) => user.click(screen.getByRole('button', { name: 'Enregistrer le contrat' }));
@@ -203,7 +203,7 @@ describe('ContractPage', () => {
   });
 
   it('says an unknown or unreadable loan is not found, under the loans crumb alone', async () => {
-    server.use(http.get('*/api/v1/realestate/loans/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/realestate/loans/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(PAGE);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();

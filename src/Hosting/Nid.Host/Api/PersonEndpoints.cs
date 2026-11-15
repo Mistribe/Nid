@@ -225,7 +225,7 @@ public sealed class MalformedInputFilter : IEndpointFilter
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
-                title: malformed.Message,
+                detail: malformed.Message,
                 extensions: new Dictionary<string, object?> { ["code"] = "request.malformed" });
         }
     }
@@ -259,97 +259,16 @@ public static class ResultHttp
     /// <summary>The Problem Details of a failure, as <see cref="ToHttp{T, TOut}"/> answers it.</summary>
     public static IResult Problem(Failure failure) => ProblemFor(failure);
 
+    /// <summary>#250: written by Functional's mapper, with the statuses and fields of <see cref="ProblemMapping"/>.</summary>
     private static IResult ProblemFor(Failure failure)
     {
-        var status = failure switch
-        {
-            NotFoundFailure => StatusCodes.Status404NotFound,
-            UnauthorizedFailure => StatusCodes.Status403Forbidden,
-            UnauthenticatedFailure => StatusCodes.Status401Unauthorized,
-            _ when failure.Code == AdminCodes.Required => StatusCodes.Status403Forbidden,
-            _ when failure.Code == BrowserOnlyCodes.Required => StatusCodes.Status403Forbidden,
-            _ when failure.Code == TokenCodes.LimitReached => StatusCodes.Status409Conflict,
-            // Issue 215: local accounts (local-accounts.md §14).
-            _ when failure.Code is LocalAccountCodes.LoginInvalid or LocalAccountCodes.PasswordTooShort or LocalAccountCodes.PasswordTooLong
-                or LocalAccountCodes.PasswordTooCommon or Auth.LocalSignIn.CurrentPasswordWrong or Auth.LocalSignIn.InvalidCode => StatusCodes.Status400BadRequest,
-            _ when failure.Code is LocalAccountCodes.LoginTaken or LocalAccountCodes.TotpAlreadyEnabled or PersonCodes.LastAdmin
-                or PersonCodes.AdminSourceIdentityProvider => StatusCodes.Status409Conflict,
-            _ when failure.Code == LocalAccountCodes.SetupClosed => StatusCodes.Status404NotFound,
-            _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
-            _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
-            _ when failure.Code == FxCodes.SyncRunning => StatusCodes.Status409Conflict,
-            _ when failure.Code == CatalogCodes.SyncRunning => StatusCodes.Status409Conflict,
-            _ when failure.Code is PriceCodes.SyncRunning or PriceCodes.Disabled or PriceCodes.NotRejected => StatusCodes.Status409Conflict,
-            _ when failure.Code is IrlCodes.SyncRunning or IrlCodes.Disabled => StatusCodes.Status409Conflict,
-            _ when failure.Code is InflationCodes.SyncRunning or InflationCodes.Disabled => StatusCodes.Status409Conflict,
-            _ when failure.Code is FxCodes.InvalidRate or FxCodes.InvalidRange => StatusCodes.Status400BadRequest,
-            _ when failure.Code == SeriesCodes.InvalidKey => StatusCodes.Status400BadRequest,
-            _ when failure.Code == SeriesCodes.NotFound => StatusCodes.Status404NotFound,
-            _ when failure.Code == ExportCodes.RevisionChanged => StatusCodes.Status409Conflict,
-            _ when failure.Code == ExportCodes.BadCursor => StatusCodes.Status400BadRequest,
-            _ when ImportCodes.Conflicts.Contains(failure.Code) => StatusCodes.Status409Conflict,
-            _ when ImportCodes.BadRequests.Contains(failure.Code) => StatusCodes.Status400BadRequest,
-            _ when failure.Code == FieldErrors.ShapeCode => StatusCodes.Status422UnprocessableEntity,
-            _ when failure.Code is CoreFactCodes.FactNotFound => StatusCodes.Status404NotFound,
-            _ when failure.Code is CoreFactCodes.FactRetired or CoreFactCodes.OpeningExists or CoreFactCodes.ExternalRefTaken
-                or CoreFactCodes.FactConflict => StatusCodes.Status409Conflict,
-            _ when failure.Code is InvestmentsCodes.EnvelopeClosed or InvestmentsCodes.EnvelopeOpen => StatusCodes.Status409Conflict,
-            _ when failure.Code is InvestmentsCodes.HoldingInUse or InvestmentsCodes.HoldingConflict or InvestmentsCodes.HoldingClosed
-                or InvestmentsCodes.SnapshotExists => StatusCodes.Status409Conflict,
-            _ when failure.Code is InvestmentsCodes.InvalidPeriod or InvestmentsCodes.InvalidIncomeCategory or InvestmentsCodes.TransferLeg
-                or BreakdownCodes.Not100 or BreakdownCodes.NotMarket => StatusCodes.Status400BadRequest,
-            _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
-            _ when failure.Code is IncomeCodes.InvalidPeriod or IncomeCodes.InvalidYear => StatusCodes.Status400BadRequest,
-            _ when failure.Code == ReportCodes.InvalidYear => StatusCodes.Status400BadRequest,
-            _ when failure.Code is Nid.Childcare.Contracts.ChildcareCodes.Closed or Nid.Childcare.Contracts.ChildcareCodes.Open
-                or Nid.Childcare.Contracts.ChildcareCodes.Conflict or Nid.Childcare.Contracts.ChildcareCodes.StatementValidated
-                or Nid.Childcare.Contracts.ChildcareCodes.StatementIncomplete or Nid.Childcare.Contracts.ChildcareCodes.NextValidated or Nid.Childcare.Contracts.ChildcareCodes.PreviousNotValidated
-                or Nid.Childcare.Contracts.ChildcareCodes.StatementConflict => StatusCodes.Status409Conflict,
-            _ when failure.Code is GoalsCodes.GoalClosed or GoalsCodes.GoalOpen or GoalsCodes.ShareExceeded or GoalsCodes.Conflict => StatusCodes.Status409Conflict,
-            _ when failure.Code is LoanCodes.LoanConflict or LoanCodes.FeeConflict or LoanCodes.RepaymentConflict
-                or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,
-            _ when failure.Code == TaxAssessmentCodes.Conflict => StatusCodes.Status409Conflict,
-            _ when failure.Code is ProposalCodes.Conflict or ProposalCodes.Decided => StatusCodes.Status409Conflict,
-            _ when failure.Code is ItemCodes.InUse or ItemCodes.Changed or PersonCodes.PersonInUse => StatusCodes.Status409Conflict,
-            _ when failure.Code == DocumentsCodes.TooLarge => StatusCodes.Status413PayloadTooLarge,
-            _ when failure.Code == DocumentsCodes.UnsupportedType => StatusCodes.Status415UnsupportedMediaType,
-            _ when failure.Code is DocumentsCodes.InvalidField or DocumentsCodes.InvalidRole or DocumentsCodes.UnknownTargetKind => StatusCodes.Status400BadRequest,
-            _ when failure.Code is DocumentsCodes.TargetNotFound or DocumentsCodes.ContentMissing => StatusCodes.Status404NotFound,
-            _ when failure.Code is DocumentsCodes.AlreadyLinked or DocumentsCodes.SourceRefTaken => StatusCodes.Status409Conflict,
-            _ when failure.Code == NotificationCodes.PreferencesConflict => StatusCodes.Status409Conflict,
-            _ when failure.Code == NotificationCodes.TestThrottled => StatusCodes.Status429TooManyRequests,
-            _ when failure.Code is BankingCodes.Disabled or BankingCodes.NotConfigured or BankingCodes.EnvelopeTaken or BankingCodes.SyncRunning
-                or BankingCodes.TransactionLinked
-                => StatusCodes.Status409Conflict,
-            _ when failure.Code is BankingCodes.ConnectionNotFound or BankingCodes.AccountNotFound => StatusCodes.Status404NotFound,
-            _ when failure.Code == BankingCodes.FileTooLarge => StatusCodes.Status413PayloadTooLarge,
-            _ => StatusCodes.Status422UnprocessableEntity,
-        };
-
-        var extensions = new Dictionary<string, object?> { ["code"] = failure.Code };
-        if (FieldErrors.Of(failure) is { } errors)
-            extensions["errors"] = errors.Select(e => new ProblemFieldError(e.Path, e.Code, e.Message)).ToList();
-        // 2C2a spec §6: a rule that names its field in metadata (Investments', Income's) reaches the client the same way.
-        else if (failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) && field is string path)
-            extensions["errors"] = new List<ProblemFieldError> { new(path, failure.Code, failure.Message) };
-        // Savings goals D10: the share still free on the envelope, among the goals the actor sees.
-        if (failure.Metadata is { } more && more.TryGetValue("freeBp", out var freeBp))
-            extensions["freeBp"] = freeBp;
-        // Bank sync §5.3: the statement file's line at fault, when known.
-        if (failure.Metadata is { } file && file.TryGetValue("line", out var line))
-            extensions["line"] = line;
-        // Series explorer: the key of the selection that is absent or not visible, echoed so the page can drop it.
-        if (failure.Metadata is { } series && series.TryGetValue("key", out var key))
-            extensions["key"] = key;
-        // #156: what still names a person, by kind (ownerships, childcare…), so the page can say it in the reader's language.
-        if (failure.Metadata is { } person && person.TryGetValue("uses", out var uses))
-            extensions["uses"] = uses;
-        return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
+        var mapped = ProblemMapping.Mapper.GetFailureResponse(ProblemMapping.Located(failure));
+        var problem = mapped?.Body as Microsoft.AspNetCore.Mvc.ProblemDetails
+            ?? new Microsoft.AspNetCore.Mvc.ProblemDetails { Extensions = { ["code"] = failure.Code } };
+        problem.Status = mapped?.StatusCode ?? StatusCodes.Status500InternalServerError;
+        return Results.Problem(problem);
     }
 }
-
-/// <summary>One refused field in a Problem Details' <c>errors</c> extension.</summary>
-public sealed record ProblemFieldError(string Path, string Code, string Message);
 
 public sealed record RevokeSessionsBody(bool RevokeTokens);
 

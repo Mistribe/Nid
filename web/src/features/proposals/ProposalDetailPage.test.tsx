@@ -23,7 +23,7 @@ describe('Une proposition', () => {
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     cleanup();
 
-    server.use(http.get('*/api/v1/core/proposals/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/core/proposals/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/proposals/${p.id}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('À valider', '/proposals'));
@@ -156,7 +156,7 @@ describe('Une proposition', () => {
     const p = proposal();
     serve([p]);
     server.use(http.post('*/api/v1/core/proposals/:id/approve', () =>
-      HttpResponse.json({ status: 409, code: 'core.proposal_decided', title: 'x' }, { status: 409 })));
+      HttpResponse.json({ status: 409, code: 'core.proposal_decided', detail: 'x' }, { status: 409 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 
     await user.click(await screen.findByRole('button', { name: 'Approuver' }));
@@ -169,7 +169,7 @@ describe('Une proposition', () => {
     const p = proposal();
     serve([p]);
     server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
-      { status: 422, code: 'core.date_in_future', title: 'A value is dated today or before.', errors: [{ path: 'payload.asOf', code: 'core.date_in_future', message: 'x' }] },
+      { status: 422, code: 'core.date_in_future', detail: 'A value is dated today or before.', errors: [{ detail: 'x', pointer: '#/payload/asOf', code: 'core.date_in_future' }] },
       { status: 422 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 
@@ -271,7 +271,7 @@ describe('Une proposition', () => {
     const p = proposal();
     serve([p]);
     server.use(http.post('*/api/v1/core/proposals/:id/reject', () =>
-      HttpResponse.json({ status: 409, code: 'core.proposal_decided', title: 'x' }, { status: 409 })));
+      HttpResponse.json({ status: 409, code: 'core.proposal_decided', detail: 'x' }, { status: 409 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 
     await user.click(await screen.findByRole('button', { name: 'Rejeter' }));
@@ -284,7 +284,7 @@ describe('Une proposition', () => {
     const p = proposal();
     serve([p]);
     server.use(http.post('*/api/v1/core/proposals/:id/reject', () =>
-      HttpResponse.json({ status: 500, title: 'x' }, { status: 500 })));
+      HttpResponse.json({ status: 500, detail: 'x' }, { status: 500 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 
     await user.click(await screen.findByRole('button', { name: 'Rejeter' }));
@@ -297,7 +297,7 @@ describe('Une proposition', () => {
     const p = proposal();
     serve([p]);
     server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
-      { status: 422, code: 'core.invalid', title: 'x', errors: [{ path: 'payload.amount.amount', code: 'core.invalid', message: 'x' }] },
+      { status: 422, code: 'core.invalid', detail: 'x', errors: [{ detail: 'x', pointer: '#/payload/amount/amount', code: 'core.invalid' }] },
       { status: 422 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 

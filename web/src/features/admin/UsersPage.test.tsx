@@ -109,7 +109,7 @@ describe('Administration › Utilisateurs', () => {
   it('shows the problem the server answers', async () => {
     serve([alice]);
     server.use(http.post('*/api/v1/admin/users', () => HttpResponse.json(
-      { status: 422, code: 'core.email_taken', title: 'Another adult already has this email address.' }, { status: 422 })));
+      { status: 422, code: 'core.email_taken', detail: 'Another adult already has this email address.' }, { status: 422 })));
     const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
 
     await user.click(await screen.findByRole('button', { name: 'Ajouter un adulte' }));
@@ -237,7 +237,7 @@ describe('Administration › Utilisateurs, rôle admin réglé dans Nid (issue 2
     server.use(http.put('*/api/v1/admin/users/:id/admin', () => {
       calls += 1;
       return calls === 1
-        ? HttpResponse.json({ status: 409, code: 'core.last_admin', title: 'The household must keep at least one admin.' }, { status: 409 })
+        ? HttpResponse.json({ status: 409, code: 'core.last_admin', detail: 'The household must keep at least one admin.' }, { status: 409 })
         : HttpResponse.json({ ...alice, isAdmin: false });
     }));
     const { user, location } = await renderApp('/admin/users', { capabilities: adminCapabilities });

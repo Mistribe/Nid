@@ -209,7 +209,7 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await JsonAsync(response);
         Assert.Equal(code, body.GetProperty("code").GetString());
-        Assert.Equal("category", body.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("category", body.GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]

@@ -31,7 +31,7 @@ describe('arrears letter page', () => {
     // Coming from the property, its name is already in the cache: no request names it.
     server.use(
       http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
-      http.get('*/api/v1/realestate/properties/:id/arrears', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })),
+      http.get('*/api/v1/realestate/properties/:id/arrears', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })),
     );
     const { router } = await renderApp(`/properties/${PROPERTY}`);
     await screen.findByRole('heading', { level: 1, name: 'Maison de Nantes' });

@@ -197,7 +197,7 @@ describe('ItemDocuments', () => {
 
     it('warns of a file already in Nid: « Lier l’existant » links that document with the chosen type and uploads nothing', async () => {
       const existing = summary({ id: D3, title: 'Bail 2024', documentDate: '2024-09-01', archived: true, links: [link({ targetId: OTHER_ITEM, anchorItemId: OTHER_ITEM, label: 'Studio Lyon' })] });
-      const api = serve({ upload: () => HttpResponse.json({ status: 409, code: 'documents.duplicate', title: 'Duplicate.', duplicate: existing }, { status: 409 }) });
+      const api = serve({ upload: () => HttpResponse.json({ status: 409, code: 'documents.duplicate', detail: 'Duplicate.', duplicate: existing }, { status: 409 }) });
       const { user } = await renderItem();
       const dialog = await open(user);
       await user.upload(within(dialog).getByLabelText('Fichiers'), pdf('bail.pdf'));
@@ -217,7 +217,7 @@ describe('ItemDocuments', () => {
     it('« Ajouter quand même » uploads the file again without asking to be warned', async () => {
       const existing = summary({ id: D3, title: 'Bail 2024', links: [] });
       const api = serve({ upload: () => api.writes.length === 1
-        ? HttpResponse.json({ status: 409, code: 'documents.duplicate', title: 'Duplicate.', duplicate: existing }, { status: 409 })
+        ? HttpResponse.json({ status: 409, code: 'documents.duplicate', detail: 'Duplicate.', duplicate: existing }, { status: 409 })
         : HttpResponse.json({ id: D2 }, { status: 201 }) });
       const { user } = await renderItem();
       const dialog = await open(user);
@@ -234,7 +234,7 @@ describe('ItemDocuments', () => {
     });
 
     it('words a refused file as the documents page does', async () => {
-      serve({ upload: () => HttpResponse.json({ status: 415, code: 'documents.unsupported_type', title: 'Unsupported.' }, { status: 415 }) });
+      serve({ upload: () => HttpResponse.json({ status: 415, code: 'documents.unsupported_type', detail: 'Unsupported.' }, { status: 415 }) });
       const { user } = await renderItem();
       await user.click(await screen.findByRole('button', { name: 'Déposer' }));
       const dialog = await screen.findByRole('dialog', { name: 'Déposer un document' });
@@ -310,7 +310,7 @@ describe('ItemDocuments', () => {
     it('says which file failed, keeps the dialog open, and sends only that one again', async () => {
       let broken = true;
       const api = serve({ upload: (name) => (name === 'b.pdf' && broken
-        ? HttpResponse.json({ status: 413, code: 'documents.too_large', title: 'Too large.' }, { status: 413 })
+        ? HttpResponse.json({ status: 413, code: 'documents.too_large', detail: 'Too large.' }, { status: 413 })
         : HttpResponse.json({ id: D2 }, { status: 201 })) });
       const { user } = await renderItem();
       const dialog = await open(user);
@@ -372,7 +372,7 @@ describe('ItemDocuments', () => {
 
     it('keeps a sent file when the list is cleared after a failure', async () => {
       const api = serve({ upload: (name) => (name === 'b.pdf'
-        ? HttpResponse.json({ status: 413, code: 'documents.too_large', title: 'Too large.' }, { status: 413 })
+        ? HttpResponse.json({ status: 413, code: 'documents.too_large', detail: 'Too large.' }, { status: 413 })
         : HttpResponse.json({ id: D2 }, { status: 201 })) });
       const { user } = await renderItem();
       const dialog = await open(user);

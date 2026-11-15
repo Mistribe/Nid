@@ -24,7 +24,7 @@ describe('GoalDetailPage', () => {
     await waitFor(() => expectTrailBack('Objectifs', '/goals'));
     cleanup();
 
-    server.use(http.get('*/api/v1/goals/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/goals/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/goals/${GOAL}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Objectifs', '/goals'));
@@ -216,7 +216,7 @@ describe('GoalDetailPage', () => {
 
   it('says why a reopen is refused', async () => {
     serve(detail({}, { closed: true }));
-    server.use(http.post('*/api/v1/goals/:id/reopen', () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', title: 'Over.' }, { status: 409 })));
+    server.use(http.post('*/api/v1/goals/:id/reopen', () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', detail: 'Over.' }, { status: 409 })));
     const { user } = await renderApp(`/goals/${GOAL}`);
     await user.click(await screen.findByRole('button', { name: 'Rouvrir' }));
     expect(await screen.findByText('Ses enveloppes sont déjà affectées à plus de 100 % : baissez une part avant de rouvrir.')).toBeInTheDocument();
@@ -232,7 +232,7 @@ describe('GoalDetailPage', () => {
 
   it('shows a failed delete on its own row only', async () => {
     serve(free({ entries: [{ on: '2026-09-01', amount: eur('1500.0000') }, { on: '2026-08-01', amount: eur('1000.0000') }] }));
-    server.use(http.delete('*/api/v1/goals/:id/progress/:on', () => HttpResponse.json({ status: 409, code: 'goals.goal_closed', title: 'Closed.' }, { status: 409 })));
+    server.use(http.delete('*/api/v1/goals/:id/progress/:on', () => HttpResponse.json({ status: 409, code: 'goals.goal_closed', detail: 'Closed.' }, { status: 409 })));
     const { user } = await renderApp(`/goals/${GOAL}`);
     const table = await screen.findByRole('table', { name: 'Relevés' });
     await user.click(within(table).getByRole('button', { name: /Actions pour le relevé du 1 septembre 2026/ }));

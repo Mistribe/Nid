@@ -76,7 +76,7 @@ describe('the notifications page', () => {
     const posted: unknown[] = [];
     server.use(http.post('*/api/v1/platform/notifications/:id/snooze', async ({ request }) => {
       posted.push(await request.json());
-      return HttpResponse.json({ status: 422, code: 'validation', errors: [{ path: 'until', code: 'notifications.invalid_snooze', message: 'invalid' }] }, { status: 422 });
+      return HttpResponse.json({ status: 422, code: 'validation', errors: [{ detail: 'invalid', pointer: '#/until', code: 'notifications.invalid_snooze' }] }, { status: 422 });
     }));
     const { user } = await renderApp('/notifications');
 

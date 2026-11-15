@@ -40,7 +40,7 @@ describe('ChildcareDetailPage', () => {
     await waitFor(() => expectTrailBack('Garde', '/childcare'));
     cleanup();
 
-    server.use(http.get('*/api/v1/childcare/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/childcare/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(url);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Garde', '/childcare'));
@@ -299,7 +299,7 @@ describe('ChildcareDetailPage', () => {
   });
 
   it('a conflict on edit says the arrangement changed', async () => {
-    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', title: 'Conflict', status: 409, code: 'childcare.conflict' }, { status: 409 }));
+    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', detail: 'Conflict', status: 409, code: 'childcare.conflict' }, { status: 409 }));
     const { user } = await renderApp(url);
     await user.click(await screen.findByRole('button', { name: 'Modifier' }));
     const dialog = await screen.findByRole('dialog');
@@ -325,9 +325,9 @@ describe('ChildcareDetailPage', () => {
   });
 
   it('a revision refused on its date or its weeks says why', async () => {
-    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', title: 'Unprocessable', status: 422, code: 'request.invalid', errors: [
-      { path: 'terms.from', code: 'childcare.revision_not_after', message: 'A revision starts after the current terms\' start.' },
-      { path: 'gaps', code: 'childcare.gaps_too_many', message: 'Too many.' },
+    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', detail: 'Unprocessable', status: 422, code: 'request.invalid', errors: [
+      { detail: 'A revision starts after the current terms\' start.', pointer: '#/terms/from', code: 'childcare.revision_not_after' },
+      { detail: 'Too many.', pointer: '#/gaps', code: 'childcare.gaps_too_many' },
     ] }, { status: 422 }));
     const { user } = await renderApp(url);
     await user.click(await screen.findByRole('button', { name: 'Réviser' }));

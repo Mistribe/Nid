@@ -86,7 +86,7 @@ describe('Réglages › Personnes', () => {
   it('shows a server error on the months field', async () => {
     serve();
     server.use(http.put('*/api/v1/core/persons/:id/retirement', () => HttpResponse.json(
-      { status: 422, code: 'core.invalid_retirement_age', errors: [{ path: 'retirementMonths', code: 'core.invalid_retirement_age', message: 'Mois hors limites.' }] },
+      { status: 422, code: 'core.invalid_retirement_age', errors: [{ detail: 'Mois hors limites.', pointer: '#/retirementMonths', code: 'core.invalid_retirement_age' }] },
       { status: 422, headers: { 'content-type': 'application/problem+json' } })));
     const { user } = await renderApp('/settings/persons');
 
@@ -122,7 +122,7 @@ describe('Réglages › Personnes', () => {
       const body = (await request.json()) as { displayName: string };
       names.push(body);
       if (body.displayName.trim() === '') return HttpResponse.json(
-        { status: 422, code: 'core.name_required', title: 'A name is required.', errors: [{ path: 'displayName', code: 'core.name_required', message: 'A name is required.' }] },
+        { status: 422, code: 'core.name_required', detail: 'A name is required.', errors: [{ detail: 'A name is required.', pointer: '#/displayName', code: 'core.name_required' }] },
         { status: 422, headers: { 'content-type': 'application/problem+json' } });
       persons[2] = { ...lea, displayName: body.displayName };
       return HttpResponse.json(persons[2]);
@@ -170,7 +170,7 @@ describe('Réglages › Personnes', () => {
   it('says in plain words what still keeps a child in the household', async () => {
     serve();
     server.use(http.delete('*/api/v1/core/persons/dependents/:id', () => HttpResponse.json(
-      { status: 409, code: 'core.person_in_use', title: 'Léa Martin is still named elsewhere: ownerships, childcare.', uses: ['ownerships', 'childcare'] },
+      { status: 409, code: 'core.person_in_use', detail: 'Léa Martin is still named elsewhere: ownerships, childcare.', uses: ['ownerships', 'childcare'] },
       { status: 409, headers: { 'content-type': 'application/problem+json' } })));
     const { user } = await renderApp('/settings/persons');
 
@@ -211,7 +211,7 @@ describe('Réglages › Personnes', () => {
     const sent: unknown[] = [];
     server.use(http.post('*/api/v1/core/persons/dependents', async ({ request }) => {
       sent.push(await request.json());
-      return HttpResponse.json({ status: 400, code: 'core.name_required', title: 'A name is required.', traceId: '00-t-24' }, { status: 400 });
+      return HttpResponse.json({ status: 400, code: 'core.name_required', detail: 'A name is required.', traceId: '00-t-24' }, { status: 400 });
     }));
     const { user } = await renderApp('/settings/persons');
 

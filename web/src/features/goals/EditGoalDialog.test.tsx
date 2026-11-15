@@ -45,7 +45,7 @@ describe('EditGoalDialog', () => {
 
   it('says the goal changed on a stale version', async () => {
     const puts: unknown[] = [];
-    serve(detail({ version: 7 }), puts, () => HttpResponse.json({ status: 409, code: 'goals.conflict', title: 'Changed.' }, { status: 409 }));
+    serve(detail({ version: 7 }), puts, () => HttpResponse.json({ status: 409, code: 'goals.conflict', detail: 'Changed.' }, { status: 409 }));
     const { user } = await renderApp(`/goals/${GOAL}`);
     await open(user);
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
@@ -81,7 +81,7 @@ describe('EditGoalDialog', () => {
         puts.push(await request.json());
         if (puts.length > 1) return HttpResponse.json(current);
         current = detail({ version: 8 }, { name: 'Renommé ailleurs' });
-        return HttpResponse.json({ status: 409, code: 'goals.conflict', title: 'Changed.' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'goals.conflict', detail: 'Changed.' }, { status: 409 });
       }),
     );
     const { user } = await renderApp(`/goals/${GOAL}`);

@@ -45,7 +45,7 @@ describe('A proposal to delete a goal', () => {
         // The refusal leaves its warning on the proposal: a new version.
         refused = true;
         current = { ...current, version: current.version + 1, warnings: [{ code: 'apply_failed', severity: 'error', message: 'core.item_changed: Changed.' }] };
-        return HttpResponse.json({ status: 409, code: 'core.item_changed', title: 'Changed.' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'core.item_changed', detail: 'Changed.' }, { status: 409 });
       }),
     );
     const { user, router } = await renderApp(`/proposals/${p.id}`);

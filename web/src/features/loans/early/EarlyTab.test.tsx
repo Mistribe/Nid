@@ -92,7 +92,7 @@ describe('Crédits › rembourser plus tôt', () => {
 
   it('shows a refusal under its own field', async () => {
     serve(() => HttpResponse.json(
-      { status: 422, code: 'request.validation', errors: [{ path: 'amount', code: 'realestate.event_above_balance', message: 'above' }] },
+      { status: 422, code: 'request.validation', errors: [{ detail: 'above', pointer: '#/amount', code: 'realestate.event_above_balance' }] },
       { status: 422 }));
     const { user } = await renderApp('/loans?tab=early');
 

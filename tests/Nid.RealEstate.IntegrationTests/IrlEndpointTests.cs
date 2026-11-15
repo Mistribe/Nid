@@ -73,7 +73,7 @@ public class IrlEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var notANumber = await app.RawAsync(app.AdultA, HttpMethod.Put, List + "/2025/2", new { value = "abc", publishedOn = "2025-07-13" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, notANumber.StatusCode);
         var noDate = await app.RawAsync(app.AdultA, HttpMethod.Put, List + "/2025/2", new { value = "146.68" });
-        Assert.Equal("publishedOn", JsonDocument.Parse(await noDate.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("publishedOn", JsonDocument.Parse(await noDate.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]

@@ -21,7 +21,7 @@ export function statementError(t: TFunction, error: unknown): string {
   const problem = toProblem(error);
   const fields = fieldErrorsOf(error);
   if (fields.length > 0) return fields.map((f) => t(`childcare_statement.problem.${f.code.replaceAll('.', '_')}`, { defaultValue: f.message })).join(' ');
-  return t(`childcare_statement.error.${(problem.code ?? '').replaceAll('.', '_')}`, { defaultValue: problem.title ?? '' });
+  return t(`childcare_statement.error.${(problem.code ?? '').replaceAll('.', '_')}`, { defaultValue: problem.detail ?? '' });
 }
 
 const STATES = { none: 'childcare_statement.state_none', draft: 'childcare_statement.state_draft', validated: 'childcare_statement.state_validated' } as const;

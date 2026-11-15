@@ -403,7 +403,7 @@ describe('recording values and flows', () => {
     // A failed correction adds no toast.
     server.use(
       http.put('*/api/v1/investments/envelopes/:id/flows/:flowId', () =>
-        HttpResponse.json({ status: 409, code: 'core.fact_conflict', title: 'Someone changed this meanwhile.' }, { status: 409 })),
+        HttpResponse.json({ status: 409, code: 'core.fact_conflict', detail: 'Someone changed this meanwhile.' }, { status: 409 })),
     );
     await rowAction(user, table, OPENING_ROW, 'Corriger');
     edit = within(await screen.findByRole('dialog', { name: 'Corriger le flux' }));
@@ -419,7 +419,7 @@ describe('recording values and flows', () => {
     server.use(
       http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(detail())),
       http.delete('*/api/v1/investments/envelopes/:id/valuations/:valuationId', () =>
-        HttpResponse.json({ status: 409, code: 'core.fact_retired', title: 'This value was already corrected or voided.' }, { status: 409 })),
+        HttpResponse.json({ status: 409, code: 'core.fact_retired', detail: 'This value was already corrected or voided.' }, { status: 409 })),
     );
     const { user } = await renderApp(`/investments/${PEA}?tab=values`);
 
@@ -434,7 +434,7 @@ describe('recording values and flows', () => {
     server.use(
       http.get('*/api/v1/investments/envelopes/:id', () => { getCalls += 1; return HttpResponse.json(detail()); }),
       http.delete('*/api/v1/investments/envelopes/:id/valuations/:valuationId', () =>
-        HttpResponse.json({ status: 409, code: 'core.fact_retired', title: 'This value was already corrected or voided.' }, { status: 409 })),
+        HttpResponse.json({ status: 409, code: 'core.fact_retired', detail: 'This value was already corrected or voided.' }, { status: 409 })),
     );
     const { user } = await renderApp(`/investments/${PEA}?tab=values`);
 
@@ -453,7 +453,7 @@ describe('recording values and flows', () => {
     serve(detail(), []);
     server.use(
       http.post('*/api/v1/investments/envelopes/:id/flows', () =>
-        HttpResponse.json({ status: 409, code: 'core.opening_exists', title: 'The opening is already recorded.' }, { status: 409 })),
+        HttpResponse.json({ status: 409, code: 'core.opening_exists', detail: 'The opening is already recorded.' }, { status: 409 })),
     );
     const { user } = await renderApp(`/investments/${PEA}`);
 
@@ -469,7 +469,7 @@ describe('recording values and flows', () => {
     serve(detail(), []);
     server.use(
       http.post('*/api/v1/investments/envelopes/:id/valuations', () =>
-        HttpResponse.json({ status: 422, code: 'core.date_in_future', title: 'A value or a flow is not dated after today.' }, { status: 422 })),
+        HttpResponse.json({ status: 422, code: 'core.date_in_future', detail: 'A value or a flow is not dated after today.' }, { status: 422 })),
     );
     const { user } = await renderApp(`/investments/${PEA}`);
 

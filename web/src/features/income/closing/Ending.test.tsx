@@ -17,7 +17,7 @@ function serve(initial: IncomeSourceDetail = detail()) {
       const body = (await request.json()) as { endedOn: string };
       bodies.push(body);
       if (current.phases.some((p) => p.startsOn > body.endedOn))
-        return HttpResponse.json({ status: 422, code: 'income.invalid_source', title: 'x', errors: [{ path: 'endedOn', code: 'income.invalid_source', message: 'x' }] }, { status: 422 });
+        return HttpResponse.json({ status: 422, code: 'income.invalid_source', detail: 'x', errors: [{ detail: 'x', pointer: '#/endedOn', code: 'income.invalid_source' }] }, { status: 422 });
       current = {
         ...current, ended: true, endedOn: body.endedOn,
         phases: current.phases.map((p) => (p.status === 'running' ? { ...p, endsOn: body.endedOn, status: 'past' } : p)),

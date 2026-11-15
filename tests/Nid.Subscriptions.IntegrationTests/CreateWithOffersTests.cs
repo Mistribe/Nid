@@ -40,7 +40,7 @@ public class CreateWithOffersTests(PostgresFixture fixture) : IClassFixture<Post
 
     private static async Task<List<(string Path, string Code)>> ErrorsOf(HttpResponseMessage response)
         => (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray()
-            .Select(e => (e.GetProperty("path").GetString()!, e.GetProperty("code").GetString()!)).ToList();
+            .Select(e => (e.FieldPath()!, e.GetProperty("code").GetString()!)).ToList();
 
     private static Task<SubscriptionApi.DetailResponse> Detail(NidApp app, Guid id, string to = "2027-06-01")
         => app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id}?from=2025-01-01&to={to}");
