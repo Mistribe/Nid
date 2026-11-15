@@ -6,8 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="NodaTime" Version="3.3.7" />
-    <PackageVersion Include="UnambitiousFx.Functional" Version="4.0.0" />
-    <PackageVersion Include="UnambitiousFx.Functional.AspNetCore" Version="4.0.0" />
+    <PackageVersion Include="UnambitiousFx.Functional" Version="4.0.1" />
+    <PackageVersion Include="UnambitiousFx.Functional.AspNetCore" Version="4.0.1" />
     <PackageVersion Include="UnambitiousFx.Myelin" Version="1.1.0" />
     <PackageVersion Include="UnambitiousFx.Engram" Version="1.1.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />

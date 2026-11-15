@@ -52,9 +52,10 @@ public class ProblemMappingTests
         var (_, goal) = Map(new Failure(GoalsCodes.Conflict, "Someone changed this goal.", null));
 
         Assert.Equal("The envelope is closed.", closed.Detail);
-        Assert.Equal(closed.Title, changed.Title);
         Assert.Equal("Someone changed this goal.", goal.Detail);
-        Assert.DoesNotContain(goal.Detail!, goal.Title, StringComparison.Ordinal);
+        // Typed or mapped by its code, a 409 is titled by its status (RFC 9457 §4.2.1, Functional 4.0.1).
+        Assert.Equal(["Conflict", "Conflict", "Conflict"], new[] { closed.Title, changed.Title, goal.Title });
+        Assert.Equal("Unprocessable Entity", Map(new Failure("core.something_new", "Refused.", null)).Body.Title); // ASP.NET Core's phrase
         Assert.Equal(InvestmentsCodes.EnvelopeClosed, closed.Extensions["code"]);
     }
 
