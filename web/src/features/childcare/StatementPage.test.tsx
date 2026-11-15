@@ -52,6 +52,14 @@ describe('StatementPage', () => {
     await waitFor(() => expectTrailBack('Garde de Léa', `/childcare/${ARRANGEMENT_ID}`));
     expectTrailBack('Garde', '/childcare');
   });
+  it("the arrows by the title lead to the contract's neighbouring months, disabled at either end", async () => {
+    serve(statement());
+    server.use(http.get('*/api/v1/childcare/:id/statements', () => HttpResponse.json(statements())));
+    await renderApp(url);
+    const next = await screen.findByRole('link', { name: 'Mois suivant : octobre 2025' });
+    expect(next).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}/statements/2025-10`);
+    expect(screen.getByRole('button', { name: 'Pas de mois précédent' })).toBeDisabled();
+  });
   it("shows the server's declaration", async () => {
     serve(statement());
     await renderApp(url);
