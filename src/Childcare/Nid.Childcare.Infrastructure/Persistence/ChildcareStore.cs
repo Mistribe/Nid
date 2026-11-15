@@ -46,7 +46,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         }
         catch (DbUpdateConcurrencyException)
         {
-            return Result.Failure(new Failure(ChildcareCodes.Conflict, "The arrangement changed since it was read.", null));
+            return Result.Failure(new ConflictFailure("The arrangement changed since it was read.") { Code = ChildcareCodes.Conflict });
         }
     }
 
@@ -171,7 +171,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             if (draft.Version == 0 || row.Version != draft.Version)
                 return StatementConflict();
             if (row.Validated)
-                return Result.Failure(new Failure(ChildcareCodes.StatementValidated, "A validated statement is read only.", null));
+                return Result.Failure(new ConflictFailure("A validated statement is read only.") { Code = ChildcareCodes.StatementValidated });
             db.Entry(row).Property(r => r.Version).OriginalValue = draft.Version;
             db.Entry(row).Property(r => r.Mileage).IsModified = true;
         }
@@ -192,7 +192,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         if (row is null || row.Version != version)
             return StatementConflict();
         if (row.Validated)
-            return Result.Failure(new Failure(ChildcareCodes.StatementValidated, "The statement is already validated.", null));
+            return Result.Failure(new ConflictFailure("The statement is already validated.") { Code = ChildcareCodes.StatementValidated });
         db.Entry(row).Property(r => r.Version).OriginalValue = version;
         var d = figures.Declaration;
         row.Validated = true;
@@ -269,7 +269,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         }
     }
 
-    private static Result StatementConflict() => Result.Failure(new Failure(ChildcareCodes.StatementConflict, "The statement changed since it was read.", null));
+    private static Result StatementConflict() => Result.Failure(new ConflictFailure("The statement changed since it was read.") { Code = ChildcareCodes.StatementConflict });
 
     private static Statement ToStatement(StatementRow r, IReadOnlyList<StatementDay> days)
         => new(new ItemId(r.ItemId), r.Month.ToYearMonth(), r.Validated, r.Mileage, r.Cmg, days,

@@ -133,7 +133,7 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
             return Result.Failure<ItemId>(failure!);
         // Checked here too: the store's token only sees a write that reaches the row.
         if (arrangement.Version != command.Version)
-            return Result.Failure<ItemId>(new Failure(ChildcareCodes.Conflict, "The arrangement changed since it was read.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("The arrangement changed since it was read.") { Code = ChildcareCodes.Conflict });
 
         var at = command.Revision is { } start ? revisions.ToList().FindIndex(r => r.From == start) : revisions.Count - 1;
         if (at < 0)
@@ -328,7 +328,7 @@ public sealed class ReopenChildcareHandler(IItemRegistry items, IChildcareStore 
             return Result.Failure<ItemId>(failure!);
         loaded.TryGetValue(out var found);
         if (found.Item.ArchivedAt is null)
-            return Result.Failure<ItemId>(new Failure(ChildcareCodes.Open, "This arrangement is not closed.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("This arrangement is not closed.") { Code = ChildcareCodes.Open });
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.SetEndAsync(command.ItemId, null, ct);
