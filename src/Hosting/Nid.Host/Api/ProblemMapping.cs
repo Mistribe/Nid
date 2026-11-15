@@ -69,9 +69,7 @@ public static class ProblemMapping
             CoreFactCodes.FactRetired, CoreFactCodes.OpeningExists, CoreFactCodes.ExternalRefTaken, CoreFactCodes.FactConflict,
             InvestmentsCodes.HoldingClosed, InvestmentsCodes.SnapshotExists,
             IncomeCodes.SourceEnded,
-            ChildcareCodes.Closed, ChildcareCodes.Open, ChildcareCodes.Conflict, ChildcareCodes.StatementValidated,
-            ChildcareCodes.StatementIncomplete, ChildcareCodes.NextValidated, ChildcareCodes.PreviousNotValidated,
-            ChildcareCodes.StatementConflict,
+            ChildcareCodes.StatementValidated, // a week of a validated month names its field (monday)
             GoalsCodes.GoalClosed, GoalsCodes.GoalOpen, GoalsCodes.ShareExceeded, GoalsCodes.Conflict,
             LoanCodes.LoanConflict, LoanCodes.FeeConflict, LoanCodes.RepaymentConflict,
             PropertyCodes.PropertyConflict, PropertyCodes.RecurringCostConflict, PropertyCodes.TenancyConflict,

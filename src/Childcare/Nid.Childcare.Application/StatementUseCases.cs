@@ -106,20 +106,20 @@ public sealed class ValidateStatementHandler(StatementAssembly assembly, IChildc
         loaded.TryGetValue(out var context);
         var stored = context!.StoredMonth;
         if (stored is { Validated: true })
-            return Result.Failure<ChildcareStatementView>(new Failure(ChildcareCodes.StatementValidated, "The statement is already validated.", null));
+            return Result.Failure<ChildcareStatementView>(new ConflictFailure("The statement is already validated.") { Code = ChildcareCodes.StatementValidated });
         var previous = command.Month.PlusMonths(-1);
         if (Domain.StatementContext.Months(context.Contract.Start, context.Contract.End, context.Today).Contains(previous)
             && !context.Stored.Any(s => s.Month == previous && s.Validated))
-            return Result.Failure<ChildcareStatementView>(new Failure(ChildcareCodes.PreviousNotValidated,
-                "Validate the previous month first: this one's sick-child quota and first week depend on it.", null));
+            return Result.Failure<ChildcareStatementView>(new ConflictFailure(
+                "Validate the previous month first: this one's sick-child quota and first week depend on it.") { Code = ChildcareCodes.PreviousNotValidated });
         if (stored?.Cmg is null)
             return Result.Failure<ChildcareStatementView>(FieldErrors.Shape([new("cmg", ChildcareCodes.CmgRequired, "Enter the CMG of the Pajemploi summary, 0 if none.")]));
 
         var (days, stale) = await assembly.DaysAsync(context, ct);
         var evaluation = await assembly.EvaluateAsync(context, days, stale, stored.Mileage, stored.Cmg, stored.Declared, stored.Contributions ?? 0m, stored.Exemption, ct);
         if (evaluation.Figures is not { } figures)
-            return Result.Failure<ChildcareStatementView>(new Failure(ChildcareCodes.StatementIncomplete,
-                "A day is inconsistent or a month of the reference period is not validated.", null));
+            return Result.Failure<ChildcareStatementView>(new ConflictFailure(
+                "A day is inconsistent or a month of the reference period is not validated.") { Code = ChildcareCodes.StatementIncomplete });
 
         var validated = await StatementResult.InTransactionAsync(unitOfWork, () => store.ValidateAsync(command.ItemId, command.Month, figures, days, command.Version, ct), ct);
         if (validated.TryGetFailure(out failure))
@@ -139,7 +139,7 @@ public sealed class ReopenStatementHandler(StatementAssembly assembly, IChildcar
             return Result.Failure<ChildcareStatementView>(failure!);
         loaded.TryGetValue(out var context);
         if (context!.Stored.Any(s => s.Month == command.Month.PlusMonths(1) && s.Validated))
-            return Result.Failure<ChildcareStatementView>(new Failure(ChildcareCodes.NextValidated, "The next month is validated: reopen it first.", null));
+            return Result.Failure<ChildcareStatementView>(new ConflictFailure("The next month is validated: reopen it first.") { Code = ChildcareCodes.NextValidated });
 
         if (context.StoredMonth is { Validated: true })
             await StatementResult.InTransactionAsync(unitOfWork, async () => { await store.ReopenAsync(command.ItemId, command.Month, ct); return Result.Success(); }, ct);
@@ -158,7 +158,7 @@ public sealed class DiscardStatementHandler(StatementAssembly assembly, IChildca
             return Result.Failure<ChildcareStatementView>(failure!);
         loaded.TryGetValue(out var context);
         if (context!.StoredMonth is { Validated: true })
-            return Result.Failure<ChildcareStatementView>(new Failure(ChildcareCodes.StatementValidated, "Reopen the statement first.", null));
+            return Result.Failure<ChildcareStatementView>(new ConflictFailure("Reopen the statement first.") { Code = ChildcareCodes.StatementValidated });
 
         await StatementResult.InTransactionAsync(unitOfWork, async () => { await store.DiscardAsync(command.ItemId, command.Month, ct); return Result.Success(); }, ct);
         return await StatementResult.ViewAsync(assembly, actor, command.ItemId, command.Month, ct);
