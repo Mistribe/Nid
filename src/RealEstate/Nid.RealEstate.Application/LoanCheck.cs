@@ -33,5 +33,5 @@ internal static class LoanCheck
             : null;
 
     public static Failure Conflict(string code, string what)
-        => new(code, $"Someone else changed this {what} since you read it; read it again.", null);
+        => new ConflictFailure($"Someone else changed this {what} since you read it; read it again.") { Code = code };
 }
