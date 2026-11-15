@@ -904,6 +904,17 @@ public static class RequestCatalogue
             where TResponse : notnull
             => this;
 
+        public IDependencyInjectionBuilder RegisterResultPipelineBehavior<TBehavior, TRequest>()
+            where TBehavior : class, IResultPipelineBehavior<TRequest, UnambitiousFx.Functional.Result>
+            where TRequest : IRequest
+            => this;
+
+        public IDependencyInjectionBuilder RegisterResultPipelineBehavior<TBehavior, TRequest, TResponse>()
+            where TBehavior : class, IResultPipelineBehavior<TRequest, UnambitiousFx.Functional.Result<TResponse>>
+            where TRequest : IRequest<TResponse>
+            where TResponse : notnull
+            => this;
+
         public IDependencyInjectionBuilder RegisterStreamRequestPipelineBehavior<TBehavior, TRequest, TItem>()
             where TBehavior : class, IStreamRequestPipelineBehavior<TRequest, TItem>
             where TRequest : IStreamRequest<TItem>
