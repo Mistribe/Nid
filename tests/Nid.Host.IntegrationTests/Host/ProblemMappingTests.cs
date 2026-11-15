@@ -26,9 +26,20 @@ public class ProblemMappingTests
     }
 
     [Fact]
+    public void A_typed_refusal_keeps_its_domain_code_and_takes_its_status_from_its_type()
+    {
+        var (conflict, closed) = Map(new ConflictFailure("This envelope is closed: reopen it first.") { Code = InvestmentsCodes.EnvelopeClosed });
+        var (badRequest, period) = Map(new BadRequestFailure("The period's start is after its end.") { Code = InvestmentsCodes.InvalidPeriod });
+
+        Assert.Equal((409, InvestmentsCodes.EnvelopeClosed), (conflict, closed.Extensions["code"]));
+        Assert.Equal((400, InvestmentsCodes.InvalidPeriod), (badRequest, period.Extensions["code"]));
+        Assert.False(closed.Extensions.ContainsKey("errors"));
+    }
+
+    [Fact]
     public void A_listed_code_keeps_its_status_and_a_plain_refusal_is_422()
     {
-        Assert.Equal(409, Map(new Failure(InvestmentsCodes.EnvelopeClosed, "Closed.", null)).Status);
+        Assert.Equal(409, Map(new Failure(InvestmentsCodes.SnapshotExists, "Another snapshot has this date.", null)).Status);
         Assert.Equal(403, Map(new Failure(AdminCodes.Required, "Admins only.", null)).Status);
         Assert.Equal(422, Map(new Failure("core.something_new", "Refused.", null)).Status);
     }
@@ -36,11 +47,15 @@ public class ProblemMappingTests
     [Fact]
     public void The_sentence_is_in_detail_and_the_title_names_the_status()
     {
-        var (_, closed) = Map(new Failure(InvestmentsCodes.EnvelopeClosed, "The envelope is closed.", null));
-        var (_, other) = Map(new Failure(GoalsCodes.Conflict, "Someone changed this goal.", null));
+        var (_, closed) = Map(new ConflictFailure("The envelope is closed.") { Code = InvestmentsCodes.EnvelopeClosed });
+        var (_, changed) = Map(new ConflictFailure("This holding was changed since you read it: reload it.") { Code = InvestmentsCodes.HoldingConflict });
+        var (_, goal) = Map(new Failure(GoalsCodes.Conflict, "Someone changed this goal.", null));
 
         Assert.Equal("The envelope is closed.", closed.Detail);
-        Assert.Equal(closed.Title, other.Title);
+        Assert.Equal("Someone changed this goal.", goal.Detail);
+        // Typed or mapped by its code, a 409 is titled by its status (RFC 9457 §4.2.1, Functional 4.0.1).
+        Assert.Equal(["Conflict", "Conflict", "Conflict"], new[] { closed.Title, changed.Title, goal.Title });
+        Assert.Equal("Unprocessable Entity", Map(new Failure("core.something_new", "Refused.", null)).Body.Title); // ASP.NET Core's phrase
         Assert.Equal(InvestmentsCodes.EnvelopeClosed, closed.Extensions["code"]);
     }
 

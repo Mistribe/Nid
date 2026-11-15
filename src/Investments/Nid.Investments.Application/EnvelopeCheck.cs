@@ -24,5 +24,5 @@ internal static class EnvelopeCheck
 
     public static Result RequireOpen(ItemAccess item)
         => item.ArchivedAt is null ? Result.Success()
-            : Result.Failure(new Failure(InvestmentsCodes.EnvelopeClosed, "This envelope is closed: reopen it first.", null));
+            : Result.Failure(new ConflictFailure("This envelope is closed: reopen it first.") { Code = InvestmentsCodes.EnvelopeClosed });
 }

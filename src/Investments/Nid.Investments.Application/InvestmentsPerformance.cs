@@ -56,8 +56,8 @@ public sealed class GetInvestmentsPerformanceHandler(InvestmentsPeriodReader per
     {
         var today = await calendar.TodayAsync(ct);
         if (query.From >= query.To || query.To > today)
-            return Result.Failure<InvestmentsPerformance>(new Failure(InvestmentsCodes.InvalidPeriod,
-                "The period's start must be before its end, and its end no later than today.", null));
+            return Result.Failure<InvestmentsPerformance>(new BadRequestFailure(
+                "The period's start must be before its end, and its end no later than today.") { Code = InvestmentsCodes.InvalidPeriod });
 
         return (await period.ReadAsync(actor.Current!.PersonId!.Value, query.Scope, query.From, query.To, ct)).Map(figures => figures.ToView());
     }

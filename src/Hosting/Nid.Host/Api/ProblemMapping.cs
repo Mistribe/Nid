@@ -20,8 +20,11 @@ namespace Nid.Host.Api;
 /// <summary>
 /// #250: how a failure becomes Problem Details (RFC 9457). Functional's mapper writes the body: a fixed <c>title</c> per
 /// status, the failure's sentence in <c>detail</c>, its <c>code</c>, and for refused fields an <c>errors</c> list of
-/// <c>{ detail, pointer, code }</c>. The status comes from the failure's type (not found, forbidden…), unless its code is
-/// listed below; a plain <see cref="Failure"/> is a rule's refusal, 422.
+/// <c>{ detail, pointer, code }</c>. The status comes from the failure's type (not found, forbidden, conflict, bad
+/// request…), unless its code is listed below; a plain <see cref="Failure"/> is a rule's refusal, 422.
+/// A refusal that names no field is typed where it is made (<c>new ConflictFailure("…") { Code = … }</c>) and has no
+/// entry here. One that names a field stays a field error, so that its <c>errors</c> list is written, and keeps its status
+/// here (Investments: a closed holding, a snapshot date taken, a transfer leg, an income category, shares off 100 %, a holding with no market exposure).
 /// </summary>
 public static class ProblemMapping
 {
@@ -44,8 +47,7 @@ public static class ProblemMapping
             LocalAccountCodes.LoginInvalid, LocalAccountCodes.PasswordTooShort, LocalAccountCodes.PasswordTooLong,
             LocalAccountCodes.PasswordTooCommon, LocalSignIn.CurrentPasswordWrong, LocalSignIn.InvalidCode,
             FxCodes.InvalidRate, FxCodes.InvalidRange, SeriesCodes.InvalidKey, ExportCodes.BadCursor,
-            InvestmentsCodes.InvalidPeriod, InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.TransferLeg,
-            BreakdownCodes.Not100, BreakdownCodes.NotMarket,
+            InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.TransferLeg, BreakdownCodes.Not100, BreakdownCodes.NotMarket,
             IncomeCodes.InvalidPeriod, IncomeCodes.InvalidYear, ReportCodes.InvalidYear,
             DocumentsCodes.InvalidField, DocumentsCodes.InvalidRole, DocumentsCodes.UnknownTargetKind);
         Map(options, StatusCodes.Status400BadRequest, [.. ImportCodes.BadRequests]);
@@ -64,8 +66,7 @@ public static class ProblemMapping
             IrlCodes.SyncRunning, IrlCodes.Disabled, InflationCodes.SyncRunning, InflationCodes.Disabled,
             ExportCodes.RevisionChanged,
             CoreFactCodes.FactRetired, CoreFactCodes.OpeningExists, CoreFactCodes.ExternalRefTaken, CoreFactCodes.FactConflict,
-            InvestmentsCodes.EnvelopeClosed, InvestmentsCodes.EnvelopeOpen, InvestmentsCodes.HoldingInUse,
-            InvestmentsCodes.HoldingConflict, InvestmentsCodes.HoldingClosed, InvestmentsCodes.SnapshotExists,
+            InvestmentsCodes.HoldingClosed, InvestmentsCodes.SnapshotExists,
             IncomeCodes.SourceEnded, IncomeCodes.SourceOpen, IncomeCodes.PhaseConflict,
             ChildcareCodes.Closed, ChildcareCodes.Open, ChildcareCodes.Conflict, ChildcareCodes.StatementValidated,
             ChildcareCodes.StatementIncomplete, ChildcareCodes.NextValidated, ChildcareCodes.PreviousNotValidated,
