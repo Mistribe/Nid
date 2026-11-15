@@ -1,0 +1,3 @@
+# Test vectors are compared byte for byte (batch hashes shared with the browser, offsets, line numbers):
+# keep them LF on every checkout, whatever core.autocrlf says (Git for Windows defaults it to true).
+tests/vectors/** text=auto eol=lf
