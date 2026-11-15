@@ -91,7 +91,7 @@ public class BreakdownEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
 
         Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
         var error = (await JsonAsync(put)).GetProperty("errors")[0];
-        Assert.Equal("regions", error.GetProperty("path").GetString());
+        Assert.Equal("regions", error.FieldPath());
         Assert.Equal("investments.breakdown_not_100", error.GetProperty("code").GetString());
     }
 

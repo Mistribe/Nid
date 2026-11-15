@@ -572,7 +572,7 @@ describe('a holding’s breakdown', () => {
   it('shows the server’s 100 % refusal under the regions', async () => {
     open(view());
     server.use(http.put(BREAKDOWN, () => HttpResponse.json(
-      { status: 400, code: 'investments.breakdown_not_100', errors: [{ path: 'regions', code: 'investments.breakdown_not_100', message: 'x' }] }, { status: 400 })));
+      { status: 400, code: 'investments.breakdown_not_100', errors: [{ detail: 'x', pointer: '#/regions', code: 'investments.breakdown_not_100' }] }, { status: 400 })));
     const { user } = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
 
     await user.click(await screen.findByRole('button', { name: 'Renseigner' }));

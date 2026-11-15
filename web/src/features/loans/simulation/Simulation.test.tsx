@@ -86,7 +86,7 @@ describe('the simulation', () => {
 
   it('shows a refusal under the field it names', async () => {
     serve(loanDetail(), () => HttpResponse.json(
-      { status: 422, code: 'realestate.event_above_balance', title: 'x', errors: [{ path: 'amount', code: 'realestate.event_above_balance', message: 'x' }] },
+      { status: 422, code: 'realestate.event_above_balance', detail: 'x', errors: [{ detail: 'x', pointer: '#/amount', code: 'realestate.event_above_balance' }] },
       { status: 422 }));
     const { user } = await renderApp(PAGE);
 

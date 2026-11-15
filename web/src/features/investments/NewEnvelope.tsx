@@ -87,7 +87,7 @@ export function NewEnvelope() {
       const known = fieldErrorsOf(error);
       const field = known.length === 0 ? fallbackField(problem.code, form.getValues()) : undefined;
       if (field) {
-        form.setError(field, { type: 'server', message: messageFor(t, { path: field, code: problem.code ?? '', message: problem.title ?? '' }) });
+        form.setError(field, { type: 'server', message: messageFor(t, { path: field, code: problem.code ?? '', message: problem.detail ?? '' }) });
         errors.clear();
       } else {
         errors.onError(error);

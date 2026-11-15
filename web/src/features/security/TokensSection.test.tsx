@@ -105,7 +105,7 @@ describe('Mes jetons', () => {
   it('says so when ten tokens are already active', async () => {
     server.use(
       http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })),
-      http.post('*/api/v1/core/me/tokens', () => HttpResponse.json({ status: 409, code: 'core.token_limit_reached', title: 'x' }, { status: 409 })),
+      http.post('*/api/v1/core/me/tokens', () => HttpResponse.json({ status: 409, code: 'core.token_limit_reached', detail: 'x' }, { status: 409 })),
     );
     const { user } = await renderApp('/security');
 

@@ -157,8 +157,8 @@ describe('Abonnements › ajout', () => {
 
   it('brings the user back to the step where the server found an error', async () => {
     serve(() => HttpResponse.json({
-      status: 422, code: 'subscriptions.unknown_provider', title: 'This provider does not exist or cannot be linked.',
-      errors: [{ path: 'providerKey', code: 'subscriptions.unknown_provider', message: 'This provider does not exist or cannot be linked.' }],
+      status: 422, code: 'subscriptions.unknown_provider', detail: 'This provider does not exist or cannot be linked.',
+      errors: [{ detail: 'This provider does not exist or cannot be linked.', pointer: '#/providerKey', code: 'subscriptions.unknown_provider' }],
     }, { status: 422 }));
     const { user } = await start();
 
@@ -173,8 +173,8 @@ describe('Abonnements › ajout', () => {
 
   it('brings the user back to the offer step for an amount refused by the server', async () => {
     serve(() => HttpResponse.json({
-      status: 422, code: 'request.invalid', title: 'x',
-      errors: [{ path: 'phases[0].price.amount', code: 'request.amount', message: 'x' }],
+      status: 422, code: 'request.invalid', detail: 'x',
+      errors: [{ detail: 'x', pointer: '#/phases/0/price/amount', code: 'request.amount' }],
     }, { status: 422 }));
     const { user } = await start();
 

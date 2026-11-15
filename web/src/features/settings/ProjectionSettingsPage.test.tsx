@@ -39,7 +39,7 @@ function serve(initial: Body = assumptions(), refuse?: { path: string; message: 
       const body = (await request.json()) as Body;
       patches.push(body);
       return refuse
-        ? HttpResponse.json({ status: 422, code: 'projection.invalid_field', title: refuse.message, errors: [{ path: refuse.path, code: 'projection.invalid_field', message: refuse.message }] }, { status: 422 })
+        ? HttpResponse.json({ status: 422, code: 'projection.invalid_field', detail: refuse.message, errors: [{ path: refuse.path, code: 'projection.invalid_field', message: refuse.message }] }, { status: 422 })
         : HttpResponse.json({ ...initial, ...body });
     }),
     http.get(`${ASSUMPTIONS}/profiles`, () => HttpResponse.json(profiles)),

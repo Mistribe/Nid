@@ -93,10 +93,10 @@ describe('the bank’s table', () => {
   it('shows each refused line with its reasons in French, under the line it quotes', async () => {
     serve(loanDetail(), {
       preview: () => HttpResponse.json({
-        status: 422, code: 'realestate.bank_schedule_invalid', title: 'Some lines of the table cannot be read.',
+        status: 422, code: 'realestate.bank_schedule_invalid', detail: 'Some lines of the table cannot be read.',
         errors: [
-          { path: 'rows[1].payment', code: 'realestate.bank_schedule_invalid', message: 'The payment is the interest plus the principal, without insurance.' },
-          { path: 'rows[2]', code: 'realestate.bank_schedule_invalid', message: 'A line has 5 or 6 columns.' },
+          { detail: 'The payment is the interest plus the principal, without insurance.', pointer: '#/rows/1/payment', code: 'realestate.bank_schedule_invalid' },
+          { detail: 'A line has 5 or 6 columns.', pointer: '#/rows/2', code: 'realestate.bank_schedule_invalid' },
         ],
       }, { status: 422 }),
     });
@@ -169,7 +169,7 @@ describe('the bank’s table', () => {
 
   it('deletes the table after a confirmation; a stale version offers « Recharger »', async () => {
     const { sent } = serve(withTable({ scheduleSource: 'bank' }), {
-      delete: () => HttpResponse.json({ status: 409, code: 'realestate.loan_conflict', title: 'Changed.' }, { status: 409 }),
+      delete: () => HttpResponse.json({ status: 409, code: 'realestate.loan_conflict', detail: 'Changed.' }, { status: 409 }),
     });
     const { user, container } = await renderApp(PAGE);
 

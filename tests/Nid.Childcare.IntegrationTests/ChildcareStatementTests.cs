@@ -214,7 +214,7 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         var refused = await ValidateAsync(app, url);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         Assert.Contains((await JsonAsync(refused)).GetProperty("errors").EnumerateArray(),
-            e => e.GetProperty("path").GetString() == "cmg" && e.GetProperty("code").GetString() == "childcare.cmg_required");
+            e => e.FieldPath() == "cmg" && e.GetProperty("code").GetString() == "childcare.cmg_required");
 
         Assert.Equal(HttpStatusCode.OK, (await SaveAsync(app, url, cmg: "100")).StatusCode);
         var validated = await ValidateAsync(app, url);
@@ -314,7 +314,7 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         var response = await SaveAsync(app, url, new() { ["2025-09-02"] = d => d["departure"] = "07:00" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Contains((await JsonAsync(response)).GetProperty("errors").EnumerateArray(),
-            e => e.GetProperty("path").GetString() == "days[1].departure");
+            e => e.FieldPath() == "days[1].departure");
     }
 
     [Fact]
@@ -349,7 +349,7 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{arrangement}/close", new { on = "2025-09-20" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         Assert.Contains((await JsonAsync(refused)).GetProperty("errors").EnumerateArray(),
-            e => e.GetProperty("path").GetString() == "on" && e.GetProperty("code").GetString() == "childcare.end_before_validated");
+            e => e.FieldPath() == "on" && e.GetProperty("code").GetString() == "childcare.end_before_validated");
     }
 
     [Fact]

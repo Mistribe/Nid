@@ -76,7 +76,7 @@ public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) :
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         var problem = await JsonAsync(refused);
-        Assert.Contains(problem.GetProperty("errors").EnumerateArray(), e => e.GetProperty("path").GetString() == "visibility");
+        Assert.Contains(problem.GetProperty("errors").EnumerateArray(), e => e.FieldPath() == "visibility");
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         Assert.Equal(0, await core.Items.CountAsync(i => i.Module == "income", cancellationToken: TestContext.Current.CancellationToken));
     }
@@ -146,7 +146,7 @@ public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) :
         Assert.Equal(code, problem.GetProperty("code").GetString());
         // 2C2a spec §6: the field the rule names reaches the client, so a multi-line form places it on its line.
         var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
-        Assert.Equal(field, error.GetProperty("path").GetString());
+        Assert.Equal(field, error.FieldPath());
         Assert.Equal(code, error.GetProperty("code").GetString());
         Assert.Equal(code, failure?.Code);
         Assert.Equal(field, failure!.Metadata!["field"]);

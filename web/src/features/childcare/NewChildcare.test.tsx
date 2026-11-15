@@ -73,8 +73,8 @@ describe('NewChildcare', () => {
 
   it('a server schedule error returns to the schedule step', async () => {
     serve([], () => HttpResponse.json({
-      type: 'about:blank', title: 'Unprocessable', status: 422, code: 'request.invalid',
-      errors: [{ path: 'terms.weekTypes[0].schedule[0].departure', code: 'childcare.departure_before_arrival', message: 'The departure comes after the arrival.' }],
+      type: 'about:blank', detail: 'Unprocessable', status: 422, code: 'request.invalid',
+      errors: [{ detail: 'The departure comes after the arrival.', pointer: '#/terms/weekTypes/0/schedule/0/departure', code: 'childcare.departure_before_arrival' }],
     }, { status: 422 }));
     const { user } = await renderApp('/childcare/new');
     await fillUpToSchedule(user);
@@ -126,8 +126,8 @@ describe('NewChildcare', () => {
 
   it('a server error on the second week type lands on its Tuesday', async () => {
     serve([], () => HttpResponse.json({
-      type: 'about:blank', title: 'Unprocessable', status: 422, code: 'request.invalid',
-      errors: [{ path: 'terms.weekTypes[1].schedule[1].departure', code: 'childcare.departure_before_arrival', message: 'The departure comes after the arrival.' }],
+      type: 'about:blank', detail: 'Unprocessable', status: 422, code: 'request.invalid',
+      errors: [{ detail: 'The departure comes after the arrival.', pointer: '#/terms/weekTypes/1/schedule/1/departure', code: 'childcare.departure_before_arrival' }],
     }, { status: 422 }));
     const { user } = await renderApp('/childcare/new');
     await fillUpToSchedule(user);

@@ -19,7 +19,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(JobRunDetailView))]
 [JsonSerializable(typeof(IReadOnlyList<ImportSessionView>))]
 [JsonSerializable(typeof(ProblemDetails))]
-[JsonSerializable(typeof(List<ProblemFieldError>))]
+[JsonSerializable(typeof(UnambitiousFx.Functional.AspNetCore.Mappers.ValidationProblemError[]))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(ImportEndpoints.ImportRunBody))]
 [JsonSerializable(typeof(ImportEndpoints.StartImportBody))]

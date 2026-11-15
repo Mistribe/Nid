@@ -21,7 +21,7 @@ public class PurchaseRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
 
     private static async Task<List<(string Path, string Code)>> ErrorsOf(HttpResponseMessage response)
         => (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray()
-            .Select(e => (e.GetProperty("path").GetString()!, e.GetProperty("code").GetString()!)).ToList();
+            .Select(e => (e.FieldPath()!, e.GetProperty("code").GetString()!)).ToList();
 
     private static async Task<int> PurchaseCount(NidApp app)
     {

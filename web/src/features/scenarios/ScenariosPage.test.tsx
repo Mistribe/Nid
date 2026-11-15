@@ -93,7 +93,7 @@ describe('ScenariosPage', () => {
         id: PROJECTION_ID, name: 'Retraite anticipée', visibility: 'private', scope: 'me', canWrite: true, result: { document },
       })),
       http.post('*/api/v1/scenarios/projection', async ({ request }) => { posted.push(await request.json()); return HttpResponse.json({ id: 'new' }, { status: 201 }); }),
-      http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ type: 'about:blank', title: 'Not found', status: 404 }, { status: 404 })),
+      http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ type: 'about:blank', detail: 'Not found', status: 404 }, { status: 404 })),
     );
     const { user } = await renderApp('/scenarios');
 
@@ -125,7 +125,7 @@ describe('ScenariosPage', () => {
     serve([item()]);
     server.use(
       http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ id: item().id, name: 'Studio Lyon', visibility: 'shared', scope: 'household', document: {}, result: {}, canWrite: true })),
-      http.post('*/api/v1/scenarios', () => HttpResponse.json({ type: 'about:blank', title: 'Forbidden', status: 403 }, { status: 403, headers: { 'Content-Type': 'application/problem+json' } })),
+      http.post('*/api/v1/scenarios', () => HttpResponse.json({ type: 'about:blank', detail: 'Forbidden', status: 403 }, { status: 403, headers: { 'Content-Type': 'application/problem+json' } })),
     );
     const { user } = await renderApp('/scenarios');
 
@@ -137,7 +137,7 @@ describe('ScenariosPage', () => {
 
   it('says so when the scenario to duplicate cannot be read', async () => {
     serve([item()]);
-    server.use(http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ type: 'about:blank', title: 'Not found', status: 404 }, { status: 404, headers: { 'Content-Type': 'application/problem+json' } })));
+    server.use(http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ type: 'about:blank', detail: 'Not found', status: 404 }, { status: 404, headers: { 'Content-Type': 'application/problem+json' } })));
     const { user } = await renderApp('/scenarios');
 
     await rows();

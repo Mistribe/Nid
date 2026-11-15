@@ -83,7 +83,7 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(item.Value, refuse: true))).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await app.BearerAsync(read.Secret, HttpMethod.Post, Proposals, Echo(item.Value))).StatusCode);
         var tooLong = await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(item.Value, label: new string('x', 201)));
-        Assert.Equal("sourceLabel", (await JsonOf(tooLong)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("sourceLabel", (await JsonOf(tooLong)).GetProperty("errors")[0].FieldPath());
     }
 
     // Review Focus 5.

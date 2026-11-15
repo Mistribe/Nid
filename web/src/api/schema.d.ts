@@ -33849,6 +33849,8 @@ export interface components {
             status?: null | number;
             detail?: null | string;
             instance?: null | string;
+            code?: null | string;
+            errors?: null | components["schemas"]["ValidationProblemError"][];
         };
         ProjectionAssumptionsView: {
             classRates: {
@@ -36217,6 +36219,11 @@ export interface components {
             id: string;
             existing: boolean;
             duplicate?: null | components["schemas"]["DocumentSummary"];
+        };
+        ValidationProblemError: {
+            detail: string;
+            pointer?: null | string;
+            code?: null | string;
         };
         ValuationBody: {
             asOf: string;

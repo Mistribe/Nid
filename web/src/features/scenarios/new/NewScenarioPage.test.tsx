@@ -136,8 +136,8 @@ describe('NewScenarioPage', () => {
     server.use(http.post('*/api/v1/scenarios', async ({ request }) => {
       created.push(await request.json());
       return HttpResponse.json({
-        type: 'about:blank', title: 'Invalid', status: 422,
-        errors: [{ path: 'loans[0].rate', code: 'request.rate', message: 'A rate is a percent from 0 to 20.' }],
+        type: 'about:blank', detail: 'Invalid', status: 422,
+        errors: [{ detail: 'A rate is a percent from 0 to 20.', pointer: '#/loans/0/rate', code: 'request.rate' }],
       }, { status: 422, headers: { 'Content-Type': 'application/problem+json' } });
     }));
     const { user } = await renderApp('/scenarios/new');

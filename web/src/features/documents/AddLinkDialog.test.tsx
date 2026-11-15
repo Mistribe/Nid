@@ -88,7 +88,7 @@ describe('AddLinkDialog', () => {
   it('shows a refused preview (already linked) and posts nothing, the dialog stays open', async () => {
     const { writes } = serveDocument();
     server.use(http.get('*/api/v1/documents/:id/links/preview', () => HttpResponse.json(
-      { status: 409, code: 'documents.already_linked', title: 'Already linked.' }, { status: 409, headers: { 'content-type': 'application/problem+json' } })));
+      { status: 409, code: 'documents.already_linked', detail: 'Already linked.' }, { status: 409, headers: { 'content-type': 'application/problem+json' } })));
     const { user } = await renderApp(`/documents/${DOC}`);
     await choose(user);
 

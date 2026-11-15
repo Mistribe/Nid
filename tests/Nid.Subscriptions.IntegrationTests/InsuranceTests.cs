@@ -96,7 +96,7 @@ public class InsuranceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     {
         var response = await app.RawAsync(author, HttpMethod.Put, InsuranceUrl(id), Home(propertyId, "Fire"));
         var error = Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray());
-        return (response.StatusCode, error.GetProperty("path").GetString()!, error.GetProperty("code").GetString()!);
+        return (response.StatusCode, error.FieldPath()!, error.GetProperty("code").GetString()!);
     }
 
     [Fact]
@@ -264,7 +264,7 @@ public class InsuranceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray());
-        Assert.Equal("kind", error.GetProperty("path").GetString());
+        Assert.Equal("kind", error.FieldPath());
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public class InsuranceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("guarantees[1].label", "subscriptions.guarantee_label"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("guarantees[1].label", "subscriptions.guarantee_label"), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Fact]
@@ -308,7 +308,7 @@ public class InsuranceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         foreach (var response in new[] { policy, ceiling })
         {
             Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-            paths.Add(Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray()).GetProperty("path").GetString());
+            paths.Add(Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray()).FieldPath());
         }
         Assert.Equal(["policyNumber", "guarantees[0].ceiling"], paths);
     }

@@ -31,4 +31,24 @@ public static class FieldErrors
 
     public static IReadOnlyList<FieldError>? Of(Failure failure)
         => failure.Metadata is { } metadata && metadata.TryGetValue(Key, out var errors) ? errors as IReadOnlyList<FieldError> : null;
+
+    /// <summary>
+    /// #250: a JSON Pointer of a Problem Details' <c>errors</c> (<c>#/payload/movements/3/amount</c>) back as the path the
+    /// rules name (<c>payload.movements[3].amount</c>); empty for none. A numeric token reads as an index.
+    /// </summary>
+    public static string PathOf(string? pointer)
+    {
+        if (string.IsNullOrEmpty(pointer))
+            return "";
+        var path = new System.Text.StringBuilder();
+        foreach (var raw in pointer.TrimStart('#').Split('/').Skip(1))
+        {
+            var token = Uri.UnescapeDataString(raw).Replace("~1", "/").Replace("~0", "~");
+            if (token.Length > 0 && token.All(char.IsAsciiDigit))
+                path.Append('[').Append(token).Append(']');
+            else
+                path.Append(path.Length == 0 ? "" : ".").Append(token);
+        }
+        return path.ToString();
+    }
 }

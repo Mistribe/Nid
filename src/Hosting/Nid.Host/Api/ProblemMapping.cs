@@ -1,0 +1,118 @@
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Banking.Contracts;
+using Nid.Childcare.Contracts;
+using Nid.Core.Application;
+using Nid.Core.Contracts;
+using Nid.Documents.Contracts;
+using Nid.Goals.Contracts;
+using Nid.Host.Auth;
+using Nid.Income.Contracts;
+using Nid.Investments.Contracts;
+using Nid.Platform.Contracts;
+using Nid.RealEstate.Contracts;
+using Nid.Subscriptions.Contracts;
+using UnambitiousFx.Functional.AspNetCore;
+using UnambitiousFx.Functional.AspNetCore.Mappers;
+using UnambitiousFx.Functional.Failures;
+
+namespace Nid.Host.Api;
+
+/// <summary>
+/// #250: how a failure becomes Problem Details (RFC 9457). Functional's mapper writes the body: a fixed <c>title</c> per
+/// status, the failure's sentence in <c>detail</c>, its <c>code</c>, and for refused fields an <c>errors</c> list of
+/// <c>{ detail, pointer, code }</c>. The status comes from the failure's type (not found, forbidden…), unless its code is
+/// listed below; a plain <see cref="Failure"/> is a rule's refusal, 422.
+/// </summary>
+public static class ProblemMapping
+{
+    /// <summary>The metadata a client reads next to the code (goals' free share, a statement's line, a series key, a person's uses).</summary>
+    private static readonly string[] Exposed = ["freeBp", "line", "key", "uses"];
+
+    /// <summary>Built once: the mapper holds no state but its table.</summary>
+    public static IFailureHttpMapper Mapper { get; } = new ServiceCollection()
+        .AddResultHttp(Configure)
+        .BuildServiceProvider()
+        .GetRequiredService<IFailureHttpMapper>();
+
+    public static void Configure(ResultHttpOptions options)
+    {
+        options.ValidationErrors(ValidationErrorsFormat.Rfc9457);
+        options.DefaultStatus(StatusCodes.Status422UnprocessableEntity);
+        options.ExposeMetadata(Exposed);
+
+        Map(options, StatusCodes.Status400BadRequest,
+            LocalAccountCodes.LoginInvalid, LocalAccountCodes.PasswordTooShort, LocalAccountCodes.PasswordTooLong,
+            LocalAccountCodes.PasswordTooCommon, LocalSignIn.CurrentPasswordWrong, LocalSignIn.InvalidCode,
+            FxCodes.InvalidRate, FxCodes.InvalidRange, SeriesCodes.InvalidKey, ExportCodes.BadCursor,
+            InvestmentsCodes.InvalidPeriod, InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.TransferLeg,
+            BreakdownCodes.Not100, BreakdownCodes.NotMarket,
+            IncomeCodes.InvalidPeriod, IncomeCodes.InvalidYear, ReportCodes.InvalidYear,
+            DocumentsCodes.InvalidField, DocumentsCodes.InvalidRole, DocumentsCodes.UnknownTargetKind);
+        Map(options, StatusCodes.Status400BadRequest, [.. ImportCodes.BadRequests]);
+
+        Map(options, StatusCodes.Status403Forbidden, AdminCodes.Required, BrowserOnlyCodes.Required);
+
+        Map(options, StatusCodes.Status404NotFound,
+            LocalAccountCodes.SetupClosed, SeriesCodes.NotFound, CoreFactCodes.FactNotFound,
+            DocumentsCodes.TargetNotFound, DocumentsCodes.ContentMissing,
+            BankingCodes.ConnectionNotFound, BankingCodes.AccountNotFound);
+
+        Map(options, StatusCodes.Status409Conflict,
+            TokenCodes.LimitReached,
+            LocalAccountCodes.LoginTaken, LocalAccountCodes.TotpAlreadyEnabled, PersonCodes.LastAdmin, PersonCodes.AdminSourceIdentityProvider,
+            FxCodes.SyncRunning, CatalogCodes.SyncRunning, PriceCodes.SyncRunning, PriceCodes.Disabled, PriceCodes.NotRejected,
+            IrlCodes.SyncRunning, IrlCodes.Disabled, InflationCodes.SyncRunning, InflationCodes.Disabled,
+            ExportCodes.RevisionChanged,
+            CoreFactCodes.FactRetired, CoreFactCodes.OpeningExists, CoreFactCodes.ExternalRefTaken, CoreFactCodes.FactConflict,
+            InvestmentsCodes.EnvelopeClosed, InvestmentsCodes.EnvelopeOpen, InvestmentsCodes.HoldingInUse,
+            InvestmentsCodes.HoldingConflict, InvestmentsCodes.HoldingClosed, InvestmentsCodes.SnapshotExists,
+            IncomeCodes.SourceEnded, IncomeCodes.SourceOpen, IncomeCodes.PhaseConflict,
+            ChildcareCodes.Closed, ChildcareCodes.Open, ChildcareCodes.Conflict, ChildcareCodes.StatementValidated,
+            ChildcareCodes.StatementIncomplete, ChildcareCodes.NextValidated, ChildcareCodes.PreviousNotValidated,
+            ChildcareCodes.StatementConflict,
+            GoalsCodes.GoalClosed, GoalsCodes.GoalOpen, GoalsCodes.ShareExceeded, GoalsCodes.Conflict,
+            LoanCodes.LoanConflict, LoanCodes.FeeConflict, LoanCodes.RepaymentConflict,
+            PropertyCodes.PropertyConflict, PropertyCodes.RecurringCostConflict, PropertyCodes.TenancyConflict,
+            TaxAssessmentCodes.Conflict, ProposalCodes.Conflict, ProposalCodes.Decided,
+            ItemCodes.InUse, ItemCodes.Changed, PersonCodes.PersonInUse,
+            DocumentsCodes.AlreadyLinked, DocumentsCodes.SourceRefTaken,
+            NotificationCodes.PreferencesConflict,
+            BankingCodes.Disabled, BankingCodes.NotConfigured, BankingCodes.EnvelopeTaken, BankingCodes.SyncRunning,
+            BankingCodes.TransactionLinked);
+        Map(options, StatusCodes.Status409Conflict, [.. ImportCodes.Conflicts]);
+
+        Map(options, StatusCodes.Status413PayloadTooLarge, DocumentsCodes.TooLarge, BankingCodes.FileTooLarge);
+        Map(options, StatusCodes.Status415UnsupportedMediaType, DocumentsCodes.UnsupportedType);
+        Map(options, StatusCodes.Status429TooManyRequests, NotificationCodes.TestThrottled);
+        Map(options, StatusCodes.Status500InternalServerError, FailureCodes.Failure, "core.access_violation");
+    }
+
+    private static void Map(ResultHttpOptions options, int status, params string[] codes)
+    {
+        foreach (var code in codes)
+            options.MapCode(code, status);
+    }
+
+    /// <summary>
+    /// A rule's refusal that names its fields, as the <see cref="ValidationFailure"/> the mapper writes an <c>errors</c>
+    /// list for: the fields of <see cref="FieldErrors"/>, or the one a rule names in its <c>field</c> metadata (2C2a spec §6).
+    /// Its code, sentence and other metadata are kept; a typed failure (not found, forbidden) is no field's and stays as it is.
+    /// </summary>
+    public static Failure Located(Failure failure)
+    {
+        if (failure.GetType() != typeof(Failure))
+            return failure;
+        var errors = FieldErrors.Of(failure)
+            ?? (failure.Metadata.TryGetValue("field", out var field) && field is string path
+                ? [new FieldError(path, failure.Code, failure.Message)]
+                : null);
+        if (errors is null)
+            return failure;
+        var extra = failure.Metadata.Where(m => m.Key is not ("errors" or "field")).ToDictionary(m => m.Key, m => m.Value);
+        return new ValidationFailure([.. errors.Select(e => new ValidationError(e.Path, e.Message, e.Code))], extra)
+        {
+            Code = failure.Code,
+            Message = failure.Message,
+        };
+    }
+}

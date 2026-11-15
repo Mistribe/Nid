@@ -195,7 +195,7 @@ describe('Explorer des séries', () => {
 
   it('drops a key the server does not know and says so', async () => {
     server.use(http.get('*/api/v1/series/points', ({ request }) => new URL(request.url).searchParams.get('s')?.includes('nope')
-      ? HttpResponse.json({ status: 404, code: 'core.series_not_found', title: 'Not found.', key: 'nope' }, { status: 404 })
+      ? HttpResponse.json({ status: 404, code: 'core.series_not_found', detail: 'Not found.', key: 'nope' }, { status: 404 })
       : answer([cpi])));
     const { user, router } = await renderApp('/series?s=cpi,nope');
     await waitFor(() => expect(router.state.location.search).toMatchObject({ s: 'cpi' }));
@@ -206,7 +206,7 @@ describe('Explorer des séries', () => {
   });
 
   it('shows any other error', async () => {
-    server.use(http.get('*/api/v1/series/points', () => HttpResponse.json({ status: 500, title: 'Boom' }, { status: 500 })));
+    server.use(http.get('*/api/v1/series/points', () => HttpResponse.json({ status: 500, detail: 'Boom' }, { status: 500 })));
     await renderApp('/series?s=cpi');
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });

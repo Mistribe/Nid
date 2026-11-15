@@ -155,7 +155,7 @@ public class HoldingEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
 
         var json = await JsonAsync(refused);
         Assert.Equal((HttpStatusCode.UnprocessableEntity, code, field),
-            (refused.StatusCode, json.GetProperty("code").GetString(), json.GetProperty("errors")[0].GetProperty("path").GetString()));
+            (refused.StatusCode, json.GetProperty("code").GetString(), json.GetProperty("errors")[0].FieldPath()));
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class HoldingEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
         {
             var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/holding-snapshots", body);
             var json = await JsonAsync(response);
-            Assert.Equal((code, path), (json.GetProperty("code").GetString(), json.GetProperty("errors")[0].GetProperty("path").GetString()));
+            Assert.Equal((code, path), (json.GetProperty("code").GetString(), json.GetProperty("errors")[0].FieldPath()));
         }
 
         await Refused(new { asOf = "2025-06-30", lines = new[] { new { holdingId = euro, units = "1", value = Eur("1") } } }, "investments.invalid_snapshot", "lines[0].units");

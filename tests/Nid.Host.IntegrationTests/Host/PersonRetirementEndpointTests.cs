@@ -90,7 +90,7 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
-        Assert.Equal(["retirementAge", "retirementMonths"], problem.GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("path").GetString()).ToArray());
+        Assert.Equal(["retirementAge", "retirementMonths"], problem.GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()).ToArray());
     }
 
     [Fact]
@@ -122,6 +122,6 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(code, problem.GetProperty("code").GetString());
-        Assert.Equal(field, problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal(field, problem.GetProperty("errors")[0].FieldPath());
     }
 }

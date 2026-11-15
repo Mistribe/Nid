@@ -236,7 +236,7 @@ describe('Administration › Catalogue', () => {
   it('says a sync is already running when the server answers 409', async () => {
     serveRuns([succeeded]);
     server.use(http.post('*/api/v1/subscriptions/catalog/sync', () =>
-      HttpResponse.json({ status: 409, code: 'subscriptions.catalog_sync_running', title: 'A catalog sync is already running.' }, { status: 409 })));
+      HttpResponse.json({ status: 409, code: 'subscriptions.catalog_sync_running', detail: 'A catalog sync is already running.' }, { status: 409 })));
     const { user } = await render();
     await lastCard();
 

@@ -287,8 +287,8 @@ describe('Abonnements › détail', () => {
   it('shows a purchase refusal on its field, with no generic alert', async () => {
     serveDetail(detail());
     server.use(http.post('*/api/v1/subscriptions/:id/purchases', () => HttpResponse.json({
-      status: 422, code: 'request.invalid', title: 'A count is positive.',
-      errors: [{ path: 'grants[0].duration.count', code: 'request.count', message: 'A count is positive.' }],
+      status: 422, code: 'request.invalid', detail: 'A count is positive.',
+      errors: [{ detail: 'A count is positive.', pointer: '#/grants/0/duration/count', code: 'request.count' }],
     }, { status: 422 })));
     const { user } = await renderApp(`/subscriptions/${SUB}`);
     await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });

@@ -84,7 +84,7 @@ public class ScenarioEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Url, Body(app, doc));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var paths = (await JsonOf(response)).GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("path").GetString()).ToList();
+        var paths = (await JsonOf(response)).GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()).ToList();
         Assert.Contains(field, paths);
     }
 

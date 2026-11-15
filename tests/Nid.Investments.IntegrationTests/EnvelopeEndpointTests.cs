@@ -327,12 +327,12 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, premiumsBefore2017 = "100",
         });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, pea.StatusCode);
-        Assert.Equal("premiumsBefore2017", (await JsonAsync(pea)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("premiumsBefore2017", (await JsonAsync(pea)).GetProperty("errors")[0].FieldPath());
 
         var other = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{life.Value}", new { premiumsBefore2017 = "100" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, other.StatusCode);
         var negative = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{life.Value}", new { kind = "life_insurance", premiumsBefore2017 = "-1" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, negative.StatusCode);
-        Assert.Equal("premiumsBefore2017", (await JsonAsync(negative)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("premiumsBefore2017", (await JsonAsync(negative)).GetProperty("errors")[0].FieldPath());
     }
 }

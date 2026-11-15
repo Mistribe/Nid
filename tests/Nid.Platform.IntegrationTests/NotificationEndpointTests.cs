@@ -153,7 +153,7 @@ public class NotificationEndpointTests(PostgresFixture fixture) : IClassFixture<
             Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
             var problem = await JsonOf(response);
             Assert.Equal("notifications.invalid_snooze", problem.GetProperty("code").GetString());
-            Assert.Equal("until", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal("until", problem.GetProperty("errors")[0].FieldPath());
         }
         Assert.Equal(NotificationStates.Open, await StateOfAsync(app, id));
 

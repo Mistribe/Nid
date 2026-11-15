@@ -43,10 +43,10 @@ function serve(initial: PropertyDetail = propertyDetail({ figures: rentedFigures
   const overlaps = (b: Body, self?: string) => current.tenancies.some((x) => x.id !== self
     && x.startsOn < (b.endsOn ?? OPEN) && b.startsOn! < (x.endsOn ?? OPEN));
   const overlap = () => HttpResponse.json(
-    { status: 422, code: 'realestate.tenancy_overlap', title: 'x', errors: [{ path: 'startsOn', code: 'realestate.tenancy_overlap', message: 'x' }] },
+    { status: 422, code: 'realestate.tenancy_overlap', detail: 'x', errors: [{ detail: 'x', pointer: '#/startsOn', code: 'realestate.tenancy_overlap' }] },
     { status: 422 });
-  const conflict = () => HttpResponse.json({ status: 409, code: 'realestate.tenancy_conflict', title: 'Changed.' }, { status: 409 });
-  const missing = () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 });
+  const conflict = () => HttpResponse.json({ status: 409, code: 'realestate.tenancy_conflict', detail: 'Changed.' }, { status: 409 });
+  const missing = () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 });
   server.use(
     http.get('*/api/v1/realestate/properties/:id', () => { reads.detail += 1; return HttpResponse.json(current); }),
     http.post('*/api/v1/realestate/properties/:id/tenancies', async ({ request }) => {

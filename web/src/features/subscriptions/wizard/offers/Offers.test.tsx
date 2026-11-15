@@ -24,7 +24,7 @@ function serve() {
     http.post('*/api/v1/subscriptions', async ({ request }) => { bodies.push(await request.json()); return answer(); }),
     http.get(`*/api/v1/subscriptions/${NEW_ID}`, () => HttpResponse.json({ status: 404 }, { status: 404 })),
   );
-  return { bodies, refuse: (errors: object[]) => { answer = () => HttpResponse.json({ status: 422, code: 'request.invalid', title: 'Refusé', errors }, { status: 422 }); } };
+  return { bodies, refuse: (errors: object[]) => { answer = () => HttpResponse.json({ status: 422, code: 'request.invalid', detail: 'Refusé', errors }, { status: 422 }); } };
 }
 
 async function begin(offer: RegExp) {
@@ -185,7 +185,7 @@ describe('Abonnements › ajout › offres', () => {
     await expectNoAxeViolations(container);
     await next(user);
     await next(user);
-    fake.refuse([{ path: 'purchases[0].grants[2].subscriptionId', code: 'subscriptions.not_found', message: 'No subscription with this id can be written.' }]);
+    fake.refuse([{ detail: 'No subscription with this id can be written.', pointer: '#/purchases/0/grants/2/subscriptionId', code: 'subscriptions.not_found' }]);
     await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
 
     const row = await screen.findByRole('group', { name: 'Abonnement couvert 2' });
@@ -203,7 +203,7 @@ describe('Abonnements › ajout › offres', () => {
     await next(user);
     await user.type(screen.getByLabelText('Montant'), '9,99');
     await next(user);
-    fake.refuse([{ path: 'phases[1].price.amount', code: 'request.amount', message: 'bad' }]);
+    fake.refuse([{ detail: 'bad', pointer: '#/phases/1/price/amount', code: 'request.amount' }]);
     await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
 
     expect(await screen.findByLabelText('Montant')).toHaveAccessibleDescription(/montant/i);

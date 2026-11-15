@@ -28,7 +28,7 @@ function serveStateful(initial: IncomeSourceDetail = detail()) {
       sent.push({ method: 'PUT', url: request.url, body });
       const target = current.phases.find((p) => p.id === params.phaseId);
       if (!target || body.version !== target.version)
-        return HttpResponse.json({ status: 409, code: 'income.phase_conflict', title: 'Changed meanwhile.' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'income.phase_conflict', detail: 'Changed meanwhile.' }, { status: 409 });
       current = { ...current, phases: current.phases.map((p) => (p.id === target.id ? { ...p, netAmount: body.netAmount!, version: p.version + 1 } : p)) };
       return HttpResponse.json({ id: target.id });
     }),
@@ -36,7 +36,7 @@ function serveStateful(initial: IncomeSourceDetail = detail()) {
       sent.push({ method: 'DELETE', url: request.url });
       const target = current.phases.find((p) => p.id === params.phaseId);
       if (!target || new URL(request.url).searchParams.get('version') !== String(target.version))
-        return HttpResponse.json({ status: 409, code: 'income.phase_conflict', title: 'Changed meanwhile.' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'income.phase_conflict', detail: 'Changed meanwhile.' }, { status: 409 });
       current = { ...current, phases: current.phases.filter((p) => p.id !== target.id) };
       return new HttpResponse(null, { status: 204 });
     }),
@@ -169,7 +169,7 @@ describe('phase actions', () => {
 
   it('shows a deletion of a phase deleted meanwhile as not found, with « Recharger »', async () => {
     serveStateful();
-    server.use(http.delete('*/api/v1/income/sources/:id/phases/:phaseId', () => HttpResponse.json({ status: 404, title: 'Not found' }, { status: 404 })));
+    server.use(http.delete('*/api/v1/income/sources/:id/phases/:phaseId', () => HttpResponse.json({ status: 404, detail: 'Not found' }, { status: 404 })));
     const { user } = await renderApp(`/income/${SALARY}`);
 
     await findMenu('Prime annuelle');
@@ -210,7 +210,7 @@ describe('phase actions', () => {
   it('shows a server overlap under the start date of the add form', async () => {
     serveStateful();
     server.use(http.post('*/api/v1/income/sources/:id/phases', () => HttpResponse.json(
-      { status: 422, code: 'income.phase_overlap', title: 'x', errors: [{ path: 'startsOn', code: 'income.phase_overlap', message: 'x' }] }, { status: 422 })));
+      { status: 422, code: 'income.phase_overlap', detail: 'x', errors: [{ detail: 'x', pointer: '#/startsOn', code: 'income.phase_overlap' }] }, { status: 422 })));
     const { user } = await renderApp(`/income/${SALARY}`);
 
     await openAdd(user);

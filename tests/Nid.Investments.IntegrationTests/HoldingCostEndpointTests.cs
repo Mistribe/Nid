@@ -25,7 +25,7 @@ public class HoldingCostEndpointTests(PostgresFixture fixture) : IClassFixture<P
     private static async Task Refused(NidApp app, HttpMethod method, string url, object body, string code, string field)
     {
         var problem = await SendAsync(app, method, url, body, HttpStatusCode.UnprocessableEntity);
-        Assert.Equal((code, field), (problem.GetProperty("code").GetString(), problem.GetProperty("errors")[0].GetProperty("path").GetString()));
+        Assert.Equal((code, field), (problem.GetProperty("code").GetString(), problem.GetProperty("errors")[0].FieldPath()));
     }
 
     private static string[] Codes(JsonElement warnings) => [.. warnings.EnumerateArray().Select(w => w.GetProperty("code").GetString()!)];

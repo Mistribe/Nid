@@ -78,7 +78,7 @@ describe('Administration › Cours', () => {
         calls += 1;
         return calls === 1
           ? HttpResponse.json({ requested: true }, { status: 202 })
-          : HttpResponse.json({ status: 409, code: 'investments.price_sync_running', title: 'Running.' }, { status: 409 });
+          : HttpResponse.json({ status: 409, code: 'investments.price_sync_running', detail: 'Running.' }, { status: 409 });
       }),
     );
     const { user } = await renderApp('/admin/prices', { capabilities: adminCapabilities });

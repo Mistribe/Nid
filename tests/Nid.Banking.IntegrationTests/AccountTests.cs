@@ -74,7 +74,7 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var refused = await PatchAsync(app, app.AdultA, account, new { envelopeId = (await EnvelopeAsync(app, app.AdultA, "checking")).Value });
 
         await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.CurrencyMismatch);
-        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
         Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, account, new { envelopeId = (await app.NewEnvelopeAsync("Dollars", app.AdultA, Visibility.Private, "USD")).Value })).StatusCode);
     }
 
@@ -92,7 +92,7 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         {
             var refused = await PatchAsync(app, app.AdultA, Id(account), new { cardOfAccountId = Id(parent) });
             await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.CardParent);
-            Assert.Equal("cardOfAccountId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal("cardOfAccountId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
         }
 
         Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, Id("Carte"), new { cardOfAccountId = Id("Courant") })).StatusCode);
@@ -193,6 +193,6 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var refused = await PatchAsync(app, app.AdultA, card, new { envelopeId = (await EnvelopeAsync(app, app.AdultA, "checking")).Value });
 
         await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.EnvelopeKind);
-        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
     }
 }

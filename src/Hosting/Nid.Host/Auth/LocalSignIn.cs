@@ -358,7 +358,7 @@ public sealed partial class LocalSignIn(
     private static IResult Busy() => new TooManyResult(5);
 
     private static IResult Problem(int status, string code, string title)
-        => Results.Problem(statusCode: status, title: title, extensions: new Dictionary<string, object?> { ["code"] = code });
+        => Results.Problem(statusCode: status, detail: title, extensions: new Dictionary<string, object?> { ["code"] = code });
 
     internal static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 

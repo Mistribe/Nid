@@ -38,8 +38,8 @@ function serve(initial: PropertyDetail = propertyDetail({ recurringCosts: [INSUR
     };
   };
   const byStart = (all: PropertyRecurringCost[]) => [...all].sort((a, b) => a.startsOn.localeCompare(b.startsOn));
-  const conflict = () => HttpResponse.json({ status: 409, code: 'realestate.recurring_cost_conflict', title: 'Changed.' }, { status: 409 });
-  const missing = () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 });
+  const conflict = () => HttpResponse.json({ status: 409, code: 'realestate.recurring_cost_conflict', detail: 'Changed.' }, { status: 409 });
+  const missing = () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 });
   server.use(
     http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(current)),
     http.post('*/api/v1/realestate/properties/:id/recurring-costs', async ({ request }) => {
@@ -220,7 +220,7 @@ describe('recurring costs', () => {
   it('shows a period the server refuses under « Tous les »', async () => {
     serve();
     server.use(http.post('*/api/v1/realestate/properties/:id/recurring-costs', () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_property_field', title: 'x', errors: [{ path: 'every.count', code: 'realestate.invalid_property_field', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_property_field', detail: 'x', errors: [{ detail: 'x', pointer: '#/every/count', code: 'realestate.invalid_property_field' }] },
       { status: 422 })));
     const { user } = await renderApp(PAGE);
 

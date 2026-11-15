@@ -113,7 +113,7 @@ public class LoanDeleteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var response = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Loans}/{loan}");
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Equal("version", (await JsonAsync(response)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("version", (await JsonAsync(response)).GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]

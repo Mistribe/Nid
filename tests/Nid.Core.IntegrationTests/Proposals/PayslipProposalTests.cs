@@ -60,7 +60,7 @@ public class PayslipProposalTests(PostgresFixture fixture) : IClassFixture<Postg
     private static decimal Amount(JsonElement money) => decimal.Parse(money.GetProperty("amount").GetString()!, CultureInfo.InvariantCulture);
 
     private static async Task<string?> FirstPathAsync(HttpResponseMessage response)
-        => (await JsonOf(response)).GetProperty("errors")[0].GetProperty("path").GetString();
+        => (await JsonOf(response)).GetProperty("errors")[0].FieldPath();
 
     [Fact]
     public async Task Within_the_tolerance_a_payslip_is_conforme_and_creates_nothing()

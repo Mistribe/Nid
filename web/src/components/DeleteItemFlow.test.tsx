@@ -48,7 +48,7 @@ describe('DeleteItemFlow', () => {
     server.use(
       http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail())),
       http.get('*/api/v1/income/sources/:id/deletion', () => { reads += 1; return HttpResponse.json(preview(reads)); }),
-      http.delete('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 409, code: 'core.item_changed', title: 'Changed.' }, { status: 409 })),
+      http.delete('*/api/v1/income/sources/:id', () => HttpResponse.json({ status: 409, code: 'core.item_changed', detail: 'Changed.' }, { status: 409 })),
     );
     const { user, dialog } = await open();
     await user.type(await within(dialog).findByLabelText(/Tapez/), 'Salaire Alice');

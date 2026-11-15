@@ -114,7 +114,7 @@ describe('the notification settings page', () => {
   it('shows the server refusal of a lead time under its field', async () => {
     serve();
     server.use(http.put('*/api/v1/platform/notifications/preferences', () => HttpResponse.json(
-      { status: 422, code: 'validation', errors: [{ path: 'leadDays.loan.end', code: 'notifications.invalid_lead_days', message: 'invalid' }] }, { status: 422 })));
+      { status: 422, code: 'validation', errors: [{ detail: 'invalid', pointer: '#/leadDays/loan/end', code: 'notifications.invalid_lead_days' }] }, { status: 422 })));
     const { user } = await renderApp('/settings/notifications');
 
     await user.click(await screen.findByRole('button', { name: /Délais/ }));
@@ -174,7 +174,7 @@ describe('the notification settings page', () => {
   });
   it('asks to wait when a test comes too soon after the last one', async () => {
     serve();
-    server.use(http.post('*/api/v1/platform/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', title: 'Wait a few seconds before another test.' }, { status: 429 })));
+    server.use(http.post('*/api/v1/platform/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', detail: 'Wait a few seconds before another test.' }, { status: 429 })));
     const { user } = await renderApp('/settings/notifications');
 
     await user.click(await screen.findByRole('button', { name: 'Envoyer un test' }));

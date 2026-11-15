@@ -90,7 +90,7 @@ describe('the account dialog', () => {
   it('shows an envelope already taken on its field', async () => {
     serveBanks([connection()], envelopes);
     server.use(http.patch('*/api/v1/banking/accounts/:id', () =>
-      HttpResponse.json({ status: 409, code: 'banking.envelope_taken', title: 'Taken.' }, { status: 409 })));
+      HttpResponse.json({ status: 409, code: 'banking.envelope_taken', detail: 'Taken.' }, { status: 409 })));
     const { user } = await renderApp('/settings/banks');
 
     await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
@@ -106,7 +106,7 @@ describe('the account dialog', () => {
   it('shows a currency mismatch on the envelope field', async () => {
     serveBanks([connection()], envelopes);
     server.use(http.patch('*/api/v1/banking/accounts/:id', () => HttpResponse.json({
-      status: 422, title: 'Invalid.', errors: [{ path: 'envelopeId', code: 'banking.currency_mismatch', message: 'Mismatch.' }],
+      status: 422, detail: 'Invalid.', errors: [{ detail: 'Mismatch.', pointer: '#/envelopeId', code: 'banking.currency_mismatch' }],
     }, { status: 422 })));
     const { user } = await renderApp('/settings/banks');
 

@@ -160,7 +160,7 @@ describe('Import › sending', () => {
   it('says so when the file is not the one of this import', async () => {
     const fake = fakeImportServer({
       sessions: [session({ state: 'open' })],
-      failWith: (s) => (s === 'persons' ? { status: 409, code: 'import.slot_taken', title: "Batch 0 of 'persons' was already received with other content." } : null),
+      failWith: (s) => (s === 'persons' ? { status: 409, code: 'import.slot_taken', detail: "Batch 0 of 'persons' was already received with other content." } : null),
     });
     server.use(...fake.handlers);
     const { user } = await renderApp(`/import/${SESSION_ID}`);
@@ -174,7 +174,7 @@ describe('Import › sending', () => {
   it('lets another file be chosen when the file is not the one of this import, and keeps the import', async () => {
     const fake = fakeImportServer({
       sessions: [session({ state: 'open' })],
-      failWith: (s) => (s === 'persons' ? { status: 409, code: 'import.slot_taken', title: "Batch 0 of 'persons' was already received with other content." } : null),
+      failWith: (s) => (s === 'persons' ? { status: 409, code: 'import.slot_taken', detail: "Batch 0 of 'persons' was already received with other content." } : null),
     });
     server.use(...fake.handlers);
     const { user, router } = await renderApp(`/import/${SESSION_ID}`);
@@ -190,7 +190,7 @@ describe('Import › sending', () => {
   it('stops at once on a 4xx and shows the server’s reason', async () => {
     const fake = fakeImportServer({
       sessions: [session({ state: 'open' })],
-      failWith: (s) => (s === 'providers' ? { status: 422, code: 'import.section_not_supported', title: "The section 'providers' is not supported yet." } : null),
+      failWith: (s) => (s === 'providers' ? { status: 422, code: 'import.section_not_supported', detail: "The section 'providers' is not supported yet." } : null),
     });
     server.use(...fake.handlers);
     const { user } = await renderApp(`/import/${SESSION_ID}`);

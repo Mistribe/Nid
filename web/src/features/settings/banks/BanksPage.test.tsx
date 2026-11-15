@@ -120,7 +120,7 @@ describe('Réglages › Banques', () => {
       sent.push(await request.json());
       return sent.length === 1
         ? HttpResponse.json({ requested: true }, { status: 202 })
-        : HttpResponse.json({ status: 409, code: 'banking.sync_running', title: 'Running.' }, { status: 409 });
+        : HttpResponse.json({ status: 409, code: 'banking.sync_running', detail: 'Running.' }, { status: 409 });
     }));
     const { user } = await renderApp('/settings/banks');
 

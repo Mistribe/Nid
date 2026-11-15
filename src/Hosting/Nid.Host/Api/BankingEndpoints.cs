@@ -133,7 +133,7 @@ public static class BankingEndpoints
         api.MapPost("/statements", async (HttpRequest request, IInvoker invoker, CancellationToken ct) =>
             {
                 if (!request.HasFormContentType || !request.ContentType!.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
-                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, title: "Upload a multipart/form-data body.");
+                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, detail: "Upload a multipart/form-data body.");
                 var tooLarge = Result.Failure<StatementImportView>(new Failure(BankingCodes.FileTooLarge, "A statement file is at most 5 MiB.", null)).ToHttp(v => v);
                 if (request.ContentLength > StatementReader.MaxBytes + FormSlack)
                     return tooLarge;
@@ -158,24 +158,24 @@ public static class BankingEndpoints
                 }
                 catch (InvalidDataException)
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The multipart body cannot be read.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The multipart body cannot be read.");
                 }
 
                 string? Text(string name) => form.TryGetValue(name, out var v) && v.Count > 0 ? v.ToString() : null;
                 if (form.Files.GetFile("file") is not { } file)
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The file part is required.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The file part is required.");
                 if (file.Length > StatementReader.MaxBytes)
                     return tooLarge;
                 Guid? envelopeId = null;
                 if (Text("envelopeId") is { } rawEnvelope)
                 {
                     if (!Guid.TryParse(rawEnvelope, out var parsed))
-                        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The envelopeId is not a valid identifier.");
+                        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The envelopeId is not a valid identifier.");
                     envelopeId = parsed;
                 }
                 bool? Flag(string name) => Text(name) is not { } raw ? false : bool.TryParse(raw, out var value) ? value : null;
                 if (Flag("confirm") is not { } confirm || Flag("keepProbablyKnown") is not { } keep)
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "confirm and keepProbablyKnown are true or false.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "confirm and keepProbablyKnown are true or false.");
 
                 await using var stream = file.OpenReadStream();
                 var content = new byte[file.Length];

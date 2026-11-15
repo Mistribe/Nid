@@ -69,7 +69,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("projection.invalid_field", problem.GetProperty("code").GetString());
-        Assert.Equal("classRates.equity", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("classRates.equity", problem.GetProperty("errors")[0].FieldPath());
         Assert.Equal("6", (await app.GetAsync<JsonElement>(app.AdultA, Url)).GetProperty("classRates").GetProperty("equity").GetString());
     }
 
@@ -156,7 +156,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal(field, problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal(field, problem.GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("monthlyLivingCost", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("monthlyLivingCost", problem.GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("classVolatility.equity", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("classVolatility.equity", problem.GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
         var errors = problem.GetProperty("errors");
-        Assert.Equal(path, errors[0].GetProperty("path").GetString());
+        Assert.Equal(path, errors[0].FieldPath());
         Assert.Equal(1, errors.GetArrayLength()); // a bad key is refused once, its value unread
     }
 
@@ -297,6 +297,6 @@ public class AssumptionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("classRatesByYear.equity", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("classRatesByYear.equity", problem.GetProperty("errors")[0].FieldPath());
     }
 }

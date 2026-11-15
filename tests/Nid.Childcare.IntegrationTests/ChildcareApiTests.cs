@@ -49,7 +49,7 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var errors = (await JsonAsync(response)).GetProperty("errors").EnumerateArray()
-            .Select(e => (e.GetProperty("path").GetString()!, e.GetProperty("code").GetString()!)).ToList();
+            .Select(e => (e.FieldPath()!, e.GetProperty("code").GetString()!)).ToList();
         foreach (var e in expected) Assert.Contains(e, errors);
     }
 

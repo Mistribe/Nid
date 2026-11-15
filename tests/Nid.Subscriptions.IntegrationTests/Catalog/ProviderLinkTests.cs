@@ -36,7 +36,7 @@ public class ProviderLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
     private static async Task<(HttpStatusCode Status, string? Code, string? Title)> ProblemOf(HttpResponseMessage response)
     {
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
-        return (response.StatusCode, body.GetProperty("code").GetString(), body.GetProperty("title").GetString());
+        return (response.StatusCode, body.GetProperty("code").GetString(), body.GetProperty("detail").GetString());
     }
 
     private static async Task<string?> StoredKeyAsync(NidApp app, ItemId item)

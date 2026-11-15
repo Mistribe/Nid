@@ -94,7 +94,7 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = Assert.Single((await JsonOf(response)).GetProperty("errors").EnumerateArray());
-        Assert.Equal((path, code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal((path, code), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Fact]

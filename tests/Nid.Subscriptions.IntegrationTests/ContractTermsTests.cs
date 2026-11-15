@@ -79,7 +79,7 @@ public class ContractTermsTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("notice", "subscriptions.notice_without_date"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("notice", "subscriptions.notice_without_date"), (error.FieldPath(), error.GetProperty("code").GetString()));
         Assert.Equal(JsonValueKind.Null, (await app.GetAsync<JsonElement>(app.AdultA, Url(id))).GetProperty("contractTerms").ValueKind);
     }
 
@@ -94,7 +94,7 @@ public class ContractTermsTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("notice", "subscriptions.notice_without_date"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("notice", "subscriptions.notice_without_date"), (error.FieldPath(), error.GetProperty("code").GetString()));
         var terms = (await app.GetAsync<JsonElement>(app.AdultA, Url(id))).GetProperty("contractTerms");
         Assert.Equal("2026-03-01", terms.GetProperty("anniversaryOn").GetString());
     }

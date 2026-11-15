@@ -51,7 +51,7 @@ describe('sendBatches', () => {
   });
 
   it('never retries a 4xx', async () => {
-    const conflict = { status: 409, code: 'import.slot_taken', title: 'taken' };
+    const conflict = { status: 409, code: 'import.slot_taken', detail: 'taken' };
     const { put, calls } = scripted([() => failed(conflict)]);
     const outcome = await sendBatches({ batches, start: 0, put, onSent: () => {}, ...noSleep });
     expect(outcome).toEqual({ kind: 'failed', problem: conflict, refused: [] });

@@ -315,7 +315,7 @@ describe('TaxPage', () => {
   it('leaves a refused save’s message behind on another year already loaded', async () => {
     server.use(
       http.get('*/api/v1/tax', ({ request }) => HttpResponse.json({ ...estimate(), year: Number(new URL(request.url).searchParams.get('year')) })),
-      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, title: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
+      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, detail: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
     );
     const { user } = await renderApp('/tax?tab=profile');
 
@@ -488,7 +488,7 @@ describe('TaxPage', () => {
   it('keeps the draft when the server refuses the profile', async () => {
     server.use(
       http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
-      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, title: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
+      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, detail: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
     );
     const { user } = await renderApp('/tax?tab=profile');
 

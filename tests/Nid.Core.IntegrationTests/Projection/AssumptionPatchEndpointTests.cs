@@ -118,7 +118,7 @@ public class AssumptionPatchEndpointTests(PostgresFixture fixture) : IClassFixtu
 
         var errors = await RefusedAsync(app, new { profile = "prudent", classRates = new { equity = "7" } });
 
-        Assert.Equal("profile", errors[0].GetProperty("path").GetString());
+        Assert.Equal("profile", errors[0].FieldPath());
         Assert.Equal("balanced", (await app.GetAsync<JsonElement>(app.AdultA, Url)).GetProperty("profile").GetString());
     }
 
@@ -127,7 +127,7 @@ public class AssumptionPatchEndpointTests(PostgresFixture fixture) : IClassFixtu
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        Assert.Equal("profile", (await RefusedAsync(app, new { profile = "reckless" }))[0].GetProperty("path").GetString());
+        Assert.Equal("profile", (await RefusedAsync(app, new { profile = "reckless" }))[0].FieldPath());
     }
 
     [Theory]
@@ -141,7 +141,7 @@ public class AssumptionPatchEndpointTests(PostgresFixture fixture) : IClassFixtu
 
         var errors = await RefusedAsync(app, JsonSerializer.Deserialize<JsonElement>(body));
 
-        Assert.Equal(path, errors[0].GetProperty("path").GetString());
+        Assert.Equal(path, errors[0].FieldPath());
     }
 
     [Fact]

@@ -95,8 +95,8 @@ describe('Abonnements › conditions du contrat', () => {
 
   it('shows a refusal of the notice on its field', async () => {
     serve(detail(), () => HttpResponse.json({
-      status: 422, code: 'subscriptions.notice_without_date', title: 'A notice needs an anniversary or an end of commitment.',
-      errors: [{ path: 'notice', code: 'subscriptions.notice_without_date', message: 'A notice needs an anniversary or an end of commitment.' }],
+      status: 422, code: 'subscriptions.notice_without_date', detail: 'A notice needs an anniversary or an end of commitment.',
+      errors: [{ detail: 'A notice needs an anniversary or an end of commitment.', pointer: '#/notice', code: 'subscriptions.notice_without_date' }],
     }, { status: 422 }));
     const { user } = await renderApp(`/subscriptions/${SUB}`);
     const form = await openDialog(user);

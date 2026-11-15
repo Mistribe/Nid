@@ -114,7 +114,7 @@ public partial class LocalAccountsTests(PostgresFixture postgres) : IClassFixtur
         Assert.Equal(HttpStatusCode.Unauthorized, unknown.StatusCode);
         Assert.Equal(unknown.StatusCode, wrong.StatusCode);
         var (a, b) = (await unknown.Content.ReadFromJsonAsync<JsonElement>(Ct), await wrong.Content.ReadFromJsonAsync<JsonElement>(Ct));
-        Assert.Equal(a.GetProperty("title").GetString(), b.GetProperty("title").GetString());
+        Assert.Equal(a.GetProperty("detail").GetString(), b.GetProperty("detail").GetString());
         Assert.Equal("auth.invalid_credentials", b.GetProperty("code").GetString());
         var failed = await host.EventsAsync(SecurityEventNames.LoginFailed);
         Assert.Contains(failed, e => e.Data.Contains("unknown_login"));

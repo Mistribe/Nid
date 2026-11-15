@@ -254,7 +254,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         var refused = await app.RawContentAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household",
             new StringContent("{\"bankRetentionMonths\":601}", System.Text.Encoding.UTF8, "application/json"));
         await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, PersonCodes.InvalidBankRetention);
-        Assert.Equal("bankRetentionMonths", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("bankRetentionMonths", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
         Assert.Equal(JsonValueKind.Null, (await PatchAsync("{\"clearBankRetention\":true}")).GetProperty("bankRetentionMonths").ValueKind);
     }
 }
