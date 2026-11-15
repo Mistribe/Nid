@@ -71,8 +71,6 @@ public static class ProblemMapping
             IncomeCodes.SourceEnded,
             ChildcareCodes.StatementValidated, // a week of a validated month names its field (monday)
             GoalsCodes.ShareExceeded, // a goal's funding line names its field (funding[i].shareBp)
-            LoanCodes.LoanConflict, LoanCodes.FeeConflict, LoanCodes.RepaymentConflict,
-            PropertyCodes.PropertyConflict, PropertyCodes.RecurringCostConflict, PropertyCodes.TenancyConflict,
             TaxAssessmentCodes.Conflict, ProposalCodes.Conflict, ProposalCodes.Decided,
             ItemCodes.InUse, ItemCodes.Changed, PersonCodes.PersonInUse,
             DocumentsCodes.AlreadyLinked, DocumentsCodes.SourceRefTaken,
