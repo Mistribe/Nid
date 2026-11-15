@@ -118,13 +118,13 @@ public static class ChildcareMonth
                 : deductedDays == 0 ? mensualisedDays
                 : (int)Math.Ceiling((decimal)mensualisedDays * (templateDays - deductedDays) / templateDays));
         // #26: the hours the pay at the normal rate stands for, mensualised less deducted, extra hours apart: the hour
-        // the extra minutes round up to is not taken back out of them (142.5 h and 40 min extra declare 143 h + 1 h).
+        // the extra minutes round up to is not taken back out of them (142.5 h and 40 min extra declare 142 h + 1 h).
         // Pajemploi takes one rate per declaration: two rates in a month declare the hours each part stands for, summed.
         var normalHours = input.Declared?.NormalHours
             ?? Math.Max(0, runs.Count == 1
                 ? Mensualisation.NormalHours(basePay - deduction + leavePay + regularisation, input.Terms.NetHourlyRate)
-                : (int)Math.Round(runs.Select((r, i) => (basePays[i] - deductions[i]) / r.Terms.NetHourlyRate).Sum()
-                    + (leavePay + regularisation) / last.NetHourlyRate, MidpointRounding.AwayFromZero));
+                : Mensualisation.WholeHoursDown(runs.Select((r, i) => (basePays[i] - deductions[i]) / r.Terms.NetHourlyRate).Sum()
+                    + (leavePay + regularisation) / last.NetHourlyRate));
         // Art. 121: the indemnity's base is every salary of the contract, this month's and the leave indemnity included.
         var rupture = input.Ending is { } ending && EndOfContract.IndemnityDue(ending.Reason, input.Terms.Start, ending.Notified)
             ? EndOfContract.RuptureIndemnity(ending.NetPayBefore + netPay + leaveIndemnity,

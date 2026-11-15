@@ -71,7 +71,7 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal("Martine", summary.GetProperty("carerName").GetString());
         Assert.True(summary.GetProperty("canWrite").GetBoolean());
         var terms = Assert.Single(detail.GetProperty("terms").EnumerateArray());
-        Assert.Equal(146, terms.GetProperty("normalHours").GetInt32());
+        Assert.Equal(145, terms.GetProperty("normalHours").GetInt32());
         Assert.Equal("08:00", terms.GetProperty("weekTypes")[0].GetProperty("schedule")[0].GetProperty("arrival").GetString());
         Assert.Equal(6, detail.GetProperty("gapWeeksToPlace").GetInt32());
         Assert.Single((await GetAsync(app, app.AdultA, $"{Url}?scope=household")).GetProperty("items").EnumerateArray());

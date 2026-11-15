@@ -30,7 +30,7 @@ public class MonthAssemblerTests
         // 1.5 h extra paid as worked, declared as 2 h, the normal hours left to the pay at the normal rate.
         Assert.Equal(598.02m, figures.Declaration.NetPay);
         Assert.Equal(2m, figures.Declaration.ComplementaryHours);
-        Assert.Equal(138, figures.Declaration.NormalHours); // (598.02 − 1.5 × 4.30) ÷ 4.30 = 137.57
+        Assert.Equal(137, figures.Declaration.NormalHours); // (598.02 − 1.5 × 4.30) ÷ 4.30 = 137.57
         Assert.Equal(16, figures.Declaration.ActivityDays); // 16 × 17 ÷ 18 = 15.11, rounded up
     }
 
@@ -81,7 +81,7 @@ public class MonthAssemblerTests
         Assert.Equal(oldBase + newBase, figures.BasePay);
         Assert.Equal(deduction, figures.Deduction);
         Assert.Equal(ExtraHours.Pay(2m, 0m, 4.50m, 0.10m), figures.ExtraPay);
-        Assert.Equal((int)Math.Round((oldBase - deduction) / 4.30m + newBase / 4.50m, MidpointRounding.AwayFromZero), figures.Declaration.NormalHours);
+        Assert.Equal((int)Math.Floor((oldBase - deduction) / 4.30m + newBase / 4.50m), figures.Declaration.NormalHours);
         Assert.NotEqual(Mensualisation.BasePay(4.30m, annual), figures.BasePay);
     }
 

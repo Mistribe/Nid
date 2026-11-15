@@ -18,10 +18,16 @@ public static class Mensualisation
 
     public static decimal BasePay(decimal netHourlyRate, decimal annualHours) => Round(netHourlyRate * annualHours / 12m);
 
-    public static int NormalHours(decimal annualHours) => (int)Math.Round(annualHours / 12m, MidpointRounding.AwayFromZero);
+    public static int NormalHours(decimal annualHours) => WholeHoursDown(annualHours / 12m);
 
     /// <summary>The normal hours of a reduced month (Urssaf, salaire minoré): the pay due over the contract's hourly rate.</summary>
-    public static int NormalHours(decimal payDue, decimal netHourlyRate) => (int)Math.Round(payDue / netHourlyRate, MidpointRounding.AwayFromZero);
+    public static int NormalHours(decimal payDue, decimal netHourlyRate) => WholeHoursDown(payDue / netHourlyRate);
+
+    /// <summary>
+    /// #225: the payroll tools declare the normal hours cut to the whole hour (142.5 h as 142, 263.51 h as 263). Rounded to the
+    /// minute first, so a pay rounded to the cent (139.9995 h) does not lose an hour.
+    /// </summary>
+    public static int WholeHoursDown(decimal hours) => (int)Math.Floor(Math.Round(hours * 60m) / 60m);
 
     /// <summary>The Pajemploi activity days of a month: the year's days over twelve.</summary>
     public static int ActivityDays(IReadOnlyList<WeekType> types)

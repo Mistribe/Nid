@@ -94,7 +94,7 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         var figures = month.GetProperty("figures");
         var declaration = figures.GetProperty("declaration");
         Assert.Equal("626.37", declaration.GetProperty("netPay").GetString());
-        Assert.Equal(146, declaration.GetProperty("normalHours").GetInt32());
+        Assert.Equal(145, declaration.GetProperty("normalHours").GetInt32());
         Assert.Equal(16, declaration.GetProperty("activityDays").GetInt32());
         Assert.True(figures.GetProperty("costBeforeCmg").GetBoolean());
         Assert.Equal(0u, month.GetProperty("version").GetUInt32());
@@ -142,7 +142,7 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Contains(month.GetProperty("days").EnumerateArray(), d => d.GetProperty("absence").GetString() == "family");
         // #32: Nid's own figures stay beside the ones entered by hand.
         Assert.Equal(120, month.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
-        Assert.Equal(146, month.GetProperty("computed").GetProperty("normalHours").GetInt32());
+        Assert.Equal(145, month.GetProperty("computed").GetProperty("normalHours").GetInt32());
 
         Assert.Equal(HttpStatusCode.OK, (await ValidateAsync(app, url)).StatusCode);
         var frozen = await GetAsync(app, url);
@@ -153,7 +153,7 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(120, declaration.GetProperty("normalHours").GetInt32());
         Assert.Equal(11, declaration.GetProperty("activityDays").GetInt32());
         Assert.Equal("600.00", frozen.GetProperty("declared").GetProperty("netPay").GetString());
-        Assert.Equal(146, frozen.GetProperty("computed").GetProperty("normalHours").GetInt32());
+        Assert.Equal(145, frozen.GetProperty("computed").GetProperty("normalHours").GetInt32());
     }
 
     /// <summary>#32: clearing the fields entered by hand brings the month back to Nid's figures.</summary>
@@ -166,7 +166,7 @@ public class ChildcareStatementTests(PostgresFixture fixture) : IClassFixture<Po
         var saved = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", version = 0u, declared = new { normalHours = 120 } }));
         Assert.Equal(120, saved.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
         var cleared = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", version = saved.GetProperty("version").GetUInt32() }));
-        Assert.Equal(146, cleared.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
+        Assert.Equal(145, cleared.GetProperty("figures").GetProperty("declaration").GetProperty("normalHours").GetInt32());
         Assert.Equal(cleared.GetProperty("figures").GetProperty("declaration").ToString(), cleared.GetProperty("computed").ToString());
     }
 
