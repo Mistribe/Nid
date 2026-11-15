@@ -104,7 +104,7 @@ public sealed class EditGoalHandler(
             return Result.Failure<ItemId>(failure!);
         // Checked here too: an edit that leaves the goal row as it is writes nothing, so the store's token would not see it.
         if (goal.Version != command.Version)
-            return Result.Failure<ItemId>(new Failure(GoalsCodes.Conflict, "The goal changed since it was read.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("The goal changed since it was read.") { Code = GoalsCodes.Conflict });
 
         var today = await calendar.TodayAsync(ct);
         var funding = command.Funding ?? [];
@@ -187,7 +187,7 @@ public sealed class ReopenGoalHandler(
             return Result.Failure<ItemId>(failure!);
         loaded.TryGetValue(out var found);
         if (found.Item.ArchivedAt is null)
-            return Result.Failure<ItemId>(new Failure(GoalsCodes.GoalOpen, "This goal is not closed.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("This goal is not closed.") { Code = GoalsCodes.GoalOpen });
 
         var person = actor.Current!.PersonId!.Value;
         var stored = await goals.FundingOfAsync([command.ItemId], ct);
