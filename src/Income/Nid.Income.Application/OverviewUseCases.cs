@@ -90,8 +90,8 @@ public sealed class GetIncomeOverviewHandler(
         var reader = actor.Current!.PersonId!.Value;
         var today = await calendar.TodayAsync(ct);
         if (query.Year is { } y && (query.Period != OverviewPeriod.Year || y > today.Year || y < today.Year - IIncomeReview.MaxYears))
-            return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.InvalidYear,
-                $"A year goes with the period year, between {today.Year - IIncomeReview.MaxYears} and {today.Year}.", null));
+            return Result.Failure<IncomeOverview>(new BadRequestFailure(
+                $"A year goes with the period year, between {today.Year - IIncomeReview.MaxYears} and {today.Year}.") { Code = IncomeCodes.InvalidYear });
         var window = OverviewMath.Window(query.Period, query.Year is { } year ? new LocalDate(year, 1, 1) : today);
         // Wide enough for every month's previous year and the previous window's total.
         var loaded = await overviewEntries.ReadAsync(reader, query.Scope, query.Person is { } p ? new PersonId(p) : null, query.Kind, query.Source,

@@ -24,7 +24,8 @@ namespace Nid.Host.Api;
 /// request…), unless its code is listed below; a plain <see cref="Failure"/> is a rule's refusal, 422.
 /// A refusal that names no field is typed where it is made (<c>new ConflictFailure("…") { Code = … }</c>) and has no
 /// entry here. One that names a field stays a field error, so that its <c>errors</c> list is written, and keeps its status
-/// here (Investments: a closed holding, a snapshot date taken, a transfer leg, an income category, shares off 100 %, a holding with no market exposure).
+/// here (Investments: a closed holding, a snapshot date taken, a transfer leg, an income category, shares off 100 %, a holding
+/// with no market exposure; Income: a one-off income dated after its source ended).
 /// </summary>
 public static class ProblemMapping
 {
@@ -48,7 +49,7 @@ public static class ProblemMapping
             LocalAccountCodes.PasswordTooCommon, LocalSignIn.CurrentPasswordWrong, LocalSignIn.InvalidCode,
             FxCodes.InvalidRate, FxCodes.InvalidRange, SeriesCodes.InvalidKey, ExportCodes.BadCursor,
             InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.TransferLeg, BreakdownCodes.Not100, BreakdownCodes.NotMarket,
-            IncomeCodes.InvalidPeriod, IncomeCodes.InvalidYear, ReportCodes.InvalidYear,
+            ReportCodes.InvalidYear,
             DocumentsCodes.InvalidField, DocumentsCodes.InvalidRole, DocumentsCodes.UnknownTargetKind);
         Map(options, StatusCodes.Status400BadRequest, [.. ImportCodes.BadRequests]);
 
@@ -67,7 +68,7 @@ public static class ProblemMapping
             ExportCodes.RevisionChanged,
             CoreFactCodes.FactRetired, CoreFactCodes.OpeningExists, CoreFactCodes.ExternalRefTaken, CoreFactCodes.FactConflict,
             InvestmentsCodes.HoldingClosed, InvestmentsCodes.SnapshotExists,
-            IncomeCodes.SourceEnded, IncomeCodes.SourceOpen, IncomeCodes.PhaseConflict,
+            IncomeCodes.SourceEnded,
             ChildcareCodes.Closed, ChildcareCodes.Open, ChildcareCodes.Conflict, ChildcareCodes.StatementValidated,
             ChildcareCodes.StatementIncomplete, ChildcareCodes.NextValidated, ChildcareCodes.PreviousNotValidated,
             ChildcareCodes.StatementConflict,

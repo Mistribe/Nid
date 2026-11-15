@@ -63,7 +63,7 @@ internal static class OpenSource
             : PhaseRules.NoOverlap(d.Label.Trim(), d.StartsOn, d.EndsOn, d.Every, d.MaxCycles, others);
 
     public static Failure Conflict()
-        => new(IncomeCodes.PhaseConflict, "Someone else changed this phase since you read it; read it again.", null);
+        => new ConflictFailure("Someone else changed this phase since you read it; read it again.") { Code = IncomeCodes.PhaseConflict };
 
     public static Failure Missing(Guid phase) => new NotFoundFailure("income phase", phase.ToString());
 }
@@ -233,8 +233,8 @@ public sealed class GetIncomeExpectedHandler(IItemRegistry items, ISourceStore s
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<IncomeExpected>(failure!);
         if (query.From > query.To || query.To >= query.From.PlusYears(MaxYears))
-            return Result.Failure<IncomeExpected>(new Failure(IncomeCodes.InvalidPeriod,
-                $"A period starts on or before its end and covers at most {MaxYears} years.", null));
+            return Result.Failure<IncomeExpected>(new BadRequestFailure(
+                $"A period starts on or before its end and covers at most {MaxYears} years.") { Code = IncomeCodes.InvalidPeriod });
         loaded.TryGetValue(out var source);
         var currency = SourceCheck.CurrencyOf(source.Item);
 

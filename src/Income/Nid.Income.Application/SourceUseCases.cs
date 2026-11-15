@@ -159,7 +159,7 @@ public sealed class GetIncomeSourceHandler(
             ? DateRange.Create(today.PlusYears(-1), today.PlusDays(1))
             : DateRange.Create(query.From ?? LocalDate.MinIsoValue, query.To?.PlusDays(1));
         if (!window.TryGetValue(out var range))
-            return Result.Failure<IncomeSourceDetail>(new Failure(IncomeCodes.InvalidPeriod, "A period starts on or before its end.", null));
+            return Result.Failure<IncomeSourceDetail>(new BadRequestFailure("A period starts on or before its end.") { Code = IncomeCodes.InvalidPeriod });
         var oneOffs = await OneOffsAsync(flows, query.ItemId, range!, ct);
         if (oneOffs.TryGetFailure(out failure))
             return Result.Failure<IncomeSourceDetail>(failure!);
